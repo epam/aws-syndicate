@@ -102,3 +102,46 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+.DS_Store
+# Package Files #
+*.jar
+*.war
+*.ear
+
+# IDE garbage
+*.iml
+**/*.iml
+*.ipr
+**/*.ipr
+*.iws
+**/*.iws
+*.project
+*.classpath
+
+# virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
+hs_err_pid*
+
+# Ignore idea settings
+.idea/
+**/*/*.iml
+**/.idea/*
+out/
+build/*
+
+
+__pycache__
+**/__pycache__
+*.pyc
+
+AwsCredentials.properties
+
+*.log
+
+.cache
+syndicate.egg-info
+sdct.conf
+sdct_aliases.conf
+
+src/.pycharmrc
+**/venv/*
