@@ -8,7 +8,6 @@ __pycache__/
 
 # Distribution / packaging
 .Python
-build/
 develop-eggs/
 dist/
 downloads/
@@ -140,8 +139,6 @@ AwsCredentials.properties
 
 .cache
 syndicate.egg-info
-sdct.conf
-sdct_aliases.conf
 
 src/.pycharmrc
 **/venv/*
