@@ -16,6 +16,7 @@
 import time
 
 from botocore.exceptions import ClientError
+
 from commons.log_helper import get_logger
 from core import CONFIG, CONN
 from core.helper import create_pool, unpack_kwargs
@@ -58,7 +59,7 @@ _DEFAULT_RESPONSES = {
         },
         {
             "status_code": "400",
-            "lambda_error_regex": ".*ERROR_CODE\\\": 400.*",
+            "error_regex": ".*ERROR_CODE\\\": 400.*",
             'response_templates': {
                 'application/json': '#set ($errorMessageObj = $util.parseJson('
                                     '$input.path(\'$.errorMessage\')))'
@@ -67,7 +68,7 @@ _DEFAULT_RESPONSES = {
         },
         {
             "status_code": "401",
-            "lambda_error_regex": ".*ERROR_CODE\\\": 401.*",
+            "error_regex": ".*ERROR_CODE\\\": 401.*",
             'response_templates': {
                 'application/json': '#set ($errorMessageObj = $util.parseJson('
                                     '$input.path(\'$.errorMessage\')))'
@@ -76,7 +77,7 @@ _DEFAULT_RESPONSES = {
         },
         {
             "status_code": "403",
-            "lambda_error_regex": ".*ERROR_CODE\\\": 403.*",
+            "error_regex": ".*ERROR_CODE\\\": 403.*",
             'response_templates': {
                 'application/json': '#set ($errorMessageObj = $util.parseJson('
                                     '$input.path(\'$.errorMessage\')))'
@@ -85,7 +86,7 @@ _DEFAULT_RESPONSES = {
         },
         {
             "status_code": "404",
-            "lambda_error_regex": ".*ERROR_CODE\\\": 404.*",
+            "error_regex": ".*ERROR_CODE\\\": 404.*",
             'response_templates': {
                 'application/json': '#set ($errorMessageObj = $util.parseJson('
                                     '$input.path(\'$.errorMessage\')))'
@@ -94,7 +95,7 @@ _DEFAULT_RESPONSES = {
         },
         {
             "status_code": "406",
-            "lambda_error_regex": ".*ERROR_CODE\\\": 406.*",
+            "error_regex": ".*ERROR_CODE\\\": 406.*",
             'response_templates': {
                 'application/json': '#set ($errorMessageObj = $util.parseJson('
                                     '$input.path(\'$.errorMessage\')))'
@@ -103,7 +104,7 @@ _DEFAULT_RESPONSES = {
         },
         {
             "status_code": "500",
-            "lambda_error_regex": ".*ERROR_CODE\\\": 500.*",
+            "error_regex": ".*ERROR_CODE\\\": 500.*",
             'response_templates': {
                 'application/json': '#set ($errorMessageObj = $util.parseJson('
                                     '$input.path(\'$.errorMessage\')))'
@@ -112,7 +113,7 @@ _DEFAULT_RESPONSES = {
         },
         {
             "status_code": "503",
-            "lambda_error_regex": ".*ERROR_CODE\\\": 503.*",
+            "error_regex": ".*ERROR_CODE\\\": 503.*",
             'response_templates': {
                 'application/json': '#set ($errorMessageObj = $util.parseJson('
                                     '$input.path(\'$.errorMessage\')))'
@@ -369,7 +370,7 @@ def _create_method_from_metadata(api_id, resource_id, resource_path, method,
         for each in integr_resp:
             _API_GATEWAY_CONN.create_integration_response(
                 api_id, resource_id, method, each.get('status_code'),
-                each.get('lambda_error_regex'),
+                each.get('error_regex'),
                 each.get('response_parameters'),
                 each.get('response_templates'), enable_cors)
     else:

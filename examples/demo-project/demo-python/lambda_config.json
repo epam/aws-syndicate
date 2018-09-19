@@ -1,7 +1,6 @@
 {
     "version": "1.0",
     "name": "put_dynamodb_item",
-    "file_name": "handler.py",
     "func_name": "handler.lambda_handler",
     "resource_type": "lambda",
     "iam_role_name": "PutItemToDynamoRole",

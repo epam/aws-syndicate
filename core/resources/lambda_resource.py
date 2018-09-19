@@ -52,8 +52,7 @@ def describe_lambda(name, meta, response):
 
 @unpack_kwargs
 def _create_lambda_from_meta(name, meta):
-    req_params = ['iam_role_name', 'runtime', 'memory', 'timeout',
-                  'func_name', 'name']
+    req_params = ['iam_role_name', 'runtime', 'memory', 'timeout', 'func_name']
 
     # Lambda configuration
     validate_params(name, meta, req_params)
