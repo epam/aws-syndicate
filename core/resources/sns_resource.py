@@ -152,21 +152,24 @@ def _remove_sns_topic(arn, config):
 
 
 @unpack_kwargs
-def _create_platform_application_from_meta(name, meta, region=None):
+def _create_platform_application_from_meta(name, meta, region):
+    required_parameters = ['platform', 'attributes']
+    validate_params(name, meta, required_parameters)
     arn = CONN.sns(region).get_platform_application(name)
     if arn:
         _LOG.warn('{0} SNS platform application exists in region {1}.'.format(
             name, region))
         return _describe_sns_application(arn, name, meta, region)
-    platform = meta.get('platform')
-    attributes = meta.get('attributes')
+    platform = meta['platform']
+    atrbts = meta['attributes']
     try:
-        arn = CONN.sns(region).create_platform_application(
-            name=name, platform=platform, attributes=attributes)
+        arn = CONN.sns(region).create_platform_application(name=name,
+                                                           platform=platform,
+                                                           attributes=atrbts)
     except ClientError as e:
         exception_type = e.response['Error']['Code']
         if exception_type == 'InvalidParameterException':
-            _LOG.warn('SNS application %s is already existed.', name)
+            _LOG.warn('SNS application %s is already exist.', name)
         else:
             raise e
     _LOG.info('SNS platform application %s in region %s has been created.',

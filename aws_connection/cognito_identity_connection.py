@@ -13,9 +13,10 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+from boto3 import client
+
 from aws_connection.helper import apply_methods_decorator, retry
 from aws_connection.iam_connection import IAMConnection
-from boto3 import client
 from commons.log_helper import get_logger
 
 _LOG = get_logger('aws_connection.cognito_identity_connection')
@@ -37,7 +38,7 @@ class CognitoIdentityConnection(object):
                              aws_session_token=aws_session_token)
         _LOG.debug('Opened new Cognito identity connection.')
 
-    def create_identity_pool(self, pool_name, provider_name,
+    def create_identity_pool(self, pool_name, provider_name=None,
                              allow_unauthenticated=False, login_providers=None,
                              open_id_connect_provider_arns=None,
                              cognito_identity_providers=None,
@@ -53,8 +54,9 @@ class CognitoIdentityConnection(object):
         :type saml_provider_arns: list
         """
         params = dict(IdentityPoolName=pool_name,
-                      AllowUnauthenticatedIdentities=allow_unauthenticated,
-                      DeveloperProviderName=provider_name)
+                      AllowUnauthenticatedIdentities=allow_unauthenticated)
+        if provider_name:
+            params['DeveloperProviderName'] = provider_name
         if login_providers:
             params['SupportedLoginProviders'] = login_providers
         if open_id_connect_provider_arns:

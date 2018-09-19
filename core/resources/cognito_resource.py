@@ -18,7 +18,7 @@ from botocore.exceptions import ClientError
 from commons.log_helper import get_logger
 from core import CONFIG, CONN
 from core.helper import create_pool, unpack_kwargs
-from core.resources.helper import build_description_obj, validate_params
+from core.resources.helper import build_description_obj
 
 _LOG = get_logger('core.resources.cognito_identity_resource')
 _COGNITO_IDENTITY_CONN = CONN.cognito_identity()
@@ -52,22 +52,20 @@ def _create_cognito_identity_pool_from_meta(name, meta):
     :type name: str
     :type meta: dict
     """
-    required_parameters = ['provider_name']
-    validate_params(name, meta, required_parameters)
     pool_id = _COGNITO_IDENTITY_CONN.if_pool_exists_by_name(name)
     if pool_id:
         _LOG.warn('%s cognito identity pool exists.', name)
         return _describe_cognito_pool(pool_id, name, meta)
 
     _LOG.info('Creating identity pool %s', name)
-    open_id_provider_names = meta['open_id_providers']
+    open_id_provider_names = meta.get('open_id_providers', [])
     open_id_arns = map(lambda n: 'arn:aws:iam::{0}:oidc-provider/{1}'.format(
         CONFIG.account_id, n), open_id_provider_names)
     pool_id = _COGNITO_IDENTITY_CONN.create_identity_pool(
-        pool_name=name, provider_name=meta['provider_name'],
+        pool_name=name, provider_name=meta.get('provider_name'),
         open_id_connect_provider_arns=open_id_arns)
     auth_role = meta.get('auth_role')
-    unauth_role = meta.get('auth_role')
+    unauth_role = meta.get('unauth_role')
     if auth_role or unauth_role:
         _COGNITO_IDENTITY_CONN.set_role(pool_id, auth_role, unauth_role)
     _LOG.info('Created cognito identity pool %s', pool_id)
