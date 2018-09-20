@@ -1,6 +1,7 @@
+
 # aws-syndicate - AWS deployment framework for serveless applications
-==================================
-AWS-Syndicate is an Amazon Web Services deployment framework written in Python, which allows to easily deploy serverless applications to using resource descriptions. The framework allows to work with applications that engage the following AWS services:
+
+aws-syndicate is an Amazon Web Services deployment framework written in Python, which allows to easily deploy serverless applications to using resource descriptions. The framework allows to work with applications that engage the following AWS services:
 
 * API Gateway
 
@@ -38,17 +39,13 @@ To successfully setup and use the Syndicate, you need the following software to 
 
 First, install the framework:
 
-.. code-block:: sh
-
     $ pip install .
 
-Next, set up a Syndicate Java `plugin <https://github.com/epam/aws-syndicate/tree/master/plugin>`__:
-
-.. code-block:: sh
+Next, set up a Syndicate Java **[plugin](https://github.com/epam/aws-syndicate/tree/master/plugin)**:
 
     $ mvn install
 
-Next, set up a configuration file `sdct.conf <https://github.com/epam/aws-syndicate/blob/master/examples/demo-config/sdct.conf>`__:
+Next, set up a configuration file **[sdct.conf](https://github.com/epam/aws-syndicate/blob/master/examples/demo-config/sdct.conf)**:
 
 .. code-block:: ini
 
@@ -71,15 +68,13 @@ Next, set up a configuration file `sdct.conf <https://github.com/epam/aws-syndic
 	# build configuration
 	build_projects_mapping=mvn:/demo-java;python:/demo-python
 
-FOLDER_PATH - replace with absolute path to the folder **examples/demo-project**
+FOLDER_PATH - replace with absolute path to the folder examples/demo-project
 ACCOUNT_ID - replace with your AWS account id
-REGION_NAME - replace with region name where infrastructure will be deployed (for example, **eu-central-1**)
+REGION_NAME - replace with region name where infrastructure will be deployed
 BUCKET_NAME - replace with S3 bucket name which will be used as a storage for framework artifacts (bucket name must be unique across all AWS accounts)
 ACCESS_KEY_ID and SECRET_ACCESS_KEY - replace with AWS credentials for user with admin permissions
 
-Then, set up an aliases file `sdct_aliases.conf <https://github.com/epam/aws-syndicate/blob/master/examples/demo-config/sdct_aliases.conf>`__:
-
-.. code-block:: ini
+Then, set up an aliases file **[sdct_aliases.conf](https://github.com/epam/aws-syndicate/blob/master/examples/demo-config/sdct_aliases.conf)**:
 
     region=REGION_NAME
 	notification_bucket=BUCKET_NAME
@@ -91,15 +86,12 @@ REGION_NAME - replace with region name where infrastructure will be deployed
 
 Then, set up an environment variable **SDCT_CONF**:
 
-.. code-block:: sh
-
     export SDCT_CONF=FOLDER_PATH
 
 FOLDER_PATH - absolute path to the folder where are located files **sdct.conf** and **sdct_aliases.conf**
 
 Deployment
------------
-
+------------
 Demo application consists of the following infrastructure:
 *  2 IAM roles
 * 3 IAM policies
@@ -110,19 +102,13 @@ Demo application consists of the following infrastructure:
 
 Create a S3 bucket for aws-syndicate artifacts:
 
-.. code-block:: sh
-
     $ syndicate create_deploy_target_bucket
 
 Next, build aws-syndicate bundle with artifacts to be deployed:
 
-.. code-block:: sh
-
     $ syndicate build_bundle --bundle_name demo-deploy
 
 Then, deploy AWS resources:
-
-.. code-block:: sh
 
     $ syndicate deploy --bundle_name demo-deploy –deploy_name sdct-example
 
@@ -131,8 +117,6 @@ We have done it!
 Demo serverless application is ready to be used.
 
 If you need to clean AWS resources:
-
-.. code-block:: sh
 
     $ syndicate clean --bundle_name demo-deploy –deploy_name sdct-example
 
