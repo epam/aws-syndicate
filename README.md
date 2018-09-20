@@ -1,7 +1,7 @@
 
 # AWS deployment framework for serveless applications
 
-aws-syndicate is an Amazon Web Services deployment framework written in Python, which allows to easily deploy serverless applications to using resource descriptions. The framework allows to work with applications that engage the following AWS services:
+aws-syndicate is an Amazon Web Services deployment framework written in Python, which allows to easily deploy serverless applications using resource descriptions. The framework allows to work with applications that engage the following AWS services:
 
 * API Gateway
 
@@ -66,7 +66,7 @@ Next, set up a configuration file **[sdct.conf](https://github.com/epam/aws-synd
 	# build configuration
 	build_projects_mapping=mvn:/demo-java;python:/demo-python
 
-FOLDER_PATH - replace with absolute path to the folder examples/demo-project <br/> ACCOUNT_ID - replace with your AWS account id <br/> REGION_NAME - replace with region name where infrastructure will be deployed <br/> BUCKET_NAME - replace with S3 bucket name which will be used as a storage for framework artifacts (bucket name must be unique across all AWS accounts) <br/> ACCESS_KEY_ID and SECRET_ACCESS_KEY - replace with AWS credentials for user with admin permissions
+FOLDER_PATH - replace with absolute path to the folder **examples/demo-project** <br/> ACCOUNT_ID - replace with your AWS account id <br/> REGION_NAME - replace with region name where infrastructure will be deployed <br/> BUCKET_NAME - replace with an S3 bucket name which will be used as a storage for framework artifacts (bucket name must be unique across all AWS accounts) <br/> ACCESS_KEY_ID and SECRET_ACCESS_KEY - replace with AWS credentials for user with admin permissions
 
 Then, set up an aliases file **[sdct_aliases.conf](https://github.com/epam/aws-syndicate/blob/master/examples/demo-config/sdct_aliases.conf)**:
 
@@ -74,7 +74,7 @@ Then, set up an aliases file **[sdct_aliases.conf](https://github.com/epam/aws-s
 	notification_bucket=BUCKET_NAME
 	account_id=ACCOUNT_ID
 
-ACCOUNT_ID - replace with your AWS account id <br/> BUCKET_NAME - replace S3 bucket name which will be used in demo application (bucket name must be unique across all AWS accounts) <br/> REGION_NAME - replace with region name where infrastructure will be deployed
+ACCOUNT_ID - replace with your AWS account id <br/> BUCKET_NAME - replace with an S3 bucket name which will be used in demo application (bucket name must be unique across all AWS accounts) <br/> REGION_NAME - replace with region name where infrastructure will be deployed
 
 Then, set up an environment variable **SDCT_CONF**:
 
@@ -84,7 +84,7 @@ FOLDER_PATH - absolute path to the folder where are located files **sdct.conf** 
 
 Deployment
 ------------
-Demo application consists of the following infrastructure:
+The demo application consists of the following infrastructure:
 *  2 IAM roles
 * 3 IAM policies
 * 1 DynamoDB table
@@ -92,7 +92,7 @@ Demo application consists of the following infrastructure:
 * 2 lambdas
 * 1 API Gateway
 
-Create a S3 bucket for aws-syndicate artifacts:
+Create an S3 bucket for aws-syndicate artifacts:
 
     $ syndicate create_deploy_target_bucket
 
@@ -106,7 +106,7 @@ Then, deploy AWS resources:
 
 We have done it!
 
-Demo serverless application is ready to be used.
+The demo serverless application is ready to be used.
 
 If you need to clean AWS resources:
 
