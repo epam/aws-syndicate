@@ -116,4 +116,4 @@ If you need to clean AWS resources:
 Getting Help
 ------------
 
-We use GitHub issues for tracking bugs and feature requests. If it turns out that you may have found a bug, please `open an issue <https://github.com/epam/aws-syndicate/issues/new>`
+We use GitHub issues for tracking bugs and feature requests. If it turns out that you may have found a bug, please [open an issue](https://github.com/epam/aws-syndicate/issues/new)
