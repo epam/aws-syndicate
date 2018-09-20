@@ -60,7 +60,7 @@ def _create_kinesis_stream_from_meta(name, meta):
                                                              name, meta)
             }
     _KINESIS_CONN.create_stream(stream_name=name,
-                                shard_count=meta.get('shard_count'))
+                                shard_count=meta['shard_count'])
     _LOG.info('Created kinesis stream %s.', name)
     response = _KINESIS_CONN.get_stream(name)
     return {
