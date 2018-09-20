@@ -47,8 +47,6 @@ Next, set up a Syndicate Java **[plugin](https://github.com/epam/aws-syndicate/t
 
 Next, set up a configuration file **[sdct.conf](https://github.com/epam/aws-syndicate/blob/master/examples/demo-config/sdct.conf)**:
 
-.. code-block:: ini
-
 	# absolute path to the examples/demo-project folder
 	project_path=FOLDER_PATH
 
@@ -68,11 +66,7 @@ Next, set up a configuration file **[sdct.conf](https://github.com/epam/aws-synd
 	# build configuration
 	build_projects_mapping=mvn:/demo-java;python:/demo-python
 
-FOLDER_PATH - replace with absolute path to the folder examples/demo-project
-ACCOUNT_ID - replace with your AWS account id
-REGION_NAME - replace with region name where infrastructure will be deployed
-BUCKET_NAME - replace with S3 bucket name which will be used as a storage for framework artifacts (bucket name must be unique across all AWS accounts)
-ACCESS_KEY_ID and SECRET_ACCESS_KEY - replace with AWS credentials for user with admin permissions
+FOLDER_PATH - replace with absolute path to the folder examples/demo-project <br/> ACCOUNT_ID - replace with your AWS account id <br/> REGION_NAME - replace with region name where infrastructure will be deployed <br/> BUCKET_NAME - replace with S3 bucket name which will be used as a storage for framework artifacts (bucket name must be unique across all AWS accounts) <br/> ACCESS_KEY_ID and SECRET_ACCESS_KEY - replace with AWS credentials for user with admin permissions
 
 Then, set up an aliases file **[sdct_aliases.conf](https://github.com/epam/aws-syndicate/blob/master/examples/demo-config/sdct_aliases.conf)**:
 
@@ -80,9 +74,7 @@ Then, set up an aliases file **[sdct_aliases.conf](https://github.com/epam/aws-s
 	notification_bucket=BUCKET_NAME
 	account_id=ACCOUNT_ID
 
-ACCOUNT_ID - replace with your AWS account id
-BUCKET_NAME - replace S3 bucket name which will be used in demo application (bucket name must be unique across all AWS accounts)
-REGION_NAME - replace with region name where infrastructure will be deployed
+ACCOUNT_ID - replace with your AWS account id <br/> BUCKET_NAME - replace S3 bucket name which will be used in demo application (bucket name must be unique across all AWS accounts) <br/> REGION_NAME - replace with region name where infrastructure will be deployed
 
 Then, set up an environment variable **SDCT_CONF**:
 
