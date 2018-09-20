@@ -13,24 +13,3 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-from setuptools import find_packages, setup
-
-setup(
-    name='syndicate',
-    version='0.4',
-    packages=find_packages(),
-    include_package_data=True,
-    install_requires=[
-        'click==6.7',
-        'botocore==1.10.73',
-        'boto3==1.7.73',
-        'configobj==5.0.6',
-        'requests==2.18.4',
-        'tqdm==4.19.5',
-        'functools32==3.2.3.post2'
-    ],
-    entry_points='''
-        [console_scripts]
-        syndicate=syndicate.core.handlers:syndicate
-    ''',
-)
