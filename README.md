@@ -1,2 +1,143 @@
-# aws-syndicate
-Syndicate Deployment Framework enables automatic smart deployment of the application to AWS, taking into account the specific of the application. With the Syndicate Deployment framework, the team can support the necessary functionality by adding new features just when it is needed to. This dramatically differs from using standard deployment tools, such as AWS Serverless Application Model, when the team totally depends on the third-party tools updates. Thus, Syndicate Deployment Framework users do not depend on the framework provider, and can improve the tool according to changes in their application structure and user needs, immediately. The framework already has a set of specific benefits, which can be easily expended by contributors, according to their specific use cases: The interaction with AWS is performed via API (not via CloudFormation, as with AWS SAM). The framework supports all AWS serverless ecosystem services and Step Functions. The framework does not require the developers or DevOps to write large yamls - it automatically generates the configuration based on the Java annotations in the source code and then creates the resources based on this generated config. The idea was to make it like Spring for serverless. The framework is designed for enterprise systems. Currently it is used in a CI/CD pipeline to deploy 259 Lambdas, 63 Dynamo DB tables, 223 API Gateway resources and a big set of other resources related to CloudWatch, Cognito, SNS, SQS, IAM, and others.
+# aws-syndicate - AWS deployment framework for serveless applications
+==================================
+AWS-Syndicate is an Amazon Web Services deployment framework written in Python, which allows to easily deploy serverless applications to using resource descriptions. The framework allows to work with applications that engage the following AWS services:
+
+* API Gateway
+
+* CloudWatch Events
+
+* Cognito
+
+* DynamoDB
+
+* Elastic Beanstalk
+
+* Elastic Compute Cloud
+
+* Identity and Access Management
+
+* Kinesis
+
+* Lambda
+
+* Simple Notification Service
+
+* Simple Queue Service
+
+* Simple Storage Service
+
+* Step Functions
+
+Quick Start
+-----------
+To successfully setup and use the Syndicate, you need the following software to be installed:
+
+* Python 2.7
+* pip 9.0+
+* Apache Maven 3.3.9+
+
+First, install the framework:
+
+.. code-block:: sh
+
+    $ pip install .
+
+Next, set up a Syndicate Java `plugin <https://github.com/epam/aws-syndicate/tree/master/plugin>`__:
+
+.. code-block:: sh
+
+    $ mvn install
+
+Next, set up a configuration file `sdct.conf <https://github.com/epam/aws-syndicate/blob/master/examples/demo-config/sdct.conf>`__:
+
+.. code-block:: ini
+
+	# absolute path to the examples/demo-project folder
+	project_path=FOLDER_PATH
+
+	resources_suffix=
+	resources_prefix=sdct-
+	# region name, example - eu-central-1
+	region=REGION_NAME
+	# bucket name to upload deployment artifacts, must be unique across all AWS accounts
+	deploy_target_bucket=BUCKET_NAME
+	# your account id
+	account_id=ACCOUNT_ID
+	access_role=
+
+	aws_access_key_id=ACCESS_KEY_ID
+	aws_secret_access_key=SECRET_ACCESS_KEY
+
+	# build configuration
+	build_projects_mapping=mvn:/demo-java;python:/demo-python
+
+FOLDER_PATH - replace with absolute path to the folder **examples/demo-project**
+ACCOUNT_ID - replace with your AWS account id
+REGION_NAME - replace with region name where infrastructure will be deployed (for example, **eu-central-1**)
+BUCKET_NAME - replace with S3 bucket name which will be used as a storage for framework artifacts (bucket name must be unique across all AWS accounts)
+ACCESS_KEY_ID and SECRET_ACCESS_KEY - replace with AWS credentials for user with admin permissions
+
+Then, set up an aliases file `sdct_aliases.conf <https://github.com/epam/aws-syndicate/blob/master/examples/demo-config/sdct_aliases.conf>`__:
+
+.. code-block:: ini
+
+    region=REGION_NAME
+	notification_bucket=BUCKET_NAME
+	account_id=ACCOUNT_ID
+
+ACCOUNT_ID - replace with your AWS account id
+BUCKET_NAME - replace S3 bucket name which will be used in demo application (bucket name must be unique across all AWS accounts)
+REGION_NAME - replace with region name where infrastructure will be deployed
+
+Then, set up an environment variable **SDCT_CONF**:
+
+.. code-block:: sh
+
+    export SDCT_CONF=FOLDER_PATH
+
+FOLDER_PATH - absolute path to the folder where are located files **sdct.conf** and **sdct_aliases.conf**
+
+Deployment
+-----------
+
+Demo application consists of the following infrastructure:
+*  2 IAM roles
+* 3 IAM policies
+* 1 DynamoDB table
+* 1 S3 bucket
+* 2 lambdas
+* 1 API Gateway
+
+Create a S3 bucket for aws-syndicate artifacts:
+
+.. code-block:: sh
+
+    $ syndicate create_deploy_target_bucket
+
+Next, build aws-syndicate bundle with artifacts to be deployed:
+
+.. code-block:: sh
+
+    $ syndicate build_bundle --bundle_name demo-deploy
+
+Then, deploy AWS resources:
+
+.. code-block:: sh
+
+    $ syndicate deploy --bundle_name demo-deploy –deploy_name sdct-example
+
+We have done it!
+
+Demo serverless application is ready to be used.
+
+If you need to clean AWS resources:
+
+.. code-block:: sh
+
+    $ syndicate clean --bundle_name demo-deploy –deploy_name sdct-example
+
+
+Getting Help
+------------
+
+We use GitHub issues for tracking bugs and feature requests. If it turns out that you may have found a bug, please `open an issue <https://github.com/epam/aws-syndicate/issues/new>`
