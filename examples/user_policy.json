@@ -1,0 +1,13 @@
+{
+  "Statement": [
+    {
+      "Sid": "VisualEditor0",
+      "Effect": "Allow",
+      "Action": [
+        "sts:AssumeRole"
+      ],
+      "Resource": "*"
+    }
+  ],
+  "Version": "2012-10-17"
+}
