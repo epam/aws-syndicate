@@ -112,6 +112,9 @@ If you need to clean AWS resources:
 
     $ syndicate clean --bundle_name demo-deploy –-deploy_name sdct-example
 
+Documentation
+------------
+You can find a detailed documentation [here](https://github.com/epam/aws-syndicate/blob/master/docs/01_sdct_quick_start.pdf)
 
 Getting Help
 ------------
