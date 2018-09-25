@@ -241,7 +241,8 @@ class ApiGatewayConnection(object):
                                   method, request_templates=None,
                                   passthrough_behavior=None,
                                   lambda_region=None, credentials=None,
-                                  enable_proxy=False):
+                                  enable_proxy=False,
+                                  cache_key_parameters=None):
         """ Create API Gateway integration with lambda by name.
 
         :type lambda_name: str
@@ -278,6 +279,8 @@ class ApiGatewayConnection(object):
             params['passthrough_behavior'] = passthrough_behavior
         if request_templates:
             params['request_templates'] = request_templates
+        if cache_key_parameters:
+            params['cache_key_parameters'] = cache_key_parameters
         self.create_integration(**params)
 
     def create_service_integration(self, acc_id, api_id, resource_id,
@@ -522,3 +525,11 @@ class ApiGatewayConnection(object):
         """
         return self.client.get_sdk(restApiId=api_id, stageName=stage_name,
                                    sdkType=sdk_type)
+
+    def update_configuration(self, rest_api_id, stage_name,
+                             patch_operations):
+        return self.client.update_stage(
+            restApiId=rest_api_id,
+            stageName=stage_name,
+            patchOperations=patch_operations
+        )

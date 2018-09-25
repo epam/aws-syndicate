@@ -143,6 +143,52 @@ def create_api_gateway(args):
     return create_pool(_create_api_gateway_from_meta, 3, args)
 
 
+def _escape_path(parameter):
+    index = parameter.find('/', 0)
+    if index == -1:
+        return parameter
+    parameter = parameter[:index] + '~1' + parameter[index + 1:]
+    return _escape_path(parameter)
+
+
+def configure_cache(api_id, stage_name, api_resources):
+    for resource_path, resource_meta in api_resources.iteritems():
+        for method_name, method_meta in resource_meta.iteritems():
+            if method_name in SUPPORTED_METHODS:
+                cache_configuration = method_meta.get('cache_configuration')
+                if not cache_configuration:
+                    continue
+                cache_ttl_setting = cache_configuration.get('cache_ttl_sec')
+                if cache_ttl_setting:
+                    _LOG.info(
+                        'Configuring cache for {0}; TTL: {1}'.format(
+                            resource_path, cache_ttl_setting))
+                    escaped_resource = _escape_path(resource_path)
+                    _API_GATEWAY_CONN.update_configuration(
+                        rest_api_id=api_id,
+                        stage_name=stage_name,
+                        patch_operations=[
+                            {
+                                'op': 'replace',
+                                'path': '/{0}/{1}/caching/ttlInSeconds'.format(
+                                    escaped_resource,
+                                    method_name),
+                                'value': str(cache_ttl_setting),
+                            },
+                            {
+                                'op': 'replace',
+                                'path': '/{0}/{1}/caching/enabled'.format(
+                                    escaped_resource,
+                                    method_name),
+                                'value': 'True',
+                            }
+                        ]
+                    )
+                    _LOG.info(
+                        'Cache for {0} was configured'.format(
+                            resource_path))
+
+
 @unpack_kwargs
 def _create_api_gateway_from_meta(name, meta):
     """ Create API Gateway with all specified meta.
@@ -192,7 +238,35 @@ def _create_api_gateway_from_meta(name, meta):
     _LOG.info('Customizing API Gateway responses...')
     _customize_gateway_responses(api_id)
     # deploy api
-    _API_GATEWAY_CONN.deploy_api(api_id, stage_name=deploy_stage)
+    cache_cluster_configuration = meta.get('cluster_cache_configuration')
+    root_cache_enabled = cache_cluster_configuration.get(
+        'cache_enabled') if cache_cluster_configuration else None
+    cache_size = cache_cluster_configuration.get(
+        'cache_size') if cache_cluster_configuration else None
+    _API_GATEWAY_CONN.deploy_api(api_id, stage_name=deploy_stage,
+                                 cache_cluster_enabled=root_cache_enabled,
+                                 cache_cluster_size=str(
+                                     cache_size) if cache_size else None)
+    # configure caching
+    if root_cache_enabled:
+        _LOG.debug('Cluster cache configuration found:{0}'.format(
+            cache_cluster_configuration))
+        # set default ttl for root endpoint
+        cluster_cache_ttl_sec = cache_cluster_configuration.get(
+            'cache_ttl_sec')
+        _API_GATEWAY_CONN.update_configuration(
+            rest_api_id=api_id,
+            stage_name=deploy_stage,
+            patch_operations=[
+                {
+                    'op': 'replace',
+                    'path': '/*/*/caching/ttlInSeconds',
+                    'value': str(cluster_cache_ttl_sec),
+                }
+            ]
+        )
+        # customize cache settings for endpoints
+        configure_cache(api_id, deploy_stage, api_resources)
     response = _API_GATEWAY_CONN.get_api(api_id)
     arn = 'arn:aws:apigateway:{0}::/restapis/{1}'.format(CONFIG.region,
                                                          api_id)
@@ -320,10 +394,14 @@ def _create_method_from_metadata(api_id, resource_id, resource_path, method,
         if integration_type == 'lambda':
             lambda_name = method_meta['lambda_name']
             enable_proxy = method_meta.get('enable_proxy')
+            cache_configuration = method_meta.get('cache_configuration')
+            cache_key_parameters = cache_configuration.get(
+                'cache_key_parameters') if cache_configuration else None
             _API_GATEWAY_CONN.create_lambda_integration(
                 lambda_name, api_id, resource_id, method, body_template,
                 passthrough_behavior, method_meta.get('lambda_region'),
-                enable_proxy=enable_proxy)
+                enable_proxy=enable_proxy,
+                cache_key_parameters=cache_key_parameters)
             # add permissions to invoke
             _LAMBDA_CONN.add_invocation_permission(lambda_name,
                                                    "apigateway.amazonaws.com")
