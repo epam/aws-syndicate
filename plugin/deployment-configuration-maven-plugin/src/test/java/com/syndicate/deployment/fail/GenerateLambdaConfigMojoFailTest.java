@@ -58,7 +58,7 @@ public class GenerateLambdaConfigMojoFailTest {
     @Before
     public void setUp() throws Exception {
         File pluginConfig = new File(Objects.requireNonNull(getClass().getClassLoader()
-                .getResource("plugin-config.xml")).getFile());
+                .getResource("plugin-config.xml")).toURI());
 
         mojo = (GenerateLambdaConfigGoal) rule.configureMojo(mojo,
                 rule.extractPluginConfiguration(GenerateLambdaConfigMojoSuccessTest.PLUGIN_ARTIFACT_ID, pluginConfig));

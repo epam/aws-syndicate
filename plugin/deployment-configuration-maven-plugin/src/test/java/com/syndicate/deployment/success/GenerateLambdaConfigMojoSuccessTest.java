@@ -76,7 +76,7 @@ public class GenerateLambdaConfigMojoSuccessTest {
     @Test
     public void testMojoExists() throws Exception {
         File pluginConfig = new File(Objects.requireNonNull(getClass().getClassLoader()
-                .getResource(PLUGIN_CONFIG_SKIP_XML)).getFile());
+                .getResource(PLUGIN_CONFIG_SKIP_XML)).toURI());
 
         GenerateLambdaConfigGoal mojo = new GenerateLambdaConfigGoal();
         mojo = (GenerateLambdaConfigGoal) rule.configureMojo(mojo,
@@ -87,7 +87,7 @@ public class GenerateLambdaConfigMojoSuccessTest {
     @Test
     public void testPluginSkipped() throws Exception {
         File pluginConfig = new File(Objects.requireNonNull(getClass().getClassLoader()
-                .getResource(PLUGIN_CONFIG_SKIP_XML)).getFile());
+                .getResource(PLUGIN_CONFIG_SKIP_XML)).toURI());
 
         GenerateLambdaConfigGoal mojo = new GenerateLambdaConfigGoal();
         mojo = (GenerateLambdaConfigGoal) rule.configureMojo(mojo,
@@ -108,7 +108,7 @@ public class GenerateLambdaConfigMojoSuccessTest {
     @Test
     public void testPackagesPassed() throws Exception {
         File pluginConfig = new File(Objects.requireNonNull(getClass().getClassLoader()
-                .getResource(PLUGIN_CONFIG_SKIP_XML)).getFile());
+                .getResource(PLUGIN_CONFIG_SKIP_XML)).toURI());
 
         GenerateLambdaConfigGoal mojo = new GenerateLambdaConfigGoal();
         mojo = (GenerateLambdaConfigGoal) rule.configureMojo(mojo,
@@ -148,7 +148,7 @@ public class GenerateLambdaConfigMojoSuccessTest {
         }
 
         File pluginConfig = new File(Objects.requireNonNull(getClass().getClassLoader()
-                .getResource("plugin-config.xml")).getFile());
+                .getResource("plugin-config.xml")).toURI());
 
         GenerateLambdaConfigGoal mojo = new GenerateLambdaConfigGoal();
         mojo = (GenerateLambdaConfigGoal) rule.configureMojo(mojo,
