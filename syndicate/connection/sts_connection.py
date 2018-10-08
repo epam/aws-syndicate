@@ -33,7 +33,7 @@ class STSConnection(object):
                              aws_session_token=aws_session_token)
         _LOG.debug('Opened new STS connection.')
 
-    def get_temp_credentials(self, role_arn, acc_id, duration):
+    def get_temp_credentials(self, role_arn, acc_id, duration=3600):
         """ Get temporary credentials by assuming role.
 
         :param role_arn: str
