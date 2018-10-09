@@ -18,10 +18,10 @@ package com.syndicate.deployment;
 
 import com.syndicate.deployment.annotations.lambda.LambdaHandler;
 import com.syndicate.deployment.model.LambdaConfiguration;
+import com.syndicate.deployment.model.Pair;
 import com.syndicate.deployment.processor.IConfigurationProcessor;
 import com.syndicate.deployment.processor.impl.ConfigurationMetadataAnnotationProcessor;
 import com.syndicate.deployment.utils.JsonUtils;
-import javafx.util.Pair;
 import org.apache.maven.artifact.DependencyResolutionRequiredException;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
