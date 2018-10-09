@@ -16,7 +16,7 @@
 
 package com.syndicate.deployment.processor;
 
-import javafx.util.Pair;
+import com.syndicate.deployment.model.Pair;
 
 /**
  * Created by Vladyslav Tereshchenko on 10/10/2016.
