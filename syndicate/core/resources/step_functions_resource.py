@@ -22,7 +22,8 @@ from syndicate.core import CONFIG, CONN
 from syndicate.core.helper import create_pool, unpack_kwargs
 from syndicate.core.resources.helper import (build_description_obj,
                                              validate_params)
-from syndicate.core.resources.lambda_resource import build_lambda_arn
+from syndicate.core.resources.lambda_resource import (
+    resolve_lambda_arn_by_version_and_alias)
 
 _SF_CONN = CONN.step_functions()
 _IAM_CONN = CONN.iam()
@@ -84,6 +85,13 @@ def _remove_activity(arn, config):
             raise e
 
 
+def __remove_key_from_dict(obj, name):
+    try:
+        del obj[name]
+    except KeyError:
+        pass
+
+
 @unpack_kwargs
 def _create_state_machine_from_meta(name, meta):
     arn = _build_sm_arn(name, CONFIG.region)
@@ -107,15 +115,17 @@ def _create_state_machine_from_meta(name, meta):
         if definition_meta.get('Lambda'):
             lambda_name = definition_meta['Lambda']
             # alias has a higher priority than version in arn resolving
-            lambda_version = definition_meta.get('lambda_version')
-            lambda_alias = definition_meta.get('lambda_alias')
-            if lambda_version or lambda_alias:
-                lambda_response = _LAMBDA_CONN.get_function(lambda_name,
-                                                            lambda_version)
-                lambda_arn = build_lambda_arn(lambda_response, lambda_alias)
-            else:
-                lambda_arn = _LAMBDA_CONN.get_function(lambda_name)
-            del definition_copy['States'][key]['Lambda']
+            lambda_version = definition_meta.get('Lambda_version')
+            lambda_alias = definition_meta.get('Lambda_alias')
+            lambda_arn = resolve_lambda_arn_by_version_and_alias(lambda_name,
+                                                                 lambda_version,
+                                                                 lambda_alias)
+            __remove_key_from_dict(definition_copy['States'][key], 'Lambda')
+            __remove_key_from_dict(definition_copy['States'][key],
+                                   'Lambda_version')
+            __remove_key_from_dict(definition_copy['States'][key],
+                                   'Lambda_alias')
+
             definition_copy['States'][key]['Resource'] = lambda_arn
 
         if definition_meta.get('Activity'):
@@ -129,7 +139,6 @@ def _create_state_machine_from_meta(name, meta):
             activity_arn = activity_info['activityArn']
             del definition_copy['States'][key]['Activity']
             definition_copy['States'][key]['Resource'] = activity_arn
-
     machine_info = _SF_CONN.create_state_machine(machine_name=name,
                                                  role_arn=role_arn,
                                                  definition=definition_copy)

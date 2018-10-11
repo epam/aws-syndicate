@@ -194,21 +194,19 @@ class LambdaConnection(object):
                 except ClientError:
                     _LOG.error('Failed to delete trigger.', exc_info=True)
 
-    def remove_lambdas(self, lambda_names):
+    def remove_lambdas(self):
         """ Removes all specified lambdas.
 
         :type lambda_names: list
         """
         list_functions = self.lambdas_list()
         for each in list_functions:
-            if each['FunctionName'] in lambda_names:
-                try:
-                    self.delete_lambda(each['FunctionName'])
-                except ClientError:
-                    _LOG.error(
-                        'Failed to delete lambda %s', each['FunctionName'],
-                        exc_info=True)
-        _LOG.debug('All lambdas removed!')
+            try:
+                self.delete_lambda(each['FunctionName'])
+            except ClientError:
+                _LOG.error(
+                    'Failed to delete lambda %s', each['FunctionName'],
+                    exc_info=True)
 
     def delete_trigger(self, uuid):
         """ Delete event source stream.

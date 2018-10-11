@@ -22,7 +22,8 @@ from syndicate.core import CONFIG, CONN
 from syndicate.core.helper import create_pool, unpack_kwargs
 from syndicate.core.resources.helper import (build_description_obj,
                                              validate_params)
-from syndicate.core.resources.lambda_resource import build_lambda_arn
+from syndicate.core.resources.lambda_resource import (
+    resolve_lambda_arn_by_version_and_alias)
 
 SUPPORTED_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'HEAD']
 
@@ -397,12 +398,9 @@ def _create_method_from_metadata(api_id, resource_id, resource_path, method,
             # alias has a higher priority than version in arn resolving
             lambda_version = method_meta.get('lambda_version')
             lambda_alias = method_meta.get('lambda_alias')
-            if lambda_version or lambda_alias:
-                lambda_response = _LAMBDA_CONN.get_function(lambda_name,
-                                                            lambda_version)
-                lambda_arn = build_lambda_arn(lambda_response, lambda_alias)
-            else:
-                lambda_arn = _LAMBDA_CONN.get_function(lambda_name)
+            lambda_arn = resolve_lambda_arn_by_version_and_alias(lambda_name,
+                                                                 lambda_version,
+                                                                 lambda_alias)
             enable_proxy = method_meta.get('enable_proxy')
             cache_configuration = method_meta.get('cache_configuration')
             cache_key_parameters = cache_configuration.get(

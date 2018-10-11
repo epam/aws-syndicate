@@ -42,19 +42,32 @@ def create_lambda(args):
 
 
 def describe_lambda(name, meta, response):
-    arn = response['Configuration']['FunctionArn']
+    arn = 'arn:aws:lambda:{0}:{1}:function:{2}'.format(CONFIG.region,
+                                                       CONFIG.account_id, name)
     del response['Configuration']['FunctionArn']
     return {
         arn: build_description_obj(response, name, meta)
     }
 
 
+def resolve_lambda_arn_by_version_and_alias(name, version, alias):
+    if version or alias:
+        lambda_response = _LAMBDA_CONN.get_function(name, version)
+        return build_lambda_arn(lambda_response, alias)
+    else:
+        return _LAMBDA_CONN.get_function(name)['Configuration']['FunctionArn']
+
+
 def build_lambda_arn(response, alias=None):
-    lambda_arn = response['Configuration']['FunctionArn']
+    name = response['Configuration']['FunctionName']
+    l_arn = 'arn:aws:lambda:{0}:{1}:function:{2}'.format(CONFIG.region,
+                                                         CONFIG.account_id,
+                                                         name)
     version = response['Configuration']['Version']
-    arn = '{0}:{1}'.format(lambda_arn, version)
+    arn = '{0}:{1}'.format(l_arn, version)
+    # override version if alias exists
     if alias:
-        arn = '{0}:{1}'.format(lambda_arn, alias)
+        arn = '{0}:{1}'.format(l_arn, alias)
     return arn
 
 
@@ -111,19 +124,8 @@ def _create_lambda_from_meta(name, meta):
 
     # AWS sometimes returns None after function creation, needs for stability
     time.sleep(10)
-    if publish_version:
-        versions = _LAMBDA_CONN.versions_list(name)
-        # find the last created version
-        version = max(map(
-            lambda i: int(i['Version']) if i['Version'] != '$LATEST' else 0,
-            versions))
-        if version != 0:
-            response = _LAMBDA_CONN.get_function(name, version)
-        else:
-            response = _LAMBDA_CONN.get_function(name)
-    else:
-        response = _LAMBDA_CONN.get_function(name)
-
+    response = __describe_lambda_by_version(
+        name) if publish_version else _LAMBDA_CONN.get_function(name)
     version = response['Configuration']['Version']
     con_exec = meta.get('concurrent_executions')
     if con_exec:
@@ -143,13 +145,13 @@ def _create_lambda_from_meta(name, meta):
     # aliases can be enabled only and for $LATEST
     alias = meta.get('alias')
     if alias:
-        _LAMBDA_CONN.create_alias(function_name=name,
-                                  name=alias, version=version)
-    if publish_version or alias:
-        arn = build_lambda_arn(response, alias)
-    else:
-        # use arn without version
-        arn = response['Configuration']['FunctionArn']
+        _LOG.info('Creating alias')
+        _LOG.info(_LAMBDA_CONN.create_alias(function_name=name,
+                                        name=alias, version=version))
+
+    arn = build_lambda_arn(response, alias) if publish_version or alias else \
+        response['Configuration']['FunctionArn']
+    _LOG.info('arn value: ' + str(arn))
 
     if meta.get('event_sources'):
         for trigger_meta in meta.get('event_sources'):
@@ -158,6 +160,18 @@ def _create_lambda_from_meta(name, meta):
             func(name, arn, role_name, trigger_meta)
     _LOG.info('Created lambda %s.', name)
     return describe_lambda(name, meta, response)
+
+
+def __describe_lambda_by_version(name):
+    versions = _LAMBDA_CONN.versions_list(name)
+    # find the last created version
+    version = max(map(
+        lambda i: int(i['Version']) if i['Version'] != '$LATEST' else 0,
+        versions))
+    if version != 0:
+        return _LAMBDA_CONN.get_function(name, str(version))
+    else:
+        return _LAMBDA_CONN.get_function(name)
 
 
 @retry

@@ -40,6 +40,7 @@ from syndicate.core.helper import (check_required_param,
 
 # TODO - command descriptions
 
+
 @click.group()
 def syndicate():
     click.echo('Group syndicate')
