@@ -49,6 +49,15 @@ def describe_lambda(name, meta, response):
     }
 
 
+def build_lambda_arn(response, alias=None):
+    lambda_arn = response['Configuration']['FunctionArn']
+    version = response['Configuration']['Version']
+    arn = '{0}:{1}'.format(lambda_arn, version)
+    if alias:
+        arn = '{0}:{1}'.format(lambda_arn, alias)
+    return arn
+
+
 @unpack_kwargs
 def _create_lambda_from_meta(name, meta):
     req_params = ['iam_role_name', 'runtime', 'memory', 'timeout', 'func_name']
@@ -103,7 +112,6 @@ def _create_lambda_from_meta(name, meta):
     # AWS sometimes returns None after function creation, needs for stability
     time.sleep(10)
     response = _LAMBDA_CONN.get_function(name)
-    lambda_arn = response['Configuration']['FunctionArn']
     version = response['Configuration']['Version']
     con_exec = meta.get('concurrent_executions')
     if con_exec:
@@ -119,15 +127,14 @@ def _create_lambda_from_meta(name, meta):
                 'Account does not have any unresolved executions.'
                 ' Current size - %s', unresolved_exec)
 
-    arn = '{0}:{1}'.format(lambda_arn, version)
     # enabling aliases
     # aliases can be enabled only and for $LATEST
     alias = meta.get('alias')
     if alias:
-        alias_response = _LAMBDA_CONN.create_alias(function_name=name,
-                                                   name=alias, version=version)
-        # override arn should be propagated to event sources
-        arn = alias_response['AliasArn']
+        _LAMBDA_CONN.create_alias(function_name=name,
+                                  name=alias, version=version)
+
+    arn = build_lambda_arn(response, alias)
 
     if meta.get('event_sources'):
         for trigger_meta in meta.get('event_sources'):
