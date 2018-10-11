@@ -21,7 +21,6 @@ from botocore.exceptions import ClientError
 
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import apply_methods_decorator, retry
-from syndicate.connection.lambda_connection import LambdaConnection
 
 _LOG = get_logger('syndicate.connection.s3_connection')
 
@@ -166,23 +165,16 @@ class S3Connection(object):
     def delete_bucket(self, bucket_name):
         self.client.delete_bucket(Bucket=bucket_name)
 
-    def configure_event_source_for_lambda(self, bucket, lambda_name, events):
+    def configure_event_source_for_lambda(self, bucket, lambda_arn, events):
         """
         :type bucket: str
-        :type lambda_name: str
+        :type lambda_arn: str
         :type events: list
         :param events: 's3:ReducedRedundancyLostObject'|'s3:ObjectCreated:*'|
         's3:ObjectCreated:Put'|'s3:ObjectCreated:Post'|'s3:ObjectCreated:Copy'|
         's3:ObjectCreated:CompleteMultipartUpload'|'s3:ObjectRemoved:*'|
         's3:ObjectRemoved:Delete'|'s3:ObjectRemoved:DeleteMarkerCreated'
         """
-        lambda_conn = LambdaConnection(self.region, self.aws_access_key_id,
-                                       self.aws_secret_access_key,
-                                       self.aws_session_token)
-        lambda_info = lambda_conn.get_function(lambda_name)
-        if not lambda_info:
-            raise AssertionError('Lambda %s does not exists.', lambda_name)
-        lambda_arn = lambda_info['Configuration']['FunctionArn']
         self.client.put_bucket_notification_configuration(
             Bucket=bucket,
             NotificationConfiguration={

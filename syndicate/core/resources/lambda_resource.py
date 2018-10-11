@@ -150,7 +150,7 @@ def _create_dynamodb_trigger_from_meta(lambda_name, lambda_arn, role_name,
 
     stream = CONN.dynamodb().get_table_stream_arn(table_name)
     # TODO support another sub type
-    _LAMBDA_CONN.add_event_source(lambda_name, stream,
+    _LAMBDA_CONN.add_event_source(lambda_arn, stream,
                                   trigger_meta['batch_size'],
                                   start_position='LATEST')
     # start_position='LATEST' - in case we did not remove tables before
@@ -173,7 +173,7 @@ def _create_sqs_trigger_from_meta(lambda_name, lambda_arn, role_name,
                                                  CONFIG.account_id,
                                                  target_queue)
 
-    _LAMBDA_CONN.add_event_source(lambda_name, queue_arn,
+    _LAMBDA_CONN.add_event_source(lambda_arn, queue_arn,
                                   trigger_meta['batch_size'])
     _LOG.info('Lambda %s subscribed to SQS queue %s', lambda_name,
               target_queue)
@@ -188,7 +188,7 @@ def _create_cloud_watch_trigger_from_meta(lambda_name, lambda_arn, role_name,
 
     rule_arn = CONN.cw_events().get_rule_arn(rule_name)
     CONN.cw_events().add_rule_target(rule_name, lambda_arn)
-    _LAMBDA_CONN.add_invocation_permission(lambda_name, 'events.amazonaws.com',
+    _LAMBDA_CONN.add_invocation_permission(lambda_arn, 'events.amazonaws.com',
                                            rule_arn)
     _LOG.info('Lambda %s subscribed to cloudwatch rule %s', lambda_name,
               rule_name)
@@ -206,11 +206,11 @@ def _create_s3_trigger_from_meta(lambda_name, lambda_arn, role_name,
             'S3 bucket {0} event source for lambda {1} was not created.'.format(
                 target_bucket, lambda_name))
         return
-    _LAMBDA_CONN.add_invocation_permission(lambda_name,
+    _LAMBDA_CONN.add_invocation_permission(lambda_arn,
                                            's3.amazonaws.com',
                                            'arn:aws:s3:::{0}'.format(
                                                target_bucket))
-    _S3_CONN.configure_event_source_for_lambda(target_bucket, lambda_name,
+    _S3_CONN.configure_event_source_for_lambda(target_bucket, lambda_arn,
                                                trigger_meta['s3_events'])
     _LOG.info('Lambda %s subscribed to S3 bucket %s', lambda_name,
               target_bucket)
@@ -281,7 +281,7 @@ def _create_kinesis_stream_trigger_from_meta(lambda_name, lambda_arn,
     _LOG.debug('Waiting for activation policy %s...', policy_name)
     time.sleep(10)
 
-    _add_kinesis_event_source(lambda_name, stream_arn, trigger_meta)
+    _add_kinesis_event_source(lambda_arn, stream_arn, trigger_meta)
     _LOG.info('Lambda %s subscribed to kinesis stream %s', lambda_name,
               stream_name)
 

@@ -79,8 +79,7 @@ def _create_sns_topic_from_meta(name, meta, region):
 
 def _subscribe_lambda_to_sns_topic(lambda_arn, topic_name, region):
     topic_arn = CONN.sns(region).subscribe(lambda_arn, topic_name, 'lambda')
-    lambda_name = lambda_arn.split(':')[-1]
-    CONN.lambda_conn().add_invocation_permission(lambda_name,
+    CONN.lambda_conn().add_invocation_permission(lambda_arn,
                                                  'sns.amazonaws.com',
                                                  source_arn=topic_arn)
 
