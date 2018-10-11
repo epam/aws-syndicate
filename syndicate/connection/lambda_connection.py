@@ -39,7 +39,8 @@ class LambdaConnection(object):
     def create_lambda(self, lambda_name, func_name,
                       role, s3_bucket, s3_key, runtime='python2.7', memory=128,
                       timeout=300, vpc_sub_nets=None, vpc_security_group=None,
-                      env_vars=None, dl_target_arn=None, tracing_mode=None):
+                      env_vars=None, dl_target_arn=None, tracing_mode=None,
+                      publish_version=False):
         """ Create Lambda method.
 
         :type lambda_name: str
@@ -58,16 +59,11 @@ class LambdaConnection(object):
         :param env_vars: {'string': 'string'}
         :return: response
         """
-        _LOG.debug(
-            "lambda name: {0}; func_name: {1}; role: {2}; s3_bucket: {3},"
-            "s3_key: {4}; vpc_sub_nets: {5}; "
-            "vpc_security_groups: {6}; env_vars={7}".format(
-                lambda_name, func_name, role, s3_bucket, s3_key, vpc_sub_nets,
-                vpc_security_group, env_vars))
-        params = dict(FunctionName=lambda_name, Runtime=runtime, Publish=True,
+        params = dict(FunctionName=lambda_name, Runtime=runtime,
                       Role=role, Handler=func_name,
                       Code={'S3Bucket': s3_bucket, 'S3Key': s3_key},
-                      Description=' ', Timeout=timeout, MemorySize=memory)
+                      Description=' ', Timeout=timeout, MemorySize=memory,
+                      Publish=publish_version)
         if env_vars:
             params['Environment'] = {'Variables': env_vars}
         if vpc_sub_nets and vpc_security_group:
@@ -84,6 +80,28 @@ class LambdaConnection(object):
                 'Mode': tracing_mode
             }
         return self.client.create_function(**params)
+
+    def create_alias(self, function_name, name, version,
+                     description=None, routing_config=None):
+        """
+
+        :param function_name: str
+        :param name: str
+        :param version: str
+        :param description: str
+        :param routing_config: dict str:int
+        """
+        params = dict(FunctionName=function_name, Name=name,
+                      FunctionVersion=version)
+        if description:
+            params['Description'] = description
+        if routing_config:
+            params['RoutingConfig'] = routing_config
+
+        return self.client.create_alias(**params)
+
+    def get_alias(self, function_name, name):
+        return self.client.get_alias(FunctionName=function_name, Name=name)
 
     def add_event_source(self, func_name, stream_arn, batch_size=15,
                          start_position=None):

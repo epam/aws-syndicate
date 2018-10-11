@@ -81,6 +81,8 @@ def _create_lambda_from_meta(name, meta):
                                                      CONFIG.account_id,
                                                      dl_name) if dl_type and dl_name else None
 
+    publish_version = meta.get('publish_version', False)
+
     _LAMBDA_CONN.create_lambda(
         lambda_name=name,
         func_name=meta['func_name'],
@@ -94,12 +96,15 @@ def _create_lambda_from_meta(name, meta):
         vpc_sub_nets=meta.get('subnet_ids'),
         vpc_security_group=meta.get('security_group_ids'),
         dl_target_arn=dl_target_arn,
-        tracing_mode=meta.get('tracing_mode')
+        tracing_mode=meta.get('tracing_mode'),
+        publish_version=publish_version
     )
+
     # AWS sometimes returns None after function creation, needs for stability
     time.sleep(10)
     response = _LAMBDA_CONN.get_function(name)
     lambda_arn = response['Configuration']['FunctionArn']
+    version = response['Configuration']['Version']
     con_exec = meta.get('concurrent_executions')
     if con_exec:
         _LOG.debug('Going to set up concurrency executions')
@@ -114,11 +119,21 @@ def _create_lambda_from_meta(name, meta):
                 'Account does not have any unresolved executions.'
                 ' Current size - %s', unresolved_exec)
 
+    arn = '{0}:{1}'.format(lambda_arn, version)
+    # enabling aliases
+    # aliases can be enabled only and for $LATEST
+    alias = meta.get('alias')
+    if alias:
+        alias_response = _LAMBDA_CONN.create_alias(function_name=name,
+                                                   name=alias, version=version)
+        # override arn should be propagated to event sources
+        arn = alias_response['AliasArn']
+
     if meta.get('event_sources'):
         for trigger_meta in meta.get('event_sources'):
             trigger_type = trigger_meta['resource_type']
             func = CREATE_TRIGGER[trigger_type]
-            func(name, lambda_arn, role_name, trigger_meta)
+            func(name, arn, role_name, trigger_meta)
     _LOG.info('Created lambda %s.', name)
     return describe_lambda(name, meta, response)
 
