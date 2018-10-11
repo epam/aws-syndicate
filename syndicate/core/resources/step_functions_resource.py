@@ -22,9 +22,11 @@ from syndicate.core import CONFIG, CONN
 from syndicate.core.helper import create_pool, unpack_kwargs
 from syndicate.core.resources.helper import (build_description_obj,
                                              validate_params)
+from syndicate.core.resources.lambda_resource import build_lambda_arn
 
 _SF_CONN = CONN.step_functions()
 _IAM_CONN = CONN.iam()
+_LAMBDA_CONN = CONN.lambda_conn()
 
 _LOG = get_logger('core.resources.step_function_resource')
 
@@ -104,10 +106,15 @@ def _create_state_machine_from_meta(name, meta):
         definition_meta = definition['States'][key]
         if definition_meta.get('Lambda'):
             lambda_name = definition_meta['Lambda']
-            lambda_info = CONN.lambda_conn().get_function(lambda_name)
-            if not lambda_info:
-                raise AssertionError('Lambda does not exists: %s', lambda_name)
-            lambda_arn = lambda_info['Configuration']['FunctionArn']
+            # alias has a higher priority than version in arn resolving
+            lambda_version = definition_meta.get('lambda_version')
+            lambda_alias = definition_meta.get('lambda_alias')
+            if lambda_version or lambda_alias:
+                lambda_response = _LAMBDA_CONN.get_function(lambda_name,
+                                                            lambda_version)
+                lambda_arn = build_lambda_arn(lambda_response, lambda_alias)
+            else:
+                lambda_arn = _LAMBDA_CONN.get_function(lambda_name)
             del definition_copy['States'][key]['Lambda']
             definition_copy['States'][key]['Resource'] = lambda_arn
 

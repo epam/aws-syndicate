@@ -111,7 +111,19 @@ def _create_lambda_from_meta(name, meta):
 
     # AWS sometimes returns None after function creation, needs for stability
     time.sleep(10)
-    response = _LAMBDA_CONN.get_function(name)
+    if publish_version:
+        versions = _LAMBDA_CONN.versions_list(name)
+        # find the last created version
+        version = max(map(
+            lambda i: int(i['Version']) if i['Version'] != '$LATEST' else 0,
+            versions))
+        if version != 0:
+            response = _LAMBDA_CONN.get_function(name, version)
+        else:
+            response = _LAMBDA_CONN.get_function(name)
+    else:
+        response = _LAMBDA_CONN.get_function(name)
+
     version = response['Configuration']['Version']
     con_exec = meta.get('concurrent_executions')
     if con_exec:
@@ -133,8 +145,11 @@ def _create_lambda_from_meta(name, meta):
     if alias:
         _LAMBDA_CONN.create_alias(function_name=name,
                                   name=alias, version=version)
-
-    arn = build_lambda_arn(response, alias)
+    if publish_version or alias:
+        arn = build_lambda_arn(response, alias)
+    else:
+        # use arn without version
+        arn = response['Configuration']['FunctionArn']
 
     if meta.get('event_sources'):
         for trigger_meta in meta.get('event_sources'):

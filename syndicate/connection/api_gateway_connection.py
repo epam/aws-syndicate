@@ -237,15 +237,15 @@ class ApiGatewayConnection(object):
             params['cacheKeyParameters'] = cache_key_parameters
         self.client.put_integration(**params)
 
-    def create_lambda_integration(self, lambda_name, api_id, resource_id,
+    def create_lambda_integration(self, lambda_arn, api_id, resource_id,
                                   method, request_templates=None,
                                   passthrough_behavior=None,
-                                  lambda_region=None, credentials=None,
+                                  credentials=None,
                                   enable_proxy=False,
                                   cache_key_parameters=None):
         """ Create API Gateway integration with lambda by name.
 
-        :type lambda_name: str
+        :type lambda_arn: str
         :type api_id: str
         :type resource_id: str
         :type method: str
@@ -256,15 +256,6 @@ class ApiGatewayConnection(object):
         :type credentials: str
         :param credentials: role arn
         """
-        if not lambda_region:
-            lambda_region = self.region
-        lambda_conn = LambdaConnection(lambda_region, self.aws_access_key_id,
-                                       self.aws_secret_access_key,
-                                       self.aws_session_token)
-        lambda_info = lambda_conn.get_function(lambda_name)
-        if not lambda_info:
-            raise AssertionError('Lambda %s does not exists.', lambda_name)
-        lambda_arn = lambda_info['Configuration']['FunctionArn']
         uri = ('arn:aws:apigateway:{0}:lambda:path/2015-03-31/functions/{1}'
                '/invocations').format(self.region, lambda_arn)
 

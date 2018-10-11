@@ -158,6 +158,20 @@ class LambdaConnection(object):
             mappings.extend(response.get('EventSourceMappings'))
         return mappings
 
+    def versions_list(self, function_name):
+        versions = []
+        response = self.client.list_versions_by_function(
+            FunctionName=function_name)
+        if 'Versions' in response:
+            versions.extend(response['Versions'])
+        marker = response.get('NextMarker')
+        while marker:
+            response = self.client.list_versions_by_function(Marker=marker)
+            if 'Versions' in response:
+                versions.extend(response['Versions'])
+            marker = response.get('NextMarker')
+        return versions
+
     def delete_lambda(self, func_name):
         """ Delete Lambda.
 

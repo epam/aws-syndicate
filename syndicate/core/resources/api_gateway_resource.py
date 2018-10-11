@@ -22,6 +22,7 @@ from syndicate.core import CONFIG, CONN
 from syndicate.core.helper import create_pool, unpack_kwargs
 from syndicate.core.resources.helper import (build_description_obj,
                                              validate_params)
+from syndicate.core.resources.lambda_resource import build_lambda_arn
 
 SUPPORTED_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'HEAD']
 
@@ -393,12 +394,21 @@ def _create_method_from_metadata(api_id, resource_id, resource_path, method,
     if integration_type:
         if integration_type == 'lambda':
             lambda_name = method_meta['lambda_name']
+            # alias has a higher priority than version in arn resolving
+            lambda_version = method_meta.get('lambda_version')
+            lambda_alias = method_meta.get('lambda_alias')
+            if lambda_version or lambda_alias:
+                lambda_response = _LAMBDA_CONN.get_function(lambda_name,
+                                                            lambda_version)
+                lambda_arn = build_lambda_arn(lambda_response, lambda_alias)
+            else:
+                lambda_arn = _LAMBDA_CONN.get_function(lambda_name)
             enable_proxy = method_meta.get('enable_proxy')
             cache_configuration = method_meta.get('cache_configuration')
             cache_key_parameters = cache_configuration.get(
                 'cache_key_parameters') if cache_configuration else None
             _API_GATEWAY_CONN.create_lambda_integration(
-                lambda_name, api_id, resource_id, method, body_template,
+                lambda_arn, api_id, resource_id, method, body_template,
                 passthrough_behavior, method_meta.get('lambda_region'),
                 enable_proxy=enable_proxy,
                 cache_key_parameters=cache_key_parameters)
