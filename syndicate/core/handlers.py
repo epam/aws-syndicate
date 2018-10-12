@@ -26,7 +26,7 @@ from syndicate.core.build.bundle_processor import (create_bundles_bucket,
                                                    upload_bundle_to_s3)
 from syndicate.core.build.deployment_processor import (
     create_deployment_resources,
-    remove_deployment_resources)
+    remove_deployment_resources, update_lambdas)
 from syndicate.core.build.meta_processor import create_meta
 from syndicate.core.conf.config_holder import (MVN_BUILD_TOOL_NAME,
                                                PYTHON_BUILD_TOOL_NAME)
@@ -248,3 +248,35 @@ def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
                                 deploy_only_resources, deploy_only_types,
                                 excluded_resources, excluded_types)
     click.echo('Backend resources were deployed.')
+
+
+# =============================================================================
+
+@syndicate.command()
+@click.option('--bundle_name', nargs=1, callback=check_required_param)
+@click.option('--publish_only_lambdas', multiple=True)
+@click.option('--publish_only_lambdas_path', nargs=1)
+@click.option('--excluded_lambdas_resources', multiple=True)
+@click.option('--excluded_lambdas_resources_path', nargs=1)
+@timeit
+def publish_lambda_version(bundle_name,
+                           publish_only_lambdas, publish_only_lambdas_path,
+                           excluded_lambdas_resources,
+                           excluded_lambdas_resources_path):
+    click.echo('Command deploy backend')
+    click.echo('Bundle name: %s' % bundle_name)
+    if publish_only_lambdas_path and os.path.exists(
+            publish_only_lambdas_path):
+        update_lambdas_list = json.load(open(publish_only_lambdas_path))
+        publish_only_lambdas = tuple(
+            set(publish_only_lambdas + tuple(update_lambdas_list)))
+    if excluded_lambdas_resources_path and os.path.exists(
+            excluded_lambdas_resources_path):
+        excluded_lambdas_list = json.load(
+            open(excluded_lambdas_resources_path))
+        excluded_lambdas_resources = tuple(
+            set(excluded_lambdas_resources + tuple(excluded_lambdas_list)))
+    update_lambdas(bundle_name=bundle_name,
+                   publish_only_lambdas=publish_only_lambdas,
+                   excluded_lambdas_resources=excluded_lambdas_resources)
+    click.echo('Lambda versions were published.')

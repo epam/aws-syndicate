@@ -27,11 +27,12 @@ from syndicate.core.build.bundle_processor import (create_deploy_output,
 from syndicate.core.build.meta_processor import resolve_meta
 from syndicate.core.constants import (BUILD_META_FILE_NAME,
                                       CLEAN_RESOURCE_TYPE_PRIORITY,
-                                      DEPLOY_RESOURCE_TYPE_PRIORITY)
+                                      DEPLOY_RESOURCE_TYPE_PRIORITY,
+                                      LAMBDA_TYPE)
 from syndicate.core.helper import exit_on_exception, prettify_json
 from syndicate.core.resources import (APPLY_MAPPING, CREATE_RESOURCE,
                                       REMOVE_RESOURCE,
-                                      RESOURCE_IDENTIFIER)
+                                      RESOURCE_IDENTIFIER, UPDATE_RESOURCE)
 
 _LOG = get_logger('syndicate.core.build.deployment_processor')
 
@@ -42,6 +43,7 @@ def get_dependencies(name, meta, resources_dict, resources):
     :type name: str
     :type meta: dict
     :type resources_dict: dict
+    :param resources:
     :param resources_dict: resources that will be created {name: meta}
     """
     resources_dict[name] = meta
@@ -54,11 +56,10 @@ def get_dependencies(name, meta, resources_dict, resources):
                 get_dependencies(dep_name, dep_meta, resources_dict, resources)
 
 
-def deploy_resources(resources):
+def _process_resources(resources, handlers_mapping):
     output = {}
     args = []
     resource_type = None
-    # create all resources
     for res_name, res_meta in resources:
         res_type = res_meta['resource_type']
 
@@ -69,8 +70,8 @@ def deploy_resources(resources):
             args.append({'name': res_name, 'meta': res_meta})
             continue
         elif res_type != resource_type:
-            _LOG.info('Creating {0} resources ...'.format(resource_type))
-            func = CREATE_RESOURCE[resource_type]
+            _LOG.info('Processing {0} resources ...'.format(resource_type))
+            func = handlers_mapping[resource_type]
             response = func(args)
             if response:
                 output.update(response)
@@ -78,12 +79,22 @@ def deploy_resources(resources):
             args.append({'name': res_name, 'meta': res_meta})
             resource_type = res_type
     if args:
-        _LOG.info('Creating {0} resources ...'.format(resource_type))
-        func = CREATE_RESOURCE[resource_type]
+        _LOG.info('Processing {0} resources ...'.format(resource_type))
+        func = handlers_mapping[resource_type]
         response = func(args)
         if response:
             output.update(response)
     return output
+
+
+def deploy_resources(resources):
+    return _process_resources(resources=resources,
+                              handlers_mapping=CREATE_RESOURCE)
+
+
+def update_resources(resources):
+    return _process_resources(resources=resources,
+                              handlers_mapping=UPDATE_RESOURCE)
 
 
 def clean_resources(output):
@@ -195,6 +206,32 @@ def remove_deployment_resources(deploy_name, bundle_name,
     clean_resources(resources_list)
     # remove output from bucket
     remove_deploy_output(bundle_name, deploy_name)
+
+
+@exit_on_exception
+def update_lambdas(bundle_name,
+                   publish_only_lambdas,
+                   excluded_lambdas_resources):
+    resources = resolve_meta(load_meta_resources(bundle_name))
+    _LOG.debug('Names were resolved')
+    _LOG.debug(prettify_json(resources))
+
+    # TODO make filter chain
+    resources = dict((k, v) for (k, v) in resources.iteritems() if
+                     v['resource_type'] == LAMBDA_TYPE)
+
+    if publish_only_lambdas:
+        resources = dict((k, v) for (k, v) in resources.iteritems() if
+                         k in publish_only_lambdas)
+
+    if excluded_lambdas_resources:
+        resources = dict((k, v) for (k, v) in resources.iteritems() if
+                         k not in excluded_lambdas_resources)
+
+    _LOG.debug('Going to update the following lambdas: {0}'.format(
+        prettify_json(resources)))
+    resources = resources.items()
+    update_resources(resources=resources)
 
 
 def _json_serial(obj):

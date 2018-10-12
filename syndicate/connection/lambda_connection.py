@@ -232,17 +232,19 @@ class LambdaConnection(object):
             params['SourceArn'] = source_arn
         self.client.add_permission(**params)
 
-    def update_code_source(self, lambda_name, s3_bucket, s3_key):
+    def update_code_source(self, lambda_name, s3_bucket, s3_key,
+                           publish_version):
         """ Update code source (s3 bucket + file link) for specified lambda.
 
         :type lambda_name: str
         :type s3_bucket: str
         :type s3_key: str
+        :type publish_version: bool
         """
         self.client.update_function_code(FunctionName=lambda_name,
                                          S3Bucket=s3_bucket,
                                          S3Key=s3_key,
-                                         Publish=True)
+                                         Publish=publish_version)
 
     def update_event_source(self, lambda_name, batch_size):
         """ Update batch size of lambda event source stream.
@@ -365,3 +367,16 @@ class LambdaConnection(object):
     def get_unresolved_concurrent_executions(self):
         return self.client.get_account_settings()['AccountLimit'][
             'UnreservedConcurrentExecutions']
+
+    def publish_version(self, function_name, code_sha_256):
+        return self.client.publish_version(
+            FunctionName=function_name,
+            CodeSha256=code_sha_256
+        )
+
+    def update_alias(self, function_name, alias_name, function_version):
+        return self.client.update_alias(
+            FunctionName=function_name,
+            Name=alias_name,
+            FunctionVersion=function_version
+        )

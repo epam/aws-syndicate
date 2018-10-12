@@ -45,7 +45,8 @@ from syndicate.core.resources.iam_resource import (apply_policy_content,
 from syndicate.core.resources.kinesis_resource import (create_kinesis_stream,
                                                        remove_kinesis_streams)
 from syndicate.core.resources.lambda_resource import (create_lambda,
-                                                      remove_lambdas)
+                                                      remove_lambdas,
+                                                      update_lambda)
 from syndicate.core.resources.s3_resource import (create_s3_bucket,
                                                   remove_buckets)
 from syndicate.core.resources.sns_resource import (create_sns_application,
@@ -97,6 +98,10 @@ REMOVE_RESOURCE = {
     SQS_QUEUE_TYPE: remove_queues,
     STEP_FUNCTION_TYPE: remove_state_machines,
     STATE_ACTIVITY_TYPE: remove_activities
+}
+
+UPDATE_RESOURCE = {
+    LAMBDA_TYPE: update_lambda
 }
 
 RESOURCE_IDENTIFIER = {

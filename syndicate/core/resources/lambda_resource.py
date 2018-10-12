@@ -41,6 +41,10 @@ def create_lambda(args):
     return create_pool(_create_lambda_from_meta, 3, args)
 
 
+def update_lambda(args):
+    return create_pool(_update_lambda, 3, args)
+
+
 def describe_lambda(name, meta, response):
     arn = 'arn:aws:lambda:{0}:{1}:function:{2}'.format(CONFIG.region,
                                                        CONFIG.account_id, name)
@@ -145,13 +149,13 @@ def _create_lambda_from_meta(name, meta):
     # aliases can be enabled only and for $LATEST
     alias = meta.get('alias')
     if alias:
-        _LOG.info('Creating alias')
-        _LOG.info(_LAMBDA_CONN.create_alias(function_name=name,
-                                        name=alias, version=version))
+        _LOG.debug('Creating alias')
+        _LOG.debug(_LAMBDA_CONN.create_alias(function_name=name,
+                                             name=alias, version=version))
 
     arn = build_lambda_arn(response, alias) if publish_version or alias else \
         response['Configuration']['FunctionArn']
-    _LOG.info('arn value: ' + str(arn))
+    _LOG.debug('arn value: ' + str(arn))
 
     if meta.get('event_sources'):
         for trigger_meta in meta.get('event_sources'):
@@ -160,6 +164,64 @@ def _create_lambda_from_meta(name, meta):
             func(name, arn, role_name, trigger_meta)
     _LOG.info('Created lambda %s.', name)
     return describe_lambda(name, meta, response)
+
+
+@unpack_kwargs
+def _update_lambda(name, meta):
+    _LOG.info('Updating lambda: {0}'.format(name))
+    req_params = ['runtime', 'memory', 'timeout', 'func_name']
+
+    validate_params(name, meta, req_params)
+
+    key = meta[S3_PATH_NAME]
+    if not _S3_CONN.is_file_exists(CONFIG.deploy_target_bucket, key):
+        raise AssertionError(
+            'Deployment package {0} does not exist '
+            'in {1} bucket'.format(key, CONFIG.deploy_target_bucket))
+
+    response = _LAMBDA_CONN.get_function(name)
+    if not response:
+        raise AssertionError('{0} lambda does not exist.'.format(name))
+
+    publish_version = meta.get('publish_version', False)
+
+    _LAMBDA_CONN.update_code_source(
+        lambda_name=name,
+        s3_bucket=CONFIG.deploy_target_bucket,
+        s3_key=key,
+        publish_version=publish_version)
+
+    # AWS sometimes returns None after function creation, needs for stability
+    time.sleep(10)
+    response = _LAMBDA_CONN.get_function(name)
+    _LOG.debug('Lambda describe result: {0}'.format(response))
+    # todo check response if not None
+    code_sha_256 = response['Configuration']['CodeSha256']
+    publish_ver_response = _LAMBDA_CONN.publish_version(
+        function_name=name,
+        code_sha_256=code_sha_256)
+    updated_version = publish_ver_response['Version']
+    _LOG.info(
+        'Version {0} for lambda {1} published'.format(updated_version, name))
+
+    alias_name = meta['alias']
+    alias = _LAMBDA_CONN.get_alias(function_name=name, name=alias_name)
+    if not alias:
+        _LAMBDA_CONN.create_alias(
+            function_name=name,
+            name=alias_name,
+            version=updated_version)
+        _LOG.info(
+            'Alias {0} has been created for lambda {1}'.format(alias_name,
+                                                               name))
+    else:
+        _LAMBDA_CONN.update_alias(
+            function_name=name,
+            alias_name=alias_name,
+            function_version=updated_version)
+        _LOG.info(
+            'Alias {0} has been updated for lambda {1}'.format(alias_name,
+                                                               name))
 
 
 def __describe_lambda_by_version(name):
