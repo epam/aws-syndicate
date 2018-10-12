@@ -43,7 +43,7 @@
             <plugin>
                 <groupId>com.aws.syndicate</groupId>
                 <artifactId>deployment-configuration-maven-plugin</artifactId>
-                <version>1.04</version>
+                <version>1.05</version>
                 <configuration>
                     <packages>
                         <package>com.aws.syndicate.demo</package>

@@ -29,9 +29,9 @@ import com.syndicate.deployment.factories.LambdaConfigurationFactory;
 import com.syndicate.deployment.model.DependencyItem;
 import com.syndicate.deployment.model.EventSourceType;
 import com.syndicate.deployment.model.LambdaConfiguration;
+import com.syndicate.deployment.model.Pair;
 import com.syndicate.deployment.model.events.EventSourceItem;
 import com.syndicate.deployment.processor.IConfigurationProcessor;
-import javafx.util.Pair;
 
 import java.lang.annotation.Annotation;
 import java.util.HashMap;

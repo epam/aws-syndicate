@@ -143,7 +143,7 @@ def load_bundle(bundle_name, src_account_id, src_bucket_region,
         _LOG.debug(
             'Going to assume {0} role from {1} account'.format(role_name,
                                                                src_account_id))
-        credentials = sts.get_temp_credentials(role_name, src_account_id)
+        credentials = sts.get_temp_credentials(role_name, src_account_id, 3600)
         access_key = credentials['AccessKeyId']
         secret_key = credentials['SecretAccessKey']
         session_token = credentials['SessionToken']

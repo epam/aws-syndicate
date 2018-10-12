@@ -71,8 +71,10 @@ try:
     }
     if _ready_to_assume():
         _LOG.debug('Starting to assume role ...')
+        # get credentials for 12 hours
         temp_credentials = sts.get_temp_credentials(CONFIG.access_role,
-                                                    CONFIG.account_id)
+                                                    CONFIG.account_id,
+                                                    43200)
         _LOG.debug('Role %s is assumed successfully' % CONFIG.access_role)
         CREDENTIALS[ACCESS_KEY] = temp_credentials['AccessKeyId']
         CREDENTIALS[SECRET_KEY] = temp_credentials['SecretAccessKey']
