@@ -56,10 +56,16 @@ public final class LambdaConfigurationFactory {
                 .withDependencies(dependencies).withEventSources(events)
                 .withVariables(variables).withSubnetIds(lambdaHandler.subnetsIds())
                 .withSecurityGroupIds(lambdaHandler.securityGroupIds())
+                .withPublishVersion(lambdaHandler.isPublishVersion())
                 .build();
 
         if (lambdaHandler.tracingMode() != TracingMode.NoTracing) {
             lambdaConfiguration.setTracingMode(lambdaHandler.tracingMode().getMode());
+        }
+
+        String aliasName = lambdaHandler.aliasName();
+        if (!aliasName.equals("")) {
+            lambdaConfiguration.setAlias(aliasName);
         }
 
         LambdaConcurrency lambdaConcurrency = lambdaClass.getDeclaredAnnotation(LambdaConcurrency.class);

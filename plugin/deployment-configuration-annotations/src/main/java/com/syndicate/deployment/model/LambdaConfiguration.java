@@ -89,6 +89,12 @@ public class LambdaConfiguration {
     @JsonProperty("tracing_mode")
     private String tracingMode;
 
+    @JsonProperty("publish_version")
+    private boolean isPublishVersion;
+
+    @JsonProperty("alias")
+    private String alias;
+
     public String getPath() {
         return path;
     }
@@ -167,6 +173,22 @@ public class LambdaConfiguration {
 
     public void setTracingMode(String tracingMode) {
         this.tracingMode = tracingMode;
+    }
+
+    public boolean isPublishVersion() {
+        return isPublishVersion;
+    }
+
+    public void setPublishVersion(boolean publishVersion) {
+        isPublishVersion = publishVersion;
+    }
+
+    public String getAlias() {
+        return alias;
+    }
+
+    public void setAlias(String alias) {
+        this.alias = alias;
     }
 
     public static class Builder {
@@ -291,6 +313,19 @@ public class LambdaConfiguration {
             return this;
         }
 
+        public Builder withPublishVersion(boolean isPublishVersion) {
+            configuration.isPublishVersion = isPublishVersion;
+            return this;
+        }
+
+        public Builder withAlias(String alias) {
+            if (configuration.alias != null && alias.equals("")) {
+                throw new InvalidParameterException("Alias cannot be empty");
+            }
+            configuration.alias = alias;
+            return this;
+        }
+
         public LambdaConfiguration build() {
             Objects.requireNonNull(configuration.path, "Path cannot be null");
             Objects.requireNonNull(configuration.version, "Version cannot be null");
@@ -310,6 +345,9 @@ public class LambdaConfiguration {
             Objects.requireNonNull(configuration.variables, "Variables cannot be null");
             Objects.requireNonNull(configuration.subnetIds, "Subnet ids cannot be null");
             Objects.requireNonNull(configuration.securityGroupIds, "Security group ids cannot be null");
+            if (configuration.alias != null && configuration.alias.equals("")) {
+                throw new InvalidParameterException("Alias cannot be empty");
+            }
             return configuration;
         }
 
@@ -337,6 +375,7 @@ public class LambdaConfiguration {
                 ", dlResourceName='" + dlResourceName + '\'' +
                 ", dlResourceType='" + dlResourceType + '\'' +
                 ", tracingMode='" + tracingMode + '\'' +
+                ", alias='" + alias + '\'' +
                 '}';
     }
 }

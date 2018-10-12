@@ -11,7 +11,7 @@
     </parent>
 
     <artifactId>deployment-configuration-maven-plugin</artifactId>
-    <version>1.05</version>
+    <version>1.06</version>
     <packaging>maven-plugin</packaging>
 
     <properties>

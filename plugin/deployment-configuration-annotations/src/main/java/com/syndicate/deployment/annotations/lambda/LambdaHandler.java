@@ -55,4 +55,8 @@ public @interface LambdaHandler {
 
     TracingMode tracingMode() default TracingMode.NoTracing;
 
+    boolean isPublishVersion() default false;
+
+    String aliasName() default "";
+
 }

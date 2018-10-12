@@ -34,7 +34,7 @@
         <dependency>
             <groupId>com.aws.syndicate</groupId>
             <artifactId>deployment-configuration-annotations</artifactId>
-            <version>1.02</version>
+            <version>1.03</version>
         </dependency>
     </dependencies>
 
@@ -43,7 +43,7 @@
             <plugin>
                 <groupId>com.aws.syndicate</groupId>
                 <artifactId>deployment-configuration-maven-plugin</artifactId>
-                <version>1.05</version>
+                <version>1.06</version>
                 <configuration>
                     <packages>
                         <package>com.aws.syndicate.demo</package>
