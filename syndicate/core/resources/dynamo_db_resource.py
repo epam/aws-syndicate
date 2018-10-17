@@ -239,7 +239,7 @@ def _create_dynamodb_stream_from_meta(name, meta):
                                             meta['stream_view_type'])
     except ClientError as e:
         # handle specific case for fantom stream enabling
-        if 'ResourceInUseException' in e.message:
+        if 'ResourceInUseException' or 'Table already has an enabled stream' in e.message:
             _LOG.warn('Stream enabling currently in progress, table: %s',
                       table_name)
         else:
