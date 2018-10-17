@@ -204,24 +204,25 @@ def _update_lambda(name, meta):
     _LOG.info(
         'Version {0} for lambda {1} published'.format(updated_version, name))
 
-    alias_name = meta['alias']
-    alias = _LAMBDA_CONN.get_alias(function_name=name, name=alias_name)
-    if not alias:
-        _LAMBDA_CONN.create_alias(
-            function_name=name,
-            name=alias_name,
-            version=updated_version)
-        _LOG.info(
-            'Alias {0} has been created for lambda {1}'.format(alias_name,
-                                                               name))
-    else:
-        _LAMBDA_CONN.update_alias(
-            function_name=name,
-            alias_name=alias_name,
-            function_version=updated_version)
-        _LOG.info(
-            'Alias {0} has been updated for lambda {1}'.format(alias_name,
-                                                               name))
+    alias_name = meta.get('alias')
+    if alias_name:
+        alias = _LAMBDA_CONN.get_alias(function_name=name, name=alias_name)
+        if not alias:
+            _LAMBDA_CONN.create_alias(
+                function_name=name,
+                name=alias_name,
+                version=updated_version)
+            _LOG.info(
+                'Alias {0} has been created for lambda {1}'.format(alias_name,
+                                                                   name))
+        else:
+            _LAMBDA_CONN.update_alias(
+                function_name=name,
+                alias_name=alias_name,
+                function_version=updated_version)
+            _LOG.info(
+                'Alias {0} has been updated for lambda {1}'.format(alias_name,
+                                                                   name))
 
 
 def __describe_lambda_by_version(name):
