@@ -32,18 +32,18 @@
         </dependency>
         <!--Syndicate annotations-->
         <dependency>
-            <groupId>com.aws.syndicate</groupId>
+            <groupId>net.sf.aws-syndicate</groupId>
             <artifactId>deployment-configuration-annotations</artifactId>
-            <version>1.03</version>
+            <version>1.3.0</version>
         </dependency>
     </dependencies>
 
     <build>
         <plugins>
             <plugin>
-                <groupId>com.aws.syndicate</groupId>
+                <groupId>net.sf.aws-syndicate</groupId>
                 <artifactId>deployment-configuration-maven-plugin</artifactId>
-                <version>1.06</version>
+                <version>1.3.0</version>
                 <configuration>
                     <packages>
                         <package>com.aws.syndicate.demo</package>
