@@ -7,7 +7,7 @@
     <parent>
         <groupId>net.sf.aws-syndicate</groupId>
         <artifactId>deployment-configuration-processor</artifactId>
-        <version>1.2.0</version>
+        <version>1.3.0</version>
     </parent>
 
     <artifactId>deployment-configuration-maven-plugin</artifactId>
@@ -27,7 +27,7 @@
         <dependency>
             <groupId>net.sf.aws-syndicate</groupId>
             <artifactId>deployment-configuration-annotations</artifactId>
-            <version>1.2.0</version>
+            <version>1.3.0</version>
         </dependency>
         <dependency>
             <groupId>org.reflections</groupId>
