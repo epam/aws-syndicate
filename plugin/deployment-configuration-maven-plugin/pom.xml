@@ -5,28 +5,29 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>com.aws.syndicate</groupId>
+        <groupId>net.sf.aws-syndicate</groupId>
         <artifactId>deployment-configuration-processor</artifactId>
-        <version>1.2</version>
+        <version>1.2.0</version>
     </parent>
 
     <artifactId>deployment-configuration-maven-plugin</artifactId>
-    <version>1.06</version>
+    <version>1.2.0</version>
     <packaging>maven-plugin</packaging>
 
     <properties>
         <dependency.maven.version>3.3.9</dependency.maven.version>
         <junit.version>4.12</junit.version>
-        <mockito-core.version>2.10.0</mockito-core.version>
-        <maven-plugin-testing-harness.version>3.3.0</maven-plugin-testing-harness.version>
         <maven-plugin-annotations.version>3.3</maven-plugin-annotations.version>
+        <maven-plugin-plugin.version>3.5</maven-plugin-plugin.version>
+        <maven-plugin-testing-harness.version>3.3.0</maven-plugin-testing-harness.version>
+        <mockito-core.version>2.10.0</mockito-core.version>
     </properties>
 
     <dependencies>
         <dependency>
-            <groupId>com.aws.syndicate</groupId>
+            <groupId>net.sf.aws-syndicate</groupId>
             <artifactId>deployment-configuration-annotations</artifactId>
-            <version>1.02</version>
+            <version>1.2.0</version>
         </dependency>
         <dependency>
             <groupId>org.reflections</groupId>
@@ -99,11 +100,10 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-plugin-plugin</artifactId>
-                <version>3.5</version>
+                <version>${maven-plugin-plugin.version}</version>
                 <configuration>
                     <skipErrorNoDescriptorsFound>true</skipErrorNoDescriptorsFound>
                 </configuration>
-
                 <executions>
                     <execution>
                         <id>mojo-descriptor</id>
@@ -112,6 +112,13 @@
                         </goals>
                     </execution>
                 </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-deploy-plugin</artifactId>
+                <configuration>
+                    <skip>false</skip>
+                </configuration>
             </plugin>
         </plugins>
     </build>
