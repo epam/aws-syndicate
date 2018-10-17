@@ -16,6 +16,7 @@
 
 package com.syndicate.deployment.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.syndicate.deployment.model.events.EventSourceItem;
@@ -175,6 +176,7 @@ public class LambdaConfiguration {
         this.tracingMode = tracingMode;
     }
 
+    @JsonIgnore
     public boolean isPublishVersion() {
         return isPublishVersion;
     }
