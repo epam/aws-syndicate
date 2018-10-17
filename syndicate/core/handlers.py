@@ -263,7 +263,7 @@ def publish_lambda_version(bundle_name,
                            publish_only_lambdas, publish_only_lambdas_path,
                            excluded_lambdas_resources,
                            excluded_lambdas_resources_path):
-    click.echo('Command deploy backend')
+    click.echo('Command publish lambda version backend')
     click.echo('Bundle name: %s' % bundle_name)
     if publish_only_lambdas_path and os.path.exists(
             publish_only_lambdas_path):
