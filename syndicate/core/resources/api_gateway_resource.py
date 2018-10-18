@@ -269,6 +269,12 @@ def _create_api_gateway_from_meta(name, meta):
         )
         # customize cache settings for endpoints
         configure_cache(api_id, deploy_stage, api_resources)
+    return describe_api_resources(api_id, meta, name)
+
+
+def describe_api_resources(meta, name, api_id=None):
+    if not api_id:
+        api_id = _API_GATEWAY_CONN.get_api_by_name(name)['id']
     response = _API_GATEWAY_CONN.get_api(api_id)
     arn = 'arn:aws:apigateway:{0}::/restapis/{1}'.format(CONFIG.region,
                                                          api_id)

@@ -45,13 +45,20 @@ def update_lambda(args):
     return create_pool(_update_lambda, 3, args)
 
 
-def describe_lambda(name, meta, response):
-    arn = 'arn:aws:lambda:{0}:{1}:function:{2}'.format(CONFIG.region,
-                                                       CONFIG.account_id, name)
+def describe_lambda(name, meta, response=None):
+    arn = build_lambda_arn(name)
+    if not response:
+        response = _LAMBDA_CONN.get_function(lambda_name=name)
     del response['Configuration']['FunctionArn']
     return {
         arn: build_description_obj(response, name, meta)
     }
+
+
+def build_lambda_arn(name):
+    arn = 'arn:aws:lambda:{0}:{1}:function:{2}'.format(CONFIG.region,
+                                                       CONFIG.account_id, name)
+    return arn
 
 
 def resolve_lambda_arn_by_version_and_alias(name, version, alias):
@@ -64,9 +71,7 @@ def resolve_lambda_arn_by_version_and_alias(name, version, alias):
 
 def build_lambda_arn(response, alias=None):
     name = response['Configuration']['FunctionName']
-    l_arn = 'arn:aws:lambda:{0}:{1}:function:{2}'.format(CONFIG.region,
-                                                         CONFIG.account_id,
-                                                         name)
+    l_arn = build_lambda_arn(name=name)
     version = response['Configuration']['Version']
     arn = '{0}:{1}'.format(l_arn, version)
     # override version if alias exists

@@ -34,7 +34,7 @@ def create_sqs_queue(args):
     return create_pool(_create_sqs_queue_from_meta, 5, args)
 
 
-def _describe_queue(queue_url, name, meta, region):
+def describe_queue(queue_url, name, meta, region):
     response = CONN.sqs(region).get_queue_attributes(queue_url)
     arn = 'arn:aws:sqs:{0}:{1}:{2}'.format(region, CONFIG.account_id, name)
     return {arn: build_description_obj(response, name, meta)}
@@ -76,7 +76,7 @@ def _create_sqs_queue_from_meta(name, meta):
     queue_url = CONN.sqs(region).get_queue_url(name, CONFIG.account_id)
     if queue_url:
         _LOG.warn('SQS queue %s exists.', name)
-        return _describe_queue(queue_url, name, meta, region)
+        return describe_queue(queue_url, name, meta, region)
     delay_sec = meta.get('delay_seconds')
     max_mes_size = meta.get('maximum_message_size')
     mes_ret_period = meta.get('message_retention_period')
@@ -104,4 +104,4 @@ def _create_sqs_queue_from_meta(name, meta):
                   content_based_deduplication=content_deduplication)
     queue_url = CONN.sqs(region).create_queue(**params)['QueueUrl']
     _LOG.info('Created SQS queue %s.', name)
-    return _describe_queue(queue_url, name, meta, region)
+    return describe_queue(queue_url, name, meta, region)

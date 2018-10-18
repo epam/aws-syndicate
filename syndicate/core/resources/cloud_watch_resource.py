@@ -28,7 +28,9 @@ from syndicate.core.resources.helper import (build_description_obj,
 _LOG = get_logger('syndicate.core.resources.cloud_watch_resource')
 
 
-def _describe_rule(name, meta, response):
+def describe_rule(name, meta, region, response=None):
+    if not response:
+        response = CONN.cw_events(region).get_rule(name)
     arn = response['Arn']
     del response['Arn']
     return {arn: build_description_obj(response, name, meta)}
@@ -59,7 +61,7 @@ def _create_cloud_watch_rule_from_meta(name, meta, region):
     response = CONN.cw_events(region).get_rule(name)
     if response:
         _LOG.warn('%s rule exists in %s.', name, region)
-        return _describe_rule(name, meta, response)
+        return describe_rule(name, meta, response)
     try:
         func = RULE_TYPES[rule_type]
         func(name, meta, CONN.cw_events(region))
@@ -69,7 +71,7 @@ def _create_cloud_watch_rule_from_meta(name, meta, region):
         _LOG.info('Created cloud watch rule %s in %s.', name, region)
         response = CONN.cw_events(region).get_rule(name)
         time.sleep(5)
-        return _describe_rule(name, meta, response)
+        return describe_rule(name, meta, response)
     except KeyError:
         raise AssertionError(
             'Invalid rule type: {0} for resource {1}. '

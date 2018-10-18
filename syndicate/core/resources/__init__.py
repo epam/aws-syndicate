@@ -23,17 +23,23 @@ from syndicate.core.constants import (API_GATEWAY_TYPE, CLOUD_WATCH_ALARM_TYPE,
                                       SNS_TOPIC_TYPE,
                                       SQS_QUEUE_TYPE, STATE_ACTIVITY_TYPE,
                                       STEP_FUNCTION_TYPE)
-from syndicate.core.resources.alarm_resource import create_alarm, remove_alarms
+from syndicate.core.resources.alarm_resource import (create_alarm,
+                                                     remove_alarms,
+                                                     describe_alarm)
 from syndicate.core.resources.api_gateway_resource import (
-    api_resource_identifier, create_api_gateway, remove_api_gateways)
+    api_resource_identifier, create_api_gateway, remove_api_gateways,
+    describe_api_resources)
 from syndicate.core.resources.cloud_watch_resource import (
-    create_cloud_watch_rule, remove_cloud_watch_rules)
+    create_cloud_watch_rule, remove_cloud_watch_rules, describe_rule)
 from syndicate.core.resources.cognito_resource import (
     cognito_resource_identifier, create_cognito_identity_pool,
-    remove_cognito_identity_pools)
+    remove_cognito_identity_pools, describe_cognito_pool)
 from syndicate.core.resources.dynamo_db_resource import (
-    create_dynamodb_stream, create_tables_by_10, remove_dynamodb_tables)
-from syndicate.core.resources.ebs_resource import create_ebs, remove_ebs_apps
+    create_dynamodb_stream, create_tables_by_10, remove_dynamodb_tables,
+    describe_table)
+from syndicate.core.resources.ebs_resource import (create_ebs,
+                                                   remove_ebs_apps,
+                                                   describe_ebs)
 from syndicate.core.resources.ec2_resource import (create_ec2,
                                                    remove_ec2_instances)
 from syndicate.core.resources.iam_resource import (apply_policy_content,
@@ -41,23 +47,31 @@ from syndicate.core.resources.iam_resource import (apply_policy_content,
                                                    create_policies,
                                                    create_roles,
                                                    remove_policies,
-                                                   remove_roles)
+                                                   remove_roles,
+                                                   describe_policy,
+                                                   describe_role)
 from syndicate.core.resources.kinesis_resource import (create_kinesis_stream,
-                                                       remove_kinesis_streams)
+                                                       remove_kinesis_streams,
+                                                       describe_kinesis_stream)
 from syndicate.core.resources.lambda_resource import (create_lambda,
                                                       remove_lambdas,
-                                                      update_lambda)
+                                                      update_lambda,
+                                                      describe_lambda)
 from syndicate.core.resources.s3_resource import (create_s3_bucket,
-                                                  remove_buckets)
+                                                  remove_buckets,
+                                                  describe_bucket)
 from syndicate.core.resources.sns_resource import (create_sns_application,
                                                    create_sns_topic,
                                                    remove_sns_application,
-                                                   remove_sns_topics)
+                                                   remove_sns_topics,
+                                                   describe_sns,
+                                                   describe_sns_application)
 from syndicate.core.resources.sqs_resource import (create_sqs_queue,
-                                                   remove_queues)
+                                                   remove_queues,
+                                                   describe_queue)
 from syndicate.core.resources.step_functions_resource import (
     create_activities, create_state_machine, remove_activities,
-    remove_state_machines)
+    remove_state_machines, describe_step_function, describe_activity)
 
 CREATE_RESOURCE = {
     IAM_POLICY: create_policies,
@@ -78,6 +92,26 @@ CREATE_RESOURCE = {
     STATE_ACTIVITY_TYPE: create_activities,
     KINESIS_STREAM_TYPE: create_kinesis_stream,
     EC2_INSTANCE_TYPE: create_ec2
+}
+
+DESCRIBE_RESOURCE = {
+    IAM_POLICY: describe_policy,
+    IAM_ROLE: describe_role,
+    LAMBDA_TYPE: describe_lambda,
+    DYNAMO_TABLE_TYPE: describe_table,
+    # DYNAMO_STREAM_TYPE is not supported,
+    CLOUD_WATCH_RULE_TYPE: describe_rule,
+    S3_BUCKET_TYPE: describe_bucket,
+    API_GATEWAY_TYPE: describe_api_resources,
+    COGNITO_TYPE: describe_cognito_pool,
+    SNS_TOPIC_TYPE: describe_sns,
+    SNS_PLATFORM_APPLICATION_TYPE: describe_sns_application,
+    SQS_QUEUE_TYPE: describe_queue,
+    CLOUD_WATCH_ALARM_TYPE: describe_alarm,
+    EBS_TYPE: describe_ebs,
+    STEP_FUNCTION_TYPE: describe_step_function,
+    STATE_ACTIVITY_TYPE: describe_activity,
+    KINESIS_STREAM_TYPE: describe_kinesis_stream
 }
 
 REMOVE_RESOURCE = {

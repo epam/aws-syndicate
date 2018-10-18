@@ -27,14 +27,18 @@ from syndicate.core.resources.helper import (build_description_obj,
 _LOG = get_logger('core.resources.sns_resource')
 
 
-def _describe_sns(arn, name, meta, region):
+def describe_sns(name, meta, region, arn=None):
+    if not arn:
+        arn = CONN.sns(region).get_topic_arn(name)
     response = CONN.sns(region).get_topic_attributes(arn)
     return {
         arn: build_description_obj(response, name, meta)
     }
 
 
-def _describe_sns_application(arn, name, meta, region):
+def describe_sns_application(name, meta, region, arn):
+    if not arn:
+        arn = CONN.sns(region).get_platform_application(name)
     response = CONN.sns(region).get_platform_application_attributes(arn)
     return {
         arn: build_description_obj(response, name, meta)
@@ -65,7 +69,7 @@ def _create_sns_topic_from_meta(name, meta, region):
     arn = CONN.sns(region).get_topic_arn(name)
     if arn:
         _LOG.warn('{0} sns topic exists in region {1}.'.format(name, region))
-        return _describe_sns(arn, name, meta, region)
+        return describe_sns(name=name, meta=meta, region=region, arn=arn)
     arn = CONN.sns(region).create_topic(name)
     event_sources = meta.get('event_sources')
     if event_sources:
@@ -74,7 +78,7 @@ def _create_sns_topic_from_meta(name, meta, region):
             func = CREATE_TRIGGER[trigger_type]
             func(name, trigger_meta, region)
     _LOG.info('SNS topic %s in region %s created.', name, region)
-    return _describe_sns(arn, name, meta, region)
+    return describe_sns(arn, name, meta, region)
 
 
 def _subscribe_lambda_to_sns_topic(lambda_arn, topic_name, region):
@@ -158,7 +162,7 @@ def _create_platform_application_from_meta(name, meta, region):
     if arn:
         _LOG.warn('{0} SNS platform application exists in region {1}.'.format(
             name, region))
-        return _describe_sns_application(arn, name, meta, region)
+        return describe_sns_application(arn, name, meta, region)
     platform = meta['platform']
     atrbts = meta['attributes']
     try:
@@ -173,7 +177,7 @@ def _create_platform_application_from_meta(name, meta, region):
             raise e
     _LOG.info('SNS platform application %s in region %s has been created.',
               name, region)
-    return _describe_sns_application(arn, name, meta, region)
+    return describe_sns_application(arn, name, meta, region)
 
 
 def remove_sns_application(args):

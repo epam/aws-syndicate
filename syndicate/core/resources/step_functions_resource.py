@@ -150,6 +150,12 @@ def _create_state_machine_from_meta(name, meta):
             func = CREATE_TRIGGER[trigger_type]
             func(name, trigger_meta)
     _LOG.info('Created state machine %s.', machine_info['stateMachineArn'])
+    return describe_step_function(meta, name, arn)
+
+
+def describe_step_function(meta, name, arn=None):
+    if not arn:
+        arn = _build_sm_arn(name, CONFIG.region)
     response = _SF_CONN.describe_state_machine(arn)
     return {
         arn: build_description_obj(response, name, meta)
@@ -188,8 +194,7 @@ CREATE_TRIGGER = {
 
 @unpack_kwargs
 def _create_activity_from_meta(name, meta):
-    arn = 'arn:aws:states:{0}:{1}:activity:{2}'.format(CONFIG.region,
-                                                       CONFIG.account_id, name)
+    arn = build_activity_arn(name=name)
     response = _SF_CONN.describe_activity(arn)
     if response:
         _LOG.warn('Activity %s exists.', name)
@@ -201,3 +206,16 @@ def _create_activity_from_meta(name, meta):
     return {
         arn: build_description_obj(response, name, meta)
     }
+
+
+def describe_activity(name, meta):
+    arn = build_activity_arn(name=name)
+    return {
+        arn: build_description_obj(_SF_CONN.describe_activity(), name, meta)
+    }
+
+
+def build_activity_arn(name):
+    arn = 'arn:aws:states:{0}:{1}:activity:{2}'.format(CONFIG.region,
+                                                       CONFIG.account_id, name)
+    return arn

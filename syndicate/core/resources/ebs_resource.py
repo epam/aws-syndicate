@@ -31,9 +31,11 @@ _IAM_CONN = CONN.iam()
 _EBS_CONN = CONN.beanstalk()
 
 
-def _describe_ebs(name, meta, response):
+def describe_ebs(name, meta, response=None):
     arn = 'arn:aws:elasticbeanstalk:{0}:{1}:application/{2}'.format(
         CONFIG.region, CONFIG.account_id, name)
+    if not response:
+        response = _EBS_CONN.describe_applications([name])
     return {
         arn: build_description_obj(response, name, meta)
     }
@@ -48,7 +50,7 @@ def _create_ebs_app_env_from_meta(name, meta):
     response = _EBS_CONN.describe_applications([name])
     if response:
         _LOG.warn('%s EBS app exists.', name)
-        return _describe_ebs(name, meta, response[0])
+        return describe_ebs(name, meta, response[0])
 
     env_settings = meta['env_settings']
     topic_name = meta.get('notification_topic')
@@ -185,7 +187,7 @@ def _create_ebs_app_env_from_meta(name, meta):
     # deploy new app version
     _EBS_CONN.deploy_env_version(name, env_name, version_label)
     _LOG.info('Created environment for %s.', name)
-    return _describe_ebs(name, meta, response)
+    return describe_ebs(name, meta, response)
 
 
 def _add_subnets_info(env_settings, subnets, vpc_id):

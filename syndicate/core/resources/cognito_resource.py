@@ -36,7 +36,9 @@ def create_cognito_identity_pool(args):
     return create_pool(_create_cognito_identity_pool_from_meta, 5, args)
 
 
-def _describe_cognito_pool(pool_id, name, meta):
+def describe_cognito_pool(name, meta, pool_id=None):
+    if not pool_id:
+        pool_id = _COGNITO_IDENTITY_CONN.if_pool_exists_by_name(name)
     response = _COGNITO_IDENTITY_CONN.describe_identity_pool(pool_id)
     arn = 'arn:aws:cognito-identity:{0}:{1}:identitypool/{2}'.format(
         CONFIG.region, CONFIG.account_id, pool_id)
@@ -55,7 +57,7 @@ def _create_cognito_identity_pool_from_meta(name, meta):
     pool_id = _COGNITO_IDENTITY_CONN.if_pool_exists_by_name(name)
     if pool_id:
         _LOG.warn('%s cognito identity pool exists.', name)
-        return _describe_cognito_pool(pool_id, name, meta)
+        return describe_cognito_pool(name=name, meta=meta, pool_id=pool_id)
 
     _LOG.info('Creating identity pool %s', name)
     open_id_provider_names = meta.get('open_id_providers', [])
@@ -69,7 +71,7 @@ def _create_cognito_identity_pool_from_meta(name, meta):
     if auth_role or unauth_role:
         _COGNITO_IDENTITY_CONN.set_role(pool_id, auth_role, unauth_role)
     _LOG.info('Created cognito identity pool %s', pool_id)
-    return _describe_cognito_pool(pool_id, name, meta)
+    return describe_cognito_pool(name=name, meta=meta, pool_id=pool_id)
 
 
 def remove_cognito_identity_pools(args):
