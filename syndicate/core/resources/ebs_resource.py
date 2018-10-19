@@ -40,7 +40,7 @@ def _describe_ebs(name, meta, response):
 
 
 def create_ebs(args):
-    return create_pool(_create_ebs_app_env_from_meta, 5, args)
+    return create_pool(_create_ebs_app_env_from_meta, args, 5)
 
 
 @unpack_kwargs
@@ -203,7 +203,7 @@ def _add_subnets_info(env_settings, subnets, vpc_id):
 
 
 def remove_ebs_apps(args):
-    create_pool(_remove_ebs_app, 5, args)
+    create_pool(_remove_ebs_app, args, 5)
 
 
 @unpack_kwargs

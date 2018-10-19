@@ -40,7 +40,7 @@ def create_cloud_watch_rule(args):
     :type args: list
     """
     new_region_args = create_args_for_multi_region(args, ALL_REGIONS)
-    return create_pool(_create_cloud_watch_rule_from_meta, 1, new_region_args)
+    return create_pool(_create_cloud_watch_rule_from_meta, new_region_args, 1)
 
 
 @unpack_kwargs
@@ -136,7 +136,7 @@ def _handle_deactivation_for_cw_resources(cw_conn, region, rule_name):
 
 
 def remove_cloud_watch_rules(args):
-    create_pool(_remove_cloud_watch_rule, 1, args)
+    create_pool(_remove_cloud_watch_rule, args, 1)
 
 
 @unpack_kwargs

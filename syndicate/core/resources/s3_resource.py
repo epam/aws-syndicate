@@ -23,7 +23,7 @@ _S3_CONN = CONN.s3()
 
 
 def create_s3_bucket(args):
-    return create_pool(_create_s3_bucket_from_meta, 5, args)
+    return create_pool(_create_s3_bucket_from_meta, args, 5)
 
 
 def _describe_bucket(name, meta):
@@ -74,7 +74,7 @@ def _delete_objects(bucket_name, keys):
 
 
 def remove_buckets(args):
-    create_pool(_remove_bucket, 5, args)
+    create_pool(_remove_bucket, args, 5)
 
 
 @unpack_kwargs

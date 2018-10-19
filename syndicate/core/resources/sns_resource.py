@@ -47,7 +47,7 @@ def create_sns_topic(args):
     :type args: list
     """
     new_region_args = create_args_for_multi_region(args, ALL_REGIONS)
-    return create_pool(_create_sns_topic_from_meta, 1, new_region_args)
+    return create_pool(_create_sns_topic_from_meta, new_region_args, 1)
 
 
 def create_sns_application(args):
@@ -56,8 +56,8 @@ def create_sns_application(args):
     :type args: list
     """
     new_region_args = create_args_for_multi_region(args, ALL_REGIONS)
-    return create_pool(_create_platform_application_from_meta, 1,
-                       new_region_args)
+    return create_pool(_create_platform_application_from_meta, new_region_args,
+                       1)
 
 
 @unpack_kwargs
@@ -132,7 +132,7 @@ CREATE_TRIGGER = {
 
 
 def remove_sns_topics(args):
-    create_pool(_remove_sns_topic, 1, args)
+    create_pool(_remove_sns_topic, args, 1)
 
 
 @unpack_kwargs
@@ -177,7 +177,7 @@ def _create_platform_application_from_meta(name, meta, region):
 
 
 def remove_sns_application(args):
-    create_pool(_remove_sns_application, 1, args)
+    create_pool(_remove_sns_application, args, 1)
 
 
 @unpack_kwargs
