@@ -244,10 +244,12 @@ def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
         excluded_resources_list = json.load(open(excluded_resources_path))
         excluded_resources = tuple(
             set(excluded_resources + tuple(excluded_resources_list)))
-    create_deployment_resources(deploy_name, bundle_name,
-                                deploy_only_resources, deploy_only_types,
-                                excluded_resources, excluded_types)
-    click.echo('Backend resources were deployed.')
+    success = create_deployment_resources(deploy_name, bundle_name,
+                                          deploy_only_resources,
+                                          deploy_only_types,
+                                          excluded_resources, excluded_types)
+    click.echo('Backend resources were deployed {0}.'.format(
+        '' if success else 'with errors. See deploy output file.'))
 
 
 # =============================================================================
@@ -276,7 +278,11 @@ def publish_lambda_version(bundle_name,
             open(excluded_lambdas_resources_path))
         excluded_lambdas_resources = tuple(
             set(excluded_lambdas_resources + tuple(excluded_lambdas_list)))
-    update_lambdas(bundle_name=bundle_name,
-                   publish_only_lambdas=publish_only_lambdas,
-                   excluded_lambdas_resources=excluded_lambdas_resources)
-    click.echo('Lambda versions were published.')
+    success = update_lambdas(
+        bundle_name=bundle_name,
+        publish_only_lambdas=publish_only_lambdas,
+        excluded_lambdas_resources=excluded_lambdas_resources)
+    if success:
+        click.echo('Lambda versions were published.')
+    else:
+        click.echo('Some error occurred while lambda versions publishing.')

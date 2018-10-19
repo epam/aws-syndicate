@@ -46,9 +46,10 @@ def update_lambda(args):
 
 
 def describe_lambda(name, meta, response=None):
-    arn = build_lambda_arn(name)
     if not response:
         response = _LAMBDA_CONN.get_function(lambda_name=name)
+    arn = build_lambda_arn_with_alias(response, meta.get('alias'))
+
     del response['Configuration']['FunctionArn']
     return {
         arn: build_description_obj(response, name, meta)
@@ -64,12 +65,12 @@ def build_lambda_arn(name):
 def resolve_lambda_arn_by_version_and_alias(name, version, alias):
     if version or alias:
         lambda_response = _LAMBDA_CONN.get_function(name, version)
-        return build_lambda_arn(lambda_response, alias)
+        return build_lambda_arn_with_alias(lambda_response, alias)
     else:
         return _LAMBDA_CONN.get_function(name)['Configuration']['FunctionArn']
 
 
-def build_lambda_arn(response, alias=None):
+def build_lambda_arn_with_alias(response, alias=None):
     name = response['Configuration']['FunctionName']
     l_arn = build_lambda_arn(name=name)
     version = response['Configuration']['Version']
@@ -158,7 +159,8 @@ def _create_lambda_from_meta(name, meta):
         _LOG.debug(_LAMBDA_CONN.create_alias(function_name=name,
                                              name=alias, version=version))
 
-    arn = build_lambda_arn(response, alias) if publish_version or alias else \
+    arn = build_lambda_arn_with_alias(response,
+                                      alias) if publish_version or alias else \
         response['Configuration']['FunctionArn']
     _LOG.debug('arn value: ' + str(arn))
 

@@ -272,7 +272,7 @@ def _create_api_gateway_from_meta(name, meta):
     return describe_api_resources(api_id, meta, name)
 
 
-def describe_api_resources(meta, name, api_id=None):
+def describe_api_resources(name, meta, api_id=None):
     if not api_id:
         api_id = _API_GATEWAY_CONN.get_api_by_name(name)['id']
     response = _API_GATEWAY_CONN.get_api(api_id)

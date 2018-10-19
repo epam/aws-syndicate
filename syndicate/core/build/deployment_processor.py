@@ -32,7 +32,8 @@ from syndicate.core.constants import (BUILD_META_FILE_NAME,
 from syndicate.core.helper import exit_on_exception, prettify_json
 from syndicate.core.resources import (APPLY_MAPPING, CREATE_RESOURCE,
                                       REMOVE_RESOURCE,
-                                      RESOURCE_IDENTIFIER, UPDATE_RESOURCE)
+                                      RESOURCE_IDENTIFIER, UPDATE_RESOURCE,
+                                      DESCRIBE_RESOURCE)
 
 _LOG = get_logger('syndicate.core.build.deployment_processor')
 
@@ -57,33 +58,47 @@ def get_dependencies(name, meta, resources_dict, resources):
 
 
 def _process_resources(resources, handlers_mapping):
-    output = {}
-    args = []
-    resource_type = None
-    for res_name, res_meta in resources:
-        res_type = res_meta['resource_type']
+    try:
+        output = {}
+        args = []
+        resource_type = None
+        for res_name, res_meta in resources:
+            res_type = res_meta['resource_type']
 
-        if resource_type is None:
-            resource_type = res_type
+            if resource_type is None:
+                resource_type = res_type
 
-        if res_type == resource_type:
-            args.append({'name': res_name, 'meta': res_meta})
-            continue
-        elif res_type != resource_type:
+            if res_type == resource_type:
+                args.append({'name': res_name, 'meta': res_meta})
+                continue
+            elif res_type != resource_type:
+                _LOG.info('Processing {0} resources ...'.format(resource_type))
+                func = handlers_mapping[resource_type]
+                response = func(args)  # todo exception may be raised here
+                if response:
+                    output.update(response)
+                del args[:]
+                args.append({'name': res_name, 'meta': res_meta})
+                resource_type = res_type
+
+        if args:
             _LOG.info('Processing {0} resources ...'.format(resource_type))
             func = handlers_mapping[resource_type]
             response = func(args)
             if response:
                 output.update(response)
-            del args[:]
-            args.append({'name': res_name, 'meta': res_meta})
-            resource_type = res_type
-    if args:
-        _LOG.info('Processing {0} resources ...'.format(resource_type))
-        func = handlers_mapping[resource_type]
-        response = func(args)
-        if response:
-            output.update(response)
+        return True, output
+    except Exception:
+        _LOG.error('Error occurred while {0} resource creating'.format(
+            res_type))
+        return False, save_failed_output(res_meta, res_name,
+                                         resource_type, output)
+
+
+def save_failed_output(res_meta, res_name, resource_type, output):
+    describe_func = DESCRIBE_RESOURCE[resource_type]
+    failed_resource_output = describe_func(res_name, res_meta)
+    output.update(failed_resource_output)
     return output
 
 
@@ -157,18 +172,20 @@ def create_deployment_resources(deploy_name, bundle_name,
     resources_list.sort(cmp=_compare_deploy_resources)
 
     _LOG.info('Going to deploy AWS resources')
-    output = deploy_resources(resources_list)
-    _LOG.info('AWS resources were deployed successfully')
+    success, output = deploy_resources(resources_list)
+    if success:
+        _LOG.info('AWS resources were deployed successfully')
 
-    # apply dynamic changes that uses ARNs
-    _LOG.info('Going to apply dynamic changes')
-    _apply_dynamic_changes(resources)
-    _LOG.info('Dynamic changes were applied successfully')
+        # apply dynamic changes that uses ARNs
+        _LOG.info('Going to apply dynamic changes')
+        _apply_dynamic_changes(resources)
+        _LOG.info('Dynamic changes were applied successfully')
 
     _LOG.info('Going to create deploy output')
     output_str = json.dumps(output, default=_json_serial)
-    create_deploy_output(bundle_name, deploy_name, output_str)
+    create_deploy_output(bundle_name, deploy_name, output_str, success)
     _LOG.info('Deploy output for {0} was created.'.format(deploy_name))
+    return success
 
 
 # @exit_on_exception
@@ -231,7 +248,8 @@ def update_lambdas(bundle_name,
     _LOG.debug('Going to update the following lambdas: {0}'.format(
         prettify_json(resources)))
     resources = resources.items()
-    update_resources(resources=resources)
+    success = update_resources(resources=resources)
+    return success
 
 
 def _json_serial(obj):
