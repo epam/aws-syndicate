@@ -18,12 +18,10 @@ from datetime import date, datetime
 
 import concurrent
 from concurrent.futures import ALL_COMPLETED, ThreadPoolExecutor
-
 from syndicate.commons.log_helper import get_logger
-from syndicate.core.build.bundle_processor import (create_deploy_output,
-                                                   load_deploy_output,
-                                                   load_meta_resources,
-                                                   remove_deploy_output)
+from syndicate.core.build.bundle_processor import create_deploy_output, \
+    load_deploy_output, load_failed_deploy_output, load_meta_resources, \
+    remove_deploy_output, remove_failed_deploy_output
 from syndicate.core.build.meta_processor import resolve_meta
 from syndicate.core.constants import (BUILD_META_FILE_NAME,
                                       CLEAN_RESOURCE_TYPE_PRIORITY,
@@ -171,7 +169,7 @@ def create_deployment_resources(deploy_name, bundle_name,
     _LOG.info('Deploy output for {0} was created.'.format(deploy_name))
 
 
-# @exit_on_exception
+@exit_on_exception
 def remove_deployment_resources(deploy_name, bundle_name,
                                 clean_only_resources=None,
                                 clean_only_types=None,
@@ -206,6 +204,20 @@ def remove_deployment_resources(deploy_name, bundle_name,
     clean_resources(resources_list)
     # remove output from bucket
     remove_deploy_output(bundle_name, deploy_name)
+
+
+@exit_on_exception
+def remove_failed_deploy_resources(deploy_name, bundle_name):
+    output = load_failed_deploy_output(bundle_name, deploy_name)
+    _LOG.info('Failed output file was loaded successfully')
+    # sort resources with priority
+    resources_list = output.items()
+    resources_list.sort(cmp=_compare_clean_resources)
+
+    _LOG.info('Going to clean AWS resources')
+    clean_resources(resources_list)
+    # remove output from bucket
+    remove_failed_deploy_output(bundle_name, deploy_name)
 
 
 @exit_on_exception

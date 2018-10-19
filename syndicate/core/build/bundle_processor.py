@@ -36,11 +36,8 @@ def _build_output_key(bundle_name, deploy_name):
     return '{0}/outputs/{1}.json'.format(bundle_name, deploy_name)
 
 
-def _backup_deploy_output(filename, output):
-    _LOG.info('Wrote file to {0}'.format(filename))
-    with open(filename, 'a+') as backup_file:
-        backup_file.write(output)
-        backup_file.close()
+def _build_failed_output_key(bundle_name, deploy_name):
+    return '{0}/outputs/{1}_failed.json'.format(bundle_name, deploy_name)
 
 
 def create_deploy_output(bundle_name, deploy_name, output):
@@ -48,6 +45,17 @@ def create_deploy_output(bundle_name, deploy_name, output):
     if _S3_CONN.is_file_exists(CONFIG.deploy_target_bucket, key):
         _LOG.warn(
             'Output file for deploy {0} already exists.'.format(deploy_name))
+    else:
+        _S3_CONN.put_object(output, key, CONFIG.deploy_target_bucket,
+                            'application/json')
+
+
+def create_failed_deploy_output(bundle_name, deploy_name, output):
+    key = _build_failed_output_key(bundle_name, deploy_name)
+    if _S3_CONN.is_file_exists(CONFIG.deploy_target_bucket, key):
+        _LOG.warn(
+            'Failed output file for deploy {0} already exists.'.format(
+                deploy_name))
     else:
         _S3_CONN.put_object(output, key, CONFIG.deploy_target_bucket,
                             'application/json')
@@ -62,8 +70,29 @@ def remove_deploy_output(bundle_name, deploy_name):
             'Output file for deploy {0} does not exist.'.format(deploy_name))
 
 
+def remove_failed_deploy_output(bundle_name, deploy_name):
+    key = _build_failed_output_key(bundle_name, deploy_name)
+    if _S3_CONN.is_file_exists(CONFIG.deploy_target_bucket, key):
+        _S3_CONN.remove_object(CONFIG.deploy_target_bucket, key)
+    else:
+        _LOG.warn(
+            'Failed output file for deploy {0} does not exist.'.format(
+                deploy_name))
+
+
 def load_deploy_output(bundle_name, deploy_name):
     key = _build_output_key(bundle_name, deploy_name)
+    if _S3_CONN.is_file_exists(CONFIG.deploy_target_bucket, key):
+        output_file = _S3_CONN.load_file_body(CONFIG.deploy_target_bucket,
+                                              key)
+        return json.loads(output_file)
+    else:
+        raise AssertionError('Deploy name {0} does not exist.'
+                             ' Cannot find output file.'.format(deploy_name))
+
+
+def load_failed_deploy_output(bundle_name, deploy_name):
+    key = _build_failed_output_key(bundle_name, deploy_name)
     if _S3_CONN.is_file_exists(CONFIG.deploy_target_bucket, key):
         output_file = _S3_CONN.load_file_body(CONFIG.deploy_target_bucket,
                                               key)
