@@ -145,6 +145,17 @@ def create_api_gateway(args):
     return create_pool(_create_api_gateway_from_meta, args, 3)
 
 
+def api_gateway_update_processor(args):
+    return create_pool(_create_or_update_api_gateway, args, 3)
+
+
+@unpack_kwargs
+def _create_or_update_api_gateway(name, meta, current_configuration):
+    # TODO add logic to update or create an api
+    # TODO return a description object to output
+    pass
+
+
 def _escape_path(parameter):
     index = parameter.find('/', 0)
     if index == -1:
