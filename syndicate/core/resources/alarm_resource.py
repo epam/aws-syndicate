@@ -30,7 +30,7 @@ def create_alarm(args):
 
     :type args: list
     """
-    return create_pool(_create_alarm_from_meta, 5, args)
+    return create_pool(_create_alarm_from_meta, args, 5)
 
 
 def describe_alarm(name, meta):
@@ -78,7 +78,7 @@ def _create_alarm_from_meta(name, meta):
 
 
 def remove_alarms(args):
-    create_pool(remove_alarm_list, 5, chunks(args, 100))
+    create_pool(remove_alarm_list, chunks(args, 100), 5)
 
 
 def remove_alarm_list(*alarm_list):

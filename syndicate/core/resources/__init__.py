@@ -27,8 +27,8 @@ from syndicate.core.resources.alarm_resource import (create_alarm,
                                                      remove_alarms,
                                                      describe_alarm)
 from syndicate.core.resources.api_gateway_resource import (
-    api_resource_identifier, create_api_gateway, remove_api_gateways,
-    describe_api_resources)
+    api_gateway_update_processor, api_resource_identifier, create_api_gateway,
+    remove_api_gateways, describe_api_resources)
 from syndicate.core.resources.cloud_watch_resource import (
     create_cloud_watch_rule, remove_cloud_watch_rules, describe_rule,
     describe_rule_from_meta)
@@ -142,6 +142,10 @@ REMOVE_RESOURCE = {
 
 UPDATE_RESOURCE = {
     LAMBDA_TYPE: update_lambda
+}
+
+RESOURCE_CONFIGURATION_PROCESSORS = {
+    API_GATEWAY_TYPE: api_gateway_update_processor
 }
 
 RESOURCE_IDENTIFIER = {

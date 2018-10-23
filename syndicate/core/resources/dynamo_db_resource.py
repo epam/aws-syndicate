@@ -217,7 +217,7 @@ def create_dynamodb_stream(args):
 
     :type args: list
     """
-    create_pool(_create_dynamodb_stream_from_meta, 5, args)
+    create_pool(_create_dynamodb_stream_from_meta, args, 5)
 
 
 @unpack_kwargs

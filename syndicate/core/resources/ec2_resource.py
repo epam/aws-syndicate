@@ -47,7 +47,7 @@ def describe_ec2(name, meta, response=None):
 
 
 def create_ec2(args):
-    return create_pool(_create_ec2_from_meta, 5, args)
+    return create_pool(_create_ec2_from_meta, args, 5)
 
 
 @unpack_kwargs
@@ -152,7 +152,7 @@ def _create_ec2_from_meta(name, meta):
 
 
 def remove_ec2_instances(args):
-    create_pool(remove_instance_list, 5, chunks(args, 1000))
+    create_pool(remove_instance_list, chunks(args, 1000), 5)
 
 
 def remove_instance_list(*instance_list):

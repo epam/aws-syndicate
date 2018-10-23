@@ -32,9 +32,12 @@ _S3_CONN = CONN.s3()
 _LOG = get_logger('syndicate.core.build.bundle_processor')
 
 
-def _build_output_key(bundle_name, deploy_name, success):
-    return '{0}/outputs/{1}{2}.json'.format(bundle_name, deploy_name,
-                                            '' if success else '_failed')
+def _build_output_key(bundle_name, deploy_name):
+    return '{0}/outputs/{1}.json'.format(bundle_name, deploy_name)
+
+
+def _build_failed_output_key(bundle_name, deploy_name):
+    return '{0}/outputs/{1}_failed.json'.format(bundle_name, deploy_name)
 
 
 def _backup_deploy_output(filename, output):
@@ -44,9 +47,9 @@ def _backup_deploy_output(filename, output):
         backup_file.close()
 
 
-def create_deploy_output(bundle_name, deploy_name, output, success=False):
-    key = _build_output_key(bundle_name, deploy_name, success)
-    if success and _S3_CONN.is_file_exists(CONFIG.deploy_target_bucket, key):
+def create_deploy_output(bundle_name, deploy_name, output):
+    key = _build_output_key(bundle_name, deploy_name)
+    if _S3_CONN.is_file_exists(CONFIG.deploy_target_bucket, key):
         _LOG.warn(
             'Output file for deploy {0} already exists.'.format(deploy_name))
     else:
@@ -54,8 +57,19 @@ def create_deploy_output(bundle_name, deploy_name, output, success=False):
                             'application/json')
 
 
-def remove_deploy_output(bundle_name, deploy_name, success=False):
-    key = _build_output_key(bundle_name, deploy_name, success)
+def create_failed_deploy_output(bundle_name, deploy_name, output):
+    key = _build_failed_output_key(bundle_name, deploy_name)
+    if _S3_CONN.is_file_exists(CONFIG.deploy_target_bucket, key):
+        _LOG.warn(
+            'Failed output file for deploy {0} already exists.'.format(
+                deploy_name))
+    else:
+        _S3_CONN.put_object(output, key, CONFIG.deploy_target_bucket,
+                            'application/json')
+
+
+def remove_deploy_output(bundle_name, deploy_name):
+    key = _build_output_key(bundle_name, deploy_name)
     if _S3_CONN.is_file_exists(CONFIG.deploy_target_bucket, key):
         _S3_CONN.remove_object(CONFIG.deploy_target_bucket, key)
     else:
@@ -63,8 +77,39 @@ def remove_deploy_output(bundle_name, deploy_name, success=False):
             'Output file for deploy {0} does not exist.'.format(deploy_name))
 
 
-def load_deploy_output(bundle_name, deploy_name, success=False):
-    key = _build_output_key(bundle_name, deploy_name, success)
+def remove_failed_deploy_output(bundle_name, deploy_name):
+    key = _build_failed_output_key(bundle_name, deploy_name)
+    if _S3_CONN.is_file_exists(CONFIG.deploy_target_bucket, key):
+        _S3_CONN.remove_object(CONFIG.deploy_target_bucket, key)
+    else:
+        _LOG.warn(
+            'Failed output file for deploy {0} does not exist.'.format(
+                deploy_name))
+
+
+def remove_failed_deploy_output(bundle_name, deploy_name):
+    key = _build_failed_output_key(bundle_name, deploy_name)
+    if _S3_CONN.is_file_exists(CONFIG.deploy_target_bucket, key):
+        _S3_CONN.remove_object(CONFIG.deploy_target_bucket, key)
+    else:
+        _LOG.warn(
+            'Failed output file for deploy {0} does not exist.'.format(
+                deploy_name))
+
+
+def load_deploy_output(bundle_name, deploy_name):
+    key = _build_output_key(bundle_name, deploy_name)
+    if _S3_CONN.is_file_exists(CONFIG.deploy_target_bucket, key):
+        output_file = _S3_CONN.load_file_body(CONFIG.deploy_target_bucket,
+                                              key)
+        return json.loads(output_file)
+    else:
+        raise AssertionError('Deploy name {0} does not exist.'
+                             ' Cannot find output file.'.format(deploy_name))
+
+
+def load_failed_deploy_output(bundle_name, deploy_name):
+    key = _build_failed_output_key(bundle_name, deploy_name)
     if _S3_CONN.is_file_exists(CONFIG.deploy_target_bucket, key):
         output_file = _S3_CONN.load_file_body(CONFIG.deploy_target_bucket,
                                               key)

@@ -142,7 +142,18 @@ def create_api_gateway(args):
 
     :type args: list
     """
-    return create_pool(_create_api_gateway_from_meta, 3, args)
+    return create_pool(_create_api_gateway_from_meta, args, 3)
+
+
+def api_gateway_update_processor(args):
+    return create_pool(_create_or_update_api_gateway, args, 3)
+
+
+@unpack_kwargs
+def _create_or_update_api_gateway(name, meta, current_configurations):
+    # TODO add logic to update or create an api
+    # TODO return a description object to output
+    pass
 
 
 def _escape_path(parameter):
@@ -230,7 +241,7 @@ def _create_api_gateway_from_meta(name, meta):
             else:
                 raise AssertionError(
                     "API resource must starts with '/', but found %s", each)
-        create_pool(_create_resource_from_metadata, 1, args)
+        create_pool(_create_resource_from_metadata, args, 1)
     else:
         _LOG.info('There is no resources in %s API Gateway description.', name)
     # add headers
