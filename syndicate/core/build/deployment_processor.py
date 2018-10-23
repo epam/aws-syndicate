@@ -18,7 +18,6 @@ from datetime import date, datetime
 
 import concurrent
 from concurrent.futures import ALL_COMPLETED, ThreadPoolExecutor
-
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.build.bundle_processor import (create_deploy_output,
                                                    load_deploy_output,
@@ -142,12 +141,10 @@ def continue_deploy_resources(resources, failed_output):
                 {
                     'name': res_name,
                     'meta': res_meta,
-                    'current_configuration': resource_output.popitem()[
-                        1] if resource_output else None
+                    'current_configurations': resource_output
                 })
             continue
         elif res_type != resource_type:
-            _LOG.info('Processing {0} resources ...'.format(resource_type))
             func = RESOURCE_CONFIGURATION_PROCESSORS.get(resource_type)
             if func:
                 response = func(args)
@@ -156,23 +153,17 @@ def continue_deploy_resources(resources, failed_output):
             else:
                 # function to update resource is not present
                 # move existing output for resources to new output
-                for arg in args:
-                    resource_output = __find_output_by_resource_name(
-                        failed_output, arg['name'])
-                    if resource_output:
-                        updated_output.update(resource_output)
+                __move_output_content(args, failed_output, updated_output)
             del args[:]
             resource_output = __find_output_by_resource_name(
                 failed_output, res_name)
             args.append({
                 'name': res_name,
                 'meta': res_meta,
-                'current_configuration': resource_output.popitem()[
-                    1] if resource_output else None
+                'current_configurations': resource_output
             })
             resource_type = res_type
     if args:
-        _LOG.info('Processing {0} resources ...'.format(resource_type))
         func = RESOURCE_CONFIGURATION_PROCESSORS.get(resource_type)
         if func:
             response = func(args)
@@ -180,21 +171,25 @@ def continue_deploy_resources(resources, failed_output):
                 updated_output.update(response)
         else:
             # function to update resource is not present
-            # move existing output for resources to new output
-            # TODO should be refactored
-            for arg in args:
-                resource_output = __find_output_by_resource_name(
-                    failed_output, arg['name'])
-                if resource_output:
-                    updated_output.update(resource_output)
+            # move existing output- for resources to new output
+            __move_output_content(args, failed_output, updated_output)
     return updated_output
 
 
+def __move_output_content(args, failed_output, updated_output):
+    for arg in args:
+        resource_output = __find_output_by_resource_name(
+            failed_output, arg['name'])
+        if resource_output:
+            updated_output.update(resource_output)
+
+
 def __find_output_by_resource_name(output, resource_name):
+    found_items = {}
     for k, v in output.iteritems():
-        # TODO we should search by ARN, cause in this case output will be not fully completed
         if v['resource_name'] == resource_name:
-            return {k: v}
+            found_items[k] = v
+    return found_items
 
 
 @exit_on_exception

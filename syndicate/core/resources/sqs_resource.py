@@ -16,7 +16,6 @@
 import time
 
 from botocore.exceptions import ClientError
-
 from syndicate.commons.log_helper import get_logger
 from syndicate.core import CONFIG, CONN
 from syndicate.core.helper import create_pool, unpack_kwargs
@@ -34,9 +33,10 @@ def create_sqs_queue(args):
     return create_pool(_create_sqs_queue_from_meta, args, 5)
 
 
-def _describe_queue(queue_url, name, meta, region):
+def _describe_queue(queue_url, name, meta, resource_name, region):
     response = CONN.sqs(region).get_queue_attributes(queue_url)
-    arn = 'arn:aws:sqs:{0}:{1}:{2}'.format(region, CONFIG.account_id, name)
+    arn = 'arn:aws:sqs:{0}:{1}:{2}'.format(region, CONFIG.account_id,
+                                           resource_name)
     return {arn: build_description_obj(response, name, meta)}
 
 
@@ -71,12 +71,14 @@ def _remove_queue(arn, config):
 def _create_sqs_queue_from_meta(name, meta):
     region = meta.get('region', CONFIG.region)
     fifo_queue = meta.get('fifo_queue', False)
+    resource_name = name
     if fifo_queue:
-        name += '.fifo'
-    queue_url = CONN.sqs(region).get_queue_url(name, CONFIG.account_id)
+        resource_name += '.fifo'
+    queue_url = CONN.sqs(region).get_queue_url(resource_name,
+                                               CONFIG.account_id)
     if queue_url:
         _LOG.warn('SQS queue %s exists.', name)
-        return _describe_queue(queue_url, name, meta, region)
+        return _describe_queue(queue_url, name, meta, resource_name, region)
     delay_sec = meta.get('delay_seconds')
     max_mes_size = meta.get('maximum_message_size')
     mes_ret_period = meta.get('message_retention_period')
@@ -90,7 +92,7 @@ def _create_sqs_queue_from_meta(name, meta):
         raise AssertionError('FIFO queue is not available in {0}.',
                              region)
     content_deduplication = meta.get('content_based_deduplication')
-    params = dict(queue_name=name,
+    params = dict(queue_name=resource_name,
                   delay_seconds=delay_sec,
                   maximum_message_size=max_mes_size,
                   message_retention_period=mes_ret_period,
@@ -104,4 +106,4 @@ def _create_sqs_queue_from_meta(name, meta):
                   content_based_deduplication=content_deduplication)
     queue_url = CONN.sqs(region).create_queue(**params)['QueueUrl']
     _LOG.info('Created SQS queue %s.', name)
-    return _describe_queue(queue_url, name, meta, region)
+    return _describe_queue(queue_url, name, meta, resource_name, region)

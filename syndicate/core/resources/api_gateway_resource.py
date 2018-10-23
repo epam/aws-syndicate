@@ -150,7 +150,7 @@ def api_gateway_update_processor(args):
 
 
 @unpack_kwargs
-def _create_or_update_api_gateway(name, meta, current_configuration):
+def _create_or_update_api_gateway(name, meta, current_configurations):
     # TODO add logic to update or create an api
     # TODO return a description object to output
     pass

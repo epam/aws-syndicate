@@ -24,8 +24,9 @@ from syndicate.core.build.bundle_processor import (create_bundles_bucket,
                                                    load_bundle,
                                                    upload_bundle_to_s3)
 from syndicate.core.build.deployment_processor import (
-    create_deployment_resources, remove_deployment_resources,
-    remove_failed_deploy_resources, update_lambdas)
+    continue_deployment_resources, create_deployment_resources,
+    remove_deployment_resources, remove_failed_deploy_resources,
+    update_lambdas)
 from syndicate.core.build.meta_processor import create_meta
 from syndicate.core.conf.config_holder import (MVN_BUILD_TOOL_NAME,
                                                PYTHON_BUILD_TOOL_NAME)
@@ -235,10 +236,11 @@ def build_bundle(ctx, bundle_name):
 @click.option('--excluded_resources', multiple=True)
 @click.option('--excluded_resources_path', nargs=1)
 @click.option('--excluded_types', multiple=True)
+@click.option('--continue_deploy', is_flag=True)
 @timeit
 def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
            deploy_only_resources_path, excluded_resources,
-           excluded_resources_path, excluded_types):
+           excluded_resources_path, excluded_types, continue_deploy):
     click.echo('Command deploy backend')
     click.echo('Deploy name: %s' % deploy_name)
     if deploy_only_resources_path and os.path.exists(
@@ -250,9 +252,14 @@ def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
         excluded_resources_list = json.load(open(excluded_resources_path))
         excluded_resources = tuple(
             set(excluded_resources + tuple(excluded_resources_list)))
-    create_deployment_resources(deploy_name, bundle_name,
-                                deploy_only_resources, deploy_only_types,
-                                excluded_resources, excluded_types)
+    if continue_deploy:
+        continue_deployment_resources(deploy_name, bundle_name,
+                                      deploy_only_resources, deploy_only_types,
+                                      excluded_resources, excluded_types)
+    else:
+        create_deployment_resources(deploy_name, bundle_name,
+                                    deploy_only_resources, deploy_only_types,
+                                    excluded_resources, excluded_types)
     click.echo('Backend resources were deployed.')
 
 
