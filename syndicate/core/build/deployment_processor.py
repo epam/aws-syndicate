@@ -17,6 +17,7 @@ import json
 from datetime import date, datetime
 
 import concurrent
+from botocore.exceptions import ClientError
 from concurrent.futures import ALL_COMPLETED, ThreadPoolExecutor
 
 from syndicate.commons.log_helper import get_logger
@@ -88,17 +89,22 @@ def _process_resources(resources, handlers_mapping):
             if response:
                 output.update(response)
         return True, output
-    except Exception:
-        _LOG.error('Error occurred while {0} resource creating'.format(
-            res_type))
-        return False, save_failed_output(res_meta, res_name,
-                                         resource_type, output)
+    except ClientError as e:
+        _LOG.error('Error occurred while {0} resource creating: {1}'.format(
+            res_type, e.message))
+    return False, save_failed_output(args[0]['name'], args[0]['meta'],
+                                     resource_type, output)
 
 
-def save_failed_output(res_meta, res_name, resource_type, output):
+def save_failed_output(res_name, res_meta, resource_type, output):
     describe_func = DESCRIBE_RESOURCE[resource_type]
     failed_resource_output = describe_func(res_name, res_meta)
-    output.update(failed_resource_output)
+    if failed_resource_output:
+        if isinstance(failed_resource_output, list):
+            for item in failed_resource_output:
+                output.update(item)
+        else:
+            output.update(failed_resource_output)
     return output
 
 

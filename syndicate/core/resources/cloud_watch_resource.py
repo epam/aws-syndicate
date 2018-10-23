@@ -36,6 +36,27 @@ def describe_rule(name, meta, region, response=None):
     return {arn: build_description_obj(response, name, meta)}
 
 
+def describe_rule_from_meta(name, meta):
+    new_region_args = create_args_for_multi_region(
+        [
+            {'name': name,
+             'meta': meta}
+        ],
+        ALL_REGIONS)
+    responses = []
+    for arg in new_region_args:
+        rule = CONN.cw_events(arg['region']).get_rule(name)
+        if rule:
+            responses.append(rule)
+
+    description = []
+    for rule in responses:
+        arn = rule['Arn']
+        del rule['Arn']
+        description.append({arn: build_description_obj(rule, name, meta)})
+    return description
+
+
 def create_cloud_watch_rule(args):
     """ Create CloudWatch rule from meta in region/regions.
 
@@ -61,7 +82,8 @@ def _create_cloud_watch_rule_from_meta(name, meta, region):
     response = CONN.cw_events(region).get_rule(name)
     if response:
         _LOG.warn('%s rule exists in %s.', name, region)
-        return describe_rule(name, meta, response)
+        return describe_rule(name=name, meta=meta, region=region,
+                             response=response)
     try:
         func = RULE_TYPES[rule_type]
         func(name, meta, CONN.cw_events(region))
@@ -71,7 +93,8 @@ def _create_cloud_watch_rule_from_meta(name, meta, region):
         _LOG.info('Created cloud watch rule %s in %s.', name, region)
         response = CONN.cw_events(region).get_rule(name)
         time.sleep(5)
-        return describe_rule(name, meta, response)
+        return describe_rule(name=name, meta=meta, region=region,
+                             response=response)
     except KeyError:
         raise AssertionError(
             'Invalid rule type: {0} for resource {1}. '

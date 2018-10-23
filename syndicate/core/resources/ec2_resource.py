@@ -26,7 +26,9 @@ _EC2_CONN = CONN.ec2()
 _IAM_CONN = CONN.iam()
 
 
-def describe_ec2(name, meta, response):
+def describe_ec2(name, meta, response=None):
+    if not response:
+        response = _EC2_CONN.describe_instances()
     arn = 'arn:aws:ec2:{0}:{1}:instance/{2}'.format(CONFIG.region,
                                                     CONFIG.account_id,
                                                     response['InstanceId'])

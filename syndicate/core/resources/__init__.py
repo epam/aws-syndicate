@@ -30,7 +30,8 @@ from syndicate.core.resources.api_gateway_resource import (
     api_resource_identifier, create_api_gateway, remove_api_gateways,
     describe_api_resources)
 from syndicate.core.resources.cloud_watch_resource import (
-    create_cloud_watch_rule, remove_cloud_watch_rules, describe_rule)
+    create_cloud_watch_rule, remove_cloud_watch_rules, describe_rule,
+    describe_rule_from_meta)
 from syndicate.core.resources.cognito_resource import (
     cognito_resource_identifier, create_cognito_identity_pool,
     remove_cognito_identity_pools, describe_cognito_pool)
@@ -41,7 +42,8 @@ from syndicate.core.resources.ebs_resource import (create_ebs,
                                                    remove_ebs_apps,
                                                    describe_ebs)
 from syndicate.core.resources.ec2_resource import (create_ec2,
-                                                   remove_ec2_instances)
+                                                   remove_ec2_instances,
+                                                   describe_ec2)
 from syndicate.core.resources.iam_resource import (apply_policy_content,
                                                    apply_trusted_to_role,
                                                    create_policies,
@@ -60,12 +62,15 @@ from syndicate.core.resources.lambda_resource import (create_lambda,
 from syndicate.core.resources.s3_resource import (create_s3_bucket,
                                                   remove_buckets,
                                                   describe_bucket)
-from syndicate.core.resources.sns_resource import (create_sns_application,
-                                                   create_sns_topic,
-                                                   remove_sns_application,
-                                                   remove_sns_topics,
-                                                   describe_sns,
-                                                   describe_sns_application)
+from syndicate.core.resources.sns_resource import (
+    create_sns_application,
+    create_sns_topic,
+    remove_sns_application,
+    remove_sns_topics,
+    describe_sns,
+    describe_sns_application,
+    describe_sns_from_meta,
+    describe_sns_application_from_meta)
 from syndicate.core.resources.sqs_resource import (create_sqs_queue,
                                                    remove_queues,
                                                    describe_queue)
@@ -100,18 +105,19 @@ DESCRIBE_RESOURCE = {
     LAMBDA_TYPE: describe_lambda,
     DYNAMO_TABLE_TYPE: describe_table,
     # DYNAMO_STREAM_TYPE is not supported,
-    CLOUD_WATCH_RULE_TYPE: describe_rule,
+    CLOUD_WATCH_RULE_TYPE: describe_rule_from_meta,
     S3_BUCKET_TYPE: describe_bucket,
     API_GATEWAY_TYPE: describe_api_resources,
     COGNITO_TYPE: describe_cognito_pool,
-    SNS_TOPIC_TYPE: describe_sns,
-    SNS_PLATFORM_APPLICATION_TYPE: describe_sns_application,
+    SNS_TOPIC_TYPE: describe_sns_from_meta,
+    SNS_PLATFORM_APPLICATION_TYPE: describe_sns_application_from_meta,
     SQS_QUEUE_TYPE: describe_queue,
     CLOUD_WATCH_ALARM_TYPE: describe_alarm,
     EBS_TYPE: describe_ebs,
     STEP_FUNCTION_TYPE: describe_step_function,
     STATE_ACTIVITY_TYPE: describe_activity,
-    KINESIS_STREAM_TYPE: describe_kinesis_stream
+    KINESIS_STREAM_TYPE: describe_kinesis_stream,
+    # EC2_INSTANCE_TYPE is not supported
 }
 
 REMOVE_RESOURCE = {

@@ -62,10 +62,10 @@ def _create_kinesis_stream_from_meta(name, meta):
     _KINESIS_CONN.create_stream(stream_name=name,
                                 shard_count=meta['shard_count'])
     _LOG.info('Created kinesis stream %s.', name)
-    return describe_kinesis_stream(meta, name)
+    return describe_kinesis_stream(name=name, meta=meta)
 
 
-def describe_kinesis_stream(meta, name):
+def describe_kinesis_stream(name, meta):
     response = _KINESIS_CONN.get_stream(name)
     return {
         response['StreamARN']: build_description_obj(response, name, meta)

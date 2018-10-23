@@ -133,7 +133,7 @@ def _create_role_from_meta(name, meta):
     response = _IAM_CONN.get_role(name)
     if response:
         _LOG.warn('IAM role %s exists.', name)
-        return describe_role(meta, name, response)
+        return describe_role(name=name, meta=meta, response=response)
     custom_policies = meta.get('custom_policies', [])
     predefined_policies = meta.get('predefined_policies', [])
     policies = set(custom_policies + predefined_policies)
@@ -169,13 +169,13 @@ def _create_role_from_meta(name, meta):
     else:
         raise AssertionError('There are no policies for role: %s.', name)
     _LOG.info('Created IAM role %s.', name)
-    return describe_role(meta, name, response)
+    return describe_role(name=name, meta=meta, response=response)
 
 
-def describe_role(meta, name, response=None):
-    arn = response['Arn']
+def describe_role(name, meta, response=None):
     if not response:
         response = _IAM_CONN.get_role(role_name=name)
+    arn = response['Arn']
     del response['Arn']
     return {
         arn: build_description_obj(response, name, meta)

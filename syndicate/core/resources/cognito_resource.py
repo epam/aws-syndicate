@@ -39,6 +39,8 @@ def create_cognito_identity_pool(args):
 def describe_cognito_pool(name, meta, pool_id=None):
     if not pool_id:
         pool_id = _COGNITO_IDENTITY_CONN.if_pool_exists_by_name(name)
+    if not pool_id:
+        return
     response = _COGNITO_IDENTITY_CONN.describe_identity_pool(pool_id)
     arn = 'arn:aws:cognito-identity:{0}:{1}:identitypool/{2}'.format(
         CONFIG.region, CONFIG.account_id, pool_id)

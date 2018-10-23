@@ -249,7 +249,7 @@ def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
                                           deploy_only_types,
                                           excluded_resources, excluded_types)
     click.echo('Backend resources were deployed {0}.'.format(
-        '' if success else 'with errors. See deploy output file.'))
+        '' if success else 'with errors. See deploy output file'))
 
 
 # =============================================================================

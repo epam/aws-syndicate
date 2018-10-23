@@ -150,10 +150,10 @@ def _create_state_machine_from_meta(name, meta):
             func = CREATE_TRIGGER[trigger_type]
             func(name, trigger_meta)
     _LOG.info('Created state machine %s.', machine_info['stateMachineArn'])
-    return describe_step_function(meta, name, arn)
+    return describe_step_function(name=name, meta=meta, arn=arn)
 
 
-def describe_step_function(meta, name, arn=None):
+def describe_step_function(name, meta, arn=None):
     if not arn:
         arn = _build_sm_arn(name, CONFIG.region)
     response = _SF_CONN.describe_state_machine(arn)
@@ -210,8 +210,9 @@ def _create_activity_from_meta(name, meta):
 
 def describe_activity(name, meta):
     arn = build_activity_arn(name=name)
+    response = _SF_CONN.describe_activity(arn=arn)
     return {
-        arn: build_description_obj(_SF_CONN.describe_activity(), name, meta)
+        arn: build_description_obj(response, name, meta)
     }
 
 

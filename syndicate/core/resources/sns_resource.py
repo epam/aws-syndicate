@@ -36,13 +36,60 @@ def describe_sns(name, meta, region, arn=None):
     }
 
 
-def describe_sns_application(name, meta, region, arn):
+def describe_sns_from_meta(name, meta):
+    new_region_args = create_args_for_multi_region(
+        [
+            {'name': name,
+             'meta': meta}
+        ],
+        ALL_REGIONS)
+    responses = []
+    for arg in new_region_args:
+        region = arg['region']
+        topic_arn = CONN.sns(region).get_topic_arn(name)
+        if not topic_arn:
+            continue
+        response = CONN.sns(region).get_topic_attributes(topic_arn)
+        if response:
+            responses.append({'arn': topic_arn, 'response': response})
+    description = []
+    for topic in responses:
+        description.append({topic['arn']: build_description_obj(
+            topic['response'], name, meta)})
+    return description
+
+
+def describe_sns_application(name, meta, region, arn=None):
     if not arn:
         arn = CONN.sns(region).get_platform_application(name)
     response = CONN.sns(region).get_platform_application_attributes(arn)
     return {
         arn: build_description_obj(response, name, meta)
     }
+
+
+def describe_sns_application_from_meta(name, meta):
+    new_region_args = create_args_for_multi_region(
+        [
+            {'name': name,
+             'meta': meta}
+        ],
+        ALL_REGIONS)
+    responses = []
+    for arg in new_region_args:
+        region = arg['region']
+        app_arn = CONN.sns(region).get_platform_application(name)
+        if not app_arn:
+            continue
+        response = CONN.sns(region).get_platform_application_attributes(
+            app_arn)
+        if response:
+            responses.append({'arn': app_arn, 'response': response})
+    description = []
+    for topic in responses:
+        description.append({topic['arn']: build_description_obj(
+            topic['response'], name, meta)})
+    return description
 
 
 def create_sns_topic(args):
@@ -78,7 +125,7 @@ def _create_sns_topic_from_meta(name, meta, region):
             func = CREATE_TRIGGER[trigger_type]
             func(name, trigger_meta, region)
     _LOG.info('SNS topic %s in region %s created.', name, region)
-    return describe_sns(arn, name, meta, region)
+    return describe_sns(name=name, meta=meta, region=region, arn=arn)
 
 
 def _subscribe_lambda_to_sns_topic(lambda_arn, topic_name, region):
@@ -156,6 +203,8 @@ def _remove_sns_topic(arn, config):
 
 @unpack_kwargs
 def _create_platform_application_from_meta(name, meta, region):
+    if region == 'us-west-2':
+        raise AssertionError('go away from here')
     required_parameters = ['platform', 'attributes']
     validate_params(name, meta, required_parameters)
     arn = CONN.sns(region).get_platform_application(name)

@@ -273,11 +273,17 @@ def _create_api_gateway_from_meta(name, meta):
 
 
 def describe_api_resources(name, meta, api_id=None):
-    if not api_id:
-        api_id = _API_GATEWAY_CONN.get_api_by_name(name)['id']
-    response = _API_GATEWAY_CONN.get_api(api_id)
     arn = 'arn:aws:apigateway:{0}::/restapis/{1}'.format(CONFIG.region,
                                                          api_id)
+    if not api_id:
+        api = _API_GATEWAY_CONN.get_api_by_name(name)
+        if not api:
+            return
+        api_id = api['id']
+
+    response = _API_GATEWAY_CONN.get_api(api_id)
+    if not response:
+        return
     response['resources'] = _API_GATEWAY_CONN.get_resources(api_id)
     _LOG.info('Created %s API Gateway.', name)
     return {
