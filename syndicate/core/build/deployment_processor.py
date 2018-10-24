@@ -17,7 +17,6 @@ import json
 from datetime import date, datetime
 
 import concurrent
-from botocore.exceptions import ClientError
 from concurrent.futures import ALL_COMPLETED, ThreadPoolExecutor
 
 from syndicate.commons.log_helper import get_logger
@@ -151,25 +150,47 @@ def clean_resources(output):
 # todo implement saving failed output
 def continue_deploy_resources(resources, failed_output):
     updated_output = {}
-    args = []
-    resource_type = None
-    for res_name, res_meta in resources:
-        res_type = res_meta['resource_type']
+    res_type = None
+    deploy_result = True
+    try:
+        args = []
+        resource_type = None
+        for res_name, res_meta in resources:
+            res_type = res_meta['resource_type']
 
-        if resource_type is None:
-            resource_type = res_type
+            if resource_type is None:
+                resource_type = res_type
 
-        if res_type == resource_type:
-            resource_output = __find_output_by_resource_name(
-                failed_output, res_name)
-            args.append(
-                {
+            if res_type == resource_type:
+                resource_output = __find_output_by_resource_name(
+                    failed_output, res_name)
+                args.append(
+                    {
+                        'name': res_name,
+                        'meta': res_meta,
+                        'current_configurations': resource_output
+                    })
+                continue
+            elif res_type != resource_type:
+                func = RESOURCE_CONFIGURATION_PROCESSORS.get(resource_type)
+                if func:
+                    response = func(args)
+                    if response:
+                        updated_output.update(response)
+                else:
+                    # function to update resource is not present
+                    # move existing output for resources to new output
+                    __move_output_content(args, failed_output, updated_output)
+                del args[:]
+                resource_output = __find_output_by_resource_name(
+                    failed_output, res_name)
+                args.append({
                     'name': res_name,
                     'meta': res_meta,
                     'current_configurations': resource_output
                 })
-            continue
-        elif res_type != resource_type:
+                resource_type = res_type
+        if args:
             func = RESOURCE_CONFIGURATION_PROCESSORS.get(resource_type)
             if func:
                 response = func(args)
@@ -177,28 +198,14 @@ def continue_deploy_resources(resources, failed_output):
                     updated_output.update(response)
             else:
                 # function to update resource is not present
-                # move existing output for resources to new output
+                # move existing output- for resources to new output
                 __move_output_content(args, failed_output, updated_output)
-            del args[:]
-            resource_output = __find_output_by_resource_name(
-                failed_output, res_name)
-            args.append({
-                'name': res_name,
-                'meta': res_meta,
-                'current_configurations': resource_output
-            })
-            resource_type = res_type
-    if args:
-        func = RESOURCE_CONFIGURATION_PROCESSORS.get(resource_type)
-        if func:
-            response = func(args)
-            if response:
-                updated_output.update(response)
-        else:
-            # function to update resource is not present
-            # move existing output- for resources to new output
-            __move_output_content(args, failed_output, updated_output)
-    return updated_output
+    except Exception as e:
+        _LOG.error('Error occurred while {0} resource creating: {1}'.format(
+            res_type, e.message))
+        deploy_result = False
+
+    return deploy_result, updated_output
 
 
 def __move_output_content(args, failed_output, updated_output):
@@ -337,19 +344,22 @@ def continue_deployment_resources(deploy_name, bundle_name,
     resources_list = resources.items()
     resources_list.sort(cmp=_compare_deploy_resources)
 
-    updated_output = continue_deploy_resources(resources_list, output)
+    success, updated_output = continue_deploy_resources(resources_list, output)
     _LOG.info('AWS resources were deployed successfully')
+    if success:
+        # apply dynamic changes that uses ARNs
+        _LOG.info('Going to apply dynamic changes')
+        _apply_dynamic_changes(resources)
+        _LOG.info('Dynamic changes were applied successfully')
 
-    # apply dynamic changes that uses ARNs
-    _LOG.info('Going to apply dynamic changes')
-    _apply_dynamic_changes(resources)
-    _LOG.info('Dynamic changes were applied successfully')
-
-    _LOG.info('Going to create deploy output')
-    create_deploy_output(bundle_name, deploy_name,
-                         prettify_json(updated_output))
     # remove failed output from bucket
     remove_failed_deploy_output(bundle_name, deploy_name)
+    _LOG.info('Going to create deploy output')
+    # todo check that json will not be double serialized
+    output_str = json.dumps(updated_output, default=_json_serial)
+    create_deploy_output(bundle_name, deploy_name,
+                         prettify_json(output_str), success=success)
+    return success
 
 
 @exit_on_exception

@@ -17,6 +17,7 @@ import json
 import os
 
 import click
+
 from syndicate.core import CONFIG, CONF_PATH
 from syndicate.core.build.artifact_processor import (build_mvn_lambdas,
                                                      build_python_lambdas)
@@ -253,21 +254,21 @@ def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
         excluded_resources = tuple(
             set(excluded_resources + tuple(excluded_resources_list)))
     if continue_deploy:
-        # todo refactor to use status flag alike to else branch
-        continue_deployment_resources(deploy_name, bundle_name,
-                                      deploy_only_resources,
-                                      deploy_only_types,
-                                      excluded_resources,
-                                      excluded_types)
-        click.echo('Backend resources deploy was successfully completed.')
+        deploy_success = continue_deployment_resources(deploy_name,
+                                                       bundle_name,
+                                                       deploy_only_resources,
+                                                       deploy_only_types,
+                                                       excluded_resources,
+                                                       excluded_types)
+
     else:
-        success = create_deployment_resources(deploy_name, bundle_name,
-                                              deploy_only_resources,
-                                              deploy_only_types,
-                                              excluded_resources,
-                                              excluded_types)
-        click.echo('Backend resources were deployed{0}.'.format(
-            '' if success else ' with errors. See deploy output file'))
+        deploy_success = create_deployment_resources(deploy_name, bundle_name,
+                                                     deploy_only_resources,
+                                                     deploy_only_types,
+                                                     excluded_resources,
+                                                     excluded_types)
+    click.echo('Backend resources were deployed{0}.'.format(
+        '' if deploy_success else ' with errors. See deploy output file'))
 
 
 # =============================================================================
