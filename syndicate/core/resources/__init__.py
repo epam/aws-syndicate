@@ -73,7 +73,8 @@ from syndicate.core.resources.sns_resource import (
     describe_sns_application_from_meta)
 from syndicate.core.resources.sqs_resource import (create_sqs_queue,
                                                    remove_queues,
-                                                   describe_queue)
+                                                   describe_queue,
+                                                   describe_queue_from_meta)
 from syndicate.core.resources.step_functions_resource import (
     create_activities, create_state_machine, remove_activities,
     remove_state_machines, describe_step_function, describe_activity)
@@ -99,25 +100,24 @@ CREATE_RESOURCE = {
     EC2_INSTANCE_TYPE: create_ec2
 }
 
+# 'ec2_instance' and 'dynamodb_stream' types are not supported
 DESCRIBE_RESOURCE = {
     IAM_POLICY: describe_policy,
     IAM_ROLE: describe_role,
     LAMBDA_TYPE: describe_lambda,
     DYNAMO_TABLE_TYPE: describe_table,
-    # DYNAMO_STREAM_TYPE is not supported,
     CLOUD_WATCH_RULE_TYPE: describe_rule_from_meta,
     S3_BUCKET_TYPE: describe_bucket,
     API_GATEWAY_TYPE: describe_api_resources,
     COGNITO_TYPE: describe_cognito_pool,
     SNS_TOPIC_TYPE: describe_sns_from_meta,
     SNS_PLATFORM_APPLICATION_TYPE: describe_sns_application_from_meta,
-    SQS_QUEUE_TYPE: describe_queue,
+    SQS_QUEUE_TYPE: describe_queue_from_meta,
     CLOUD_WATCH_ALARM_TYPE: describe_alarm,
     EBS_TYPE: describe_ebs,
     STEP_FUNCTION_TYPE: describe_step_function,
     STATE_ACTIVITY_TYPE: describe_activity,
     KINESIS_STREAM_TYPE: describe_kinesis_stream,
-    # EC2_INSTANCE_TYPE is not supported
 }
 
 REMOVE_RESOURCE = {

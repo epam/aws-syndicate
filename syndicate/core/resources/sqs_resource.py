@@ -16,6 +16,7 @@
 import time
 
 from botocore.exceptions import ClientError
+
 from syndicate.commons.log_helper import get_logger
 from syndicate.core import CONFIG, CONN
 from syndicate.core.helper import create_pool, unpack_kwargs
@@ -35,9 +36,21 @@ def create_sqs_queue(args):
 
 def describe_queue(queue_url, name, meta, resource_name, region):
     response = CONN.sqs(region).get_queue_attributes(queue_url)
-    arn = 'arn:aws:sqs:{0}:{1}:{2}'.format(region, CONFIG.account_id,
-                                           resource_name)
+    arn = _build_queue_arn(resource_name=resource_name, region=region)
     return {arn: build_description_obj(response, name, meta)}
+
+
+def describe_queue_from_meta(name, meta):
+    region = meta.get('region', CONFIG.region)
+    is_fifo = meta.get('fifo_queue', False)
+    resource_name = _build_resource_name(is_fifo, name)
+    queue_url = CONN.sqs(region).get_queue_url(resource_name,
+                                               CONFIG.account_id)
+    if not queue_url:
+        return {}
+    response = CONN.sqs(region).get_queue_attributes(queue_url)
+    return {_build_queue_arn(resource_name, region): build_description_obj(
+        response, name, meta)}
 
 
 def remove_queues(args):
@@ -70,10 +83,8 @@ def _remove_queue(arn, config):
 @unpack_kwargs
 def _create_sqs_queue_from_meta(name, meta):
     region = meta.get('region', CONFIG.region)
-    fifo_queue = meta.get('fifo_queue', False)
-    resource_name = name
-    if fifo_queue:
-        resource_name += '.fifo'
+    is_fifo = meta.get('fifo_queue', False)
+    resource_name = _build_resource_name(is_fifo, name)
     queue_url = CONN.sqs(region).get_queue_url(resource_name,
                                                CONFIG.account_id)
     if queue_url:
@@ -88,7 +99,7 @@ def _create_sqs_queue_from_meta(name, meta):
     vis_timeout = meta.get('visibility_timeout')
     kms_master_key_id = meta.get('kms_master_key_id')
     kms_data_reuse_period = meta.get('kms_data_key_reuse_period_seconds')
-    if fifo_queue and region not in FIFO_REGIONS:
+    if is_fifo and region not in FIFO_REGIONS:
         raise AssertionError('FIFO queue is not available in {0}.',
                              region)
     content_deduplication = meta.get('content_based_deduplication')
@@ -102,8 +113,21 @@ def _create_sqs_queue_from_meta(name, meta):
                   visibility_timeout=vis_timeout,
                   kms_master_key_id=kms_master_key_id,
                   kms_data_key_reuse_period_seconds=kms_data_reuse_period,
-                  fifo_queue=fifo_queue,
+                  fifo_queue=is_fifo,
                   content_based_deduplication=content_deduplication)
     queue_url = CONN.sqs(region).create_queue(**params)['QueueUrl']
     _LOG.info('Created SQS queue %s.', name)
     return describe_queue(queue_url, name, meta, resource_name, region)
+
+
+def _build_resource_name(is_fifo, name):
+    resource_name = name
+    if is_fifo:
+        resource_name += '.fifo'
+    return resource_name
+
+
+def _build_queue_arn(resource_name, region):
+    arn = 'arn:aws:sqs:{0}:{1}:{2}'.format(region, CONFIG.account_id,
+                                           resource_name)
+    return arn

@@ -62,10 +62,11 @@ def get_dependencies(name, meta, resources_dict, resources):
 
 
 def _process_resources(resources, handlers_mapping):
+    res_type = None
+    output = {}
+    args = []
+    resource_type = None
     try:
-        output = {}
-        args = []
-        resource_type = None
         for res_name, res_meta in resources:
             res_type = res_meta['resource_type']
 
@@ -84,7 +85,6 @@ def _process_resources(resources, handlers_mapping):
                 del args[:]
                 args.append({'name': res_name, 'meta': res_meta})
                 resource_type = res_type
-
         if args:
             _LOG.info('Processing {0} resources ...'.format(resource_type))
             func = handlers_mapping[resource_type]
@@ -95,11 +95,12 @@ def _process_resources(resources, handlers_mapping):
     except ClientError as e:
         _LOG.error('Error occurred while {0} resource creating: {1}'.format(
             res_type, e.message))
-    return False, save_failed_output(args[0]['name'], args[0]['meta'],
-                                     resource_type, output)
+        # args list always contains one item here
+        return False, update_failed_output(args[0]['name'], args[0]['meta'],
+                                           resource_type, output)
 
 
-def save_failed_output(res_name, res_meta, resource_type, output):
+def update_failed_output(res_name, res_meta, resource_type, output):
     describe_func = DESCRIBE_RESOURCE[resource_type]
     failed_resource_output = describe_func(res_name, res_meta)
     if failed_resource_output:
@@ -146,6 +147,7 @@ def clean_resources(output):
         func(args)
 
 
+# todo implement saving failed output
 def continue_deploy_resources(resources, failed_output):
     updated_output = {}
     args = []
