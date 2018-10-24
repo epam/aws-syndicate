@@ -61,6 +61,7 @@ def get_dependencies(name, meta, resources_dict, resources):
                 get_dependencies(dep_name, dep_meta, resources_dict, resources)
 
 
+# todo implement resources sorter according to priority
 def _process_resources(resources, handlers_mapping):
     res_type = None
     output = {}
@@ -92,7 +93,7 @@ def _process_resources(resources, handlers_mapping):
             if response:
                 output.update(response)
         return True, output
-    except ClientError as e:
+    except Exception as e:
         _LOG.error('Error occurred while {0} resource creating: {1}'.format(
             res_type, e.message))
         # args list always contains one item here
@@ -216,7 +217,6 @@ def __find_output_by_resource_name(output, resource_name):
     return found_items
 
 
-@exit_on_exception
 def create_deployment_resources(deploy_name, bundle_name,
                                 deploy_only_resources=None,
                                 deploy_only_types=None,

@@ -203,8 +203,6 @@ def _remove_sns_topic(arn, config):
 
 @unpack_kwargs
 def _create_platform_application_from_meta(name, meta, region):
-    if region == 'us-west-2':
-        raise AssertionError('go away from here')
     required_parameters = ['platform', 'attributes']
     validate_params(name, meta, required_parameters)
     arn = CONN.sns(region).get_platform_application(name)
