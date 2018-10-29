@@ -19,13 +19,13 @@ package com.syndicate.deployment.success;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.syndicate.deployment.GenerateLambdaConfigGoal;
 import com.syndicate.deployment.annotations.environment.EnvironmentVariable;
 import com.syndicate.deployment.annotations.events.SnsEventSource;
 import com.syndicate.deployment.annotations.lambda.LambdaConcurrency;
 import com.syndicate.deployment.annotations.lambda.LambdaHandler;
 import com.syndicate.deployment.annotations.resources.DeadLetterConfiguration;
 import com.syndicate.deployment.annotations.resources.DependsOn;
+import com.syndicate.deployment.goal.impl.GenerateLambdaConfigGoal;
 import com.syndicate.deployment.model.DeadLetterResourceType;
 import com.syndicate.deployment.model.DependencyItem;
 import com.syndicate.deployment.model.DeploymentRuntime;
@@ -148,7 +148,7 @@ public class GenerateLambdaConfigMojoSuccessTest {
         }
 
         File pluginConfig = new File(Objects.requireNonNull(getClass().getClassLoader()
-                .getResource("plugin-config.xml")).toURI());
+                .getResource("plugin-config-syndicate-goal.xml")).toURI());
 
         GenerateLambdaConfigGoal mojo = new GenerateLambdaConfigGoal();
         mojo = (GenerateLambdaConfigGoal) rule.configureMojo(mojo,

@@ -16,7 +16,7 @@
 
 package com.syndicate.deployment.fail;
 
-import com.syndicate.deployment.GenerateLambdaConfigGoal;
+import com.syndicate.deployment.goal.impl.GenerateLambdaConfigGoal;
 import com.syndicate.deployment.annotations.environment.EnvironmentVariable;
 import com.syndicate.deployment.annotations.events.SnsEventSource;
 import com.syndicate.deployment.annotations.lambda.LambdaHandler;
@@ -58,7 +58,7 @@ public class GenerateLambdaConfigMojoFailTest {
     @Before
     public void setUp() throws Exception {
         File pluginConfig = new File(Objects.requireNonNull(getClass().getClassLoader()
-                .getResource("plugin-config.xml")).toURI());
+                .getResource("plugin-config-syndicate-goal.xml")).toURI());
 
         mojo = (GenerateLambdaConfigGoal) rule.configureMojo(mojo,
                 rule.extractPluginConfiguration(GenerateLambdaConfigMojoSuccessTest.PLUGIN_ARTIFACT_ID, pluginConfig));
