@@ -25,16 +25,17 @@ from syndicate.core.build.bundle_processor import (create_bundles_bucket,
                                                    load_bundle,
                                                    upload_bundle_to_s3)
 from syndicate.core.build.deployment_processor import (
-    create_deployment_resources,
-    remove_deployment_resources, update_lambdas)
+    continue_deployment_resources, create_deployment_resources,
+    remove_deployment_resources, remove_failed_deploy_resources,
+    update_lambdas)
 from syndicate.core.build.meta_processor import create_meta
 from syndicate.core.conf.config_holder import (MVN_BUILD_TOOL_NAME,
                                                PYTHON_BUILD_TOOL_NAME)
 from syndicate.core.helper import (check_required_param,
                                    create_bundle_callback,
                                    handle_futures_progress_bar,
-                                   resolve_path_callback,
-                                   timeit, verify_bundle_callback,
+                                   resolve_path_callback, timeit,
+                                   verify_bundle_callback,
                                    verify_meta_bundle_callback)
 
 
@@ -60,37 +61,44 @@ def syndicate():
 @click.option('--excluded_resources', multiple=True)
 @click.option('--excluded_resources_path', nargs=1, type=str)
 @click.option('--excluded_types', multiple=True)
+@click.option('--rollback', is_flag=True)
 def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
           clean_only_resources_path, excluded_resources,
-          excluded_resources_path, excluded_types):
+          excluded_resources_path, excluded_types, rollback):
     click.echo('Command clean')
     click.echo('Deploy name: %s' % deploy_name)
-    if clean_only_types:
-        click.echo('Clean only types: %s' % str(clean_only_types))
-    if clean_only_resources:
-        click.echo('Clean only resources : %s' % clean_only_resources)
-    if clean_only_resources_path:
-        click.echo('Clean only resources path: %s' % clean_only_resources_path)
-    if excluded_resources:
-        click.echo('Excluded resources: %s' % str(excluded_resources))
-    if excluded_resources_path:
-        click.echo('Excluded resources path: %s' % excluded_resources_path)
-    if excluded_types:
-        click.echo('Excluded types: %s' % str(excluded_types))
-    if clean_only_resources_path and os.path.exists(clean_only_resources_path):
-        clean_resources_list = json.load(open(clean_only_resources_path))
-        clean_only_resources = tuple(
-            set(clean_only_resources + tuple(clean_resources_list)))
-    if excluded_resources_path and os.path.exists(excluded_resources_path):
-        excluded_resources_list = json.load(open(excluded_resources_path))
-        excluded_resources = tuple(
-            set(excluded_resources + tuple(excluded_resources_list)))
-    remove_deployment_resources(deploy_name=deploy_name,
-                                bundle_name=bundle_name,
-                                clean_only_resources=clean_only_resources,
-                                clean_only_types=clean_only_types,
-                                excluded_resources=excluded_resources,
-                                excluded_types=excluded_types)
+    if rollback:
+        remove_failed_deploy_resources(deploy_name=deploy_name,
+                                       bundle_name=bundle_name)
+    else:
+        if clean_only_types:
+            click.echo('Clean only types: %s' % str(clean_only_types))
+        if clean_only_resources:
+            click.echo('Clean only resources : %s' % clean_only_resources)
+        if clean_only_resources_path:
+            click.echo(
+                'Clean only resources path: %s' % clean_only_resources_path)
+        if excluded_resources:
+            click.echo('Excluded resources: %s' % str(excluded_resources))
+        if excluded_resources_path:
+            click.echo('Excluded resources path: %s' % excluded_resources_path)
+        if excluded_types:
+            click.echo('Excluded types: %s' % str(excluded_types))
+        if clean_only_resources_path and os.path.exists(
+                clean_only_resources_path):
+            clean_resources_list = json.load(open(clean_only_resources_path))
+            clean_only_resources = tuple(
+                set(clean_only_resources + tuple(clean_resources_list)))
+        if excluded_resources_path and os.path.exists(excluded_resources_path):
+            excluded_resources_list = json.load(open(excluded_resources_path))
+            excluded_resources = tuple(
+                set(excluded_resources + tuple(excluded_resources_list)))
+        remove_deployment_resources(deploy_name=deploy_name,
+                                    bundle_name=bundle_name,
+                                    clean_only_resources=clean_only_resources,
+                                    clean_only_types=clean_only_types,
+                                    excluded_resources=excluded_resources,
+                                    excluded_types=excluded_types)
     click.echo('AWS resources were removed.')
 
 
@@ -229,10 +237,11 @@ def build_bundle(ctx, bundle_name):
 @click.option('--excluded_resources', multiple=True)
 @click.option('--excluded_resources_path', nargs=1)
 @click.option('--excluded_types', multiple=True)
+@click.option('--continue_deploy', is_flag=True)
 @timeit
 def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
            deploy_only_resources_path, excluded_resources,
-           excluded_resources_path, excluded_types):
+           excluded_resources_path, excluded_types, continue_deploy):
     click.echo('Command deploy backend')
     click.echo('Deploy name: %s' % deploy_name)
     if deploy_only_resources_path and os.path.exists(
@@ -244,10 +253,22 @@ def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
         excluded_resources_list = json.load(open(excluded_resources_path))
         excluded_resources = tuple(
             set(excluded_resources + tuple(excluded_resources_list)))
-    create_deployment_resources(deploy_name, bundle_name,
-                                deploy_only_resources, deploy_only_types,
-                                excluded_resources, excluded_types)
-    click.echo('Backend resources were deployed.')
+    if continue_deploy:
+        deploy_success = continue_deployment_resources(deploy_name,
+                                                       bundle_name,
+                                                       deploy_only_resources,
+                                                       deploy_only_types,
+                                                       excluded_resources,
+                                                       excluded_types)
+
+    else:
+        deploy_success = create_deployment_resources(deploy_name, bundle_name,
+                                                     deploy_only_resources,
+                                                     deploy_only_types,
+                                                     excluded_resources,
+                                                     excluded_types)
+    click.echo('Backend resources were deployed{0}.'.format(
+        '' if deploy_success else ' with errors. See deploy output file'))
 
 
 # =============================================================================

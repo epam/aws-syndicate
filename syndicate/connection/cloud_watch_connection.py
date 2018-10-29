@@ -474,8 +474,9 @@ class MetricConnection(object):
             token = response.get('NextToken')
         return metrics
 
-    def describe_alarms(self, alarm_names, alarm_name_prefix, state_value,
-                        action_prefix):
+    def describe_alarms(self, alarm_names=None, alarm_name_prefix=None,
+                        state_value=None,
+                        action_prefix=None):
         params = dict()
         if alarm_names:
             params['AlarmNames'] = alarm_names

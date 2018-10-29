@@ -18,12 +18,13 @@ from datetime import date, datetime
 
 import concurrent
 from concurrent.futures import ALL_COMPLETED, ThreadPoolExecutor
-
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.build.bundle_processor import (create_deploy_output,
                                                    load_deploy_output,
+                                                   load_failed_deploy_output,
                                                    load_meta_resources,
-                                                   remove_deploy_output)
+                                                   remove_deploy_output,
+                                                   remove_failed_deploy_output)
 from syndicate.core.build.meta_processor import resolve_meta
 from syndicate.core.constants import (BUILD_META_FILE_NAME,
                                       CLEAN_RESOURCE_TYPE_PRIORITY,
@@ -31,7 +32,8 @@ from syndicate.core.constants import (BUILD_META_FILE_NAME,
                                       LAMBDA_TYPE)
 from syndicate.core.helper import exit_on_exception, prettify_json
 from syndicate.core.resources import (APPLY_MAPPING, CREATE_RESOURCE,
-                                      REMOVE_RESOURCE,
+                                      DESCRIBE_RESOURCE, REMOVE_RESOURCE,
+                                      RESOURCE_CONFIGURATION_PROCESSORS,
                                       RESOURCE_IDENTIFIER, UPDATE_RESOURCE)
 
 _LOG = get_logger('syndicate.core.build.deployment_processor')
@@ -56,34 +58,55 @@ def get_dependencies(name, meta, resources_dict, resources):
                 get_dependencies(dep_name, dep_meta, resources_dict, resources)
 
 
+# todo implement resources sorter according to priority
 def _process_resources(resources, handlers_mapping):
+    res_type = None
     output = {}
     args = []
     resource_type = None
-    for res_name, res_meta in resources:
-        res_type = res_meta['resource_type']
+    try:
+        for res_name, res_meta in resources:
+            res_type = res_meta['resource_type']
 
-        if resource_type is None:
-            resource_type = res_type
+            if resource_type is None:
+                resource_type = res_type
 
-        if res_type == resource_type:
-            args.append({'name': res_name, 'meta': res_meta})
-            continue
-        elif res_type != resource_type:
+            if res_type == resource_type:
+                args.append({'name': res_name, 'meta': res_meta})
+                continue
+            elif res_type != resource_type:
+                _LOG.info('Processing {0} resources ...'.format(resource_type))
+                func = handlers_mapping[resource_type]
+                response = func(args)  # todo exception may be raised here
+                if response:
+                    output.update(response)
+                del args[:]
+                args.append({'name': res_name, 'meta': res_meta})
+                resource_type = res_type
+        if args:
             _LOG.info('Processing {0} resources ...'.format(resource_type))
             func = handlers_mapping[resource_type]
             response = func(args)
             if response:
                 output.update(response)
-            del args[:]
-            args.append({'name': res_name, 'meta': res_meta})
-            resource_type = res_type
-    if args:
-        _LOG.info('Processing {0} resources ...'.format(resource_type))
-        func = handlers_mapping[resource_type]
-        response = func(args)
-        if response:
-            output.update(response)
+        return True, output
+    except Exception as e:
+        _LOG.error('Error occurred while {0} resource creating: {1}'.format(
+            res_type, e.message))
+        # args list always contains one item here
+        return False, update_failed_output(args[0]['name'], args[0]['meta'],
+                                           resource_type, output)
+
+
+def update_failed_output(res_name, res_meta, resource_type, output):
+    describe_func = DESCRIBE_RESOURCE[resource_type]
+    failed_resource_output = describe_func(res_name, res_meta)
+    if failed_resource_output:
+        if isinstance(failed_resource_output, list):
+            for item in failed_resource_output:
+                output.update(item)
+        else:
+            output.update(failed_resource_output)
     return output
 
 
@@ -100,7 +123,7 @@ def update_resources(resources):
 def clean_resources(output):
     args = []
     resource_type = None
-    # create all resources
+    # clean all resources
     for arn, config in output:
         res_type = config['resource_meta']['resource_type']
         if resource_type is None:
@@ -122,7 +145,87 @@ def clean_resources(output):
         func(args)
 
 
-@exit_on_exception
+# todo implement saving failed output
+def continue_deploy_resources(resources, failed_output):
+    updated_output = {}
+    deploy_result = True
+    res_type = None
+    try:
+        args = []
+        resource_type = None
+        for res_name, res_meta in resources:
+            res_type = res_meta['resource_type']
+
+            if resource_type is None:
+                resource_type = res_type
+
+            if res_type == resource_type:
+                resource_output = __find_output_by_resource_name(
+                    failed_output, res_name)
+                args.append(
+                    {
+                        'name': res_name,
+                        'meta': res_meta,
+                        'current_configurations': resource_output
+                    })
+                continue
+            elif res_type != resource_type:
+                func = RESOURCE_CONFIGURATION_PROCESSORS.get(resource_type)
+                if func:
+                    response = func(args)
+                    if response:
+                        updated_output.update(
+                            json.loads(
+                                json.dumps(response, default=_json_serial)))
+                else:
+                    # function to update resource is not present
+                    # move existing output for resources to new output
+                    __move_output_content(args, failed_output, updated_output)
+                del args[:]
+                resource_output = __find_output_by_resource_name(
+                    failed_output, res_name)
+                args.append({
+                    'name': res_name,
+                    'meta': res_meta,
+                    'current_configurations': resource_output
+                })
+                resource_type = res_type
+        if args:
+            func = RESOURCE_CONFIGURATION_PROCESSORS.get(resource_type)
+            if func:
+                response = func(args)
+                if response:
+                    updated_output.update(
+                        json.loads(
+                            json.dumps(response, default=_json_serial)))
+            else:
+                # function to update resource is not present
+                # move existing output- for resources to new output
+                __move_output_content(args, failed_output, updated_output)
+    except Exception as e:
+        _LOG.error('Error occurred while {0} resource creating: {1}'.format(
+            res_type, e.message))
+        deploy_result = False
+
+    return deploy_result, updated_output
+
+
+def __move_output_content(args, failed_output, updated_output):
+    for arg in args:
+        resource_output = __find_output_by_resource_name(
+            failed_output, arg['name'])
+        if resource_output:
+            updated_output.update(resource_output)
+
+
+def __find_output_by_resource_name(output, resource_name):
+    found_items = {}
+    for k, v in output.iteritems():
+        if v['resource_name'] == resource_name:
+            found_items[k] = v
+    return found_items
+
+
 def create_deployment_resources(deploy_name, bundle_name,
                                 deploy_only_resources=None,
                                 deploy_only_types=None,
@@ -157,21 +260,23 @@ def create_deployment_resources(deploy_name, bundle_name,
     resources_list.sort(cmp=_compare_deploy_resources)
 
     _LOG.info('Going to deploy AWS resources')
-    output = deploy_resources(resources_list)
-    _LOG.info('AWS resources were deployed successfully')
+    success, output = deploy_resources(resources_list)
+    if success:
+        _LOG.info('AWS resources were deployed successfully')
 
-    # apply dynamic changes that uses ARNs
-    _LOG.info('Going to apply dynamic changes')
-    _apply_dynamic_changes(resources)
-    _LOG.info('Dynamic changes were applied successfully')
+        # apply dynamic changes that uses ARNs
+        _LOG.info('Going to apply dynamic changes')
+        _apply_dynamic_changes(resources)
+        _LOG.info('Dynamic changes were applied successfully')
 
     _LOG.info('Going to create deploy output')
     output_str = json.dumps(output, default=_json_serial)
-    create_deploy_output(bundle_name, deploy_name, output_str)
+    create_deploy_output(bundle_name, deploy_name, output_str, success)
     _LOG.info('Deploy output for {0} was created.'.format(deploy_name))
+    return success
 
 
-# @exit_on_exception
+@exit_on_exception
 def remove_deployment_resources(deploy_name, bundle_name,
                                 clean_only_resources=None,
                                 clean_only_types=None,
@@ -206,6 +311,69 @@ def remove_deployment_resources(deploy_name, bundle_name,
     clean_resources(resources_list)
     # remove output from bucket
     remove_deploy_output(bundle_name, deploy_name)
+
+
+@exit_on_exception
+def continue_deployment_resources(deploy_name, bundle_name,
+                                  deploy_only_resources=None,
+                                  deploy_only_types=None,
+                                  excluded_resources=None,
+                                  excluded_types=None):
+    output = load_failed_deploy_output(bundle_name, deploy_name)
+    _LOG.info('Failed output file was loaded successfully')
+
+    resources = resolve_meta(load_meta_resources(bundle_name))
+    _LOG.debug('Names were resolved')
+    _LOG.debug(prettify_json(resources))
+
+    # TODO make filter chain
+    if deploy_only_resources:
+        resources = dict((k, v) for (k, v) in resources.iteritems() if
+                         k in deploy_only_resources)
+
+    if excluded_resources:
+        resources = dict((k, v) for (k, v) in resources.iteritems() if
+                         k not in excluded_resources)
+    if deploy_only_types:
+        resources = dict((k, v) for (k, v) in resources.iteritems() if
+                         v['resource_type'] in deploy_only_types)
+
+    if excluded_types:
+        resources = dict((k, v) for (k, v) in resources.iteritems() if
+                         v['resource_type'] not in excluded_types)
+
+    # sort resources with priority
+    resources_list = resources.items()
+    resources_list.sort(cmp=_compare_deploy_resources)
+
+    success, updated_output = continue_deploy_resources(resources_list, output)
+    _LOG.info('AWS resources were deployed successfully')
+    if success:
+        # apply dynamic changes that uses ARNs
+        _LOG.info('Going to apply dynamic changes')
+        _apply_dynamic_changes(resources)
+        _LOG.info('Dynamic changes were applied successfully')
+
+    # remove failed output from bucket
+    remove_failed_deploy_output(bundle_name, deploy_name)
+    _LOG.info('Going to create deploy output')
+    create_deploy_output(bundle_name, deploy_name,
+                         prettify_json(updated_output), success=success)
+    return success
+
+
+@exit_on_exception
+def remove_failed_deploy_resources(deploy_name, bundle_name):
+    output = load_failed_deploy_output(bundle_name, deploy_name)
+    _LOG.info('Failed output file was loaded successfully')
+    # sort resources with priority
+    resources_list = output.items()
+    resources_list.sort(cmp=_compare_clean_resources)
+
+    _LOG.info('Going to clean AWS resources')
+    clean_resources(resources_list)
+    # remove output from bucket
+    remove_failed_deploy_output(bundle_name, deploy_name)
 
 
 @exit_on_exception

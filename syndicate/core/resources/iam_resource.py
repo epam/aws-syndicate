@@ -28,7 +28,7 @@ _LOG = get_logger('syndicate.core.resources.iam_resource')
 
 
 def remove_policies(args):
-    create_pool(_remove_policy, 3, args)
+    create_pool(_remove_policy, args, 3)
 
 
 @unpack_kwargs
@@ -49,7 +49,7 @@ def _remove_policy(arn, config):
 
 
 def remove_roles(args):
-    create_pool(_remove_role, 3, args)
+    create_pool(_remove_role, args, 3)
 
 
 @unpack_kwargs
@@ -94,28 +94,34 @@ def _remove_instance_profile(profile_name):
 
 
 def create_policies(args):
-    return create_pool(_create_policy_from_meta, 3, args)
+    return create_pool(_create_policy_from_meta, args, 3)
 
 
 def create_roles(args):
-    return create_pool(_create_role_from_meta, 3, args)
+    return create_pool(_create_role_from_meta, args, 3)
 
 
 @unpack_kwargs
 def _create_policy_from_meta(name, meta):
-    arn = 'arn:aws:iam::{0}:policy/{1}'.format(CONFIG.account_id, name)
+    arn = _build_policy_arn(name)
     response = _IAM_CONN.get_policy(arn)
     if response:
         _LOG.warn('IAM policy %s exists.', name)
-        return _describe_policy(arn, meta, name, response)
+        return describe_policy(name=name, meta=meta)
     policy_content = meta['policy_content']
-    response = _IAM_CONN.create_custom_policy(name, policy_content)
+    _IAM_CONN.create_custom_policy(name, policy_content)
     _LOG.info('Created IAM policy %s.', name)
-    arn = 'arn:aws:iam::{0}:policy/{1}'.format(CONFIG.account_id, name)
-    return _describe_policy(arn, meta, name, response)
+    return describe_policy(name=name, meta=meta)
 
 
-def _describe_policy(arn, meta, name, response):
+def _build_policy_arn(name):
+    return 'arn:aws:iam::{0}:policy/{1}'.format(CONFIG.account_id, name)
+
+
+def describe_policy(name, meta, response=None):
+    arn = _build_policy_arn(name)
+    if not response:
+        response = _IAM_CONN.get_policy(arn)
     del response['Arn']
     return {
         arn: build_description_obj(response, name, meta)
@@ -127,7 +133,7 @@ def _create_role_from_meta(name, meta):
     response = _IAM_CONN.get_role(name)
     if response:
         _LOG.warn('IAM role %s exists.', name)
-        return _describe_role(meta, name, response)
+        return describe_role(name=name, meta=meta, response=response)
     custom_policies = meta.get('custom_policies', [])
     predefined_policies = meta.get('predefined_policies', [])
     policies = set(custom_policies + predefined_policies)
@@ -163,10 +169,12 @@ def _create_role_from_meta(name, meta):
     else:
         raise AssertionError('There are no policies for role: %s.', name)
     _LOG.info('Created IAM role %s.', name)
-    return _describe_role(meta, name, response)
+    return describe_role(name=name, meta=meta, response=response)
 
 
-def _describe_role(meta, name, response):
+def describe_role(name, meta, response=None):
+    if not response:
+        response = _IAM_CONN.get_role(role_name=name)
     arn = response['Arn']
     del response['Arn']
     return {

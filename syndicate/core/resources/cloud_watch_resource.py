@@ -28,10 +28,33 @@ from syndicate.core.resources.helper import (build_description_obj,
 _LOG = get_logger('syndicate.core.resources.cloud_watch_resource')
 
 
-def _describe_rule(name, meta, response):
+def describe_rule(name, meta, region, response=None):
+    if not response:
+        response = CONN.cw_events(region).get_rule(name)
     arn = response['Arn']
     del response['Arn']
     return {arn: build_description_obj(response, name, meta)}
+
+
+def describe_rule_from_meta(name, meta):
+    new_region_args = create_args_for_multi_region(
+        [
+            {'name': name,
+             'meta': meta}
+        ],
+        ALL_REGIONS)
+    responses = []
+    for arg in new_region_args:
+        rule = CONN.cw_events(arg['region']).get_rule(name)
+        if rule:
+            responses.append(rule)
+
+    description = []
+    for rule in responses:
+        arn = rule['Arn']
+        del rule['Arn']
+        description.append({arn: build_description_obj(rule, name, meta)})
+    return description
 
 
 def create_cloud_watch_rule(args):
@@ -40,7 +63,7 @@ def create_cloud_watch_rule(args):
     :type args: list
     """
     new_region_args = create_args_for_multi_region(args, ALL_REGIONS)
-    return create_pool(_create_cloud_watch_rule_from_meta, 1, new_region_args)
+    return create_pool(_create_cloud_watch_rule_from_meta, new_region_args, 1)
 
 
 @unpack_kwargs
@@ -59,7 +82,8 @@ def _create_cloud_watch_rule_from_meta(name, meta, region):
     response = CONN.cw_events(region).get_rule(name)
     if response:
         _LOG.warn('%s rule exists in %s.', name, region)
-        return _describe_rule(name, meta, response)
+        return describe_rule(name=name, meta=meta, region=region,
+                             response=response)
     try:
         func = RULE_TYPES[rule_type]
         func(name, meta, CONN.cw_events(region))
@@ -69,7 +93,8 @@ def _create_cloud_watch_rule_from_meta(name, meta, region):
         _LOG.info('Created cloud watch rule %s in %s.', name, region)
         response = CONN.cw_events(region).get_rule(name)
         time.sleep(5)
-        return _describe_rule(name, meta, response)
+        return describe_rule(name=name, meta=meta, region=region,
+                             response=response)
     except KeyError:
         raise AssertionError(
             'Invalid rule type: {0} for resource {1}. '
@@ -136,7 +161,7 @@ def _handle_deactivation_for_cw_resources(cw_conn, region, rule_name):
 
 
 def remove_cloud_watch_rules(args):
-    create_pool(_remove_cloud_watch_rule, 1, args)
+    create_pool(_remove_cloud_watch_rule, args, 1)
 
 
 @unpack_kwargs

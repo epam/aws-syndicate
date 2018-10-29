@@ -26,7 +26,9 @@ _EC2_CONN = CONN.ec2()
 _IAM_CONN = CONN.iam()
 
 
-def describe_ec2(name, meta, response):
+def describe_ec2(name, meta, response=None):
+    if not response:
+        response = _EC2_CONN.describe_instances()
     arn = 'arn:aws:ec2:{0}:{1}:instance/{2}'.format(CONFIG.region,
                                                     CONFIG.account_id,
                                                     response['InstanceId'])
@@ -45,7 +47,7 @@ def describe_ec2(name, meta, response):
 
 
 def create_ec2(args):
-    return create_pool(_create_ec2_from_meta, 5, args)
+    return create_pool(_create_ec2_from_meta, args, 5)
 
 
 @unpack_kwargs
@@ -150,7 +152,7 @@ def _create_ec2_from_meta(name, meta):
 
 
 def remove_ec2_instances(args):
-    create_pool(remove_instance_list, 5, chunks(args, 1000))
+    create_pool(remove_instance_list, chunks(args, 1000), 5)
 
 
 def remove_instance_list(*instance_list):

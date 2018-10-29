@@ -25,11 +25,11 @@ _KINESIS_CONN = CONN.kinesis()
 
 
 def create_kinesis_stream(args):
-    return create_pool(_create_kinesis_stream_from_meta, 5, args)
+    return create_pool(_create_kinesis_stream_from_meta, args, 5)
 
 
 def remove_kinesis_streams(args):
-    create_pool(_remove_kinesis_stream, 5, args)
+    create_pool(_remove_kinesis_stream, args, 5)
 
 
 @unpack_kwargs
@@ -62,6 +62,10 @@ def _create_kinesis_stream_from_meta(name, meta):
     _KINESIS_CONN.create_stream(stream_name=name,
                                 shard_count=meta['shard_count'])
     _LOG.info('Created kinesis stream %s.', name)
+    return describe_kinesis_stream(name=name, meta=meta)
+
+
+def describe_kinesis_stream(name, meta):
     response = _KINESIS_CONN.get_stream(name)
     return {
         response['StreamARN']: build_description_obj(response, name, meta)

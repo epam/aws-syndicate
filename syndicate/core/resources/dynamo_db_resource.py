@@ -52,7 +52,9 @@ def create_tables_by_10(args):
     return response
 
 
-def _describe_table(name, meta, response):
+def describe_table(name, meta, response=None):
+    if not response:
+        response = _DYNAMO_DB_CONN.describe_table(table_name=name)
     arn = response['TableArn']
     del response['TableArn']
     return {
@@ -90,7 +92,7 @@ def _create_dynamodb_table_from_meta(name, meta):
         if autoscaling_config:
             res['Autoscaling'] = _describe_autoscaling(autoscaling_config,
                                                        name)
-        return _describe_table(name, meta, res)
+        return describe_table(name, meta, res)
 
     _DYNAMO_DB_CONN.create_table(
         name, meta['hash_key_name'], meta['hash_key_type'],
@@ -106,7 +108,7 @@ def _create_dynamodb_table_from_meta(name, meta):
         sc_res = _enable_autoscaling(autoscaling_config, name)
         response['Autoscaling'] = sc_res
     _LOG.info('Created table %s.', name)
-    return _describe_table(name, meta, response)
+    return describe_table(name, meta, response)
 
 
 def _describe_autoscaling(autoscaling_config, name):
@@ -215,7 +217,7 @@ def create_dynamodb_stream(args):
 
     :type args: list
     """
-    create_pool(_create_dynamodb_stream_from_meta, 5, args)
+    create_pool(_create_dynamodb_stream_from_meta, args, 5)
 
 
 @unpack_kwargs

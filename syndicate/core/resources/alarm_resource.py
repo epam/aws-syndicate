@@ -30,10 +30,10 @@ def create_alarm(args):
 
     :type args: list
     """
-    return create_pool(_create_alarm_from_meta, 5, args)
+    return create_pool(_create_alarm_from_meta, args, 5)
 
 
-def _describe_alarm(name, meta):
+def describe_alarm(name, meta):
     response = _CW_METRIC.describe_alarms([name])[0]
     arn = response['AlarmArn']
     return {
@@ -55,7 +55,7 @@ def _create_alarm_from_meta(name, meta):
 
     if _CW_METRIC.is_alarm_exists(name):
         _LOG.warn('%s alarm exists.', name)
-        return _describe_alarm(name, meta)
+        return describe_alarm(name, meta)
 
     params = dict(alarm_name=name, metric_name=meta['metric_name'],
                   namespace=meta['namespace'], period=meta['period'],
@@ -74,11 +74,11 @@ def _create_alarm_from_meta(name, meta):
 
     _CW_METRIC.put_metric_alarm(**params)
     _LOG.info('Created alarm {0}.'.format(name))
-    return _describe_alarm(name, meta)
+    return describe_alarm(name, meta)
 
 
 def remove_alarms(args):
-    create_pool(remove_alarm_list, 5, chunks(args, 100))
+    create_pool(remove_alarm_list, chunks(args, 100), 5)
 
 
 def remove_alarm_list(*alarm_list):

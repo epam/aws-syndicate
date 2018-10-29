@@ -142,7 +142,57 @@ def create_api_gateway(args):
 
     :type args: list
     """
-    return create_pool(_create_api_gateway_from_meta, 3, args)
+    return create_pool(_create_api_gateway_from_meta, args, 3)
+
+
+def api_gateway_update_processor(args):
+    return create_pool(_create_or_update_api_gateway, args, 3)
+
+
+@unpack_kwargs
+def _create_or_update_api_gateway(name, meta, current_configurations):
+    if current_configurations:
+        # api currently is not located in different regions
+        # process only first object
+        api_output = current_configurations.items()[0][1]
+        # find id from the output
+        api_id = api_output['description']['id']
+        # check that api does not exist
+        api_response = _API_GATEWAY_CONN.get_api(api_id)
+        if api_response:
+            # find all existing resources
+            existing_resources = api_output['description']['resources']
+            existing_paths = map(lambda i: i['path'], existing_resources)
+            meta_api_resources = meta['resources']
+            api_resources = {}
+            for resource_path, resource_meta in meta_api_resources.iteritems():
+                if resource_path not in existing_paths:
+                    api_resources[resource_path] = resource_meta
+            if api_resources:
+                _LOG.debug(
+                    'Going to continue deploy API Gateway {0} ...'.format(
+                        api_id))
+                args = __prepare_api_resources_args(api_id, api_resources)
+                create_pool(_create_resource_from_metadata, args, 1)
+                # add headers
+                # waiter b4 customization
+                time.sleep(10)
+                _LOG.debug(
+                    'Customizing API Gateway {0} responses...'.format(api_id))
+            else:
+                # all resources created, but need to override
+                api_resources = meta_api_resources
+            _customize_gateway_responses(api_id)
+            # deploy api
+            _LOG.debug('Deploying API Gateway {0} ...'.format(api_id))
+            __deploy_api_gateway(api_id, meta, api_resources)
+            return describe_api_resources(api_id=api_id, meta=meta, name=name)
+        else:
+            # api does not exist, so create a new
+            return _create_api_gateway_from_meta({'name': name, 'meta': meta})
+    else:
+        # object is not present, so just create a new api
+        return _create_api_gateway_from_meta({'name': name, 'meta': meta})
 
 
 def _escape_path(parameter):
@@ -202,7 +252,6 @@ def _create_api_gateway_from_meta(name, meta):
     validate_params(name, meta, required_parameters)
 
     api_resources = meta['resources']
-    deploy_stage = meta['deploy_stage']
 
     # if _API_GATEWAY_CONN.get_api_by_name(name):
     #     _LOG.info('%s API exists.', name)
@@ -210,36 +259,22 @@ def _create_api_gateway_from_meta(name, meta):
 
     api_id = _API_GATEWAY_CONN.create_rest_api(name)['id']
     if api_resources:
-        args = []
-        for each in api_resources:
-            resource_meta = api_resources[each]
-            _LOG.info('Creating resource %s ...', each)
-            if each.startswith('/'):
-                resource_id = _API_GATEWAY_CONN.get_resource_id(api_id, each)
-                if resource_id:
-                    _LOG.info('Resource %s exists.', each)
-                    enable_cors = resource_meta.get('enable_cors')
-                    _check_existing_methods(api_id, resource_id, each,
-                                            resource_meta, enable_cors)
-                else:
-                    args.append({
-                        'api_id': api_id,
-                        'resource_path': each,
-                        'resource_meta': resource_meta
-                    })
-            else:
-                raise AssertionError(
-                    "API resource must starts with '/', but found %s", each)
-        create_pool(_create_resource_from_metadata, 1, args)
+        args = __prepare_api_resources_args(api_id, api_resources)
+        create_pool(_create_resource_from_metadata, args, 1)
     else:
         _LOG.info('There is no resources in %s API Gateway description.', name)
     # add headers
     # waiter b4 customization
     time.sleep(10)
-    # TODO move to sdk calls
-    _LOG.info('Customizing API Gateway responses...')
+    _LOG.debug('Customizing API Gateway responses...')
     _customize_gateway_responses(api_id)
     # deploy api
+    __deploy_api_gateway(api_id, meta, api_resources)
+    return describe_api_resources(api_id=api_id, meta=meta, name=name)
+
+
+def __deploy_api_gateway(api_id, meta, api_resources):
+    deploy_stage = meta['deploy_stage']
     cache_cluster_configuration = meta.get('cluster_cache_configuration')
     root_cache_enabled = cache_cluster_configuration.get(
         'cache_enabled') if cache_cluster_configuration else None
@@ -269,11 +304,45 @@ def _create_api_gateway_from_meta(name, meta):
         )
         # customize cache settings for endpoints
         configure_cache(api_id, deploy_stage, api_resources)
+
+
+def __prepare_api_resources_args(api_id, api_resources):
+    args = []
+    for each in api_resources:
+        resource_meta = api_resources[each]
+        _LOG.info('Creating resource %s ...', each)
+        if each.startswith('/'):
+            resource_id = _API_GATEWAY_CONN.get_resource_id(api_id, each)
+            if resource_id:
+                _LOG.info('Resource %s exists.', each)
+                enable_cors = resource_meta.get('enable_cors')
+                _check_existing_methods(api_id, resource_id, each,
+                                        resource_meta, enable_cors)
+            else:
+                args.append({
+                    'api_id': api_id,
+                    'resource_path': each,
+                    'resource_meta': resource_meta
+                })
+        else:
+            raise AssertionError(
+                "API resource must starts with '/', but found %s", each)
+    return args
+
+
+def describe_api_resources(name, meta, api_id=None):
+    if not api_id:
+        api = _API_GATEWAY_CONN.get_api_by_name(name)
+        if not api:
+            return
+        api_id = api['id']
+
     response = _API_GATEWAY_CONN.get_api(api_id)
-    arn = 'arn:aws:apigateway:{0}::/restapis/{1}'.format(CONFIG.region,
-                                                         api_id)
+    if not response:
+        return
     response['resources'] = _API_GATEWAY_CONN.get_resources(api_id)
     _LOG.info('Created %s API Gateway.', name)
+    arn = 'arn:aws:apigateway:{0}::/restapis/{1}'.format(CONFIG.region, api_id)
     return {
         arn: build_description_obj(response, name, meta)
     }
@@ -470,6 +539,7 @@ def _customize_gateway_responses(api_id):
     response_types = [r['responseType'] for r in responses]
     for response_type in response_types:
         time.sleep(10)
+        # TODO move to sdk calls
         _API_GATEWAY_CONN.add_header_for_response(api_id, response_type,
                                                   _CORS_HEADER_NAME,
                                                   _CORS_HEADER_VALUE)

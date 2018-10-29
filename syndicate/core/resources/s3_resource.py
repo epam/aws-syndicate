@@ -23,10 +23,10 @@ _S3_CONN = CONN.s3()
 
 
 def create_s3_bucket(args):
-    return create_pool(_create_s3_bucket_from_meta, 5, args)
+    return create_pool(_create_s3_bucket_from_meta, args, 5)
 
 
-def _describe_bucket(name, meta):
+def describe_bucket(name, meta):
     arn = 'arn:aws:s3:::{0}'.format(name)
     acl_response = _S3_CONN.get_bucket_acl(name)
     location_response = _S3_CONN.get_bucket_location(name)
@@ -46,7 +46,7 @@ def _describe_bucket(name, meta):
 def _create_s3_bucket_from_meta(name, meta):
     if _S3_CONN.is_bucket_exists(name):
         _LOG.warn('{0} bucket exists.'.format(name))
-        return _describe_bucket(name, meta)
+        return describe_bucket(name, meta)
     _S3_CONN.create_bucket(name, meta.get('acl'), meta.get('location'))
     policy = meta.get('policy')
     if policy:
@@ -57,7 +57,7 @@ def _create_s3_bucket_from_meta(name, meta):
     if rules:
         _S3_CONN.add_bucket_rule(name, rules)
         _LOG.debug('Rules on {0} S3 bucket are set up.'.format(name))
-    return _describe_bucket(name, meta)
+    return describe_bucket(name, meta)
 
 
 def _delete_objects(bucket_name, keys):
@@ -74,7 +74,7 @@ def _delete_objects(bucket_name, keys):
 
 
 def remove_buckets(args):
-    create_pool(_remove_bucket, 5, args)
+    create_pool(_remove_bucket, args, 5)
 
 
 @unpack_kwargs

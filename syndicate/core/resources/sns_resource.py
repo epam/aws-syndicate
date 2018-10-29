@@ -27,18 +27,69 @@ from syndicate.core.resources.helper import (build_description_obj,
 _LOG = get_logger('core.resources.sns_resource')
 
 
-def _describe_sns(arn, name, meta, region):
+def describe_sns(name, meta, region, arn=None):
+    if not arn:
+        arn = CONN.sns(region).get_topic_arn(name)
     response = CONN.sns(region).get_topic_attributes(arn)
     return {
         arn: build_description_obj(response, name, meta)
     }
 
 
-def _describe_sns_application(arn, name, meta, region):
+def describe_sns_from_meta(name, meta):
+    new_region_args = create_args_for_multi_region(
+        [
+            {'name': name,
+             'meta': meta}
+        ],
+        ALL_REGIONS)
+    responses = []
+    for arg in new_region_args:
+        region = arg['region']
+        topic_arn = CONN.sns(region).get_topic_arn(name)
+        if not topic_arn:
+            continue
+        response = CONN.sns(region).get_topic_attributes(topic_arn)
+        if response:
+            responses.append({'arn': topic_arn, 'response': response})
+    description = []
+    for topic in responses:
+        description.append({topic['arn']: build_description_obj(
+            topic['response'], name, meta)})
+    return description
+
+
+def describe_sns_application(name, meta, region, arn=None):
+    if not arn:
+        arn = CONN.sns(region).get_platform_application(name)
     response = CONN.sns(region).get_platform_application_attributes(arn)
     return {
         arn: build_description_obj(response, name, meta)
     }
+
+
+def describe_sns_application_from_meta(name, meta):
+    new_region_args = create_args_for_multi_region(
+        [
+            {'name': name,
+             'meta': meta}
+        ],
+        ALL_REGIONS)
+    responses = []
+    for arg in new_region_args:
+        region = arg['region']
+        app_arn = CONN.sns(region).get_platform_application(name)
+        if not app_arn:
+            continue
+        response = CONN.sns(region).get_platform_application_attributes(
+            app_arn)
+        if response:
+            responses.append({'arn': app_arn, 'response': response})
+    description = []
+    for topic in responses:
+        description.append({topic['arn']: build_description_obj(
+            topic['response'], name, meta)})
+    return description
 
 
 def create_sns_topic(args):
@@ -47,7 +98,7 @@ def create_sns_topic(args):
     :type args: list
     """
     new_region_args = create_args_for_multi_region(args, ALL_REGIONS)
-    return create_pool(_create_sns_topic_from_meta, 1, new_region_args)
+    return create_pool(_create_sns_topic_from_meta, new_region_args, 1)
 
 
 def create_sns_application(args):
@@ -56,8 +107,8 @@ def create_sns_application(args):
     :type args: list
     """
     new_region_args = create_args_for_multi_region(args, ALL_REGIONS)
-    return create_pool(_create_platform_application_from_meta, 1,
-                       new_region_args)
+    return create_pool(_create_platform_application_from_meta, new_region_args,
+                       1)
 
 
 @unpack_kwargs
@@ -65,7 +116,7 @@ def _create_sns_topic_from_meta(name, meta, region):
     arn = CONN.sns(region).get_topic_arn(name)
     if arn:
         _LOG.warn('{0} sns topic exists in region {1}.'.format(name, region))
-        return _describe_sns(arn, name, meta, region)
+        return describe_sns(name=name, meta=meta, region=region, arn=arn)
     arn = CONN.sns(region).create_topic(name)
     event_sources = meta.get('event_sources')
     if event_sources:
@@ -74,7 +125,7 @@ def _create_sns_topic_from_meta(name, meta, region):
             func = CREATE_TRIGGER[trigger_type]
             func(name, trigger_meta, region)
     _LOG.info('SNS topic %s in region %s created.', name, region)
-    return _describe_sns(arn, name, meta, region)
+    return describe_sns(name=name, meta=meta, region=region, arn=arn)
 
 
 def _subscribe_lambda_to_sns_topic(lambda_arn, topic_name, region):
@@ -132,7 +183,7 @@ CREATE_TRIGGER = {
 
 
 def remove_sns_topics(args):
-    create_pool(_remove_sns_topic, 1, args)
+    create_pool(_remove_sns_topic, args, 1)
 
 
 @unpack_kwargs
@@ -158,7 +209,7 @@ def _create_platform_application_from_meta(name, meta, region):
     if arn:
         _LOG.warn('{0} SNS platform application exists in region {1}.'.format(
             name, region))
-        return _describe_sns_application(arn, name, meta, region)
+        return describe_sns_application(arn, name, meta, region)
     platform = meta['platform']
     atrbts = meta['attributes']
     try:
@@ -173,11 +224,11 @@ def _create_platform_application_from_meta(name, meta, region):
             raise e
     _LOG.info('SNS platform application %s in region %s has been created.',
               name, region)
-    return _describe_sns_application(arn, name, meta, region)
+    return describe_sns_application(arn, name, meta, region)
 
 
 def remove_sns_application(args):
-    create_pool(_remove_sns_application, 1, args)
+    create_pool(_remove_sns_application, args, 1)
 
 
 @unpack_kwargs

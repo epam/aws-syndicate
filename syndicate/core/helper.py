@@ -36,13 +36,13 @@ from syndicate.core.constants import (ARTIFACTS_FOLDER, BUILD_META_FILE_NAME,
 _LOG = get_logger('syndicate.core.helper')
 
 
-def create_pool(func, workers_count, args, *kwargs):
+def create_pool(func, args, workers=None, *kwargs):
     """ Create lambdas in pool in sub processes.
 
     :type args: iterable
     :type func: func
     """
-    executor = ThreadPoolExecutor(workers_count)
+    executor = ThreadPoolExecutor(workers) if workers else ThreadPoolExecutor()
     try:
         futures = map(lambda i: executor.submit(func, i, kwargs), args)
         concurrent.futures.wait(futures, return_when=ALL_COMPLETED)

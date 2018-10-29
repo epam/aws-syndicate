@@ -33,15 +33,15 @@ _LOG = get_logger('core.resources.step_function_resource')
 
 
 def create_state_machine(args):
-    return create_pool(_create_state_machine_from_meta, 5, args)
+    return create_pool(_create_state_machine_from_meta, args, 5)
 
 
 def create_activities(args):
-    return create_pool(_create_activity_from_meta, 5, args)
+    return create_pool(_create_activity_from_meta, args, 5)
 
 
 def remove_state_machines(args):
-    create_pool(_remove_state_machine, 5, args)
+    create_pool(_remove_state_machine, args, 5)
     if args:
         time.sleep(60)
 
@@ -68,7 +68,7 @@ def _remove_state_machine(arn, config):
 
 
 def remove_activities(args):
-    create_pool(_remove_activity, 5, args)
+    create_pool(_remove_activity, args, 5)
 
 
 @unpack_kwargs
@@ -150,6 +150,12 @@ def _create_state_machine_from_meta(name, meta):
             func = CREATE_TRIGGER[trigger_type]
             func(name, trigger_meta)
     _LOG.info('Created state machine %s.', machine_info['stateMachineArn'])
+    return describe_step_function(name=name, meta=meta, arn=arn)
+
+
+def describe_step_function(name, meta, arn=None):
+    if not arn:
+        arn = _build_sm_arn(name, CONFIG.region)
     response = _SF_CONN.describe_state_machine(arn)
     return {
         arn: build_description_obj(response, name, meta)
@@ -188,8 +194,7 @@ CREATE_TRIGGER = {
 
 @unpack_kwargs
 def _create_activity_from_meta(name, meta):
-    arn = 'arn:aws:states:{0}:{1}:activity:{2}'.format(CONFIG.region,
-                                                       CONFIG.account_id, name)
+    arn = build_activity_arn(name=name)
     response = _SF_CONN.describe_activity(arn)
     if response:
         _LOG.warn('Activity %s exists.', name)
@@ -201,3 +206,17 @@ def _create_activity_from_meta(name, meta):
     return {
         arn: build_description_obj(response, name, meta)
     }
+
+
+def describe_activity(name, meta):
+    arn = build_activity_arn(name=name)
+    response = _SF_CONN.describe_activity(arn=arn)
+    return {
+        arn: build_description_obj(response, name, meta)
+    }
+
+
+def build_activity_arn(name):
+    arn = 'arn:aws:states:{0}:{1}:activity:{2}'.format(CONFIG.region,
+                                                       CONFIG.account_id, name)
+    return arn
