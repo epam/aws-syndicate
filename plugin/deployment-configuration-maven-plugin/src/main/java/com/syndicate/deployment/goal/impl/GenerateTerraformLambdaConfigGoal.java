@@ -39,17 +39,17 @@ public class GenerateTerraformLambdaConfigGoal extends GenerateLambdaConfigGoal 
     private static final String ARN_PREFIX = "arn:aws:";
 
     @Parameter(property = "maven.processor.account_id")
-    private String account_id;
+    private String accountId;
 
     @Parameter(property = "maven.processor.region")
     private String region;
 
-    public String getAccount_id() {
-        return account_id;
+    public String getAccountId() {
+        return accountId;
     }
 
-    public void setAccount_id(String account_id) {
-        this.account_id = account_id;
+    public void setAccountId(String account_id) {
+        this.accountId = account_id;
     }
 
     public String getRegion() {
@@ -68,7 +68,7 @@ public class GenerateTerraformLambdaConfigGoal extends GenerateLambdaConfigGoal 
 
     @Override
     protected Map<String, Object> convertConfiguration(Map<String, LambdaConfiguration> configurations) {
-        Map<String, TerraformLambdaConfiguration> terraformLambdas = convertSyndicateToTerraformConfiguration(configurations, account_id, region);
+        Map<String, TerraformLambdaConfiguration> terraformLambdas = convertSyndicateToTerraformConfiguration(configurations, accountId, region);
         Map<String, Object> terraformConfiguration = new HashMap<>(2); // provider + resource
         terraformConfiguration.put("provider",
                 Collections.singletonMap("aws",
@@ -92,7 +92,7 @@ public class GenerateTerraformLambdaConfigGoal extends GenerateLambdaConfigGoal 
                     .withDeploymentPackageName(syndicate.getPath() + "/target/" + syndicate.getPackageName())
                     .withFunctionName(lambdaName)
                     .withHandler(syndicate.getFunction())
-                    .withRole(buildIamRoleArn(syndicate.getRole(), account_id))
+                    .withRole(buildIamRoleArn(syndicate.getRole(), this.accountId))
                     .withMemorySize(syndicate.getMemory())
                     .withTimeout(syndicate.getTimeout())
                     .withRuntime(syndicate.getRuntime())

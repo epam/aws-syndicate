@@ -19,14 +19,8 @@ package com.syndicate.deployment.success;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.syndicate.deployment.annotations.environment.EnvironmentVariable;
-import com.syndicate.deployment.annotations.events.SnsEventSource;
-import com.syndicate.deployment.annotations.lambda.LambdaConcurrency;
-import com.syndicate.deployment.annotations.lambda.LambdaHandler;
-import com.syndicate.deployment.annotations.resources.DeadLetterConfiguration;
-import com.syndicate.deployment.annotations.resources.DependsOn;
 import com.syndicate.deployment.goal.impl.GenerateLambdaConfigGoal;
-import com.syndicate.deployment.model.DeadLetterResourceType;
+import com.syndicate.deployment.goal.impl.GenerateTerraformLambdaConfigGoal;
 import com.syndicate.deployment.model.DependencyItem;
 import com.syndicate.deployment.model.DeploymentRuntime;
 import com.syndicate.deployment.model.LambdaConfiguration;
@@ -34,6 +28,11 @@ import com.syndicate.deployment.model.RegionScope;
 import com.syndicate.deployment.model.ResourceType;
 import com.syndicate.deployment.model.TracingMode;
 import com.syndicate.deployment.model.events.SnsTriggerEventSourceItem;
+import com.syndicate.deployment.model.terraform.TerraformLambdaConfiguration;
+import com.syndicate.deployment.success.syndicate.SnsLambdaExecutor;
+import com.syndicate.deployment.success.syndicate.SnsLambdaProcessor;
+import com.syndicate.deployment.success.terraform.BackgroundLambda;
+import com.syndicate.deployment.success.terraform.ForegroundLambda;
 import org.apache.maven.model.Build;
 import org.apache.maven.plugin.testing.MojoRule;
 import org.apache.maven.project.MavenProject;
@@ -118,35 +117,7 @@ public class GenerateLambdaConfigMojoSuccessTest {
     }
 
     @Test
-    public void testPluginExecuted() throws Exception {
-
-        @LambdaHandler(tracingMode = TracingMode.Active,
-                lambdaName = "lambda_execute_notification",
-                roleName = "lr_get_notification_content")
-        @EnvironmentVariable(key = "name", value = "lambda_execute_notification")
-        @DependsOn(name = "stackAuditTopic", resourceType = ResourceType.SNS_TOPIC)
-        @SnsEventSource(targetTopic = "stackAuditTopic", regionScope = RegionScope.ALL)
-        class SnsLambdaExecutor {
-            // test lambda class to be processed
-        }
-
-        @LambdaHandler(tracingMode = TracingMode.Active,
-                lambdaName = "lambda_process_notification",
-                roleName = "lr_get_notification_content",
-                methodName = "handle")
-        @LambdaConcurrency(executions = 1)
-        @EnvironmentVariable(key = "name", value = "lambda_process_notification")
-        @DependsOn(name = "stackAuditTopic", resourceType = ResourceType.SNS_TOPIC)
-        @SnsEventSource(targetTopic = "stackAuditTopic", regionScope = RegionScope.ALL)
-        @DeadLetterConfiguration(resourceName = "lambda-dead-letter-queue-name",
-                resourceType = DeadLetterResourceType.SQS)
-        class SnsLambdaProcessor {
-            // test lambda class to be processed
-            public void handle() {
-                // method handler
-            }
-        }
-
+    public void testSyndicateGoalExecuted() throws Exception {
         File pluginConfig = new File(Objects.requireNonNull(getClass().getClassLoader()
                 .getResource("plugin-config-syndicate-goal.xml")).toURI());
 
@@ -159,7 +130,7 @@ public class GenerateLambdaConfigMojoSuccessTest {
         final Build build = mock(Build.class);
         final File file = mock(File.class);
         when(mavenProject.getBuild()).thenReturn(build);
-        when(mavenProject.getBuild().getFinalName()).thenReturn("test");
+        when(mavenProject.getBuild().getFinalName()).thenReturn("syndicate");
         when(mavenProject.getVersion()).thenReturn("1.0.0");
         when(mavenProject.getBasedir()).thenReturn(file);
 
@@ -168,7 +139,7 @@ public class GenerateLambdaConfigMojoSuccessTest {
 
         mojo.setProject(mavenProject);
         // override packages to process only current class file
-        mojo.setPackages(new String[]{"com.syndicate.deployment.success"});
+        mojo.setPackages(new String[]{"com.syndicate.deployment.success.syndicate"});
 
         mojo.execute();
 
@@ -186,7 +157,7 @@ public class GenerateLambdaConfigMojoSuccessTest {
                 .withTracingMode(TracingMode.Active.getMode())
                 .withMemory(1024)
                 .withFunction(SnsLambdaExecutor.class.getName())
-                .withPackageName("test.jar")
+                .withPackageName("syndicate.jar")
                 .withPath(folder.getRoot().getAbsolutePath())
                 .withRole("lr_get_notification_content")
                 .withRuntime(DeploymentRuntime.JAVA8)
@@ -211,7 +182,7 @@ public class GenerateLambdaConfigMojoSuccessTest {
                 .withTracingMode(TracingMode.Active.getMode())
                 .withMemory(1024)
                 .withFunction(SnsLambdaProcessor.class.getName() + ":handle")
-                .withPackageName("test.jar")
+                .withPackageName("syndicate.jar")
                 .withPath(folder.getRoot().getAbsolutePath())
                 .withRole("lr_get_notification_content")
                 .withRuntime(DeploymentRuntime.JAVA8)
@@ -248,6 +219,96 @@ public class GenerateLambdaConfigMojoSuccessTest {
                 objectMapper.writeValueAsString(snsLambdaProcessorConfiguration)));
         expectedContent.put("lambda_execute_notification", objectMapper.readTree(
                 objectMapper.writeValueAsString(snsLambdaExecutorConfiguration)));
+        assertEquals(expectedContent, actualContent);
+    }
+
+    @Test
+    public void testTerraformGoalExecuted() throws Exception {
+        File pluginConfig = new File(Objects.requireNonNull(getClass().getClassLoader()
+                .getResource("plugin-config-terraform-goal.xml")).toURI());
+
+        GenerateTerraformLambdaConfigGoal mojo = new GenerateTerraformLambdaConfigGoal();
+        mojo.setRegion("us-east-1");
+        mojo.setAccountId("012345678901");
+        mojo = (GenerateTerraformLambdaConfigGoal) rule.configureMojo(mojo,
+                rule.extractPluginConfiguration(PLUGIN_ARTIFACT_ID, pluginConfig));
+
+        final MavenProject mavenProject = mock(MavenProject.class);
+        when(mavenProject.getCompileClasspathElements()).thenReturn(Arrays.asList("dep1", "dep2"));
+        final Build build = mock(Build.class);
+        final File file = mock(File.class);
+        when(mavenProject.getBuild()).thenReturn(build);
+        when(mavenProject.getBuild().getFinalName()).thenReturn("terraform");
+        when(mavenProject.getVersion()).thenReturn("1.0.0");
+        when(mavenProject.getBasedir()).thenReturn(file);
+
+        File targetDir = folder.newFolder("target");
+        when(mavenProject.getBasedir().getAbsolutePath()).thenReturn(folder.getRoot().getAbsolutePath());
+
+        mojo.setProject(mavenProject);
+        // override packages to process only current class file
+        mojo.setPackages(new String[]{"com.syndicate.deployment.success.terraform"});
+
+        mojo.execute();
+
+        // will be created 1 file with lambdas description
+        File[] files = targetDir.listFiles((dir, name) -> name.toLowerCase().endsWith(".json"));
+        if (files == null) {
+            files = new File[]{};
+        }
+
+        assertEquals(1, files.length);
+
+        // configs are equal
+        // lambda_execute_notification
+        TerraformLambdaConfiguration foregroundLambdaConfiguration = new TerraformLambdaConfiguration.Builder()
+                .withMemorySize(1024)
+                .withFunctionName("foreground_lambda")
+                .withDeploymentPackageName(folder.getRoot().getAbsolutePath() + "/target/terraform.jar")
+                .withRuntime(DeploymentRuntime.JAVA8)
+                .withHandler(ForegroundLambda.class.getName())
+                .withRole("arn:aws:iam::012345678901:role/foreground-lambda-role")
+                .withTimeout(300)
+                .withEnvironmentVariables(Collections.singletonMap("name", "foreground_lambda"))
+                .build();
+
+        // lambda_process_notification
+        TerraformLambdaConfiguration backgroundLambdaConfiguration = new TerraformLambdaConfiguration.Builder()
+                .withMemorySize(1024)
+                .withFunctionName("background_lambda")
+                .withDeploymentPackageName(folder.getRoot().getAbsolutePath() + "/target/terraform.jar")
+                .withRuntime(DeploymentRuntime.JAVA8)
+                .withHandler(BackgroundLambda.class.getName() + ":handle")
+                .withRole("arn:aws:iam::012345678901:role/background-lambda-role")
+                .withTimeout(300)
+                .withEnvironmentVariables(Collections.singletonMap("name", "background_lambda"))
+                .withDeadLetterConfig("arn:aws:sqs:us-east-1:012345678901:lambda-dead-letter-queue-name")
+                .build();
+
+
+        File deploymentResourcesFile = Arrays.stream(files).filter(f -> f.getName()
+                .equalsIgnoreCase("deployment_resources.tf.json"))
+                .findFirst().get();
+
+        String deploymentResourcesJson = new String(Files.readAllBytes(deploymentResourcesFile.toPath()));
+        Map<String, JsonNode> actualContent = objectMapper.readValue(deploymentResourcesJson,
+                new TypeReference<Map<String, JsonNode>>() {
+                });
+
+        Map<String, JsonNode> expectedContent = new HashMap<>();
+        Map<String, TerraformLambdaConfiguration> lambda_resources = new HashMap<>();
+
+        lambda_resources.put("foreground_lambda", foregroundLambdaConfiguration);
+        lambda_resources.put("background_lambda", backgroundLambdaConfiguration);
+        expectedContent.put("resource", objectMapper.readTree(
+                objectMapper.writeValueAsString(
+                        Collections.singletonMap("aws_lambda_function", lambda_resources)
+                )));
+
+        Map<String, Object> provider = Collections.singletonMap("aws",
+                Collections.singletonMap("region", "us-east-1"));
+        expectedContent.put("provider", objectMapper.readTree(
+                objectMapper.writeValueAsString(provider)));
         assertEquals(expectedContent, actualContent);
     }
 
