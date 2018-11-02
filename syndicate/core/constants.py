@@ -17,8 +17,6 @@ IAM_POLICY = 'iam_policy'
 IAM_ROLE = 'iam_role'
 LAMBDA_TYPE = 'lambda'
 DYNAMO_TABLE_TYPE = 'dynamodb_table'
-# todo DYNAMO_STREAM_TYPE is not resource type -> is a part of 'dynamodb_table'
-DYNAMO_STREAM_TYPE = 'dynamodb_stream'
 S3_BUCKET_TYPE = 's3_bucket'
 CLOUD_WATCH_RULE_TYPE = 'cloudwatch_rule'
 SQS_QUEUE_TYPE = 'sqs_queue'
@@ -49,7 +47,6 @@ DEPLOY_RESOURCE_TYPE_PRIORITY = {
     DYNAMO_TABLE_TYPE: 3,
     S3_BUCKET_TYPE: 4,
     CLOUD_WATCH_RULE_TYPE: 5,
-    DYNAMO_STREAM_TYPE: 6,
     SNS_TOPIC_TYPE: 7,
     SQS_QUEUE_TYPE: 8,
     KINESIS_STREAM_TYPE: 9,
@@ -70,7 +67,6 @@ CLEAN_RESOURCE_TYPE_PRIORITY = {
     DYNAMO_TABLE_TYPE: 3,
     S3_BUCKET_TYPE: 4,
     CLOUD_WATCH_RULE_TYPE: 5,
-    DYNAMO_STREAM_TYPE: 6,
     SNS_TOPIC_TYPE: 7,
     SQS_QUEUE_TYPE: 8,
     KINESIS_STREAM_TYPE: 9,

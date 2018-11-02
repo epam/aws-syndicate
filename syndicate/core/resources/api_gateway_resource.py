@@ -154,7 +154,7 @@ def _create_or_update_api_gateway(name, meta, current_configurations):
     if current_configurations:
         # api currently is not located in different regions
         # process only first object
-        api_output = current_configurations.items()[0]
+        api_output = current_configurations.items()[0][1]
         # find id from the output
         api_id = api_output['description']['id']
         # check that api does not exist

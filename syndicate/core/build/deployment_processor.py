@@ -18,13 +18,12 @@ from datetime import date, datetime
 
 import concurrent
 from concurrent.futures import ALL_COMPLETED, ThreadPoolExecutor
-
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.build.bundle_processor import (create_deploy_output,
                                                    load_deploy_output,
+                                                   load_failed_deploy_output,
                                                    load_meta_resources,
                                                    remove_deploy_output,
-                                                   load_failed_deploy_output,
                                                    remove_failed_deploy_output)
 from syndicate.core.build.meta_processor import resolve_meta
 from syndicate.core.constants import (BUILD_META_FILE_NAME,
@@ -33,10 +32,9 @@ from syndicate.core.constants import (BUILD_META_FILE_NAME,
                                       LAMBDA_TYPE)
 from syndicate.core.helper import exit_on_exception, prettify_json
 from syndicate.core.resources import (APPLY_MAPPING, CREATE_RESOURCE,
-                                      REMOVE_RESOURCE,
+                                      DESCRIBE_RESOURCE, REMOVE_RESOURCE,
                                       RESOURCE_CONFIGURATION_PROCESSORS,
-                                      RESOURCE_IDENTIFIER, UPDATE_RESOURCE,
-                                      DESCRIBE_RESOURCE)
+                                      RESOURCE_IDENTIFIER, UPDATE_RESOURCE)
 
 _LOG = get_logger('syndicate.core.build.deployment_processor')
 
@@ -150,8 +148,8 @@ def clean_resources(output):
 # todo implement saving failed output
 def continue_deploy_resources(resources, failed_output):
     updated_output = {}
-    res_type = None
     deploy_result = True
+    res_type = None
     try:
         args = []
         resource_type = None
@@ -176,7 +174,9 @@ def continue_deploy_resources(resources, failed_output):
                 if func:
                     response = func(args)
                     if response:
-                        updated_output.update(response)
+                        updated_output.update(
+                            json.loads(
+                                json.dumps(response, default=_json_serial)))
                 else:
                     # function to update resource is not present
                     # move existing output for resources to new output
@@ -195,7 +195,9 @@ def continue_deploy_resources(resources, failed_output):
             if func:
                 response = func(args)
                 if response:
-                    updated_output.update(response)
+                    updated_output.update(
+                        json.loads(
+                            json.dumps(response, default=_json_serial)))
             else:
                 # function to update resource is not present
                 # move existing output- for resources to new output
@@ -355,10 +357,8 @@ def continue_deployment_resources(deploy_name, bundle_name,
     # remove failed output from bucket
     remove_failed_deploy_output(bundle_name, deploy_name)
     _LOG.info('Going to create deploy output')
-    # todo check that json will not be double serialized
-    output_str = json.dumps(updated_output, default=_json_serial)
     create_deploy_output(bundle_name, deploy_name,
-                         prettify_json(output_str), success=success)
+                         prettify_json(updated_output), success=success)
     return success
 
 
