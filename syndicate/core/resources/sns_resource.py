@@ -39,8 +39,10 @@ def describe_sns(name, meta, region, arn=None):
 def describe_sns_from_meta(name, meta):
     new_region_args = create_args_for_multi_region(
         [
-            {'name': name,
-             'meta': meta}
+            {
+                'name': name,
+                'meta': meta
+            }
         ],
         ALL_REGIONS)
     responses = []
@@ -54,8 +56,10 @@ def describe_sns_from_meta(name, meta):
             responses.append({'arn': topic_arn, 'response': response})
     description = []
     for topic in responses:
-        description.append({topic['arn']: build_description_obj(
-            topic['response'], name, meta)})
+        description.append({
+            topic['arn']: build_description_obj(
+                topic['response'], name, meta)
+        })
     return description
 
 
@@ -71,8 +75,10 @@ def describe_sns_application(name, meta, region, arn=None):
 def describe_sns_application_from_meta(name, meta):
     new_region_args = create_args_for_multi_region(
         [
-            {'name': name,
-             'meta': meta}
+            {
+                'name': name,
+                'meta': meta
+            }
         ],
         ALL_REGIONS)
     responses = []
@@ -87,8 +93,10 @@ def describe_sns_application_from_meta(name, meta):
             responses.append({'arn': app_arn, 'response': response})
     description = []
     for topic in responses:
-        description.append({topic['arn']: build_description_obj(
-            topic['response'], name, meta)})
+        description.append({
+            topic['arn']: build_description_obj(
+                topic['response'], name, meta)
+        })
     return description
 
 
@@ -209,7 +217,7 @@ def _create_platform_application_from_meta(name, meta, region):
     if arn:
         _LOG.warn('{0} SNS platform application exists in region {1}.'.format(
             name, region))
-        return describe_sns_application(arn, name, meta, region)
+        return describe_sns_application(name, meta, region, arn)
     platform = meta['platform']
     atrbts = meta['attributes']
     try:
@@ -224,7 +232,7 @@ def _create_platform_application_from_meta(name, meta, region):
             raise e
     _LOG.info('SNS platform application %s in region %s has been created.',
               name, region)
-    return describe_sns_application(arn, name, meta, region)
+    return describe_sns_application(name, meta, region, arn)
 
 
 def remove_sns_application(args):
