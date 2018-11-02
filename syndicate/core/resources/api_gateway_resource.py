@@ -480,7 +480,7 @@ def _create_method_from_metadata(api_id, resource_id, resource_path, method,
                 enable_proxy=enable_proxy,
                 cache_key_parameters=cache_key_parameters)
             # add permissions to invoke
-            _LAMBDA_CONN.add_invocation_permission(lambda_name,
+            _LAMBDA_CONN.add_invocation_permission(lambda_arn,
                                                    "apigateway.amazonaws.com")
         elif integration_type == 'service':
             uri = method_meta.get('uri')
