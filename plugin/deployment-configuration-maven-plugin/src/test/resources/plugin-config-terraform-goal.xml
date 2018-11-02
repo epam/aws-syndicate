@@ -19,7 +19,7 @@
                             <goal>gen-terraform-config</goal>
                         </goals>
                         <configuration>
-                            <account_id>012345678901</account_id>
+                            <accountId>012345678901</accountId>
                             <region>us-east-1</region>
                         </configuration>
                     </execution>

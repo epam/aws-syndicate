@@ -38,18 +38,18 @@ public class GenerateTerraformLambdaConfigGoal extends GenerateLambdaConfigGoal 
     private static final String IAM_ROLE_ARN_SUFFIX = ":role/";
     private static final String ARN_PREFIX = "arn:aws:";
 
-    @Parameter(property = "maven.processor.account_id")
+    @Parameter
     private String accountId;
 
-    @Parameter(property = "maven.processor.region")
+    @Parameter
     private String region;
 
     public String getAccountId() {
         return accountId;
     }
 
-    public void setAccountId(String account_id) {
-        this.accountId = account_id;
+    public void setAccountId(String accountId) {
+        this.accountId = accountId;
     }
 
     public String getRegion() {

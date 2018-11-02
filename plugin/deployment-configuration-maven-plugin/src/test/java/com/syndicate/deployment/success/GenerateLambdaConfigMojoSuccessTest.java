@@ -228,10 +228,11 @@ public class GenerateLambdaConfigMojoSuccessTest {
                 .getResource("plugin-config-terraform-goal.xml")).toURI());
 
         GenerateTerraformLambdaConfigGoal mojo = new GenerateTerraformLambdaConfigGoal();
-        mojo.setRegion("us-east-1");
-        mojo.setAccountId("012345678901");
         mojo = (GenerateTerraformLambdaConfigGoal) rule.configureMojo(mojo,
                 rule.extractPluginConfiguration(PLUGIN_ARTIFACT_ID, pluginConfig));
+        //Set properties directly into mojo due to non-existing ability lo extract goal configuration from xml
+        mojo.setRegion("us-east-1");
+        mojo.setAccountId("012345678901");
 
         final MavenProject mavenProject = mock(MavenProject.class);
         when(mavenProject.getCompileClasspathElements()).thenReturn(Arrays.asList("dep1", "dep2"));
@@ -259,8 +260,6 @@ public class GenerateLambdaConfigMojoSuccessTest {
 
         assertEquals(1, files.length);
 
-        // configs are equal
-        // lambda_execute_notification
         TerraformLambdaConfiguration foregroundLambdaConfiguration = new TerraformLambdaConfiguration.Builder()
                 .withMemorySize(1024)
                 .withFunctionName("foreground_lambda")
@@ -272,7 +271,6 @@ public class GenerateLambdaConfigMojoSuccessTest {
                 .withEnvironmentVariables(Collections.singletonMap("name", "foreground_lambda"))
                 .build();
 
-        // lambda_process_notification
         TerraformLambdaConfiguration backgroundLambdaConfiguration = new TerraformLambdaConfiguration.Builder()
                 .withMemorySize(1024)
                 .withFunctionName("background_lambda")
