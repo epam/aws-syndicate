@@ -193,6 +193,22 @@ public class LambdaConfiguration {
         this.alias = alias;
     }
 
+    public String[] getSubnetIds() {
+        return subnetIds;
+    }
+
+    public void setSubnetIds(String[] subnetIds) {
+        this.subnetIds = subnetIds;
+    }
+
+    public String[] getSecurityGroupIds() {
+        return securityGroupIds;
+    }
+
+    public void setSecurityGroupIds(String[] securityGroupIds) {
+        this.securityGroupIds = securityGroupIds;
+    }
+
     public static class Builder {
 
         private final LambdaConfiguration configuration = new LambdaConfiguration();

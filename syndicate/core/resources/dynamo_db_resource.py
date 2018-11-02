@@ -17,7 +17,6 @@ from botocore.exceptions import ClientError
 
 from syndicate.commons.log_helper import get_logger
 from syndicate.core import CONN
-from syndicate.core.helper import create_pool, unpack_kwargs
 from syndicate.core.resources.alarm_resource import remove_alarms
 from syndicate.core.resources.helper import (build_description_obj,
                                              validate_params)
@@ -103,6 +102,22 @@ def _create_dynamodb_table_from_meta(name, meta):
     if not response:
         raise AssertionError('Table with name {0} has not been created!'
                              .format(name))
+    # enabling stream if present
+    stream_view_type = meta.get('stream_view_type')
+    if stream_view_type:
+        stream = _DYNAMO_DB_CONN.get_table_stream_arn(name)
+        if stream:
+            _LOG.warn('Stream %s exists.', name)
+        else:
+            try:
+                _DYNAMO_DB_CONN.enable_table_stream(name, stream_view_type)
+            except ClientError as e:
+                # handle specific case for fantom stream enabling
+                if 'ResourceInUseException' in e.message:
+                    _LOG.warn('Stream enabling currently in progress,'
+                              ' table: %s', name)
+                else:
+                    raise e
     if autoscaling_config:
         _LOG.debug('Found autoscaling configuration for resource %s', name)
         sc_res = _enable_autoscaling(autoscaling_config, name)
@@ -210,42 +225,6 @@ def _build_res_id(dimension, resource_name, table_name):
     resource_id = 'table/{0}'.format(table_name) if 'table' in dimension \
         else 'table/{0}/index/{1}'.format(table_name, resource_name)
     return resource_id
-
-
-def create_dynamodb_stream(args):
-    """ Create Dynamo DB table streams in sub processes.
-
-    :type args: list
-    """
-    create_pool(_create_dynamodb_stream_from_meta, args, 5)
-
-
-@unpack_kwargs
-def _create_dynamodb_stream_from_meta(name, meta):
-    """ Enable Dynamo DB table stream if it is disabled.
-
-    :type name: str
-    :type meta: dict
-    """
-    required_parameters = ['table', 'stream_view_type']
-    validate_params(name, meta, required_parameters)
-    table_name = meta['table']
-
-    stream = _DYNAMO_DB_CONN.get_table_stream_arn(table_name)
-    if stream:
-        _LOG.warn('Stream %s exists.', name)
-        return
-
-    try:
-        _DYNAMO_DB_CONN.enable_table_stream(table_name,
-                                            meta['stream_view_type'])
-    except ClientError as e:
-        # handle specific case for fantom stream enabling
-        if 'ResourceInUseException' or 'Table already has an enabled stream' in e.message:
-            _LOG.warn('Stream enabling currently in progress, table: %s',
-                      table_name)
-        else:
-            raise e
 
 
 def remove_dynamodb_tables(args):

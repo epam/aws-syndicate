@@ -13,23 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-package com.syndicate.deployment;
+package com.syndicate.deployment.goal;
 
 import com.syndicate.deployment.annotations.lambda.LambdaHandler;
-import com.syndicate.deployment.model.LambdaConfiguration;
 import com.syndicate.deployment.model.Pair;
 import com.syndicate.deployment.processor.IConfigurationProcessor;
-import com.syndicate.deployment.processor.impl.ConfigurationMetadataAnnotationProcessor;
 import com.syndicate.deployment.utils.JsonUtils;
 import org.apache.maven.artifact.DependencyResolutionRequiredException;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
-import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugin.logging.Log;
-import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
-import org.apache.maven.plugins.annotations.ResolutionScope;
 import org.apache.maven.project.MavenProject;
 import org.reflections.Reflections;
 
@@ -50,15 +44,13 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Created by Vladyslav Tereshchenko on 10/6/2016.
+ * Created by Oleksandr Onsha on 10/25/18
  */
-@Mojo(name = "gen-deployment-config", requiresDependencyResolution = ResolutionScope.RUNTIME)
-public class GenerateLambdaConfigGoal extends AbstractMojo {
+public abstract class AbstractConfigGeneratorGoal<T> extends AbstractMojo {
 
     private static final String EXTENSION_JAR = ".jar";
-    private static final String MAVEN_TARGET_FOLDER_NAME = "target";
     private static final String DEFAULT_ENCODING = "UTF-8";
-    private static final String DEPLOYMENT_RESOURCES_JSON_FILE_NAME = "deployment_resources.json";
+    private static final String MAVEN_TARGET_FOLDER_NAME = "target";
 
     @Parameter(defaultValue = "${project}", required = true, readonly = true)
     private MavenProject project;
@@ -71,7 +63,7 @@ public class GenerateLambdaConfigGoal extends AbstractMojo {
 
     private Log logger;
 
-    public GenerateLambdaConfigGoal() {
+    public AbstractConfigGeneratorGoal() {
         this.logger = getLog();
     }
 
@@ -100,7 +92,7 @@ public class GenerateLambdaConfigGoal extends AbstractMojo {
     }
 
     @Override
-    public void execute() throws MojoExecutionException, MojoFailureException {
+    public void execute() throws MojoExecutionException {
         if (skip) {
             logger.info("lambda-configuration-processor is skipped");
             return;
@@ -123,12 +115,11 @@ public class GenerateLambdaConfigGoal extends AbstractMojo {
             Set<String> uniqueLambdaNames = new HashSet<>();
             List<Class<?>> lambdasClasses = getLambdaClasses();
 
-            Map<String, LambdaConfiguration> configurations = new HashMap<>();
-            for (Class<?> lambdaClass : lambdasClasses) {
-                IConfigurationProcessor<LambdaConfiguration> annotationProcessor =
-                        new ConfigurationMetadataAnnotationProcessor(project.getVersion(), lambdaClass,
-                                fileName, absolutePath);
-                Pair<String, LambdaConfiguration> lambdaConfigurationPair = annotationProcessor.process();
+            Map<String, T> configurations = new HashMap<>();
+            for (Class<?> lambdaClass: lambdasClasses) {
+                IConfigurationProcessor<T> annotationProcessor =
+                        getAnnotationProcessor(project.getVersion(), fileName, absolutePath, lambdaClass);
+                Pair<String, T> lambdaConfigurationPair = annotationProcessor.process();
 
                 String lambdaName = lambdaConfigurationPair.getKey();
                 logger.info("Lambda name: " + lambdaName);
@@ -149,13 +140,21 @@ public class GenerateLambdaConfigGoal extends AbstractMojo {
             }
 
             String configPath = absolutePath + File.separator + MAVEN_TARGET_FOLDER_NAME;
-            // write found configurations to meta file
-            writeToFile(configPath, DEPLOYMENT_RESOURCES_JSON_FILE_NAME, JsonUtils.convertToJson(configurations));
+
+            Map<String, Object> convertedConfiguration = convertConfiguration(configurations);
+            writeToFile(configPath, getDeploymentResourcesFileName(), JsonUtils.convertToJson(convertedConfiguration));
 
         } catch (IOException e) {
             throw new MojoExecutionException("Goal execution failed", e);
         }
     }
+
+    protected abstract Map<String, Object> convertConfiguration(Map<String, T> configurations);
+
+    public abstract String getDeploymentResourcesFileName();
+
+    public abstract IConfigurationProcessor<T> getAnnotationProcessor(
+            String version, String fileName, String absolutePath, Class<?> lambdaClass);
 
     private Set<URI> getUris() throws MojoExecutionException {
         Set<URI> uris = new HashSet<>();
@@ -164,7 +163,7 @@ public class GenerateLambdaConfigGoal extends AbstractMojo {
             List<String> elements = project.getCompileClasspathElements();
             // getting uris of the dependencies to inject into classloader
             // url presents file location of the dependency in the module
-            for (String element : elements) {
+            for (String element: elements) {
                 uris.add(new File(element).toURI());
             }
             logger.debug("Setting up new classloader ...");
@@ -189,7 +188,7 @@ public class GenerateLambdaConfigGoal extends AbstractMojo {
 
     private List<Class<?>> getLambdaClasses() {
         List<Class<?>> lambdasClasses = new ArrayList<>();
-        for (String nestedPackage : packages) {
+        for (String nestedPackage: packages) {
             lambdasClasses.addAll(new Reflections(nestedPackage).getTypesAnnotatedWith(LambdaHandler.class));
         }
         return lambdasClasses;
