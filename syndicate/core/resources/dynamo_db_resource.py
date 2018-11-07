@@ -228,7 +228,7 @@ def _build_res_id(dimension, resource_name, table_name):
 
 
 def remove_dynamodb_tables(args):
-    db_names = map(lambda x: x['config']['resource_name'], args)
+    db_names = [x['config']['resource_name'] for x in args]
     _DYNAMO_DB_CONN.remove_tables_by_names(db_names)
     _LOG.info('Dynamo DB tables %s were removed', str(db_names))
     alarm_args = []
@@ -238,9 +238,11 @@ def remove_dynamodb_tables(args):
             policies = autoscaling['policies']
             for policy in policies:
                 alarms = policy.get('Alarms', [])
-                alarm_args.extend(map(lambda x: {
-                    'arn': x['AlarmARN'],
-                    'config': {'resource_name': x['AlarmName']}
-                }, alarms))
+                alarm_args.extend([{
+                                       'arn': x['AlarmARN'],
+                                       'config': {
+                                           'resource_name': x['AlarmName']
+                                       }
+                                   } for x in alarms])
 
     remove_alarms(alarm_args)

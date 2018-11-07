@@ -154,7 +154,7 @@ def _create_or_update_api_gateway(name, meta, current_configurations):
     if current_configurations:
         # api currently is not located in different regions
         # process only first object
-        api_output = current_configurations.items()[0][1]
+        api_output = list(current_configurations.items())[0][1]
         # find id from the output
         api_id = api_output['description']['id']
         # check that api does not exist
@@ -162,10 +162,10 @@ def _create_or_update_api_gateway(name, meta, current_configurations):
         if api_response:
             # find all existing resources
             existing_resources = api_output['description']['resources']
-            existing_paths = map(lambda i: i['path'], existing_resources)
+            existing_paths = [i['path'] for i in existing_resources]
             meta_api_resources = meta['resources']
             api_resources = {}
-            for resource_path, resource_meta in meta_api_resources.iteritems():
+            for resource_path, resource_meta in meta_api_resources.items():
                 if resource_path not in existing_paths:
                     api_resources[resource_path] = resource_meta
             if api_resources:
@@ -204,8 +204,8 @@ def _escape_path(parameter):
 
 
 def configure_cache(api_id, stage_name, api_resources):
-    for resource_path, resource_meta in api_resources.iteritems():
-        for method_name, method_meta in resource_meta.iteritems():
+    for resource_path, resource_meta in api_resources.items():
+        for method_name, method_meta in resource_meta.items():
             if method_name in SUPPORTED_METHODS:
                 cache_configuration = method_meta.get('cache_configuration')
                 if not cache_configuration:

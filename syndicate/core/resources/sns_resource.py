@@ -152,7 +152,7 @@ def create_sns_subscription_for_lambda(lambda_arn, topic_name, region):
     :type region: str
     """
     if region:
-        if isinstance(region, str) or isinstance(region, unicode):
+        if isinstance(region, str):
             if region == 'all':
                 for each in ALL_REGIONS:
                     _subscribe_lambda_to_sns_topic(lambda_arn, topic_name,

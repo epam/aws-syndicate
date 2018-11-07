@@ -48,8 +48,8 @@ def validate_deployment_packages(meta_resources):
 
 
 def artifact_paths(meta_resources):
-    return filter(None, map(lambda v: _retrieve_package(v),
-                            meta_resources.values()))
+    return [i for i in
+            [_retrieve_package(v) for v in list(meta_resources.values())] if i]
 
 
 def _retrieve_package(meta):
@@ -74,8 +74,8 @@ def _check_duplicated_resources(initial_meta_dict, additional_item_name,
         initial_type = initial_item['resource_type']
         if additional_type == initial_type == API_GATEWAY_TYPE:
             # check if APIs have same resources
-            for each in initial_item['resources'].keys():
-                if each in additional_item['resources'].keys():
+            for each in list(initial_item['resources'].keys()):
+                if each in list(additional_item['resources'].keys()):
                     raise AssertionError(
                         "API '{0}' has duplicated resource '{1}'! Please, "
                         "change name of one resource or remove one.".format(
@@ -267,7 +267,7 @@ def create_resource_json(bundle_name):
         if dependencies:
             for dependency in meta['dependencies']:
                 dependency_name = dependency.get('resource_name')
-                if dependency_name not in resources_meta.keys():
+                if dependency_name not in list(resources_meta.keys()):
                     err_mess = ("One of resource dependencies wasn't "
                                 "described: {0}. Please, describe this "
                                 "resource in {1} if it is Lambda or in "
@@ -281,15 +281,12 @@ def create_resource_json(bundle_name):
 
 def _resolve_names_in_meta(resources_dict, old_value, new_value):
     if isinstance(resources_dict, dict):
-        for k, v in resources_dict.iteritems():
+        for k, v in resources_dict.items():
             # if k == old_value:
             #     resources_dict[new_value] = resources_dict.pop(k)
-            if (isinstance(v, str) or isinstance(v,
-                                                 unicode)) and old_value == v:
+            if isinstance(v, str) and old_value == v:
                 resources_dict[k] = v.replace(old_value, new_value)
-            elif (isinstance(v, str) or isinstance(v,
-                                                   unicode)) and old_value in v and v.startswith(
-                'arn'):
+            elif isinstance(v, str) and old_value in v and v.startswith('arn'):
                 resources_dict[k] = v.replace(old_value, new_value)
             else:
                 _resolve_names_in_meta(v, old_value, new_value)
@@ -297,7 +294,7 @@ def _resolve_names_in_meta(resources_dict, old_value, new_value):
         for item in resources_dict:
             if isinstance(item, dict):
                 _resolve_names_in_meta(item, old_value, new_value)
-            elif isinstance(item, str) or isinstance(item, unicode):
+            elif isinstance(item, str):
                 if item == old_value:
                     index = resources_dict.index(old_value)
                     del resources_dict[index]
@@ -315,7 +312,7 @@ def create_meta(bundle_name):
 
 
 def resolve_meta(overall_meta):
-    for key, value in CONFIG.aliases.iteritems():
+    for key, value in CONFIG.aliases.items():
         name = '${' + key + '}'
         overall_meta = resolve_dynamic_identifier(name, value, overall_meta)
     _LOG.debug('Resolved meta was created')
@@ -323,7 +320,7 @@ def resolve_meta(overall_meta):
     # get dict with resolved prefix and suffix in meta resources
     # key: current_name, value: resolved_name
     resolved_names = {}
-    for name, res_meta in overall_meta.iteritems():
+    for name, res_meta in overall_meta.items():
         resource_type = res_meta['resource_type']
         if resource_type in GLOBAL_AWS_SERVICES:
             resolved_name = resolve_resource_name(name)
@@ -331,7 +328,7 @@ def resolve_meta(overall_meta):
                 resolved_names[name] = resolved_name
     _LOG.debug('Going to resolve names in meta')
     _LOG.debug('Resolved names mapping: {0}'.format(str(resolved_names)))
-    for current_name, resolved_name in resolved_names.iteritems():
+    for current_name, resolved_name in resolved_names.items():
         overall_meta[resolved_name] = overall_meta.pop(current_name)
         _resolve_names_in_meta(overall_meta, current_name, resolved_name)
     return overall_meta

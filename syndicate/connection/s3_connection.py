@@ -318,8 +318,10 @@ class S3Connection(object):
         response = self.client.list_object_versions(**params)
         versions = response.get('Versions', [])
         bucket_objects.extend(
-            map(lambda i: {'Key': i['Key'], 'VersionId': i['VersionId']},
-                versions))
+            [{
+                 'Key': i['Key'],
+                 'VersionId': i['VersionId']
+             } for i in versions])
         key_marker = response.get('NextKeyMarker')
         version_marker = response.get('NextVersionIdMarker')
         while key_marker or version_marker:
@@ -330,8 +332,10 @@ class S3Connection(object):
             response = self.client.list_object_versions(**params)
             versions = response.get('Versions', [])
             bucket_objects.extend(
-                map(lambda i: {'Key': i['Key'], 'VersionId': i['VersionId']},
-                    versions))
+                [{
+                     'Key': i['Key'],
+                     'VersionId': i['VersionId']
+                 } for i in versions])
         return bucket_objects
 
     def list_object_markers(self, bucket_name, delimeter=None,
@@ -348,8 +352,10 @@ class S3Connection(object):
         response = self.client.list_object_versions(**params)
         delete_markers = response.get('DeleteMarkers', [])
         bucket_objects.extend(
-            map(lambda i: {'Key': i['Key'], 'VersionId': i['VersionId']},
-                delete_markers))
+            [{
+                 'Key': i['Key'],
+                 'VersionId': i['VersionId']
+             } for i in delete_markers])
         key_marker = response.get('NextKeyMarker')
         version_marker = response.get('NextVersionIdMarker')
         while key_marker or version_marker:
@@ -360,8 +366,10 @@ class S3Connection(object):
             response = self.client.list_object_versions(**params)
             delete_markers = response.get('DeleteMarkers', [])
             bucket_objects.extend(
-                map(lambda i: {'Key': i['Key'], 'VersionId': i['VersionId']},
-                    delete_markers))
+                [{
+                     'Key': i['Key'],
+                     'VersionId': i['VersionId']
+                 } for i in delete_markers])
         return bucket_objects
 
     def delete_objects(self, bucket_name, objects, mfa=None,

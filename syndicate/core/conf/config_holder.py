@@ -141,7 +141,7 @@ class ConfigHolder:
         # processing results
         if isinstance(param_valid_dict, dict):
             messages = ''
-            for key, value in param_valid_dict.iteritems():
+            for key, value in param_valid_dict.items():
                 if not value:
                     messages += '\n{0} {1}'.format(key,
                                                    ERROR_MESSAGE_MAPPING[key])
@@ -150,7 +150,7 @@ class ConfigHolder:
                 raise Exception('Configuration is invalid. ' + messages)
 
     def _load_vars(self):
-        for key, value in self._config_dict.iteritems():
+        for key, value in self._config_dict.items():
             if os.environ.get(key) is None:
                 os.environ[key] = value
 

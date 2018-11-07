@@ -235,9 +235,9 @@ def _update_lambda(name, meta):
 def __describe_lambda_by_version(name):
     versions = _LAMBDA_CONN.versions_list(name)
     # find the last created version
-    version = max(map(
-        lambda i: int(i['Version']) if i['Version'] != '$LATEST' else 0,
-        versions))
+    version = max(
+        [int(i['Version']) if i['Version'] != '$LATEST' else 0 for i in
+         versions])
     if version != 0:
         return _LAMBDA_CONN.get_function(name, str(version))
     else:

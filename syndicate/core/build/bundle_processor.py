@@ -79,18 +79,6 @@ def remove_failed_deploy_output(bundle_name, deploy_name):
                 deploy_name))
 
 
-def remove_failed_deploy_output(bundle_name, deploy_name):
-    key = _build_output_key(bundle_name=bundle_name,
-                            deploy_name=deploy_name,
-                            is_regular_output=False)
-    if _S3_CONN.is_file_exists(CONFIG.deploy_target_bucket, key):
-        _S3_CONN.remove_object(CONFIG.deploy_target_bucket, key)
-    else:
-        _LOG.warn(
-            'Failed output file for deploy {0} does not exist.'.format(
-                deploy_name))
-
-
 def load_deploy_output(bundle_name, deploy_name):
     key = _build_output_key(bundle_name=bundle_name,
                             deploy_name=deploy_name,
@@ -209,7 +197,7 @@ def load_bundle(bundle_name, src_account_id, src_bucket_region,
     _LOG.info('Going to find S3 keys for bundle: {0}'.format(bundle_name))
     objects = src_s3_conn.list_objects(bucket_name=src_bucket_name,
                                        prefix=bundle_name)
-    artifacts_names = map(lambda meta: meta['Key'], objects)
+    artifacts_names = [meta['Key'] for meta in objects]
     _LOG.info('Found {0} artifacts: {1}'.format(len(artifacts_names),
                                                 artifacts_names))
 

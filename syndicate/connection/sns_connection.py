@@ -194,7 +194,7 @@ class SNSConnection(object):
         )
 
     def add_account_permission(self, topic_arn, account_id, action, label):
-        if isinstance(account_id, (str, unicode)):
+        if isinstance(account_id, str):
             account_id = [account_id]
         if not isinstance(account_id, list):
             raise AssertionError('Incorrect account id {0}'.format(account_id))

@@ -23,7 +23,7 @@ _LOG = get_logger('syndicate.core.resources.helper')
 
 
 def validate_params(name, meta, required_params):
-    existing_parameters = meta.keys()
+    existing_parameters = list(meta.keys())
     parameters_string = ', '.join(required_params)
     existing_parameters_string = ', '.join(existing_parameters)
     for each in required_params:
@@ -56,7 +56,7 @@ def create_args_for_multi_region(args, available_regions):
             item = arg_set.copy()
             item['region'] = CONFIG.region
             new_region_args.append(item)
-        elif isinstance(region, str) or isinstance(region, unicode):
+        elif isinstance(region, str):
             if region == 'all':
                 for each in available_regions:
                     item = arg_set.copy()

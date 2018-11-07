@@ -155,8 +155,7 @@ class IAMConnection(object):
                 "Statement": []
             }
             if allowed_account:
-                if isinstance(allowed_account, str) or isinstance(
-                        allowed_account, unicode):
+                if isinstance(allowed_account, str):
                     principal = get_account_role_arn(allowed_account)
                 elif isinstance(allowed_account, list):
                     principal = []
@@ -182,8 +181,7 @@ class IAMConnection(object):
                     }
                 trusted_relationships['Statement'].append(trusted_accounts)
             if allowed_service:
-                if isinstance(allowed_service, str) or isinstance(
-                        allowed_service, unicode):
+                if isinstance(allowed_service, str):
                     principal = "{0}.amazonaws.com".format(allowed_service)
                 elif isinstance(allowed_service, list):
                     principal = []

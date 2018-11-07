@@ -82,7 +82,7 @@ def remove_alarms(args):
 
 
 def remove_alarm_list(*alarm_list):
-    alarm_names = map(lambda x: x['config']['resource_name'], alarm_list[0])
+    alarm_names = [x['config']['resource_name'] for x in alarm_list[0]]
     try:
         _CW_METRIC.remove_alarms(alarm_names=alarm_names)
         _LOG.info('Alarms %s were removed.', str(alarm_names))

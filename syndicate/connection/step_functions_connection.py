@@ -61,13 +61,12 @@ class SFConnection(object):
         response = self.client.list_state_machines()
         do_continue = response.get('nextToken')
         if 'stateMachines' in response:
-            result.extend(map(lambda i: i['name'], response['stateMachines']))
+            result.extend([i['name'] for i in response['stateMachines']])
         while do_continue:
             response = self.client.list_state_machines(nextToken=do_continue)
             do_continue = response.get('nextToken')
             if 'stateMachines' in response:
-                result.extend(map(lambda i: i['name'],
-                                  response['stateMachines']))
+                result.extend([i['name'] for i in response['stateMachines']])
         return result
 
     def list_executions_by_status(self, state_machine_arn, execution_status):
@@ -113,10 +112,10 @@ class SFConnection(object):
         response = self.client.list_activities()
         do_continue = response.get('nextToken')
         if 'activities' in response:
-            result.extend(map(lambda i: i['name'], response['activities']))
+            result.extend([i['name'] for i in response['activities']])
         while do_continue:
             response = self.client.list_activities(nextToken=do_continue)
             do_continue = response.get('nextToken')
             if 'activities' in response:
-                result.extend(map(lambda i: i['name'], response['activities']))
+                result.extend([i['name'] for i in response['activities']])
         return result

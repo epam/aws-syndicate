@@ -18,6 +18,7 @@ from datetime import date, datetime
 
 import concurrent
 from concurrent.futures import ALL_COMPLETED, ThreadPoolExecutor
+
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.build.bundle_processor import (create_deploy_output,
                                                    load_deploy_output,
@@ -220,7 +221,7 @@ def __move_output_content(args, failed_output, updated_output):
 
 def __find_output_by_resource_name(output, resource_name):
     found_items = {}
-    for k, v in output.iteritems():
+    for k, v in output.items():
         if v['resource_name'] == resource_name:
             found_items[k] = v
     return found_items
@@ -239,24 +240,24 @@ def create_deployment_resources(deploy_name, bundle_name,
 
     # TODO make filter chain
     if deploy_only_resources:
-        resources = dict((k, v) for (k, v) in resources.iteritems() if
+        resources = dict((k, v) for (k, v) in resources.items() if
                          k in deploy_only_resources)
 
     if excluded_resources:
-        resources = dict((k, v) for (k, v) in resources.iteritems() if
+        resources = dict((k, v) for (k, v) in resources.items() if
                          k not in excluded_resources)
     if deploy_only_types:
-        resources = dict((k, v) for (k, v) in resources.iteritems() if
+        resources = dict((k, v) for (k, v) in resources.items() if
                          v['resource_type'] in deploy_only_types)
 
     if excluded_types:
-        resources = dict((k, v) for (k, v) in resources.iteritems() if
+        resources = dict((k, v) for (k, v) in resources.items() if
                          v['resource_type'] not in excluded_types)
 
     _LOG.debug('Going to create: {0}'.format(prettify_json(resources)))
 
     # sort resources with priority
-    resources_list = resources.items()
+    resources_list = list(resources.items())
     resources_list.sort(cmp=_compare_deploy_resources)
 
     _LOG.info('Going to deploy AWS resources')
@@ -286,24 +287,24 @@ def remove_deployment_resources(deploy_name, bundle_name,
 
     # TODO make filter chain
     if clean_only_resources:
-        output = dict((k, v) for (k, v) in output.iteritems() if
+        output = dict((k, v) for (k, v) in output.items() if
                       v['resource_name'] in clean_only_resources)
 
     if excluded_resources:
-        output = dict((k, v) for (k, v) in output.iteritems() if
+        output = dict((k, v) for (k, v) in output.items() if
                       v['resource_name'] not in excluded_resources)
 
     if clean_only_types:
-        output = dict((k, v) for (k, v) in output.iteritems() if
+        output = dict((k, v) for (k, v) in output.items() if
                       v['resource_meta']['resource_type'] in clean_only_types)
 
     if excluded_types:
-        output = dict((k, v) for (k, v) in output.iteritems() if
+        output = dict((k, v) for (k, v) in output.items() if
                       v['resource_meta'][
                           'resource_type'] not in excluded_types)
 
     # sort resources with priority
-    resources_list = output.items()
+    resources_list = list(output.items())
     resources_list.sort(cmp=_compare_clean_resources)
     _LOG.debug('Resources to delete: {0}'.format(resources_list))
 
@@ -328,22 +329,22 @@ def continue_deployment_resources(deploy_name, bundle_name,
 
     # TODO make filter chain
     if deploy_only_resources:
-        resources = dict((k, v) for (k, v) in resources.iteritems() if
+        resources = dict((k, v) for (k, v) in resources.items() if
                          k in deploy_only_resources)
 
     if excluded_resources:
-        resources = dict((k, v) for (k, v) in resources.iteritems() if
+        resources = dict((k, v) for (k, v) in resources.items() if
                          k not in excluded_resources)
     if deploy_only_types:
-        resources = dict((k, v) for (k, v) in resources.iteritems() if
+        resources = dict((k, v) for (k, v) in resources.items() if
                          v['resource_type'] in deploy_only_types)
 
     if excluded_types:
-        resources = dict((k, v) for (k, v) in resources.iteritems() if
+        resources = dict((k, v) for (k, v) in resources.items() if
                          v['resource_type'] not in excluded_types)
 
     # sort resources with priority
-    resources_list = resources.items()
+    resources_list = list(resources.items())
     resources_list.sort(cmp=_compare_deploy_resources)
 
     success, updated_output = continue_deploy_resources(resources_list, output)
@@ -367,7 +368,7 @@ def remove_failed_deploy_resources(deploy_name, bundle_name):
     output = load_failed_deploy_output(bundle_name, deploy_name)
     _LOG.info('Failed output file was loaded successfully')
     # sort resources with priority
-    resources_list = output.items()
+    resources_list = list(output.items())
     resources_list.sort(cmp=_compare_clean_resources)
 
     _LOG.info('Going to clean AWS resources')
@@ -385,20 +386,20 @@ def update_lambdas(bundle_name,
     _LOG.debug(prettify_json(resources))
 
     # TODO make filter chain
-    resources = dict((k, v) for (k, v) in resources.iteritems() if
+    resources = dict((k, v) for (k, v) in resources.items() if
                      v['resource_type'] == LAMBDA_TYPE)
 
     if publish_only_lambdas:
-        resources = dict((k, v) for (k, v) in resources.iteritems() if
+        resources = dict((k, v) for (k, v) in resources.items() if
                          k in publish_only_lambdas)
 
     if excluded_lambdas_resources:
-        resources = dict((k, v) for (k, v) in resources.iteritems() if
+        resources = dict((k, v) for (k, v) in resources.items() if
                          k not in excluded_lambdas_resources)
 
     _LOG.debug('Going to update the following lambdas: {0}'.format(
         prettify_json(resources)))
-    resources = resources.items()
+    resources = list(resources.items())
     update_resources(resources=resources)
 
 
@@ -413,7 +414,7 @@ def _json_serial(obj):
 def _apply_dynamic_changes(resources):
     pool = ThreadPoolExecutor(max_workers=5)
     futures = []
-    for name, meta in resources.iteritems():
+    for name, meta in resources.items():
         resource_type = meta['resource_type']
         apply_changes = meta.get('apply_changes')
         if apply_changes:

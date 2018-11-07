@@ -64,10 +64,10 @@ def _delete_objects(bucket_name, keys):
     response = _S3_CONN.delete_objects(bucket_name, keys)
     errors = response.get('Errors')
     if errors:
-        error_keys = map(lambda i: {
-            'Key': i['Key'],
-            'VersionId': i['VersionId']
-        }, errors)
+        error_keys = [{
+                          'Key': i['Key'],
+                          'VersionId': i['VersionId']
+                      } for i in errors]
         return error_keys
     else:
         return []

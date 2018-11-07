@@ -115,7 +115,7 @@ def _build_python_artifact(item, project_base_folder, project_path, root,
         _LOG.debug('Going to install 3-rd party dependencies')
         with open(req_path) as f:
             req_list = f.readlines()
-        req_list = map(lambda r: path_resolver(r.strip()), req_list)
+        req_list = [path_resolver(r.strip()) for r in req_list]
         _LOG.debug(str(req_list))
         # install dependencies
         for lib in req_list:
@@ -149,7 +149,7 @@ def _install_local_req(artifact_path, local_req_path, project_base_folder,
                        project_path):
     with open(local_req_path) as f:
         local_req_list = f.readlines()
-    local_req_list = map(lambda r: path_resolver(r.strip()), local_req_list)
+    local_req_list = [path_resolver(r.strip()) for r in local_req_list]
     _LOG.debug('Local dependencies: {0}'.format(prettify_json(local_req_list)))
     # copy folders
     for lrp in local_req_list:
@@ -162,7 +162,7 @@ def _install_local_req(artifact_path, local_req_path, project_base_folder,
                            folder_path)
         _LOG.debug('Dependency was copied successfully')
 
-        folders = filter(lambda r: r, lrp.split(DEFAULT_SEP))
+        folders = [r for r in lrp.split(DEFAULT_SEP) if r]
         # process folder from root python project
         folders.insert(0, '')
         i = 0

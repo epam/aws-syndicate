@@ -44,7 +44,7 @@ def create_pool(func, args, workers=None, *kwargs):
     """
     executor = ThreadPoolExecutor(workers) if workers else ThreadPoolExecutor()
     try:
-        futures = map(lambda i: executor.submit(func, i, kwargs), args)
+        futures = [executor.submit(func, i, kwargs) for i in args]
         concurrent.futures.wait(futures, return_when=ALL_COMPLETED)
         responses = {}
         for future in futures:

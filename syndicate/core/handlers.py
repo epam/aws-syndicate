@@ -140,7 +140,7 @@ COMMAND_TO_BUILD_MAPPING = {
 def build_artifacts(ctx, bundle_name):
     click.echo('Building artifacts ...')
     if CONFIG.build_projects_mapping:
-        for key, values in CONFIG.build_projects_mapping.iteritems():
+        for key, values in CONFIG.build_projects_mapping.items():
             for value in values:
                 func = COMMAND_TO_BUILD_MAPPING.get(key)
                 if func:

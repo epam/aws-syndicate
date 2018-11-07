@@ -156,8 +156,8 @@ def remove_ec2_instances(args):
 
 
 def remove_instance_list(*instance_list):
-    instance_ids = map(lambda x: x['config']['description']['InstanceId'],
-                       instance_list[0])
+    instance_ids = [x['config']['description']['InstanceId'] for x in
+                    instance_list[0]]
     existing_instances_list = []
     for instance_id in instance_ids:
         try:

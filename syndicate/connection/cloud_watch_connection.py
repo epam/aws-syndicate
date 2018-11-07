@@ -232,7 +232,7 @@ class EventConnection(object):
         rules = self.list_rules()
         if rules:
             for rule in rules:
-                self.remove_rule(rule[u'Name'])
+                self.remove_rule(rule['Name'])
 
     def remove_rule(self, rule_name):
         """ Remove single rule by name with targets.
@@ -240,9 +240,9 @@ class EventConnection(object):
         :type rule_name: str
         """
         response = self.client.list_targets_by_rule(Rule=rule_name)
-        if response[u'Targets']:
-            targets = response[u'Targets']
-            target_ids = [target[u'Id'] for target in targets]
+        if response['Targets']:
+            targets = response['Targets']
+            target_ids = [target['Id'] for target in targets]
             self.client.remove_targets(Rule=rule_name, Ids=target_ids)
         self.client.delete_rule(Name=rule_name)
 
@@ -297,7 +297,7 @@ def _find_statement_id_in_event_bus_policy(account_id, event_bus):
         policy = json.loads(event_bus.get('Policy'))
         for statement in policy.get('Statement'):
             principal = statement['Principal']
-            if isinstance(principal, str) or isinstance(principal, unicode):
+            if isinstance(principal, str):
                 if account_id == principal:
                     return statement['Sid']
             else:
@@ -410,7 +410,7 @@ class MetricConnection(object):
         """
         :type alarm_names: str or list
         """
-        if isinstance(alarm_names, str) or isinstance(alarm_names, unicode):
+        if isinstance(alarm_names, str):
             alarm_names = [alarm_names]
         self.client.delete_alarms(AlarmNames=alarm_names)
 
@@ -418,7 +418,7 @@ class MetricConnection(object):
         """
         :type alarm_names: str or list
         """
-        if isinstance(alarm_names, str) or isinstance(alarm_names, unicode):
+        if isinstance(alarm_names, str):
             alarm_names = [alarm_names]
         alarms = []
         response = self.client.describe_alarms(AlarmNames=alarm_names)
@@ -446,7 +446,7 @@ class MetricConnection(object):
         """
         :type alarm_names: str or list
         """
-        if isinstance(alarm_names, str) or isinstance(alarm_names, unicode):
+        if isinstance(alarm_names, str):
             alarm_names = [alarm_names]
         alarms = self.alarm_list(alarm_names)
         existing_names = [each['AlarmName'] for each in alarms]

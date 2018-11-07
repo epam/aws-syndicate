@@ -33,7 +33,7 @@ ACCESS_KEY = 'aws_access_key_id'
 
 
 def exception_handler(exception_type, exception, traceback):
-    print exception
+    print(exception)
 
 
 sys.excepthook = exception_handler

@@ -63,8 +63,8 @@ def _create_cognito_identity_pool_from_meta(name, meta):
 
     _LOG.info('Creating identity pool %s', name)
     open_id_provider_names = meta.get('open_id_providers', [])
-    open_id_arns = map(lambda n: 'arn:aws:iam::{0}:oidc-provider/{1}'.format(
-        CONFIG.account_id, n), open_id_provider_names)
+    open_id_arns = ['arn:aws:iam::{0}:oidc-provider/{1}'.format(
+        CONFIG.account_id, n) for n in open_id_provider_names]
     pool_id = _COGNITO_IDENTITY_CONN.create_identity_pool(
         pool_name=name, provider_name=meta.get('provider_name'),
         open_id_connect_provider_arns=open_id_arns)

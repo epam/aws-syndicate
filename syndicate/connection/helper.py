@@ -67,7 +67,7 @@ def retry(handler_func):
             'request PATCH https://apigateway',
             'CreateFunction',
             'DeleteRole']
-        for each in xrange(1, 10, 3):
+        for each in range(1, 10, 3):
             try:
                 return handler_func(*args, **kwargs)
             except ClientError as e:
