@@ -17,7 +17,7 @@ from setuptools import find_packages, setup
 
 setup(
     name='syndicate',
-    version='0.6',
+    version='0.7',
     packages=find_packages(),
     include_package_data=True,
     install_requires=[
@@ -26,8 +26,7 @@ setup(
         'boto3==1.7.73',
         'configobj==5.0.6',
         'requests==2.20.0',
-        'tqdm==4.19.5',
-        'functools32==3.2.3.post2'
+        'tqdm==4.19.5'
     ],
     entry_points='''
         [console_scripts]

@@ -93,7 +93,7 @@ def create_string_to_sign(amz_date, credential_scope, request_hash):
 
 
 def create_hash(payload=''):
-    return hashlib.sha256(payload).hexdigest()
+    return hashlib.sha256(payload.encode('utf-8')).hexdigest()
 
 
 def create_credential_scope(date_stamp, region):

@@ -18,7 +18,6 @@ from botocore.exceptions import ClientError
 
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import apply_methods_decorator, retry
-from syndicate.connection.lambda_connection import LambdaConnection
 
 _LOG = get_logger('syndicate.connection.api_gateway_connection')
 
@@ -155,7 +154,7 @@ class ApiGatewayConnection(object):
                 resource_id = resp['id']
             except ClientError as e:
                 resource_id = None
-                if 'ConflictException' in e.message:
+                if 'ConflictException' in str(e):
                     _LOG.debug('Error while creating resource {0}.'
                                ' Creation stage: {1}.'
                                .format(resource_path, resource))

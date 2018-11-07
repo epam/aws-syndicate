@@ -13,11 +13,13 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-import json
-from datetime import date, datetime
-
 import concurrent
+import json
+import traceback
+import sys
 from concurrent.futures import ALL_COMPLETED, ThreadPoolExecutor
+from datetime import date, datetime
+from functools import cmp_to_key
 
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.build.bundle_processor import (create_deploy_output,
@@ -93,7 +95,8 @@ def _process_resources(resources, handlers_mapping):
         return True, output
     except Exception as e:
         _LOG.error('Error occurred while {0} resource creating: {1}'.format(
-            res_type, e.message))
+            res_type, str(e)))
+        traceback.print_exc(file=sys.stdout)
         # args list always contains one item here
         return False, update_failed_output(args[0]['name'], args[0]['meta'],
                                            resource_type, output)
@@ -205,7 +208,7 @@ def continue_deploy_resources(resources, failed_output):
                 __move_output_content(args, failed_output, updated_output)
     except Exception as e:
         _LOG.error('Error occurred while {0} resource creating: {1}'.format(
-            res_type, e.message))
+            res_type, str(e)))
         deploy_result = False
 
     return deploy_result, updated_output
@@ -258,7 +261,7 @@ def create_deployment_resources(deploy_name, bundle_name,
 
     # sort resources with priority
     resources_list = list(resources.items())
-    resources_list.sort(cmp=_compare_deploy_resources)
+    resources_list.sort(key=cmp_to_key(_compare_deploy_resources))
 
     _LOG.info('Going to deploy AWS resources')
     success, output = deploy_resources(resources_list)
@@ -305,7 +308,7 @@ def remove_deployment_resources(deploy_name, bundle_name,
 
     # sort resources with priority
     resources_list = list(output.items())
-    resources_list.sort(cmp=_compare_clean_resources)
+    resources_list.sort(key=cmp_to_key(_compare_clean_resources))
     _LOG.debug('Resources to delete: {0}'.format(resources_list))
 
     _LOG.info('Going to clean AWS resources')
@@ -345,7 +348,7 @@ def continue_deployment_resources(deploy_name, bundle_name,
 
     # sort resources with priority
     resources_list = list(resources.items())
-    resources_list.sort(cmp=_compare_deploy_resources)
+    resources_list.sort(key=cmp_to_key(_compare_deploy_resources))
 
     success, updated_output = continue_deploy_resources(resources_list, output)
     _LOG.info('AWS resources were deployed successfully')
@@ -369,7 +372,7 @@ def remove_failed_deploy_resources(deploy_name, bundle_name):
     _LOG.info('Failed output file was loaded successfully')
     # sort resources with priority
     resources_list = list(output.items())
-    resources_list.sort(cmp=_compare_clean_resources)
+    resources_list.sort(key=cmp_to_key(_compare_clean_resources))
 
     _LOG.info('Going to clean AWS resources')
     clean_resources(resources_list)

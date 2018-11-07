@@ -97,7 +97,7 @@ class S3Connection(object):
         try:
             return self.client.get_bucket_acl(Bucket=bucket_name)
         except ClientError as e:
-            if 'NoSuchBucket' in e.message:
+            if 'NoSuchBucket' in str(e):
                 pass  # valid exception
             else:
                 raise e
@@ -106,7 +106,7 @@ class S3Connection(object):
         try:
             return self.client.get_bucket_location(Bucket=bucket_name)
         except ClientError as e:
-            if 'NoSuchBucket' in e.message:
+            if 'NoSuchBucket' in str(e):
                 pass  # valid exception
             else:
                 raise e
@@ -115,7 +115,7 @@ class S3Connection(object):
         try:
             return self.client.get_bucket_policy(Bucket=bucket_name)
         except ClientError as e:
-            if 'NoSuchBucketPolicy' or 'NoSuchBucket' in e.message:
+            if 'NoSuchBucketPolicy' or 'NoSuchBucket' in str(e):
                 pass  # valid exception
             else:
                 raise e

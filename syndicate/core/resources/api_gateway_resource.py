@@ -253,10 +253,6 @@ def _create_api_gateway_from_meta(name, meta):
 
     api_resources = meta['resources']
 
-    # if _API_GATEWAY_CONN.get_api_by_name(name):
-    #     _LOG.info('%s API exists.', name)
-    #     return
-
     api_id = _API_GATEWAY_CONN.create_rest_api(name)['id']
     if api_resources:
         args = __prepare_api_resources_args(api_id, api_resources)

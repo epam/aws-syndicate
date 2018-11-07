@@ -172,7 +172,7 @@ class EventConnection(object):
         try:
             return self.client.describe_rule(Name=rule_name)
         except ClientError as e:
-            if 'ResourceNotFoundException' in e.message:
+            if 'ResourceNotFoundException' in str(e):
                 pass  # valid exception
             else:
                 raise e

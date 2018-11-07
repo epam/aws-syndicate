@@ -167,7 +167,7 @@ def remove_instance_list(*instance_list):
             )
             existing_instances_list.append(instance_id)
         except ClientError as e:
-            if 'InvalidInstanceID.NotFound' in e.message:
+            if 'InvalidInstanceID.NotFound' in str(e):
                 _LOG.warn('Instance %s does not exist', instance_id)
             else:
                 raise e

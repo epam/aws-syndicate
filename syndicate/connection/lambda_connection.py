@@ -278,7 +278,7 @@ class LambdaConnection(object):
         try:
             return self.client.get_function(**params)
         except ClientError as e:
-            if 'ResourceNotFoundException' in e.message:
+            if 'ResourceNotFoundException' in str(e):
                 pass  # valid exception
             else:
                 raise e

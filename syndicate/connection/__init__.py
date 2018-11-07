@@ -13,7 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-from functools32 import lru_cache
+from functools import lru_cache
 
 from syndicate.connection.application_autoscaling_connection import (
     ApplicationAutoscaling)

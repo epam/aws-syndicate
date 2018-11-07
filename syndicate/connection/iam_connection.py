@@ -55,7 +55,7 @@ class IAMConnection(object):
         try:
             return self.client.get_role(RoleName=role_name)['Role']
         except ClientError as e:
-            if 'NoSuchEntity' in e.message:
+            if 'NoSuchEntity' in str(e):
                 pass  # valid exception
             else:
                 raise e
@@ -250,7 +250,7 @@ class IAMConnection(object):
         try:
             return self.client.get_policy(PolicyArn=arn)['Policy']
         except ClientError as e:
-            if 'NoSuchEntity' in e.message:
+            if 'NoSuchEntity' in str(e):
                 pass  # valid exception
             else:
                 raise e

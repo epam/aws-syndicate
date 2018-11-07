@@ -48,7 +48,7 @@ class SFConnection(object):
         try:
             return self.client.describe_state_machine(stateMachineArn=arn)
         except ClientError as e:
-            if 'StateMachineDoesNotExist' in e.message:
+            if 'StateMachineDoesNotExist' in str(e):
                 pass  # valid exception
             else:
                 raise e
@@ -99,7 +99,7 @@ class SFConnection(object):
         try:
             return self.client.describe_activity(activityArn=arn)
         except ClientError as e:
-            if 'ActivityDoesNotExist' in e.message:
+            if 'ActivityDoesNotExist' in str(e):
                 pass  # valid exception
             else:
                 raise e

@@ -73,7 +73,7 @@ def retry(handler_func):
             except ClientError as e:
                 retry_flag = False
                 for exc in retry_exceptions:
-                    if exc in e.message:
+                    if exc in str(e):
                         _LOG.debug(
                             'Retry on {0}.'.format(handler_func.__name__))
                         retry_flag = True

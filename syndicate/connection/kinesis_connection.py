@@ -46,7 +46,7 @@ class KinesisConnection(object):
             return self.client.describe_stream(StreamName=stream_name)[
                 'StreamDescription']
         except ClientError as e:
-            if 'ResourceNotFoundException' in e.message:
+            if 'ResourceNotFoundException' in str(e):
                 pass  # valid exception
             else:
                 raise e

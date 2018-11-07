@@ -112,7 +112,7 @@ class SqsConnection(object):
                                                  QueueOwnerAWSAccountId=account_id)
             return response['QueueUrl']
         except ClientError as e:
-            if 'AWS.SimpleQueueService.NonExistentQueue' in e.message:
+            if 'AWS.SimpleQueueService.NonExistentQueue' in str(e):
                 pass  # valid exception
             else:
                 raise e
@@ -124,7 +124,7 @@ class SqsConnection(object):
             return self.client.get_queue_attributes(QueueUrl=queue_url,
                                                     AttributeNames=attribute_names)
         except ClientError as e:
-            if 'QueueDoesNotExistException' in e.message:
+            if 'QueueDoesNotExistException' in str(e):
                 pass  # valid exception
             else:
                 raise e
