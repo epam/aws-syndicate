@@ -15,8 +15,6 @@
 """
 import concurrent
 import json
-import traceback
-import sys
 from concurrent.futures import ALL_COMPLETED, ThreadPoolExecutor
 from datetime import date, datetime
 from functools import cmp_to_key
@@ -96,7 +94,6 @@ def _process_resources(resources, handlers_mapping):
     except Exception as e:
         _LOG.error('Error occurred while {0} resource creating: {1}'.format(
             res_type, str(e)))
-        traceback.print_exc(file=sys.stdout)
         # args list always contains one item here
         return False, update_failed_output(args[0]['name'], args[0]['meta'],
                                            resource_type, output)
