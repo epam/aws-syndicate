@@ -48,7 +48,7 @@ def create_deploy_output(bundle_name, deploy_name, output, success):
     key = _build_output_key(bundle_name=bundle_name,
                             deploy_name=deploy_name,
                             is_regular_output=success)
-    if success and _S3_CONN.is_file_exists(CONFIG.deploy_target_bucket, key):
+    if _S3_CONN.is_file_exists(CONFIG.deploy_target_bucket, key):
         _LOG.warn(
             'Output file for deploy {0} already exists.'.format(deploy_name))
     else:
