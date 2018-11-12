@@ -25,7 +25,6 @@ setup(
         'botocore==1.10.73',
         'boto3==1.7.73',
         'configobj==5.0.6',
-        'requests==2.20.0',
         'tqdm==4.19.5'
     ],
     entry_points='''

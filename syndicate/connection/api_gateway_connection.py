@@ -386,46 +386,6 @@ class ApiGatewayConnection(object):
             params['responseModels'] = response_models
         self.client.put_method_response(**params)
 
-    def test_api(self, api_name, resource_path, method,
-                 path_with_query_string=None, body=None, headers=None,
-                 client_certificate_id=None, stage_variables=None):
-        """
-        :type api_name: str
-        :type resource_path: str
-        :type method: str
-        :type path_with_query_string: str
-        :param path_with_query_string: e.g. /?para1=1&param2=2
-        :type body: str
-        :type headers: dict
-        :type client_certificate_id: str
-        :type stage_variables: dict
-        """
-        _LOG.info('Testing %s api %s %s.', api_name, resource_path, method)
-        api_id = self.get_api_id(api_name)
-        if not api_id:
-            raise AssertionError("Can't find api id {0}.".format(api_name))
-        resource_id = self.get_resource_id(api_id, resource_path)
-        if not resource_id:
-            raise AssertionError("Can't find resource id {0}.".format(
-                resource_path))
-        params = dict(restApiId=api_id, resourceId=resource_id,
-                      httpMethod=method)
-        if path_with_query_string:
-            params['pathWithQueryString'] = path_with_query_string
-        if body:
-            params['body'] = body
-        if headers:
-            params['headers'] = headers
-        if client_certificate_id:
-            params['clientCertificateId'] = client_certificate_id
-        if stage_variables:
-            params['stageVariables'] = stage_variables
-        res = self.client.test_invoke_method(**params)
-        if res['status'] == 200:
-            _LOG.error('OK.')
-        else:
-            _LOG.info('KO. {0}'.format(res))
-
     def enable_cors_for_resource(self, api_id, resource_id):
         """ When your API's resources receive requests from a domain other than
         the API's own domain, you must enable cross-origin resource sharing
@@ -502,6 +462,24 @@ class ApiGatewayConnection(object):
 
     def get_api(self, api_id):
         return self.client.get_rest_api(restApiId=api_id)
+
+    def get_gateway_responses(self, api_id):
+        return self.client.get_gateway_responses(restApiId=api_id).get('items',
+                                                                       [])
+
+    def add_header_to_gateway_response(self, api_id, response_type, name,
+                                       value):
+        path = '/responseParameters/gatewayresponse.header.' + name
+
+        operation = {
+            'op': 'add',
+            'path': path,
+            'value': value
+        }
+
+        return self.client.update_gateway_response(restApiId=api_id,
+                                                   responseType=response_type,
+                                                   patchOperations=[operation])
 
     def generate_sdk(self, api_id, stage_name='prod', sdk_type='javascript'):
         """ generates sdk of given type for specified stage of api gateway

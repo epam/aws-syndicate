@@ -15,6 +15,7 @@
 """
 from functools import lru_cache
 
+from syndicate.connection.api_gateway_connection import ApiGatewayConnection
 from syndicate.connection.application_autoscaling_connection import (
     ApplicationAutoscaling)
 from syndicate.connection.cloud_watch_connection import (EventConnection,
@@ -27,8 +28,6 @@ from syndicate.connection.dynamo_connection import DynamoConnection
 from syndicate.connection.ec2_connection import EC2Connection
 from syndicate.connection.elastic_beanstalk_connection import (
     BeanstalkConnection)
-from syndicate.connection.extended_api_gateway_connection import (
-    ExtendedApiGatewayConnection)
 from syndicate.connection.iam_connection import IAMConnection
 from syndicate.connection.kinesis_connection import KinesisConnection
 from syndicate.connection.kms_connection import KMSConnection
@@ -49,7 +48,7 @@ class ConnectionProvider(object):
         credentials = self.credentials.copy()
         if region:
             credentials['region'] = region
-        return ExtendedApiGatewayConnection(**credentials)
+        return ApiGatewayConnection(**credentials)
 
     @lru_cache(maxsize=None)
     def lambda_conn(self, region=None):
