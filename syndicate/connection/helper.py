@@ -75,7 +75,8 @@ def retry(handler_func):
                 for exc in retry_exceptions:
                     if exc in e.message:
                         _LOG.debug(
-                            'Retry on {0}.'.format(handler_func.__name__))
+                            'Retry on {0}. Error: {1}'.format(
+                                handler_func.__name__, e.message))
                         retry_flag = True
                 if not retry_flag:
                     raise e
