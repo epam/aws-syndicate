@@ -154,7 +154,7 @@ def _create_role_from_meta(name, meta):
         try:
             _IAM_CONN.create_instance_profile(name)
         except ClientError as e:
-            if 'EntityAlreadyExists' in e.message:
+            if 'EntityAlreadyExists' in str(e):
                 _LOG.warn('Instance profile %s exists', name)
             else:
                 raise e

@@ -84,7 +84,7 @@ def exit_on_exception(handler_func):
         try:
             return handler_func(*args, **kwargs)
         except Exception as e:
-            _LOG.error("Error occurred: %s", e.message)
+            _LOG.error("Error occurred: %s", str(e))
             sys.exit(1)
 
     return wrapper
@@ -132,7 +132,8 @@ def _find_alias_and_replace(some_string):
     if not res_alias:
         raise AssertionError('Can not found alias for {0}'.format(alias_name))
     result = (
-        some_string[:first_index] + res_alias + some_string[second_index + 1:])
+            some_string[:first_index] + res_alias + some_string[
+                                                    second_index + 1:])
     return result
 
 
