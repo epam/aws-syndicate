@@ -237,10 +237,11 @@ def remove_dynamodb_tables(args):
         if autoscaling:
             policies = autoscaling['policies']
             for policy in policies:
-                alarms = policy.get('Alarms', [])
-                alarm_args.extend(map(lambda x: {
-                    'arn': x['AlarmARN'],
-                    'config': {'resource_name': x['AlarmName']}
-                }, alarms))
+                if policy:
+                    alarms = policy.get('Alarms', [])
+                    alarm_args.extend(map(lambda x: {
+                        'arn': x['AlarmARN'],
+                        'config': {'resource_name': x['AlarmName']}
+                    }, alarms))
 
     remove_alarms(alarm_args)
