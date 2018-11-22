@@ -18,6 +18,7 @@ import json
 import os
 import subprocess
 import sys
+import traceback
 from functools import wraps
 from threading import Thread
 from time import time
@@ -83,8 +84,8 @@ def exit_on_exception(handler_func):
         """ Wrapper func."""
         try:
             return handler_func(*args, **kwargs)
-        except Exception as e:
-            _LOG.error("Error occurred: %s", e.message)
+        except Exception:
+            _LOG.error("Error occurred: %s", str(traceback.format_exc()))
             sys.exit(1)
 
     return wrapper
