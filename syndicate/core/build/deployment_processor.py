@@ -227,6 +227,7 @@ def __find_output_by_resource_name(output, resource_name):
     return found_items
 
 
+@exit_on_exception
 def create_deployment_resources(deploy_name, bundle_name,
                                 deploy_only_resources=None,
                                 deploy_only_types=None,
