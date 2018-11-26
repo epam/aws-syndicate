@@ -137,7 +137,7 @@ def api_resource_identifier(name, output=None):
     if output:
         # api currently is not located in different regions
         # process only first object
-        api_output = output.items()[0][1]
+        api_output = list(output.items())[0][1]
         # find id from the output
         return api_output['description']['id']
     # if output is not provided - try to get API by name
