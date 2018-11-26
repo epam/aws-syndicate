@@ -24,7 +24,13 @@ _LOG = get_logger('syndicate.core.resources.cognito_identity_resource')
 _COGNITO_IDENTITY_CONN = CONN.cognito_identity()
 
 
-def cognito_resource_identifier(name):
+def cognito_resource_identifier(name, output=None):
+    if output:
+        # cognito currently is not located in different regions
+        # process only first object
+        pool_output = output.items()[0][1]
+        # find id from the output
+        return pool_output['description']['IdentityPoolId']
     return _COGNITO_IDENTITY_CONN.if_pool_exists_by_name(name)
 
 

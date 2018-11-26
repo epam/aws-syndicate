@@ -133,7 +133,15 @@ _API_GATEWAY_CONN = CONN.api_gateway()
 _LAMBDA_CONN = CONN.lambda_conn()
 
 
-def api_resource_identifier(name):
+def api_resource_identifier(name, output=None):
+    if output:
+        # api currently is not located in different regions
+        # process only first object
+        api_output = output.items()[0][1]
+        # find id from the output
+        return api_output['description']['id']
+    # if output is not provided - try to get API by name
+    # cause there is no another option
     return _API_GATEWAY_CONN.get_api_id(name)
 
 

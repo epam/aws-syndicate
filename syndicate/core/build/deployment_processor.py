@@ -267,7 +267,7 @@ def create_deployment_resources(deploy_name, bundle_name,
 
         # apply dynamic changes that uses ARNs
         _LOG.info('Going to apply dynamic changes')
-        _apply_dynamic_changes(resources)
+        _apply_dynamic_changes(resources, output)
         _LOG.info('Dynamic changes were applied successfully')
 
     _LOG.info('Going to create deploy output')
@@ -352,7 +352,7 @@ def continue_deployment_resources(deploy_name, bundle_name,
     if success:
         # apply dynamic changes that uses ARNs
         _LOG.info('Going to apply dynamic changes')
-        _apply_dynamic_changes(resources)
+        _apply_dynamic_changes(resources, updated_output)
         _LOG.info('Dynamic changes were applied successfully')
 
     # remove failed output from bucket
@@ -411,7 +411,7 @@ def _json_serial(obj):
     raise TypeError("Type %s not serializable" % type(obj))
 
 
-def _apply_dynamic_changes(resources):
+def _apply_dynamic_changes(resources, output):
     pool = ThreadPoolExecutor(max_workers=5)
     futures = []
     for name, meta in resources.items():
@@ -429,7 +429,9 @@ def _apply_dynamic_changes(resources):
                     dependency_type = res_config['resource_type']
                     func = RESOURCE_IDENTIFIER.get(resource_type)
                     if func:
-                        identifier = func(name)
+                        resource_output = __find_output_by_resource_name(
+                            output, name)
+                        identifier = func(name, resource_output)
                         apply_func = APPLY_MAPPING.get(change_type)
                         if apply_func:
                             alias = '#{' + name + '}'
