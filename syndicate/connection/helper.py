@@ -13,11 +13,11 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+import traceback
 from functools import wraps
 from time import sleep
 
 from botocore.exceptions import ClientError
-
 from syndicate.commons.log_helper import get_logger
 
 _LOG = get_logger('syndicate.connection.helper')
@@ -50,23 +50,19 @@ def retry(handler_func):
             'ProvisionedThroughputExceededException',
             'TooManyRequestsException',
             'ConflictException',
-            'The role defined for the function cannot be assumed by Lambda.',
             'An error occurred (InvalidParameterValueException) when calling'
             'CreateEventSourceMapping operation',
             'An error occurred (ResourceConflictException) when calling'
             ' the AddPermission operation: The statement id',
             'NoSuchUpload',
             'Throttling',
-            'Reason: Adding cross-region target is not permitted',
             'Please add Lambda as a Trusted Entity',
             'UpdateFunctionConfiguration',
             'PutScalingPolicy',
             'RegisterScalableTarget',
             'TopicArn can not be None',
-            '"message":"Too Many Requests"',
-            'request PATCH https://apigateway',
-            'CreateFunction',
-            'DeleteRole']
+            'DeleteRole'
+        ]
         for each in range(1, 10, 3):
             try:
                 return handler_func(*args, **kwargs)
@@ -74,9 +70,12 @@ def retry(handler_func):
                 retry_flag = False
                 for exc in retry_exceptions:
                     if exc in str(e):
-                        _LOG.debug(
-                            'Retry on {0}. Error: {1}'.format(
-                                handler_func.__name__, e.message))
+                        _LOG.warn('Retry on {0}. Error: {1}'.format(
+                            handler_func.__name__, str(e)))
+                        _LOG.debug('Parameters: {0}, {1}'.format(str(args),
+                                                                 str(kwargs)))
+                        _LOG.error(
+                            'Traceback:\n {0}'.format(traceback.format_exc()))
                         retry_flag = True
                 if not retry_flag:
                     raise e
