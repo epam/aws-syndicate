@@ -74,7 +74,8 @@ def retry(handler_func):
                             handler_func.__name__, str(e)))
                         _LOG.debug('Parameters: {0}, {1}'.format(str(args),
                                                                  str(kwargs)))
-                        _LOG.error(
+                        # set to debug, we need it only in the logs file
+                        _LOG.debug(
                             'Traceback:\n {0}'.format(traceback.format_exc()))
                         retry_flag = True
                 if not retry_flag:
