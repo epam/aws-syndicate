@@ -16,7 +16,6 @@
 import time
 
 from botocore.exceptions import ClientError
-
 from syndicate.commons.log_helper import get_logger
 from syndicate.core import CONFIG, CONN
 from syndicate.core.helper import create_pool, unpack_kwargs
@@ -49,8 +48,10 @@ def describe_queue_from_meta(name, meta):
     if not queue_url:
         return {}
     response = CONN.sqs(region).get_queue_attributes(queue_url)
-    return {_build_queue_arn(resource_name, region): build_description_obj(
-        response, name, meta)}
+    return {
+        _build_queue_arn(resource_name, region): build_description_obj(
+            response, name, meta)
+    }
 
 
 def remove_queues(args):
@@ -64,8 +65,11 @@ def remove_queues(args):
 def _remove_queue(arn, config):
     region = arn.split(':')[3]
     queue_name = config['resource_name']
+    resource_meta = config['resource_meta']
     try:
-        queue_url = CONN.sqs(region).get_queue_url(queue_name,
+        is_fifo = resource_meta.get('fifo_queue', False)
+        resource_name = _build_resource_name(is_fifo, queue_name)
+        queue_url = CONN.sqs(region).get_queue_url(resource_name,
                                                    CONFIG.account_id)
         if queue_url:
             CONN.sqs(region).delete_queue(queue_url)

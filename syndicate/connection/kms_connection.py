@@ -78,7 +78,6 @@ class KMSConnection(object):
         return aliases
 
     def create_alias(self, alias, key):
-        # todo assert alias starts with 'alias/'
         self.client.create_alias(AliasName=alias, TargetKeyId=key)
 
     def update_alias(self, alias, key):
