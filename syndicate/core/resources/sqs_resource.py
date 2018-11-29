@@ -31,7 +31,7 @@ FIFO_REGIONS = ['us-east-1', 'us-east-2', 'us-west-2', 'eu-west-1']
 
 
 def create_sqs_queue(args):
-    return create_pool(_create_sqs_queue_from_meta, args, 5)
+    return create_pool(_create_sqs_queue_from_meta, args)
 
 
 def describe_queue(queue_url, name, meta, resource_name, region):
@@ -54,7 +54,7 @@ def describe_queue_from_meta(name, meta):
 
 
 def remove_queues(args):
-    create_pool(_remove_queue, args, 1)
+    create_pool(_remove_queue, args)
     # wait to remove all queues
     if args:
         time.sleep(60)

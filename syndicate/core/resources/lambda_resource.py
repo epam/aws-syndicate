@@ -38,7 +38,7 @@ def create_lambda(args):
 
     :type args: list
     """
-    return create_pool(_create_lambda_from_meta, args, 3)
+    return create_pool(_create_lambda_from_meta, args)
 
 
 def update_lambda(args):
@@ -410,7 +410,7 @@ CREATE_TRIGGER = {
 
 
 def remove_lambdas(args):
-    create_pool(_remove_lambda, args, 5)
+    create_pool(_remove_lambda, args)
 
 
 @unpack_kwargs
