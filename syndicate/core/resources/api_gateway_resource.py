@@ -190,6 +190,7 @@ def _create_or_update_api_gateway(name, meta, current_configurations):
             else:
                 # all resources created, but need to override
                 api_resources = meta_api_resources
+            print('STARTS')
             _customize_gateway_responses(api_id)
             # deploy api
             _LOG.debug('Deploying API Gateway {0} ...'.format(api_id))
@@ -539,14 +540,13 @@ def _create_method_from_metadata(api_id, resource_id, resource_path, method,
 
 
 def _customize_gateway_responses(api_id):
-    responses = _API_GATEWAY_CONN.describe_responses(api_id)
+    responses = _API_GATEWAY_CONN.get_gateway_responses(api_id)
     response_types = [r['responseType'] for r in responses]
     for response_type in response_types:
-        time.sleep(10)
-        # TODO move to sdk calls
-        _API_GATEWAY_CONN.add_header_for_response(api_id, response_type,
-                                                  _CORS_HEADER_NAME,
-                                                  _CORS_HEADER_VALUE)
+        time.sleep(5)
+        _API_GATEWAY_CONN.add_header_to_gateway_response(api_id, response_type,
+                                                         _CORS_HEADER_NAME,
+                                                         _CORS_HEADER_VALUE)
 
 
 def remove_api_gateways(args):
