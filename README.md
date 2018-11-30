@@ -33,7 +33,7 @@ Quick Start
 -----------
 To successfully setup and use the Syndicate, you need the following software to be installed:
 
-* Python 2.7
+* Python 3.7+
 * pip 9.0+
 * Apache Maven 3.3.9+
 
