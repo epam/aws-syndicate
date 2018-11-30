@@ -190,7 +190,7 @@ CREATE_TRIGGER = {
 
 
 def remove_sns_topics(args):
-    create_pool(_remove_sns_topic, args, 1)
+    create_pool(_remove_sns_topic, args)
 
 
 @unpack_kwargs
@@ -235,7 +235,7 @@ def _create_platform_application_from_meta(name, meta, region):
 
 
 def remove_sns_application(args):
-    create_pool(_remove_sns_application, args, 1)
+    create_pool(_remove_sns_application, args)
 
 
 @unpack_kwargs
