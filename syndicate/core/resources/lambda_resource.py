@@ -38,7 +38,7 @@ def create_lambda(args):
 
     :type args: list
     """
-    return create_pool(_create_lambda_from_meta, args, 3)
+    return create_pool(_create_lambda_from_meta, args)
 
 
 def update_lambda(args):
@@ -202,7 +202,6 @@ def _update_lambda(name, meta):
     time.sleep(10)
     response = _LAMBDA_CONN.get_function(name)
     _LOG.debug('Lambda describe result: {0}'.format(response))
-    # todo check response if not None
     code_sha_256 = response['Configuration']['CodeSha256']
     publish_ver_response = _LAMBDA_CONN.publish_version(
         function_name=name,
@@ -410,7 +409,7 @@ CREATE_TRIGGER = {
 
 
 def remove_lambdas(args):
-    create_pool(_remove_lambda, args, 5)
+    create_pool(_remove_lambda, args)
 
 
 @unpack_kwargs

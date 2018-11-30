@@ -28,7 +28,7 @@ _LOG = get_logger('syndicate.core.resources.iam_resource')
 
 
 def remove_policies(args):
-    create_pool(_remove_policy, args, 3)
+    create_pool(_remove_policy, args)
 
 
 @unpack_kwargs
@@ -49,7 +49,7 @@ def _remove_policy(arn, config):
 
 
 def remove_roles(args):
-    create_pool(_remove_role, args, 3)
+    create_pool(_remove_role, args)
 
 
 @unpack_kwargs
@@ -94,11 +94,11 @@ def _remove_instance_profile(profile_name):
 
 
 def create_policies(args):
-    return create_pool(_create_policy_from_meta, args, 3)
+    return create_pool(_create_policy_from_meta, args)
 
 
 def create_roles(args):
-    return create_pool(_create_role_from_meta, args, 3)
+    return create_pool(_create_role_from_meta, args)
 
 
 @unpack_kwargs

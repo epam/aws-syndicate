@@ -25,11 +25,11 @@ _KINESIS_CONN = CONN.kinesis()
 
 
 def create_kinesis_stream(args):
-    return create_pool(_create_kinesis_stream_from_meta, args, 5)
+    return create_pool(_create_kinesis_stream_from_meta, args)
 
 
 def remove_kinesis_streams(args):
-    create_pool(_remove_kinesis_stream, args, 5)
+    create_pool(_remove_kinesis_stream, args)
 
 
 @unpack_kwargs

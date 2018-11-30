@@ -150,11 +150,11 @@ def create_api_gateway(args):
 
     :type args: list
     """
-    return create_pool(_create_api_gateway_from_meta, args, 3)
+    return create_pool(_create_api_gateway_from_meta, args)
 
 
 def api_gateway_update_processor(args):
-    return create_pool(_create_or_update_api_gateway, args, 3)
+    return create_pool(_create_or_update_api_gateway, args)
 
 
 @unpack_kwargs

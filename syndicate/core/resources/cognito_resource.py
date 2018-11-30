@@ -39,7 +39,7 @@ def create_cognito_identity_pool(args):
 
     :type args: list
     """
-    return create_pool(_create_cognito_identity_pool_from_meta, args, 5)
+    return create_pool(_create_cognito_identity_pool_from_meta, args)
 
 
 def describe_cognito_pool(name, meta, pool_id=None):
@@ -83,7 +83,7 @@ def _create_cognito_identity_pool_from_meta(name, meta):
 
 
 def remove_cognito_identity_pools(args):
-    create_pool(_remove_cognito_identity_pool, args, 5)
+    create_pool(_remove_cognito_identity_pool, args)
 
 
 @unpack_kwargs

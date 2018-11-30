@@ -43,7 +43,6 @@ class SFConnection(object):
                                                 definition=definition,
                                                 roleArn=role_arn)
 
-    # TODO use decorator here
     def describe_state_machine(self, arn):
         try:
             return self.client.describe_state_machine(stateMachineArn=arn)

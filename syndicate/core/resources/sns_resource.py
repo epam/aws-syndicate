@@ -106,7 +106,7 @@ def create_sns_topic(args):
     :type args: list
     """
     new_region_args = create_args_for_multi_region(args, ALL_REGIONS)
-    return create_pool(_create_sns_topic_from_meta, new_region_args, 1)
+    return create_pool(_create_sns_topic_from_meta, new_region_args)
 
 
 def create_sns_application(args):
@@ -115,8 +115,7 @@ def create_sns_application(args):
     :type args: list
     """
     new_region_args = create_args_for_multi_region(args, ALL_REGIONS)
-    return create_pool(_create_platform_application_from_meta, new_region_args,
-                       1)
+    return create_pool(_create_platform_application_from_meta, new_region_args)
 
 
 @unpack_kwargs

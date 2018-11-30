@@ -33,15 +33,15 @@ _LOG = get_logger('core.resources.step_function_resource')
 
 
 def create_state_machine(args):
-    return create_pool(_create_state_machine_from_meta, args, 5)
+    return create_pool(_create_state_machine_from_meta, args)
 
 
 def create_activities(args):
-    return create_pool(_create_activity_from_meta, args, 5)
+    return create_pool(_create_activity_from_meta, args)
 
 
 def remove_state_machines(args):
-    create_pool(_remove_state_machine, args, 5)
+    create_pool(_remove_state_machine, args)
     if args:
         time.sleep(60)
 
@@ -68,7 +68,7 @@ def _remove_state_machine(arn, config):
 
 
 def remove_activities(args):
-    create_pool(_remove_activity, args, 5)
+    create_pool(_remove_activity, args)
 
 
 @unpack_kwargs
