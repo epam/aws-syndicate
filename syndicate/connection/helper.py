@@ -63,7 +63,7 @@ def retry(handler_func):
             'TopicArn can not be None',
             'DeleteRole'
         ]
-        for each in range(1, 10, 3):
+        for each in range(1, 20, 3):
             try:
                 return handler_func(*args, **kwargs)
             except ClientError as e:
