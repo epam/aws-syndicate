@@ -190,7 +190,6 @@ def _create_or_update_api_gateway(name, meta, current_configurations):
             else:
                 # all resources created, but need to override
                 api_resources = meta_api_resources
-            print('STARTS')
             _customize_gateway_responses(api_id)
             # deploy api
             _LOG.debug('Deploying API Gateway {0} ...'.format(api_id))
