@@ -67,6 +67,17 @@ class EC2Connection(object):
         return self.client.describe_security_groups(Filters=filters)[
             'SecurityGroups']
 
+    def describe_regions(self, name=None):
+        filters = []
+        if name:
+            if isinstance(name, list):
+                filters.append({'Name': 'region-name', 'Values': name})
+            elif isinstance(name, str):
+                filters.append({'Name': 'region-name', 'Values': [name]})
+            else:
+                _LOG.warn('Unacceptable name type: %s', type(name))
+        return self.client.describe_regions(Filters=filters)['Regions']
+
     def get_default_vpc_id(self):
         for vpc in self.client.describe_vpcs()['Vpcs']:
             if vpc['IsDefault']:
