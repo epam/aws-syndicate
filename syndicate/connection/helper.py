@@ -70,7 +70,7 @@ def retry(handler_func):
                 retry_flag = False
                 for exc in retry_exceptions:
                     if exc in str(e):
-                        _LOG.warn('Retry on {0}. Error: {1}'.format(
+                        _LOG.debug('Retry on {0}. Error: {1}'.format(
                             handler_func.__name__, str(e)))
                         _LOG.debug('Parameters: {0}, {1}'.format(str(args),
                                                                  str(kwargs)))

@@ -94,6 +94,36 @@ def _check_duplicated_resources(initial_meta_dict, additional_item_name,
             if initial_cache_config:
                 additional_item[
                     'cluster_cache_configuration'] = initial_cache_config
+            # handle responses
+            initial_responses = initial_item.get(
+                'api_method_responses')
+            additional_responses = additional_item.get(
+                'api_method_responses')
+            if initial_responses and additional_responses:
+                raise AssertionError(
+                    "API '{0}' has duplicated api method responses "
+                    "configurations. Please, remove one "
+                    "api method responses configuration.".format(
+                        additional_item_name)
+                )
+            if initial_responses:
+                additional_item[
+                    'api_method_responses'] = initial_responses
+            # handle integration responses
+            initial_integration_resp = initial_item.get(
+                'api_method_integration_responses')
+            additional_integration_resp = additional_item.get(
+                'api_method_integration_responses')
+            if initial_integration_resp and additional_integration_resp:
+                raise AssertionError(
+                    "API '{0}' has duplicated api method integration "
+                    "responses configurations. Please, remove one "
+                    "api method integration responses configuration.".format(
+                        additional_item_name)
+                )
+            if initial_integration_resp:
+                additional_item[
+                    'api_method_integration_responses'] = initial_integration_resp
             # join items dependencies
             dependencies_dict = {each['resource_name']: each
                                  for each in additional_item['dependencies']}

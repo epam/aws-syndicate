@@ -16,7 +16,6 @@
 import time
 
 from botocore.exceptions import ClientError
-
 from syndicate.commons.log_helper import get_logger
 from syndicate.core import CONFIG, CONN
 from syndicate.core.helper import create_pool, unpack_kwargs
@@ -28,103 +27,6 @@ from syndicate.core.resources.lambda_resource import (
 SUPPORTED_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'HEAD']
 
 _LOG = get_logger('syndicate.core.resources.api_gateway_resource')
-
-_DEFAULT_RESPONSES = {
-    "responses": [
-        {
-            "status_code": "200"
-        },
-        {
-            "status_code": "400"
-        },
-        {
-            "status_code": "401"
-        },
-        {
-            "status_code": "403"
-        },
-        {
-            "status_code": "406"
-        },
-        {
-            "status_code": "404"
-        },
-        {
-            "status_code": "500"
-        },
-        {
-            "status_code": "503"
-        }
-    ],
-    "integration_responses": [
-        {
-            "status_code": "200"
-        },
-        {
-            "status_code": "400",
-            "error_regex": ".*ERROR_CODE\\\": 400.*",
-            'response_templates': {
-                'application/json': '#set ($errorMessageObj = $util.parseJson('
-                                    '$input.path(\'$.errorMessage\')))'
-                                    '{"message" : "$errorMessageObj.message"}'
-            }
-        },
-        {
-            "status_code": "401",
-            "error_regex": ".*ERROR_CODE\\\": 401.*",
-            'response_templates': {
-                'application/json': '#set ($errorMessageObj = $util.parseJson('
-                                    '$input.path(\'$.errorMessage\')))'
-                                    '{"message" : "$errorMessageObj.message"}'
-            }
-        },
-        {
-            "status_code": "403",
-            "error_regex": ".*ERROR_CODE\\\": 403.*",
-            'response_templates': {
-                'application/json': '#set ($errorMessageObj = $util.parseJson('
-                                    '$input.path(\'$.errorMessage\')))'
-                                    '{"message" : "$errorMessageObj.message"}'
-            }
-        },
-        {
-            "status_code": "404",
-            "error_regex": ".*ERROR_CODE\\\": 404.*",
-            'response_templates': {
-                'application/json': '#set ($errorMessageObj = $util.parseJson('
-                                    '$input.path(\'$.errorMessage\')))'
-                                    '{"message" : "$errorMessageObj.message"}'
-            }
-        },
-        {
-            "status_code": "406",
-            "error_regex": ".*ERROR_CODE\\\": 406.*",
-            'response_templates': {
-                'application/json': '#set ($errorMessageObj = $util.parseJson('
-                                    '$input.path(\'$.errorMessage\')))'
-                                    '{"message" : "$errorMessageObj.message"}'
-            }
-        },
-        {
-            "status_code": "500",
-            "error_regex": ".*ERROR_CODE\\\": 500.*",
-            'response_templates': {
-                'application/json': '#set ($errorMessageObj = $util.parseJson('
-                                    '$input.path(\'$.errorMessage\')))'
-                                    '{"message" : "$errorMessageObj.message"}'
-            }
-        },
-        {
-            "status_code": "503",
-            "error_regex": ".*ERROR_CODE\\\": 503.*",
-            'response_templates': {
-                'application/json': '#set ($errorMessageObj = $util.parseJson('
-                                    '$input.path(\'$.errorMessage\')))'
-                                    '{"message" : "$errorMessageObj.message"}'
-            }
-        }
-    ]
-}
 
 _CORS_HEADER_NAME = 'Access-Control-Allow-Origin'
 _CORS_HEADER_VALUE = "'*'"
@@ -172,6 +74,8 @@ def _create_or_update_api_gateway(name, meta, current_configurations):
             existing_resources = api_output['description']['resources']
             existing_paths = [i['path'] for i in existing_resources]
             meta_api_resources = meta['resources']
+            api_resp = meta.get('api_method_responses')
+            api_integration_resp = meta.get('api_method_integration_responses')
             api_resources = {}
             for resource_path, resource_meta in meta_api_resources.items():
                 if resource_path not in existing_paths:
@@ -180,7 +84,9 @@ def _create_or_update_api_gateway(name, meta, current_configurations):
                 _LOG.debug(
                     'Going to continue deploy API Gateway {0} ...'.format(
                         api_id))
-                args = __prepare_api_resources_args(api_id, api_resources)
+                args = __prepare_api_resources_args(api_id, api_resources,
+                                                    api_resp,
+                                                    api_integration_resp)
                 create_pool(_create_resource_from_metadata, args, 1)
                 # add headers
                 # waiter b4 customization
@@ -310,7 +216,8 @@ def __deploy_api_gateway(api_id, meta, api_resources):
         configure_cache(api_id, deploy_stage, api_resources)
 
 
-def __prepare_api_resources_args(api_id, api_resources):
+def __prepare_api_resources_args(api_id, api_resources, api_resp=None,
+                                 api_integration_resp=None):
     args = []
     for each in api_resources:
         resource_meta = api_resources[each]
@@ -321,7 +228,8 @@ def __prepare_api_resources_args(api_id, api_resources):
                 _LOG.info('Resource %s exists.', each)
                 enable_cors = resource_meta.get('enable_cors')
                 _check_existing_methods(api_id, resource_id, each,
-                                        resource_meta, enable_cors)
+                                        resource_meta, enable_cors, api_resp,
+                                        api_integration_resp)
             else:
                 args.append({
                     'api_id': api_id,
@@ -353,7 +261,8 @@ def describe_api_resources(name, meta, api_id=None):
 
 
 def _check_existing_methods(api_id, resource_id, resource_path, resource_meta,
-                            enable_cors):
+                            enable_cors, api_resp=None,
+                            api_integration_resp=None):
     """ Check if all specified methods exist and create some if not.
 
     :type api_id: str
@@ -373,7 +282,8 @@ def _check_existing_methods(api_id, resource_id, resource_path, resource_meta,
                       method, resource_id)
             _create_method_from_metadata(api_id, resource_id, resource_path,
                                          method, resource_meta[method],
-                                         enable_cors)
+                                         enable_cors, api_resp,
+                                         api_integration_resp)
     if enable_cors and not _API_GATEWAY_CONN.get_method(api_id, resource_id,
                                                         'OPTIONS'):
         _LOG.info('Enabling CORS for resource %s...', resource_id)
@@ -407,50 +317,27 @@ def _create_resource_from_metadata(api_id, resource_path, resource_meta):
         _LOG.info('CORS enabled for resource %s', resource_path)
 
 
-def _generate_final_response(default_error_pattern=None, responses=None,
-                             integration_responses=None):
-    if not responses:
-        responses = []
-    if not integration_responses:
-        integration_responses = []
-    if default_error_pattern:
-        final_responses = [
-            each.copy() for each in _DEFAULT_RESPONSES['responses']]
-        for resp in responses:
-            status_code = resp['status_code']
-            is_in_default = False
-            for each in final_responses:
-                if each['status_code'] == status_code:
-                    is_in_default = True
-                    each.update(resp)
-                    break
-            if not is_in_default:
-                final_responses.append(resp)
-
-        final_integr_responses = [
-            each.copy() for each in
-            _DEFAULT_RESPONSES['integration_responses']]
-        for resp in integration_responses:
-            status_code = resp['status_code']
-            is_in_default = False
-            for each in final_integr_responses:
-                if each['status_code'] == status_code:
-                    is_in_default = True
-                    each.update(resp)
-                    break
-            if not is_in_default:
-                final_integr_responses.append(resp)
-        return final_responses, final_integr_responses
-    else:
-        return responses, integration_responses
-
-
 def _create_method_from_metadata(api_id, resource_id, resource_path, method,
-                                 method_meta, enable_cors=False):
-    resp, integr_resp = _generate_final_response(
-        method_meta.get("default_error_pattern"),
-        method_meta.get("responses"),
-        method_meta.get("integration_responses"))
+                                 method_meta, enable_cors=False, api_resp=None,
+                                 api_integration_resp=None):
+    # init responses for method
+    method_responses = method_meta.get("responses")
+    if method_responses:
+        resp = method_responses
+    elif api_resp:
+        resp = api_resp
+    else:
+        resp = []
+
+    # init integration responses for method
+    integration_method_responses = method_meta.get("integration_responses")
+    if integration_method_responses:
+        integr_resp = integration_method_responses
+    elif api_resp:
+        integr_resp = api_integration_resp
+    else:
+        integr_resp = []
+
     # first step: create method
     _API_GATEWAY_CONN.create_method(
         api_id, resource_id, method,
