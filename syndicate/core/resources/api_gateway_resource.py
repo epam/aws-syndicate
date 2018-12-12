@@ -16,6 +16,7 @@
 import time
 
 from botocore.exceptions import ClientError
+
 from syndicate.commons.log_helper import get_logger
 from syndicate.core import CONFIG, CONN
 from syndicate.core.helper import create_pool, unpack_kwargs
@@ -169,7 +170,10 @@ def _create_api_gateway_from_meta(name, meta):
 
     api_id = _API_GATEWAY_CONN.create_rest_api(name)['id']
     if api_resources:
-        args = __prepare_api_resources_args(api_id, api_resources)
+        api_resp = meta.get('api_method_responses')
+        api_integration_resp = meta.get('api_method_integration_responses')
+        args = __prepare_api_resources_args(api_id, api_resources, api_resp,
+                                            api_integration_resp)
         create_pool(_create_resource_from_metadata, args, 1)
     else:
         _LOG.info('There is no resources in %s API Gateway description.', name)
