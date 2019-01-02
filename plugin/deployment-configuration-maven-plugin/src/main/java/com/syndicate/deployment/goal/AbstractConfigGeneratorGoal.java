@@ -48,12 +48,14 @@ import java.util.Set;
  */
 public abstract class AbstractConfigGeneratorGoal<T> extends AbstractMojo {
 
-    private static final String EXTENSION_JAR = ".jar";
     private static final String DEFAULT_ENCODING = "UTF-8";
     private static final String MAVEN_TARGET_FOLDER_NAME = "target";
 
     @Parameter(defaultValue = "${project}", required = true, readonly = true)
     private MavenProject project;
+
+    @Parameter( required = true)
+    private String fileName;
 
     @Parameter(property = "maven.processor.skip", defaultValue = "false")
     private boolean skip;
@@ -91,6 +93,14 @@ public abstract class AbstractConfigGeneratorGoal<T> extends AbstractMojo {
         return packages;
     }
 
+    public String getFileName() {
+        return fileName;
+    }
+
+    public void setFileName(String fileName) {
+        this.fileName = fileName;
+    }
+
     @Override
     public void execute() throws MojoExecutionException {
         if (skip) {
@@ -98,7 +108,6 @@ public abstract class AbstractConfigGeneratorGoal<T> extends AbstractMojo {
             return;
         }
         logger.info("Start creating resources_config.json ...");
-        String fileName = project.getBuild().getFinalName() + EXTENSION_JAR;
         logger.info("Path to deployment package ==> " + fileName);
 
         logger.debug("Creating custom classpath ...");
@@ -116,7 +125,7 @@ public abstract class AbstractConfigGeneratorGoal<T> extends AbstractMojo {
             List<Class<?>> lambdasClasses = getLambdaClasses();
 
             Map<String, T> configurations = new HashMap<>();
-            for (Class<?> lambdaClass: lambdasClasses) {
+            for (Class<?> lambdaClass : lambdasClasses) {
                 IConfigurationProcessor<T> annotationProcessor =
                         getAnnotationProcessor(project.getVersion(), fileName, absolutePath, lambdaClass);
                 Pair<String, T> lambdaConfigurationPair = annotationProcessor.process();
@@ -163,7 +172,7 @@ public abstract class AbstractConfigGeneratorGoal<T> extends AbstractMojo {
             List<String> elements = project.getCompileClasspathElements();
             // getting uris of the dependencies to inject into classloader
             // url presents file location of the dependency in the module
-            for (String element: elements) {
+            for (String element : elements) {
                 uris.add(new File(element).toURI());
             }
             logger.debug("Setting up new classloader ...");
@@ -188,7 +197,7 @@ public abstract class AbstractConfigGeneratorGoal<T> extends AbstractMojo {
 
     private List<Class<?>> getLambdaClasses() {
         List<Class<?>> lambdasClasses = new ArrayList<>();
-        for (String nestedPackage: packages) {
+        for (String nestedPackage : packages) {
             lambdasClasses.addAll(new Reflections(nestedPackage).getTypesAnnotatedWith(LambdaHandler.class));
         }
         return lambdasClasses;
