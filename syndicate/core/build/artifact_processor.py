@@ -58,7 +58,8 @@ def build_mvn_lambdas(bundle_name, project_path):
     # copy java artifacts to the target folder
     for root, dirs, files in os.walk(src_path):
         for file in files:
-            if file.endswith(".jar") or file.endswith(".war"):
+            if file.endswith(".jar") or file.endswith(".war") \
+                    or file.endswith(".zip"):
                 shutil.copyfile(build_path(root, file),
                                 build_path(target_folder, file))
 
