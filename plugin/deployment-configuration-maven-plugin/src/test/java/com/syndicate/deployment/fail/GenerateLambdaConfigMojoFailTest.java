@@ -117,6 +117,7 @@ public class GenerateLambdaConfigMojoFailTest {
         mojo.setProject(mavenProject);
         // override packages to process only current class file
         mojo.setPackages(new String[]{"com.syndicate.deployment.fail"});
+        mojo.setFileName("kjhgf");
 
         mojo.execute();
     }

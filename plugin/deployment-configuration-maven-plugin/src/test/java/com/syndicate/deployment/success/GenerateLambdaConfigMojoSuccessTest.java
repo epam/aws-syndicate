@@ -140,7 +140,7 @@ public class GenerateLambdaConfigMojoSuccessTest {
         mojo.setProject(mavenProject);
         // override packages to process only current class file
         mojo.setPackages(new String[]{"com.syndicate.deployment.success.syndicate"});
-
+        mojo.setFileName("syndicate.jar");
         mojo.execute();
 
         // will be created 1 file with lambdas description
@@ -249,7 +249,7 @@ public class GenerateLambdaConfigMojoSuccessTest {
         mojo.setProject(mavenProject);
         // override packages to process only current class file
         mojo.setPackages(new String[]{"com.syndicate.deployment.success.terraform"});
-
+        mojo.setFileName("terraform.jar");
         mojo.execute();
 
         // will be created 1 file with lambdas description
