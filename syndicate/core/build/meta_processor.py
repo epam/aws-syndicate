@@ -183,6 +183,7 @@ def _populate_s3_path(meta, bundle_name):
 
 RUNTIME_PATH_RESOLVER = {
     'python2.7': _populate_s3_path_python,
+    'python3.7': _populate_s3_path_python,
     'java8': _populate_s3_path_java
 }
 
