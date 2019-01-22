@@ -18,6 +18,7 @@ from functools import wraps
 from time import sleep
 
 from botocore.exceptions import ClientError
+
 from syndicate.commons.log_helper import get_logger
 
 _LOG = get_logger('syndicate.connection.helper')
@@ -61,7 +62,8 @@ def retry(handler_func):
             'PutScalingPolicy',
             'RegisterScalableTarget',
             'TopicArn can not be None',
-            'DeleteRole'
+            'DeleteRole',
+            'Max attempts exceeded'
         ]
         for each in range(1, 20, 3):
             try:
