@@ -565,3 +565,59 @@ def _remove_api_gateway(arn, config):
             _LOG.warn('API Gateway %s is not found', api_id)
         else:
             raise e
+
+
+def create_custom_authorizer(args):
+    """ Adds a new custom Authorizer resource to an existing RestApi resource.
+
+    :type args: list
+    """
+    return create_pool(_create_api_gateway_authorizer, args)
+
+
+def remove_custom_authorizers(args):
+    """ Removes custom authorizer resource to an existing RestApi resource.
+
+    :type args: list
+    """
+    for arg in args:
+        _remove_api_gateway_authorizer(**arg)
+        # wait for success deletion
+        time.sleep(30)
+
+
+def remove_custom_authorizer(args):
+    return create_pool(_create_api_gateway_authorizer, args)
+
+
+def _create_api_gateway_authorizer(api_id, meta):
+    name = meta.get('name')
+    ttl = meta.get('ttl')
+    authorizer_type = meta.get('authorizer_type')
+    authorizer_uri = meta.get('authorizer_uri')
+    identity_source = meta.get('identity_source')
+    validation_expression = meta.get('validation_expression')
+    try:
+        _API_GATEWAY_CONN.create_custom_authorizer(
+            api_id=api_id, name=name, authorizer_type=authorizer_type,
+            authorizer_uri=authorizer_uri, identity_source=identity_source,
+            validation_expression=validation_expression, ttl=ttl)
+        _LOG.info('Custom authorizer %s for API Gateway was created.', api_id)
+    except ClientError as e:
+        if e.response['Error']['Code'] == 'NotFoundException':
+            _LOG.warn('API Gateway %s is not found', api_id)
+        else:
+            raise e
+
+
+def _remove_api_gateway_authorizer(config):
+    api_id = config['description']['id']
+    authorizer_id = config['description']['authorizer_id']
+    try:
+        _API_GATEWAY_CONN.remove_custom_authorizer(api_id, authorizer_id)
+        _LOG.info('Custom authorizer %s was removed.', authorizer_id)
+    except ClientError as e:
+        if e.response['Error']['Code'] == 'NotFoundException':
+            _LOG.warn('Custom authorizer %s is not found', authorizer_id)
+        else:
+            raise e

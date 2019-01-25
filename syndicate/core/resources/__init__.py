@@ -22,13 +22,15 @@ from syndicate.core.constants import (API_GATEWAY_TYPE, CLOUD_WATCH_ALARM_TYPE,
                                       SNS_PLATFORM_APPLICATION_TYPE,
                                       SNS_TOPIC_TYPE,
                                       SQS_QUEUE_TYPE, STATE_ACTIVITY_TYPE,
-                                      STEP_FUNCTION_TYPE)
+                                      STEP_FUNCTION_TYPE,
+                                      API_GATEWAY_AUTHORIZER_TYPE)
 from syndicate.core.resources.alarm_resource import (create_alarm,
                                                      describe_alarm,
                                                      remove_alarms)
 from syndicate.core.resources.api_gateway_resource import (
     api_gateway_update_processor, api_resource_identifier, create_api_gateway,
-    describe_api_resources, remove_api_gateways)
+    describe_api_resources, remove_api_gateways, create_custom_authorizer,
+    remove_custom_authorizer)
 from syndicate.core.resources.cloud_watch_resource import (
     create_cloud_watch_rule, describe_rule, describe_rule_from_meta,
     remove_cloud_watch_rules)
@@ -93,7 +95,8 @@ CREATE_RESOURCE = {
     STEP_FUNCTION_TYPE: create_state_machine,
     STATE_ACTIVITY_TYPE: create_activities,
     KINESIS_STREAM_TYPE: create_kinesis_stream,
-    EC2_INSTANCE_TYPE: create_ec2
+    EC2_INSTANCE_TYPE: create_ec2,
+    API_GATEWAY_AUTHORIZER_TYPE: create_custom_authorizer
 }
 
 # 'ec2_instance' type is not supported
@@ -133,7 +136,8 @@ REMOVE_RESOURCE = {
     SNS_PLATFORM_APPLICATION_TYPE: remove_sns_application,
     SQS_QUEUE_TYPE: remove_queues,
     STEP_FUNCTION_TYPE: remove_state_machines,
-    STATE_ACTIVITY_TYPE: remove_activities
+    STATE_ACTIVITY_TYPE: remove_activities,
+    API_GATEWAY_AUTHORIZER_TYPE: remove_custom_authorizer,
 }
 
 UPDATE_RESOURCE = {

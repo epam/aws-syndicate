@@ -501,3 +501,19 @@ class ApiGatewayConnection(object):
             stageName=stage_name,
             patchOperations=patch_operations
         )
+    
+    def create_custom_authorizer(self, api_id, name, authorizer_type, 
+                                 authorizer_uri, identity_source, 
+                                 validation_expression, ttl):
+        return self.client.create_authorizer(
+            restApiId=api_id,
+            name=name,
+            type=authorizer_type,
+            authorizerUri=authorizer_uri,
+            identitySource=identity_source,
+            identityValidationExpression=validation_expression,
+            authorizerResultTtlInSeconds=ttl)
+
+    def remove_custom_authorizer(self, api_id, authorizer_id):
+        return self.client.create_authorizer(restApiId=api_id, 
+                                             authorizerId=authorizer_id)
