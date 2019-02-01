@@ -42,7 +42,7 @@ from syndicate.core.helper import (check_required_param,
 # TODO - command descriptions
 
 
-@click.group()
+@click.group(name='syndicate')
 def syndicate():
     click.echo('Group syndicate')
     click.echo('Path to sdct.conf: ' + CONF_PATH)
@@ -51,7 +51,7 @@ def syndicate():
 # =============================================================================
 
 
-@syndicate.command()
+@syndicate.command(name='clean')
 @timeit
 @click.option('--deploy_name', nargs=1, callback=check_required_param)
 @click.option('--bundle_name', nargs=1, callback=check_required_param)
@@ -105,7 +105,7 @@ def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
 # =============================================================================
 
 
-@syndicate.command()
+@syndicate.command(name='mvn_compile_java')
 @timeit
 @click.option('--bundle_name', nargs=1, callback=create_bundle_callback)
 @click.option('--project_path', '-path', nargs=1,
@@ -116,7 +116,7 @@ def mvn_compile_java(bundle_name, project_path):
     click.echo('Java artifacts were prepared successfully.')
 
 
-@syndicate.command()
+@syndicate.command(name='assemble_python')
 @timeit
 @click.option('--bundle_name', nargs=1, callback=create_bundle_callback)
 @click.option('--project_path', '-path', nargs=1,
@@ -133,7 +133,7 @@ COMMAND_TO_BUILD_MAPPING = {
 }
 
 
-@syndicate.command()
+@syndicate.command(name='build_artifacts')
 @timeit
 @click.option('--bundle_name', nargs=1, callback=create_bundle_callback)
 @click.pass_context
@@ -155,7 +155,7 @@ def build_artifacts(ctx, bundle_name):
 # =============================================================================
 
 
-@syndicate.command()
+@syndicate.command(name='package_meta')
 @timeit
 @click.option('--bundle_name', nargs=1, callback=verify_bundle_callback)
 def package_meta(bundle_name):
@@ -167,7 +167,7 @@ def package_meta(bundle_name):
 # =============================================================================
 
 
-@syndicate.command()
+@syndicate.command(name='create_deploy_target_bucket')
 @timeit
 def create_deploy_target_bucket():
     click.echo('Create deploy target sdk: %s' % CONFIG.deploy_target_bucket)
@@ -175,7 +175,7 @@ def create_deploy_target_bucket():
     click.echo('Deploy target bucket was created successfully')
 
 
-@syndicate.command()
+@syndicate.command(name='upload_bundle')
 @timeit
 @click.option('--bundle_name', nargs=1, callback=verify_meta_bundle_callback)
 def upload_bundle(bundle_name):
@@ -185,7 +185,7 @@ def upload_bundle(bundle_name):
     click.echo('Bundle was uploaded successfully')
 
 
-@syndicate.command()
+@syndicate.command(name='copy_bundle')
 @click.option('--bundle_name', nargs=1, callback=create_bundle_callback)
 @click.option('--src_account_id', '-acc_id', nargs=1,
               callback=check_required_param)
@@ -215,7 +215,7 @@ def copy_bundle(ctx, bundle_name, src_account_id, src_bucket_region,
 # =============================================================================
 
 
-@syndicate.command()
+@syndicate.command(name='build_bundle')
 @click.option('--bundle_name', nargs=1, callback=check_required_param)
 @click.pass_context
 @timeit
@@ -228,7 +228,7 @@ def build_bundle(ctx, bundle_name):
 # =============================================================================
 
 
-@syndicate.command()
+@syndicate.command(name='deploy')
 @click.option('--deploy_name', nargs=1, callback=check_required_param)
 @click.option('--bundle_name', nargs=1, callback=check_required_param)
 @click.option('--deploy_only_types', multiple=True)
@@ -273,7 +273,7 @@ def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
 
 # =============================================================================
 
-@syndicate.command()
+@syndicate.command(name='publish_lambda_version')
 @click.option('--bundle_name', nargs=1, callback=check_required_param)
 @click.option('--publish_only_lambdas', multiple=True)
 @click.option('--publish_only_lambdas_path', nargs=1)
