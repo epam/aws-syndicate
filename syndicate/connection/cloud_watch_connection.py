@@ -138,7 +138,7 @@ class EventConnection(object):
         self.client.put_rule(Name=name, EventPattern=dumps(event_pattern),
                              State=state, Description=name)
 
-    def create_api_call_rule(self, name, aws_service, operations=None,
+    def create_api_call_rule(self, name, aws_service, operations=None, custom_pattern=None,
                              state='ENABLED'):
         """ To select ANY operation do not set 'operations' param.
 
@@ -146,24 +146,28 @@ class EventConnection(object):
         :param aws_service: e.g. 'ec2'
         :type name: str
         :type operations: list
+        :type custom_pattern: dict
         :param operations:
         :type state: str
         """
-        event_pattern = {
-            "detail-type":
-                [
-                    "AWS API Call via CloudTrail"
-                ],
-            "detail":
-                {
-                    "eventSource":
-                        [
-                            "{0}.amazonaws.com".format(aws_service)
-                        ]
-                }
-        }
-        if operations:
-            event_pattern['detail']['eventName'] = operations
+        if custom_pattern:
+            event_pattern = custom_pattern
+        else:
+            event_pattern = {
+                "detail-type":
+                    [
+                        "AWS API Call via CloudTrail"
+                    ],
+                "detail":
+                    {
+                        "eventSource":
+                            [
+                                "{0}.amazonaws.com".format(aws_service)
+                            ]
+                    }
+            }
+            if operations:
+                event_pattern['detail']['eventName'] = operations
 
         self.client.put_rule(Name=name, EventPattern=dumps(event_pattern),
                              State=state, Description=name)
