@@ -501,19 +501,41 @@ class ApiGatewayConnection(object):
             stageName=stage_name,
             patchOperations=patch_operations
         )
-    
-    def create_custom_authorizer(self, api_id, name, authorizer_type, 
-                                 authorizer_uri, identity_source, 
-                                 validation_expression, ttl):
-        return self.client.create_authorizer(
-            restApiId=api_id,
-            name=name,
-            type=authorizer_type,
-            authorizerUri=authorizer_uri,
-            identitySource=identity_source,
-            identityValidationExpression=validation_expression,
-            authorizerResultTtlInSeconds=ttl)
 
-    def remove_custom_authorizer(self, api_id, authorizer_id):
-        return self.client.create_authorizer(restApiId=api_id, 
-                                             authorizerId=authorizer_id)
+    def create_custom_authorizer(self, api_id, name, authorizer_type,
+                                 authorizer_uri=None, identity_source=None,
+                                 validation_expression=None, ttl=None):
+        """
+        
+        :param api_id: The string identifier of the associated RestApi
+        :param name: The name of the authorizer
+        :param authorizer_type: The authorizer type
+        :param authorizer_uri: Specifies the authorizer's URI
+        :param identity_source: The identity source for which authorization is 
+        requested
+        :param validation_expression: A validation expression for the incoming 
+        identity token
+        :param ttl: The TTL in seconds of cached authorizer results.
+        :return: 
+        """
+        params = dict(restApiId=api_id, name=name)
+        if authorizer_type:
+            params['type'] = authorizer_type
+        if authorizer_uri:
+            params['authorizerUri'] = authorizer_uri
+        if identity_source:
+            params['identitySource'] = identity_source
+        if validation_expression:
+            params['identityValidationExpression'] = validation_expression
+        if ttl:
+            params['authorizerResultTtlInSeconds'] = ttl
+        self.client.create_authorizer(**params)
+
+    def get_all_authorizers(self, api_id):
+        response = self.client.get_authorizers(restApiId=api_id)
+        authorizers = response.get('items')
+        while response.get('position'):
+            response = self.client.get_authorizers(
+                restApiId=api_id,position=response.get('position'))
+            authorizers.append(response.get('items'))
+        return authorizers

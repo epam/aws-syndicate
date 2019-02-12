@@ -131,6 +131,7 @@ _CORS_HEADER_VALUE = "'*'"
 
 _API_GATEWAY_CONN = CONN.api_gateway()
 _LAMBDA_CONN = CONN.lambda_conn()
+CUSTOM_AUTHORIZER_TYPE = 'CUSTOM'
 
 
 def api_resource_identifier(name, output=None):
@@ -260,8 +261,15 @@ def _create_api_gateway_from_meta(name, meta):
     validate_params(name, meta, required_parameters)
 
     api_resources = meta['resources']
+    authorizers = meta.get('authorizers')
 
     api_id = _API_GATEWAY_CONN.create_rest_api(name)['id']
+
+    if api_resources:
+        create_pool(_create_api_gateway_authorizers, api_id, authorizers)
+    else:
+        _LOG.info('There is no custom authorizers in %s API Gateway '
+                  'description.', name)
     if api_resources:
         args = __prepare_api_resources_args(api_id, api_resources)
         create_pool(_create_resource_from_metadata, args, 1)
@@ -452,10 +460,17 @@ def _create_method_from_metadata(api_id, resource_id, resource_path, method,
         method_meta.get("responses"),
         method_meta.get("integration_responses"))
     # first step: create method
+    authorizer_id = None
+    if method_meta.get('authorization_type') == CUSTOM_AUTHORIZER_TYPE:
+        authorizer_name = method_meta.get('authorizer_name')
+        all_authorizers = _API_GATEWAY_CONN.get_all_authorizers(api_id)
+        for authorizer in all_authorizers:
+            if authorizer['name'] == authorizer_name:
+                authorizer_id = authorizer['id']
     _API_GATEWAY_CONN.create_method(
         api_id, resource_id, method,
         authorization_type=method_meta.get('authorization_type'),
-        authorizer_id=method_meta.get('authorizer_id'),
+        authorizer_id=authorizer_id,
         api_key_required=method_meta.get('api_key_required'),
         request_parameters=method_meta.get('method_request_parameters'),
         request_models=method_meta.get('method_request_models'))
@@ -567,57 +582,15 @@ def _remove_api_gateway(arn, config):
             raise e
 
 
-def create_custom_authorizer(args):
-    """ Adds a new custom Authorizer resource to an existing RestApi resource.
-
-    :type args: list
-    """
-    return create_pool(_create_api_gateway_authorizer, args)
-
-
-def remove_custom_authorizers(args):
-    """ Removes custom authorizer resource to an existing RestApi resource.
-
-    :type args: list
-    """
-    for arg in args:
-        _remove_api_gateway_authorizer(**arg)
-        # wait for success deletion
-        time.sleep(30)
-
-
-def remove_custom_authorizer(args):
-    return create_pool(_create_api_gateway_authorizer, args)
-
-
-def _create_api_gateway_authorizer(api_id, meta):
-    name = meta.get('name')
-    ttl = meta.get('ttl')
-    authorizer_type = meta.get('authorizer_type')
-    authorizer_uri = meta.get('authorizer_uri')
-    identity_source = meta.get('identity_source')
-    validation_expression = meta.get('validation_expression')
-    try:
+def _create_api_gateway_authorizers(api_id, authorizers):
+    for each in authorizers:
         _API_GATEWAY_CONN.create_custom_authorizer(
-            api_id=api_id, name=name, authorizer_type=authorizer_type,
-            authorizer_uri=authorizer_uri, identity_source=identity_source,
-            validation_expression=validation_expression, ttl=ttl)
-        _LOG.info('Custom authorizer %s for API Gateway was created.', api_id)
-    except ClientError as e:
-        if e.response['Error']['Code'] == 'NotFoundException':
-            _LOG.warn('API Gateway %s is not found', api_id)
-        else:
-            raise e
+            api_id=api_id, name=each.get('name'),
+            authorizer_type=each.get('authorizer_type'),
+            authorizer_uri=each.get('authorizer_uri'),
+            identity_source=each.get('identity_source'),
+            validation_expression=each.get('validation_expression'),
+            ttl=each.get('ttl'))
+        _LOG.info('Custom authorizer %s for %s API Gateway was created.',
+                  each.get('name'), api_id)
 
-
-def _remove_api_gateway_authorizer(config):
-    api_id = config['description']['id']
-    authorizer_id = config['description']['authorizer_id']
-    try:
-        _API_GATEWAY_CONN.remove_custom_authorizer(api_id, authorizer_id)
-        _LOG.info('Custom authorizer %s was removed.', authorizer_id)
-    except ClientError as e:
-        if e.response['Error']['Code'] == 'NotFoundException':
-            _LOG.warn('Custom authorizer %s is not found', authorizer_id)
-        else:
-            raise e
