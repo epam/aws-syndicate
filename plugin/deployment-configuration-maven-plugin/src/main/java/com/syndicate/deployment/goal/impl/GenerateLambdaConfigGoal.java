@@ -16,13 +16,26 @@
 
 package com.syndicate.deployment.goal.impl;
 
+import com.syndicate.deployment.clients.SyndicateEnterpriseClient;
 import com.syndicate.deployment.goal.AbstractConfigGeneratorGoal;
 import com.syndicate.deployment.model.LambdaConfiguration;
+import com.syndicate.deployment.model.api.request.Credentials;
+import com.syndicate.deployment.model.api.request.SaveMetaRequest;
+import com.syndicate.deployment.model.api.response.SaveMetaResponse;
+import com.syndicate.deployment.model.api.response.TokenResponse;
 import com.syndicate.deployment.processor.impl.SyndicateMetadataConfigurationProcessor;
+import feign.Feign;
+import feign.jackson.JacksonDecoder;
+import feign.jackson.JacksonEncoder;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.ResolutionScope;
+import org.apache.maven.project.MavenProject;
 
+import java.security.InvalidParameterException;
+import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
@@ -47,6 +60,47 @@ public class GenerateLambdaConfigGoal extends AbstractConfigGeneratorGoal<Lambda
     public SyndicateMetadataConfigurationProcessor getAnnotationProcessor(String version, String fileName,
                                                                           String absolutePath, Class<?> lambdaClass) {
         return new SyndicateMetadataConfigurationProcessor(version, lambdaClass, fileName, absolutePath);
+    }
+
+    @Override
+    public void uploadMeta(Map<String, Object> configurations) {
+        String buildId;
+        // extract build id from root project
+        // find root project
+        MavenProject root = project.getParent();
+        if (root != null) {
+            while (root.getParent() != null) {
+                root = root.getParent();
+            }
+            buildId = root.getProperties().get("syndicate-build-id").toString();
+        } else {
+            // root project is a lambda function
+            buildId = project.getProperties().get("syndicate-build-id").toString();
+        }
+        String[] credentialsArray = credentials.split(CREDENTIALS_SEPARATOR);
+        if (credentialsArray.length != 2) {
+            throw new InvalidParameterException("Credentials are set up incorrect. " +
+                    "Please, use ':' parameter as a separator for credentials. Example: test_user@test.com:123456");
+        }
+        String email = credentialsArray[0];
+        Objects.requireNonNull(email, "Email cannot be empty.");
+        String password = credentialsArray[1];
+        Objects.requireNonNull(password, "Password cannot be empty.");
+
+        SyndicateEnterpriseClient syndicateEnterpriseClient = Feign.builder()
+                .encoder(new JacksonEncoder())
+                .decoder(new JacksonDecoder())
+                .target(SyndicateEnterpriseClient.class, url);
+
+        TokenResponse tokenResponse = syndicateEnterpriseClient.token(new Credentials(email, password));
+        String token = tokenResponse.getToken();
+
+        SaveMetaRequest saveMetaRequest = new SaveMetaRequest(buildId, Instant.now().toEpochMilli(),
+                new ArrayList<>(configurations.values()));
+
+        SaveMetaResponse saveMetaResponse = syndicateEnterpriseClient.saveMeta(token, saveMetaRequest);
+        logger.info(saveMetaResponse.getMessage());
+        logger.info("Build id: " + saveMetaResponse.getBuildId());
     }
 
 }

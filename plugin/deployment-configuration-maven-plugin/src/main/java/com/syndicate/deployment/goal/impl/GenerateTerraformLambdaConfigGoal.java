@@ -79,12 +79,17 @@ public class GenerateTerraformLambdaConfigGoal extends GenerateLambdaConfigGoal 
         return terraformConfiguration;
     }
 
+    @Override
+    public void uploadMeta(Map<String, Object> configurations) {
+        // do nothing
+    }
+
     private Map<String, TerraformLambdaConfiguration> convertSyndicateToTerraformConfiguration(
             Map<String, LambdaConfiguration> syndicateConfiguration, String accountId, String region) {
         Map<String, TerraformLambdaConfiguration> lambdaResourcesMap = new HashMap<>(
                 syndicateConfiguration.size() + 1); // lambda resources + provider
 
-        for (Map.Entry<String, LambdaConfiguration> entry: syndicateConfiguration.entrySet()) {
+        for (Map.Entry<String, LambdaConfiguration> entry : syndicateConfiguration.entrySet()) {
             // Building TerraformLambdaConfiguration
             LambdaConfiguration syndicate = entry.getValue();
             String lambdaName = entry.getKey();

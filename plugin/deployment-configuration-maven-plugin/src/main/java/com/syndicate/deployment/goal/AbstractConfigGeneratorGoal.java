@@ -50,11 +50,9 @@ public abstract class AbstractConfigGeneratorGoal<T> extends AbstractMojo {
 
     private static final String DEFAULT_ENCODING = "UTF-8";
     private static final String MAVEN_TARGET_FOLDER_NAME = "target";
+    protected static final String CREDENTIALS_SEPARATOR = ":";
 
-    @Parameter(defaultValue = "${project}", required = true, readonly = true)
-    private MavenProject project;
-
-    @Parameter( required = true)
+    @Parameter(required = true)
     private String fileName;
 
     @Parameter(property = "maven.processor.skip", defaultValue = "false")
@@ -63,7 +61,16 @@ public abstract class AbstractConfigGeneratorGoal<T> extends AbstractMojo {
     @Parameter(required = true)
     private String[] packages;
 
-    private Log logger;
+    @Parameter(property = "maven.processor.credentials")
+    protected String credentials;
+
+    @Parameter(defaultValue = "${project}", required = true, readonly = true)
+    protected MavenProject project;
+
+    @Parameter
+    protected String url;
+
+    protected Log logger;
 
     public AbstractConfigGeneratorGoal() {
         this.logger = getLog();
@@ -99,6 +106,14 @@ public abstract class AbstractConfigGeneratorGoal<T> extends AbstractMojo {
 
     public void setFileName(String fileName) {
         this.fileName = fileName;
+    }
+
+    public String getCredentials() {
+        return credentials;
+    }
+
+    public void setCredentials(String credentials) {
+        this.credentials = credentials;
     }
 
     @Override
@@ -153,6 +168,11 @@ public abstract class AbstractConfigGeneratorGoal<T> extends AbstractMojo {
             Map<String, Object> convertedConfiguration = convertConfiguration(configurations);
             writeToFile(configPath, getDeploymentResourcesFileName(), JsonUtils.convertToJson(convertedConfiguration));
 
+            // credentials are set up, using Syndicate API to upload meta information
+            if (credentials != null) {
+                uploadMeta(convertedConfiguration);
+            }
+
         } catch (IOException e) {
             throw new MojoExecutionException("Goal execution failed", e);
         }
@@ -164,6 +184,8 @@ public abstract class AbstractConfigGeneratorGoal<T> extends AbstractMojo {
 
     public abstract IConfigurationProcessor<T> getAnnotationProcessor(
             String version, String fileName, String absolutePath, Class<?> lambdaClass);
+
+    public abstract void uploadMeta(Map<String, Object> configurations);
 
     private Set<URI> getUris() throws MojoExecutionException {
         Set<URI> uris = new HashSet<>();

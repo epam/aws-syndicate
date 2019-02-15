@@ -154,6 +154,7 @@ public class GenerateLambdaConfigMojoSuccessTest {
         // configs are equal
         // lambda_execute_notification
         LambdaConfiguration snsLambdaExecutorConfiguration = new LambdaConfiguration.Builder()
+                .withName("lambda_execute_notification")
                 .withTracingMode(TracingMode.Active.getMode())
                 .withMemory(1024)
                 .withFunction(SnsLambdaExecutor.class.getName())
@@ -179,6 +180,7 @@ public class GenerateLambdaConfigMojoSuccessTest {
 
         // lambda_process_notification
         LambdaConfiguration snsLambdaProcessorConfiguration = new LambdaConfiguration.Builder()
+                .withName("lambda_process_notification")
                 .withTracingMode(TracingMode.Active.getMode())
                 .withMemory(1024)
                 .withFunction(SnsLambdaProcessor.class.getName() + ":handle")
