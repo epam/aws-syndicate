@@ -262,6 +262,26 @@ def _create_api_gateway_from_meta(name, meta):
     api_resources = meta['resources']
 
     api_id = _API_GATEWAY_CONN.create_rest_api(name)['id']
+
+    # deploy authorizers
+    authorizers = meta.get('authorizers', {})
+    for key, val in authorizers.items():
+        lambda_version = val.get('lambda_version')
+        lambda_name = val.get('lambda_name')
+        lambda_alias = val.get('lambda_alias')
+        lambda_arn = resolve_lambda_arn_by_version_and_alias(lambda_name,
+                                                             lambda_version,
+                                                             lambda_alias)
+        uri = 'arn:aws:apigateway:{0}:lambda:path/2015-03-31/functions/{1}/invocations'.format(
+            CONFIG.region, lambda_arn)
+        _API_GATEWAY_CONN.create_authorizer(api_id=api_id, name=key,
+                                            type=val['type'],
+                                            authorizer_uri=uri,
+                                            identity_source=val.get(
+                                                'identity_source'),
+                                            ttl=val.get('ttl'))
+        _LAMBDA_CONN.add_invocation_permission(lambda_arn,
+                                               "apigateway.amazonaws.com")
     if api_resources:
         args = __prepare_api_resources_args(api_id, api_resources)
         create_pool(_create_resource_from_metadata, args, 1)
@@ -311,6 +331,9 @@ def __deploy_api_gateway(api_id, meta, api_resources):
 
 
 def __prepare_api_resources_args(api_id, api_resources):
+    # describe authorizers and create a mapping
+    authorizers = _API_GATEWAY_CONN.get_authorizers(api_id)
+    authorizers_mapping = {x['name']: x['id'] for x in authorizers}
     args = []
     for each in api_resources:
         resource_meta = api_resources[each]
@@ -321,12 +344,14 @@ def __prepare_api_resources_args(api_id, api_resources):
                 _LOG.info('Resource %s exists.', each)
                 enable_cors = resource_meta.get('enable_cors')
                 _check_existing_methods(api_id, resource_id, each,
-                                        resource_meta, enable_cors)
+                                        resource_meta, enable_cors,
+                                        authorizers_mapping)
             else:
                 args.append({
                     'api_id': api_id,
                     'resource_path': each,
-                    'resource_meta': resource_meta
+                    'resource_meta': resource_meta,
+                    'authorizers_mapping': authorizers_mapping
                 })
         else:
             raise AssertionError(
@@ -353,7 +378,7 @@ def describe_api_resources(name, meta, api_id=None):
 
 
 def _check_existing_methods(api_id, resource_id, resource_path, resource_meta,
-                            enable_cors):
+                            enable_cors, authorizers_mapping):
     """ Check if all specified methods exist and create some if not.
 
     :type api_id: str
@@ -373,6 +398,7 @@ def _check_existing_methods(api_id, resource_id, resource_path, resource_meta,
                       method, resource_id)
             _create_method_from_metadata(api_id, resource_id, resource_path,
                                          method, resource_meta[method],
+                                         authorizers_mapping,
                                          enable_cors)
     if enable_cors and not _API_GATEWAY_CONN.get_method(api_id, resource_id,
                                                         'OPTIONS'):
@@ -381,7 +407,8 @@ def _check_existing_methods(api_id, resource_id, resource_path, resource_meta,
 
 
 @unpack_kwargs
-def _create_resource_from_metadata(api_id, resource_path, resource_meta):
+def _create_resource_from_metadata(api_id, resource_path, resource_meta,
+                                   authorizers_mapping):
     _API_GATEWAY_CONN.create_resource(api_id, resource_path)
     _LOG.info('Resource %s created.', resource_path)
     resource_id = _API_GATEWAY_CONN.get_resource_id(api_id, resource_path)
@@ -395,7 +422,8 @@ def _create_resource_from_metadata(api_id, resource_path, resource_meta):
             _LOG.info('Creating method %s for resource %s...',
                       method, resource_path)
             _create_method_from_metadata(api_id, resource_id, resource_path,
-                                         method, method_meta, enable_cors)
+                                         method, method_meta,
+                                         authorizers_mapping, enable_cors)
         except Exception as e:
             _LOG.error('Resource: {0}, method {1}.'
                        .format(resource_path, method), exc_info=True)
@@ -446,15 +474,28 @@ def _generate_final_response(default_error_pattern=None, responses=None,
 
 
 def _create_method_from_metadata(api_id, resource_id, resource_path, method,
-                                 method_meta, enable_cors=False):
+                                 method_meta, authorizers_mapping,
+                                 enable_cors=False):
     resp, integr_resp = _generate_final_response(
         method_meta.get("default_error_pattern"),
         method_meta.get("responses"),
         method_meta.get("integration_responses"))
     # first step: create method
+
+    # resolve authorizer if needed
+    authorization_type = method_meta.get('authorization_type')
+    if authorization_type not in ['NONE', 'AWS_IAM']:
+        # type is authorizer, so add id to meta
+        authorizer_id = authorizers_mapping.get(authorization_type)
+        if not authorizer_id:
+            raise AssertionError(
+                'Authorizer {0} does not exist'.format(authorization_type))
+        method_meta['authorizer_id'] = authorizer_id
+        authorization_type = 'CUSTOM'
+
     _API_GATEWAY_CONN.create_method(
         api_id, resource_id, method,
-        authorization_type=method_meta.get('authorization_type'),
+        authorization_type=authorization_type,
         authorizer_id=method_meta.get('authorizer_id'),
         api_key_required=method_meta.get('api_key_required'),
         request_parameters=method_meta.get('method_request_parameters'),

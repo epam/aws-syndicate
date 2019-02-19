@@ -36,7 +36,7 @@ def exception_handler(exception_type, exception, traceback):
     print(exception)
 
 
-sys.excepthook = exception_handler
+# sys.excepthook = exception_handler
 
 # suppress botocore warnings
 urllib3.disable_warnings()

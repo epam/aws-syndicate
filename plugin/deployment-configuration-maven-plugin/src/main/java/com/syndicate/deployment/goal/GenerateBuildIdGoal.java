@@ -27,9 +27,8 @@ public class GenerateBuildIdGoal extends AbstractMojo {
 
     @Override
     public void execute() {
-        logger.info("ROFLAN EBALO");
         String uuid = UUID.randomUUID().toString();
-        logger.info(uuid);
+        logger.info("Build id: " + uuid);
         project.getProperties().setProperty("syndicate-build-id", uuid);
     }
 
