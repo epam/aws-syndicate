@@ -74,8 +74,6 @@ def _create_cloud_watch_rule_from_meta(name, meta, region):
     if rule_type:
         if rule_type == 'schedule':
             required_parameters.append('expression')
-        elif rule_type == 'api_call':
-            required_parameters.append('aws_service')
     validate_params(name, meta, required_parameters)
 
     event_buses = meta.get('event_bus_accounts')
@@ -130,9 +128,9 @@ def _create_schedule_rule(rule_name, rule_meta, cw_conn):
 
 def _create_api_call_rule(rule_name, rule_meta, cw_conn):
     cw_conn.create_api_call_rule(name=rule_name,
-                                 aws_service=rule_meta['aws_service'],
+                                 aws_service=rule_meta.get('aws_service'),
                                  operations=rule_meta.get('operations'),
-                                 custom_pattern=rule_meta.get('pattern'))
+                                 custom_pattern=rule_meta.get('custom_pattern'))
 
 
 RULE_TYPES = {

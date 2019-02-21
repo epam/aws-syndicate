@@ -138,7 +138,7 @@ class EventConnection(object):
         self.client.put_rule(Name=name, EventPattern=dumps(event_pattern),
                              State=state, Description=name)
 
-    def create_api_call_rule(self, name, aws_service, operations=None, custom_pattern=None,
+    def create_api_call_rule(self, name, aws_service=None, operations=None, custom_pattern=None,
                              state='ENABLED'):
         """ To select ANY operation do not set 'operations' param.
 
@@ -152,7 +152,7 @@ class EventConnection(object):
         """
         if custom_pattern:
             event_pattern = custom_pattern
-        else:
+        elif aws_service:
             event_pattern = {
                 "detail-type":
                     [
@@ -168,6 +168,10 @@ class EventConnection(object):
             }
             if operations:
                 event_pattern['detail']['eventName'] = operations
+        else:
+            raise AssertionError(
+                'aws_service or custom_pattern should be specified for rule with "api_call" type! '
+                'Resource: {0}'.format(name))
 
         self.client.put_rule(Name=name, EventPattern=dumps(event_pattern),
                              State=state, Description=name)
