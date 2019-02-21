@@ -128,9 +128,9 @@ def _create_schedule_rule(rule_name, rule_meta, cw_conn):
 
 def _create_api_call_rule(rule_name, rule_meta, cw_conn):
     cw_conn.create_api_call_rule(name=rule_name,
-                                 aws_service=rule_meta['aws_service'],
+                                 aws_service=rule_meta.get['aws_service'],
                                  operations=rule_meta.get('operations'),
-                                 custom_pattern=rule_meta.get('pattern'))
+                                 custom_pattern=rule_meta.get('custom_pattern'))
 
 
 RULE_TYPES = {
