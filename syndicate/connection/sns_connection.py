@@ -13,10 +13,10 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+import uuid
 from json import dumps, loads
 
 from boto3 import client
-
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import apply_methods_decorator, retry
 
@@ -170,7 +170,7 @@ class SNSConnection(object):
         existing_policy = existing_attr['Attributes']['Policy']
         existing_policy_dict = loads(existing_policy)
         policy = {
-            "Sid": "Allow_Publish_Events",
+            "Sid": str(uuid.uuid1()),
             "Effect": "Allow",
             "Principal":
                 {
