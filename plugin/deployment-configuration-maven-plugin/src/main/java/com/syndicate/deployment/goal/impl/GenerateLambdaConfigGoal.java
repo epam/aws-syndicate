@@ -95,7 +95,7 @@ public class GenerateLambdaConfigGoal extends AbstractConfigGeneratorGoal<Lambda
         TokenResponse tokenResponse = syndicateEnterpriseClient.token(new Credentials(email, password));
         String token = tokenResponse.getToken();
 
-        SaveMetaRequest saveMetaRequest = new SaveMetaRequest(buildId, Instant.now().toEpochMilli(),
+        SaveMetaRequest saveMetaRequest = new SaveMetaRequest(buildId, Instant.now().toEpochMilli() / 1000,
                 new ArrayList<>(configurations.values()));
 
         SaveMetaResponse saveMetaResponse = syndicateEnterpriseClient.saveMeta(token, saveMetaRequest);
