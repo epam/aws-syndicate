@@ -16,7 +16,6 @@
 import time
 
 from botocore.exceptions import ClientError
-
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import retry
 from syndicate.core import CONFIG, CONN
@@ -316,7 +315,9 @@ def _create_s3_trigger_from_meta(lambda_name, lambda_arn, role_name,
                                            'arn:aws:s3:::{0}'.format(
                                                target_bucket))
     _S3_CONN.configure_event_source_for_lambda(target_bucket, lambda_arn,
-                                               trigger_meta['s3_events'])
+                                               trigger_meta['s3_events'],
+                                               trigger_meta.get(
+                                                   'filter_rules'))
     _LOG.info('Lambda %s subscribed to S3 bucket %s', lambda_name,
               target_bucket)
 

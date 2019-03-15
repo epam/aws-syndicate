@@ -18,7 +18,6 @@ from json import dumps
 from boto3 import resource
 from botocore.client import Config
 from botocore.exceptions import ClientError
-
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import apply_methods_decorator, retry
 
@@ -165,27 +164,37 @@ class S3Connection(object):
     def delete_bucket(self, bucket_name):
         self.client.delete_bucket(Bucket=bucket_name)
 
-    def configure_event_source_for_lambda(self, bucket, lambda_arn, events):
+    def configure_event_source_for_lambda(self, bucket, lambda_arn, events,
+                                          filter_rules=None):
         """
         :type bucket: str
         :type lambda_arn: str
         :type events: list
+        :type filter_rules: list
         :param events: 's3:ReducedRedundancyLostObject'|'s3:ObjectCreated:*'|
         's3:ObjectCreated:Put'|'s3:ObjectCreated:Post'|'s3:ObjectCreated:Copy'|
         's3:ObjectCreated:CompleteMultipartUpload'|'s3:ObjectRemoved:*'|
         's3:ObjectRemoved:Delete'|'s3:ObjectRemoved:DeleteMarkerCreated'
         """
+        params = {
+            'LambdaFunctionConfigurations': [
+                {
+                    'LambdaFunctionArn': lambda_arn,
+                    'Events': events
+                }
+            ]
+        }
+        if filter_rules:
+            params['LambdaFunctionConfigurations'][0].update({
+                "Filter": {
+                    'Key': {
+                        'FilterRules': filter_rules
+                    }
+                }
+            })
         self.client.put_bucket_notification_configuration(
             Bucket=bucket,
-            NotificationConfiguration={
-                'LambdaFunctionConfigurations': [
-                    {
-                        'LambdaFunctionArn': lambda_arn,
-                        'Events': events
-                    }
-                ]
-            }
-        )
+            NotificationConfiguration=params)
 
     def get_list_buckets(self):
         response = self.client.list_buckets()
