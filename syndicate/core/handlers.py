@@ -67,32 +67,36 @@ def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
           excluded_resources_path, excluded_types, rollback):
     click.echo('Command clean')
     click.echo('Deploy name: %s' % deploy_name)
+    if clean_only_types:
+        click.echo('Clean only types: %s' % str(clean_only_types))
+    if clean_only_resources:
+        click.echo('Clean only resources : %s' % clean_only_resources)
+    if clean_only_resources_path:
+        click.echo(
+            'Clean only resources path: %s' % clean_only_resources_path)
+    if excluded_resources:
+        click.echo('Excluded resources: %s' % str(excluded_resources))
+    if excluded_resources_path:
+        click.echo('Excluded resources path: %s' % excluded_resources_path)
+    if excluded_types:
+        click.echo('Excluded types: %s' % str(excluded_types))
+    if clean_only_resources_path and os.path.exists(
+            clean_only_resources_path):
+        clean_resources_list = json.load(open(clean_only_resources_path))
+        clean_only_resources = tuple(
+            set(clean_only_resources + tuple(clean_resources_list)))
+    if excluded_resources_path and os.path.exists(excluded_resources_path):
+        excluded_resources_list = json.load(open(excluded_resources_path))
+        excluded_resources = tuple(
+            set(excluded_resources + tuple(excluded_resources_list)))
     if rollback:
         remove_failed_deploy_resources(deploy_name=deploy_name,
-                                       bundle_name=bundle_name)
+                                       bundle_name=bundle_name,
+                                       clean_only_resources=clean_only_resources,
+                                       clean_only_types=clean_only_types,
+                                       excluded_resources=excluded_resources,
+                                       excluded_types=excluded_types)
     else:
-        if clean_only_types:
-            click.echo('Clean only types: %s' % str(clean_only_types))
-        if clean_only_resources:
-            click.echo('Clean only resources : %s' % clean_only_resources)
-        if clean_only_resources_path:
-            click.echo(
-                'Clean only resources path: %s' % clean_only_resources_path)
-        if excluded_resources:
-            click.echo('Excluded resources: %s' % str(excluded_resources))
-        if excluded_resources_path:
-            click.echo('Excluded resources path: %s' % excluded_resources_path)
-        if excluded_types:
-            click.echo('Excluded types: %s' % str(excluded_types))
-        if clean_only_resources_path and os.path.exists(
-                clean_only_resources_path):
-            clean_resources_list = json.load(open(clean_only_resources_path))
-            clean_only_resources = tuple(
-                set(clean_only_resources + tuple(clean_resources_list)))
-        if excluded_resources_path and os.path.exists(excluded_resources_path):
-            excluded_resources_list = json.load(open(excluded_resources_path))
-            excluded_resources = tuple(
-                set(excluded_resources + tuple(excluded_resources_list)))
         remove_deployment_resources(deploy_name=deploy_name,
                                     bundle_name=bundle_name,
                                     clean_only_resources=clean_only_resources,
