@@ -39,7 +39,7 @@ class SecretsManagerConnection(object):
         arguments = {
             'SecretId': secret_id,
         }
-        if version_id & version_label:
+        if version_id and version_label:
             raise AssertionError('version_id and version_label cannot be passed both')
         elif version_id:
             arguments['VersionId'] = version_id
