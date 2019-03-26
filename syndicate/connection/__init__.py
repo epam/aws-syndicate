@@ -172,7 +172,7 @@ class ConnectionProvider(object):
         credentials = self.credentials.copy()
         if region:
             credentials['region'] = region
-        return SSMConnection(**credentials)\
+        return SSMConnection(**credentials)
 
 
     @lru_cache(maxsize=None)
