@@ -33,6 +33,7 @@ from syndicate.connection.kinesis_connection import KinesisConnection
 from syndicate.connection.kms_connection import KMSConnection
 from syndicate.connection.lambda_connection import LambdaConnection
 from syndicate.connection.s3_connection import S3Connection
+from syndicate.connection.secrets_manager_connection import SecretsManagerConnection
 from syndicate.connection.sns_connection import SNSConnection
 from syndicate.connection.sqs_connection import SqsConnection
 from syndicate.connection.ssm_connection import SSMConnection
@@ -172,3 +173,11 @@ class ConnectionProvider(object):
         if region:
             credentials['region'] = region
         return SSMConnection(**credentials)
+
+
+    @lru_cache(maxsize=None)
+    def secrets_manager(self, region=None):
+        credentials = self.credentials.copy()
+        if region:
+            credentials['region'] = region
+        return SecretsManagerConnection(**credentials)
