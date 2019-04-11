@@ -221,7 +221,7 @@ def _look_for_configs(nested_files, resources_meta, path, bundle_name):
         if each == RESOURCES_FILE_NAME:
             additional_config_path = os.path.join(path, RESOURCES_FILE_NAME)
             _LOG.debug('Processing file: {0}'.format(additional_config_path))
-            with open(additional_config_path) as json_file:
+            with open(additional_config_path, encoding='utf-8') as json_file:
                 deployment_resources = load(json_file)
             for resource_name in deployment_resources:
                 _LOG.debug('Found resource ' + resource_name)
