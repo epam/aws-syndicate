@@ -35,19 +35,22 @@ class SecretsManagerConnection(object):
         response = self.client.describe_secret(SecretId=secret_id)
         return response
 
-    def get_secret_value(self, secret_id, secret_type='string', version_id=None, version_label=None):
+    def get_secret_value(self, secret_id, secret_type='string', version_id=None,
+                         version_label=None):
         arguments = {
             'SecretId': secret_id,
         }
         if version_id and version_label:
-            raise AssertionError('version_id and version_label cannot be passed both')
+            raise AssertionError(
+                'Version_id and version_label cannot be passed both')
         elif version_id:
             arguments['VersionId'] = version_id
         else:
             arguments['VersionLabel'] = version_label
 
         if secret_type != 'string' and secret_type != 'binary':
-            raise AssertionError('wrong type value. only string or binary is allowed')
+            raise AssertionError(
+                'Wrong type value. only string or binary is allowed')
 
         response = self.client.get_secret_value(**arguments)
         if response and secret_type == 'string':
@@ -55,22 +58,49 @@ class SecretsManagerConnection(object):
         if response and secret_type == 'binary':
             return response.get('SecretBinary')
 
+    def create_secret(self, secret_id, secret_value, secret_type='string',
+                      description=None, key=None, token=None):
+        arguments = {
+            'Name': secret_id,
+        }
+        if description:
+            arguments['Description'] = description
+        if key:
+            arguments['KmsKeyId'] = key
+        if token:
+            arguments['ClientRequestToken'] = token
+        if secret_type == 'string':
+            arguments['SecretString'] = secret_value
+        elif secret_type == 'binary':
+            arguments['SecretBinary'] = secret_value
+        else:
+            raise AssertionError(
+                'Wrong secret_type value. only string or binary is allowed')
+        self.client.create_secret(**arguments)
+
     def put_secret_value(self, secret_id, secret_value, secret_type='string',
                          labels=None):
-        labels = set(labels)
-        arguments = {
-            'SecretId': secret_id,
-            'VersionStages': labels
-        }
+        if labels:
+            labels = set(labels)
+            arguments = {
+                'SecretId': secret_id,
+                'VersionStages': labels
+            }
+        else:
+            arguments = {
+                'SecretId': secret_id,
+            }
 
         if secret_type == 'string':
             arguments['SecretString'] = secret_value
         elif secret_type == 'binary':
             arguments['SecretBinary'] = secret_value
         else:
-            raise AssertionError('wrong secret_type value. only string or binary is allowed')
-
+            raise AssertionError(
+                'Wrong secret_type value. only string or binary is allowed')
         self.client.put_secret_value(**arguments)
 
-    def delete_secret(self, secret_id):
-        self.client.delete_parameter(SecretId=secret_id)
+    def delete_secret(self, secret_id, force=True, recovery_days=None):
+        self.client.delete_secret(SecretId=secret_id,
+                                  ForceDeleteWithoutRecovery=force,
+                                  RecoveryWindowInDays=recovery_days)
