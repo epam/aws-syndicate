@@ -61,21 +61,20 @@ def get_dependencies(name, meta, resources_dict, resources):
 
 # todo implement resources sorter according to priority
 def _process_resources(resources, handlers_mapping):
-    res_type = None
     output = {}
     args = []
     resource_type = None
     try:
         for res_name, res_meta in resources:
-            res_type = res_meta['resource_type']
+            current_res_type = res_meta['resource_type']
 
             if resource_type is None:
-                resource_type = res_type
+                resource_type = current_res_type
 
-            if res_type == resource_type:
+            if current_res_type == resource_type:
                 args.append({'name': res_name, 'meta': res_meta})
                 continue
-            elif res_type != resource_type:
+            elif current_res_type != resource_type:
                 _LOG.info('Processing {0} resources ...'.format(resource_type))
                 func = handlers_mapping[resource_type]
                 response = func(args)  # todo exception may be raised here
@@ -83,7 +82,7 @@ def _process_resources(resources, handlers_mapping):
                     output.update(response)
                 del args[:]
                 args.append({'name': res_name, 'meta': res_meta})
-                resource_type = res_type
+                resource_type = current_res_type
         if args:
             _LOG.info('Processing {0} resources ...'.format(resource_type))
             func = handlers_mapping[resource_type]
@@ -93,7 +92,7 @@ def _process_resources(resources, handlers_mapping):
         return True, output
     except Exception as e:
         _LOG.error('Error occurred while {0} resource creating: {1}'.format(
-            res_type, str(e)))
+            resource_type, str(e)))
         # args list always contains one item here
         return False, update_failed_output(args[0]['name'], args[0]['meta'],
                                            resource_type, output)
