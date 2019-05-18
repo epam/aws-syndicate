@@ -61,21 +61,20 @@ def get_dependencies(name, meta, resources_dict, resources):
 
 # todo implement resources sorter according to priority
 def _process_resources(resources, handlers_mapping):
-    res_type = None
     output = {}
     args = []
     resource_type = None
     try:
         for res_name, res_meta in resources:
-            res_type = res_meta['resource_type']
+            current_res_type = res_meta['resource_type']
 
             if resource_type is None:
-                resource_type = res_type
+                resource_type = current_res_type
 
-            if res_type == resource_type:
+            if current_res_type == resource_type:
                 args.append({'name': res_name, 'meta': res_meta})
                 continue
-            elif res_type != resource_type:
+            elif current_res_type != resource_type:
                 _LOG.info('Processing {0} resources ...'.format(resource_type))
                 func = handlers_mapping[resource_type]
                 response = func(args)  # todo exception may be raised here
@@ -83,7 +82,7 @@ def _process_resources(resources, handlers_mapping):
                     output.update(response)
                 del args[:]
                 args.append({'name': res_name, 'meta': res_meta})
-                resource_type = res_type
+                resource_type = current_res_type
         if args:
             _LOG.info('Processing {0} resources ...'.format(resource_type))
             func = handlers_mapping[resource_type]
@@ -93,7 +92,7 @@ def _process_resources(resources, handlers_mapping):
         return True, output
     except Exception as e:
         _LOG.error('Error occurred while {0} resource creating: {1}'.format(
-            res_type, str(e)))
+            resource_type, str(e)))
         # args list always contains one item here
         return False, update_failed_output(args[0]['name'], args[0]['meta'],
                                            resource_type, output)
@@ -365,9 +364,32 @@ def continue_deployment_resources(deploy_name, bundle_name,
 
 
 @exit_on_exception
-def remove_failed_deploy_resources(deploy_name, bundle_name):
+def remove_failed_deploy_resources(deploy_name, bundle_name,
+                                   clean_only_resources=None,
+                                   clean_only_types=None,
+                                   excluded_resources=None,
+                                   excluded_types=None):
     output = load_failed_deploy_output(bundle_name, deploy_name)
     _LOG.info('Failed output file was loaded successfully')
+
+    # TODO make filter chain
+    if clean_only_resources:
+        output = dict((k, v) for (k, v) in output.items() if
+                      v['resource_name'] in clean_only_resources)
+
+    if excluded_resources:
+        output = dict((k, v) for (k, v) in output.items() if
+                      v['resource_name'] not in excluded_resources)
+
+    if clean_only_types:
+        output = dict((k, v) for (k, v) in output.items() if
+                      v['resource_meta']['resource_type'] in clean_only_types)
+
+    if excluded_types:
+        output = dict((k, v) for (k, v) in output.items() if
+                      v['resource_meta'][
+                          'resource_type'] not in excluded_types)
+
     # sort resources with priority
     resources_list = list(output.items())
     resources_list.sort(key=cmp_to_key(_compare_clean_resources))
