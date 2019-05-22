@@ -63,7 +63,8 @@ def retry(handler_func):
             'RegisterScalableTarget',
             'TopicArn can not be None',
             'DeleteRole',
-            'Max attempts exceeded'
+            'Max attempts exceeded',
+            'UpdateGatewayResponse'
         ]
         for each in range(1, 20, 3):
             try:

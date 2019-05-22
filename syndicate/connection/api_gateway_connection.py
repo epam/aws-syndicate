@@ -476,6 +476,10 @@ class ApiGatewayConnection(object):
             'path': path,
             'value': value
         }
+        _LOG.info(
+            'Update Gateway response context: api_id:{0}; '
+            'response_type:{1}; name:{2}; operation:{3};'.format(
+                api_id, response_type, name, operation))
 
         return self.client.update_gateway_response(restApiId=api_id,
                                                    responseType=response_type,

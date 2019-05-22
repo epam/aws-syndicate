@@ -150,11 +150,11 @@ def create_api_gateway(args):
 
     :type args: list
     """
-    return create_pool(_create_api_gateway_from_meta, args)
+    return create_pool(_create_api_gateway_from_meta, args, 1)
 
 
 def api_gateway_update_processor(args):
-    return create_pool(_create_or_update_api_gateway, args)
+    return create_pool(_create_or_update_api_gateway, args, 1)
 
 
 @unpack_kwargs
@@ -583,7 +583,7 @@ def _customize_gateway_responses(api_id):
     responses = _API_GATEWAY_CONN.get_gateway_responses(api_id)
     response_types = [r['responseType'] for r in responses]
     for response_type in response_types:
-        time.sleep(10)
+        time.sleep(20)
         _API_GATEWAY_CONN.add_header_to_gateway_response(api_id, response_type,
                                                          _CORS_HEADER_NAME,
                                                          _CORS_HEADER_VALUE)
