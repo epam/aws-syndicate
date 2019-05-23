@@ -18,7 +18,7 @@ public interface SyndicateEnterpriseClient {
     TokenResponse token(Credentials credentials);
 
     @RequestLine("POST /meta")
-    @Headers({"Content-Type: application/json", "authorizationToken: {token}"})
+    @Headers({"Content-Type: application/json", "Authorization: {token}"})
     SaveMetaResponse saveMeta(@Param("token") String token, SaveMetaRequest saveMetaRequest);
 
 }
