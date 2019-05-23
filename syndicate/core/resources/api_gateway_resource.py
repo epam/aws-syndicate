@@ -546,7 +546,7 @@ def _customize_gateway_responses(api_id):
     responses = _API_GATEWAY_CONN.get_gateway_responses(api_id)
     response_types = [r['responseType'] for r in responses]
     for response_type in response_types:
-        time.sleep(10)
+        time.sleep(20)
         _API_GATEWAY_CONN.add_header_to_gateway_response(api_id, response_type,
                                                          _CORS_HEADER_NAME,
                                                          _CORS_HEADER_VALUE)
