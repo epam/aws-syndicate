@@ -114,7 +114,7 @@ def _create_lambda_from_meta(name, meta):
                                                      dl_name) if dl_type and dl_name else None
 
     publish_version = meta.get('publish_version', False)
-
+    _LOG.debug('Creating lambda %s', name)
     _LAMBDA_CONN.create_lambda(
         lambda_name=name,
         func_name=meta['func_name'],
@@ -131,7 +131,7 @@ def _create_lambda_from_meta(name, meta):
         tracing_mode=meta.get('tracing_mode'),
         publish_version=publish_version
     )
-
+    _LOG.debug('Lambda created %s', name)
     # AWS sometimes returns None after function creation, needs for stability
     time.sleep(10)
     response = __describe_lambda_by_version(
@@ -169,7 +169,7 @@ def _create_lambda_from_meta(name, meta):
             trigger_type = trigger_meta['resource_type']
             func = CREATE_TRIGGER[trigger_type]
             func(name, arn, role_name, trigger_meta)
-    _LOG.info('Created lambda %s.', name)
+    _LOG.info('Lambda %s has been successfully configured', name)
     return describe_lambda(name, meta, response)
 
 

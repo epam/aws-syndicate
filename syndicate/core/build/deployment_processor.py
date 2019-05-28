@@ -92,8 +92,8 @@ def _process_resources(resources, handlers_mapping):
                 output.update(response)
         return True, output
     except Exception as e:
-        _LOG.error('Error occurred while {0} resource creating: {1}'.format(
-            res_type, str(e)))
+        _LOG.exception('Error occurred while {0} '
+                       'resource creating: {1}'.format(res_type, str(e)))
         # args list always contains one item here
         return False, update_failed_output(args[0]['name'], args[0]['meta'],
                                            resource_type, output)
@@ -204,7 +204,7 @@ def continue_deploy_resources(resources, failed_output):
                 # move existing output- for resources to new output
                 __move_output_content(args, failed_output, updated_output)
     except Exception as e:
-        _LOG.error('Error occurred while {0} resource creating: {1}'.format(
+        _LOG.exception('Error occurred while {0} resource creating: {1}'.format(
             res_type, str(e)))
         deploy_result = False
 
