@@ -48,6 +48,7 @@
                     <packages>
                         <package>com.aws.syndicate.demo</package>
                     </packages>
+                    <fileName>${project.name}-${project.version}.jar</fileName>
                 </configuration>
                 <executions>
                     <execution>
