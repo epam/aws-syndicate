@@ -1,5 +1,5 @@
 
-# AWS deployment framework for serveless applications
+# AWS deployment framework for serverless applications
 
 aws-syndicate is an Amazon Web Services deployment framework written in Python, which allows to easily deploy serverless applications using resource descriptions. The framework allows to work with applications that engage the following AWS services:
 
