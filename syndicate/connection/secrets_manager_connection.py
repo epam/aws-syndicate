@@ -100,7 +100,6 @@ class SecretsManagerConnection(object):
                 'Wrong secret_type value. only string or binary is allowed')
         self.client.put_secret_value(**arguments)
 
-    def delete_secret(self, secret_id, force=True, recovery_days=None):
+    def delete_secret(self, secret_id, force=True):
         self.client.delete_secret(SecretId=secret_id,
-                                  ForceDeleteWithoutRecovery=force,
-                                  RecoveryWindowInDays=recovery_days)
+                                  ForceDeleteWithoutRecovery=force)
