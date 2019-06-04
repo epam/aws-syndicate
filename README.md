@@ -102,7 +102,7 @@ Next, build aws-syndicate bundle with artifacts to be deployed:
 
 Then, deploy AWS resources:
 
-    $ syndicate deploy --bundle_name demo-deploy –-deploy_name sdct-example
+    $ syndicate deploy --bundle_name demo-deploy --deploy_name sdct-example
 
 We have done it!
 
@@ -110,7 +110,7 @@ The demo serverless application is ready to be used.
 
 If you need to clean AWS resources:
 
-    $ syndicate clean --bundle_name demo-deploy –-deploy_name sdct-example
+    $ syndicate clean --bundle_name demo-deploy --deploy_name sdct-example
 
 Documentation
 ------------
