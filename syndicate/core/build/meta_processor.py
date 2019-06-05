@@ -14,6 +14,8 @@
     limitations under the License.
 """
 import os
+import random
+import string
 from json import load
 
 from syndicate.commons.log_helper import get_logger
@@ -23,7 +25,8 @@ from syndicate.core.conf.config_holder import GLOBAL_AWS_SERVICES
 from syndicate.core.constants import (API_GATEWAY_TYPE, ARTIFACTS_FOLDER,
                                       BUILD_META_FILE_NAME, EBS_TYPE,
                                       LAMBDA_CONFIG_FILE_NAME, LAMBDA_TYPE,
-                                      RESOURCES_FILE_NAME, RESOURCE_LIST)
+                                      RESOURCES_FILE_NAME, RESOURCE_LIST,
+                                      IAM_ROLE)
 from syndicate.core.helper import (build_path, prettify_json,
                                    resolve_aliases_for_string,
                                    write_content_to_file)
@@ -160,8 +163,10 @@ def _populate_s3_path_lambda(meta, bundle_name):
         resolver_func(meta, bundle_name)
     else:
         raise AssertionError(
-            'Lambda config must contain runtime. '
-            'Existing configuration: {0}'.format(prettify_json(meta)))
+            'Specified runtime {0} in {1} is not supported. '
+            'Supported runtimes: {2}'.format(
+                runtime.lower(), meta.get('name'),
+                list(RUNTIME_PATH_RESOLVER.keys())))
 
 
 def _populate_s3_path_ebs(meta, bundle_name):
@@ -312,6 +317,7 @@ def create_meta(bundle_name):
 
 
 def resolve_meta(overall_meta):
+    iam_suffix = _generate_iam_id()
     for key, value in CONFIG.aliases.items():
         name = '${' + key + '}'
         overall_meta = resolve_dynamic_identifier(name, value, overall_meta)
@@ -324,6 +330,8 @@ def resolve_meta(overall_meta):
         resource_type = res_meta['resource_type']
         if resource_type in GLOBAL_AWS_SERVICES:
             resolved_name = resolve_resource_name(name)
+            if resource_type == IAM_ROLE:
+                resolved_name = resolved_name + iam_suffix
             if name != resolved_name:
                 resolved_names[name] = resolved_name
     _LOG.debug('Going to resolve names in meta')
@@ -356,3 +364,10 @@ def _resolve_suffix_name(resource_name, resource_suffix):
     if resource_suffix:
         return resource_name + resolve_aliases_for_string(resource_suffix)
     return resource_name
+
+
+def _generate_iam_id(stringLength=4):
+    """Generate a random string with the combination of
+    lowercase and letters """
+    letters = string.ascii_lowercase
+    return '-' + ''.join(random.choice(letters) for i in range(stringLength))
