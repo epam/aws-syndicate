@@ -97,8 +97,9 @@ class ConfigHolder:
     def __init__(self, dir_path):
         con_path = os.path.join(dir_path, CONFIG_FILE_NAME)
         if not os.path.isfile(con_path):
-            raise Exception(
-                'sdct.conf does not exist inside %s folder' % dir_path)
+            open(con_path, "w+")
+            _LOG.warn('sdct.conf has been created in {} folder'.format(
+                dir_path))
         self._config_dict = ConfigObj(con_path, configspec=REQUIRED_PARAMETERS)
         # validate
         self._validate()
@@ -107,8 +108,9 @@ class ConfigHolder:
         # init aliases
         alias_path = os.path.join(dir_path, 'sdct_aliases.conf')
         if not os.path.exists(alias_path):
-            _LOG.warn('sdct_aliases.conf does not exist '
-                      'inside %s folder' % dir_path)
+            open(alias_path, "w+")
+            _LOG.warn('sdct_aliases.conf has been created in {} folder'.format(
+                dir_path))
         else:
             self._aliases = ConfigObj(alias_path)
 
