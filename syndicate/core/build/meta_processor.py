@@ -318,10 +318,11 @@ def create_meta(bundle_name):
 
 def resolve_meta(overall_meta):
     iam_suffix = _generate_iam_id()
-    for key, value in CONFIG.aliases.items():
-        name = '${' + key + '}'
-        overall_meta = resolve_dynamic_identifier(name, value, overall_meta)
-    _LOG.debug('Resolved meta was created')
+    if CONFIG.aliases:
+        for key, value in CONFIG.aliases.items():
+            name = '${' + key + '}'
+            overall_meta = resolve_dynamic_identifier(name, value, overall_meta)
+            _LOG.debug('Resolved meta was created')
     _LOG.debug(prettify_json(overall_meta))
     # get dict with resolved prefix and suffix in meta resources
     # key: current_name, value: resolved_name
