@@ -369,6 +369,6 @@ def _resolve_suffix_name(resource_name, resource_suffix):
 
 def _generate_iam_id(stringLength=4):
     """Generate a random string with the combination of
-    lowercase and letters """
+    lowercase letters """
     letters = string.ascii_lowercase
     return '-' + ''.join(random.choice(letters) for i in range(stringLength))
