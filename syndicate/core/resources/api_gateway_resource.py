@@ -190,7 +190,9 @@ def _create_or_update_api_gateway(name, meta, current_configurations):
             else:
                 # all resources created, but need to override
                 api_resources = meta_api_resources
-            # _customize_gateway_responses(api_id)
+            # _customize_gateway_responses call is commented due to botocore
+            # InternalFailure while performing the call. will be fixed later
+            #_customize_gateway_responses(api_id)
             # deploy api
             _LOG.debug('Deploying API Gateway {0} ...'.format(api_id))
             __deploy_api_gateway(api_id, meta, api_resources)
@@ -291,7 +293,9 @@ def _create_api_gateway_from_meta(name, meta):
     # waiter b4 customization
     time.sleep(10)
     _LOG.debug('Customizing API Gateway responses...')
-    # _customize_gateway_responses(api_id)
+    # _customize_gateway_responses call is commented due to botocore
+    # InternalFailure while performing the call. will be fixed later
+    #_customize_gateway_responses(api_id)
     # deploy api
     __deploy_api_gateway(api_id, meta, api_resources)
     return describe_api_resources(api_id=api_id, meta=meta, name=name)
@@ -583,7 +587,7 @@ def _customize_gateway_responses(api_id):
     responses = _API_GATEWAY_CONN.get_gateway_responses(api_id)
     response_types = [r['responseType'] for r in responses]
     for response_type in response_types:
-        time.sleep(20)
+        time.sleep(10)
         _API_GATEWAY_CONN.add_header_to_gateway_response(api_id, response_type,
                                                          _CORS_HEADER_NAME,
                                                          _CORS_HEADER_VALUE)
