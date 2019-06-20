@@ -349,10 +349,11 @@ def create_meta(bundle_name):
 
 def resolve_meta(overall_meta):
     iam_suffix = _generate_iam_id()
-    for key, value in CONFIG.aliases.items():
-        name = '${' + key + '}'
-        overall_meta = resolve_dynamic_identifier(name, value, overall_meta)
-    _LOG.debug('Resolved meta was created')
+    if CONFIG.aliases:
+        for key, value in CONFIG.aliases.items():
+            name = '${' + key + '}'
+            overall_meta = resolve_dynamic_identifier(name, value, overall_meta)
+            _LOG.debug('Resolved meta was created')
     _LOG.debug(prettify_json(overall_meta))
     # get dict with resolved prefix and suffix in meta resources
     # key: current_name, value: resolved_name
@@ -399,6 +400,6 @@ def _resolve_suffix_name(resource_name, resource_suffix):
 
 def _generate_iam_id(stringLength=4):
     """Generate a random string with the combination of
-    lowercase and letters """
+    lowercase letters """
     letters = string.ascii_lowercase
     return '-' + ''.join(random.choice(letters) for i in range(stringLength))

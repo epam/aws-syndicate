@@ -1,5 +1,5 @@
 
-# AWS deployment framework for serveless applications
+# AWS deployment framework for serverless applications
 
 aws-syndicate is an Amazon Web Services deployment framework written in Python, which allows to easily deploy serverless applications using resource descriptions. The framework allows to work with applications that engage the following AWS services:
 
@@ -102,7 +102,7 @@ Next, build aws-syndicate bundle with artifacts to be deployed:
 
 Then, deploy AWS resources:
 
-    $ syndicate deploy --bundle_name demo-deploy –-deploy_name sdct-example
+    $ syndicate deploy --bundle_name demo-deploy --deploy_name sdct-example
 
 We have done it!
 
@@ -110,7 +110,7 @@ The demo serverless application is ready to be used.
 
 If you need to clean AWS resources:
 
-    $ syndicate clean --bundle_name demo-deploy –-deploy_name sdct-example
+    $ syndicate clean --bundle_name demo-deploy --deploy_name sdct-example
 
 Documentation
 ------------

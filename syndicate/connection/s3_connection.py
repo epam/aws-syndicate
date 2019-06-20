@@ -389,3 +389,40 @@ class S3Connection(object):
         if request_payer:
             params['RequestPayer'] = request_payer
         return self.client.delete_objects(**params)
+
+    def put_cors(self, bucket_name, rules):
+        """
+        Puts buckets configuration for existing bucket.
+        :param bucket_name: name of the bucket.
+        :param rules: list of rules. Each rule may have
+            the following attributes: AllowedHeaders, AllowedMethods,
+            AllowedOrigins, ExposeHeaders, MaxAgeSeconds;
+        :return: None as boto3 does.
+        """
+
+        boto_rules = []
+        for rule in rules:
+            # converting rule to boto format
+            for key in rule.keys():
+                if isinstance(rule[key], list) \
+                        or isinstance(rule[key], int):
+                    pass  # expected
+                elif isinstance(rule[key], str):
+                    rule[key] = [rule[key]]
+                else:
+                    raise AssertionError(
+                        'Value of CORS rule attribute {0} has invalid '
+                        'value: {1}. Should be str, int or list'.format(key,
+                                                                        rule[
+                                                                            key]))
+            boto_rules.append(rule)
+
+        # boto3 returns None here
+        self.client.put_bucket_cors(
+            Bucket=bucket_name,
+            CORSConfiguration={
+                "CORSRules": boto_rules
+            }
+        )
+        _LOG.info('CORS configuration has been set to bucket {0}'.format(
+            bucket_name))

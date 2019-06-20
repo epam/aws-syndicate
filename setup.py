@@ -17,7 +17,7 @@ from setuptools import find_packages, setup
 
 setup(
     name='syndicate',
-    version='0.7',
+    version='0.8',
     packages=find_packages(),
     include_package_data=True,
     install_requires=[
