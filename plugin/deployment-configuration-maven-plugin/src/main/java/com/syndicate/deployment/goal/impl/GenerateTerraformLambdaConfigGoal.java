@@ -89,7 +89,7 @@ public class GenerateTerraformLambdaConfigGoal extends GenerateLambdaConfigGoal 
         Map<String, TerraformLambdaConfiguration> lambdaResourcesMap = new HashMap<>(
                 syndicateConfiguration.size() + 1); // lambda resources + provider
 
-        for (Map.Entry<String, LambdaConfiguration> entry : syndicateConfiguration.entrySet()) {
+        for (Map.Entry<String, LambdaConfiguration> entry: syndicateConfiguration.entrySet()) {
             // Building TerraformLambdaConfiguration
             LambdaConfiguration syndicate = entry.getValue();
             String lambdaName = entry.getKey();

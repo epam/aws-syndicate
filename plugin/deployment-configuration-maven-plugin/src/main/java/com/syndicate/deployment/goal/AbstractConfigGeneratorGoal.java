@@ -44,7 +44,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Created by Oleksandr Onsha on 10/25/18
+ * Created by Vladyslav Tereshchenko on 10/6/2016.
  */
 public abstract class AbstractConfigGeneratorGoal<T> extends AbstractMojo {
 
@@ -140,7 +140,7 @@ public abstract class AbstractConfigGeneratorGoal<T> extends AbstractMojo {
             List<Class<?>> lambdasClasses = getLambdaClasses();
 
             Map<String, T> configurations = new HashMap<>();
-            for (Class<?> lambdaClass : lambdasClasses) {
+            for (Class<?> lambdaClass: lambdasClasses) {
                 IConfigurationProcessor<T> annotationProcessor =
                         getAnnotationProcessor(project.getVersion(), fileName, absolutePath, lambdaClass);
                 Pair<String, T> lambdaConfigurationPair = annotationProcessor.process();
@@ -194,7 +194,7 @@ public abstract class AbstractConfigGeneratorGoal<T> extends AbstractMojo {
             List<String> elements = project.getCompileClasspathElements();
             // getting uris of the dependencies to inject into classloader
             // url presents file location of the dependency in the module
-            for (String element : elements) {
+            for (String element: elements) {
                 uris.add(new File(element).toURI());
             }
             logger.debug("Setting up new classloader ...");
@@ -219,7 +219,7 @@ public abstract class AbstractConfigGeneratorGoal<T> extends AbstractMojo {
 
     private List<Class<?>> getLambdaClasses() {
         List<Class<?>> lambdasClasses = new ArrayList<>();
-        for (String nestedPackage : packages) {
+        for (String nestedPackage: packages) {
             lambdasClasses.addAll(new Reflections(nestedPackage).getTypesAnnotatedWith(LambdaHandler.class));
         }
         return lambdasClasses;
