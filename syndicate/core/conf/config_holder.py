@@ -29,7 +29,7 @@ _LOG = get_logger('core.conf.config_holder')
 ALL_REGIONS = ['us-east-1', 'us-east-2', 'us-west-1', 'us-west-2', 'sa-east-1',
                'ca-central-1', 'eu-west-1', 'eu-central-1', 'eu-west-2',
                'eu-west-3', 'ap-northeast-1', 'ap-northeast-2',
-               'ap-southeast-1', 'ap-southeast-2', 'ap-south-1']
+               'ap-southeast-1', 'ap-southeast-2', 'ap-south-1', 'eu-north-1']
 
 GLOBAL_AWS_SERVICES = {IAM_ROLE, IAM_POLICY, S3_BUCKET_TYPE}
 
