@@ -20,7 +20,8 @@ import click
 
 from syndicate.core import CONFIG, CONF_PATH
 from syndicate.core.build.artifact_processor import (build_mvn_lambdas,
-                                                     build_python_lambdas)
+                                                     build_python_lambdas,
+                                                     generate_python_lambdas_meta)
 from syndicate.core.build.bundle_processor import (create_bundles_bucket,
                                                    load_bundle,
                                                    upload_bundle_to_s3)
@@ -127,6 +128,7 @@ def mvn_compile_java(bundle_name, project_path):
               callback=resolve_path_callback)
 def assemble_python(bundle_name, project_path):
     click.echo('Command assemble python: project_path: %s ' % project_path)
+    generate_python_lambdas_meta(project_path=project_path)
     build_python_lambdas(bundle_name, project_path)
     click.echo('Python artifacts were prepared successfully.')
 

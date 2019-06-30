@@ -13,25 +13,26 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+import concurrent
 import glob
 import json
 import os
 import shutil
 import threading
 import zipfile
+from concurrent.futures import ALL_COMPLETED, ThreadPoolExecutor
 from contextlib import closing
 from distutils import dir_util
 
-import concurrent
-from concurrent.futures import ALL_COMPLETED, ThreadPoolExecutor
-
 from syndicate.commons.log_helper import get_logger
 from syndicate.core import CONFIG
-from syndicate.core.build.helper import build_py_package_name
+from syndicate.core.build.helper import (build_py_package_name,
+                                         get_lambda_properties_from_python_code)
 from syndicate.core.conf.config_holder import path_resolver
 from syndicate.core.constants import (ARTIFACTS_FOLDER, DEFAULT_SEP,
                                       LAMBDA_CONFIG_FILE_NAME,
-                                      LOCAL_REQ_FILE_NAME, REQ_FILE_NAME)
+                                      LOCAL_REQ_FILE_NAME, REQ_FILE_NAME,
+                                      LAMBDA_SOURCE_FILE_ENDING)
 from syndicate.core.helper import (build_path, execute_command,
                                    execute_command_by_path,
                                    prettify_json, unpack_kwargs)
@@ -64,6 +65,29 @@ def build_mvn_lambdas(bundle_name, project_path):
                                 build_path(target_folder, file))
 
     _LOG.info('Java mvn project was processed successfully')
+
+
+def generate_python_lambdas_meta(project_path):
+    project_abs_path = build_path(CONFIG.project_path, project_path)
+    _LOG.info('Going to process python project by path: {0}'.format(
+        project_abs_path))
+    generated_count = 0
+    for root, sub_dirs, files in os.walk(project_abs_path):
+        for item in files:
+            if item.endswith(LAMBDA_SOURCE_FILE_ENDING) and 'lambda' in item:
+                lambda_properties = get_lambda_properties_from_python_code(
+                    file_name=item, path=root, project_path=project_abs_path)
+                if not lambda_properties:
+                    continue
+                with open('{0}/{1}'.format(root, LAMBDA_CONFIG_FILE_NAME),
+                          'w+') as lambda_config_file:
+                    lambda_config_file.write(
+                        json.dumps(lambda_properties, indent=2))
+                _LOG.info('{0} generated for lambda in file {1}'.format(
+                    LAMBDA_CONFIG_FILE_NAME, item))
+                generated_count += generated_count + 1
+    _LOG.info('Generated files amount: {0}'.format(
+        generated_count))
 
 
 def build_python_lambdas(bundle_name, project_path):
