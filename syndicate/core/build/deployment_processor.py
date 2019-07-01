@@ -231,10 +231,8 @@ def create_deployment_resources(deploy_name, bundle_name,
                                 deploy_only_resources=None,
                                 deploy_only_types=None,
                                 excluded_resources=None, excluded_types=None):
-    resources = resolve_meta(load_meta_resources(bundle_name))
-    _LOG.debug('Names were resolved')
-    _LOG.debug(prettify_json(resources))
 
+    resources = load_meta_resources(bundle_name)
     # validate_deployment_packages(resources)
     _LOG.info('{0} file was loaded successfully'.format(BUILD_META_FILE_NAME))
 
@@ -253,6 +251,10 @@ def create_deployment_resources(deploy_name, bundle_name,
     if excluded_types:
         resources = dict((k, v) for (k, v) in resources.items() if
                          v['resource_type'] not in excluded_types)
+
+    resources = resolve_meta(resources)
+    _LOG.debug('Names were resolved')
+    _LOG.debug(prettify_json(resources))
 
     _LOG.debug('Going to create: {0}'.format(prettify_json(resources)))
 
