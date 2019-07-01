@@ -42,6 +42,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * Created by Vladyslav Tereshchenko on 10/6/2016.
@@ -69,6 +70,8 @@ public abstract class AbstractConfigGeneratorGoal<T> extends AbstractMojo {
 
     @Parameter
     protected String url;
+
+    private String SYNDICATE_BUILD_ID = "syndicate-build-id";
 
     protected Log logger;
 
@@ -170,6 +173,7 @@ public abstract class AbstractConfigGeneratorGoal<T> extends AbstractMojo {
 
             // credentials are set up, using Syndicate API to upload meta information
             if (credentials != null) {
+                generateBuildId();
                 uploadMeta(convertedConfiguration);
             }
 
@@ -235,5 +239,14 @@ public abstract class AbstractConfigGeneratorGoal<T> extends AbstractMojo {
             throw new IOException("Incorrect encoding ==> " + DEFAULT_ENCODING, e);
         }
     }
+
+	private void generateBuildId() {
+		if (this.project.getParent().getProperties().getProperty(SYNDICATE_BUILD_ID) != null) {
+			return;
+		}
+		String uuid = UUID.randomUUID().toString();
+		logger.info("Build id: " + uuid);
+		this.project.getParent().getProperties().setProperty(SYNDICATE_BUILD_ID, uuid);
+	}
 
 }

@@ -50,6 +50,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Properties;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -63,6 +64,7 @@ public class GenerateLambdaConfigMojoSuccessTest {
 
     public static final String PLUGIN_ARTIFACT_ID = "deployment-configuration-maven-plugin";
     private static final String PLUGIN_CONFIG_SKIP_XML = "plugin-config-skip.xml";
+    public static final Properties EMPTY_PROPERTIES = new Properties();
 
     private ObjectMapper objectMapper = new ObjectMapper();
 
@@ -129,10 +131,12 @@ public class GenerateLambdaConfigMojoSuccessTest {
         when(mavenProject.getCompileClasspathElements()).thenReturn(Arrays.asList("dep1", "dep2"));
         final Build build = mock(Build.class);
         final File file = mock(File.class);
+        when(mavenProject.getParent()).thenReturn(mavenProject);
         when(mavenProject.getBuild()).thenReturn(build);
         when(mavenProject.getBuild().getFinalName()).thenReturn("syndicate");
         when(mavenProject.getVersion()).thenReturn("1.0.0");
         when(mavenProject.getBasedir()).thenReturn(file);
+        when(mavenProject.getProperties()).thenReturn(EMPTY_PROPERTIES);
 
         File targetDir = folder.newFolder("target");
         when(mavenProject.getBasedir().getAbsolutePath()).thenReturn(folder.getRoot().getAbsolutePath());
@@ -237,6 +241,7 @@ public class GenerateLambdaConfigMojoSuccessTest {
         mojo.setAccountId("012345678901");
 
         final MavenProject mavenProject = mock(MavenProject.class);
+        when(mavenProject.getParent()).thenReturn(mavenProject);
         when(mavenProject.getCompileClasspathElements()).thenReturn(Arrays.asList("dep1", "dep2"));
         final Build build = mock(Build.class);
         final File file = mock(File.class);
@@ -244,6 +249,7 @@ public class GenerateLambdaConfigMojoSuccessTest {
         when(mavenProject.getBuild().getFinalName()).thenReturn("terraform");
         when(mavenProject.getVersion()).thenReturn("1.0.0");
         when(mavenProject.getBasedir()).thenReturn(file);
+        when(mavenProject.getProperties()).thenReturn(EMPTY_PROPERTIES);
 
         File targetDir = folder.newFolder("target");
         when(mavenProject.getBasedir().getAbsolutePath()).thenReturn(folder.getRoot().getAbsolutePath());
