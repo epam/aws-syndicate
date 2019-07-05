@@ -32,6 +32,8 @@ from syndicate.core.helper import (build_path, prettify_json,
                                    write_content_to_file)
 from syndicate.core.resources.helper import resolve_dynamic_identifier
 
+DEFAULT_IAM_SUFFIX_LENGTH = 5
+
 _LOG = get_logger('syndicate.core.build.meta_processor')
 
 
@@ -399,25 +401,28 @@ def _resolve_suffix_name(resource_name, resource_suffix):
     return resource_name
 
 
-def _resolve_iam_suffix(suffix_len=4, iam_suffix=None):
+def _resolve_iam_suffix(suffix_len=DEFAULT_IAM_SUFFIX_LENGTH, iam_suffix=None):
     """
     This method adds additional suffix to iam roles.
     The suffix could be passed to the method. Otherwise it will be generated
     as a random string with the combination of lowercase letters.
     """
-    if suffix_len > 4:
+    if suffix_len > DEFAULT_IAM_SUFFIX_LENGTH:
         raise AssertionError(
             'Additional suffix for IAM roles should be maximum'
-            '4 symbols in length. Provided: {0}'.format(suffix_len))
+            '{0} symbols in length. Provided: {1}'.format(
+                DEFAULT_IAM_SUFFIX_LENGTH, suffix_len))
     if not iam_suffix:
         # will generate it
         iam_suffix = string.ascii_lowercase
+        suffix_len = suffix_len - 1  # 1 char for '-'
         return '-' + ''.join(
             random.choice(iam_suffix) for i in range(suffix_len))
     # check and use provided
-    if len(iam_suffix) > 4:
+    provided_max_len = DEFAULT_IAM_SUFFIX_LENGTH
+    if len(iam_suffix) > provided_max_len:
         raise AssertionError(
             'Provided additional suffix for IAM roles should be maximum'
-            '4 symbols in length. Provided len: {0}; Suffix: {1}'.format(
-                len(iam_suffix), iam_suffix))
+            '{0} symbols in length. Provided len: {1}; Suffix: {2}'.format(
+                provided_max_len, len(iam_suffix), iam_suffix))
     return iam_suffix
