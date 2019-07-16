@@ -32,6 +32,8 @@ from syndicate.core.helper import (build_path, prettify_json,
                                    write_content_to_file)
 from syndicate.core.resources.helper import resolve_dynamic_identifier
 
+DEFAULT_IAM_SUFFIX_LENGTH = 5
+
 _LOG = get_logger('syndicate.core.build.meta_processor')
 
 
@@ -348,11 +350,12 @@ def create_meta(bundle_name):
 
 
 def resolve_meta(overall_meta):
-    iam_suffix = _generate_iam_id()
+    iam_suffix = _resolve_iam_suffix(iam_suffix=CONFIG.iam_suffix)
     if CONFIG.aliases:
         for key, value in CONFIG.aliases.items():
             name = '${' + key + '}'
-            overall_meta = resolve_dynamic_identifier(name, value, overall_meta)
+            overall_meta = resolve_dynamic_identifier(name, value,
+                                                      overall_meta)
             _LOG.debug('Resolved meta was created')
     _LOG.debug(prettify_json(overall_meta))
     # get dict with resolved prefix and suffix in meta resources
@@ -398,8 +401,28 @@ def _resolve_suffix_name(resource_name, resource_suffix):
     return resource_name
 
 
-def _generate_iam_id(stringLength=4):
-    """Generate a random string with the combination of
-    lowercase letters """
-    letters = string.ascii_lowercase
-    return '-' + ''.join(random.choice(letters) for i in range(stringLength))
+def _resolve_iam_suffix(suffix_len=DEFAULT_IAM_SUFFIX_LENGTH, iam_suffix=None):
+    """
+    This method adds additional suffix to iam roles.
+    The suffix could be passed to the method. Otherwise it will be generated
+    as a random string with the combination of lowercase letters.
+    """
+    if suffix_len > DEFAULT_IAM_SUFFIX_LENGTH:
+        raise AssertionError(
+            'Additional suffix for IAM roles should be maximum'
+            '{0} symbols in length. Provided: {1}'.format(
+                DEFAULT_IAM_SUFFIX_LENGTH, suffix_len))
+    if not iam_suffix:
+        # will generate it
+        iam_suffix = string.ascii_lowercase
+        suffix_len = suffix_len - 1  # 1 char for '-'
+        return '-' + ''.join(
+            random.choice(iam_suffix) for i in range(suffix_len))
+    # check and use provided
+    provided_max_len = DEFAULT_IAM_SUFFIX_LENGTH
+    if len(iam_suffix) > provided_max_len:
+        raise AssertionError(
+            'Provided additional suffix for IAM roles should be maximum'
+            '{0} symbols in length. Provided len: {1}; Suffix: {2}'.format(
+                provided_max_len, len(iam_suffix), iam_suffix))
+    return iam_suffix

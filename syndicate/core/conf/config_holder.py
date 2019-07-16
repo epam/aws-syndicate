@@ -221,6 +221,15 @@ class ConfigHolder:
             return suffix
 
     @property
+    def iam_suffix(self):
+        """
+        Optional property. It will be included as a ending
+        of names for iam_roles.
+        :return:
+        """
+        return self._resolve_variable('iam_suffix')
+
+    @property
     def aliases(self):
         return self._aliases
 
