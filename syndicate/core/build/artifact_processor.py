@@ -77,7 +77,7 @@ def build_python_lambdas(bundle_name, project_path):
     _LOG.debug('Target directory: {0}'.format(target_folder))
     executor = ThreadPoolExecutor(max_workers=5)
     futures = []
-    command = 'virtualenv -p python3 {0}/venv_aws_syndicate'.format(
+    command = 'virtualenv -p python3 {0}/venv_aws_syndicate --clear'.format(
         target_folder)
     _execute_bash_commad(command=command)
     for root, sub_dirs, files in os.walk(project_abs_path):
@@ -129,8 +129,8 @@ def _build_python_artifact(item, project_base_folder, project_path, root,
         _LOG.debug('Going to install 3-rd party dependencies '
                    'for {}'.format(artifact_name))
         command = 'cp -r {1}/venv_aws_syndicate/ {1}/venv_aws_syndicate_copy_{0}/;' \
-                  'source {1}/venv_aws_syndicate_copy_{0}/bin/activate ' \
-                  '--clear'.format(lambda_name, target_folder)
+                  'source {1}/venv_aws_syndicate_copy_{0}/bin/activate'.format(
+            lambda_name, target_folder)
         _execute_bash_commad(command=command)
         with open(req_path) as f:
             req_list = f.readlines()
