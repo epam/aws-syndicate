@@ -17,6 +17,7 @@ import glob
 import json
 import os
 import shutil
+import subprocess
 import threading
 import zipfile
 from contextlib import closing
@@ -32,7 +33,7 @@ from syndicate.core.conf.config_holder import path_resolver
 from syndicate.core.constants import (ARTIFACTS_FOLDER, DEFAULT_SEP,
                                       LAMBDA_CONFIG_FILE_NAME,
                                       LOCAL_REQ_FILE_NAME, REQ_FILE_NAME)
-from syndicate.core.helper import (build_path, execute_command,
+from syndicate.core.helper import (build_path,
                                    execute_command_by_path,
                                    prettify_json, unpack_kwargs)
 from syndicate.core.resources.helper import validate_params
@@ -76,6 +77,8 @@ def build_python_lambdas(bundle_name, project_path):
     _LOG.debug('Target directory: {0}'.format(target_folder))
     executor = ThreadPoolExecutor(max_workers=5)
     futures = []
+    command = 'virtualenv -p python3 venv_aws_syndicate'
+    _execute_bash_commad(command=command)
     for root, sub_dirs, files in os.walk(project_abs_path):
         for item in files:
             if item.endswith(LAMBDA_CONFIG_FILE_NAME):
@@ -90,7 +93,16 @@ def build_python_lambdas(bundle_name, project_path):
                 futures.append(executor.submit(_build_python_artifact, arg))
     concurrent.futures.wait(futures, return_when=ALL_COMPLETED)
     executor.shutdown()
+    command = 'rm -r  venv_aws_syndicate'
+    _execute_bash_commad(command=command)
     _LOG.info('Python project was processed successfully')
+
+
+def _execute_bash_commad(command):
+    try:
+        subprocess.check_output(command, shell=True)
+    except subprocess.CalledProcessError as e:
+        raise ConnectionError(e)
 
 
 @unpack_kwargs
@@ -113,29 +125,43 @@ def _build_python_artifact(item, project_base_folder, project_path, root,
     # getting file content
     req_path = build_path(root, REQ_FILE_NAME)
     if os.path.exists(req_path):
-        _LOG.debug('Going to install 3-rd party dependencies')
+        _LOG.debug('Going to install 3-rd party dependencies '
+                   'for {}'.format(artifact_name))
+        command = 'cp -r venv_aws_syndicate/ venv_aws_syndicate_copy_{0}/;' \
+                  'source venv_aws_syndicate_copy_{0}/bin/activate --clear'.format(
+                  lambda_name)
+        _execute_bash_commad(command=command)
         with open(req_path) as f:
             req_list = f.readlines()
         req_list = [path_resolver(r.strip()) for r in req_list]
         _LOG.debug(str(req_list))
         # install dependencies
         for lib in req_list:
-            command = 'pip install {0} -t {1}'.format(lib, artifact_path)
-            execute_command(command=command)
-        _LOG.debug('3-rd party dependencies were installed successfully')
+            command = 'source venv_aws_syndicate_copy_{2}/bin/activate --clear;' \
+                'pip install {0} -t {1} -qqq; '.format(lib, artifact_path, lambda_name)
+            _execute_bash_commad(command=command)
+        command = 'rm -r venv_aws_syndicate_copy_{0}'.format(lambda_name)
+        _execute_bash_commad(command=command)
+        _LOG.debug('3-rd party dependencies were installed '
+                   'successfully for {}'.format(artifact_name))
 
     # install local requirements
     local_req_path = build_path(root, LOCAL_REQ_FILE_NAME)
     if os.path.exists(local_req_path):
-        _LOG.debug('Going to install local dependencies')
+        _LOG.debug(
+            'Going to install local dependencies for {}'.format(artifact_name))
         _install_local_req(artifact_path, local_req_path, project_base_folder,
                            project_path)
-        _LOG.debug('Local dependencies were installed successfully')
+        _LOG.debug(
+            'Local dependencies were installed successfully for {}'.format(
+                artifact_name))
 
     src_path = build_path(CONFIG.project_path, project_path, lambda_path)
     _copy_py_files(src_path, artifact_path)
     package_name = build_py_package_name(lambda_name, lambda_version)
+    _LOG.debug('Going to zip artifact: {}'.format(artifact_name))
     _zip_dir(artifact_path, build_path(target_folder, package_name))
+    _LOG.debug('Artifact zipped successfully for {}'.format(artifact_name))
     # remove unused folder
     lock = threading.RLock()
     lock.acquire()
@@ -188,6 +214,7 @@ def _copy_py_files(search_path, destination_path):
 
 def _zip_dir(basedir, name):
     assert os.path.isdir(basedir)
+    _LOG.debug('Zipping artifact: {0}'.format(name))
     with closing(zipfile.ZipFile(name, "w", zipfile.ZIP_DEFLATED)) as z:
         for root, dirs, files in os.walk(basedir):
             for fn in files:
