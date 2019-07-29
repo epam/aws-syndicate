@@ -77,7 +77,8 @@ def build_python_lambdas(bundle_name, project_path):
     _LOG.debug('Target directory: {0}'.format(target_folder))
     executor = ThreadPoolExecutor(max_workers=5)
     futures = []
-    command = 'virtualenv -p python3 venv_aws_syndicate'
+    command = 'virtualenv -p python3 {0}/venv_aws_syndicate'.format(
+        target_folder)
     _execute_bash_commad(command=command)
     for root, sub_dirs, files in os.walk(project_abs_path):
         for item in files:
@@ -93,7 +94,7 @@ def build_python_lambdas(bundle_name, project_path):
                 futures.append(executor.submit(_build_python_artifact, arg))
     concurrent.futures.wait(futures, return_when=ALL_COMPLETED)
     executor.shutdown()
-    command = 'rm -r  venv_aws_syndicate'
+    command = 'rm -r  {0}/venv_aws_syndicate'.format(target_folder)
     _execute_bash_commad(command=command)
     _LOG.info('Python project was processed successfully')
 
@@ -127,9 +128,9 @@ def _build_python_artifact(item, project_base_folder, project_path, root,
     if os.path.exists(req_path):
         _LOG.debug('Going to install 3-rd party dependencies '
                    'for {}'.format(artifact_name))
-        command = 'cp -r venv_aws_syndicate/ venv_aws_syndicate_copy_{0}/;' \
-                  'source venv_aws_syndicate_copy_{0}/bin/activate --clear'.format(
-                  lambda_name)
+        command = 'cp -r {1}/venv_aws_syndicate/ {1}/venv_aws_syndicate_copy_{0}/;' \
+                  'source {1}/venv_aws_syndicate_copy_{0}/bin/activate ' \
+                  '--clear'.format(lambda_name, target_folder)
         _execute_bash_commad(command=command)
         with open(req_path) as f:
             req_list = f.readlines()
@@ -137,10 +138,12 @@ def _build_python_artifact(item, project_base_folder, project_path, root,
         _LOG.debug(str(req_list))
         # install dependencies
         for lib in req_list:
-            command = 'source venv_aws_syndicate_copy_{2}/bin/activate --clear;' \
-                'pip install {0} -t {1} -qqq; '.format(lib, artifact_path, lambda_name)
+            command = 'source {3}/venv_aws_syndicate_copy_{2}/bin/activate ' \
+                      '--clear; pip install {0} -t {1} -qqq; '.format(
+                lib, artifact_path,lambda_name, target_folder)
             _execute_bash_commad(command=command)
-        command = 'rm -r venv_aws_syndicate_copy_{0}'.format(lambda_name)
+        command = 'rm -r {1}/venv_aws_syndicate_copy_{0}'.format(
+            lambda_name, target_folder)
         _execute_bash_commad(command=command)
         _LOG.debug('3-rd party dependencies were installed '
                    'successfully for {}'.format(artifact_name))
