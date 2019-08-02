@@ -63,7 +63,7 @@ public class GenerateLambdaConfigGoal extends AbstractConfigGeneratorGoal<Lambda
     }
 
     @Override
-    public void uploadMeta(Map<String, Object> configurations) {
+    public void uploadMeta(Map<String, Object> configurations, Credentials credentials) {
         String buildId;
         // extract build id from root project
         // find root project
@@ -77,22 +77,13 @@ public class GenerateLambdaConfigGoal extends AbstractConfigGeneratorGoal<Lambda
             // root project is a lambda function
             buildId = project.getProperties().get("syndicate-build-id").toString();
         }
-        String[] credentialsArray = credentials.split(CREDENTIALS_SEPARATOR);
-        if (credentialsArray.length != 2) {
-            throw new InvalidParameterException("Credentials are set up incorrect. " +
-                    "Please, use ':' parameter as a separator for credentials. Example: test_user@test.com:123456");
-        }
-        String email = credentialsArray[0];
-        Objects.requireNonNull(email, "Email cannot be empty.");
-        String password = credentialsArray[1];
-        Objects.requireNonNull(password, "Password cannot be empty.");
 
         SyndicateEnterpriseClient syndicateEnterpriseClient = Feign.builder()
                 .encoder(new JacksonEncoder())
                 .decoder(new JacksonDecoder())
                 .target(SyndicateEnterpriseClient.class, url);
 
-        TokenResponse tokenResponse = syndicateEnterpriseClient.token(new Credentials(email, password));
+        TokenResponse tokenResponse = syndicateEnterpriseClient.token(credentials);
         String token = tokenResponse.getToken();
 
         SaveMetaRequest saveMetaRequest = new SaveMetaRequest(buildId, Instant.now().toEpochMilli(),

@@ -17,6 +17,7 @@ package com.syndicate.deployment.goal;
 
 import com.syndicate.deployment.annotations.lambda.LambdaHandler;
 import com.syndicate.deployment.model.Pair;
+import com.syndicate.deployment.model.api.request.Credentials;
 import com.syndicate.deployment.processor.IConfigurationProcessor;
 import com.syndicate.deployment.utils.JsonUtils;
 import org.apache.maven.artifact.DependencyResolutionRequiredException;
@@ -36,11 +37,13 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.security.InvalidParameterException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
@@ -49,63 +52,64 @@ import java.util.UUID;
  */
 public abstract class AbstractConfigGeneratorGoal<T> extends AbstractMojo {
 
-    private static final String DEFAULT_ENCODING = "UTF-8";
-    private static final String MAVEN_TARGET_FOLDER_NAME = "target";
-    protected static final String CREDENTIALS_SEPARATOR = ":";
-
-    @Parameter(required = true)
-    private String fileName;
-
-    @Parameter(property = "maven.processor.skip", defaultValue = "false")
-    private boolean skip;
-
-    @Parameter(required = true)
-    private String[] packages;
+	private static final String CREDENTIALS_SEPARATOR = ":";
+	private static final String DEFAULT_ENCODING = "UTF-8";
+	private static final String MAVEN_TARGET_FOLDER_NAME = "target";
+	private static final String SYNDICATE_USER_LOGIN = "SYNDICATE_USER_LOGIN";
+	private static final String SYNDICATE_USER_PASS = "SYNDICATE_USER_PASS";
 
     @Parameter(property = "maven.processor.credentials")
-    protected String credentials;
+    private String credentials;
 
     @Parameter(defaultValue = "${project}", required = true, readonly = true)
     protected MavenProject project;
 
-    @Parameter
-    protected String url;
+	@Parameter
+	protected String url;
 
-    private String SYNDICATE_BUILD_ID = "syndicate-build-id";
+	@Parameter(required = true)
+	private String fileName;
 
-    protected Log logger;
+	@Parameter(property = "maven.processor.skip", defaultValue = "false")
+	private boolean skip;
 
-    public AbstractConfigGeneratorGoal() {
-        this.logger = getLog();
-    }
+	@Parameter(required = true)
+	private String[] packages;
 
-    public void setProject(MavenProject project) {
-        this.project = project;
-    }
+	protected Log logger;
 
-    public void setSkip(boolean skip) {
-        this.skip = skip;
-    }
 
-    public void setPackages(String[] packages) {
-        this.packages = packages;
-    }
+	public AbstractConfigGeneratorGoal() {
+		this.logger = getLog();
+	}
 
-    public MavenProject getProject() {
-        return project;
-    }
+	public MavenProject getProject() {
+		return project;
+	}
 
-    public boolean isSkip() {
-        return skip;
-    }
+	public void setProject(MavenProject project) {
+		this.project = project;
+	}
 
-    public String[] getPackages() {
-        return packages;
-    }
+	public boolean isSkip() {
+		return skip;
+	}
 
-    public String getFileName() {
-        return fileName;
-    }
+	public void setSkip(boolean skip) {
+		this.skip = skip;
+	}
+
+	public String[] getPackages() {
+		return packages;
+	}
+
+	public void setPackages(String[] packages) {
+		this.packages = packages;
+	}
+
+	public String getFileName() {
+		return fileName;
+	}
 
     public void setFileName(String fileName) {
         this.fileName = fileName;
@@ -171,11 +175,12 @@ public abstract class AbstractConfigGeneratorGoal<T> extends AbstractMojo {
             Map<String, Object> convertedConfiguration = convertConfiguration(configurations);
             writeToFile(configPath, getDeploymentResourcesFileName(), JsonUtils.convertToJson(convertedConfiguration));
 
-            // credentials are set up, using Syndicate API to upload meta information
-            if (credentials != null) {
-                generateBuildId();
-                uploadMeta(convertedConfiguration);
-            }
+			// credentials are set up, using Syndicate API to upload meta information
+			Credentials userCredentials = resolveCredentials();
+			if (userCredentials != null) {
+				generateBuildId();
+				uploadMeta(convertedConfiguration, userCredentials);
+			}
 
         } catch (IOException e) {
             throw new MojoExecutionException("Goal execution failed", e);
@@ -189,7 +194,7 @@ public abstract class AbstractConfigGeneratorGoal<T> extends AbstractMojo {
     public abstract IConfigurationProcessor<T> getAnnotationProcessor(
             String version, String fileName, String absolutePath, Class<?> lambdaClass);
 
-    public abstract void uploadMeta(Map<String, Object> configurations);
+	public abstract void uploadMeta(Map<String, Object> configurations, Credentials credentials);
 
     private Set<URI> getUris() throws MojoExecutionException {
         Set<URI> uris = new HashSet<>();
@@ -241,12 +246,45 @@ public abstract class AbstractConfigGeneratorGoal<T> extends AbstractMojo {
     }
 
 	private void generateBuildId() {
+		String SYNDICATE_BUILD_ID = "syndicate-build-id";
 		if (this.project.getParent().getProperties().getProperty(SYNDICATE_BUILD_ID) != null) {
 			return;
 		}
 		String uuid = UUID.randomUUID().toString();
 		logger.info("Build id: " + uuid);
 		this.project.getParent().getProperties().setProperty(SYNDICATE_BUILD_ID, uuid);
+	}
+
+	/**
+	 * Resolves credentials.
+	 * Firstly checks passed properties to mvn and then env variables.
+	 *
+	 * @return filled UserCredentials or <code>null</code>
+	 */
+	private Credentials resolveCredentials() {
+		// check passed params
+		if (credentials != null) {
+			String[] credentialsArray = credentials.split(CREDENTIALS_SEPARATOR);
+			if (credentialsArray.length != 2) {
+				throw new InvalidParameterException("Credentials are set up incorrect. " +
+					"Please, use ':' parameter as a separator for credentials. Example: test_user@test.com:123456");
+			}
+			String email = credentialsArray[0];
+			Objects.requireNonNull(email, "Email cannot be empty.");
+			String password = credentialsArray[1];
+			Objects.requireNonNull(password, "Password cannot be empty.");
+			return new Credentials(email, password);
+		}
+
+		// check env vars
+		String email = System.getenv(SYNDICATE_USER_LOGIN);
+		if (email != null) {
+			String pass = System.getenv(SYNDICATE_USER_PASS);
+			Objects.requireNonNull(pass, String.format("%s has not been set", SYNDICATE_USER_PASS));
+			return new Credentials(email, pass);
+		}
+
+		return null;
 	}
 
 }

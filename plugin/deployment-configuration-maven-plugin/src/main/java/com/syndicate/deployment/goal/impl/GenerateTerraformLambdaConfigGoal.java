@@ -16,6 +16,7 @@
 package com.syndicate.deployment.goal.impl;
 
 import com.syndicate.deployment.model.LambdaConfiguration;
+import com.syndicate.deployment.model.api.request.Credentials;
 import com.syndicate.deployment.model.terraform.TerraformLambdaConfiguration;
 import com.syndicate.deployment.model.terraform.TerraformLambdaVpcConfig;
 import org.apache.maven.plugins.annotations.Mojo;
@@ -80,7 +81,7 @@ public class GenerateTerraformLambdaConfigGoal extends GenerateLambdaConfigGoal 
     }
 
     @Override
-    public void uploadMeta(Map<String, Object> configurations) {
+    public void uploadMeta(Map<String, Object> configurations, Credentials credentials) {
         // do nothing
     }
 
