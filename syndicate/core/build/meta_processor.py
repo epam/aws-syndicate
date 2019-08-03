@@ -21,6 +21,8 @@ from json import load
 from syndicate.commons.log_helper import get_logger
 from syndicate.core import CONFIG, S3_PATH_NAME
 from syndicate.core.build.helper import build_py_package_name
+from syndicate.core.build.validator.mapping import (VALIDATOR_BY_TYPE_MAPPING,
+                                                    ALL_TYPES)
 from syndicate.core.conf.config_holder import GLOBAL_AWS_SERVICES
 from syndicate.core.constants import (API_GATEWAY_TYPE, ARTIFACTS_FOLDER,
                                       BUILD_META_FILE_NAME, EBS_TYPE,
@@ -299,20 +301,14 @@ def create_resource_json(bundle_name):
         _look_for_configs(nested_items, resources_meta, path, bundle_name)
 
     # check if all dependencies were described
-    for resource_name in resources_meta:
-        meta = resources_meta[resource_name]
-        dependencies = meta.get('dependencies')
-        if dependencies:
-            for dependency in meta['dependencies']:
-                dependency_name = dependency.get('resource_name')
-                if dependency_name not in list(resources_meta.keys()):
-                    err_mess = ("One of resource dependencies wasn't "
-                                "described: {0}. Please, describe this "
-                                "resource in {1} if it is Lambda or in "
-                                "deployment_resources.json"
-                                .format(dependency_name,
-                                        LAMBDA_CONFIG_FILE_NAME))
-                    raise AssertionError(err_mess)
+    common_validator = VALIDATOR_BY_TYPE_MAPPING[ALL_TYPES]
+    for name, meta in resources_meta.items():
+        common_validator(resource_meta=meta, all_meta=resources_meta)
+
+        resource_type = meta['resource_type']
+        type_validator = VALIDATOR_BY_TYPE_MAPPING.get(resource_type)
+        if type_validator:
+            type_validator(name, meta)
 
     return resources_meta
 
