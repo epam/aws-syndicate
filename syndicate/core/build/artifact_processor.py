@@ -138,8 +138,9 @@ def _build_python_artifact(item, project_base_folder, project_path, root,
         _LOG.debug(str(req_list))
         # install dependencies
         for lib in req_list:
-            command = 'source {3}/venv_aws_syndicate_copy_{2}/bin/activate ' \
-                      '--clear; pip install {0} -t {1} -qqq; '.format(
+            command = 'source {3}/venv_aws_syndicate_copy_{2}/bin/activate;' \
+                      'set -e;' \
+                      'pip install {0} -t {1} -qqq; '.format(
                 lib, artifact_path,lambda_name, target_folder)
             _execute_bash_commad(command=command)
         command = 'rm -r {1}/venv_aws_syndicate_copy_{0}'.format(
