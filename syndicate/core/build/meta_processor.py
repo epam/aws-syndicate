@@ -14,8 +14,6 @@
     limitations under the License.
 """
 import os
-import random
-import string
 from json import load
 
 from syndicate.commons.log_helper import get_logger
@@ -361,7 +359,8 @@ def resolve_meta(overall_meta):
         resource_type = res_meta['resource_type']
         if resource_type in GLOBAL_AWS_SERVICES:
             resolved_name = resolve_resource_name(name)
-            if resource_type == IAM_ROLE:
+            # add iam_suffix to IAM role only if it is specified in config file
+            if resource_type == IAM_ROLE and iam_suffix:
                 resolved_name = resolved_name + iam_suffix
             if name != resolved_name:
                 resolved_names[name] = resolved_name
@@ -403,17 +402,14 @@ def _resolve_iam_suffix(suffix_len=DEFAULT_IAM_SUFFIX_LENGTH, iam_suffix=None):
     The suffix could be passed to the method. Otherwise it will be generated
     as a random string with the combination of lowercase letters.
     """
+    if not iam_suffix:
+        return None
     if suffix_len > DEFAULT_IAM_SUFFIX_LENGTH:
         raise AssertionError(
             'Additional suffix for IAM roles should be maximum'
             '{0} symbols in length. Provided: {1}'.format(
                 DEFAULT_IAM_SUFFIX_LENGTH, suffix_len))
-    if not iam_suffix:
-        # will generate it
-        iam_suffix = string.ascii_lowercase
-        suffix_len = suffix_len - 1  # 1 char for '-'
-        return '-' + ''.join(
-            random.choice(iam_suffix) for i in range(suffix_len))
+
     # check and use provided
     provided_max_len = DEFAULT_IAM_SUFFIX_LENGTH
     if len(iam_suffix) > provided_max_len:
