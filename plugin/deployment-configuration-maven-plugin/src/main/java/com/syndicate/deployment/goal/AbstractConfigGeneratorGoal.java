@@ -20,6 +20,7 @@ import com.syndicate.deployment.model.Pair;
 import com.syndicate.deployment.model.api.request.Credentials;
 import com.syndicate.deployment.processor.IConfigurationProcessor;
 import com.syndicate.deployment.utils.JsonUtils;
+import com.syndicate.deployment.utils.ProjectUtils;
 import org.apache.maven.artifact.DependencyResolutionRequiredException;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
@@ -47,6 +48,10 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
+import static com.syndicate.deployment.utils.ProjectUtils.SYNDICATE_BUILD_ID;
+import static com.syndicate.deployment.utils.ProjectUtils.getPropertyFromRootProject;
+import static com.syndicate.deployment.utils.ProjectUtils.setPropertyToRootProject;
+
 /**
  * Created by Vladyslav Tereshchenko on 10/6/2016.
  */
@@ -54,7 +59,6 @@ public abstract class AbstractConfigGeneratorGoal<T> extends AbstractMojo {
 
 	private static final String CREDENTIALS_SEPARATOR = ":";
 	private static final String DEFAULT_ENCODING = "UTF-8";
-	private static final String MAVEN_TARGET_FOLDER_NAME = "target";
 	private static final String SYNDICATE_USER_LOGIN = "SYNDICATE_USER_LOGIN";
 	private static final String SYNDICATE_USER_PASS = "SYNDICATE_USER_PASS";
 
@@ -170,10 +174,8 @@ public abstract class AbstractConfigGeneratorGoal<T> extends AbstractMojo {
                 logger.info("Goal executed successfully");
             }
 
-            String configPath = absolutePath + File.separator + MAVEN_TARGET_FOLDER_NAME;
-
             Map<String, Object> convertedConfiguration = convertConfiguration(configurations);
-            writeToFile(configPath, getDeploymentResourcesFileName(), JsonUtils.convertToJson(convertedConfiguration));
+            writeToFile(ProjectUtils.getTargetFolderPath(project), getDeploymentResourcesFileName(), JsonUtils.convertToJson(convertedConfiguration));
 
 			// credentials are set up, using Syndicate API to upload meta information
 			Credentials userCredentials = resolveCredentials();
@@ -246,13 +248,12 @@ public abstract class AbstractConfigGeneratorGoal<T> extends AbstractMojo {
     }
 
 	private void generateBuildId() {
-		String SYNDICATE_BUILD_ID = "syndicate-build-id";
-		if (this.project.getParent().getProperties().getProperty(SYNDICATE_BUILD_ID) != null) {
+		if (getPropertyFromRootProject(project, SYNDICATE_BUILD_ID) != null) {
 			return;
 		}
 		String uuid = UUID.randomUUID().toString();
 		logger.info("Build id: " + uuid);
-		this.project.getParent().getProperties().setProperty(SYNDICATE_BUILD_ID, uuid);
+		setPropertyToRootProject(project, SYNDICATE_BUILD_ID, uuid);
 	}
 
 	/**

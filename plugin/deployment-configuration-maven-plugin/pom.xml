@@ -7,11 +7,11 @@
     <parent>
         <groupId>net.sf.aws-syndicate</groupId>
         <artifactId>deployment-configuration-processor</artifactId>
-        <version>1.5.2</version>
+        <version>1.5.3</version>
     </parent>
 
     <artifactId>deployment-configuration-maven-plugin</artifactId>
-    <version>1.5.2</version>
+    <version>1.5.3</version>
     <packaging>maven-plugin</packaging>
 
     <properties>
@@ -21,18 +21,24 @@
         <maven-plugin-plugin.version>3.5</maven-plugin-plugin.version>
         <maven-plugin-testing-harness.version>3.3.0</maven-plugin-testing-harness.version>
         <mockito-core.version>2.10.0</mockito-core.version>
+        <aws-java-sdk>1.11.608</aws-java-sdk>
     </properties>
 
     <dependencies>
         <dependency>
             <groupId>net.sf.aws-syndicate</groupId>
             <artifactId>deployment-configuration-annotations</artifactId>
-            <version>1.5.2</version>
+            <version>1.5.3</version>
         </dependency>
         <dependency>
             <groupId>org.reflections</groupId>
             <artifactId>reflections</artifactId>
             <version>${reflections.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-java-sdk-s3</artifactId>
+            <version>${aws-java-sdk}</version>
         </dependency>
         <!-- maven plugin dependencies -->
         <dependency>

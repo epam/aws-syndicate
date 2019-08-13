@@ -24,19 +24,19 @@ import com.syndicate.deployment.model.api.request.SaveMetaRequest;
 import com.syndicate.deployment.model.api.response.SaveMetaResponse;
 import com.syndicate.deployment.model.api.response.TokenResponse;
 import com.syndicate.deployment.processor.impl.SyndicateMetadataConfigurationProcessor;
+import com.syndicate.deployment.utils.ProjectUtils;
 import feign.Feign;
 import feign.jackson.JacksonDecoder;
 import feign.jackson.JacksonEncoder;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.ResolutionScope;
-import org.apache.maven.project.MavenProject;
 
-import java.security.InvalidParameterException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Map;
-import java.util.Objects;
 import java.util.stream.Collectors;
+
+import static com.syndicate.deployment.utils.ProjectUtils.SYNDICATE_BUILD_ID;
 
 /**
  * Created by Vladyslav Tereshchenko on 10/6/2016.
@@ -44,54 +44,42 @@ import java.util.stream.Collectors;
 @Mojo(name = "gen-deployment-config", requiresDependencyResolution = ResolutionScope.RUNTIME)
 public class GenerateLambdaConfigGoal extends AbstractConfigGeneratorGoal<LambdaConfiguration> {
 
-    private static final String DEPLOYMENT_RESOURCES_JSON_FILE_NAME = "deployment_resources.json";
+	private static final String DEPLOYMENT_RESOURCES_JSON_FILE_NAME = "deployment_resources.json";
 
-    @Override
-    protected Map<String, Object> convertConfiguration(Map<String, LambdaConfiguration> configurations) {
-        return configurations.entrySet().stream()
-                .collect(Collectors.toMap(Map.Entry::getKey, e -> (Object) e.getValue()));
-    }
+	@Override
+	protected Map<String, Object> convertConfiguration(Map<String, LambdaConfiguration> configurations) {
+		return configurations.entrySet().stream()
+			.collect(Collectors.toMap(Map.Entry::getKey, e -> (Object) e.getValue()));
+	}
 
-    @Override
-    public String getDeploymentResourcesFileName() {
-        return DEPLOYMENT_RESOURCES_JSON_FILE_NAME;
-    }
+	@Override
+	public String getDeploymentResourcesFileName() {
+		return DEPLOYMENT_RESOURCES_JSON_FILE_NAME;
+	}
 
-    public SyndicateMetadataConfigurationProcessor getAnnotationProcessor(String version, String fileName,
-                                                                          String absolutePath, Class<?> lambdaClass) {
-        return new SyndicateMetadataConfigurationProcessor(version, lambdaClass, fileName, absolutePath);
-    }
+	public SyndicateMetadataConfigurationProcessor getAnnotationProcessor(String version, String fileName,
+	                                                                      String absolutePath, Class<?> lambdaClass) {
+		return new SyndicateMetadataConfigurationProcessor(version, lambdaClass, fileName, absolutePath);
+	}
 
-    @Override
-    public void uploadMeta(Map<String, Object> configurations, Credentials credentials) {
-        String buildId;
-        // extract build id from root project
-        // find root project
-        MavenProject root = project.getParent();
-        if (root != null) {
-            while (root.getParent() != null) {
-                root = root.getParent();
-            }
-            buildId = root.getProperties().get("syndicate-build-id").toString();
-        } else {
-            // root project is a lambda function
-            buildId = project.getProperties().get("syndicate-build-id").toString();
-        }
+	@Override
+	public void uploadMeta(Map<String, Object> configurations, Credentials credentials) {
+		String buildId = ProjectUtils.getPropertyFromRootProject(project, SYNDICATE_BUILD_ID);
 
-        SyndicateEnterpriseClient syndicateEnterpriseClient = Feign.builder()
-                .encoder(new JacksonEncoder())
-                .decoder(new JacksonDecoder())
-                .target(SyndicateEnterpriseClient.class, url);
+		SyndicateEnterpriseClient syndicateEnterpriseClient = Feign.builder()
+			.encoder(new JacksonEncoder())
+			.decoder(new JacksonDecoder())
+			.target(SyndicateEnterpriseClient.class, url);
 
-        TokenResponse tokenResponse = syndicateEnterpriseClient.token(credentials);
-        String token = tokenResponse.getToken();
+		TokenResponse tokenResponse = syndicateEnterpriseClient.token(credentials);
+		String token = tokenResponse.getToken();
 
-        SaveMetaRequest saveMetaRequest = new SaveMetaRequest(buildId, Instant.now().toEpochMilli(),
-                new ArrayList<>(configurations.values()));
+		SaveMetaRequest saveMetaRequest = new SaveMetaRequest(buildId, Instant.now().toEpochMilli(),
+			new ArrayList<>(configurations.values()));
 
-        SaveMetaResponse saveMetaResponse = syndicateEnterpriseClient.saveMeta(token, saveMetaRequest);
-        logger.info(saveMetaResponse.getMessage());
-        logger.info("Build id: " + saveMetaResponse.getBuildId());
-    }
+		SaveMetaResponse saveMetaResponse = syndicateEnterpriseClient.saveMeta(token, saveMetaRequest);
+		logger.info(saveMetaResponse.getMessage());
+		logger.info("Build id: " + saveMetaResponse.getBuildId());
+	}
 
 }
