@@ -145,6 +145,7 @@ public class GenerateLambdaConfigMojoSuccessTest {
         // override packages to process only current class file
         mojo.setPackages(new String[]{"com.syndicate.deployment.success.syndicate"});
         mojo.setFileName("syndicate.jar");
+        mojo.setCredentials(null); // should not upload meta from test
         mojo.execute();
 
         // will be created 1 file with lambdas description
