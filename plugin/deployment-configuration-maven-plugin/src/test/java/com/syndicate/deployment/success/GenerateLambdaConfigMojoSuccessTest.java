@@ -29,6 +29,7 @@ import com.syndicate.deployment.model.ResourceType;
 import com.syndicate.deployment.model.TracingMode;
 import com.syndicate.deployment.model.events.SnsTriggerEventSourceItem;
 import com.syndicate.deployment.model.terraform.TerraformLambdaConfiguration;
+import com.syndicate.deployment.resolvers.CredentialResolverChain;
 import com.syndicate.deployment.success.syndicate.SnsLambdaExecutor;
 import com.syndicate.deployment.success.syndicate.SnsLambdaProcessor;
 import com.syndicate.deployment.success.terraform.BackgroundLambda;
@@ -145,7 +146,7 @@ public class GenerateLambdaConfigMojoSuccessTest {
         // override packages to process only current class file
         mojo.setPackages(new String[]{"com.syndicate.deployment.success.syndicate"});
         mojo.setFileName("syndicate.jar");
-        mojo.setCredentials(null); // should not upload meta from test
+        mojo.setCredentialsResolverChain(new CredentialResolverChain(null));
         mojo.execute();
 
         // will be created 1 file with lambdas description
@@ -259,7 +260,7 @@ public class GenerateLambdaConfigMojoSuccessTest {
         // override packages to process only current class file
         mojo.setPackages(new String[]{"com.syndicate.deployment.success.terraform"});
         mojo.setFileName("terraform.jar");
-        mojo.setCredentials(null); // should not upload meta from test
+        mojo.setCredentialsResolverChain(new CredentialResolverChain(null));
         mojo.execute();
 
         // will be created 1 file with lambdas description

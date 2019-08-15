@@ -19,6 +19,10 @@ import com.syndicate.deployment.annotations.lambda.LambdaHandler;
 import com.syndicate.deployment.model.Pair;
 import com.syndicate.deployment.model.api.request.Credentials;
 import com.syndicate.deployment.processor.IConfigurationProcessor;
+import com.syndicate.deployment.resolvers.CredentialResolverChain;
+import com.syndicate.deployment.resolvers.IChainedCredentialsResolver;
+import com.syndicate.deployment.resolvers.impl.CliParametersCredentialResolver;
+import com.syndicate.deployment.resolvers.impl.EnvironmentPropertiesCredentialsResolver;
 import com.syndicate.deployment.utils.JsonUtils;
 import com.syndicate.deployment.utils.ProjectUtils;
 import org.apache.maven.artifact.DependencyResolutionRequiredException;
@@ -38,13 +42,11 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.security.InvalidParameterException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
@@ -57,10 +59,7 @@ import static com.syndicate.deployment.utils.ProjectUtils.setPropertyToRootProje
  */
 public abstract class AbstractConfigGeneratorGoal<T> extends AbstractMojo {
 
-	private static final String CREDENTIALS_SEPARATOR = ":";
 	private static final String DEFAULT_ENCODING = "UTF-8";
-	private static final String SYNDICATE_USER_LOGIN = "SYNDICATE_USER_LOGIN";
-	private static final String SYNDICATE_USER_PASS = "SYNDICATE_USER_PASS";
 
     @Parameter(property = "maven.processor.credentials")
     private String credentials;
@@ -80,11 +79,19 @@ public abstract class AbstractConfigGeneratorGoal<T> extends AbstractMojo {
 	@Parameter(required = true)
 	private String[] packages;
 
+	private CredentialResolverChain credentialsResolverChain;
+
 	protected Log logger;
 
 
 	public AbstractConfigGeneratorGoal() {
 		this.logger = getLog();
+
+		IChainedCredentialsResolver cliParamCredentialResolver = new CliParametersCredentialResolver(credentials);
+		IChainedCredentialsResolver environmentVarsCredentialsResolver = new EnvironmentPropertiesCredentialsResolver();
+		cliParamCredentialResolver.setNextResolver(environmentVarsCredentialsResolver);
+
+		this.credentialsResolverChain = new CredentialResolverChain(cliParamCredentialResolver);
 	}
 
 	public MavenProject getProject() {
@@ -119,13 +126,13 @@ public abstract class AbstractConfigGeneratorGoal<T> extends AbstractMojo {
         this.fileName = fileName;
     }
 
-    public String getCredentials() {
-        return credentials;
-    }
+	public CredentialResolverChain getCredentialsResolverChain() {
+		return credentialsResolverChain;
+	}
 
-    public void setCredentials(String credentials) {
-        this.credentials = credentials;
-    }
+	public void setCredentialsResolverChain(CredentialResolverChain credentialsResolverChain) {
+		this.credentialsResolverChain = credentialsResolverChain;
+	}
 
     @Override
     public void execute() throws MojoExecutionException {
@@ -178,7 +185,7 @@ public abstract class AbstractConfigGeneratorGoal<T> extends AbstractMojo {
             writeToFile(ProjectUtils.getTargetFolderPath(project), getDeploymentResourcesFileName(), JsonUtils.convertToJson(convertedConfiguration));
 
 			// credentials are set up, using Syndicate API to upload meta information
-			Credentials userCredentials = resolveCredentials();
+			Credentials userCredentials = credentialsResolverChain.resolveCredentialsInChain();
 			if (userCredentials != null) {
 				generateBuildId();
 				uploadMeta(convertedConfiguration, userCredentials);
@@ -254,38 +261,6 @@ public abstract class AbstractConfigGeneratorGoal<T> extends AbstractMojo {
 		String uuid = UUID.randomUUID().toString();
 		logger.info("Build id: " + uuid);
 		setPropertyToRootProject(project, SYNDICATE_BUILD_ID, uuid);
-	}
-
-	/**
-	 * Resolves credentials.
-	 * Firstly checks passed properties to mvn and then env variables.
-	 *
-	 * @return filled UserCredentials or <code>null</code>
-	 */
-	private Credentials resolveCredentials() {
-		// check passed params
-		if (credentials != null) {
-			String[] credentialsArray = credentials.split(CREDENTIALS_SEPARATOR);
-			if (credentialsArray.length != 2) {
-				throw new InvalidParameterException("Credentials are set up incorrect. " +
-					"Please, use ':' parameter as a separator for credentials. Example: test_user@test.com:123456");
-			}
-			String email = credentialsArray[0];
-			Objects.requireNonNull(email, "Email cannot be empty.");
-			String password = credentialsArray[1];
-			Objects.requireNonNull(password, "Password cannot be empty.");
-			return new Credentials(email, password);
-		}
-
-		// check env vars
-		String email = System.getenv(SYNDICATE_USER_LOGIN);
-		if (email != null) {
-			String pass = System.getenv(SYNDICATE_USER_PASS);
-			Objects.requireNonNull(pass, String.format("%s has not been set", SYNDICATE_USER_PASS));
-			return new Credentials(email, pass);
-		}
-
-		return null;
 	}
 
 }
