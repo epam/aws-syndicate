@@ -259,6 +259,7 @@ public class GenerateLambdaConfigMojoSuccessTest {
         // override packages to process only current class file
         mojo.setPackages(new String[]{"com.syndicate.deployment.success.terraform"});
         mojo.setFileName("terraform.jar");
+        mojo.setCredentials(null); // should not upload meta from test
         mojo.execute();
 
         // will be created 1 file with lambdas description
