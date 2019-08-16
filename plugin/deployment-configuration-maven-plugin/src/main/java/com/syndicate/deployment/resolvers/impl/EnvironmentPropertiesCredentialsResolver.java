@@ -1,6 +1,6 @@
 package com.syndicate.deployment.resolvers.impl;
 
-import com.syndicate.deployment.model.api.request.Credentials;
+import com.syndicate.deployment.model.api.request.SyndicateCredentials;
 import com.syndicate.deployment.resolvers.AbstractChainedCredentialResolver;
 
 import java.util.Objects;
@@ -14,13 +14,13 @@ public class EnvironmentPropertiesCredentialsResolver extends AbstractChainedCre
 	private static final String SYNDICATE_USER_PASS = "SYNDICATE_USER_PASS";
 
 	@Override
-	public Credentials resolveCredentials() {
+	public SyndicateCredentials resolveCredentials() {
 		// check env vars
 		String email = System.getenv(SYNDICATE_USER_LOGIN);
 		if (email != null) {
 			String pass = System.getenv(SYNDICATE_USER_PASS);
 			Objects.requireNonNull(pass, String.format("%s has not been set", SYNDICATE_USER_PASS));
-			return new Credentials(email, pass);
+			return new SyndicateCredentials(email, pass);
 		}
 		return null;
 	}

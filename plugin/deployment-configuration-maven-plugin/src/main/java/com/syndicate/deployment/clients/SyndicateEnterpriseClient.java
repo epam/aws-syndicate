@@ -1,6 +1,6 @@
 package com.syndicate.deployment.clients;
 
-import com.syndicate.deployment.model.api.request.Credentials;
+import com.syndicate.deployment.model.api.request.SyndicateCredentials;
 import com.syndicate.deployment.model.api.request.SaveMetaRequest;
 import com.syndicate.deployment.model.api.response.SaveMetaResponse;
 import com.syndicate.deployment.model.api.response.TokenResponse;
@@ -15,7 +15,7 @@ public interface SyndicateEnterpriseClient {
 
     @RequestLine("POST /token")
     @Headers("Content-Type: application/json")
-    TokenResponse token(Credentials credentials);
+    TokenResponse token(SyndicateCredentials credentials);
 
     @RequestLine("POST /meta")
     @Headers({"Content-Type: application/json", "Authorization: {token}"})

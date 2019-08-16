@@ -17,7 +17,7 @@ package com.syndicate.deployment.goal;
 
 import com.syndicate.deployment.annotations.lambda.LambdaHandler;
 import com.syndicate.deployment.model.Pair;
-import com.syndicate.deployment.model.api.request.Credentials;
+import com.syndicate.deployment.model.api.request.SyndicateCredentials;
 import com.syndicate.deployment.processor.IConfigurationProcessor;
 import com.syndicate.deployment.resolvers.CredentialResolverChain;
 import com.syndicate.deployment.resolvers.IChainedCredentialsResolver;
@@ -43,6 +43,7 @@ import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -52,6 +53,7 @@ import java.util.UUID;
 
 import static com.syndicate.deployment.utils.ProjectUtils.SYNDICATE_BUILD_ID;
 import static com.syndicate.deployment.utils.ProjectUtils.getPropertyFromRootProject;
+import static com.syndicate.deployment.utils.ProjectUtils.getRootDirPath;
 import static com.syndicate.deployment.utils.ProjectUtils.setPropertyToRootProject;
 
 /**
@@ -59,6 +61,7 @@ import static com.syndicate.deployment.utils.ProjectUtils.setPropertyToRootProje
  */
 public abstract class AbstractConfigGeneratorGoal<T> extends AbstractMojo {
 
+	private static final String BUILD_FILE_EXT = ".sdctbuild";
 	private static final String DEFAULT_ENCODING = "UTF-8";
 
     @Parameter(property = "maven.processor.credentials")
@@ -75,6 +78,9 @@ public abstract class AbstractConfigGeneratorGoal<T> extends AbstractMojo {
 
 	@Parameter(property = "maven.processor.skip", defaultValue = "false")
 	private boolean skip;
+
+	@Parameter(property = "maven.processor.generateBuildFile", defaultValue = "false")
+	private boolean generateBuildFile;
 
 	@Parameter(required = true)
 	private String[] packages;
@@ -185,7 +191,7 @@ public abstract class AbstractConfigGeneratorGoal<T> extends AbstractMojo {
             writeToFile(ProjectUtils.getTargetFolderPath(project), getDeploymentResourcesFileName(), JsonUtils.convertToJson(convertedConfiguration));
 
 			// credentials are set up, using Syndicate API to upload meta information
-			Credentials userCredentials = credentialsResolverChain.resolveCredentialsInChain();
+			SyndicateCredentials userCredentials = credentialsResolverChain.resolveCredentialsInChain();
 			if (userCredentials != null) {
 				generateBuildId();
 				uploadMeta(convertedConfiguration, userCredentials);
@@ -203,7 +209,7 @@ public abstract class AbstractConfigGeneratorGoal<T> extends AbstractMojo {
     public abstract IConfigurationProcessor<T> getAnnotationProcessor(
             String version, String fileName, String absolutePath, Class<?> lambdaClass);
 
-	public abstract void uploadMeta(Map<String, Object> configurations, Credentials credentials);
+	public abstract void uploadMeta(Map<String, Object> configurations, SyndicateCredentials credentials);
 
     private Set<URI> getUris() throws MojoExecutionException {
         Set<URI> uris = new HashSet<>();
@@ -258,9 +264,23 @@ public abstract class AbstractConfigGeneratorGoal<T> extends AbstractMojo {
 		if (getPropertyFromRootProject(project, SYNDICATE_BUILD_ID) != null) {
 			return;
 		}
-		String uuid = UUID.randomUUID().toString();
-		logger.info("Build id: " + uuid);
-		setPropertyToRootProject(project, SYNDICATE_BUILD_ID, uuid);
+		String generatedBuildId = UUID.randomUUID().toString();
+		logger.info("Newly generated build id: " + generatedBuildId);
+		setPropertyToRootProject(project, SYNDICATE_BUILD_ID, generatedBuildId);
+		if (generateBuildFile) {
+			try {
+				String rootDirPath = getRootDirPath(project);
+				String sdctBuildFileName = generatedBuildId + BUILD_FILE_EXT;
+				String filePathName = rootDirPath + '/' + sdctBuildFileName;
+				// never overrides the file due to check at the method beginning
+				writeToFile(rootDirPath, sdctBuildFileName,
+					JsonUtils.convertToJson(Collections.singletonMap("buildId", generatedBuildId)));
+				logger.debug(filePathName + " file successfully created");
+			} catch (IOException e) {
+				logger.error("Failed to write " + BUILD_FILE_EXT, e);
+				throw new RuntimeException("Failed to write " + BUILD_FILE_EXT, e);
+			}
+		}
 	}
 
 }

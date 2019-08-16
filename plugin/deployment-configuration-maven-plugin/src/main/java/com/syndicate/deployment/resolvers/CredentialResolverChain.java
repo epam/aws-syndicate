@@ -1,6 +1,6 @@
 package com.syndicate.deployment.resolvers;
 
-import com.syndicate.deployment.model.api.request.Credentials;
+import com.syndicate.deployment.model.api.request.SyndicateCredentials;
 
 /**
  * Created by Oleksandr Onsha on 2019-08-15
@@ -13,12 +13,12 @@ public class CredentialResolverChain {
 		this.initialResolver = initialResolver;
 	}
 
-	public Credentials resolveCredentialsInChain() {
+	public SyndicateCredentials resolveCredentialsInChain() {
 		if (initialResolver == null) {
 			return null;
 		}
 		IChainedCredentialsResolver resolver = initialResolver;
-		Credentials credentials = resolver.resolveCredentials();
+		SyndicateCredentials credentials = resolver.resolveCredentials();
 		while (credentials == null && resolver.hasNextResolver()) {
 			resolver = resolver.getNextResolver();
 			credentials = resolver.resolveCredentials();

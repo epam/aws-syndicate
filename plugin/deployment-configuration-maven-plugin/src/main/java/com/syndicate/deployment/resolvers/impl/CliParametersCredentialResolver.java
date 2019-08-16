@@ -1,6 +1,6 @@
 package com.syndicate.deployment.resolvers.impl;
 
-import com.syndicate.deployment.model.api.request.Credentials;
+import com.syndicate.deployment.model.api.request.SyndicateCredentials;
 import com.syndicate.deployment.resolvers.AbstractChainedCredentialResolver;
 
 import java.security.InvalidParameterException;
@@ -21,7 +21,7 @@ public class CliParametersCredentialResolver extends AbstractChainedCredentialRe
 	}
 
 	@Override
-	public Credentials resolveCredentials() {
+	public SyndicateCredentials resolveCredentials() {
 		if (credentialsCliParameter != null) {
 			String[] credentialsArray = credentialsCliParameter.split(CREDENTIALS_SEPARATOR);
 			if (credentialsArray.length != 2) {
@@ -33,7 +33,7 @@ public class CliParametersCredentialResolver extends AbstractChainedCredentialRe
 			Objects.requireNonNull(email, "Email cannot be empty.");
 			String password = credentialsArray[1];
 			Objects.requireNonNull(password, "Password cannot be empty.");
-			return new Credentials(email, password);
+			return new SyndicateCredentials(email, password);
 		}
 		return null;
 	}

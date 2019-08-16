@@ -31,10 +31,10 @@ public class PublishArtifactsToS3Goal extends AbstractMojo {
 
 	private Log logger;
 
-	@Parameter(name = "bucketName", property = "maven.processor.bucketName", required = true)
+	@Parameter(name = "bucketName", property = "maven.processor.bucketName")
 	private String bucketName;
 
-	@Parameter(name = "bucketRegion", property = "maven.processor.bucketRegion", required = true)
+	@Parameter(name = "bucketRegion", property = "maven.processor.bucketRegion")
 	private String bucketRegion;
 
 	@Parameter(required = true)
@@ -56,6 +56,11 @@ public class PublishArtifactsToS3Goal extends AbstractMojo {
 
 	@Override
 	public void execute() throws MojoExecutionException, MojoFailureException {
+		if (bucketName == null || bucketRegion == null) {
+			logger.debug("Properties bucketName and bucketProperties are not set. " +
+				"Skipping artifacts upload to s3");
+			return;
+		}
 		String buildId = ProjectUtils.getPropertyFromRootProject(project, SYNDICATE_BUILD_ID);
 		String projectTargetDir = ProjectUtils.getTargetFolderPath(project);
 		File artifact = Arrays.stream(

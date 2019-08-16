@@ -19,7 +19,7 @@ package com.syndicate.deployment.goal.impl;
 import com.syndicate.deployment.clients.SyndicateEnterpriseClient;
 import com.syndicate.deployment.goal.AbstractConfigGeneratorGoal;
 import com.syndicate.deployment.model.LambdaConfiguration;
-import com.syndicate.deployment.model.api.request.Credentials;
+import com.syndicate.deployment.model.api.request.SyndicateCredentials;
 import com.syndicate.deployment.model.api.request.SaveMetaRequest;
 import com.syndicate.deployment.model.api.response.SaveMetaResponse;
 import com.syndicate.deployment.model.api.response.TokenResponse;
@@ -63,7 +63,7 @@ public class GenerateLambdaConfigGoal extends AbstractConfigGeneratorGoal<Lambda
 	}
 
 	@Override
-	public void uploadMeta(Map<String, Object> configurations, Credentials credentials) {
+	public void uploadMeta(Map<String, Object> configurations, SyndicateCredentials credentials) {
 		String buildId = ProjectUtils.getPropertyFromRootProject(project, SYNDICATE_BUILD_ID);
 
 		SyndicateEnterpriseClient syndicateEnterpriseClient = Feign.builder()

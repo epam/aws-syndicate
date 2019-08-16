@@ -16,17 +16,12 @@ public final class ProjectUtils {
 		return project.getBasedir().getAbsolutePath() + File.separator + MAVEN_TARGET_FOLDER_NAME;
 	}
 
+	public static String getRootDirPath(MavenProject project) {
+		return getRootProject(project).getBasedir().getAbsolutePath();
+	}
+
 	public static String getPropertyFromRootProject(MavenProject project, String propertyName) {
-		MavenProject root = project.getParent();
-		Object propertyValue;
-		if (root != null) {
-			while (root.getParent() != null) {
-				root = root.getParent();
-			}
-			propertyValue = root.getProperties().get(propertyName);
-		} else {
-			propertyValue = project.getProperties().get(propertyName);
-		}
+		Object propertyValue = getRootProject(project).getProperties().getProperty(propertyName);
 		if (propertyValue != null) {
 			return propertyValue.toString();
 		}
@@ -34,14 +29,16 @@ public final class ProjectUtils {
 	}
 
 	public static void setPropertyToRootProject(MavenProject project, String propertyName, String propertyValue) {
+		getRootProject(project).getProperties().setProperty(propertyName, propertyValue);
+	}
+
+	private static MavenProject getRootProject(MavenProject project) {
 		MavenProject root = project.getParent();
 		if (root != null) {
 			while (root.getParent() != null) {
 				root = root.getParent();
 			}
-			root.getProperties().setProperty(propertyName, propertyValue);
-		} else {
-			project.getProperties().setProperty(propertyName, propertyValue);
 		}
+		return root;
 	}
 }
