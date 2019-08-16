@@ -19,7 +19,7 @@ public class CredentialResolverChain {
 		}
 		IChainedCredentialsResolver resolver = initialResolver;
 		Credentials credentials = resolver.resolveCredentials();
-		while (credentials == null || !resolver.hasNextResolver()) {
+		while (credentials == null && resolver.hasNextResolver()) {
 			resolver = resolver.getNextResolver();
 			credentials = resolver.resolveCredentials();
 		}
