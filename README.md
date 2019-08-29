@@ -125,3 +125,8 @@ Default label for bugs, improvements and feature requests is `To-Think-About`, i
 `To-Do` label should be added only for tickets with clear and reviwed issue scope.
 
 But before creating new issues - check existing, it may cover you problem or question. For increasing issue priority - just add "+1" comment. 
+
+Would like to contribute?
+-------------------------
+
+Plese, check [contributor guide](https://github.com/epam/aws-syndicate/blob/master/CONTRIBUTING.md) before starting. 
