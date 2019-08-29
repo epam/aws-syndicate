@@ -119,4 +119,9 @@ You can find a detailed documentation [here](https://github.com/epam/aws-syndica
 Getting Help
 ------------
 
-We use GitHub issues for tracking bugs and feature requests. If it turns out that you may have found a bug, please [open an issue](https://github.com/epam/aws-syndicate/issues/new)
+We use GitHub issues for tracking bugs and feature requests. If it turns out that you may have found a bug, please [open an issue](https://github.com/epam/aws-syndicate/issues/new) with some of existing templates.
+
+Default label for bugs, improvements and feature requests is `To-Think-About`, it defines that ticket requires additional information about what should be done in scope of this issue. 
+`To-Do` label should be added only for tickets with clear and reviwed issue scope.
+
+But before creating new issues - check existing, it may cover you problem or question. For increasing issue priority - just add "+1" comment. 
