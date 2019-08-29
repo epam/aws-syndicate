@@ -2,7 +2,7 @@
 name: Feature request
 about: Suggest an idea for this project
 title: "[FR]"
-labels: ''
+labels: To-Think-About
 assignees: ''
 
 ---
