@@ -83,7 +83,7 @@ Also [here](https://www.baeldung.com/install-maven-on-windows-linux-mac "here") 
 
 5) Go to the Common configuration.
 
-**Common configuration**
+## Common configuration
 
 Next, set up a configuration file **[sdct.conf](https://github.com/epam/aws-syndicate/blob/master/examples/demo-config/sdct.conf)**:
 
