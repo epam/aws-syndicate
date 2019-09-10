@@ -35,12 +35,12 @@ aws-syndicate is an Amazon Web Services deployment framework written in Python, 
 
 1) Installed [Python 3.7](https://www.python.org/downloads/ "Python 3.7") or higher version;
 
-       _Windows: Detailed guide how to install Python you can find [here](https://www.ics.uci.edu/~pattis/common/handouts/pythoneclipsejava/python.html "here")._
+	_Windows: Detailed guide how to install Python you can find [here](https://www.ics.uci.edu/~pattis/common/handouts/pythoneclipsejava/python.html "here")._
 
 	_Linux: Detailed guide how to install Python you can find [here](https://docs.python-
 guide.org/starting/install3/linux/ "here")._
 
-    _macOS: Detailed guide how to install Python you can find [here](https://wsvincent.com/install-python3-mac/ "here"). If you use Ubuntu 16.04 or earlier [here](https://www.pytorials.com/install-python36-on-ubuntu/ "here") you can find installation guide._
+	_macOS: Detailed guide how to install Python you can find [here](https://wsvincent.com/install-python3-mac/ "here"). If you use Ubuntu 16.04 or earlier [here](https://www.pytorials.com/install-python36-on-ubuntu/ "here") you can find installation guide._
 
 2) Installed package manager [PIP 9.0](https://pypi.org/project/pip/ "PIP 9.0") or higher version;
 3) Installed [virtualenv](https://virtualenv.pypa.io/en/latest/installation/ "virtualenv");
