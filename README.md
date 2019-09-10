@@ -60,7 +60,7 @@ Also [here](https://www.baeldung.com/install-maven-on-windows-linux-mac "here") 
     Linux/macOS: 
     `source syndicate_venv/bin/activate`
     
-    Linux/macOS: 
+    Windows: 
     `\syndicate_venv\Scripts\activate.bat`
 
 3) Install Syndicate framework with pip from GitHub:
