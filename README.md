@@ -53,7 +53,7 @@ Also [here](https://www.baeldung.com/install-maven-on-windows-linux-mac "here") 
 
 1) Create virtual environment:
 
-    `virualenv -p python3 syndicate_venv`
+    `virtualenv -p python3 syndicate_venv`
 
 2) Activate your virtual environment:
 
