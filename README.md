@@ -66,6 +66,10 @@ Detailed guide how to install Python you can find [here](https://docs.python-gui
 If you use Ubuntu 16.04 or earlier [here](https://www.pytorials.com/install-python36-on-ubuntu/ "here") you can find installation guide.
 Also [here](https://www.baeldung.com/install-maven-on-windows-linux-mac "here") you can find detailed guild how to install [Apache Maven 3.3.9](https://maven.apache.org/download.cgi "Apache Maven 3.3.9").
 
+0) If you do not have [virtualenv](https://virtualenv.pypa.io/en/latest/ "virtualenv") installed run command: 
+
+    `sudo apt-get install python3-venv`
+
 1) Create virtual environment:
 
     `python3 -m venv syndicate_venv`
