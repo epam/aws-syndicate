@@ -35,30 +35,13 @@ aws-syndicate is an Amazon Web Services deployment framework written in Python, 
 
 1) Installed [Python 3.7](https://www.python.org/downloads/ "Python 3.7") or higher version;
 2) Installed package manager [PIP 9.0](https://pypi.org/project/pip/ "PIP 9.0") or higher version;
-3) Installed [Apache Maven 3.3.9](https://maven.apache.org/download.cgi "Apache Maven 3.3.9") or higher version.
+3) Installed [virtualenv](https://virtualenv.pypa.io/en/latest/installation/ "virtualenv");
+4) Installed [Apache Maven 3.3.9](https://maven.apache.org/download.cgi "Apache Maven 3.3.9") or higher version.
 
 **macOS**
 
 Detailed guide how to install Python you can find [here](https://wsvincent.com/install-python3-mac/ "here").
 Also [here](https://www.baeldung.com/install-maven-on-windows-linux-mac "here") you can find detailed guild how to install [Apache Maven 3.3.9](https://maven.apache.org/download.cgi "Apache Maven 3.3.9").
-
-1) Create virtual environment:
-
-    `python3 -m venv syndicate_venv`
-
-2) Activate your virtual environment:
-
-    `source syndicate_venv/bin/activate`
-
-3) Install Syndicate framework with pip from GitHub:
-
-    `pip3 install git+https://github.com/epam/aws-syndicate.git@master`
-
-4) Set up a Syndicate Java [plugin](https://github.com/epam/aws-syndicate/tree/master/plugin "plugin"):
-
-    `mvn install /aws-syndicate/plugin/`
-
-5) Go to the Common configuration.
 
 **Linux**
 
@@ -66,13 +49,11 @@ Detailed guide how to install Python you can find [here](https://docs.python-gui
 If you use Ubuntu 16.04 or earlier [here](https://www.pytorials.com/install-python36-on-ubuntu/ "here") you can find installation guide.
 Also [here](https://www.baeldung.com/install-maven-on-windows-linux-mac "here") you can find detailed guild how to install [Apache Maven 3.3.9](https://maven.apache.org/download.cgi "Apache Maven 3.3.9").
 
-0) If you do not have [virtualenv](https://virtualenv.pypa.io/en/latest/ "virtualenv") installed run command: 
-
-    `sudo apt-get install python3-venv`
+**Installation guide**
 
 1) Create virtual environment:
 
-    `python3 -m venv syndicate_venv`
+    `virualenv -p python3 syndicate_venv`
 
 2) Activate your virtual environment:
 
@@ -82,11 +63,7 @@ Also [here](https://www.baeldung.com/install-maven-on-windows-linux-mac "here") 
 
     `pip3 install git+https://github.com/epam/aws-syndicate.git@master`
 
-4) Set up a Syndicate Java [plugin](https://github.com/epam/aws-syndicate/tree/master/plugin "plugin"):
-
-    `mvn install /aws-syndicate/plugin/`
-
-5) Go to the Common configuration.
+4) Go to the Common configuration.
 
 ## Common configuration
 
