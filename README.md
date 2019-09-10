@@ -67,8 +67,6 @@ Also [here](https://www.baeldung.com/install-maven-on-windows-linux-mac "here") 
 
     `pip3 install git+https://github.com/epam/aws-syndicate.git@master`
 
-4) Go to the Common configuration.
-
 ## Common configuration
 
 Next, create and set up a configuration file **[sdct.conf](https://github.com/epam/aws-syndicate/blob/master/examples/demo-config/sdct.conf)**:
