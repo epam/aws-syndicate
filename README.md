@@ -41,16 +41,21 @@ aws-syndicate is an Amazon Web Services deployment framework written in Python, 
 **macOS**
 
 Detailed guide how to install Python you can find [here](https://wsvincent.com/install-python3-mac/ "here").
+
 Also [here](https://www.baeldung.com/install-maven-on-windows-linux-mac "here") you can find detailed guild how to install [Apache Maven 3.3.9](https://maven.apache.org/download.cgi "Apache Maven 3.3.9").
 
 **Linux**
 
 Detailed guide how to install Python you can find [here](https://docs.python-guide.org/starting/install3/linux/ "here").
+
 If you use Ubuntu 16.04 or earlier [here](https://www.pytorials.com/install-python36-on-ubuntu/ "here") you can find installation guide.
+
 Also [here](https://www.baeldung.com/install-maven-on-windows-linux-mac "here") you can find detailed guild how to install [Apache Maven 3.3.9](https://maven.apache.org/download.cgi "Apache Maven 3.3.9").
 
 **Windows**
+
 Detailed guide how to install Python you can find [here](https://www.ics.uci.edu/~pattis/common/handouts/pythoneclipsejava/python.html "here").
+
 Also [here](https://docs.wso2.com/display/IS323/Installing+Apache+Maven+on+Windows "here") you can find detailed guild how to install [Apache Maven 3.3.9](https://maven.apache.org/download.cgi "Apache Maven 3.3.9").
 
 **Installation guide**
