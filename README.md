@@ -29,23 +29,50 @@ aws-syndicate is an Amazon Web Services deployment framework written in Python, 
 
 * Step Functions
 
-Quick Start
------------
-To successfully setup and use the Syndicate, you need the following software to be installed:
+## Installing
 
-* Python 3.7+
-* pip 9.0+
-* Apache Maven 3.3.9+
+**Common prerequisites**
 
-First, install the framework:
+1) Installed [Python 3.7](https://www.python.org/downloads/ "Python 3.7") or higher version;
 
-    $ pip install .
+	_*Windows*: Detailed guide how to install Python you can find [here](https://www.ics.uci.edu/~pattis/common/handouts/pythoneclipsejava/python.html "here")._
 
-Next, set up a Syndicate Java **[plugin](https://github.com/epam/aws-syndicate/tree/master/plugin)**:
+	_*Linux*: Detailed guide how to install Python you can find [here](https://docs.python-
+guide.org/starting/install3/linux/ "here")._
 
-    $ mvn install
+	_*macOS*: Detailed guide how to install Python you can find [here](https://wsvincent.com/install-python3-mac/ "here"). If you use Ubuntu 16.04 or earlier [here](https://www.pytorials.com/install-python36-on-ubuntu/ "here") you can find installation guide._
 
-Next, set up a configuration file **[sdct.conf](https://github.com/epam/aws-syndicate/blob/master/examples/demo-config/sdct.conf)**:
+2) Installed package manager [PIP 9.0](https://pypi.org/project/pip/ "PIP 9.0") or higher version;
+3) Installed [virtualenv](https://virtualenv.pypa.io/en/latest/installation/ "virtualenv");
+4) Installed [Apache Maven 3.3.9](https://maven.apache.org/download.cgi "Apache Maven 3.3.9") or higher version.
+
+	_*Windows*: [Here](https://docs.wso2.com/display/IS323/Installing+Apache+Maven+on+Windows "Here") you can find detailed guild how to install [Apache Maven 3.3.9](https://maven.apache.org/download.cgi "Apache Maven 3.3.9")._
+
+	_*Linux*: [Here](https://www.baeldung.com/install-maven-on-windows-linux-mac "Here") you can find detailed guild how to install [Apache Maven 3.3.9](https://maven.apache.org/download.cgi "Apache Maven 3.3.9")._
+
+	_*macOS*: [Here](https://www.baeldung.com/install-maven-on-windows-linux-mac "Here") you can find detailed guild how to install [Apache Maven 3.3.9](https://maven.apache.org/download.cgi "Apache Maven 3.3.9")._
+
+**Installation guide**
+
+1) Create virtual environment:
+
+    `virtualenv -p python3 syndicate_venv`
+
+2) Activate your virtual environment:
+
+    Linux/macOS: 
+    `source syndicate_venv/bin/activate`
+    
+    Windows: 
+    `\syndicate_venv\Scripts\activate.bat`
+
+3) Install Syndicate framework with pip from GitHub:
+
+    `pip3 install git+https://github.com/epam/aws-syndicate.git@master`
+
+## Common configuration
+
+Next, create and set up a configuration file **[sdct.conf](https://github.com/epam/aws-syndicate/blob/master/examples/demo-config/sdct.conf)**:
 
 	# absolute path to the examples/demo-project folder
 	project_path=FOLDER_PATH
