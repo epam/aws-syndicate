@@ -38,6 +38,8 @@ public final class ProjectUtils {
 			while (root.getParent() != null) {
 				root = root.getParent();
 			}
+		} else {
+			return project;
 		}
 		return root;
 	}

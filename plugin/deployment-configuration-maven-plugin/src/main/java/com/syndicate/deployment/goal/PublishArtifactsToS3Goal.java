@@ -63,10 +63,11 @@ public class PublishArtifactsToS3Goal extends AbstractMojo {
 		}
 		String buildId = ProjectUtils.getPropertyFromRootProject(project, SYNDICATE_BUILD_ID);
 		String projectTargetDir = ProjectUtils.getTargetFolderPath(project);
+		File[] obj = new File(projectTargetDir).listFiles();
 		File artifact = Arrays.stream(
-			Objects.requireNonNull(new File(projectTargetDir).listFiles()))
-			.filter(file -> file.getName().equals(fileName))
-			.findAny().orElseGet(null);
+			Objects.requireNonNull(obj))
+			.filter(file -> file.getName().contains(fileName))
+			.findAny().orElse(null);
 
 		if (artifact != null) {
 			logger.info(String.format("Uploading artifacts to %s/%s/%s", bucketName, buildId, fileName));
