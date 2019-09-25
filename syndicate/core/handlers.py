@@ -20,7 +20,8 @@ import click
 
 from syndicate.core import CONFIG, CONF_PATH
 from syndicate.core.build.artifact_processor import (build_mvn_lambdas,
-                                                     build_python_lambdas)
+                                                     build_python_lambdas,
+                                                     package_node_lambda)
 from syndicate.core.build.bundle_processor import (create_bundles_bucket,
                                                    load_bundle,
                                                    upload_bundle_to_s3)
@@ -30,7 +31,8 @@ from syndicate.core.build.deployment_processor import (
     update_lambdas)
 from syndicate.core.build.meta_processor import create_meta
 from syndicate.core.conf.config_holder import (MVN_BUILD_TOOL_NAME,
-                                               PYTHON_BUILD_TOOL_NAME)
+                                               PYTHON_BUILD_TOOL_NAME,
+                                               NODE_BUILD_TOOL_NAME)
 from syndicate.core.helper import (check_required_param,
                                    create_bundle_callback,
                                    handle_futures_progress_bar,
@@ -131,9 +133,21 @@ def assemble_python(bundle_name, project_path):
     click.echo('Python artifacts were prepared successfully.')
 
 
+@syndicate.command(name='assemble_node')
+@timeit
+@click.option('--bundle_name', nargs=1, callback=create_bundle_callback)
+@click.option('--project_path', '-path', nargs=1,
+              callback=resolve_path_callback)
+def assemble_node(bundle_name, project_path):
+    click.echo('Command assemble node: project_path: %s ' % project_path)
+    package_node_lambda(bundle_name, project_path)
+    click.echo('NodeJS artifacts were prepared successfully.')
+
+
 COMMAND_TO_BUILD_MAPPING = {
     MVN_BUILD_TOOL_NAME: mvn_compile_java,
-    PYTHON_BUILD_TOOL_NAME: assemble_python
+    PYTHON_BUILD_TOOL_NAME: assemble_python,
+    NODE_BUILD_TOOL_NAME: assemble_node
 }
 
 

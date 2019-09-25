@@ -13,17 +13,16 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+import concurrent
 import glob
 import json
 import os
 import shutil
 import threading
 import zipfile
+from concurrent.futures import ALL_COMPLETED, ThreadPoolExecutor
 from contextlib import closing
 from distutils import dir_util
-
-import concurrent
-from concurrent.futures import ALL_COMPLETED, ThreadPoolExecutor
 
 from syndicate.commons.log_helper import get_logger
 from syndicate.core import CONFIG
@@ -64,6 +63,32 @@ def build_mvn_lambdas(bundle_name, project_path):
                                 build_path(target_folder, file))
 
     _LOG.info('Java mvn project was processed successfully')
+
+
+def package_node_lambda(bundle_name, project_path):
+    project_path = project_path if project_path else CONFIG.project_path
+
+    target_folder = build_path(CONFIG.project_path, ARTIFACTS_FOLDER,
+                               bundle_name)
+    project_abs_path = build_path(CONFIG.project_path, project_path)
+
+    _LOG.info('Going to package lambdas starting by path {0}'.format(
+        project_abs_path))
+    executor = ThreadPoolExecutor(max_workers=5)
+    futures = []
+    for root, sub_dirs, files in os.walk(project_abs_path):
+        for item in files:
+            if item.endswith(LAMBDA_CONFIG_FILE_NAME):
+                _LOG.info('Going to build artifact in: {0}'.format(root))
+                arg = {
+                    'item': item,
+                    'project_base_folder': os.path.basename(
+                        os.path.normpath(project_path)),
+                    'project_path': project_path,
+                    'root': root,
+                    'target_folder': target_folder
+                }
+                futures.append(executor.submit(_build_node_artifact, arg))
 
 
 def build_python_lambdas(bundle_name, project_path):
@@ -136,6 +161,50 @@ def _build_python_artifact(item, project_base_folder, project_path, root,
     _copy_py_files(src_path, artifact_path)
     package_name = build_py_package_name(lambda_name, lambda_version)
     _zip_dir(artifact_path, build_path(target_folder, package_name))
+    # remove unused folder
+    lock = threading.RLock()
+    lock.acquire()
+    try:
+        shutil.rmtree(artifact_path)
+    finally:
+        lock.release()
+    _LOG.info('Package {0} was created successfully'.format(package_name))
+
+
+@unpack_kwargs
+def _build_node_artifact(item, project_base_folder, project_path, root,
+                         target_folder):
+    _LOG.debug('Building artifact in {0}'.format(target_folder))
+    lambda_config_dict = json.load(open(build_path(root, item)))
+    req_params = ['lambda_path', 'name', 'version']
+    validate_params(root, lambda_config_dict, req_params)
+    lambda_name = lambda_config_dict['name']
+    lambda_version = lambda_config_dict['version']
+    artifact_name = lambda_name + '-' + lambda_version
+    # create folder to store artifacts
+    artifact_path = build_path(target_folder, artifact_name)
+    _LOG.debug('Artifacts path: {0}'.format(artifact_path))
+    os.makedirs(artifact_path)
+    _LOG.debug('Folders are created')
+    # install requirements.txt content
+    # getting file content
+    req_path = build_path(root, REQ_FILE_NAME)
+    if os.path.exists(req_path):
+        _LOG.debug('Going to install 3-rd party dependencies')
+        with open(req_path) as f:
+            req_list = f.readlines()
+        req_list = [path_resolver(r.strip()) for r in req_list]
+        _LOG.info('Dependencies: {0}'.format(req_list))
+        # install dependencies
+        for lib in req_list:
+            command = 'npm install --prefix {1} {0}'.format(lib, root)
+            execute_command(command=command)
+        _LOG.debug('3-rd party dependencies were installed successfully')
+
+    # todo implement installation of local dependencies
+
+    package_name = build_py_package_name(lambda_name, lambda_version)
+    _zip_dir(root, build_path(target_folder, package_name))
     # remove unused folder
     lock = threading.RLock()
     lock.acquire()

@@ -162,7 +162,7 @@ def _check_duplicated_resources(initial_meta_dict, additional_item_name,
                                                   additional_item))
 
 
-def _populate_s3_path_python(meta, bundle_name):
+def _populate_s3_path_python_node(meta, bundle_name):
     name = meta.get('name')
     version = meta.get('version')
     if not name or not version:
@@ -219,9 +219,10 @@ def _populate_s3_path(meta, bundle_name):
 
 
 RUNTIME_PATH_RESOLVER = {
-    'python2.7': _populate_s3_path_python,
-    'python3.7': _populate_s3_path_python,
-    'java8': _populate_s3_path_java
+    'python2.7': _populate_s3_path_python_node,
+    'python3.7': _populate_s3_path_python_node,
+    'java8': _populate_s3_path_java,
+    'nodejs10.x': _populate_s3_path_python_node
 }
 
 S3_PATH_MAPPING = {
