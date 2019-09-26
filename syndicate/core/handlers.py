@@ -24,7 +24,8 @@ from syndicate.core.build.artifact_processor import (build_mvn_lambdas,
                                                      package_node_lambda)
 from syndicate.core.build.bundle_processor import (create_bundles_bucket,
                                                    load_bundle,
-                                                   upload_bundle_to_s3)
+                                                   upload_bundle_to_s3,
+                                                   if_bundle_exist)
 from syndicate.core.build.deployment_processor import (
     continue_deployment_resources, create_deployment_resources,
     remove_deployment_resources, remove_failed_deploy_resources,
@@ -196,9 +197,12 @@ def create_deploy_target_bucket():
 @syndicate.command(name='upload_bundle')
 @timeit
 @click.option('--bundle_name', nargs=1, callback=verify_meta_bundle_callback)
-def upload_bundle(bundle_name):
+@click.option('--force', is_flag=True)
+def upload_bundle(bundle_name, force=False):
     click.echo('Upload bundle: %s' % bundle_name)
-    futures = upload_bundle_to_s3(bundle_name)
+    if force:
+        click.echo('Force upload')
+    futures = upload_bundle_to_s3(bundle_name=bundle_name, force=force)
     handle_futures_progress_bar(futures)
     click.echo('Bundle was uploaded successfully')
 
@@ -213,10 +217,11 @@ def upload_bundle(bundle_name):
               callback=check_required_param)
 @click.option('--role_name', '-role', nargs=1,
               callback=check_required_param)
+@click.option('--force_upload', is_flag=True, default=False)
 @timeit
 @click.pass_context
 def copy_bundle(ctx, bundle_name, src_account_id, src_bucket_region,
-                src_bucket_name, role_name):
+                src_bucket_name, role_name, force_upload):
     click.echo('Copy bundle: %s' % bundle_name)
     click.echo('Bundle name: %s' % bundle_name)
     click.echo('Source account id: %s' % src_account_id)
@@ -226,7 +231,7 @@ def copy_bundle(ctx, bundle_name, src_account_id, src_bucket_region,
                           src_bucket_name, role_name)
     handle_futures_progress_bar(futures)
     click.echo('Bundle was downloaded successfully')
-    ctx.invoke(upload_bundle, bundle_name=bundle_name)
+    ctx.invoke(upload_bundle, bundle_name=bundle_name, force=force_upload)
     click.echo('Bundle was copied successfully')
 
 
@@ -235,12 +240,18 @@ def copy_bundle(ctx, bundle_name, src_account_id, src_bucket_region,
 
 @syndicate.command(name='build_bundle')
 @click.option('--bundle_name', nargs=1, callback=check_required_param)
+@click.option('--force_upload', is_flag=True, default=False)
 @click.pass_context
 @timeit
-def build_bundle(ctx, bundle_name):
+def build_bundle(ctx, bundle_name, force_upload):
+    if if_bundle_exist(bundle_name=bundle_name) and not force_upload:
+        click.echo('Bundle name \'{0}\' already exists '
+                   'in deploy bucket. Please use another bundle '
+                   'name or delete the bundle'.format(bundle_name))
+        return
     ctx.invoke(build_artifacts, bundle_name=bundle_name)
     ctx.invoke(package_meta, bundle_name=bundle_name)
-    ctx.invoke(upload_bundle, bundle_name=bundle_name)
+    ctx.invoke(upload_bundle, bundle_name=bundle_name, force=force_upload)
 
 
 # =============================================================================

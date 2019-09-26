@@ -89,6 +89,9 @@ def package_node_lambda(bundle_name, project_path):
                     'target_folder': target_folder
                 }
                 futures.append(executor.submit(_build_node_artifact, arg))
+    for future in concurrent.futures.as_completed(futures):
+        _LOG.info('Lambda \'{0}\' has been successfully assembled'.format(
+            future.result()))
 
 
 def build_python_lambdas(bundle_name, project_path):
@@ -189,30 +192,45 @@ def _build_node_artifact(item, project_base_folder, project_path, root,
     # install requirements.txt content
     # getting file content
     req_path = build_path(root, REQ_FILE_NAME)
-    if os.path.exists(req_path):
-        _LOG.debug('Going to install 3-rd party dependencies')
-        with open(req_path) as f:
-            req_list = f.readlines()
-        req_list = [path_resolver(r.strip()) for r in req_list]
-        _LOG.info('Dependencies: {0}'.format(req_list))
-        # install dependencies
-        for lib in req_list:
-            command = 'npm install --prefix {1} {0}'.format(lib, root)
-            execute_command(command=command)
-        _LOG.debug('3-rd party dependencies were installed successfully')
-
-    # todo implement installation of local dependencies
-
-    package_name = build_py_package_name(lambda_name, lambda_version)
-    _zip_dir(root, build_path(target_folder, package_name))
-    # remove unused folder
-    lock = threading.RLock()
-    lock.acquire()
     try:
-        shutil.rmtree(artifact_path)
-    finally:
-        lock.release()
-    _LOG.info('Package {0} was created successfully'.format(package_name))
+        if os.path.exists(req_path):
+            _LOG.debug('Going to install 3-rd party dependencies')
+            with open(req_path) as f:
+                req_list = f.readlines()
+            req_list = [path_resolver(r.strip()) for r in req_list]
+            _LOG.info('Dependencies of {0}: {1}'.format(lambda_name, req_list))
+            # install dependencies
+            for lib in req_list:
+                command = 'npm install --prefix {1} {0}'.format(lib, root)
+                execute_command(command=command)
+            _LOG.debug('3-rd party dependencies were installed successfully')
+
+        # todo implement installation of local dependencies
+        local_req_path = build_path(root, LOCAL_REQ_FILE_NAME)
+        if os.path.exists(local_req_path):
+            _LOG.info('Going to install local dependencies')
+            _install_local_req(artifact_path, local_req_path,
+                               project_base_folder,
+                               project_path)
+            _LOG.debug('Local dependencies were installed successfully')
+
+        package_name = build_py_package_name(lambda_name, lambda_version)
+        _zip_dir(root, build_path(target_folder, package_name))
+        # remove unused folder
+        lock = threading.RLock()
+        lock.acquire()
+        try:
+            shutil.rmtree(artifact_path)
+        finally:
+            lock.release()
+        return 'Lambda package {0} was created successfully'.format(
+            package_name)
+    except Exception:
+        _LOG.exception(
+            'Error occurred during the \'{0}\' lambda deployment package '
+            'assembling'.format(lambda_name))
+        return 'Error occurred during the \'{0}\' lambda deployment package ' \
+               'assembling'.format(lambda_name)
 
 
 def _install_local_req(artifact_path, local_req_path, project_base_folder,
@@ -220,10 +238,10 @@ def _install_local_req(artifact_path, local_req_path, project_base_folder,
     with open(local_req_path) as f:
         local_req_list = f.readlines()
     local_req_list = [path_resolver(r.strip()) for r in local_req_list]
-    _LOG.debug('Local dependencies: {0}'.format(prettify_json(local_req_list)))
+    _LOG.info('Local dependencies: {0}'.format(prettify_json(local_req_list)))
     # copy folders
     for lrp in local_req_list:
-        _LOG.debug('Processing dependency: {0}'.format(lrp))
+        _LOG.info('Processing dependency: {0}'.format(lrp))
         folder_path = build_path(artifact_path, project_base_folder, lrp)
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
