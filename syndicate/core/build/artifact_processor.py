@@ -30,7 +30,8 @@ from syndicate.core.build.helper import build_py_package_name
 from syndicate.core.conf.config_holder import path_resolver
 from syndicate.core.constants import (ARTIFACTS_FOLDER, DEFAULT_SEP,
                                       LAMBDA_CONFIG_FILE_NAME,
-                                      LOCAL_REQ_FILE_NAME, REQ_FILE_NAME)
+                                      LOCAL_REQ_FILE_NAME, REQ_FILE_NAME,
+                                      NODE_REQ_FILE_NAME)
 from syndicate.core.helper import (build_path, execute_command,
                                    execute_command_by_path,
                                    prettify_json, unpack_kwargs)
@@ -66,8 +67,6 @@ def build_mvn_lambdas(bundle_name, project_path):
 
 
 def package_node_lambda(bundle_name, project_path):
-    project_path = project_path if project_path else CONFIG.project_path
-
     target_folder = build_path(CONFIG.project_path, ARTIFACTS_FOLDER,
                                bundle_name)
     project_abs_path = build_path(CONFIG.project_path, project_path)
@@ -82,9 +81,6 @@ def package_node_lambda(bundle_name, project_path):
                 _LOG.info('Going to build artifact in: {0}'.format(root))
                 arg = {
                     'item': item,
-                    'project_base_folder': os.path.basename(
-                        os.path.normpath(project_path)),
-                    'project_path': project_path,
                     'root': root,
                     'target_folder': target_folder
                 }
@@ -175,10 +171,10 @@ def _build_python_artifact(item, project_base_folder, project_path, root,
 
 
 @unpack_kwargs
-def _build_node_artifact(item, project_base_folder, project_path, root,
-                         target_folder):
+def _build_node_artifact(item, root, target_folder):
     _LOG.debug('Building artifact in {0}'.format(target_folder))
     lambda_config_dict = json.load(open(build_path(root, item)))
+    _LOG.debug('Root path: {}'.format(root))
     req_params = ['lambda_path', 'name', 'version']
     validate_params(root, lambda_config_dict, req_params)
     lambda_name = lambda_config_dict['name']
@@ -191,35 +187,20 @@ def _build_node_artifact(item, project_base_folder, project_path, root,
     _LOG.debug('Folders are created')
     # install requirements.txt content
     # getting file content
-    req_path = build_path(root, REQ_FILE_NAME)
+    req_path = build_path(root, NODE_REQ_FILE_NAME)
     try:
         if os.path.exists(req_path):
-            _LOG.debug('Going to install 3-rd party dependencies')
-            with open(req_path) as f:
-                req_list = f.readlines()
-            req_list = [path_resolver(r.strip()) for r in req_list]
-            _LOG.info('Dependencies of {0}: {1}'.format(lambda_name, req_list))
-            # install dependencies
-            for lib in req_list:
-                command = 'npm install --prefix {1} {0}'.format(lib, root)
-                execute_command(command=command)
+            command = 'npm install --prefix {0}'.format(root)
+            execute_command(command=command)
             _LOG.debug('3-rd party dependencies were installed successfully')
-
-        # todo implement installation of local dependencies
-        local_req_path = build_path(root, LOCAL_REQ_FILE_NAME)
-        if os.path.exists(local_req_path):
-            _LOG.info('Going to install local dependencies')
-            _install_local_req(artifact_path, local_req_path,
-                               project_base_folder,
-                               project_path)
-            _LOG.debug('Local dependencies were installed successfully')
 
         package_name = build_py_package_name(lambda_name, lambda_version)
         _zip_dir(root, build_path(target_folder, package_name))
-        # remove unused folder
         lock = threading.RLock()
         lock.acquire()
         try:
+            # remove unused folder
+            shutil.rmtree(os.path.join(root, 'node_modules'))
             shutil.rmtree(artifact_path)
         finally:
             lock.release()
@@ -276,7 +257,7 @@ def _copy_py_files(search_path, destination_path):
 def _zip_dir(basedir, name):
     assert os.path.isdir(basedir)
     with closing(zipfile.ZipFile(name, "w", zipfile.ZIP_DEFLATED)) as z:
-        for root, dirs, files in os.walk(basedir):
+        for root, dirs, files in os.walk(basedir, followlinks=True):
             for fn in files:
                 absfn = os.path.join(root, fn)
                 zfn = absfn[len(basedir) + len(os.sep):]
