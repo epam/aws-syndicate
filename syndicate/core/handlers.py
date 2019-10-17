@@ -19,9 +19,10 @@ import os
 import click
 
 from syndicate.core import CONFIG, CONF_PATH
-from syndicate.core.build.artifact_processor import (build_mvn_lambdas,
-                                                     build_python_lambdas,
-                                                     package_node_lambda)
+from syndicate.core.build.artifact_processor import (RUNTIME_NODEJS,
+                                                     assemble_artifacts,
+                                                     RUNTIME_JAVA_8,
+                                                     RUNTIME_PYTHON)
 from syndicate.core.build.bundle_processor import (create_bundles_bucket,
                                                    load_bundle,
                                                    upload_bundle_to_s3,
@@ -112,14 +113,16 @@ def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
 # =============================================================================
 
 
-@syndicate.command(name='mvn_compile_java')
+@syndicate.command(name='assemble_java_mvn')
 @timeit
 @click.option('--bundle_name', nargs=1, callback=create_bundle_callback)
 @click.option('--project_path', '-path', nargs=1,
               callback=resolve_path_callback)
-def mvn_compile_java(bundle_name, project_path):
+def assemble_java_mvn(bundle_name, project_path):
     click.echo('Command compile java project path: %s' % project_path)
-    build_mvn_lambdas(bundle_name, project_path)
+    assemble_artifacts(bundle_name=bundle_name,
+                       project_path=project_path,
+                       runtime=RUNTIME_JAVA_8)
     click.echo('Java artifacts were prepared successfully.')
 
 
@@ -130,7 +133,9 @@ def mvn_compile_java(bundle_name, project_path):
               callback=resolve_path_callback)
 def assemble_python(bundle_name, project_path):
     click.echo('Command assemble python: project_path: %s ' % project_path)
-    build_python_lambdas(bundle_name, project_path)
+    assemble_artifacts(bundle_name=bundle_name,
+                       project_path=project_path,
+                       runtime=RUNTIME_PYTHON)
     click.echo('Python artifacts were prepared successfully.')
 
 
@@ -141,12 +146,13 @@ def assemble_python(bundle_name, project_path):
               callback=resolve_path_callback)
 def assemble_node(bundle_name, project_path):
     click.echo('Command assemble node: project_path: %s ' % project_path)
-    package_node_lambda(bundle_name, project_path)
+    assemble_artifacts(bundle_name=bundle_name,
+                       project_path=project_path,
+                       runtime=RUNTIME_NODEJS)
     click.echo('NodeJS artifacts were prepared successfully.')
 
-
 COMMAND_TO_BUILD_MAPPING = {
-    MVN_BUILD_TOOL_NAME: mvn_compile_java,
+    MVN_BUILD_TOOL_NAME: assemble_java_mvn,
     PYTHON_BUILD_TOOL_NAME: assemble_python,
     NODE_BUILD_TOOL_NAME: assemble_node
 }
