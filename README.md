@@ -31,6 +31,50 @@ aws-syndicate is an Amazon Web Services deployment framework written in Python, 
 
 ## Installing
 
+**Prerequisites**
+
+1) Installed [Python 3.7](https://www.python.org/downloads/ "Python 3.7") or higher version;
+2) Installed package manager [PIP 9.0](https://pypi.org/project/pip/ "PIP 9.0") or higher version;
+3) Installed [Apache Maven 3.3.9](https://maven.apache.org/download.cgi "Apache Maven 3.3.9") or higher version.
+
+**macOS**
+
+Detailed guide how to install Python you can find [here](https://wsvincent.com/install-python3-mac/ "here").
+Also [here](https://www.baeldung.com/install-maven-on-windows-linux-mac "here") you can find detailed guild how to install [Apache Maven 3.3.9](https://maven.apache.org/download.cgi "Apache Maven 3.3.9").
+
+1) Create virtual environment:
+  `python3 -m venv syndicate_venv`
+
+2) Activate your virtual environment:
+  `source syndicate_venv/bin/activate`
+
+3) Install Syndicate framework with pip from GitHub:
+  `pip3 install git+https://github.com/epam/aws-syndicate.git@master`
+
+4) Set up a Syndicate Java [plugin](https://github.com/epam/aws-syndicate/tree/master/plugin "plugin"):
+	`mvn install /aws-syndicate/plugin/`
+
+5) Go to the Common configuration.
+
+**Linux**
+
+Detailed guide how to install Python you can find [here](https://docs.python-guide.org/starting/install3/linux/ "here").
+Also [here](https://www.baeldung.com/install-maven-on-windows-linux-mac "here") you can find detailed guild how to install [Apache Maven 3.3.9](https://maven.apache.org/download.cgi "Apache Maven 3.3.9").
+
+1) Create virtual environment:
+  `python3 -m venv syndicate_venv`
+
+2) Activate your virtual environment:
+  `source syndicate_venv/bin/activate`
+
+3) Install Syndicate framework with pip from GitHub:
+  `pip3 install git+https://github.com/epam/aws-syndicate.git@master`
+
+4) Set up a Syndicate Java [plugin](https://github.com/epam/aws-syndicate/tree/master/plugin "plugin"):
+	`mvn install /aws-syndicate/plugin/`
+
+5) Go to the Common configuration.
+
 **Common prerequisites**
 
 1) Installed [Python 3.7](https://www.python.org/downloads/ "Python 3.7") or higher version;
@@ -146,4 +190,14 @@ You can find a detailed documentation [here](https://github.com/epam/aws-syndica
 Getting Help
 ------------
 
-We use GitHub issues for tracking bugs and feature requests. If it turns out that you may have found a bug, please [open an issue](https://github.com/epam/aws-syndicate/issues/new)
+We use GitHub issues for tracking bugs and feature requests. You can find our public backlog [here](https://github.com/epam/aws-syndicate/projects/1). If it turns out that you may have found a bug, please [open an issue](https://github.com/epam/aws-syndicate/issues/new/choose) with some of existing templates.
+
+Default label for bugs, improvements and feature requests is `To-Think-About`, it defines that ticket requires additional information about what should be done in scope of this issue. 
+`To-Do` label should be added only for tickets with clear and reviwed issue scope.
+
+But before creating new issues - check existing, it may cover you problem or question. For increasing issue priority - just add "+1" comment. 
+
+Would like to contribute?
+-------------------------
+
+Plese, check [contributor guide](https://github.com/epam/aws-syndicate/blob/master/CONTRIBUTING.md) before starting. 
