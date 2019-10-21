@@ -13,11 +13,10 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-from json import dumps
-
 from boto3 import resource
 from botocore.client import Config
 from botocore.exceptions import ClientError
+from json import dumps
 
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import apply_methods_decorator, retry
@@ -142,10 +141,11 @@ class S3Connection(object):
         if not location:
             location = self.region
         valid_location = ['us-west-1', 'us-west-2', 'ca-central-1',
-                          'eu-west-1', 'eu-west-2', 'eu-central-1',
+                          'eu-west-1', 'eu-west-2', 'eu-west-3', 'eu-central-1',
                           'ap-south-1', 'ap-southeast-1', 'ap-southeast-2',
                           'ap-northeast-1', 'ap-northeast-2', 'sa-east-1',
-                          'us-east-2', 'eu-central-1', 'us-east-1']
+                          'us-east-2', 'eu-central-1', 'us-east-1',
+                          'eu-north-1']
         if location not in valid_location:
             raise AssertionError('Param "location" has invalid value.'
                                  'Valid locations: {0}'.format(valid_location))
@@ -165,27 +165,37 @@ class S3Connection(object):
     def delete_bucket(self, bucket_name):
         self.client.delete_bucket(Bucket=bucket_name)
 
-    def configure_event_source_for_lambda(self, bucket, lambda_arn, events):
+    def configure_event_source_for_lambda(self, bucket, lambda_arn, events,
+                                          filter_rules=None):
         """
         :type bucket: str
         :type lambda_arn: str
         :type events: list
+        :type filter_rules: list
         :param events: 's3:ReducedRedundancyLostObject'|'s3:ObjectCreated:*'|
         's3:ObjectCreated:Put'|'s3:ObjectCreated:Post'|'s3:ObjectCreated:Copy'|
         's3:ObjectCreated:CompleteMultipartUpload'|'s3:ObjectRemoved:*'|
         's3:ObjectRemoved:Delete'|'s3:ObjectRemoved:DeleteMarkerCreated'
         """
+        params = {
+            'LambdaFunctionConfigurations': [
+                {
+                    'LambdaFunctionArn': lambda_arn,
+                    'Events': events
+                }
+            ]
+        }
+        if filter_rules:
+            params['LambdaFunctionConfigurations'][0].update({
+                "Filter": {
+                    'Key': {
+                        'FilterRules': filter_rules
+                    }
+                }
+            })
         self.client.put_bucket_notification_configuration(
             Bucket=bucket,
-            NotificationConfiguration={
-                'LambdaFunctionConfigurations': [
-                    {
-                        'LambdaFunctionArn': lambda_arn,
-                        'Events': events
-                    }
-                ]
-            }
-        )
+            NotificationConfiguration=params)
 
     def get_list_buckets(self):
         response = self.client.list_buckets()
@@ -319,9 +329,9 @@ class S3Connection(object):
         versions = response.get('Versions', [])
         bucket_objects.extend(
             [{
-                 'Key': i['Key'],
-                 'VersionId': i['VersionId']
-             } for i in versions])
+                'Key': i['Key'],
+                'VersionId': i['VersionId']
+            } for i in versions])
         key_marker = response.get('NextKeyMarker')
         version_marker = response.get('NextVersionIdMarker')
         while key_marker or version_marker:
@@ -333,9 +343,9 @@ class S3Connection(object):
             versions = response.get('Versions', [])
             bucket_objects.extend(
                 [{
-                     'Key': i['Key'],
-                     'VersionId': i['VersionId']
-                 } for i in versions])
+                    'Key': i['Key'],
+                    'VersionId': i['VersionId']
+                } for i in versions])
         return bucket_objects
 
     def list_object_markers(self, bucket_name, delimeter=None,
@@ -353,9 +363,9 @@ class S3Connection(object):
         delete_markers = response.get('DeleteMarkers', [])
         bucket_objects.extend(
             [{
-                 'Key': i['Key'],
-                 'VersionId': i['VersionId']
-             } for i in delete_markers])
+                'Key': i['Key'],
+                'VersionId': i['VersionId']
+            } for i in delete_markers])
         key_marker = response.get('NextKeyMarker')
         version_marker = response.get('NextVersionIdMarker')
         while key_marker or version_marker:
@@ -367,9 +377,9 @@ class S3Connection(object):
             delete_markers = response.get('DeleteMarkers', [])
             bucket_objects.extend(
                 [{
-                     'Key': i['Key'],
-                     'VersionId': i['VersionId']
-                 } for i in delete_markers])
+                    'Key': i['Key'],
+                    'VersionId': i['VersionId']
+                } for i in delete_markers])
         return bucket_objects
 
     def delete_objects(self, bucket_name, objects, mfa=None,
@@ -380,3 +390,40 @@ class S3Connection(object):
         if request_payer:
             params['RequestPayer'] = request_payer
         return self.client.delete_objects(**params)
+
+    def put_cors(self, bucket_name, rules):
+        """
+        Puts buckets configuration for existing bucket.
+        :param bucket_name: name of the bucket.
+        :param rules: list of rules. Each rule may have
+            the following attributes: AllowedHeaders, AllowedMethods,
+            AllowedOrigins, ExposeHeaders, MaxAgeSeconds;
+        :return: None as boto3 does.
+        """
+
+        boto_rules = []
+        for rule in rules:
+            # converting rule to boto format
+            for key in rule.keys():
+                if isinstance(rule[key], list) \
+                        or isinstance(rule[key], int):
+                    pass  # expected
+                elif isinstance(rule[key], str):
+                    rule[key] = [rule[key]]
+                else:
+                    raise AssertionError(
+                        'Value of CORS rule attribute {0} has invalid '
+                        'value: {1}. Should be str, int or list'.format(key,
+                                                                        rule[
+                                                                            key]))
+            boto_rules.append(rule)
+
+        # boto3 returns None here
+        self.client.put_bucket_cors(
+            Bucket=bucket_name,
+            CORSConfiguration={
+                "CORSRules": boto_rules
+            }
+        )
+        _LOG.info('CORS configuration has been set to bucket {0}'.format(
+            bucket_name))

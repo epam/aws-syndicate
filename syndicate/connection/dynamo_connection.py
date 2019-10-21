@@ -42,6 +42,52 @@ def _append_attr_definition(definition, attr_name, attr_type):
                            AttributeType=attr_type))
 
 
+def _build_global_index_definition(index, read_throughput=1,
+                                   write_throughput=1):
+    index_info = _build_index_definition(index)
+    index_info['ProvisionedThroughput'] = {
+        'ReadCapacityUnits': read_throughput,
+        'WriteCapacityUnits': write_throughput
+    }
+    return index_info
+
+
+def _add_index_keys_to_definition(definition, index):
+    _append_attr_definition(definition, index["index_key_name"],
+                            index["index_key_type"])
+    if index.get('index_sort_key_name'):
+        _append_attr_definition(definition,
+                                index["index_sort_key_name"],
+                                index["index_sort_key_type"])
+
+
+def _build_index_definition(index):
+    """
+    Creates request object to Index to be deployed
+    :param index:
+    :return:
+    """
+    index_def = {
+        "IndexName": index["name"],
+        "KeySchema": [
+            {
+                "AttributeName": index["index_key_name"],
+                "KeyType": "HASH"
+            }
+        ],
+        "Projection": {
+            "ProjectionType": "ALL"
+        }
+    }
+    if index.get('index_sort_key_name'):
+        index_def['KeySchema'].append(
+            {
+                "AttributeName": index["index_sort_key_name"],
+                "KeyType": "RANGE"
+            })
+    return index_def
+
+
 @apply_methods_decorator(retry)
 class DynamoConnection(object):
     """ DynamoDB class."""
@@ -63,7 +109,8 @@ class DynamoConnection(object):
 
     def create_table(self, table_name, hash_key_name, hash_key_type,
                      sort_key_name=None, sort_key_type=None, read_throughput=5,
-                     write_throughput=5, wait=True, global_indexes=None):
+                     write_throughput=5, wait=True, global_indexes=None,
+                     local_indexes=None):
         """ Table creation.
 
         :type table_name: str
@@ -75,6 +122,7 @@ class DynamoConnection(object):
         :type write_throughput: int
         :type wait: bool
         :type global_indexes: dict
+        :type local_indexes: dict
         :returns created table
         """
         throughput = dict(ReadCapacityUnits=read_throughput,
@@ -90,12 +138,13 @@ class DynamoConnection(object):
                                    AttributeType=sort_key_type))
         if global_indexes:
             for index in global_indexes:
-                _append_attr_definition(definition, index["index_key_name"],
-                                        index["index_key_type"])
-                if index.get('index_sort_key_name'):
-                    _append_attr_definition(definition,
-                                            index["index_sort_key_name"],
-                                            index["index_sort_key_type"])
+                _add_index_keys_to_definition(definition=definition,
+                                              index=index)
+        if local_indexes:
+            for index in local_indexes:
+                _add_index_keys_to_definition(definition=definition,
+                                              index=index)
+
         params = dict(TableName=table_name, KeySchema=schema,
                       AttributeDefinitions=definition,
                       ProvisionedThroughput=throughput,
@@ -103,29 +152,15 @@ class DynamoConnection(object):
         if global_indexes:
             params['GlobalSecondaryIndexes'] = []
             for index in global_indexes:
-                index_info = {
-                    "IndexName": index["name"],
-                    "KeySchema": [
-                        {
-                            "AttributeName": index["index_key_name"],
-                            "KeyType": "HASH"
-                        }
-                    ],
-                    "Projection": {
-                        "ProjectionType": "ALL"
-                    },
-                    "ProvisionedThroughput": {
-                        "ReadCapacityUnits": read_throughput,
-                        "WriteCapacityUnits": write_throughput
-                    }
-                }
-                if index.get('index_sort_key_name'):
-                    index_info['KeySchema'].append(
-                        {
-                            "AttributeName": index["index_sort_key_name"],
-                            "KeyType": "RANGE"
-                        })
+                index_info = _build_global_index_definition(index,
+                                                            read_throughput,
+                                                            write_throughput)
                 params['GlobalSecondaryIndexes'].append(index_info)
+        if local_indexes:
+            params['LocalSecondaryIndexes'] = []
+            for index in local_indexes:
+                index_info = _build_index_definition(index)
+                params['LocalSecondaryIndexes'].append(index_info)
         table = self.conn.create_table(**params)
         if wait:
             waiter = table.meta.client.get_waiter('table_exists')

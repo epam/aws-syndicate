@@ -36,7 +36,7 @@ def exception_handler(exception_type, exception, traceback):
     print(exception)
 
 
-sys.excepthook = exception_handler
+# sys.excepthook = exception_handler
 
 # suppress botocore warnings
 urllib3.disable_warnings()
@@ -85,6 +85,6 @@ try:
         CREDENTIALS[SECRET_KEY] = CONFIG.aws_secret_access_key
     CONN = ConnectionProvider(CREDENTIALS)
 except ClientError:
-    raise AssertionError('Cannot assume %s role. Please verify '
-                         'that you have configured the role correctly.',
-                         CONFIG.access_role)
+    raise AssertionError('Cannot assume {0} role. '
+                         'Please verify that you have configured '
+                         'the role correctly.'.format(CONFIG.access_role))

@@ -13,22 +13,12 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-from setuptools import find_packages, setup
 
-setup(
-    name='syndicate',
-    version='0.8',
-    packages=find_packages(),
-    include_package_data=True,
-    install_requires=[
-        'click==7.0',
-        'botocore==1.10.73',
-        'boto3==1.7.73',
-        'configobj==5.0.6',
-        'tqdm==4.19.5'
-    ],
-    entry_points='''
-        [console_scripts]
-        syndicate=syndicate.core.handlers:syndicate
-    ''',
-)
+
+def assert_required_property(resource_name, property_name, property_value,
+                             error_msg=None):
+    if property_value is None:
+        error_msg = error_msg if error_msg else \
+            'Property {0} of resource {1} is required but absent'.format(
+                property_name, resource_name)
+        raise AssertionError(error_msg)

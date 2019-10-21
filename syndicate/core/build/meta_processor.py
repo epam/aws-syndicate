@@ -19,15 +19,20 @@ from json import load
 from syndicate.commons.log_helper import get_logger
 from syndicate.core import CONFIG, S3_PATH_NAME
 from syndicate.core.build.helper import build_py_package_name
+from syndicate.core.build.validator.mapping import (VALIDATOR_BY_TYPE_MAPPING,
+                                                    ALL_TYPES)
 from syndicate.core.conf.config_holder import GLOBAL_AWS_SERVICES
 from syndicate.core.constants import (API_GATEWAY_TYPE, ARTIFACTS_FOLDER,
                                       BUILD_META_FILE_NAME, EBS_TYPE,
                                       LAMBDA_CONFIG_FILE_NAME, LAMBDA_TYPE,
-                                      RESOURCES_FILE_NAME, RESOURCE_LIST)
+                                      RESOURCES_FILE_NAME, RESOURCE_LIST,
+                                      IAM_ROLE)
 from syndicate.core.helper import (build_path, prettify_json,
                                    resolve_aliases_for_string,
                                    write_content_to_file)
 from syndicate.core.resources.helper import resolve_dynamic_identifier
+
+DEFAULT_IAM_SUFFIX_LENGTH = 5
 
 _LOG = get_logger('syndicate.core.build.meta_processor')
 
@@ -94,6 +99,36 @@ def _check_duplicated_resources(initial_meta_dict, additional_item_name,
             if initial_cache_config:
                 additional_item[
                     'cluster_cache_configuration'] = initial_cache_config
+            # handle responses
+            initial_responses = initial_item.get(
+                'api_method_responses')
+            additional_responses = additional_item.get(
+                'api_method_responses')
+            if initial_responses and additional_responses:
+                raise AssertionError(
+                    "API '{0}' has duplicated api method responses "
+                    "configurations. Please, remove one "
+                    "api method responses configuration.".format(
+                        additional_item_name)
+                )
+            if initial_responses:
+                additional_item[
+                    'api_method_responses'] = initial_responses
+            # handle integration responses
+            initial_integration_resp = initial_item.get(
+                'api_method_integration_responses')
+            additional_integration_resp = additional_item.get(
+                'api_method_integration_responses')
+            if initial_integration_resp and additional_integration_resp:
+                raise AssertionError(
+                    "API '{0}' has duplicated api method integration "
+                    "responses configurations. Please, remove one "
+                    "api method integration responses configuration.".format(
+                        additional_item_name)
+                )
+            if initial_integration_resp:
+                additional_item[
+                    'api_method_integration_responses'] = initial_integration_resp
             # join items dependencies
             dependencies_dict = {each['resource_name']: each
                                  for each in additional_item['dependencies']}
@@ -160,8 +195,10 @@ def _populate_s3_path_lambda(meta, bundle_name):
         resolver_func(meta, bundle_name)
     else:
         raise AssertionError(
-            'Lambda config must contain runtime. '
-            'Existing configuration: {0}'.format(prettify_json(meta)))
+            'Specified runtime {0} in {1} is not supported. '
+            'Supported runtimes: {2}'.format(
+                runtime.lower(), meta.get('name'),
+                list(RUNTIME_PATH_RESOLVER.keys())))
 
 
 def _populate_s3_path_ebs(meta, bundle_name):
@@ -183,6 +220,7 @@ def _populate_s3_path(meta, bundle_name):
 
 RUNTIME_PATH_RESOLVER = {
     'python2.7': _populate_s3_path_python,
+    'python3.7': _populate_s3_path_python,
     'java8': _populate_s3_path_java
 }
 
@@ -220,7 +258,7 @@ def _look_for_configs(nested_files, resources_meta, path, bundle_name):
         if each == RESOURCES_FILE_NAME:
             additional_config_path = os.path.join(path, RESOURCES_FILE_NAME)
             _LOG.debug('Processing file: {0}'.format(additional_config_path))
-            with open(additional_config_path) as json_file:
+            with open(additional_config_path, encoding='utf-8') as json_file:
                 deployment_resources = load(json_file)
             for resource_name in deployment_resources:
                 _LOG.debug('Found resource ' + resource_name)
@@ -261,20 +299,14 @@ def create_resource_json(bundle_name):
         _look_for_configs(nested_items, resources_meta, path, bundle_name)
 
     # check if all dependencies were described
-    for resource_name in resources_meta:
-        meta = resources_meta[resource_name]
-        dependencies = meta.get('dependencies')
-        if dependencies:
-            for dependency in meta['dependencies']:
-                dependency_name = dependency.get('resource_name')
-                if dependency_name not in list(resources_meta.keys()):
-                    err_mess = ("One of resource dependencies wasn't "
-                                "described: {0}. Please, describe this "
-                                "resource in {1} if it is Lambda or in "
-                                "deployment_resources.json"
-                                .format(dependency_name,
-                                        LAMBDA_CONFIG_FILE_NAME))
-                    raise AssertionError(err_mess)
+    common_validator = VALIDATOR_BY_TYPE_MAPPING[ALL_TYPES]
+    for name, meta in resources_meta.items():
+        common_validator(resource_meta=meta, all_meta=resources_meta)
+
+        resource_type = meta['resource_type']
+        type_validator = VALIDATOR_BY_TYPE_MAPPING.get(resource_type)
+        if type_validator:
+            type_validator(name, meta)
 
     return resources_meta
 
@@ -312,10 +344,13 @@ def create_meta(bundle_name):
 
 
 def resolve_meta(overall_meta):
-    for key, value in CONFIG.aliases.items():
-        name = '${' + key + '}'
-        overall_meta = resolve_dynamic_identifier(name, value, overall_meta)
-    _LOG.debug('Resolved meta was created')
+    iam_suffix = _resolve_iam_suffix(iam_suffix=CONFIG.iam_suffix)
+    if CONFIG.aliases:
+        for key, value in CONFIG.aliases.items():
+            name = '${' + key + '}'
+            overall_meta = resolve_dynamic_identifier(name, value,
+                                                      overall_meta)
+            _LOG.debug('Resolved meta was created')
     _LOG.debug(prettify_json(overall_meta))
     # get dict with resolved prefix and suffix in meta resources
     # key: current_name, value: resolved_name
@@ -324,6 +359,9 @@ def resolve_meta(overall_meta):
         resource_type = res_meta['resource_type']
         if resource_type in GLOBAL_AWS_SERVICES:
             resolved_name = resolve_resource_name(name)
+            # add iam_suffix to IAM role only if it is specified in config file
+            if resource_type == IAM_ROLE and iam_suffix:
+                resolved_name = resolved_name + iam_suffix
             if name != resolved_name:
                 resolved_names[name] = resolved_name
     _LOG.debug('Going to resolve names in meta')
@@ -356,3 +394,27 @@ def _resolve_suffix_name(resource_name, resource_suffix):
     if resource_suffix:
         return resource_name + resolve_aliases_for_string(resource_suffix)
     return resource_name
+
+
+def _resolve_iam_suffix(suffix_len=DEFAULT_IAM_SUFFIX_LENGTH, iam_suffix=None):
+    """
+    This method adds additional suffix to iam roles.
+    The suffix could be passed to the method. Otherwise it will be generated
+    as a random string with the combination of lowercase letters.
+    """
+    if not iam_suffix:
+        return None
+    if suffix_len > DEFAULT_IAM_SUFFIX_LENGTH:
+        raise AssertionError(
+            'Additional suffix for IAM roles should be maximum'
+            '{0} symbols in length. Provided: {1}'.format(
+                DEFAULT_IAM_SUFFIX_LENGTH, suffix_len))
+
+    # check and use provided
+    provided_max_len = DEFAULT_IAM_SUFFIX_LENGTH
+    if len(iam_suffix) > provided_max_len:
+        raise AssertionError(
+            'Provided additional suffix for IAM roles should be maximum'
+            '{0} symbols in length. Provided len: {1}; Suffix: {2}'.format(
+                provided_max_len, len(iam_suffix), iam_suffix))
+    return iam_suffix

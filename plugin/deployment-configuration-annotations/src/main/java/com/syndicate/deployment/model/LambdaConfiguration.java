@@ -33,6 +33,9 @@ import java.util.Set;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class LambdaConfiguration {
 
+    @JsonProperty("name")
+    private String name;
+
     @JsonProperty("lambda_path")
     private String path;
 
@@ -95,6 +98,14 @@ public class LambdaConfiguration {
 
     @JsonProperty("alias")
     private String alias;
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
 
     public String getPath() {
         return path;
@@ -212,6 +223,12 @@ public class LambdaConfiguration {
     public static class Builder {
 
         private final LambdaConfiguration configuration = new LambdaConfiguration();
+
+        public Builder withName(String name) {
+            Objects.requireNonNull(name, "Name cannot be null");
+            configuration.name = name;
+            return this;
+        }
 
         public Builder withPath(String path) {
             Objects.requireNonNull(path, "Path cannot be null");
@@ -345,6 +362,7 @@ public class LambdaConfiguration {
         }
 
         public LambdaConfiguration build() {
+            Objects.requireNonNull(configuration.name, "Name cannot be null");
             Objects.requireNonNull(configuration.path, "Path cannot be null");
             Objects.requireNonNull(configuration.version, "Version cannot be null");
             Objects.requireNonNull(configuration.function, "Function cannot be null");
@@ -374,6 +392,7 @@ public class LambdaConfiguration {
     @Override
     public String toString() {
         return "LambdaConfiguration{" +
+                "name='" + name + '\'' +
                 "path='" + path + '\'' +
                 ", version='" + version + '\'' +
                 ", function='" + function + '\'' +

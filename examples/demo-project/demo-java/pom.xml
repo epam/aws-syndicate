@@ -59,18 +59,6 @@
                             <goal>gen-deployment-config</goal>
                         </goals>
                     </execution>
-                    <execution>
-                        <id>generate-terraform-config</id>
-                        <phase>compile</phase>
-                        <inherited>false</inherited>
-                        <goals>
-                            <goal>gen-terraform-config</goal>
-                        </goals>
-                        <configuration>
-                            <accountId>012345678901</accountId>
-                            <region>us-east-1</region>
-                        </configuration>
-                    </execution>
                 </executions>
             </plugin>
             <plugin>
