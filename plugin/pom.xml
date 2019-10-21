@@ -6,7 +6,7 @@
 
     <groupId>net.sf.aws-syndicate</groupId>
     <artifactId>deployment-configuration-processor</artifactId>
-    <version>1.5.3</version>
+    <version>1.5.4</version>
     <packaging>pom</packaging>
 
     <name>aws-syndicate</name>
