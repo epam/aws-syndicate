@@ -14,7 +14,6 @@
     limitations under the License.
 """
 import os
-import sys
 
 from botocore.exceptions import ClientError
 from botocore.vendored.requests.packages import urllib3

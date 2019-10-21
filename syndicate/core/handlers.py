@@ -19,18 +19,22 @@ import os
 import click
 
 from syndicate.core import CONFIG, CONF_PATH
-from syndicate.core.build.artifact_processor import (build_mvn_lambdas,
-                                                     build_python_lambdas)
+from syndicate.core.build.artifact_processor import (RUNTIME_NODEJS,
+                                                     assemble_artifacts,
+                                                     RUNTIME_JAVA_8,
+                                                     RUNTIME_PYTHON)
 from syndicate.core.build.bundle_processor import (create_bundles_bucket,
                                                    load_bundle,
-                                                   upload_bundle_to_s3)
+                                                   upload_bundle_to_s3,
+                                                   if_bundle_exist)
 from syndicate.core.build.deployment_processor import (
     continue_deployment_resources, create_deployment_resources,
     remove_deployment_resources, remove_failed_deploy_resources,
     update_lambdas)
 from syndicate.core.build.meta_processor import create_meta
 from syndicate.core.conf.config_holder import (MVN_BUILD_TOOL_NAME,
-                                               PYTHON_BUILD_TOOL_NAME)
+                                               PYTHON_BUILD_TOOL_NAME,
+                                               NODE_BUILD_TOOL_NAME)
 from syndicate.core.helper import (check_required_param,
                                    create_bundle_callback,
                                    handle_futures_progress_bar,
@@ -109,14 +113,16 @@ def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
 # =============================================================================
 
 
-@syndicate.command(name='mvn_compile_java')
+@syndicate.command(name='assemble_java_mvn')
 @timeit
 @click.option('--bundle_name', nargs=1, callback=create_bundle_callback)
 @click.option('--project_path', '-path', nargs=1,
               callback=resolve_path_callback)
-def mvn_compile_java(bundle_name, project_path):
+def assemble_java_mvn(bundle_name, project_path):
     click.echo('Command compile java project path: %s' % project_path)
-    build_mvn_lambdas(bundle_name, project_path)
+    assemble_artifacts(bundle_name=bundle_name,
+                       project_path=project_path,
+                       runtime=RUNTIME_JAVA_8)
     click.echo('Java artifacts were prepared successfully.')
 
 
@@ -127,13 +133,28 @@ def mvn_compile_java(bundle_name, project_path):
               callback=resolve_path_callback)
 def assemble_python(bundle_name, project_path):
     click.echo('Command assemble python: project_path: %s ' % project_path)
-    build_python_lambdas(bundle_name, project_path)
+    assemble_artifacts(bundle_name=bundle_name,
+                       project_path=project_path,
+                       runtime=RUNTIME_PYTHON)
     click.echo('Python artifacts were prepared successfully.')
 
 
+@syndicate.command(name='assemble_node')
+@timeit
+@click.option('--bundle_name', nargs=1, callback=create_bundle_callback)
+@click.option('--project_path', '-path', nargs=1,
+              callback=resolve_path_callback)
+def assemble_node(bundle_name, project_path):
+    click.echo('Command assemble node: project_path: %s ' % project_path)
+    assemble_artifacts(bundle_name=bundle_name,
+                       project_path=project_path,
+                       runtime=RUNTIME_NODEJS)
+    click.echo('NodeJS artifacts were prepared successfully.')
+
 COMMAND_TO_BUILD_MAPPING = {
-    MVN_BUILD_TOOL_NAME: mvn_compile_java,
-    PYTHON_BUILD_TOOL_NAME: assemble_python
+    MVN_BUILD_TOOL_NAME: assemble_java_mvn,
+    PYTHON_BUILD_TOOL_NAME: assemble_python,
+    NODE_BUILD_TOOL_NAME: assemble_node
 }
 
 
@@ -182,9 +203,12 @@ def create_deploy_target_bucket():
 @syndicate.command(name='upload_bundle')
 @timeit
 @click.option('--bundle_name', nargs=1, callback=verify_meta_bundle_callback)
-def upload_bundle(bundle_name):
+@click.option('--force', is_flag=True)
+def upload_bundle(bundle_name, force=False):
     click.echo('Upload bundle: %s' % bundle_name)
-    futures = upload_bundle_to_s3(bundle_name)
+    if force:
+        click.echo('Force upload')
+    futures = upload_bundle_to_s3(bundle_name=bundle_name, force=force)
     handle_futures_progress_bar(futures)
     click.echo('Bundle was uploaded successfully')
 
@@ -199,10 +223,11 @@ def upload_bundle(bundle_name):
               callback=check_required_param)
 @click.option('--role_name', '-role', nargs=1,
               callback=check_required_param)
+@click.option('--force_upload', is_flag=True, default=False)
 @timeit
 @click.pass_context
 def copy_bundle(ctx, bundle_name, src_account_id, src_bucket_region,
-                src_bucket_name, role_name):
+                src_bucket_name, role_name, force_upload):
     click.echo('Copy bundle: %s' % bundle_name)
     click.echo('Bundle name: %s' % bundle_name)
     click.echo('Source account id: %s' % src_account_id)
@@ -212,7 +237,7 @@ def copy_bundle(ctx, bundle_name, src_account_id, src_bucket_region,
                           src_bucket_name, role_name)
     handle_futures_progress_bar(futures)
     click.echo('Bundle was downloaded successfully')
-    ctx.invoke(upload_bundle, bundle_name=bundle_name)
+    ctx.invoke(upload_bundle, bundle_name=bundle_name, force=force_upload)
     click.echo('Bundle was copied successfully')
 
 
@@ -221,12 +246,18 @@ def copy_bundle(ctx, bundle_name, src_account_id, src_bucket_region,
 
 @syndicate.command(name='build_bundle')
 @click.option('--bundle_name', nargs=1, callback=check_required_param)
+@click.option('--force_upload', is_flag=True, default=False)
 @click.pass_context
 @timeit
-def build_bundle(ctx, bundle_name):
+def build_bundle(ctx, bundle_name, force_upload):
+    if if_bundle_exist(bundle_name=bundle_name) and not force_upload:
+        click.echo('Bundle name \'{0}\' already exists '
+                   'in deploy bucket. Please use another bundle '
+                   'name or delete the bundle'.format(bundle_name))
+        return
     ctx.invoke(build_artifacts, bundle_name=bundle_name)
     ctx.invoke(package_meta, bundle_name=bundle_name)
-    ctx.invoke(upload_bundle, bundle_name=bundle_name)
+    ctx.invoke(upload_bundle, bundle_name=bundle_name, force=force_upload)
 
 
 # =============================================================================

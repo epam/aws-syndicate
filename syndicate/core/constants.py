@@ -36,6 +36,7 @@ ARTIFACTS_FOLDER = 'bundles'
 BUILD_META_FILE_NAME = 'build_meta.json'
 LAMBDA_CONFIG_FILE_NAME = 'lambda_config.json'
 REQ_FILE_NAME = 'requirements.txt'
+NODE_REQ_FILE_NAME = 'package.json'
 LOCAL_REQ_FILE_NAME = 'local_requirements.txt'
 RESOURCES_FILE_NAME = 'deployment_resources.json'
 

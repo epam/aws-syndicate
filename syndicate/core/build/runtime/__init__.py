@@ -13,20 +13,3 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-import os
-import zipfile
-from contextlib import closing
-
-
-def build_py_package_name(lambda_name, lambda_version):
-    return '{0}-{1}.zip'.format(lambda_name, lambda_version)
-
-
-def zip_dir(basedir, name):
-    assert os.path.isdir(basedir)
-    with closing(zipfile.ZipFile(name, "w", zipfile.ZIP_DEFLATED)) as z:
-        for root, dirs, files in os.walk(basedir, followlinks=True):
-            for fn in files:
-                absfn = os.path.join(root, fn)
-                zfn = absfn[len(basedir) + len(os.sep):]
-                z.write(absfn, zfn)
