@@ -85,7 +85,8 @@ def _build_node_artifact(item, root, target_folder):
         try:
             # remove unused folder/files
             shutil.rmtree(os.path.join(root, 'node_modules'))
-            shutil.rmtree(os.path.join(root, 'package_lock.json'))
+            # todo Investigate deleting package_lock file
+            #shutil.rmtree(os.path.join(root, 'package_lock.json'))
             shutil.rmtree(artifact_path)
         except FileNotFoundError as e:
             _LOG.exception('Error occurred while temp files removing.')
