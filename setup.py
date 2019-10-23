@@ -15,8 +15,13 @@
 """
 from setuptools import find_packages, setup
 
+SYNDICATE_DESCRIPTION = ('AWS-syndicate is an Amazon Web Services deployment '
+                         'framework written in Python, which allows to '
+                         'easily deploy serverless applications using '
+                         'resource descriptions.')
+
 setup(
-    name='syndicate',
+    name='aws-syndicate',
     version='0.8',
     packages=find_packages(),
     include_package_data=True,
@@ -31,4 +36,16 @@ setup(
         [console_scripts]
         syndicate=syndicate.core.handlers:syndicate
     ''',
+    download_url='https://github.com/epam/aws-syndicate/archive/0.8.tar.gz',
+    url='https://github.com/epam/aws-syndicate',
+    description=SYNDICATE_DESCRIPTION,
+    author='EPAM Systems',
+    author_email='support@syndicate.team',
+    keywords=['AWS', 'SERVERLESS', 'CLOUD', 'LAMBDA', 'DEPLOY'],
+    classifiers=[
+        'Development Status :: 5 - Production/Stable',
+        'Intended Audience :: Developers',
+        'Topic :: Software Development :: Build Tools',
+        'Programming Language :: Python :: 3.7'
+    ],
 )
