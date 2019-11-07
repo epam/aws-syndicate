@@ -59,4 +59,6 @@ public @interface LambdaHandler {
 
     String aliasName() default "";
 
+    String[] layers() default {};
+
 }
