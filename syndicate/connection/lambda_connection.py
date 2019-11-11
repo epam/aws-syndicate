@@ -40,7 +40,7 @@ class LambdaConnection(object):
                       role, s3_bucket, s3_key, runtime='python2.7', memory=128,
                       timeout=300, vpc_sub_nets=None, vpc_security_group=None,
                       env_vars=None, dl_target_arn=None, tracing_mode=None,
-                      publish_version=False):
+                      publish_version=False, layers=None):
         """ Create Lambda method.
 
         :type lambda_name: str
@@ -57,13 +57,15 @@ class LambdaConnection(object):
         :type vpc_security_group: list
         :type env_vars: dict
         :param env_vars: {'string': 'string'}
+        :type layers: list
         :return: response
         """
+        layers = [] if layers is None else layers
         params = dict(FunctionName=lambda_name, Runtime=runtime,
                       Role=role, Handler=func_name,
                       Code={'S3Bucket': s3_bucket, 'S3Key': s3_key},
                       Description=' ', Timeout=timeout, MemorySize=memory,
-                      Publish=publish_version)
+                      Publish=publish_version, Layers=layers)
         if env_vars:
             params['Environment'] = {'Variables': env_vars}
         if vpc_sub_nets and vpc_security_group:
@@ -380,3 +382,37 @@ class LambdaConnection(object):
             Name=alias_name,
             FunctionVersion=function_version
         )
+
+    def create_layer(self, layer_name, zip_content, runtimes, description=None,
+                     layer_license=None):
+        return self.client.publish_layer_version(
+            LayerName=layer_name,
+            Description=description,
+            Content={
+                'ZipFile': zip_content
+            },
+            CompatibleRuntimes=runtimes,
+            LicenseInfo=layer_license
+        )
+
+    def get_lambda_layer_arn(self, name):
+        lambda_layers = self.client.list_layers()
+        for each in lambda_layers['Layers']:
+            if each['LayerName'] == name:
+                return each['LatestMatchingVersion']['LayerVersionArn']
+        while lambda_layers.get('NextMarker'):
+            lambda_layers = self.client.list_layers(
+                Marker=lambda_layers.get('NextMarker'))
+            for each in lambda_layers['Layers']:
+                if each['LayerName'] == name:
+                    return each['LatestMatchingVersion']['LayerVersionArn']
+
+    def get_lambda_layer_by_arn(self, arn):
+        return self.client.get_layer_version_by_arn(Arn=arn)
+
+    def delete_layer(self, arn):
+        version = arn.split(':')[len(arn.split(':'))-1]
+        arn = arn[:-len(version)-1]
+        return self.client.delete_layer_version(
+            LayerName=arn,
+            VersionNumber=int(version))

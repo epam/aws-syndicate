@@ -20,7 +20,7 @@ from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import retry
 from syndicate.core import CONFIG, CONN
 from syndicate.core.build.meta_processor import S3_PATH_NAME
-from syndicate.core.helper import (create_pool, unpack_kwargs)
+from syndicate.core.helper import (create_pool, unpack_kwargs, build_path)
 from syndicate.core.resources.helper import (build_description_obj,
                                              validate_params)
 from syndicate.core.resources.sns_resource import (
@@ -113,6 +113,15 @@ def _create_lambda_from_meta(name, meta):
                                                      dl_name) if dl_type and dl_name else None
 
     publish_version = meta.get('publish_version', False)
+    lambda_layers_arns = []
+    if meta.get('layers'):
+        for layer_name in meta.get('layers'):
+            layer_arn = _LAMBDA_CONN.get_lambda_layer_arn(layer_name)
+            if not layer_arn:
+                raise AssertionError(
+                    'Lambda layer {} is absent in your configuration!')
+            lambda_layers_arns.append(layer_arn)
+
     _LOG.debug('Creating lambda %s', name)
     _LAMBDA_CONN.create_lambda(
         lambda_name=name,
@@ -128,7 +137,8 @@ def _create_lambda_from_meta(name, meta):
         vpc_security_group=meta.get('security_group_ids'),
         dl_target_arn=dl_target_arn,
         tracing_mode=meta.get('tracing_mode'),
-        publish_version=publish_version
+        publish_version=publish_version,
+        layers=lambda_layers_arns
     )
     _LOG.debug('Lambda created %s', name)
     # AWS sometimes returns None after function creation, needs for stability
@@ -428,5 +438,64 @@ def _remove_lambda(arn, config):
     except ClientError as e:
         if e.response['Error']['Code'] == 'ResourceNotFoundException':
             _LOG.warn('Lambda %s is not found', lambda_name)
+        else:
+            raise e
+
+
+def create_lambda_layer(args):
+    return create_pool(create_lambda_layer_from_meta, args)
+
+
+@unpack_kwargs
+def create_lambda_layer_from_meta(name, meta, bundle_name):
+    req_params = ['runtimes', 'license', 'file_name']
+
+    # Lambda configuration
+    validate_params(name, meta, req_params)
+
+    key = meta['file_name']
+    if not _S3_CONN.is_file_exists(CONFIG.deploy_target_bucket,
+                                   bundle_name + '/' + key):
+        raise AssertionError('Layer archive {0} does '
+                             'not exist in {1} bucket'.format(
+                              key, CONFIG.deploy_target_bucket))
+
+    file_key = build_path(bundle_name, key)
+    _S3_CONN.download_file(CONFIG.deploy_target_bucket, file_key,
+                           key)
+    with open(key, 'rb') as file_data:
+        file_body = file_data.read()
+
+    _LOG.debug('Creating lambda layer %s', name)
+    response = _LAMBDA_CONN.create_layer(
+        layer_name=name,
+        description=meta['description'],
+        layer_license=meta['license'],
+        runtimes=meta['runtimes'],
+        zip_content=file_body
+    )
+    _LOG.info('Lambda Layer {} was successfully created'.format(name))
+    layer_arn = response['LayerArn']+ ':' + str(response['Version'])
+    del response['LayerArn']
+    return {
+        layer_arn: build_description_obj(
+            response, name, meta)
+    }
+
+
+def remove_lambda_layers(args):
+    return create_pool(_remove_lambda_layers, args)
+
+
+@unpack_kwargs
+@retry
+def _remove_lambda_layers(arn, config):
+    layer_name = config['resource_name']
+    try:
+        _LAMBDA_CONN.delete_layer(arn)
+        _LOG.info('Lambda {} was removed.'.format(layer_name))
+    except ClientError as e:
+        if e.response['Error']['Code'] == 'ResourceNotFoundException':
+            _LOG.warn('Lambda Layer {} is not found'.format(layer_name))
         else:
             raise e

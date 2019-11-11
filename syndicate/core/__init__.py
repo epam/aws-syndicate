@@ -38,7 +38,6 @@ def exception_handler(exception_type, exception, traceback):
 # sys.excepthook = exception_handler
 
 # suppress botocore warnings
-urllib3.disable_warnings()
 
 try:
     CONF_PATH = os.environ['SDCT_CONF']

@@ -60,7 +60,7 @@ def get_dependencies(name, meta, resources_dict, resources):
 
 
 # todo implement resources sorter according to priority
-def _process_resources(resources, handlers_mapping):
+def _process_resources(resources, bundle_name, handlers_mapping):
     output = {}
     args = []
     resource_type = None
@@ -72,7 +72,11 @@ def _process_resources(resources, handlers_mapping):
                 resource_type = current_res_type
 
             if current_res_type == resource_type:
-                args.append({'name': res_name, 'meta': res_meta})
+                if res_meta['resource_type'] == 'lambda_layer':
+                    args.append({'name': res_name, 'meta': res_meta,
+                                 'bundle_name': bundle_name})
+                else:
+                    args.append({'name': res_name, 'meta': res_meta})
                 continue
             elif current_res_type != resource_type:
                 _LOG.info('Processing {0} resources ...'.format(resource_type))
@@ -81,7 +85,11 @@ def _process_resources(resources, handlers_mapping):
                 if response:
                     output.update(response)
                 del args[:]
-                args.append({'name': res_name, 'meta': res_meta})
+                if res_meta['resource_type'] == 'lambda_layer':
+                    args.append({'name': res_name, 'meta': res_meta,
+                                 'bundle_name': bundle_name})
+                else:
+                    args.append({'name': res_name, 'meta': res_meta})
                 resource_type = current_res_type
         if args:
             _LOG.info('Processing {0} resources ...'.format(resource_type))
@@ -110,13 +118,15 @@ def update_failed_output(res_name, res_meta, resource_type, output):
     return output
 
 
-def deploy_resources(resources):
+def deploy_resources(resources, bundle_name):
     return _process_resources(resources=resources,
+                              bundle_name=bundle_name,
                               handlers_mapping=CREATE_RESOURCE)
 
 
-def update_resources(resources):
+def update_resources(resources, bundle_name):
     return _process_resources(resources=resources,
+                              bundle_name=bundle_name,
                               handlers_mapping=UPDATE_RESOURCE)
 
 
@@ -263,7 +273,7 @@ def create_deployment_resources(deploy_name, bundle_name,
     resources_list.sort(key=cmp_to_key(_compare_deploy_resources))
 
     _LOG.info('Going to deploy AWS resources')
-    success, output = deploy_resources(resources_list)
+    success, output = deploy_resources(resources_list, bundle_name)
     if success:
         _LOG.info('AWS resources were deployed successfully')
 
