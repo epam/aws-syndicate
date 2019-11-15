@@ -388,15 +388,13 @@ class LambdaConnection(object):
 
     def create_layer(self, layer_name, zip_content, runtimes, description=None,
                      layer_license=None):
-        return self.client.publish_layer_version(
-            LayerName=layer_name,
-            Description=description,
-            Content={
-                'ZipFile': zip_content
-            },
-            CompatibleRuntimes=runtimes,
-            LicenseInfo=layer_license
-        )
+        kwargs = {'LayerName': layer_name, 'CompatibleRuntimes': runtimes,
+                  'Content': {'ZipFile': zip_content}}
+        if description:
+            kwargs['Description'] = description
+        if layer_license:
+            kwargs['LicenseInfo'] = layer_license
+        return self.client.publish_layer_version(**kwargs)
 
     def get_lambda_layer_arn(self, name):
         lambda_layers = self.client.list_layers()
