@@ -319,8 +319,11 @@ class LambdaConnection(object):
                                     memory_size=None, vpc_sub_nets=None,
                                     vpc_security_group=None,
                                     env_vars=None, runtime=None,
-                                    dead_letter_arn=None, kms_key_arn=None):
+                                    dead_letter_arn=None, kms_key_arn=None,
+                                    layers=None):
         params = dict(FunctionName=lambda_name)
+        if layers:
+            params['Layers'] = layers
         if role:
             params['Role'] = role
         if handler:
@@ -416,3 +419,18 @@ class LambdaConnection(object):
         return self.client.delete_layer_version(
             LayerName=arn,
             VersionNumber=int(version))
+
+    def list_lambda_layer_versions(self, name, runtime=None):
+        kwargs = {'LayerName': name}
+        if runtime:
+            kwargs['CompatibleRuntime'] = runtime
+        response = self.client.list_layer_versions(**kwargs)
+        versions = response['LayerVersions']
+
+        while response.get('NextMarker'):
+            kwargs['Marker'] = response['NextMarker']
+            response = self.client.list_layer_versions(kwargs)
+            versions.append(response['LayerVersions'])
+
+        return versions
+

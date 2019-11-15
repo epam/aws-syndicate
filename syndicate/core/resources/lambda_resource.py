@@ -14,8 +14,10 @@
     limitations under the License.
 """
 import time
+import json
 
 from botocore.exceptions import ClientError
+from syndicate.core.constants import BUILD_META_FILE_NAME
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import retry
 from syndicate.core import CONFIG, CONN
@@ -81,7 +83,7 @@ def build_lambda_arn_with_alias(response, alias=None):
 
 
 @unpack_kwargs
-def _create_lambda_from_meta(name, meta):
+def _create_lambda_from_meta(name, meta, bundle_name):
     req_params = ['iam_role_name', 'runtime', 'memory', 'timeout', 'func_name']
 
     # Lambda configuration
@@ -119,7 +121,7 @@ def _create_lambda_from_meta(name, meta):
             layer_arn = _LAMBDA_CONN.get_lambda_layer_arn(layer_name)
             if not layer_arn:
                 raise AssertionError(
-                    'Lambda layer {} is absent in your configuration!')
+                    'Lambda layer {} is absent in your account!')
             lambda_layers_arns.append(layer_arn)
 
     _LOG.debug('Creating lambda %s', name)
@@ -183,7 +185,7 @@ def _create_lambda_from_meta(name, meta):
 
 
 @unpack_kwargs
-def _update_lambda(name, meta):
+def _update_lambda(name, meta, bundle_name):
     _LOG.info('Updating lambda: {0}'.format(name))
     req_params = ['runtime', 'memory', 'timeout', 'func_name']
 
@@ -194,6 +196,53 @@ def _update_lambda(name, meta):
         raise AssertionError(
             'Deployment package {0} does not exist '
             'in {1} bucket'.format(key, CONFIG.deploy_target_bucket))
+
+    lambda_layers_arns = []
+    if meta.get('layers'):
+        for layer_name in meta.get('layers'):
+            layer_arn = _LAMBDA_CONN.get_lambda_layer_arn(layer_name)
+            if not layer_arn:
+                whole_meta = _S3_CONN.load_file_body(
+                    CONFIG.deploy_target_bucket,
+                    bundle_name + '/' + BUILD_META_FILE_NAME)
+                args = [{'name': layer_name,
+                         'meta': json.loads(whole_meta.decode("utf-8"))[
+                             layer_name],
+                         'bundle_name': bundle_name}]
+                create_lambda_layer(args)
+                lambda_layers_arns.append(layer_arn)
+                _LAMBDA_CONN.update_lambda_configuration(
+                    lambda_name=name, layers=lambda_layers_arns)
+            else:
+                key = build_path(bundle_name, BUILD_META_FILE_NAME)
+                meta_file = _S3_CONN.load_file_body(CONFIG.deploy_target_bucket,
+                                                    key)
+                resources = json.loads(meta_file)
+                file_name = resources[layer_name]['file_name']
+                file_key = build_path(bundle_name, file_name)
+                _S3_CONN.download_file(CONFIG.deploy_target_bucket,
+                                       file_key, file_name)
+                with open(file_name, 'rb') as file_data:
+                    file_body = file_data.read()
+                import hashlib
+                hash_object = hashlib.sha256()
+                hash_object.update(file_body)
+                existing_layer = _is_equal_lambda_layer(
+                    hash_object.digest(), layer_name)
+                if existing_layer:
+                    lambda_layers_arns.append(existing_layer)
+                else:
+                    whole_meta = _S3_CONN.load_file_body(
+                        CONFIG.deploy_target_bucket,
+                        bundle_name + '/' + BUILD_META_FILE_NAME)
+                    args = [{'name': layer_name,
+                             'meta': json.loads(whole_meta.decode("utf-8"))[
+                                 layer_name],
+                             'bundle_name': bundle_name, 'override': True}]
+                    create_lambda_layer(args)
+                    lambda_layers_arns.append(layer_arn)
+                _LAMBDA_CONN.update_lambda_configuration(
+                    lambda_name=name, layers=lambda_layers_arns)
 
     response = _LAMBDA_CONN.get_function(name)
     if not response:
@@ -238,6 +287,16 @@ def _update_lambda(name, meta):
             _LOG.info(
                 'Alias {0} has been updated for lambda {1}'.format(alias_name,
                                                                    name))
+
+
+def _is_equal_lambda_layer(new_layer_sha, old_layer_name):
+    import base64
+    versions = _LAMBDA_CONN.list_lambda_layer_versions(name=old_layer_name)
+    for version in versions:
+        old_layer = _LAMBDA_CONN.get_lambda_layer_by_arn(
+            version['LayerVersionArn'])
+        if new_layer_sha == base64.b64decode(old_layer['Content']['CodeSha256']):
+            return old_layer['LayerVersionArn']
 
 
 def __describe_lambda_by_version(name):
@@ -443,22 +502,23 @@ def _remove_lambda(arn, config):
 
 
 def create_lambda_layer(args):
-    return create_pool(create_lambda_layer_from_meta, args)
+    return create_pool(create_lambda_layer_from_meta, args,)
 
 
 @unpack_kwargs
-def create_lambda_layer_from_meta(name, meta, bundle_name):
+def create_lambda_layer_from_meta(name, meta, bundle_name, override=False):
     req_params = ['runtimes', 'license', 'file_name']
 
-    # Lambda configuration
     validate_params(name, meta, req_params)
-
+    if not override and  _LAMBDA_CONN.get_lambda_layer_arn(name):
+        _LOG.info('Layer {} already exists.'.format(name))
+        return
     key = meta['file_name']
     if not _S3_CONN.is_file_exists(CONFIG.deploy_target_bucket,
                                    bundle_name + '/' + key):
         raise AssertionError('Layer archive {0} does '
                              'not exist in {1} bucket'.format(
-                              key, CONFIG.deploy_target_bucket))
+            key, CONFIG.deploy_target_bucket))
 
     file_key = build_path(bundle_name, key)
     _S3_CONN.download_file(CONFIG.deploy_target_bucket, file_key,
@@ -474,8 +534,9 @@ def create_lambda_layer_from_meta(name, meta, bundle_name):
         runtimes=meta['runtimes'],
         zip_content=file_body
     )
-    _LOG.info('Lambda Layer {} was successfully created'.format(name))
-    layer_arn = response['LayerArn']+ ':' + str(response['Version'])
+    _LOG.info('Lambda Layer {0} version {1} was successfully created'.format(
+        name, response['Version']))
+    layer_arn = response['LayerArn'] + ':' + str(response['Version'])
     del response['LayerArn']
     return {
         layer_arn: build_description_obj(
@@ -492,8 +553,10 @@ def remove_lambda_layers(args):
 def _remove_lambda_layers(arn, config):
     layer_name = config['resource_name']
     try:
+        layer_version = arn.split(':')[-1]
         _LAMBDA_CONN.delete_layer(arn)
-        _LOG.info('Lambda {} was removed.'.format(layer_name))
+        _LOG.info('Lambda layer {0} version {1} was removed.'.format(
+            layer_name, layer_version))
     except ClientError as e:
         if e.response['Error']['Code'] == 'ResourceNotFoundException':
             _LOG.warn('Lambda Layer {} is not found'.format(layer_name))

@@ -72,7 +72,8 @@ def _process_resources(resources, bundle_name, handlers_mapping):
                 resource_type = current_res_type
 
             if current_res_type == resource_type:
-                if res_meta['resource_type'] == 'lambda_layer':
+                if (res_meta['resource_type'] == 'lambda_layer' or
+                        res_meta['resource_type'] == 'lambda'):
                     args.append({'name': res_name, 'meta': res_meta,
                                  'bundle_name': bundle_name})
                 else:
@@ -85,7 +86,8 @@ def _process_resources(resources, bundle_name, handlers_mapping):
                 if response:
                     output.update(response)
                 del args[:]
-                if res_meta['resource_type'] == 'lambda_layer':
+                if (res_meta['resource_type'] == 'lambda_layer' or
+                        res_meta['resource_type'] == 'lambda'):
                     args.append({'name': res_name, 'meta': res_meta,
                                  'bundle_name': bundle_name})
                 else:
@@ -435,7 +437,7 @@ def update_lambdas(bundle_name,
     _LOG.debug('Going to update the following lambdas: {0}'.format(
         prettify_json(resources)))
     resources = list(resources.items())
-    update_resources(resources=resources)
+    update_resources(resources=resources, bundle_name=bundle_name)
 
 
 def _json_serial(obj):

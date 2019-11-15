@@ -26,7 +26,7 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     install_requires=[
-        'click==6.7',
+        'click==7.0',
         'botocore==1.13.14',
         'boto3==1.10.13',
         'configobj==5.0.6',
@@ -36,7 +36,7 @@ setup(
         [console_scripts]
         syndicate=syndicate.core.handlers:syndicate
     ''',
-    download_url='https://github.com/epam/aws-syndicate/archive/0.8.tar.gz',
+    #download_url='https://github.com/epam/aws-syndicate/archive/0.8.tar.gz',
     url='https://github.com/epam/aws-syndicate',
     description=SYNDICATE_DESCRIPTION,
     author='EPAM Systems',

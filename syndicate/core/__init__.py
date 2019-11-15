@@ -16,7 +16,6 @@
 import os
 
 from botocore.exceptions import ClientError
-from botocore.vendored.requests.packages import urllib3
 
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection import ConnectionProvider
