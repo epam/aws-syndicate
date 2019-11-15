@@ -527,13 +527,13 @@ def create_lambda_layer_from_meta(name, meta, bundle_name, override=False):
         file_body = file_data.read()
 
     _LOG.debug('Creating lambda layer %s', name)
-    response = _LAMBDA_CONN.create_layer(
-        layer_name=name,
-        description=meta['description'],
-        layer_license=meta['license'],
-        runtimes=meta['runtimes'],
-        zip_content=file_body
-    )
+    args = {'layer_name': name, 'runtimes': meta['runtimes'],
+            'zip_content': file_body}
+    if meta.get('description'):
+        args['description'] = meta['description']
+    if meta.get('license'):
+        args['layer_license'] = meta['license']
+    response = _LAMBDA_CONN.create_layer(**args)
     _LOG.info('Lambda Layer {0} version {1} was successfully created'.format(
         name, response['Version']))
     layer_arn = response['LayerArn'] + ':' + str(response['Version'])
