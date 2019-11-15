@@ -507,7 +507,7 @@ def create_lambda_layer(args):
 
 @unpack_kwargs
 def create_lambda_layer_from_meta(name, meta, bundle_name, override=False):
-    req_params = ['runtimes', 'license', 'file_name']
+    req_params = ['runtimes', 'file_name']
 
     validate_params(name, meta, req_params)
     if not override and  _LAMBDA_CONN.get_lambda_layer_arn(name):
