@@ -386,10 +386,10 @@ class LambdaConnection(object):
             FunctionVersion=function_version
         )
 
-    def create_layer(self, layer_name, zip_content, runtimes, description=None,
+    def create_layer(self, layer_name, s3_bucket, s3_key, runtimes, description=None,
                      layer_license=None):
         kwargs = {'LayerName': layer_name, 'CompatibleRuntimes': runtimes,
-                  'Content': {'ZipFile': zip_content}}
+                  'Content': {'S3Bucket': s3_bucket, 'S3Key': s3_key}}
         if description:
             kwargs['Description'] = description
         if layer_license:

@@ -26,7 +26,7 @@ from syndicate.core.constants import (API_GATEWAY_TYPE, ARTIFACTS_FOLDER,
                                       BUILD_META_FILE_NAME, EBS_TYPE,
                                       LAMBDA_CONFIG_FILE_NAME, LAMBDA_TYPE,
                                       RESOURCES_FILE_NAME, RESOURCE_LIST,
-                                      IAM_ROLE)
+                                      IAM_ROLE, LAMBDA_LAYER_TYPE)
 from syndicate.core.helper import (build_path, prettify_json,
                                    resolve_aliases_for_string,
                                    write_content_to_file)
@@ -201,6 +201,16 @@ def _populate_s3_path_lambda(meta, bundle_name):
                 list(RUNTIME_PATH_RESOLVER.keys())))
 
 
+def _populate_s3_path_lambda_layer(meta, bundle_name):
+    file_name = meta.get('file_name')
+    if not file_name:
+        raise AssertionError('Lambda Layer config must contain file_name. '
+                             'Existing configuration'
+                             ': {0}'.format(prettify_json(meta)))
+    else:
+        meta[S3_PATH_NAME] = build_path(bundle_name, file_name)
+
+
 def _populate_s3_path_ebs(meta, bundle_name):
     deployment_package = meta.get('deployment_package')
     if not deployment_package:
@@ -228,7 +238,8 @@ RUNTIME_PATH_RESOLVER = {
 
 S3_PATH_MAPPING = {
     LAMBDA_TYPE: _populate_s3_path_lambda,
-    EBS_TYPE: _populate_s3_path_ebs
+    EBS_TYPE: _populate_s3_path_ebs,
+    LAMBDA_LAYER_TYPE: _populate_s3_path_lambda_layer
 }
 
 

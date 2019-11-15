@@ -295,7 +295,8 @@ def _is_equal_lambda_layer(new_layer_sha, old_layer_name):
     for version in versions:
         old_layer = _LAMBDA_CONN.get_lambda_layer_by_arn(
             version['LayerVersionArn'])
-        if new_layer_sha == base64.b64decode(old_layer['Content']['CodeSha256']):
+        if new_layer_sha == base64.b64decode(
+                old_layer['Content']['CodeSha256']):
             return old_layer['LayerVersionArn']
 
 
@@ -502,7 +503,7 @@ def _remove_lambda(arn, config):
 
 
 def create_lambda_layer(args):
-    return create_pool(create_lambda_layer_from_meta, args,)
+    return create_pool(create_lambda_layer_from_meta, args, )
 
 
 @unpack_kwargs
@@ -510,7 +511,7 @@ def create_lambda_layer_from_meta(name, meta, bundle_name, override=False):
     req_params = ['runtimes', 'file_name']
 
     validate_params(name, meta, req_params)
-    if not override and  _LAMBDA_CONN.get_lambda_layer_arn(name):
+    if not override and _LAMBDA_CONN.get_lambda_layer_arn(name):
         _LOG.info('Layer {} already exists.'.format(name))
         return
     key = meta['file_name']
@@ -523,17 +524,20 @@ def create_lambda_layer_from_meta(name, meta, bundle_name, override=False):
     file_key = build_path(bundle_name, key)
     _S3_CONN.download_file(CONFIG.deploy_target_bucket, file_key,
                            key)
-    with open(key, 'rb') as file_data:
-        file_body = file_data.read()
+    # with open(key, 'rb') as file_data:
+    #     file_body = file_data.read()
 
     _LOG.debug('Creating lambda layer %s', name)
+
     args = {'layer_name': name, 'runtimes': meta['runtimes'],
-            'zip_content': file_body}
+            's3_bucket': CONFIG.deploy_target_bucket,
+            's3_key': meta[S3_PATH_NAME]}
     if meta.get('description'):
         args['description'] = meta['description']
     if meta.get('license'):
         args['layer_license'] = meta['license']
     response = _LAMBDA_CONN.create_layer(**args)
+
     _LOG.info('Lambda Layer {0} version {1} was successfully created'.format(
         name, response['Version']))
     layer_arn = response['LayerArn'] + ':' + str(response['Version'])
