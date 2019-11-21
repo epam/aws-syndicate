@@ -1,6 +1,6 @@
 addons:
   sonarcloud:
-    organization: "dzmitry-rudnouski-github"
+    organization: "epam"
  
 script:
   - sonar-scanner
