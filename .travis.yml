@@ -1,0 +1,6 @@
+addons:
+  sonarcloud:
+    organization: "dzmitry-rudnouski-github"
+ 
+script:
+  - sonar-scanner
