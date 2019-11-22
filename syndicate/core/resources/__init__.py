@@ -58,7 +58,8 @@ from syndicate.core.resources.lambda_resource import (create_lambda,
                                                       remove_lambdas,
                                                       update_lambda,
                                                       create_lambda_layer,
-                                                      remove_lambda_layers)
+                                                      remove_lambda_layers,
+                                                      update_lambda_layer)
 from syndicate.core.resources.s3_resource import (create_s3_bucket,
                                                   describe_bucket,
                                                   remove_buckets)
@@ -141,7 +142,8 @@ REMOVE_RESOURCE = {
 }
 
 UPDATE_RESOURCE = {
-    LAMBDA_TYPE: update_lambda
+    LAMBDA_TYPE: update_lambda,
+    LAMBDA_LAYER_TYPE: update_lambda_layer
 }
 
 RESOURCE_CONFIGURATION_PROCESSORS = {

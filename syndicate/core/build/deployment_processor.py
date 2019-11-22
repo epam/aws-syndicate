@@ -30,7 +30,8 @@ from syndicate.core.build.meta_processor import resolve_meta
 from syndicate.core.constants import (BUILD_META_FILE_NAME,
                                       CLEAN_RESOURCE_TYPE_PRIORITY,
                                       DEPLOY_RESOURCE_TYPE_PRIORITY,
-                                      LAMBDA_TYPE)
+                                      LAMBDA_TYPE, LAMBDA_LAYER_TYPE,
+                                      UPDATE_RESOURCE_TYPE_PRIORITY)
 from syndicate.core.helper import exit_on_exception, prettify_json
 from syndicate.core.resources import (APPLY_MAPPING, CREATE_RESOURCE,
                                       DESCRIBE_RESOURCE, REMOVE_RESOURCE,
@@ -60,7 +61,7 @@ def get_dependencies(name, meta, resources_dict, resources):
 
 
 # todo implement resources sorter according to priority
-def _process_resources(resources, bundle_name, handlers_mapping):
+def _process_resources(resources, handlers_mapping):
     output = {}
     args = []
     resource_type = None
@@ -72,12 +73,7 @@ def _process_resources(resources, bundle_name, handlers_mapping):
                 resource_type = current_res_type
 
             if current_res_type == resource_type:
-                if (res_meta['resource_type'] == 'lambda_layer' or
-                        res_meta['resource_type'] == 'lambda'):
-                    args.append({'name': res_name, 'meta': res_meta,
-                                 'bundle_name': bundle_name})
-                else:
-                    args.append({'name': res_name, 'meta': res_meta})
+                args.append({'name': res_name, 'meta': res_meta})
                 continue
             elif current_res_type != resource_type:
                 _LOG.info('Processing {0} resources ...'.format(resource_type))
@@ -86,12 +82,7 @@ def _process_resources(resources, bundle_name, handlers_mapping):
                 if response:
                     output.update(response)
                 del args[:]
-                if (res_meta['resource_type'] == 'lambda_layer' or
-                        res_meta['resource_type'] == 'lambda'):
-                    args.append({'name': res_name, 'meta': res_meta,
-                                 'bundle_name': bundle_name})
-                else:
-                    args.append({'name': res_name, 'meta': res_meta})
+                args.append({'name': res_name, 'meta': res_meta})
                 resource_type = current_res_type
         if args:
             _LOG.info('Processing {0} resources ...'.format(resource_type))
@@ -120,15 +111,13 @@ def update_failed_output(res_name, res_meta, resource_type, output):
     return output
 
 
-def deploy_resources(resources, bundle_name):
+def deploy_resources(resources):
     return _process_resources(resources=resources,
-                              bundle_name=bundle_name,
                               handlers_mapping=CREATE_RESOURCE)
 
 
-def update_resources(resources, bundle_name):
+def update_resources(resources):
     return _process_resources(resources=resources,
-                              bundle_name=bundle_name,
                               handlers_mapping=UPDATE_RESOURCE)
 
 
@@ -275,7 +264,7 @@ def create_deployment_resources(deploy_name, bundle_name,
     resources_list.sort(key=cmp_to_key(_compare_deploy_resources))
 
     _LOG.info('Going to deploy AWS resources')
-    success, output = deploy_resources(resources_list, bundle_name)
+    success, output = deploy_resources(resources_list)
     if success:
         _LOG.info('AWS resources were deployed successfully')
 
@@ -417,7 +406,8 @@ def remove_failed_deploy_resources(deploy_name, bundle_name,
 @exit_on_exception
 def update_lambdas(bundle_name,
                    publish_only_lambdas,
-                   excluded_lambdas_resources):
+                   excluded_lambdas_resources,
+                   update_lambda_layers):
     resources = resolve_meta(load_meta_resources(bundle_name))
     _LOG.debug('Names were resolved')
     _LOG.debug(prettify_json(resources))
@@ -434,10 +424,21 @@ def update_lambdas(bundle_name,
         resources = dict((k, v) for (k, v) in resources.items() if
                          k not in excluded_lambdas_resources)
 
+    if update_lambda_layers:
+        layers_list = []
+        for (k, v) in resources.items():
+            if resources[k].get('layers'):
+                layers_list.extend(resources[k].get('layers'))
+        resources.update(
+            dict((k, v) for (k, v) in resolve_meta(
+                load_meta_resources(bundle_name)).items()
+                 if k in layers_list))
+
     _LOG.debug('Going to update the following lambdas: {0}'.format(
         prettify_json(resources)))
-    resources = list(resources.items())
-    update_resources(resources=resources, bundle_name=bundle_name)
+    resources_list = list(resources.items())
+    resources_list.sort(key=cmp_to_key(_compare_update_resources))
+    update_resources(resources=resources_list)
 
 
 def _json_serial(obj):
@@ -498,6 +499,14 @@ def _compare_clean_resources(first, second):
     second_resource_type = second[-1]['resource_meta']['resource_type']
     first_res_priority = CLEAN_RESOURCE_TYPE_PRIORITY[first_resource_type]
     second_res_priority = CLEAN_RESOURCE_TYPE_PRIORITY[second_resource_type]
+    return _compare_res(first_res_priority, second_res_priority)
+
+
+def _compare_update_resources(first, second):
+    first_resource_type = first[-1]['resource_type']
+    second_resource_type = second[-1]['resource_type']
+    first_res_priority = UPDATE_RESOURCE_TYPE_PRIORITY[first_resource_type]
+    second_res_priority = UPDATE_RESOURCE_TYPE_PRIORITY[second_resource_type]
     return _compare_res(first_res_priority, second_res_priority)
 
 
