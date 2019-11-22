@@ -1,6 +1,6 @@
 addons:
   sonarcloud:
-    organization: "epam"
+    organization: "epam-aws-syndicate"
  
 script:
   - sonar-scanner
