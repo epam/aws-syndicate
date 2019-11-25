@@ -20,7 +20,7 @@ from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import retry
 from syndicate.core import CONFIG, CONN
 from syndicate.core.build.meta_processor import S3_PATH_NAME
-from syndicate.core.helper import (create_pool, unpack_kwargs)
+from syndicate.core.helper import (create_pool, unpack_kwargs, build_path)
 from syndicate.core.resources.helper import (build_description_obj,
                                              validate_params)
 from syndicate.core.resources.sns_resource import (
@@ -42,6 +42,10 @@ def create_lambda(args):
 
 def update_lambda(args):
     return create_pool(_update_lambda, args)
+
+
+def update_lambda_layer(args):
+    return create_pool(create_lambda_layer_from_meta, args)
 
 
 def describe_lambda(name, meta, response=None):
@@ -113,6 +117,16 @@ def _create_lambda_from_meta(name, meta):
                                                      dl_name) if dl_type and dl_name else None
 
     publish_version = meta.get('publish_version', False)
+    lambda_layers_arns = []
+    layer_meta = meta.get('layers')
+    if layer_meta:
+        for layer_name in layer_meta:
+            layer_arn = _LAMBDA_CONN.get_lambda_layer_arn(layer_name)
+            if not layer_arn:
+                raise AssertionError(
+                    'Lambda layer {} is absent in your account!')
+            lambda_layers_arns.append(layer_arn)
+
     _LOG.debug('Creating lambda %s', name)
     _LAMBDA_CONN.create_lambda(
         lambda_name=name,
@@ -128,7 +142,8 @@ def _create_lambda_from_meta(name, meta):
         vpc_security_group=meta.get('security_group_ids'),
         dl_target_arn=dl_target_arn,
         tracing_mode=meta.get('tracing_mode'),
-        publish_version=publish_version
+        publish_version=publish_version,
+        layers=lambda_layers_arns
     )
     _LOG.debug('Lambda created %s', name)
     # AWS sometimes returns None after function creation, needs for stability
@@ -228,6 +243,17 @@ def _update_lambda(name, meta):
             _LOG.info(
                 'Alias {0} has been updated for lambda {1}'.format(alias_name,
                                                                    name))
+
+
+def _is_equal_lambda_layer(new_layer_sha, old_layer_name):
+    import base64
+    versions = _LAMBDA_CONN.list_lambda_layer_versions(name=old_layer_name)
+    for version in versions:
+        old_layer = _LAMBDA_CONN.get_lambda_layer_by_arn(
+            version['LayerVersionArn'])
+        if new_layer_sha == base64.b64decode(
+                old_layer['Content']['CodeSha256']):
+            return old_layer['LayerVersionArn']
 
 
 def __describe_lambda_by_version(name):
@@ -428,5 +454,70 @@ def _remove_lambda(arn, config):
     except ClientError as e:
         if e.response['Error']['Code'] == 'ResourceNotFoundException':
             _LOG.warn('Lambda %s is not found', lambda_name)
+        else:
+            raise e
+
+
+def create_lambda_layer(args):
+    return create_pool(create_lambda_layer_from_meta, args, )
+
+
+@unpack_kwargs
+def create_lambda_layer_from_meta(name, meta):
+    req_params = ['runtimes', 'file_name']
+
+    validate_params(name, meta, req_params)
+
+    key = meta[S3_PATH_NAME]
+    file_name = key.split('/')[-1]
+    _S3_CONN.download_file(CONFIG.deploy_target_bucket, key, file_name)
+    with open(file_name, 'rb') as file_data:
+        file_body = file_data.read()
+    import hashlib
+    hash_object = hashlib.sha256()
+    hash_object.update(file_body)
+    existing_version = _is_equal_lambda_layer(hash_object.digest(), name)
+    if existing_version:
+        _LOG.info('Layer {} with same content already '
+                  'exists in layer version {}.'.format(name, existing_version))
+        return
+
+    _LOG.debug('Creating lambda layer %s', name)
+
+    args = {'layer_name': name, 'runtimes': meta['runtimes'],
+            's3_bucket': CONFIG.deploy_target_bucket,
+            's3_key': meta[S3_PATH_NAME]}
+    if meta.get('description'):
+        args['description'] = meta['description']
+    if meta.get('license'):
+        args['layer_license'] = meta['license']
+    response = _LAMBDA_CONN.create_layer(**args)
+
+    _LOG.info('Lambda Layer {0} version {1} was successfully created'.format(
+        name, response['Version']))
+    layer_arn = response['LayerArn'] + ':' + str(response['Version'])
+    del response['LayerArn']
+    return {
+        layer_arn: build_description_obj(
+            response, name, meta)
+    }
+
+
+def remove_lambda_layers(args):
+    return create_pool(_remove_lambda_layers, args)
+
+
+@unpack_kwargs
+@retry
+def _remove_lambda_layers(arn, config):
+    layer_name = config['resource_name']
+    try:
+        layer_version = arn.split(':')[-1]
+        _LAMBDA_CONN.delete_layer(arn)
+        _LOG.info('Lambda layer {0} version {1} was removed.'.format(
+            layer_name, layer_version))
+    except ClientError as e:
+        if e.response['Error']['Code'] == 'ResourceNotFoundException':
+            _LOG.warn('Lambda Layer {} is not found'.format(layer_name))
         else:
             raise e

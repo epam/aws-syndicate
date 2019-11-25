@@ -16,7 +16,6 @@
 import os
 
 from botocore.exceptions import ClientError
-from botocore.vendored.requests.packages import urllib3
 
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection import ConnectionProvider
@@ -38,7 +37,6 @@ def exception_handler(exception_type, exception, traceback):
 # sys.excepthook = exception_handler
 
 # suppress botocore warnings
-urllib3.disable_warnings()
 
 try:
     CONF_PATH = os.environ['SDCT_CONF']

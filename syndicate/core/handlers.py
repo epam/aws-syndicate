@@ -314,11 +314,13 @@ def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
 @click.option('--publish_only_lambdas_path', nargs=1)
 @click.option('--excluded_lambdas_resources', multiple=True)
 @click.option('--excluded_lambdas_resources_path', nargs=1)
+@click.option('--update_lambda_layers', is_flag=True)
 @timeit
 def publish_lambda_version(bundle_name,
                            publish_only_lambdas, publish_only_lambdas_path,
                            excluded_lambdas_resources,
-                           excluded_lambdas_resources_path):
+                           excluded_lambdas_resources_path,
+                           update_lambda_layers):
     click.echo('Command publish lambda version backend')
     click.echo('Bundle name: %s' % bundle_name)
     if publish_only_lambdas_path and os.path.exists(
@@ -334,5 +336,6 @@ def publish_lambda_version(bundle_name,
             set(excluded_lambdas_resources + tuple(excluded_lambdas_list)))
     update_lambdas(bundle_name=bundle_name,
                    publish_only_lambdas=publish_only_lambdas,
-                   excluded_lambdas_resources=excluded_lambdas_resources)
+                   excluded_lambdas_resources=excluded_lambdas_resources,
+                   update_lambda_layers=update_lambda_layers)
     click.echo('Lambda versions were published.')
