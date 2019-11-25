@@ -1,0 +1,6 @@
+addons:
+  sonarcloud:
+    organization: "epam"
+ 
+script:
+  - sonar-scanner
