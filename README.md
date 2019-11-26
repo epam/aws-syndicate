@@ -156,3 +156,5 @@ Would like to contribute?
 -------------------------
 
 Plese, check [contributor guide](https://github.com/epam/aws-syndicate/blob/master/CONTRIBUTING.md) before starting. 
+
+test
