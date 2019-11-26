@@ -30,7 +30,7 @@ from syndicate.core.build.bundle_processor import (create_bundles_bucket,
 from syndicate.core.build.deployment_processor import (
     continue_deployment_resources, create_deployment_resources,
     remove_deployment_resources, remove_failed_deploy_resources,
-    update_lambdas)
+    update_lambdas, update_deployment_resources)
 from syndicate.core.build.meta_processor import create_meta
 from syndicate.core.conf.config_holder import (MVN_BUILD_TOOL_NAME,
                                                PYTHON_BUILD_TOOL_NAME,
@@ -40,7 +40,8 @@ from syndicate.core.helper import (check_required_param,
                                    handle_futures_progress_bar,
                                    resolve_path_callback, timeit,
                                    verify_bundle_callback,
-                                   verify_meta_bundle_callback)
+                                   verify_meta_bundle_callback,
+                                   check_deploy_name_for_duplicates)
 
 
 # TODO - command descriptions
@@ -48,7 +49,6 @@ from syndicate.core.helper import (check_required_param,
 
 @click.group(name='syndicate')
 def syndicate():
-    click.echo('Group syndicate')
     click.echo('Path to sdct.conf: ' + CONF_PATH)
 
 
@@ -150,6 +150,7 @@ def assemble_node(bundle_name, project_path):
                        project_path=project_path,
                        runtime=RUNTIME_NODEJS)
     click.echo('NodeJS artifacts were prepared successfully.')
+
 
 COMMAND_TO_BUILD_MAPPING = {
     MVN_BUILD_TOOL_NAME: assemble_java_mvn,
@@ -304,6 +305,35 @@ def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
                                                      excluded_types)
     click.echo('Backend resources were deployed{0}.'.format(
         '' if deploy_success else ' with errors. See deploy output file'))
+
+
+# =============================================================================
+
+@syndicate.command(name='update')
+@click.option('--bundle_name', nargs=1, callback=check_required_param)
+@click.option('--deploy_name', nargs=1, callback=check_required_param)
+@click.option('--types', multiple=True)
+@click.option('--update_output', nargs=1, is_flag=True, default=False)
+@check_deploy_name_for_duplicates
+@timeit
+def update(bundle_name, deploy_name, update_output, types=[]):
+    """
+    Updates infrastructure from the provided bundle.
+    :param bundle_name: name of the bundle to get updated meta
+    :param deploy_name: name of the deploy
+    :param types: optional. List of a resources types to update.
+    :return:
+    """
+    click.echo('Bundle name: {}'.format(bundle_name))
+    if types:
+        click.echo('Types to update: {}'.format(list(types)))
+    success = update_deployment_resources(bundle_name=bundle_name,
+                                          deploy_name=deploy_name,
+                                          types=types,
+                                          update_output=update_output)
+    if success:
+        return 'Update of resources has been successfully completed'
+    return 'Something went wrong during resources update'
 
 
 # =============================================================================

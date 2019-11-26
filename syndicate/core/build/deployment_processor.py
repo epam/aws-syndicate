@@ -16,7 +16,6 @@
 import concurrent
 import json
 from concurrent.futures import ALL_COMPLETED, ThreadPoolExecutor
-from datetime import date, datetime
 from functools import cmp_to_key
 
 from syndicate.commons.log_helper import get_logger
@@ -26,11 +25,12 @@ from syndicate.core.build.bundle_processor import (create_deploy_output,
                                                    load_meta_resources,
                                                    remove_deploy_output,
                                                    remove_failed_deploy_output)
+from syndicate.core.build.helper import _json_serial
 from syndicate.core.build.meta_processor import resolve_meta
 from syndicate.core.constants import (BUILD_META_FILE_NAME,
                                       CLEAN_RESOURCE_TYPE_PRIORITY,
                                       DEPLOY_RESOURCE_TYPE_PRIORITY,
-                                      LAMBDA_TYPE, LAMBDA_LAYER_TYPE,
+                                      LAMBDA_TYPE,
                                       UPDATE_RESOURCE_TYPE_PRIORITY)
 from syndicate.core.helper import exit_on_exception, prettify_json
 from syndicate.core.resources import (APPLY_MAPPING, CREATE_RESOURCE,
@@ -61,7 +61,7 @@ def get_dependencies(name, meta, resources_dict, resources):
 
 
 # todo implement resources sorter according to priority
-def _process_resources(resources, handlers_mapping):
+def _process_resources(resources, handlers_mapping, pass_context=False):
     output = {}
     args = []
     resource_type = None
@@ -73,7 +73,10 @@ def _process_resources(resources, handlers_mapping):
                 resource_type = current_res_type
 
             if current_res_type == resource_type:
-                args.append({'name': res_name, 'meta': res_meta})
+                args.append(_build_args(name=res_name,
+                                        meta=res_meta,
+                                        context=output,
+                                        pass_context=pass_context))
                 continue
             elif current_res_type != resource_type:
                 _LOG.info('Processing {0} resources ...'.format(resource_type))
@@ -82,7 +85,10 @@ def _process_resources(resources, handlers_mapping):
                 if response:
                     output.update(response)
                 del args[:]
-                args.append({'name': res_name, 'meta': res_meta})
+                args.append(_build_args(name=res_name,
+                                        meta=res_meta,
+                                        context=output,
+                                        pass_context=pass_context))
                 resource_type = current_res_type
         if args:
             _LOG.info('Processing {0} resources ...'.format(resource_type))
@@ -97,6 +103,23 @@ def _process_resources(resources, handlers_mapping):
         # args list always contains one item here
         return False, update_failed_output(args[0]['name'], args[0]['meta'],
                                            resource_type, output)
+
+
+def _build_args(name, meta, context, pass_context=False):
+    """
+    Builds parameters to pass to resource_type handler.
+    Default parameters dict consists of name and meta keys.
+    If pass_context set to True, parameters dict is extended with 'context' key
+    :param name: name of the resource
+    :param meta: definition of the resource
+    :param context: result of previously deployed resources in scope of current syndicate execution
+    :param pass_context: flag. Manages if output will be included to parameters
+    :return: prepared parameters to be passed to resource_type handler.
+    """
+    params = {'name': name, 'meta': meta}
+    if pass_context:
+        params['context'] = context
+    return params
 
 
 def update_failed_output(res_name, res_meta, resource_type, output):
@@ -204,8 +227,9 @@ def continue_deploy_resources(resources, failed_output):
                 # move existing output- for resources to new output
                 __move_output_content(args, failed_output, updated_output)
     except Exception as e:
-        _LOG.exception('Error occurred while {0} resource creating: {1}'.format(
-            res_type, str(e)))
+        _LOG.exception(
+            'Error occurred while {0} resource creating: {1}'.format(
+                res_type, str(e)))
         deploy_result = False
 
     return deploy_result, updated_output
@@ -232,7 +256,6 @@ def create_deployment_resources(deploy_name, bundle_name,
                                 deploy_only_resources=None,
                                 deploy_only_types=None,
                                 excluded_resources=None, excluded_types=None):
-
     resources = load_meta_resources(bundle_name)
     # validate_deployment_packages(resources)
     _LOG.info('{0} file was loaded successfully'.format(BUILD_META_FILE_NAME))
@@ -274,9 +297,41 @@ def create_deployment_resources(deploy_name, bundle_name,
         _LOG.info('Dynamic changes were applied successfully')
 
     _LOG.info('Going to create deploy output')
-    output_str = json.dumps(output, default=_json_serial)
-    create_deploy_output(bundle_name, deploy_name, output_str, success)
+    create_deploy_output(bundle_name, deploy_name, output, success)
     _LOG.info('Deploy output for {0} was created.'.format(deploy_name))
+    return success
+
+
+@exit_on_exception
+def update_deployment_resources(bundle_name, deploy_name, types,
+                                update_output):
+    resources = resolve_meta(load_meta_resources(bundle_name))
+    _LOG.debug(prettify_json(resources))
+
+    _LOG.warn(
+        'Please pay attention that only the '
+        'following resources types are supported for update: {}'.format(
+            list(UPDATE_RESOURCE.keys())))
+
+    resources = dict((k, v) for (k, v) in resources.items() if
+                     v['resource_type'] in UPDATE_RESOURCE.keys())
+
+    if types:
+        resources = dict((k, v) for (k, v) in resources.items() if
+                         v['resource_type'] in types)
+
+    _LOG.debug('Going to update the following resources: {0}'.format(
+        prettify_json(resources)))
+    resources_list = list(resources.items())
+    resources_list.sort(key=cmp_to_key(_compare_update_resources))
+    success, output = _process_resources(resources=resources_list,
+                                         handlers_mapping=UPDATE_RESOURCE,
+                                         pass_context=True)
+    create_deploy_output(bundle_name=bundle_name,
+                         deploy_name=deploy_name,
+                         output=output,
+                         success=success,
+                         update_output=update_output)
     return success
 
 
@@ -361,8 +416,10 @@ def continue_deployment_resources(deploy_name, bundle_name,
     # remove failed output from bucket
     remove_failed_deploy_output(bundle_name, deploy_name)
     _LOG.info('Going to create deploy output')
-    create_deploy_output(bundle_name, deploy_name,
-                         prettify_json(updated_output), success=success)
+    create_deploy_output(bundle_name=bundle_name,
+                         deploy_name=deploy_name,
+                         output=updated_output,
+                         success=success)
     return success
 
 
@@ -439,14 +496,6 @@ def update_lambdas(bundle_name,
     resources_list = list(resources.items())
     resources_list.sort(key=cmp_to_key(_compare_update_resources))
     update_resources(resources=resources_list)
-
-
-def _json_serial(obj):
-    """JSON serializer for objects not serializable by default json code"""
-
-    if isinstance(obj, (datetime, date)):
-        return obj.isoformat()
-    raise TypeError("Type %s not serializable" % type(obj))
 
 
 def _apply_dynamic_changes(resources, output):

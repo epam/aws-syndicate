@@ -13,10 +13,11 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+from json import dumps
+
 from boto3 import resource
 from botocore.client import Config
 from botocore.exceptions import ClientError
-from json import dumps
 
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import apply_methods_decorator, retry
@@ -141,7 +142,8 @@ class S3Connection(object):
         if not location:
             location = self.region
         valid_location = ['us-west-1', 'us-west-2', 'ca-central-1',
-                          'eu-west-1', 'eu-west-2', 'eu-west-3', 'eu-central-1',
+                          'eu-west-1', 'eu-west-2', 'eu-west-3',
+                          'eu-central-1',
                           'ap-south-1', 'ap-southeast-1', 'ap-southeast-2',
                           'ap-northeast-1', 'ap-northeast-2', 'sa-east-1',
                           'us-east-2', 'eu-central-1', 'us-east-1',
@@ -427,3 +429,7 @@ class S3Connection(object):
         )
         _LOG.info('CORS configuration has been set to bucket {0}'.format(
             bucket_name))
+
+    def is_versioning_enabled(self, bucket_name):
+        return self.client.get_bucket_versioning(
+            Bucket=bucket_name) == 'Enabled'

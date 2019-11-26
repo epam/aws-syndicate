@@ -16,11 +16,12 @@
 import time
 
 from botocore.exceptions import ClientError
+
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import retry
 from syndicate.core import CONFIG, CONN
 from syndicate.core.build.meta_processor import S3_PATH_NAME
-from syndicate.core.helper import (create_pool, unpack_kwargs, build_path)
+from syndicate.core.helper import (create_pool, unpack_kwargs)
 from syndicate.core.resources.helper import (build_description_obj,
                                              validate_params)
 from syndicate.core.resources.sns_resource import (
@@ -188,7 +189,7 @@ def _create_lambda_from_meta(name, meta):
 
 
 @unpack_kwargs
-def _update_lambda(name, meta):
+def _update_lambda(name, meta, context):
     _LOG.info('Updating lambda: {0}'.format(name))
     req_params = ['runtime', 'memory', 'timeout', 'func_name']
 
@@ -211,6 +212,15 @@ def _update_lambda(name, meta):
         s3_bucket=CONFIG.deploy_target_bucket,
         s3_key=key,
         publish_version=publish_version)
+
+    # update lambda layers version
+    if meta.get('layers'):
+        layers = meta.get('layers')
+        updated_layers_arns = [layer_arn
+                               for layer_arn, body in context.items()
+                               if body.get('resource_name') in layers]
+        _LAMBDA_CONN.update_lambda_configuration(lambda_name=name,
+                                                 layers=updated_layers_arns)
 
     # AWS sometimes returns None after function creation, needs for stability
     time.sleep(10)
@@ -253,7 +263,7 @@ def _is_equal_lambda_layer(new_layer_sha, old_layer_name):
             version['LayerVersionArn'])
         if new_layer_sha == base64.b64decode(
                 old_layer['Content']['CodeSha256']):
-            return old_layer['LayerVersionArn']
+            return old_layer
 
 
 def __describe_lambda_by_version(name):
@@ -459,11 +469,17 @@ def _remove_lambda(arn, config):
 
 
 def create_lambda_layer(args):
-    return create_pool(create_lambda_layer_from_meta, args, )
+    return create_pool(create_lambda_layer_from_meta, args)
 
 
 @unpack_kwargs
-def create_lambda_layer_from_meta(name, meta):
+def create_lambda_layer_from_meta(name, meta, context=None):
+    """
+    :param name:
+    :param meta:
+    :param context: because of usage in 'update' flow
+    :return:
+    """
     req_params = ['runtimes', 'file_name']
 
     validate_params(name, meta, req_params)
@@ -478,9 +494,14 @@ def create_lambda_layer_from_meta(name, meta):
     hash_object.update(file_body)
     existing_version = _is_equal_lambda_layer(hash_object.digest(), name)
     if existing_version:
+        existing_layer_arn = existing_version['LayerVersionArn']
         _LOG.info('Layer {} with same content already '
-                  'exists in layer version {}.'.format(name, existing_version))
-        return
+                  'exists in layer version {}.'.format(name,
+                                                       existing_layer_arn))
+        return {
+            existing_layer_arn: build_description_obj(
+                response=existing_version, name=name, meta=meta
+            )}
 
     _LOG.debug('Creating lambda layer %s', name)
 

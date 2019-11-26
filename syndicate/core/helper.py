@@ -13,22 +13,22 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+import concurrent.futures
 import datetime
 import json
 import os
 import subprocess
 import sys
+from concurrent.futures import ALL_COMPLETED, ThreadPoolExecutor
 from functools import wraps
 from threading import Thread
 from time import time
 
-import concurrent.futures
 from click import BadParameter
-from concurrent.futures import ALL_COMPLETED, ThreadPoolExecutor
 from tqdm import tqdm
 
 from syndicate.commons.log_helper import get_logger
-from syndicate.core import CONFIG
+from syndicate.core import CONFIG, CONN
 from syndicate.core.conf.config_holder import path_resolver
 from syndicate.core.constants import (ARTIFACTS_FOLDER, BUILD_META_FILE_NAME,
                                       DEFAULT_SEP)
@@ -235,3 +235,31 @@ def handle_futures_progress_bar(futures):
     }
     for _ in tqdm(concurrent.futures.as_completed(futures), **kwargs):
         pass
+
+
+def check_deploy_name_for_duplicates(func):
+    """
+    Checks whether output file with specified name already exists.
+    Everywhere this decorator is used the following
+    :param func:
+    :return:
+    """
+    @wraps(func)
+    def real_wrapper(*args, **kwargs):
+        deploy_name = kwargs.get('deploy_name')
+        bundle_name = kwargs.get('bundle_name')
+        update_output = kwargs.get('update_output')
+        if deploy_name and bundle_name and not update_output:
+            output_file_name = '{}/outputs/{}.json'.format(bundle_name, deploy_name)
+            exists = CONN.s3().is_file_exists(
+                CONFIG.deploy_target_bucket,
+                key=output_file_name)
+            if exists:
+                _LOG.warn('Output file already exists with name {}.'
+                          ' If it should be replaced with new one, '
+                          'use --update_output flag.'.format(
+                    output_file_name))
+                return
+        return func(*args, **kwargs)
+
+    return real_wrapper
