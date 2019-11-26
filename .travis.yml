@@ -1,0 +1,8 @@
+dist: trusty
+
+addons:
+  sonarcloud:
+    organization: "epam"
+ 
+script:
+  - sonar-scanner
