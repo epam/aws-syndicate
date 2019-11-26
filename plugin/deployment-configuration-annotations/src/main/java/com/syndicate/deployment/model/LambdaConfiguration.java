@@ -99,6 +99,9 @@ public class LambdaConfiguration {
     @JsonProperty("alias")
     private String alias;
 
+    @JsonProperty("layers")
+    private String[] layers;
+
     public String getName() {
         return name;
     }
@@ -218,6 +221,14 @@ public class LambdaConfiguration {
 
     public void setSecurityGroupIds(String[] securityGroupIds) {
         this.securityGroupIds = securityGroupIds;
+    }
+
+    public String[] getLayers() {
+        return layers;
+    }
+
+    public void setLayers(String[] layers) {
+        this.layers = layers;
     }
 
     public static class Builder {
@@ -359,6 +370,12 @@ public class LambdaConfiguration {
             }
             configuration.alias = alias;
             return this;
+        }
+
+        public Builder withLayers(String[] layers) {
+        	Objects.requireNonNull(layers, "Array of layers names cannot be null");
+        	configuration.layers = layers;
+        	return this;
         }
 
         public LambdaConfiguration build() {

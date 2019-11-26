@@ -69,6 +69,11 @@ public final class LambdaConfigurationFactory {
             lambdaConfiguration.setAlias(aliasName);
         }
 
+        String[] layers = lambdaHandler.layers();
+        if (layers.length > 0) {
+            lambdaConfiguration.setLayers(layers);
+        }
+
         LambdaConcurrency lambdaConcurrency = lambdaClass.getDeclaredAnnotation(LambdaConcurrency.class);
         if (lambdaConcurrency != null) {
             lambdaConfiguration.setConcurrentExecutions(lambdaConcurrency.executions());

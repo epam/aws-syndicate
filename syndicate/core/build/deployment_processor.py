@@ -30,7 +30,8 @@ from syndicate.core.build.meta_processor import resolve_meta
 from syndicate.core.constants import (BUILD_META_FILE_NAME,
                                       CLEAN_RESOURCE_TYPE_PRIORITY,
                                       DEPLOY_RESOURCE_TYPE_PRIORITY,
-                                      LAMBDA_TYPE)
+                                      LAMBDA_TYPE, LAMBDA_LAYER_TYPE,
+                                      UPDATE_RESOURCE_TYPE_PRIORITY)
 from syndicate.core.helper import exit_on_exception, prettify_json
 from syndicate.core.resources import (APPLY_MAPPING, CREATE_RESOURCE,
                                       DESCRIBE_RESOURCE, REMOVE_RESOURCE,
@@ -405,7 +406,8 @@ def remove_failed_deploy_resources(deploy_name, bundle_name,
 @exit_on_exception
 def update_lambdas(bundle_name,
                    publish_only_lambdas,
-                   excluded_lambdas_resources):
+                   excluded_lambdas_resources,
+                   update_lambda_layers):
     resources = resolve_meta(load_meta_resources(bundle_name))
     _LOG.debug('Names were resolved')
     _LOG.debug(prettify_json(resources))
@@ -422,10 +424,21 @@ def update_lambdas(bundle_name,
         resources = dict((k, v) for (k, v) in resources.items() if
                          k not in excluded_lambdas_resources)
 
+    if update_lambda_layers:
+        layers_list = []
+        for (k, v) in resources.items():
+            if resources[k].get('layers'):
+                layers_list.extend(resources[k].get('layers'))
+        resources.update(
+            dict((k, v) for (k, v) in resolve_meta(
+                load_meta_resources(bundle_name)).items()
+                 if k in layers_list))
+
     _LOG.debug('Going to update the following lambdas: {0}'.format(
         prettify_json(resources)))
-    resources = list(resources.items())
-    update_resources(resources=resources)
+    resources_list = list(resources.items())
+    resources_list.sort(key=cmp_to_key(_compare_update_resources))
+    update_resources(resources=resources_list)
 
 
 def _json_serial(obj):
@@ -486,6 +499,14 @@ def _compare_clean_resources(first, second):
     second_resource_type = second[-1]['resource_meta']['resource_type']
     first_res_priority = CLEAN_RESOURCE_TYPE_PRIORITY[first_resource_type]
     second_res_priority = CLEAN_RESOURCE_TYPE_PRIORITY[second_resource_type]
+    return _compare_res(first_res_priority, second_res_priority)
+
+
+def _compare_update_resources(first, second):
+    first_resource_type = first[-1]['resource_type']
+    second_resource_type = second[-1]['resource_type']
+    first_res_priority = UPDATE_RESOURCE_TYPE_PRIORITY[first_resource_type]
+    second_res_priority = UPDATE_RESOURCE_TYPE_PRIORITY[second_resource_type]
     return _compare_res(first_res_priority, second_res_priority)
 
 
