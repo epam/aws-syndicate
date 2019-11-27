@@ -5,4 +5,5 @@ addons:
     organization: "epam"
  
 script:
+  - cd plugin && mvn test -B
   - sonar-scanner
