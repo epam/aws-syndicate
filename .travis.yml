@@ -6,4 +6,5 @@ addons:
  
 script:
   - cd plugin && mvn test -B
-  - sonar-scanner
+  - cd ../examples/demo-project/demo-java && mvn test -B
+  - cd ../../.. && sonar-scanner
