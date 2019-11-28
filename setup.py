@@ -30,7 +30,8 @@ setup(
         'botocore==1.13.14',
         'boto3==1.10.13',
         'configobj==5.0.6',
-        'tqdm==4.19.5'
+        'tqdm==4.19.5',
+        'colorama==0.4.1'
     ],
     entry_points='''
         [console_scripts]

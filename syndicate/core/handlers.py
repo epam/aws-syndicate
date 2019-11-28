@@ -274,10 +274,13 @@ def build_bundle(ctx, bundle_name, force_upload):
 @click.option('--excluded_resources_path', nargs=1)
 @click.option('--excluded_types', multiple=True)
 @click.option('--continue_deploy', is_flag=True)
+@click.option('--update_output', nargs=1, is_flag=True, default=False)
+@check_deploy_name_for_duplicates
 @timeit
 def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
            deploy_only_resources_path, excluded_resources,
-           excluded_resources_path, excluded_types, continue_deploy):
+           excluded_resources_path, excluded_types, continue_deploy,
+           update_output):
     click.echo('Command deploy backend')
     click.echo('Deploy name: %s' % deploy_name)
     if deploy_only_resources_path and os.path.exists(
@@ -295,14 +298,16 @@ def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
                                                        deploy_only_resources,
                                                        deploy_only_types,
                                                        excluded_resources,
-                                                       excluded_types)
+                                                       excluded_types,
+                                                       update_output)
 
     else:
         deploy_success = create_deployment_resources(deploy_name, bundle_name,
                                                      deploy_only_resources,
                                                      deploy_only_types,
                                                      excluded_resources,
-                                                     excluded_types)
+                                                     excluded_types,
+                                                     update_output)
     click.echo('Backend resources were deployed{0}.'.format(
         '' if deploy_success else ' with errors. See deploy output file'))
 
@@ -351,7 +356,9 @@ def publish_lambda_version(bundle_name,
                            excluded_lambdas_resources,
                            excluded_lambdas_resources_path,
                            update_lambda_layers):
-    click.echo('Command publish lambda version backend')
+    click.secho('The command \'publish_lambda_version\' is deprecated. '
+                'Please, use \'syndicate update\' instead',
+                fg='black', bg='red')
     click.echo('Bundle name: %s' % bundle_name)
     if publish_only_lambdas_path and os.path.exists(
             publish_only_lambdas_path):

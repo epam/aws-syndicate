@@ -141,7 +141,8 @@ def deploy_resources(resources):
 
 def update_resources(resources):
     return _process_resources(resources=resources,
-                              handlers_mapping=UPDATE_RESOURCE)
+                              handlers_mapping=UPDATE_RESOURCE,
+                              pass_context=True)
 
 
 def clean_resources(output):
@@ -255,7 +256,9 @@ def __find_output_by_resource_name(output, resource_name):
 def create_deployment_resources(deploy_name, bundle_name,
                                 deploy_only_resources=None,
                                 deploy_only_types=None,
-                                excluded_resources=None, excluded_types=None):
+                                excluded_resources=None,
+                                excluded_types=None,
+                                update_output=False):
     resources = load_meta_resources(bundle_name)
     # validate_deployment_packages(resources)
     _LOG.info('{0} file was loaded successfully'.format(BUILD_META_FILE_NAME))
@@ -297,7 +300,11 @@ def create_deployment_resources(deploy_name, bundle_name,
         _LOG.info('Dynamic changes were applied successfully')
 
     _LOG.info('Going to create deploy output')
-    create_deploy_output(bundle_name, deploy_name, output, success)
+    create_deploy_output(bundle_name=bundle_name,
+                         deploy_name=deploy_name,
+                         output=output,
+                         success=success,
+                         update_output=update_output)
     _LOG.info('Deploy output for {0} was created.'.format(deploy_name))
     return success
 
@@ -377,7 +384,8 @@ def continue_deployment_resources(deploy_name, bundle_name,
                                   deploy_only_resources=None,
                                   deploy_only_types=None,
                                   excluded_resources=None,
-                                  excluded_types=None):
+                                  excluded_types=None,
+                                  update_output=False):
     output = load_failed_deploy_output(bundle_name, deploy_name)
     _LOG.info('Failed output file was loaded successfully')
 
@@ -419,7 +427,8 @@ def continue_deployment_resources(deploy_name, bundle_name,
     create_deploy_output(bundle_name=bundle_name,
                          deploy_name=deploy_name,
                          output=updated_output,
-                         success=success)
+                         success=success,
+                         update_output=update_output)
     return success
 
 
