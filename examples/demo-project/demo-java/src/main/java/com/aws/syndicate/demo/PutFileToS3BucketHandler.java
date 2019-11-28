@@ -36,8 +36,7 @@ import java.util.Map;
  * Created by Vladyslav Tereshchenko on 9/12/2018.
  */
 @LambdaHandler(lambdaName = "dynamodb_item_processor",
-    roleName = "PutObjectToS3Role",
-    layers = {"layer1", "layer2", "layer3"}
+    roleName = "PutObjectToS3Role"
 )
 @DynamoDbTriggerEventSource(targetTable = "Notifications", batchSize = 1)
 @DependsOn(name = "Notifications", resourceType = ResourceType.DYNAMODB_TABLE)
