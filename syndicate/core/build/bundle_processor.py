@@ -22,6 +22,7 @@ from botocore.exceptions import ClientError
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection import S3Connection
 from syndicate.core import CONFIG, CONN, sts
+from syndicate.core.build.helper import _json_serial
 from syndicate.core.build.meta_processor import validate_deployment_packages
 from syndicate.core.constants import (ARTIFACTS_FOLDER, BUILD_META_FILE_NAME,
                                       DEFAULT_SEP)
@@ -44,16 +45,21 @@ def _backup_deploy_output(filename, output):
         backup_file.close()
 
 
-def create_deploy_output(bundle_name, deploy_name, output, success):
+def create_deploy_output(bundle_name, deploy_name, output, success,
+                         replace_output=False):
+    output_str = json.dumps(output, default=_json_serial)
     key = _build_output_key(bundle_name=bundle_name,
                             deploy_name=deploy_name,
                             is_regular_output=success)
-    if _S3_CONN.is_file_exists(CONFIG.deploy_target_bucket, key):
+    if _S3_CONN.is_file_exists(CONFIG.deploy_target_bucket,
+                               key) and not replace_output:
         _LOG.warn(
             'Output file for deploy {0} already exists.'.format(deploy_name))
     else:
-        _S3_CONN.put_object(output, key, CONFIG.deploy_target_bucket,
+        _S3_CONN.put_object(output_str, key, CONFIG.deploy_target_bucket,
                             'application/json')
+        _LOG.info('Output file with name {} has been {}'.format(
+            key, 'replaced' if replace_output else 'created'))
 
 
 def remove_deploy_output(bundle_name, deploy_name):

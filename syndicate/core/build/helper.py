@@ -16,6 +16,7 @@
 import os
 import zipfile
 from contextlib import closing
+from datetime import datetime, date
 
 
 def build_py_package_name(lambda_name, lambda_version):
@@ -30,3 +31,11 @@ def zip_dir(basedir, name):
                 absfn = os.path.join(root, fn)
                 zfn = absfn[len(basedir) + len(os.sep):]
                 z.write(absfn, zfn)
+
+
+def _json_serial(obj):
+    """JSON serializer for objects not serializable by default json code"""
+
+    if isinstance(obj, (datetime, date)):
+        return obj.isoformat()
+    raise TypeError("Type %s not serializable" % type(obj))
