@@ -532,11 +532,14 @@ def remove_lambda_layers(args):
 @retry
 def _remove_lambda_layers(arn, config):
     layer_name = config['resource_name']
+    layers_list = _LAMBDA_CONN.list_lambda_layer_versions(layer_name)
+
     try:
-        layer_version = arn.split(':')[-1]
-        _LAMBDA_CONN.delete_layer(arn)
-        _LOG.info('Lambda layer {0} version {1} was removed.'.format(
-            layer_name, layer_version))
+        for arn in [layer['LayerVersionArn'] for layer in layers_list]:
+            layer_version = arn.split(':')[-1]
+            _LAMBDA_CONN.delete_layer(arn)
+            _LOG.info('Lambda layer {0} version {1} was removed.'.format(
+                layer_name, layer_version))
     except ClientError as e:
         if e.response['Error']['Code'] == 'ResourceNotFoundException':
             _LOG.warn('Lambda Layer {} is not found'.format(layer_name))
