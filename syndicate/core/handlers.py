@@ -274,13 +274,13 @@ def build_bundle(ctx, bundle_name, force_upload):
 @click.option('--excluded_resources_path', nargs=1)
 @click.option('--excluded_types', multiple=True)
 @click.option('--continue_deploy', is_flag=True)
-@click.option('--update_output', nargs=1, is_flag=True, default=False)
+@click.option('--replace_output', nargs=1, is_flag=True, default=False)
 @check_deploy_name_for_duplicates
 @timeit
 def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
            deploy_only_resources_path, excluded_resources,
            excluded_resources_path, excluded_types, continue_deploy,
-           update_output):
+           replace_output):
     click.echo('Command deploy backend')
     click.echo('Deploy name: %s' % deploy_name)
     if deploy_only_resources_path and os.path.exists(
@@ -299,7 +299,7 @@ def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
                                                        deploy_only_types,
                                                        excluded_resources,
                                                        excluded_types,
-                                                       update_output)
+                                                       replace_output)
 
     else:
         deploy_success = create_deployment_resources(deploy_name, bundle_name,
@@ -307,7 +307,7 @@ def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
                                                      deploy_only_types,
                                                      excluded_resources,
                                                      excluded_types,
-                                                     update_output)
+                                                     replace_output)
     click.echo('Backend resources were deployed{0}.'.format(
         '' if deploy_success else ' with errors. See deploy output file'))
 
@@ -317,25 +317,47 @@ def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
 @syndicate.command(name='update')
 @click.option('--bundle_name', nargs=1, callback=check_required_param)
 @click.option('--deploy_name', nargs=1, callback=check_required_param)
-@click.option('--types', multiple=True)
-@click.option('--update_output', nargs=1, is_flag=True, default=False)
+@click.option('--update_only_types', multiple=True)
+@click.option('--update_only_resources', multiple=True)
+@click.option('--update_only_resources_path', nargs=1)
+@click.option('--replace_output', nargs=1, is_flag=True, default=False)
 @check_deploy_name_for_duplicates
 @timeit
-def update(bundle_name, deploy_name, update_output, types=[]):
+def update(bundle_name, deploy_name, replace_output,
+           update_only_resources,
+           update_only_resources_path,
+           update_only_types=[]):
     """
     Updates infrastructure from the provided bundle.
     :param bundle_name: name of the bundle to get updated meta
     :param deploy_name: name of the deploy
-    :param types: optional. List of a resources types to update.
+    :param update_only_resources: list of resources names to updated
+    :param update_only_resources_path: path to a json file with list of
+        resources names to update
+    :param update_only_types: optional. List of a resources types to update.
+    :param replace_output: flag. If True, existing output file will be replaced
     :return:
     """
     click.echo('Bundle name: {}'.format(bundle_name))
-    if types:
-        click.echo('Types to update: {}'.format(list(types)))
-    success = update_deployment_resources(bundle_name=bundle_name,
-                                          deploy_name=deploy_name,
-                                          types=types,
-                                          update_output=update_output)
+    if update_only_types:
+        click.echo('Types to update: {}'.format(list(update_only_types)))
+    if update_only_resources:
+        click.echo('Resources to update: {}'.format(list(update_only_types)))
+    if update_only_resources_path:
+        click.echo('Path to list of resources to update: {}'.format(
+            update_only_resources_path))
+
+    if update_only_resources_path and os.path.exists(
+            update_only_resources_path):
+        update_resources_list = json.load(open(update_only_resources_path))
+        update_only_resources = tuple(
+            set(update_only_resources + tuple(update_resources_list)))
+    success = update_deployment_resources(
+        bundle_name=bundle_name,
+        deploy_name=deploy_name,
+        update_only_types=update_only_types,
+        update_only_resources=update_only_resources,
+        replace_output=replace_output)
     if success:
         return 'Update of resources has been successfully completed'
     return 'Something went wrong during resources update'

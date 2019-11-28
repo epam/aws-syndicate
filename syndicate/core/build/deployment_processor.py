@@ -258,7 +258,7 @@ def create_deployment_resources(deploy_name, bundle_name,
                                 deploy_only_types=None,
                                 excluded_resources=None,
                                 excluded_types=None,
-                                update_output=False):
+                                replace_output=False):
     resources = load_meta_resources(bundle_name)
     # validate_deployment_packages(resources)
     _LOG.info('{0} file was loaded successfully'.format(BUILD_META_FILE_NAME))
@@ -304,14 +304,15 @@ def create_deployment_resources(deploy_name, bundle_name,
                          deploy_name=deploy_name,
                          output=output,
                          success=success,
-                         update_output=update_output)
+                         replace_output=replace_output)
     _LOG.info('Deploy output for {0} was created.'.format(deploy_name))
     return success
 
 
 @exit_on_exception
-def update_deployment_resources(bundle_name, deploy_name, types,
-                                update_output):
+def update_deployment_resources(bundle_name, deploy_name, replace_output=False,
+                                update_only_types=None,
+                                update_only_resources=None):
     resources = resolve_meta(load_meta_resources(bundle_name))
     _LOG.debug(prettify_json(resources))
 
@@ -320,12 +321,17 @@ def update_deployment_resources(bundle_name, deploy_name, types,
         'following resources types are supported for update: {}'.format(
             list(UPDATE_RESOURCE.keys())))
 
+    # TODO make filter chain
     resources = dict((k, v) for (k, v) in resources.items() if
                      v['resource_type'] in UPDATE_RESOURCE.keys())
 
-    if types:
+    if update_only_types:
         resources = dict((k, v) for (k, v) in resources.items() if
-                         v['resource_type'] in types)
+                         v['resource_type'] in update_only_types)
+
+    if update_only_resources:
+        resources = dict((k, v) for (k, v) in resources.items() if
+                         k in update_only_resources)
 
     _LOG.debug('Going to update the following resources: {0}'.format(
         prettify_json(resources)))
@@ -338,7 +344,7 @@ def update_deployment_resources(bundle_name, deploy_name, types,
                          deploy_name=deploy_name,
                          output=output,
                          success=success,
-                         update_output=update_output)
+                         replace_output=replace_output)
     return success
 
 
@@ -385,7 +391,7 @@ def continue_deployment_resources(deploy_name, bundle_name,
                                   deploy_only_types=None,
                                   excluded_resources=None,
                                   excluded_types=None,
-                                  update_output=False):
+                                  replace_output=False):
     output = load_failed_deploy_output(bundle_name, deploy_name)
     _LOG.info('Failed output file was loaded successfully')
 
@@ -428,7 +434,7 @@ def continue_deployment_resources(deploy_name, bundle_name,
                          deploy_name=deploy_name,
                          output=updated_output,
                          success=success,
-                         update_output=update_output)
+                         replace_output=replace_output)
     return success
 
 

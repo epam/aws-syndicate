@@ -248,8 +248,8 @@ def check_deploy_name_for_duplicates(func):
     def real_wrapper(*args, **kwargs):
         deploy_name = kwargs.get('deploy_name')
         bundle_name = kwargs.get('bundle_name')
-        update_output = kwargs.get('update_output')
-        if deploy_name and bundle_name and not update_output:
+        replace_output = kwargs.get('replace_output')
+        if deploy_name and bundle_name and not replace_output:
             output_file_name = '{}/outputs/{}.json'.format(bundle_name, deploy_name)
             exists = CONN.s3().is_file_exists(
                 CONFIG.deploy_target_bucket,
@@ -257,7 +257,7 @@ def check_deploy_name_for_duplicates(func):
             if exists:
                 _LOG.warn('Output file already exists with name {}.'
                           ' If it should be replaced with new one, '
-                          'use --update_output flag.'.format(
+                          'use --replace_output flag.'.format(
                     output_file_name))
                 return
         return func(*args, **kwargs)

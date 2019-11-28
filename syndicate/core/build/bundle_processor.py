@@ -46,19 +46,20 @@ def _backup_deploy_output(filename, output):
 
 
 def create_deploy_output(bundle_name, deploy_name, output, success,
-                         update_output=False):
+                         replace_output=False):
     output_str = json.dumps(output, default=_json_serial)
     key = _build_output_key(bundle_name=bundle_name,
                             deploy_name=deploy_name,
                             is_regular_output=success)
     if _S3_CONN.is_file_exists(CONFIG.deploy_target_bucket,
-                               key) and not update_output:
+                               key) and not replace_output:
         _LOG.warn(
             'Output file for deploy {0} already exists.'.format(deploy_name))
     else:
         _S3_CONN.put_object(output_str, key, CONFIG.deploy_target_bucket,
                             'application/json')
-        _LOG.info('Output file with name {} has been created'.format(key))
+        _LOG.info('Output file with name {} has been {}'.format(
+            key, 'replaced' if replace_output else 'created'))
 
 
 def remove_deploy_output(bundle_name, deploy_name):
