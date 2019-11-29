@@ -216,7 +216,8 @@ public class GenerateLambdaConfigMojoSuccessTest {
 
         File deploymentResourcesFile = Arrays.stream(files).filter(f -> f.getName()
                 .equalsIgnoreCase("deployment_resources.json"))
-                .findFirst().get();
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("There no files names as deployment_resource.json"));
 
         String deploymentResourcesJson = new String(Files.readAllBytes(deploymentResourcesFile.toPath()));
         Map<String, JsonNode> actualContent = objectMapper.readValue(deploymentResourcesJson,
@@ -297,7 +298,9 @@ public class GenerateLambdaConfigMojoSuccessTest {
 
         File deploymentResourcesFile = Arrays.stream(files).filter(f -> f.getName()
                 .equalsIgnoreCase("deployment_resources.tf.json"))
-                .findFirst().get();
+                .findFirst()
+	            .orElseThrow(() -> new IllegalArgumentException("There no files names as deployment_resource.tf.json"));
+
 
         String deploymentResourcesJson = new String(Files.readAllBytes(deploymentResourcesFile.toPath()));
         Map<String, JsonNode> actualContent = objectMapper.readValue(deploymentResourcesJson,
