@@ -336,18 +336,10 @@ class LambdaConnection(object):
             params['MemorySize'] = memory_size
         if isinstance(vpc_sub_nets, str):
             vpc_sub_nets = [vpc_sub_nets]
-        elif isinstance(vpc_sub_nets, list):
-            vpc_sub_nets = vpc_sub_nets
-        elif vpc_sub_nets is None:
-            pass  # vpc will not be set
         else:
             raise ValueError('VPC_SUB_NETS must be list of str.')
         if isinstance(vpc_security_group, str):
             vpc_security_group = [vpc_security_group]
-        elif isinstance(vpc_security_group, list):
-            vpc_security_group = vpc_security_group
-        elif vpc_security_group is None:
-            pass  # vpc will not be set
         else:
             raise ValueError('VPC_SECURITY_GROUP must be list of str.')
         if vpc_sub_nets and vpc_security_group:
