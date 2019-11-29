@@ -22,7 +22,7 @@ SYNDICATE_DESCRIPTION = ('AWS-syndicate is an Amazon Web Services deployment '
 
 setup(
     name='aws-syndicate',
-    version='0.8',
+    version='0.8.1',
     packages=find_packages(),
     include_package_data=True,
     install_requires=[
