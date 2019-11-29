@@ -65,7 +65,7 @@ public class GenerateLambdaConfigMojoSuccessTest {
 
     public static final String PLUGIN_ARTIFACT_ID = "deployment-configuration-maven-plugin";
     private static final String PLUGIN_CONFIG_SKIP_XML = "plugin-config-skip.xml";
-    public static final Properties EMPTY_PROPERTIES = new Properties();
+    private static final Properties EMPTY_PROPERTIES = new Properties();
 
     private ObjectMapper objectMapper = new ObjectMapper();
 
