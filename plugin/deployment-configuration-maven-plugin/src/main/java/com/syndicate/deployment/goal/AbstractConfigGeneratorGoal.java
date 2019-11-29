@@ -17,8 +17,14 @@ package com.syndicate.deployment.goal;
 
 import com.syndicate.deployment.annotations.lambda.LambdaHandler;
 import com.syndicate.deployment.model.Pair;
+import com.syndicate.deployment.model.api.request.SyndicateCredentials;
 import com.syndicate.deployment.processor.IConfigurationProcessor;
+import com.syndicate.deployment.resolvers.CredentialResolverChain;
+import com.syndicate.deployment.resolvers.IChainedCredentialsResolver;
+import com.syndicate.deployment.resolvers.impl.CliParametersCredentialResolver;
+import com.syndicate.deployment.resolvers.impl.EnvironmentPropertiesCredentialsResolver;
 import com.syndicate.deployment.utils.JsonUtils;
+import com.syndicate.deployment.utils.ProjectUtils;
 import org.apache.maven.artifact.DependencyResolutionRequiredException;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
@@ -37,69 +43,102 @@ import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
+
+import static com.syndicate.deployment.utils.ProjectUtils.SYNDICATE_BUILD_ID;
+import static com.syndicate.deployment.utils.ProjectUtils.getPropertyFromRootProject;
+import static com.syndicate.deployment.utils.ProjectUtils.getRootDirPath;
+import static com.syndicate.deployment.utils.ProjectUtils.setPropertyToRootProject;
 
 /**
- * Created by Oleksandr Onsha on 10/25/18
+ * Created by Vladyslav Tereshchenko on 10/6/2016.
  */
 public abstract class AbstractConfigGeneratorGoal<T> extends AbstractMojo {
 
-    private static final String DEFAULT_ENCODING = "UTF-8";
-    private static final String MAVEN_TARGET_FOLDER_NAME = "target";
+	private static final String BUILD_FILE_EXT = ".sdctbuild";
+	private static final String DEFAULT_ENCODING = "UTF-8";
+
+    @Parameter(property = "maven.processor.credentials")
+    private String credentials;
 
     @Parameter(defaultValue = "${project}", required = true, readonly = true)
-    private MavenProject project;
+    protected MavenProject project;
 
-    @Parameter( required = true)
-    private String fileName;
+	@Parameter
+	protected String url;
 
-    @Parameter(property = "maven.processor.skip", defaultValue = "false")
-    private boolean skip;
+	@Parameter(required = true)
+	private String fileName;
 
-    @Parameter(required = true)
-    private String[] packages;
+	@Parameter(property = "maven.processor.skip", defaultValue = "false")
+	private boolean skip;
 
-    private Log logger;
+	@Parameter(property = "maven.processor.generateBuildFile", defaultValue = "false")
+	private boolean generateBuildFile;
 
-    public AbstractConfigGeneratorGoal() {
-        this.logger = getLog();
-    }
+	@Parameter(required = true)
+	private String[] packages;
 
-    public void setProject(MavenProject project) {
-        this.project = project;
-    }
+	private CredentialResolverChain credentialsResolverChain;
 
-    public void setSkip(boolean skip) {
-        this.skip = skip;
-    }
+	protected Log logger;
 
-    public void setPackages(String[] packages) {
-        this.packages = packages;
-    }
 
-    public MavenProject getProject() {
-        return project;
-    }
+	public AbstractConfigGeneratorGoal() {
+		this.logger = getLog();
 
-    public boolean isSkip() {
-        return skip;
-    }
+		IChainedCredentialsResolver cliParamCredentialResolver = new CliParametersCredentialResolver(credentials);
+		IChainedCredentialsResolver environmentVarsCredentialsResolver = new EnvironmentPropertiesCredentialsResolver();
+		cliParamCredentialResolver.setNextResolver(environmentVarsCredentialsResolver);
 
-    public String[] getPackages() {
-        return packages;
-    }
+		this.credentialsResolverChain = new CredentialResolverChain(cliParamCredentialResolver);
+	}
 
-    public String getFileName() {
-        return fileName;
-    }
+	public MavenProject getProject() {
+		return project;
+	}
+
+	public void setProject(MavenProject project) {
+		this.project = project;
+	}
+
+	public boolean isSkip() {
+		return skip;
+	}
+
+	public void setSkip(boolean skip) {
+		this.skip = skip;
+	}
+
+	public String[] getPackages() {
+		return packages;
+	}
+
+	public void setPackages(String[] packages) {
+		this.packages = packages;
+	}
+
+	public String getFileName() {
+		return fileName;
+	}
 
     public void setFileName(String fileName) {
         this.fileName = fileName;
     }
+
+	public CredentialResolverChain getCredentialsResolverChain() {
+		return credentialsResolverChain;
+	}
+
+	public void setCredentialsResolverChain(CredentialResolverChain credentialsResolverChain) {
+		this.credentialsResolverChain = credentialsResolverChain;
+	}
 
     @Override
     public void execute() throws MojoExecutionException {
@@ -125,7 +164,7 @@ public abstract class AbstractConfigGeneratorGoal<T> extends AbstractMojo {
             List<Class<?>> lambdasClasses = getLambdaClasses();
 
             Map<String, T> configurations = new HashMap<>();
-            for (Class<?> lambdaClass : lambdasClasses) {
+            for (Class<?> lambdaClass: lambdasClasses) {
                 IConfigurationProcessor<T> annotationProcessor =
                         getAnnotationProcessor(project.getVersion(), fileName, absolutePath, lambdaClass);
                 Pair<String, T> lambdaConfigurationPair = annotationProcessor.process();
@@ -148,10 +187,15 @@ public abstract class AbstractConfigGeneratorGoal<T> extends AbstractMojo {
                 logger.info("Goal executed successfully");
             }
 
-            String configPath = absolutePath + File.separator + MAVEN_TARGET_FOLDER_NAME;
-
             Map<String, Object> convertedConfiguration = convertConfiguration(configurations);
-            writeToFile(configPath, getDeploymentResourcesFileName(), JsonUtils.convertToJson(convertedConfiguration));
+            writeToFile(ProjectUtils.getTargetFolderPath(project), getDeploymentResourcesFileName(), JsonUtils.convertToJson(convertedConfiguration));
+
+			// credentials are set up, using Syndicate API to upload meta information
+			SyndicateCredentials userCredentials = credentialsResolverChain.resolveCredentialsInChain();
+			if (userCredentials != null) {
+				generateBuildId();
+				uploadMeta(convertedConfiguration, userCredentials);
+			}
 
         } catch (IOException e) {
             throw new MojoExecutionException("Goal execution failed", e);
@@ -165,6 +209,8 @@ public abstract class AbstractConfigGeneratorGoal<T> extends AbstractMojo {
     public abstract IConfigurationProcessor<T> getAnnotationProcessor(
             String version, String fileName, String absolutePath, Class<?> lambdaClass);
 
+	public abstract void uploadMeta(Map<String, Object> configurations, SyndicateCredentials credentials);
+
     private Set<URI> getUris() throws MojoExecutionException {
         Set<URI> uris = new HashSet<>();
         try {
@@ -172,7 +218,7 @@ public abstract class AbstractConfigGeneratorGoal<T> extends AbstractMojo {
             List<String> elements = project.getCompileClasspathElements();
             // getting uris of the dependencies to inject into classloader
             // url presents file location of the dependency in the module
-            for (String element : elements) {
+            for (String element: elements) {
                 uris.add(new File(element).toURI());
             }
             logger.debug("Setting up new classloader ...");
@@ -197,7 +243,7 @@ public abstract class AbstractConfigGeneratorGoal<T> extends AbstractMojo {
 
     private List<Class<?>> getLambdaClasses() {
         List<Class<?>> lambdasClasses = new ArrayList<>();
-        for (String nestedPackage : packages) {
+        for (String nestedPackage: packages) {
             lambdasClasses.addAll(new Reflections(nestedPackage).getTypesAnnotatedWith(LambdaHandler.class));
         }
         return lambdasClasses;
@@ -213,5 +259,28 @@ public abstract class AbstractConfigGeneratorGoal<T> extends AbstractMojo {
             throw new IOException("Incorrect encoding ==> " + DEFAULT_ENCODING, e);
         }
     }
+
+	private void generateBuildId() {
+		if (getPropertyFromRootProject(project, SYNDICATE_BUILD_ID) != null) {
+			return;
+		}
+		String generatedBuildId = UUID.randomUUID().toString();
+		logger.info("Newly generated build id: " + generatedBuildId);
+		setPropertyToRootProject(project, SYNDICATE_BUILD_ID, generatedBuildId);
+		if (generateBuildFile) {
+			try {
+				String rootDirPath = getRootDirPath(project);
+				String sdctBuildFileName = generatedBuildId + BUILD_FILE_EXT;
+				String filePathName = rootDirPath + '/' + sdctBuildFileName;
+				// never overrides the file due to check at the method beginning
+				writeToFile(rootDirPath, sdctBuildFileName,
+					JsonUtils.convertToJson(Collections.singletonMap("buildId", generatedBuildId)));
+				logger.debug(filePathName + " file successfully created");
+			} catch (IOException e) {
+				logger.error("Failed to write " + BUILD_FILE_EXT, e);
+				throw new RuntimeException("Failed to write " + BUILD_FILE_EXT, e);
+			}
+		}
+	}
 
 }

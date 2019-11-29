@@ -48,7 +48,8 @@ public final class LambdaConfigurationFactory {
         if (!methodName.isEmpty()) {
             function.append(SEPARATOR).append(methodName);
         }
-        LambdaConfiguration lambdaConfiguration = new LambdaConfiguration.Builder().withPath(lambdaPath)
+        LambdaConfiguration lambdaConfiguration = new LambdaConfiguration.Builder()
+                .withPath(lambdaPath).withName(lambdaHandler.lambdaName())
                 .withVersion(version).withRole(lambdaHandler.roleName()).withFunction(function.toString())
                 .withRegionScope(lambdaHandler.regionScope()).withPackageName(packageName)
                 .withMemory(lambdaHandler.memory()).withTimeout(lambdaHandler.timeout())
@@ -66,6 +67,11 @@ public final class LambdaConfigurationFactory {
         String aliasName = lambdaHandler.aliasName();
         if (!aliasName.equals("")) {
             lambdaConfiguration.setAlias(aliasName);
+        }
+
+        String[] layers = lambdaHandler.layers();
+        if (layers.length > 0) {
+            lambdaConfiguration.setLayers(layers);
         }
 
         LambdaConcurrency lambdaConcurrency = lambdaClass.getDeclaredAnnotation(LambdaConcurrency.class);

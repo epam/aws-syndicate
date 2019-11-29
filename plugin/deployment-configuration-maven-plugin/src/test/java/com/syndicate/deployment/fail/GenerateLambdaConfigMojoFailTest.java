@@ -38,6 +38,7 @@ import org.junit.rules.TemporaryFolder;
 import java.io.File;
 import java.util.Arrays;
 import java.util.Objects;
+import java.util.Properties;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -55,6 +56,8 @@ public class GenerateLambdaConfigMojoFailTest {
 
     private GenerateLambdaConfigGoal mojo = new GenerateLambdaConfigGoal();
 
+	private Properties EMPTY_PROPERTIES = new Properties();
+
     @Before
     public void setUp() throws Exception {
         File pluginConfig = new File(Objects.requireNonNull(getClass().getClassLoader()
@@ -68,6 +71,8 @@ public class GenerateLambdaConfigMojoFailTest {
     public void testPluginClasspathExceptionThrown() throws Exception {
         final MavenProject mavenProject = mock(MavenProject.class);
         when(mavenProject.getBuild()).thenReturn(mock(Build.class));
+	    when(mavenProject.getParent()).thenReturn(mavenProject);
+	    when(mavenProject.getProperties()).thenReturn(EMPTY_PROPERTIES);
         // build situation when smth went wrong with the dependencies
         when(mavenProject.getCompileClasspathElements()).thenThrow(DependencyResolutionRequiredException.class);
         final Build build = mock(Build.class);
@@ -108,6 +113,8 @@ public class GenerateLambdaConfigMojoFailTest {
         when(mavenProject.getBuild()).thenReturn(build);
         when(mavenProject.getVersion()).thenReturn("1.0.0");
         when(mavenProject.getBasedir()).thenReturn(file);
+	    when(mavenProject.getParent()).thenReturn(mavenProject);
+	    when(mavenProject.getProperties()).thenReturn(EMPTY_PROPERTIES);
 
         // lambda config should be present
         folder.newFolder("target");

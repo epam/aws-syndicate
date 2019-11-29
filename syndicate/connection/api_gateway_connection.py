@@ -505,3 +505,40 @@ class ApiGatewayConnection(object):
             stageName=stage_name,
             patchOperations=patch_operations
         )
+
+    def create_authorizer(self, api_id, name, type, provider_arns=None,
+                          auth_type=None, authorizer_uri=None,
+                          authorizer_credentials=None, identity_source=None,
+                          validation_expression=None, ttl=None):
+        params = dict(restApiId=api_id, name=name, type=type)
+        if provider_arns:
+            params['providerARNs'] = provider_arns
+        if auth_type:
+            params['authType'] = auth_type
+        if authorizer_uri:
+            params['authorizerUri'] = authorizer_uri
+        if authorizer_credentials:
+            params['authorizerCredentials'] = authorizer_credentials
+        if identity_source:
+            params['identitySource'] = identity_source
+        if validation_expression:
+            params['identityValidationExpression'] = validation_expression
+        if ttl:
+            params['authorizerResultTtlInSeconds'] = ttl
+
+        return self.client.create_authorizer(**params)
+
+    def get_authorizers(self, api_id):
+        items = []
+        params = dict(restApiId=api_id)
+        response = self.client.get_authorizers(**params)
+        if response.get('items'):
+            items.extend(response.get('items'))
+        position = response.get('position')
+        while position:
+            params['position'] = position
+            response = self.client.get_authorizers(**params)
+            if response.get('items'):
+                items.extend(response.get('items'))
+            position = response.get('position')
+        return items

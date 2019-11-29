@@ -19,24 +19,29 @@ import os
 import click
 
 from syndicate.core import CONFIG, CONF_PATH
-from syndicate.core.build.artifact_processor import (build_mvn_lambdas,
-                                                     build_python_lambdas)
+from syndicate.core.build.artifact_processor import (RUNTIME_NODEJS,
+                                                     assemble_artifacts,
+                                                     RUNTIME_JAVA_8,
+                                                     RUNTIME_PYTHON)
 from syndicate.core.build.bundle_processor import (create_bundles_bucket,
                                                    load_bundle,
-                                                   upload_bundle_to_s3)
+                                                   upload_bundle_to_s3,
+                                                   if_bundle_exist)
 from syndicate.core.build.deployment_processor import (
     continue_deployment_resources, create_deployment_resources,
     remove_deployment_resources, remove_failed_deploy_resources,
-    update_lambdas)
+    update_lambdas, update_deployment_resources)
 from syndicate.core.build.meta_processor import create_meta
 from syndicate.core.conf.config_holder import (MVN_BUILD_TOOL_NAME,
-                                               PYTHON_BUILD_TOOL_NAME)
+                                               PYTHON_BUILD_TOOL_NAME,
+                                               NODE_BUILD_TOOL_NAME)
 from syndicate.core.helper import (check_required_param,
                                    create_bundle_callback,
                                    handle_futures_progress_bar,
                                    resolve_path_callback, timeit,
                                    verify_bundle_callback,
-                                   verify_meta_bundle_callback)
+                                   verify_meta_bundle_callback,
+                                   check_deploy_name_for_duplicates)
 
 
 # TODO - command descriptions
@@ -44,7 +49,6 @@ from syndicate.core.helper import (check_required_param,
 
 @click.group(name='syndicate')
 def syndicate():
-    click.echo('Group syndicate')
     click.echo('Path to sdct.conf: ' + CONF_PATH)
 
 
@@ -109,14 +113,16 @@ def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
 # =============================================================================
 
 
-@syndicate.command(name='mvn_compile_java')
+@syndicate.command(name='assemble_java_mvn')
 @timeit
 @click.option('--bundle_name', nargs=1, callback=create_bundle_callback)
 @click.option('--project_path', '-path', nargs=1,
               callback=resolve_path_callback)
-def mvn_compile_java(bundle_name, project_path):
+def assemble_java_mvn(bundle_name, project_path):
     click.echo('Command compile java project path: %s' % project_path)
-    build_mvn_lambdas(bundle_name, project_path)
+    assemble_artifacts(bundle_name=bundle_name,
+                       project_path=project_path,
+                       runtime=RUNTIME_JAVA_8)
     click.echo('Java artifacts were prepared successfully.')
 
 
@@ -127,13 +133,29 @@ def mvn_compile_java(bundle_name, project_path):
               callback=resolve_path_callback)
 def assemble_python(bundle_name, project_path):
     click.echo('Command assemble python: project_path: %s ' % project_path)
-    build_python_lambdas(bundle_name, project_path)
+    assemble_artifacts(bundle_name=bundle_name,
+                       project_path=project_path,
+                       runtime=RUNTIME_PYTHON)
     click.echo('Python artifacts were prepared successfully.')
 
 
+@syndicate.command(name='assemble_node')
+@timeit
+@click.option('--bundle_name', nargs=1, callback=create_bundle_callback)
+@click.option('--project_path', '-path', nargs=1,
+              callback=resolve_path_callback)
+def assemble_node(bundle_name, project_path):
+    click.echo('Command assemble node: project_path: %s ' % project_path)
+    assemble_artifacts(bundle_name=bundle_name,
+                       project_path=project_path,
+                       runtime=RUNTIME_NODEJS)
+    click.echo('NodeJS artifacts were prepared successfully.')
+
+
 COMMAND_TO_BUILD_MAPPING = {
-    MVN_BUILD_TOOL_NAME: mvn_compile_java,
-    PYTHON_BUILD_TOOL_NAME: assemble_python
+    MVN_BUILD_TOOL_NAME: assemble_java_mvn,
+    PYTHON_BUILD_TOOL_NAME: assemble_python,
+    NODE_BUILD_TOOL_NAME: assemble_node
 }
 
 
@@ -182,9 +204,12 @@ def create_deploy_target_bucket():
 @syndicate.command(name='upload_bundle')
 @timeit
 @click.option('--bundle_name', nargs=1, callback=verify_meta_bundle_callback)
-def upload_bundle(bundle_name):
+@click.option('--force', is_flag=True)
+def upload_bundle(bundle_name, force=False):
     click.echo('Upload bundle: %s' % bundle_name)
-    futures = upload_bundle_to_s3(bundle_name)
+    if force:
+        click.echo('Force upload')
+    futures = upload_bundle_to_s3(bundle_name=bundle_name, force=force)
     handle_futures_progress_bar(futures)
     click.echo('Bundle was uploaded successfully')
 
@@ -199,10 +224,11 @@ def upload_bundle(bundle_name):
               callback=check_required_param)
 @click.option('--role_name', '-role', nargs=1,
               callback=check_required_param)
+@click.option('--force_upload', is_flag=True, default=False)
 @timeit
 @click.pass_context
 def copy_bundle(ctx, bundle_name, src_account_id, src_bucket_region,
-                src_bucket_name, role_name):
+                src_bucket_name, role_name, force_upload):
     click.echo('Copy bundle: %s' % bundle_name)
     click.echo('Bundle name: %s' % bundle_name)
     click.echo('Source account id: %s' % src_account_id)
@@ -212,7 +238,7 @@ def copy_bundle(ctx, bundle_name, src_account_id, src_bucket_region,
                           src_bucket_name, role_name)
     handle_futures_progress_bar(futures)
     click.echo('Bundle was downloaded successfully')
-    ctx.invoke(upload_bundle, bundle_name=bundle_name)
+    ctx.invoke(upload_bundle, bundle_name=bundle_name, force=force_upload)
     click.echo('Bundle was copied successfully')
 
 
@@ -221,12 +247,18 @@ def copy_bundle(ctx, bundle_name, src_account_id, src_bucket_region,
 
 @syndicate.command(name='build_bundle')
 @click.option('--bundle_name', nargs=1, callback=check_required_param)
+@click.option('--force_upload', is_flag=True, default=False)
 @click.pass_context
 @timeit
-def build_bundle(ctx, bundle_name):
+def build_bundle(ctx, bundle_name, force_upload):
+    if if_bundle_exist(bundle_name=bundle_name) and not force_upload:
+        click.echo('Bundle name \'{0}\' already exists '
+                   'in deploy bucket. Please use another bundle '
+                   'name or delete the bundle'.format(bundle_name))
+        return
     ctx.invoke(build_artifacts, bundle_name=bundle_name)
     ctx.invoke(package_meta, bundle_name=bundle_name)
-    ctx.invoke(upload_bundle, bundle_name=bundle_name)
+    ctx.invoke(upload_bundle, bundle_name=bundle_name, force=force_upload)
 
 
 # =============================================================================
@@ -242,10 +274,13 @@ def build_bundle(ctx, bundle_name):
 @click.option('--excluded_resources_path', nargs=1)
 @click.option('--excluded_types', multiple=True)
 @click.option('--continue_deploy', is_flag=True)
+@click.option('--replace_output', nargs=1, is_flag=True, default=False)
+@check_deploy_name_for_duplicates
 @timeit
 def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
            deploy_only_resources_path, excluded_resources,
-           excluded_resources_path, excluded_types, continue_deploy):
+           excluded_resources_path, excluded_types, continue_deploy,
+           replace_output):
     click.echo('Command deploy backend')
     click.echo('Deploy name: %s' % deploy_name)
     if deploy_only_resources_path and os.path.exists(
@@ -263,16 +298,69 @@ def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
                                                        deploy_only_resources,
                                                        deploy_only_types,
                                                        excluded_resources,
-                                                       excluded_types)
+                                                       excluded_types,
+                                                       replace_output)
 
     else:
         deploy_success = create_deployment_resources(deploy_name, bundle_name,
                                                      deploy_only_resources,
                                                      deploy_only_types,
                                                      excluded_resources,
-                                                     excluded_types)
+                                                     excluded_types,
+                                                     replace_output)
     click.echo('Backend resources were deployed{0}.'.format(
         '' if deploy_success else ' with errors. See deploy output file'))
+
+
+# =============================================================================
+
+@syndicate.command(name='update')
+@click.option('--bundle_name', nargs=1, callback=check_required_param)
+@click.option('--deploy_name', nargs=1, callback=check_required_param)
+@click.option('--update_only_types', multiple=True)
+@click.option('--update_only_resources', multiple=True)
+@click.option('--update_only_resources_path', nargs=1)
+@click.option('--replace_output', nargs=1, is_flag=True, default=False)
+@check_deploy_name_for_duplicates
+@timeit
+def update(bundle_name, deploy_name, replace_output,
+           update_only_resources,
+           update_only_resources_path,
+           update_only_types=[]):
+    """
+    Updates infrastructure from the provided bundle.
+    :param bundle_name: name of the bundle to get updated meta
+    :param deploy_name: name of the deploy
+    :param update_only_resources: list of resources names to updated
+    :param update_only_resources_path: path to a json file with list of
+        resources names to update
+    :param update_only_types: optional. List of a resources types to update.
+    :param replace_output: flag. If True, existing output file will be replaced
+    :return:
+    """
+    click.echo('Bundle name: {}'.format(bundle_name))
+    if update_only_types:
+        click.echo('Types to update: {}'.format(list(update_only_types)))
+    if update_only_resources:
+        click.echo('Resources to update: {}'.format(list(update_only_types)))
+    if update_only_resources_path:
+        click.echo('Path to list of resources to update: {}'.format(
+            update_only_resources_path))
+
+    if update_only_resources_path and os.path.exists(
+            update_only_resources_path):
+        update_resources_list = json.load(open(update_only_resources_path))
+        update_only_resources = tuple(
+            set(update_only_resources + tuple(update_resources_list)))
+    success = update_deployment_resources(
+        bundle_name=bundle_name,
+        deploy_name=deploy_name,
+        update_only_types=update_only_types,
+        update_only_resources=update_only_resources,
+        replace_output=replace_output)
+    if success:
+        return 'Update of resources has been successfully completed'
+    return 'Something went wrong during resources update'
 
 
 # =============================================================================
@@ -283,12 +371,16 @@ def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
 @click.option('--publish_only_lambdas_path', nargs=1)
 @click.option('--excluded_lambdas_resources', multiple=True)
 @click.option('--excluded_lambdas_resources_path', nargs=1)
+@click.option('--update_lambda_layers', is_flag=True)
 @timeit
 def publish_lambda_version(bundle_name,
                            publish_only_lambdas, publish_only_lambdas_path,
                            excluded_lambdas_resources,
-                           excluded_lambdas_resources_path):
-    click.echo('Command publish lambda version backend')
+                           excluded_lambdas_resources_path,
+                           update_lambda_layers):
+    click.secho('The command \'publish_lambda_version\' is deprecated. '
+                'Please, use \'syndicate update\' instead',
+                fg='black', bg='red')
     click.echo('Bundle name: %s' % bundle_name)
     if publish_only_lambdas_path and os.path.exists(
             publish_only_lambdas_path):
@@ -303,5 +395,6 @@ def publish_lambda_version(bundle_name,
             set(excluded_lambdas_resources + tuple(excluded_lambdas_list)))
     update_lambdas(bundle_name=bundle_name,
                    publish_only_lambdas=publish_only_lambdas,
-                   excluded_lambdas_resources=excluded_lambdas_resources)
+                   excluded_lambdas_resources=excluded_lambdas_resources,
+                   update_lambda_layers=update_lambda_layers)
     click.echo('Lambda versions were published.')

@@ -97,7 +97,9 @@ def _create_dynamodb_table_from_meta(name, meta):
         name, meta['hash_key_name'], meta['hash_key_type'],
         meta.get('sort_key_name'), meta.get('sort_key_type'),
         meta['read_capacity'], meta['write_capacity'],
-        global_indexes=meta.get('global_indexes'), wait=False)
+        global_indexes=meta.get('global_indexes'),
+        local_indexes=meta.get('local_indexes'),
+        wait=False)
     response = _DYNAMO_DB_CONN.describe_table(name)
     if not response:
         raise AssertionError('Table with name {0} has not been created!'

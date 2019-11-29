@@ -15,13 +15,14 @@
 """
 import json
 import os
+from concurrent.futures import ThreadPoolExecutor
 
 from botocore.exceptions import ClientError
-from concurrent.futures import ThreadPoolExecutor
 
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection import S3Connection
 from syndicate.core import CONFIG, CONN, sts
+from syndicate.core.build.helper import _json_serial
 from syndicate.core.build.meta_processor import validate_deployment_packages
 from syndicate.core.constants import (ARTIFACTS_FOLDER, BUILD_META_FILE_NAME,
                                       DEFAULT_SEP)
@@ -44,16 +45,21 @@ def _backup_deploy_output(filename, output):
         backup_file.close()
 
 
-def create_deploy_output(bundle_name, deploy_name, output, success):
+def create_deploy_output(bundle_name, deploy_name, output, success,
+                         replace_output=False):
+    output_str = json.dumps(output, default=_json_serial)
     key = _build_output_key(bundle_name=bundle_name,
                             deploy_name=deploy_name,
                             is_regular_output=success)
-    if _S3_CONN.is_file_exists(CONFIG.deploy_target_bucket, key):
+    if _S3_CONN.is_file_exists(CONFIG.deploy_target_bucket,
+                               key) and not replace_output:
         _LOG.warn(
             'Output file for deploy {0} already exists.'.format(deploy_name))
     else:
-        _S3_CONN.put_object(output, key, CONFIG.deploy_target_bucket,
+        _S3_CONN.put_object(output_str, key, CONFIG.deploy_target_bucket,
                             'application/json')
+        _LOG.info('Output file with name {} has been {}'.format(
+            key, 'replaced' if replace_output else 'created'))
 
 
 def remove_deploy_output(bundle_name, deploy_name):
@@ -111,14 +117,15 @@ def load_meta_resources(bundle_name):
     return json.loads(meta_file)
 
 
-def upload_bundle_to_s3(bundle_name):
-    if not _S3_CONN.is_bucket_exists(CONFIG.deploy_target_bucket):
-        raise AssertionError("Bundles bucket {0} does not exist "
-                             " Please use 'create_deploy_target_bucket' to "
-                             "create the bucket.".format(
-            CONFIG.deploy_target_bucket))
+def if_bundle_exist(bundle_name):
+    _assert_bundle_bucket_exists()
     bundle_folder = bundle_name + DEFAULT_SEP
-    if _S3_CONN.get_keys_by_prefix(CONFIG.deploy_target_bucket, bundle_folder):
+    return _S3_CONN.get_keys_by_prefix(CONFIG.deploy_target_bucket,
+                                       bundle_folder)
+
+
+def upload_bundle_to_s3(bundle_name, force):
+    if if_bundle_exist(bundle_name) and not force:
         raise AssertionError('Bundle name {0} already exists '
                              'in deploy bucket. Please use another bundle '
                              'name or delete the bundle'.format(bundle_name))
@@ -166,11 +173,7 @@ def create_bundles_bucket():
 
 def load_bundle(bundle_name, src_account_id, src_bucket_region,
                 src_bucket_name, role_name):
-    if not _S3_CONN.is_bucket_exists(CONFIG.deploy_target_bucket):
-        raise AssertionError("Bundles bucket {0} does not exist "
-                             " Please use 'create_deploy_target_bucket' to "
-                             "create the bucket.".format(
-            CONFIG.deploy_target_bucket))
+    _assert_bundle_bucket_exists()
     try:
         _LOG.debug(
             'Going to assume {0} role from {1} account'.format(role_name,
@@ -232,3 +235,11 @@ def _download_package_from_s3(conn, bucket_name, key, path):
 def _put_package_to_s3(path, path_to_package):
     _S3_CONN.upload_single_file(path_to_package, path,
                                 CONFIG.deploy_target_bucket)
+
+
+def _assert_bundle_bucket_exists():
+    if not _S3_CONN.is_bucket_exists(CONFIG.deploy_target_bucket):
+        raise AssertionError("Bundles bucket {0} does not exist."
+                             " Please use 'create_deploy_target_bucket' to "
+                             "create the bucket."
+                             .format(CONFIG.deploy_target_bucket))

@@ -29,6 +29,7 @@ import com.syndicate.deployment.model.ResourceType;
 import com.syndicate.deployment.model.TracingMode;
 import com.syndicate.deployment.model.events.SnsTriggerEventSourceItem;
 import com.syndicate.deployment.model.terraform.TerraformLambdaConfiguration;
+import com.syndicate.deployment.resolvers.CredentialResolverChain;
 import com.syndicate.deployment.success.syndicate.SnsLambdaExecutor;
 import com.syndicate.deployment.success.syndicate.SnsLambdaProcessor;
 import com.syndicate.deployment.success.terraform.BackgroundLambda;
@@ -50,6 +51,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Properties;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -63,6 +65,7 @@ public class GenerateLambdaConfigMojoSuccessTest {
 
     public static final String PLUGIN_ARTIFACT_ID = "deployment-configuration-maven-plugin";
     private static final String PLUGIN_CONFIG_SKIP_XML = "plugin-config-skip.xml";
+    private static final Properties EMPTY_PROPERTIES = new Properties();
 
     private ObjectMapper objectMapper = new ObjectMapper();
 
@@ -129,10 +132,12 @@ public class GenerateLambdaConfigMojoSuccessTest {
         when(mavenProject.getCompileClasspathElements()).thenReturn(Arrays.asList("dep1", "dep2"));
         final Build build = mock(Build.class);
         final File file = mock(File.class);
+        when(mavenProject.getParent()).thenReturn(mavenProject);
         when(mavenProject.getBuild()).thenReturn(build);
         when(mavenProject.getBuild().getFinalName()).thenReturn("syndicate");
         when(mavenProject.getVersion()).thenReturn("1.0.0");
         when(mavenProject.getBasedir()).thenReturn(file);
+        when(mavenProject.getProperties()).thenReturn(EMPTY_PROPERTIES);
 
         File targetDir = folder.newFolder("target");
         when(mavenProject.getBasedir().getAbsolutePath()).thenReturn(folder.getRoot().getAbsolutePath());
@@ -141,6 +146,7 @@ public class GenerateLambdaConfigMojoSuccessTest {
         // override packages to process only current class file
         mojo.setPackages(new String[]{"com.syndicate.deployment.success.syndicate"});
         mojo.setFileName("syndicate.jar");
+        mojo.setCredentialsResolverChain(new CredentialResolverChain(null));
         mojo.execute();
 
         // will be created 1 file with lambdas description
@@ -154,6 +160,7 @@ public class GenerateLambdaConfigMojoSuccessTest {
         // configs are equal
         // lambda_execute_notification
         LambdaConfiguration snsLambdaExecutorConfiguration = new LambdaConfiguration.Builder()
+                .withName("lambda_execute_notification")
                 .withTracingMode(TracingMode.Active.getMode())
                 .withMemory(1024)
                 .withFunction(SnsLambdaExecutor.class.getName())
@@ -179,6 +186,7 @@ public class GenerateLambdaConfigMojoSuccessTest {
 
         // lambda_process_notification
         LambdaConfiguration snsLambdaProcessorConfiguration = new LambdaConfiguration.Builder()
+                .withName("lambda_process_notification")
                 .withTracingMode(TracingMode.Active.getMode())
                 .withMemory(1024)
                 .withFunction(SnsLambdaProcessor.class.getName() + ":handle")
@@ -235,6 +243,7 @@ public class GenerateLambdaConfigMojoSuccessTest {
         mojo.setAccountId("012345678901");
 
         final MavenProject mavenProject = mock(MavenProject.class);
+        when(mavenProject.getParent()).thenReturn(mavenProject);
         when(mavenProject.getCompileClasspathElements()).thenReturn(Arrays.asList("dep1", "dep2"));
         final Build build = mock(Build.class);
         final File file = mock(File.class);
@@ -242,6 +251,7 @@ public class GenerateLambdaConfigMojoSuccessTest {
         when(mavenProject.getBuild().getFinalName()).thenReturn("terraform");
         when(mavenProject.getVersion()).thenReturn("1.0.0");
         when(mavenProject.getBasedir()).thenReturn(file);
+        when(mavenProject.getProperties()).thenReturn(EMPTY_PROPERTIES);
 
         File targetDir = folder.newFolder("target");
         when(mavenProject.getBasedir().getAbsolutePath()).thenReturn(folder.getRoot().getAbsolutePath());
@@ -250,6 +260,7 @@ public class GenerateLambdaConfigMojoSuccessTest {
         // override packages to process only current class file
         mojo.setPackages(new String[]{"com.syndicate.deployment.success.terraform"});
         mojo.setFileName("terraform.jar");
+        mojo.setCredentialsResolverChain(new CredentialResolverChain(null));
         mojo.execute();
 
         // will be created 1 file with lambdas description

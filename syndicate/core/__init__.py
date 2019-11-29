@@ -14,10 +14,8 @@
     limitations under the License.
 """
 import os
-import sys
 
 from botocore.exceptions import ClientError
-from botocore.vendored.requests.packages import urllib3
 
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection import ConnectionProvider
@@ -36,10 +34,9 @@ def exception_handler(exception_type, exception, traceback):
     print(exception)
 
 
-sys.excepthook = exception_handler
+# sys.excepthook = exception_handler
 
 # suppress botocore warnings
-urllib3.disable_warnings()
 
 try:
     CONF_PATH = os.environ['SDCT_CONF']
@@ -85,6 +82,6 @@ try:
         CREDENTIALS[SECRET_KEY] = CONFIG.aws_secret_access_key
     CONN = ConnectionProvider(CREDENTIALS)
 except ClientError:
-    raise AssertionError('Cannot assume %s role. Please verify '
-                         'that you have configured the role correctly.',
-                         CONFIG.access_role)
+    raise AssertionError('Cannot assume {0} role. '
+                         'Please verify that you have configured '
+                         'the role correctly.'.format(CONFIG.access_role))

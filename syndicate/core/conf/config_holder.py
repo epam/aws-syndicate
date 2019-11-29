@@ -29,14 +29,16 @@ _LOG = get_logger('core.conf.config_holder')
 ALL_REGIONS = ['us-east-1', 'us-east-2', 'us-west-1', 'us-west-2', 'sa-east-1',
                'ca-central-1', 'eu-west-1', 'eu-central-1', 'eu-west-2',
                'eu-west-3', 'ap-northeast-1', 'ap-northeast-2',
-               'ap-southeast-1', 'ap-southeast-2', 'ap-south-1']
+               'ap-southeast-1', 'ap-southeast-2', 'ap-south-1', 'eu-north-1']
 
 GLOBAL_AWS_SERVICES = {IAM_ROLE, IAM_POLICY, S3_BUCKET_TYPE}
 
 PYTHON_BUILD_TOOL_NAME = 'python'
+NODE_BUILD_TOOL_NAME = 'node'
 MVN_BUILD_TOOL_NAME = 'mvn'
 
-ALLOWED_BUILDS = [PYTHON_BUILD_TOOL_NAME, MVN_BUILD_TOOL_NAME]
+ALLOWED_BUILDS = [PYTHON_BUILD_TOOL_NAME, MVN_BUILD_TOOL_NAME,
+                  NODE_BUILD_TOOL_NAME]
 
 REQUIRED_PARAMETERS = {
     'project_path': 'string(min=1)',
@@ -219,6 +221,15 @@ class ConfigHolder:
             return ''
         else:
             return suffix
+
+    @property
+    def iam_suffix(self):
+        """
+        Optional property. It will be included as a ending
+        of names for iam_roles.
+        :return:
+        """
+        return self._resolve_variable('iam_suffix')
 
     @property
     def aliases(self):

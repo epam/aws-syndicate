@@ -16,6 +16,7 @@
 package com.syndicate.deployment.goal.impl;
 
 import com.syndicate.deployment.model.LambdaConfiguration;
+import com.syndicate.deployment.model.api.request.SyndicateCredentials;
 import com.syndicate.deployment.model.terraform.TerraformLambdaConfiguration;
 import com.syndicate.deployment.model.terraform.TerraformLambdaVpcConfig;
 import org.apache.maven.plugins.annotations.Mojo;
@@ -77,6 +78,11 @@ public class GenerateTerraformLambdaConfigGoal extends GenerateLambdaConfigGoal 
                 Collections.singletonMap("aws_lambda_function",
                         terraformLambdas));
         return terraformConfiguration;
+    }
+
+    @Override
+    public void uploadMeta(Map<String, Object> configurations, SyndicateCredentials credentials) {
+        // do nothing
     }
 
     private Map<String, TerraformLambdaConfiguration> convertSyndicateToTerraformConfiguration(

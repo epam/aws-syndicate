@@ -22,7 +22,7 @@ from syndicate.core.constants import (API_GATEWAY_TYPE, CLOUD_WATCH_ALARM_TYPE,
                                       SNS_PLATFORM_APPLICATION_TYPE,
                                       SNS_TOPIC_TYPE,
                                       SQS_QUEUE_TYPE, STATE_ACTIVITY_TYPE,
-                                      STEP_FUNCTION_TYPE)
+                                      STEP_FUNCTION_TYPE, LAMBDA_LAYER_TYPE)
 from syndicate.core.resources.alarm_resource import (create_alarm,
                                                      describe_alarm,
                                                      remove_alarms)
@@ -56,7 +56,10 @@ from syndicate.core.resources.kinesis_resource import (create_kinesis_stream,
 from syndicate.core.resources.lambda_resource import (create_lambda,
                                                       describe_lambda,
                                                       remove_lambdas,
-                                                      update_lambda)
+                                                      update_lambda,
+                                                      create_lambda_layer,
+                                                      remove_lambda_layers,
+                                                      update_lambda_layer)
 from syndicate.core.resources.s3_resource import (create_s3_bucket,
                                                   describe_bucket,
                                                   remove_buckets)
@@ -80,6 +83,7 @@ CREATE_RESOURCE = {
     IAM_POLICY: create_policies,
     IAM_ROLE: create_roles,
     LAMBDA_TYPE: create_lambda,
+    LAMBDA_LAYER_TYPE: create_lambda_layer,
     DYNAMO_TABLE_TYPE: create_tables_by_10,
     CLOUD_WATCH_RULE_TYPE: create_cloud_watch_rule,
     S3_BUCKET_TYPE: create_s3_bucket,
@@ -127,6 +131,7 @@ REMOVE_RESOURCE = {
     IAM_ROLE: remove_roles,
     IAM_POLICY: remove_policies,
     KINESIS_STREAM_TYPE: remove_kinesis_streams,
+    LAMBDA_LAYER_TYPE: remove_lambda_layers,
     LAMBDA_TYPE: remove_lambdas,
     S3_BUCKET_TYPE: remove_buckets,
     SNS_TOPIC_TYPE: remove_sns_topics,
@@ -137,7 +142,8 @@ REMOVE_RESOURCE = {
 }
 
 UPDATE_RESOURCE = {
-    LAMBDA_TYPE: update_lambda
+    LAMBDA_TYPE: update_lambda,
+    LAMBDA_LAYER_TYPE: update_lambda_layer
 }
 
 RESOURCE_CONFIGURATION_PROCESSORS = {

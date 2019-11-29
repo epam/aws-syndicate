@@ -57,6 +57,9 @@ def _create_s3_bucket_from_meta(name, meta):
     if rules:
         _S3_CONN.add_bucket_rule(name, rules)
         _LOG.debug('Rules on {0} S3 bucket are set up.'.format(name))
+    cors_configuration = meta.get('cors')
+    if cors_configuration:
+        _S3_CONN.put_cors(bucket_name=name, rules=cors_configuration)
     return describe_bucket(name, meta)
 
 
@@ -65,9 +68,9 @@ def _delete_objects(bucket_name, keys):
     errors = response.get('Errors')
     if errors:
         error_keys = [{
-                          'Key': i['Key'],
-                          'VersionId': i['VersionId']
-                      } for i in errors]
+            'Key': i['Key'],
+            'VersionId': i['VersionId']
+        } for i in errors]
         return error_keys
     else:
         return []

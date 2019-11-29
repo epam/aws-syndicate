@@ -15,20 +15,38 @@
 """
 from setuptools import find_packages, setup
 
+SYNDICATE_DESCRIPTION = ('AWS-syndicate is an Amazon Web Services deployment '
+                         'framework written in Python, which allows to '
+                         'easily deploy serverless applications using '
+                         'resource descriptions.')
+
 setup(
-    name='syndicate',
-    version='0.7',
+    name='aws-syndicate',
+    version='0.8',
     packages=find_packages(),
     include_package_data=True,
     install_requires=[
         'click==7.0',
-        'botocore==1.10.73',
-        'boto3==1.7.73',
+        'botocore==1.13.14',
+        'boto3==1.10.13',
         'configobj==5.0.6',
-        'tqdm==4.19.5'
+        'tqdm==4.19.5',
+        'colorama==0.4.1'
     ],
     entry_points='''
         [console_scripts]
         syndicate=syndicate.core.handlers:syndicate
     ''',
+    #download_url='https://github.com/epam/aws-syndicate/archive/0.8.tar.gz',
+    url='https://github.com/epam/aws-syndicate',
+    description=SYNDICATE_DESCRIPTION,
+    author='EPAM Systems',
+    author_email='support@syndicate.team',
+    keywords=['AWS', 'SERVERLESS', 'CLOUD', 'LAMBDA', 'DEPLOY'],
+    classifiers=[
+        'Development Status :: 5 - Production/Stable',
+        'Intended Audience :: Developers',
+        'Topic :: Software Development :: Build Tools',
+        'Programming Language :: Python :: 3.7'
+    ],
 )
