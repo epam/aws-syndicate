@@ -1,6 +1,6 @@
 package com.syndicate.deployment.resolvers.impl;
 
-import com.syndicate.deployment.model.api.request.SyndicateCredentials;
+import com.syndicate.deployment.api.model.request.SyndicateCredentials;
 import com.syndicate.deployment.resolvers.AbstractChainedCredentialResolver;
 
 import java.util.Objects;

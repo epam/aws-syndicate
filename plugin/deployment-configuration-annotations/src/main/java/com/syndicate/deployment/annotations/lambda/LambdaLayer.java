@@ -14,15 +14,29 @@
  * limitations under the License.
  */
 
-package com.syndicate.deployment.processor;
+package com.syndicate.deployment.annotations.lambda;
 
-import com.syndicate.deployment.model.Pair;
+import com.syndicate.deployment.annotations.DeploymentResource;
+
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
 /**
- * Created by Vladyslav Tereshchenko on 10/10/2016.
+ * Created by Oleksandr Onsha on 2019-11-29
  */
-public interface IConfigurationProcessor<T> {
+@DeploymentResource
+@Retention(RetentionPolicy.RUNTIME)
+@Target(ElementType.TYPE)
+public @interface LambdaLayer {
 
-    Pair<String, T> process();
+	String layerName();
+
+	String description() default  "";
+
+	String layerFileName() default "";
+
+	String licence() default "";
 
 }

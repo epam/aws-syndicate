@@ -1,4 +1,4 @@
-package com.syndicate.deployment.model.api.response;
+package com.syndicate.deployment.api.model.response;
 
 /**
  * Created by Vladyslav Tereshchenko on 2/8/2019.

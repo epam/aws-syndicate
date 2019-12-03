@@ -202,13 +202,13 @@ def _populate_s3_path_lambda(meta, bundle_name):
 
 
 def _populate_s3_path_lambda_layer(meta, bundle_name):
-    file_name = meta.get('file_name')
-    if not file_name:
-        raise AssertionError('Lambda Layer config must contain file_name. '
+    deployment_package = meta.get('deployment_package')
+    if not deployment_package:
+        raise AssertionError('Lambda Layer config must contain deployment_package. '
                              'Existing configuration'
                              ': {0}'.format(prettify_json(meta)))
     else:
-        meta[S3_PATH_NAME] = build_path(bundle_name, file_name)
+        meta[S3_PATH_NAME] = build_path(bundle_name, deployment_package)
 
 
 def _populate_s3_path_ebs(meta, bundle_name):

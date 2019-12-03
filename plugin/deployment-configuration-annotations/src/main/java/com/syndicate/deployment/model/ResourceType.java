@@ -28,7 +28,8 @@ public enum ResourceType {
     DYNAMODB_TABLE("dynamodb_table"),
     S3_BUCKET("s3_bucket"),
     SNS_TOPIC("sns_topic"),
-    SQS_QUEUE("sqs_queue");
+    SQS_QUEUE("sqs_queue"),
+    LAMBDA_LAYER("lambda_layer");
 
     String name;
 

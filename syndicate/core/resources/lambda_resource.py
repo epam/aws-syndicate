@@ -480,7 +480,7 @@ def create_lambda_layer_from_meta(name, meta, context=None):
     :param context: because of usage in 'update' flow
     :return:
     """
-    req_params = ['runtimes', 'file_name']
+    req_params = ['runtimes', 'deployment_package']
 
     validate_params(name, meta, req_params)
 

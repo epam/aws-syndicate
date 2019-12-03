@@ -1,9 +1,9 @@
-package com.syndicate.deployment.clients;
+package com.syndicate.deployment.api.clients;
 
-import com.syndicate.deployment.model.api.request.SyndicateCredentials;
-import com.syndicate.deployment.model.api.request.SaveMetaRequest;
-import com.syndicate.deployment.model.api.response.SaveMetaResponse;
-import com.syndicate.deployment.model.api.response.TokenResponse;
+import com.syndicate.deployment.api.model.request.SyndicateCredentials;
+import com.syndicate.deployment.api.model.request.SaveMetaRequest;
+import com.syndicate.deployment.api.model.response.SaveMetaResponse;
+import com.syndicate.deployment.api.model.response.TokenResponse;
 import feign.Headers;
 import feign.Param;
 import feign.RequestLine;

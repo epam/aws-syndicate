@@ -1,6 +1,6 @@
 package com.syndicate.deployment.resolvers;
 
-import com.syndicate.deployment.model.api.request.SyndicateCredentials;
+import com.syndicate.deployment.api.model.request.SyndicateCredentials;
 
 /**
  * Created by Oleksandr Onsha on 2019-08-15
