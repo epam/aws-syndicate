@@ -348,41 +348,51 @@ def update_deployment_resources(bundle_name, deploy_name, replace_output=False,
     return success
 
 
+def _filter_the_dict(dictionary, callback):
+    new_dict = dict()
+    for (key, value) in dictionary.items():
+        if callback(value):
+            new_dict[key] = value
+    return new_dict
+
+
 @exit_on_exception
 def remove_deployment_resources(deploy_name, bundle_name,
                                 clean_only_resources=None,
                                 clean_only_types=None,
                                 excluded_resources=None, excluded_types=None):
-    output = load_deploy_output(bundle_name, deploy_name)
+    output = new_output = load_deploy_output(bundle_name, deploy_name)
     _LOG.info('Output file was loaded successfully')
+    filters = [
+        lambda v: v['resource_name'] in clean_only_resources,
+        lambda v: v['resource_name'] not in excluded_resources,
+        lambda v: v['resource_meta']['resource_type'] in clean_only_types,
+        lambda v: v['resource_meta']['resource_type'] not in excluded_types
+    ]
 
-    # TODO make filter chain
-    if clean_only_resources:
-        output = dict((k, v) for (k, v) in output.items() if
-                      v['resource_name'] in clean_only_resources)
-
-    if excluded_resources:
-        output = dict((k, v) for (k, v) in output.items() if
-                      v['resource_name'] not in excluded_resources)
-
-    if clean_only_types:
-        output = dict((k, v) for (k, v) in output.items() if
-                      v['resource_meta']['resource_type'] in clean_only_types)
-
-    if excluded_types:
-        output = dict((k, v) for (k, v) in output.items() if
-                      v['resource_meta'][
-                          'resource_type'] not in excluded_types)
+    for function in filters:
+        some_result = _filter_the_dict(new_output, function)
+        if some_result:
+            new_output = some_result
 
     # sort resources with priority
-    resources_list = list(output.items())
+    resources_list = list(new_output.items())
     resources_list.sort(key=cmp_to_key(_compare_clean_resources))
     _LOG.debug('Resources to delete: {0}'.format(resources_list))
 
     _LOG.info('Going to clean AWS resources')
     clean_resources(resources_list)
-    # remove output from bucket
-    remove_deploy_output(bundle_name, deploy_name)
+    # remove new_output from bucket
+    if output == new_output:
+        remove_deploy_output(bundle_name, deploy_name)
+    else:
+        for key, value in new_output.items():
+            output.pop(key)
+        create_deploy_output(bundle_name=bundle_name,
+                             deploy_name=deploy_name,
+                             output=output,
+                             success=True,
+                             replace_output=True)
 
 
 @exit_on_exception
