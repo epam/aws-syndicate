@@ -11,11 +11,11 @@ import com.syndicate.deployment.model.ResourceType;
 public class LayerConfigurationFactory {
 
 
-	public static LayerConfiguration createLayerConfiguration(LambdaLayer layerDefinition, String fileName) {
+	public static LayerConfiguration createLayerConfiguration(LambdaLayer layerDefinition) {
 
 		LayerConfiguration configuration = new LayerConfiguration.Builder()
 			.withName(layerDefinition.layerName())
-			.withDeploymentPackage(fileName.replace(".jar","-assembly.zip")) // TODO: 2019-12-03 how to get assembly id here?
+			.withDeploymentPackage(layerDefinition.layerName() + "-assembly.zip") // TODO: 2019-12-03 how to get assembly id here?
 			.withResourceType(ResourceType.LAMBDA_LAYER)
 			.withRuntimes(DeploymentRuntime.JAVA8).build();
 

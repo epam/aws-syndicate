@@ -22,7 +22,7 @@ public class LayerAnnotationProcessor extends AbstractAnnotationProcessor<LayerC
 	                                                   String artifactName, String path) {
 		LambdaLayer layerDef = sourceClass.getAnnotation(LambdaLayer.class);
 
-		LayerConfiguration configuration = LayerConfigurationFactory.createLayerConfiguration(layerDef, artifactName);
+		LayerConfiguration configuration = LayerConfigurationFactory.createLayerConfiguration(layerDef);
 		return new Pair<>(configuration.getName(), configuration);
 	}
 
