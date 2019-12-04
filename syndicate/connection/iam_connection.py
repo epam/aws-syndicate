@@ -180,25 +180,25 @@ class IAMConnection(object):
                         }
                     }
                 trusted_relationships['Statement'].append(trusted_accounts)
-            if allowed_service:
-                if isinstance(allowed_service, str):
-                    principal = "{0}.amazonaws.com".format(allowed_service)
-                elif isinstance(allowed_service, list):
-                    principal = []
-                    for each in allowed_service:
-                        principal.append("{0}.amazonaws.com".format(each))
-                else:
-                    raise TypeError(
-                        'Can not create role. allowed_service must be list or '
-                        'str. Actual type: {0}'.format(type(allowed_service)))
-                trusted_services = {
-                    "Effect": "Allow",
-                    "Principal": {
-                        "Service": principal
-                    },
-                    "Action": "sts:AssumeRole"
-                }
-                trusted_relationships['Statement'].append(trusted_services)
+        if allowed_service:
+            if isinstance(allowed_service, str):
+                principal = "{0}.amazonaws.com".format(allowed_service)
+            elif isinstance(allowed_service, list):
+                principal = []
+                for each in allowed_service:
+                    principal.append("{0}.amazonaws.com".format(each))
+            else:
+                raise TypeError(
+                    'Can not create role. allowed_service must be list or '
+                    'str. Actual type: {0}'.format(type(allowed_service)))
+            trusted_services = {
+                "Effect": "Allow",
+                "Principal": {
+                    "Service": principal
+                },
+                "Action": "sts:AssumeRole"
+            }
+            trusted_relationships['Statement'].append(trusted_services)
         if isinstance(trusted_relationships, dict):
             trusted_relationships = dumps(trusted_relationships)
 
