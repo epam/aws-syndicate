@@ -87,15 +87,17 @@ def build_lambda_arn_with_alias(response, alias=None):
 
 @unpack_kwargs
 def _create_lambda_from_meta(name, meta):
+    _LOG.debug('Creating lambda %s', name)
     req_params = ['iam_role_name', 'runtime', 'memory', 'timeout', 'func_name']
-
     # Lambda configuration
     validate_params(name, meta, req_params)
 
     key = meta[S3_PATH_NAME]
     if not _S3_CONN.is_file_exists(CONFIG.deploy_target_bucket, key):
-        raise AssertionError('Deployment package %s does not exist '
-                             'in %s bucket', key, CONFIG.deploy_target_bucket)
+        raise AssertionError('Error while creating lambda: %s;'
+                             'Deployment package %s does not exist '
+                             'in %s bucket', name, key,
+                             CONFIG.deploy_target_bucket)
 
     response = _LAMBDA_CONN.get_function(name)
     if response:
@@ -105,7 +107,9 @@ def _create_lambda_from_meta(name, meta):
     role_name = meta['iam_role_name']
     role_arn = CONN.iam().check_if_role_exists(role_name)
     if not role_arn:
-        raise AssertionError('Role {0} does not exist.'.format(role_name))
+        raise AssertionError('Role {} does not exist; '
+                             'Lambda {} failed to be configured.'.format(
+            role_name, name))
 
     dl_type = meta.get('dl_resource_type')
     if dl_type:
@@ -125,11 +129,10 @@ def _create_lambda_from_meta(name, meta):
             layer_arn = _LAMBDA_CONN.get_lambda_layer_arn(layer_name)
             if not layer_arn:
                 raise AssertionError(
-                    'Lambda layer {} is absent in your account!'.format(
-                        layer_name))
+                    'Could not link lambda layer {} to lambda {} '
+                    'due to layer absence!'.format(layer_name, name))
             lambda_layers_arns.append(layer_arn)
 
-    _LOG.debug('Creating lambda %s', name)
     _LAMBDA_CONN.create_lambda(
         lambda_name=name,
         func_name=meta['func_name'],
