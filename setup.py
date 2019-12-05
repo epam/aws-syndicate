@@ -14,15 +14,21 @@
     limitations under the License.
 """
 from setuptools import find_packages, setup
+from os import path
 
 SYNDICATE_DESCRIPTION = ('AWS-syndicate is an Amazon Web Services deployment '
                          'framework written in Python, which allows to '
                          'easily deploy serverless applications using '
                          'resource descriptions.')
 
+
+this_directory = path.abspath(path.dirname(__file__))
+with open(path.join(this_directory, 'README.md'), encoding='utf-8') as f:
+    long_description = f.read()
+
 setup(
     name='aws-syndicate',
-    version='0.8',
+    version='0.8.2',
     packages=find_packages(),
     include_package_data=True,
     install_requires=[
@@ -37,8 +43,10 @@ setup(
         [console_scripts]
         syndicate=syndicate.core.handlers:syndicate
     ''',
-    #download_url='https://github.com/epam/aws-syndicate/archive/0.8.tar.gz',
+    download_url='https://github.com/epam/aws-syndicate/archive/0.8.1.tar.gz',
     url='https://github.com/epam/aws-syndicate',
+    long_description=long_description,
+    long_description_content_type='text/markdown',
     description=SYNDICATE_DESCRIPTION,
     author='EPAM Systems',
     author_email='support@syndicate.team',

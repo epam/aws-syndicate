@@ -1,0 +1,10 @@
+dist: trusty
+
+addons:
+  sonarcloud:
+    organization: "epam"
+ 
+script:
+  - cd plugin && mvn test -B
+  - cd ../examples/demo-project/demo-java && mvn test -B
+  - cd ../../.. && sonar-scanner

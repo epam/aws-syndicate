@@ -536,6 +536,8 @@ def remove_lambda_layers(args):
 @retry
 def _remove_lambda_layers(arn, config):
     layer_name = config['resource_name']
+    _LOG.info('The latest lambda layer {0} version {1} was found.'.format(
+        layer_name, arn.split(':')[-1]))
     layers_list = _LAMBDA_CONN.list_lambda_layer_versions(layer_name)
 
     try:
