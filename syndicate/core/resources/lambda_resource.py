@@ -125,7 +125,8 @@ def _create_lambda_from_meta(name, meta):
             layer_arn = _LAMBDA_CONN.get_lambda_layer_arn(layer_name)
             if not layer_arn:
                 raise AssertionError(
-                    'Lambda layer {} is absent in your account!')
+                    'Lambda layer {} is absent in your account!'.format(
+                        layer_name))
             lambda_layers_arns.append(layer_arn)
 
     _LOG.debug('Creating lambda %s', name)
