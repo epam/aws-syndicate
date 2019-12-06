@@ -30,7 +30,7 @@ from syndicate.core.build.bundle_processor import (create_bundles_bucket,
 from syndicate.core.build.deployment_processor import (
     continue_deployment_resources, create_deployment_resources,
     remove_deployment_resources, remove_failed_deploy_resources,
-    update_lambdas, update_deployment_resources)
+    update_deployment_resources)
 from syndicate.core.build.meta_processor import create_meta
 from syndicate.core.conf.config_holder import (MVN_BUILD_TOOL_NAME,
                                                PYTHON_BUILD_TOOL_NAME,
@@ -361,40 +361,3 @@ def update(bundle_name, deploy_name, replace_output,
     if success:
         return 'Update of resources has been successfully completed'
     return 'Something went wrong during resources update'
-
-
-# =============================================================================
-
-@syndicate.command(name='publish_lambda_version')
-@click.option('--bundle_name', nargs=1, callback=check_required_param)
-@click.option('--publish_only_lambdas', multiple=True)
-@click.option('--publish_only_lambdas_path', nargs=1)
-@click.option('--excluded_lambdas_resources', multiple=True)
-@click.option('--excluded_lambdas_resources_path', nargs=1)
-@click.option('--update_lambda_layers', is_flag=True)
-@timeit
-def publish_lambda_version(bundle_name,
-                           publish_only_lambdas, publish_only_lambdas_path,
-                           excluded_lambdas_resources,
-                           excluded_lambdas_resources_path,
-                           update_lambda_layers):
-    click.secho('The command \'publish_lambda_version\' is deprecated. '
-                'Please, use \'syndicate update\' instead',
-                fg='black', bg='red')
-    click.echo('Bundle name: %s' % bundle_name)
-    if publish_only_lambdas_path and os.path.exists(
-            publish_only_lambdas_path):
-        update_lambdas_list = json.load(open(publish_only_lambdas_path))
-        publish_only_lambdas = tuple(
-            set(publish_only_lambdas + tuple(update_lambdas_list)))
-    if excluded_lambdas_resources_path and os.path.exists(
-            excluded_lambdas_resources_path):
-        excluded_lambdas_list = json.load(
-            open(excluded_lambdas_resources_path))
-        excluded_lambdas_resources = tuple(
-            set(excluded_lambdas_resources + tuple(excluded_lambdas_list)))
-    update_lambdas(bundle_name=bundle_name,
-                   publish_only_lambdas=publish_only_lambdas,
-                   excluded_lambdas_resources=excluded_lambdas_resources,
-                   update_lambda_layers=update_lambda_layers)
-    click.echo('Lambda versions were published.')
