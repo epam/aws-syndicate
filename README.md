@@ -35,6 +35,10 @@ aws-syndicate is an Amazon Web Services deployment framework written in Python, 
 
 * Step Functions
 
+## Changelog
+
+[See CHANGELOG here](https://github.com/epam/aws-syndicate/blob/master/CHANGELOG.md "aws-syndicate changelog").
+
 ## Installing
 
 [Install aws-syndicate from PyPI](https://pypi.org/project/aws-syndicate/ "aws-syndicate on PyPI")
