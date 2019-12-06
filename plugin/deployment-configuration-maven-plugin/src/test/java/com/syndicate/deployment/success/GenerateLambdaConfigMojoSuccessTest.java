@@ -19,8 +19,8 @@ package com.syndicate.deployment.success;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.syndicate.deployment.goal.impl.GenerateLambdaConfigGoal;
-import com.syndicate.deployment.goal.impl.GenerateTerraformLambdaConfigGoal;
+import com.syndicate.deployment.goal.SyndicateMetaGeneratorGoal;
+import com.syndicate.deployment.goal.TerraformMetaGeneratorGoal;
 import com.syndicate.deployment.model.DependencyItem;
 import com.syndicate.deployment.model.DeploymentRuntime;
 import com.syndicate.deployment.model.LambdaConfiguration;
@@ -80,8 +80,8 @@ public class GenerateLambdaConfigMojoSuccessTest {
         File pluginConfig = new File(Objects.requireNonNull(getClass().getClassLoader()
                 .getResource(PLUGIN_CONFIG_SKIP_XML)).toURI());
 
-        GenerateLambdaConfigGoal mojo = new GenerateLambdaConfigGoal();
-        mojo = (GenerateLambdaConfigGoal) rule.configureMojo(mojo,
+        SyndicateMetaGeneratorGoal mojo = new SyndicateMetaGeneratorGoal();
+        mojo = (SyndicateMetaGeneratorGoal) rule.configureMojo(mojo,
                 rule.extractPluginConfiguration(PLUGIN_ARTIFACT_ID, pluginConfig));
         Assert.assertNotNull(mojo);
     }
@@ -91,8 +91,8 @@ public class GenerateLambdaConfigMojoSuccessTest {
         File pluginConfig = new File(Objects.requireNonNull(getClass().getClassLoader()
                 .getResource(PLUGIN_CONFIG_SKIP_XML)).toURI());
 
-        GenerateLambdaConfigGoal mojo = new GenerateLambdaConfigGoal();
-        mojo = (GenerateLambdaConfigGoal) rule.configureMojo(mojo,
+        SyndicateMetaGeneratorGoal mojo = new SyndicateMetaGeneratorGoal();
+        mojo = (SyndicateMetaGeneratorGoal) rule.configureMojo(mojo,
                 rule.extractPluginConfiguration(PLUGIN_ARTIFACT_ID, pluginConfig));
 
         // need to test output in the console
@@ -112,8 +112,8 @@ public class GenerateLambdaConfigMojoSuccessTest {
         File pluginConfig = new File(Objects.requireNonNull(getClass().getClassLoader()
                 .getResource(PLUGIN_CONFIG_SKIP_XML)).toURI());
 
-        GenerateLambdaConfigGoal mojo = new GenerateLambdaConfigGoal();
-        mojo = (GenerateLambdaConfigGoal) rule.configureMojo(mojo,
+        SyndicateMetaGeneratorGoal mojo = new SyndicateMetaGeneratorGoal();
+        mojo = (SyndicateMetaGeneratorGoal) rule.configureMojo(mojo,
                 rule.extractPluginConfiguration(PLUGIN_ARTIFACT_ID, pluginConfig));
 
         assertArrayEquals(new String[]{"com.syndicate"}, mojo.getPackages());
@@ -124,8 +124,8 @@ public class GenerateLambdaConfigMojoSuccessTest {
         File pluginConfig = new File(Objects.requireNonNull(getClass().getClassLoader()
                 .getResource("plugin-config-syndicate-goal.xml")).toURI());
 
-        GenerateLambdaConfigGoal mojo = new GenerateLambdaConfigGoal();
-        mojo = (GenerateLambdaConfigGoal) rule.configureMojo(mojo,
+        SyndicateMetaGeneratorGoal mojo = new SyndicateMetaGeneratorGoal();
+        mojo = (SyndicateMetaGeneratorGoal) rule.configureMojo(mojo,
                 rule.extractPluginConfiguration(PLUGIN_ARTIFACT_ID, pluginConfig));
 
         final MavenProject mavenProject = mock(MavenProject.class);
@@ -236,8 +236,8 @@ public class GenerateLambdaConfigMojoSuccessTest {
         File pluginConfig = new File(Objects.requireNonNull(getClass().getClassLoader()
                 .getResource("plugin-config-terraform-goal.xml")).toURI());
 
-        GenerateTerraformLambdaConfigGoal mojo = new GenerateTerraformLambdaConfigGoal();
-        mojo = (GenerateTerraformLambdaConfigGoal) rule.configureMojo(mojo,
+        TerraformMetaGeneratorGoal mojo = new TerraformMetaGeneratorGoal();
+        mojo = (TerraformMetaGeneratorGoal) rule.configureMojo(mojo,
                 rule.extractPluginConfiguration(PLUGIN_ARTIFACT_ID, pluginConfig));
         //Set properties directly into mojo due to non-existing ability lo extract goal configuration from xml
         mojo.setRegion("us-east-1");
@@ -249,6 +249,7 @@ public class GenerateLambdaConfigMojoSuccessTest {
         final Build build = mock(Build.class);
         final File file = mock(File.class);
         when(mavenProject.getBuild()).thenReturn(build);
+
         when(mavenProject.getBuild().getFinalName()).thenReturn("terraform");
         when(mavenProject.getVersion()).thenReturn("1.0.0");
         when(mavenProject.getBasedir()).thenReturn(file);
@@ -263,7 +264,6 @@ public class GenerateLambdaConfigMojoSuccessTest {
         mojo.setFileName("terraform.jar");
         mojo.setCredentialsResolverChain(new CredentialResolverChain(null));
         mojo.execute();
-
         // will be created 1 file with lambdas description
         File[] files = targetDir.listFiles((dir, name) -> name.toLowerCase().endsWith(".json"));
         if (files == null) {

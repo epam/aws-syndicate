@@ -1,4 +1,4 @@
-package com.syndicate.deployment.model.api.request;
+package com.syndicate.deployment.api.model.request;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 

@@ -16,11 +16,11 @@
 
 package com.syndicate.deployment.fail;
 
-import com.syndicate.deployment.goal.impl.GenerateLambdaConfigGoal;
 import com.syndicate.deployment.annotations.environment.EnvironmentVariable;
 import com.syndicate.deployment.annotations.events.SnsEventSource;
 import com.syndicate.deployment.annotations.lambda.LambdaHandler;
 import com.syndicate.deployment.annotations.resources.DependsOn;
+import com.syndicate.deployment.goal.SyndicateMetaGeneratorGoal;
 import com.syndicate.deployment.model.RegionScope;
 import com.syndicate.deployment.model.ResourceType;
 import com.syndicate.deployment.model.TracingMode;
@@ -54,7 +54,7 @@ public class GenerateLambdaConfigMojoFailTest {
     @Rule
     public TemporaryFolder folder = new TemporaryFolder(new File("."));
 
-    private GenerateLambdaConfigGoal mojo = new GenerateLambdaConfigGoal();
+    private SyndicateMetaGeneratorGoal mojo = new SyndicateMetaGeneratorGoal();
 
 	private Properties EMPTY_PROPERTIES = new Properties();
 
@@ -63,7 +63,7 @@ public class GenerateLambdaConfigMojoFailTest {
         File pluginConfig = new File(Objects.requireNonNull(getClass().getClassLoader()
                 .getResource("plugin-config-syndicate-goal.xml")).toURI());
 
-        mojo = (GenerateLambdaConfigGoal) rule.configureMojo(mojo,
+        mojo = (SyndicateMetaGeneratorGoal) rule.configureMojo(mojo,
                 rule.extractPluginConfiguration(GenerateLambdaConfigMojoSuccessTest.PLUGIN_ARTIFACT_ID, pluginConfig));
     }
 

@@ -1,4 +1,4 @@
-package com.syndicate.deployment.model.api.request;
+package com.syndicate.deployment.api.model.request;
 
 /**
  * Created by Vladyslav Tereshchenko on 2/8/2019.

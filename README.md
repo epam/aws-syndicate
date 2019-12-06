@@ -35,8 +35,15 @@ aws-syndicate is an Amazon Web Services deployment framework written in Python, 
 
 * Step Functions
 
+## Changelog
+
+[See CHANGELOG here](https://github.com/epam/aws-syndicate/blob/master/CHANGELOG.md "aws-syndicate changelog").
+
 ## Installing
 
+[Install aws-syndicate from PyPI](https://pypi.org/project/aws-syndicate/ "aws-syndicate on PyPI")
+
+#### Installation from sources
 **Prerequisites**
 
 1) Installed [Python 3.7](https://www.python.org/downloads/ "Python 3.7") or higher version;
@@ -205,5 +212,5 @@ But before creating new issues - check existing, it may cover you problem or que
 Would like to contribute?
 -------------------------
 
-Plese, check [contributor guide](https://github.com/epam/aws-syndicate/blob/master/CONTRIBUTING.md) before starting. 
+Please, check [contributor guide](https://github.com/epam/aws-syndicate/blob/master/CONTRIBUTING.md) before starting. 
 # [![SonarCloud](https://sonarcloud.io/images/project_badges/sonarcloud-white.svg)](https://sonarcloud.io/dashboard?id=aws-syndicate)

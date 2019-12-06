@@ -30,7 +30,6 @@ from syndicate.core.build.meta_processor import resolve_meta
 from syndicate.core.constants import (BUILD_META_FILE_NAME,
                                       CLEAN_RESOURCE_TYPE_PRIORITY,
                                       DEPLOY_RESOURCE_TYPE_PRIORITY,
-                                      LAMBDA_TYPE,
                                       UPDATE_RESOURCE_TYPE_PRIORITY)
 from syndicate.core.helper import exit_on_exception, prettify_json
 from syndicate.core.resources import (APPLY_MAPPING, CREATE_RESOURCE,
@@ -483,44 +482,6 @@ def remove_failed_deploy_resources(deploy_name, bundle_name,
     clean_resources(resources_list)
     # remove output from bucket
     remove_failed_deploy_output(bundle_name, deploy_name)
-
-
-@exit_on_exception
-def update_lambdas(bundle_name,
-                   publish_only_lambdas,
-                   excluded_lambdas_resources,
-                   update_lambda_layers):
-    resources = resolve_meta(load_meta_resources(bundle_name))
-    _LOG.debug('Names were resolved')
-    _LOG.debug(prettify_json(resources))
-
-    # TODO make filter chain
-    resources = dict((k, v) for (k, v) in resources.items() if
-                     v['resource_type'] == LAMBDA_TYPE)
-
-    if publish_only_lambdas:
-        resources = dict((k, v) for (k, v) in resources.items() if
-                         k in publish_only_lambdas)
-
-    if excluded_lambdas_resources:
-        resources = dict((k, v) for (k, v) in resources.items() if
-                         k not in excluded_lambdas_resources)
-
-    if update_lambda_layers:
-        layers_list = []
-        for (k, v) in resources.items():
-            if resources[k].get('layers'):
-                layers_list.extend(resources[k].get('layers'))
-        resources.update(
-            dict((k, v) for (k, v) in resolve_meta(
-                load_meta_resources(bundle_name)).items()
-                 if k in layers_list))
-
-    _LOG.debug('Going to update the following lambdas: {0}'.format(
-        prettify_json(resources)))
-    resources_list = list(resources.items())
-    resources_list.sort(key=cmp_to_key(_compare_update_resources))
-    update_resources(resources=resources_list)
 
 
 def _apply_dynamic_changes(resources, output):
