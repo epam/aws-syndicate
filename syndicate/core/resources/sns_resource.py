@@ -137,9 +137,14 @@ def _create_sns_topic_from_meta(name, meta, region):
 
 def _subscribe_lambda_to_sns_topic(lambda_arn, topic_name, region):
     topic_arn = CONN.sns(region).subscribe(lambda_arn, topic_name, 'lambda')
-    CONN.lambda_conn().add_invocation_permission(lambda_arn,
-                                                 'sns.amazonaws.com',
-                                                 source_arn=topic_arn)
+    try:
+        CONN.lambda_conn().add_invocation_permission(lambda_arn,
+                                                     'sns.amazonaws.com',
+                                                     source_arn=topic_arn)
+    except ClientError:
+        _LOG.warn('The final access policy size for lambda {} is reached. '
+                  'The limit is 20480 bytes. '
+                  'Invocation permission was not added.'.format(lambda_arn))
 
 
 def create_sns_subscription_for_lambda(lambda_arn, topic_name, region):
