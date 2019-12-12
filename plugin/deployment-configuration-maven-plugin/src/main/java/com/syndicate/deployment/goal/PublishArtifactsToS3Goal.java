@@ -70,8 +70,8 @@ public class PublishArtifactsToS3Goal extends AbstractMojo {
 			.findAny().orElse(null);
 
 		if (artifact != null) {
-			logger.info(String.format("Uploading artifacts to %s/%s/%s", bucketName, buildId, fileName));
-			getS3(bucketRegion).putObject(bucketName, String.format("%s/%s", buildId, fileName), artifact);
+			logger.info(String.format("Uploading artifacts to %s/%s/%s", bucketName, buildId, artifact.getName()));
+			getS3(bucketRegion).putObject(bucketName, String.format("%s/%s", buildId, artifact.getName()), artifact);
 			logger.info("Artifact has been uploaded");
 		}
 	}

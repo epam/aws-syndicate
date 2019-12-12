@@ -24,6 +24,18 @@ from syndicate.connection.helper import apply_methods_decorator, retry
 _LOG = get_logger('lambda_connection')
 
 
+def _str_list_to_list(param, param_name):
+    result = None
+    if isinstance(param, list):
+        result = param
+    elif isinstance(param, str):
+        result = [param]
+    else:
+        raise ValueError(
+            '{} must be a str or a list of str.'.format(param_name))
+    return result
+
+
 @apply_methods_decorator(retry)
 class LambdaConnection(object):
     """ Lambda connection class."""
@@ -334,14 +346,11 @@ class LambdaConnection(object):
             params['Timeout'] = timeout
         if memory_size:
             params['MemorySize'] = memory_size
-        if isinstance(vpc_sub_nets, str):
-            vpc_sub_nets = [vpc_sub_nets]
-        else:
-            raise ValueError('VPC_SUB_NETS must be list of str.')
-        if isinstance(vpc_security_group, str):
-            vpc_security_group = [vpc_security_group]
-        else:
-            raise ValueError('VPC_SECURITY_GROUP must be list of str.')
+        if vpc_sub_nets:
+            vpc_sub_nets = _str_list_to_list(vpc_sub_nets, 'VPC_SUB_NETS')
+        if vpc_security_group:
+            vpc_sub_nets = _str_list_to_list(vpc_security_group,
+                                             'VPC_SECURITY_GROUPS')
         if vpc_sub_nets and vpc_security_group:
             params['VpcConfig'] = {
                 'SubnetIds': vpc_sub_nets,
@@ -358,8 +367,9 @@ class LambdaConnection(object):
         return self.client.update_function_configuration(**params)
 
     def put_function_concurrency(self, function_name, concurrent_executions):
-        return self.client.put_function_concurrency(FunctionName=function_name,
-                                                    ReservedConcurrentExecutions=concurrent_executions)
+        return self.client.put_function_concurrency(
+            FunctionName=function_name,
+            ReservedConcurrentExecutions=concurrent_executions)
 
     def get_unresolved_concurrent_executions(self):
         return self.client.get_account_settings()['AccountLimit'][
@@ -378,7 +388,8 @@ class LambdaConnection(object):
             FunctionVersion=function_version
         )
 
-    def create_layer(self, layer_name, s3_bucket, s3_key, runtimes, description=None,
+    def create_layer(self, layer_name, s3_bucket, s3_key, runtimes,
+                     description=None,
                      layer_license=None):
         kwargs = {'LayerName': layer_name, 'CompatibleRuntimes': runtimes,
                   'Content': {'S3Bucket': s3_bucket, 'S3Key': s3_key}}
@@ -404,8 +415,8 @@ class LambdaConnection(object):
         return self.client.get_layer_version_by_arn(Arn=arn)
 
     def delete_layer(self, arn):
-        version = arn.split(':')[len(arn.split(':'))-1]
-        arn = arn[:-len(version)-1]
+        version = arn.split(':')[len(arn.split(':')) - 1]
+        arn = arn[:-len(version) - 1]
         return self.client.delete_layer_version(
             LayerName=arn,
             VersionNumber=int(version))
@@ -423,4 +434,3 @@ class LambdaConnection(object):
             versions.append(response['LayerVersions'])
 
         return versions
-
