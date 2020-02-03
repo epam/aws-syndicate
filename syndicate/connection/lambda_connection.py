@@ -297,6 +297,26 @@ class LambdaConnection(object):
             else:
                 raise e
 
+    def get_policy(self, lambda_name, qualifier=None):
+        """ Returns the resource-based IAM policy for a function,
+        version, or alias.
+
+        :type lambda_name: name
+        :param qualifier: Using this optional parameter to specify a function
+        version or an alias name.
+        :type qualifier: str
+        """
+        params = dict(FunctionName=lambda_name)
+        if qualifier:
+            params['Qualifier'] = qualifier
+        try:
+            return self.client.get_policy(**params)
+        except ClientError as e:
+            if 'ResourceNotFoundException' in str(e):
+                pass  # valid exception
+            else:
+                raise e
+
     def invoke_lambda(self, lambda_name, invocation_type='Event',
                       log_type='Tail', client_context='', payload=b'',
                       qualifier=''):
