@@ -454,3 +454,69 @@ class LambdaConnection(object):
             versions.append(response['LayerVersions'])
 
         return versions
+
+    def configure_provisioned_concurrency(self, name, qualifier,
+                                          concurrent_executions):
+        if type(concurrent_executions) is not int:
+            raise AssertionError(
+                f'Parameter `concurrent_executions` '
+                f'must be type of int, but not {type(concurrent_executions)}')
+        return self.client.put_provisioned_concurrency_config(
+            FunctionName=name,
+            Qualifier=qualifier,
+            ProvisionedConcurrentExecutions=concurrent_executions
+        )
+
+    def get_provisioned_concurrency(self, name, qualifier):
+        return self.client.get_provisioned_concurrency_config(
+            FunctionName=name,
+            Qualifier=qualifier
+        )
+
+    def describe_provisioned_concurrency_configs(self, name):
+        configs = []
+        response = self.client.list_provisioned_concurrency_configs(
+            FunctionName=name
+        )
+        configs.extend(response.get('ProvisionedConcurrencyConfigs'))
+        marker = response.get('NextMarker')
+        while marker:
+            response = self.client.list_provisioned_concurrency_configs(
+                FunctionName=name,
+                Marker=marker
+            )
+            configs.extend(response.get('ProvisionedConcurrencyConfigs'))
+            marker = response.get('NextMarker')
+        return configs
+
+    def delete_function_concurrency_config(self, name):
+        # client.delete_function_concurrency return 204 None in boto3 1.11.14
+        self.client.delete_function_concurrency(
+            FunctionName=name
+        )
+
+    def delete_provisioned_concurrency_config(self, name, qualifier):
+        # client.delete_provisioned_concurrency_config return 204 None
+        #   in boto3 1.11.14
+        self.client.delete_provisioned_concurrency_config(
+            FunctionName=name,
+            Qualifier=qualifier
+        )
+
+    def list_function_versions(self, name):
+        versions = []
+        resp = self.client.list_versions_by_function(
+            FunctionName=name,
+            MaxItems=100
+        )
+        versions.extend(resp.get('Versions'))
+        next_marker = resp.get('NextMarker')
+        while next_marker:
+            self.client.list_versions_by_function(
+                FunctionName=name,
+                MaxItems=100,
+                Marker=next_marker
+            )
+            versions.extend(resp.get('Versions'))
+            next_marker = resp.get('NextMarker')
+        return versions
