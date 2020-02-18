@@ -489,11 +489,15 @@ class LambdaConnection(object):
             marker = response.get('NextMarker')
         return configs
 
+    def describe_function_concurrency(self, name):
+        return self.client.get_function_concurrency(
+            FunctionName=name
+        )
+
     def delete_function_concurrency_config(self, name):
         # client.delete_function_concurrency return 204 None in boto3 1.11.14
         self.client.delete_function_concurrency(
-            FunctionName=name
-        )
+            FunctionName=name)
 
     def delete_provisioned_concurrency_config(self, name, qualifier):
         # client.delete_provisioned_concurrency_config return 204 None

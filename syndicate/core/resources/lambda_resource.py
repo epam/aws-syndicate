@@ -81,17 +81,41 @@ def remove_concurrency_for_version_alias(kwargs):
 def remove_concurrency_for_function(kwargs):
     assert_required_params(
         all_params=kwargs,
-        required_params_names=['name',
-                               'qualifier'])
+        required_params_names=['name'])
     _LAMBDA_CONN.delete_function_concurrency_config(name=kwargs['name'])
 
 
-_LAMBDA_CONCURRENCY_DELETE_HANDLER = {
+_LAMBDA_CONCURRENCY_DELETE_HANDLERS = {
     LAMBDA_CONCUR_QUALIFIER_ALIAS: remove_concurrency_for_version_alias,
     LAMBDA_CONCUR_QUALIFIER_VERSION: remove_concurrency_for_version_alias,
     LAMBDA_CONCUR_QUALIFIER_FUNCTION: remove_concurrency_for_function
-
 }
+
+
+def describe_function_concurrency_config(function_name):
+    response = _LAMBDA_CONN.describe_function_concurrency(
+        name=function_name)
+    return response.get('ReservedConcurrentExecutions')
+
+
+def describe_provisioned_concurrency_config(function_name):
+    return _LAMBDA_CONN.describe_provisioned_concurrency_configs(
+        name=function_name)
+
+
+def describe_all_concurrency_configs(function_name):
+    result = {}
+    provisioned_result = describe_provisioned_concurrency_config(
+        function_name=function_name)
+    if provisioned_result:
+        result['PROVISIONED'] = provisioned_result
+
+    function_result = describe_function_concurrency_config(
+        function_name=function_name
+    )
+    if function_result:
+        result['FUNCTION'] = function_result
+    return result
 
 
 def setup_lambda_concur_alias_version(**kwargs):
@@ -142,7 +166,7 @@ _LAMBDA_CONCURRENCY_SETUP_MAPPING = {
 if len(_LAMBDA_QUALIFIERS) != len(
         _LAMBDA_QUALIFIER_RESOLVER.keys() or len(_LAMBDA_QUALIFIERS) != len(
             _LAMBDA_CONCURRENCY_SETUP_MAPPING)) or len(_LAMBDA_QUALIFIERS) != \
-        len(_LAMBDA_CONCURRENCY_DELETE_HANDLER):
+        len(_LAMBDA_CONCURRENCY_DELETE_HANDLERS):
     raise AssertionError(
         'There is an inconsistency in Lambda concurrency '
         'qualifiers and setup methods')
@@ -370,8 +394,8 @@ def _update_lambda(name, meta, context):
 
 def manage_lambda_concurrency_configuration(function_name, meta,
                                             lambda_def=None):
-    existing_configs = _LAMBDA_CONN.describe_provisioned_concurrency_configs(
-        name=function_name)
+    existing_configs = describe_all_concurrency_configs(
+        function_name=function_name)
     concurrency = meta.get('concurrency')
 
     if not existing_configs and not concurrency:
@@ -388,6 +412,7 @@ def manage_lambda_concurrency_configuration(function_name, meta,
                                      meta=meta,
                                      concurrency=concurrency,
                                      lambda_def=lambda_def)
+        return
 
     if not existing_configs and concurrency:
         # no existing but expected one - create
@@ -395,6 +420,7 @@ def manage_lambda_concurrency_configuration(function_name, meta,
                                      meta=meta,
                                      concurrency=concurrency,
                                      lambda_def=lambda_def)
+        return
 
     if existing_configs and not concurrency:
         # to delete existing one
@@ -403,16 +429,25 @@ def manage_lambda_concurrency_configuration(function_name, meta,
 
 
 def _delete_lambda_concur_config(function_name, existing_config):
-    for config in existing_config:
+    function_concurrency = existing_config.get('FUNCTION')
+    if function_concurrency:
+        remove_concurrency_for_function({'name': function_name})
+        _LOG.info(
+            f'Existing concurrency configuration of type FUNCTION '
+            f'was removed from lambda {function_name}')
+    provisioned_configs = existing_config.get('PROVISIONED')
+    if not provisioned_configs:
+        return
+    for config in provisioned_configs:
         existing_type, qualifier = _resolve_existing_qualifier_type(config)
-        delete_func = _LAMBDA_CONCURRENCY_DELETE_HANDLER[existing_type]
+        delete_func = _LAMBDA_CONCURRENCY_DELETE_HANDLERS[existing_type]
         delete_func({
             'name': function_name,
             'qualifier': qualifier
         })
         _LOG.info(
-            f'Existing concurrency configurations of type '
-            f'{existing_type}:{qualifier} '
+            f'Existing provisioned concurrency configuration of type '
+            f'{existing_type} set up on qualifier {qualifier} '
             f'was removed from lambda {function_name}')
 
 
