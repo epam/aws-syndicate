@@ -193,13 +193,10 @@ def _create_api_gateway_from_meta(name, meta):
                                                 'identity_source'),
                                             ttl=val.get('ttl'))
 
-        api_source_arn = "arn:aws:execute-api:{0}:{1}:{2}/*/*/*".format(
-            CONFIG.region, CONFIG.account_id, api_id)
         _LAMBDA_CONN.add_invocation_permission(
                     statement_id=api_id,
                     name=lambda_arn,
-                    principal='apigateway.amazonaws.com',
-                    source_arn=api_source_arn)
+                    principal='apigateway.amazonaws.com')
     if api_resources:
         api_resp = meta.get('api_method_responses')
         api_integration_resp = meta.get('api_method_integration_responses')
