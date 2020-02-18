@@ -19,5 +19,9 @@
     "sqs_queue_name": "${sqs_queue_name}"
   },
   "publish_version": true,
-  "alias": "${lambda_alias_name}"
+  "alias": "${lambda_alias_name}",
+  "concurrency": {
+    "qualifier": "ALIAS",
+    "provisioned_executions": 2
+  }
 }
