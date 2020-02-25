@@ -492,7 +492,7 @@ class LambdaConnection(object):
     def describe_function_concurrency(self, name):
         return self.client.get_function_concurrency(
             FunctionName=name
-        )
+        ).get('ReservedConcurrentExecutions')
 
     def delete_function_concurrency_config(self, name):
         # client.delete_function_concurrency return 204 None in boto3 1.11.14
