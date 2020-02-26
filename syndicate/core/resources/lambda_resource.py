@@ -21,7 +21,8 @@ from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import retry
 from syndicate.core import CONFIG, CONN
 from syndicate.core.build.meta_processor import S3_PATH_NAME
-from syndicate.core.helper import (create_pool, unpack_kwargs)
+from syndicate.core.helper import (create_pool, unpack_kwargs,
+                                   exit_on_exception)
 from syndicate.core.resources.helper import (build_description_obj,
                                              validate_params,
                                              assert_required_params)
@@ -276,6 +277,7 @@ def _create_lambda_from_meta(name, meta):
     return describe_lambda(name, meta, lambda_def)
 
 
+@exit_on_exception
 @unpack_kwargs
 def _update_lambda(name, meta, context):
     _LOG.info('Updating lambda: {0}'.format(name))
