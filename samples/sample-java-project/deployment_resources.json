@@ -1,0 +1,61 @@
+{
+  "LambdaBasicExecution": {
+    "resource_type": "iam_policy",
+    "policy_content": {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Action": [
+            "logs:CreateLogGroup",
+            "logs:CreateLogStream",
+            "logs:PutLogEvents",
+            "sts:AssumeRole",
+            "dynamodb:GetRecords",
+            "dynamodb:GetShardIterator",
+            "dynamodb:DescribeStream",
+            "dynamodb:ListStreams"
+          ],
+          "Resource": "*",
+          "Effect": "Allow"
+        }
+      ]
+    }
+  },
+  "PutObjectToS3Policy": {
+    "resource_type": "iam_policy",
+    "policy_content": {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Action": [
+            "s3:PutObject"
+          ],
+          "Resource": "*",
+          "Effect": "Allow"
+        }
+      ]
+    }
+  },
+  "PutObjectToS3Role": {
+    "predefined_policies": [],
+    "principal_service": "lambda",
+    "custom_policies": [
+      "PutObjectToS3Policy",
+      "LambdaBasicExecution"
+    ],
+    "resource_type": "iam_role",
+    "allowed_accounts": [
+      "${account_id}"
+    ]
+  },
+  "Notifications": {
+    "read_capacity": 1,
+    "hash_key_name": "id",
+    "write_capacity": 1,
+    "resource_type": "dynamodb_table",
+    "hash_key_type": "S"
+  },
+  "${notification_bucket}": {
+    "resource_type": "s3_bucket"
+  }
+}

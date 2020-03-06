@@ -24,8 +24,8 @@
   "env_variables": {},
   "publish_version": true,
   "alias": "${lambda_alias_name}",
-  "concurrency": {
-    "qualifier": "VERSION",
-    "provisioned_executions": 5
+  "provisioned_concurrency": {
+    "qualifier": "ALIAS",
+    "value": 5
   }
 }

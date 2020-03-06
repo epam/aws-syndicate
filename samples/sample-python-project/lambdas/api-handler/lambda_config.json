@@ -20,8 +20,9 @@
   },
   "publish_version": true,
   "alias": "${lambda_alias_name}",
-  "concurrency": {
-    "qualifier": "ALIAS",
-    "provisioned_executions": 2
+  "max_concurrency": 10,
+  "provisioned_concurrency": {
+    "qualifier": "VERSION",
+    "value": 8
   }
 }

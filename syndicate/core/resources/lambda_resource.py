@@ -21,24 +21,26 @@ from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import retry
 from syndicate.core import CONFIG, CONN
 from syndicate.core.build.meta_processor import S3_PATH_NAME
-from syndicate.core.helper import (create_pool, unpack_kwargs)
+from syndicate.core.helper import (create_pool, unpack_kwargs,
+                                   exit_on_exception)
 from syndicate.core.resources.helper import (build_description_obj,
                                              validate_params,
                                              assert_required_params)
 from syndicate.core.resources.sns_resource import (
     create_sns_subscription_for_lambda)
 
+PROVISIONED_CONCURRENCY = 'provisioned_concurrency'
+
 _LOG = get_logger('syndicate.core.resources.lambda_resource')
 _LAMBDA_CONN = CONN.lambda_conn()
 _S3_CONN = CONN.s3()
 _CW_LOGS_CONN = CONN.cw_logs()
 
+LAMBDA_MAX_CONCURRENCY = 'max_concurrency'
 LAMBDA_CONCUR_QUALIFIER_ALIAS = 'ALIAS'
 LAMBDA_CONCUR_QUALIFIER_VERSION = 'VERSION'
-LAMBDA_CONCUR_QUALIFIER_FUNCTION = 'FUNCTION'
-_LAMBDA_QUALIFIERS = [LAMBDA_CONCUR_QUALIFIER_ALIAS,
-                      LAMBDA_CONCUR_QUALIFIER_VERSION,
-                      LAMBDA_CONCUR_QUALIFIER_FUNCTION]
+_LAMBDA_PROV_CONCURRENCY_QUALIFIERS = [LAMBDA_CONCUR_QUALIFIER_ALIAS,
+                                       LAMBDA_CONCUR_QUALIFIER_VERSION]
 
 
 def qualifier_alias_resolver(lambda_def):
@@ -57,25 +59,10 @@ def qualifier_version_resolver(lambda_def):
     return latest_version_number
 
 
-def qualifier_function_resolver(lambda_def):
-    return lambda_def['Configuration']['FunctionName']
-
-
 _LAMBDA_QUALIFIER_RESOLVER = {
     LAMBDA_CONCUR_QUALIFIER_ALIAS: qualifier_alias_resolver,
-    LAMBDA_CONCUR_QUALIFIER_VERSION: qualifier_version_resolver,
-    LAMBDA_CONCUR_QUALIFIER_FUNCTION: qualifier_function_resolver
+    LAMBDA_CONCUR_QUALIFIER_VERSION: qualifier_version_resolver
 }
-
-
-def remove_concurrency_for_version_alias(kwargs):
-    assert_required_params(
-        all_params=kwargs,
-        required_params_names=['name',
-                               'qualifier'])
-    _LAMBDA_CONN.delete_provisioned_concurrency_config(
-        name=kwargs['name'],
-        qualifier=kwargs['qualifier'])
 
 
 def remove_concurrency_for_function(kwargs):
@@ -83,39 +70,6 @@ def remove_concurrency_for_function(kwargs):
         all_params=kwargs,
         required_params_names=['name'])
     _LAMBDA_CONN.delete_function_concurrency_config(name=kwargs['name'])
-
-
-_LAMBDA_CONCURRENCY_DELETE_HANDLERS = {
-    LAMBDA_CONCUR_QUALIFIER_ALIAS: remove_concurrency_for_version_alias,
-    LAMBDA_CONCUR_QUALIFIER_VERSION: remove_concurrency_for_version_alias,
-    LAMBDA_CONCUR_QUALIFIER_FUNCTION: remove_concurrency_for_function
-}
-
-
-def describe_function_concurrency_config(function_name):
-    response = _LAMBDA_CONN.describe_function_concurrency(
-        name=function_name)
-    return response.get('ReservedConcurrentExecutions')
-
-
-def describe_provisioned_concurrency_config(function_name):
-    return _LAMBDA_CONN.describe_provisioned_concurrency_configs(
-        name=function_name)
-
-
-def describe_all_concurrency_configs(function_name):
-    result = {}
-    provisioned_result = describe_provisioned_concurrency_config(
-        function_name=function_name)
-    if provisioned_result:
-        result['PROVISIONED'] = provisioned_result
-
-    function_result = describe_function_concurrency_config(
-        function_name=function_name
-    )
-    if function_result:
-        result['FUNCTION'] = function_result
-    return result
 
 
 def setup_lambda_concur_alias_version(**kwargs):
@@ -154,22 +108,6 @@ def setup_lambda_concur_function(**kwargs):
     _LOG.info(
         f'Lambda {name} concurrency configuration of type {concur_type}:'
         f'{resp.get("ReservedConcurrentExecutions")}')
-
-
-_LAMBDA_CONCURRENCY_SETUP_MAPPING = {
-    LAMBDA_CONCUR_QUALIFIER_ALIAS: setup_lambda_concur_alias_version,
-    LAMBDA_CONCUR_QUALIFIER_VERSION: setup_lambda_concur_alias_version,
-    LAMBDA_CONCUR_QUALIFIER_FUNCTION: setup_lambda_concur_function
-}
-
-# check for consistency
-if len(_LAMBDA_QUALIFIERS) != len(
-        _LAMBDA_QUALIFIER_RESOLVER.keys() or len(_LAMBDA_QUALIFIERS) != len(
-            _LAMBDA_CONCURRENCY_SETUP_MAPPING)) or len(_LAMBDA_QUALIFIERS) != \
-        len(_LAMBDA_CONCURRENCY_DELETE_HANDLERS):
-    raise AssertionError(
-        'There is an inconsistency in Lambda concurrency '
-        'qualifiers and setup methods')
 
 
 def create_lambda(args):
@@ -222,6 +160,23 @@ def build_lambda_arn_with_alias(response, alias=None):
     if alias:
         arn = '{0}:{1}'.format(l_arn, alias)
     return arn
+
+
+def _setup_function_concurrency(name, meta):
+    con_exec = meta.get(LAMBDA_MAX_CONCURRENCY)
+    if con_exec:
+        _LOG.debug('Going to set up concurrency executions')
+        unresolved_exec = _LAMBDA_CONN.get_unresolved_concurrent_executions()
+        if con_exec <= unresolved_exec:
+            _LAMBDA_CONN.put_function_concurrency(
+                function_name=name,
+                concurrent_executions=con_exec)
+            _LOG.info(
+                f'Concurrency limit for lambda {name} is set to {con_exec}')
+        else:
+            _LOG.warn(
+                f'Account does not have such unresolved executions.'
+                f' Current un - {unresolved_exec}')
 
 
 @unpack_kwargs
@@ -295,6 +250,7 @@ def _create_lambda_from_meta(name, meta):
     lambda_def = __describe_lambda_by_version(
         name) if publish_version else _LAMBDA_CONN.get_function(name)
     version = lambda_def['Configuration']['Version']
+    _setup_function_concurrency(name=name, meta=meta)
 
     # enabling aliases
     # aliases can be enabled only and for $LATEST
@@ -314,14 +270,14 @@ def _create_lambda_from_meta(name, meta):
             trigger_type = trigger_meta['resource_type']
             func = CREATE_TRIGGER[trigger_type]
             func(name, arn, role_name, trigger_meta)
-
     # concurrency configuration
-    manage_lambda_concurrency_configuration(function_name=name,
-                                            meta=meta,
-                                            lambda_def=lambda_def)
+    _manage_provisioned_concurrency_configuration(function_name=name,
+                                                  meta=meta,
+                                                  lambda_def=lambda_def)
     return describe_lambda(name, meta, lambda_def)
 
 
+@exit_on_exception
 @unpack_kwargs
 def _update_lambda(name, meta, context):
     _LOG.info('Updating lambda: {0}'.format(name))
@@ -387,133 +343,141 @@ def _update_lambda(name, meta, context):
             _LOG.info(
                 'Alias {0} has been updated for lambda {1}'.format(alias_name,
                                                                    name))
-    manage_lambda_concurrency_configuration(function_name=name,
-                                            meta=meta,
-                                            lambda_def=context)
+    req_max_concurrency = meta.get(LAMBDA_MAX_CONCURRENCY)
+    existing_max_concurrency = _LAMBDA_CONN.describe_function_concurrency(
+        name=name)
+    if req_max_concurrency and existing_max_concurrency:
+        if existing_max_concurrency != req_max_concurrency:
+            _set_function_concurrency(name=name, meta=meta)
+    elif not req_max_concurrency and existing_max_concurrency:
+        _LAMBDA_CONN.delete_function_concurrency_config(name=name)
+    elif req_max_concurrency and not existing_max_concurrency:
+        _set_function_concurrency(name=name, meta=meta)
+
+    _manage_provisioned_concurrency_configuration(function_name=name,
+                                                  meta=meta,
+                                                  lambda_def=context)
 
 
-def manage_lambda_concurrency_configuration(function_name, meta,
-                                            lambda_def=None):
-    existing_configs = describe_all_concurrency_configs(
-        function_name=function_name)
-    concurrency = meta.get('concurrency')
+def _set_function_concurrency(name, meta):
+    provisioned = _LAMBDA_CONN.describe_provisioned_concurrency_configs(
+        name=name)
+    if provisioned:
+        _delete_lambda_prov_concur_config(
+            function_name=name,
+            existing_config=provisioned)
+    _setup_function_concurrency(name=name, meta=meta)
+
+
+def _manage_provisioned_concurrency_configuration(function_name, meta,
+                                                  lambda_def=None):
+    existing_configs = _LAMBDA_CONN.describe_provisioned_concurrency_configs(
+        name=function_name)
+    concurrency = meta.get(PROVISIONED_CONCURRENCY)
 
     if not existing_configs and not concurrency:
         # no existing config, no config in meta -> nothing to do
         return
 
     if existing_configs and concurrency:
-        # remove all existing config, create necessary one
+        # todo check if required config already present
         if not lambda_def:
-            lambda_def = _LAMBDA_CONN.get_function(lambda_name=function_name)
-        _delete_lambda_concur_config(function_name=function_name,
-                                     existing_config=existing_configs)
-        _create_lambda_concur_config(function_name=function_name,
-                                     meta=meta,
-                                     concurrency=concurrency,
-                                     lambda_def=lambda_def)
+            lambda_def = _LAMBDA_CONN.get_function(
+                lambda_name=function_name)
+
+        _delete_lambda_prov_concur_config(function_name=function_name,
+                                          existing_config=existing_configs)
+        _create_lambda_prov_concur_config(function_name=function_name,
+                                          meta=meta,
+                                          concurrency=concurrency,
+                                          lambda_def=lambda_def)
         return
 
     if not existing_configs and concurrency:
         # no existing but expected one - create
-        _create_lambda_concur_config(function_name=function_name,
-                                     meta=meta,
-                                     concurrency=concurrency,
-                                     lambda_def=lambda_def)
+        _create_lambda_prov_concur_config(function_name=function_name,
+                                          meta=meta,
+                                          concurrency=concurrency,
+                                          lambda_def=lambda_def)
         return
 
     if existing_configs and not concurrency:
         # to delete existing one
-        _delete_lambda_concur_config(function_name=function_name,
-                                     existing_config=existing_configs)
-
-
-def _delete_lambda_concur_config(function_name, existing_config):
-    function_concurrency = existing_config.get('FUNCTION')
-    if function_concurrency:
-        remove_concurrency_for_function({'name': function_name})
-        _LOG.info(
-            f'Existing concurrency configuration of type FUNCTION '
-            f'was removed from lambda {function_name}')
-    provisioned_configs = existing_config.get('PROVISIONED')
-    if not provisioned_configs:
+        _delete_lambda_prov_concur_config(function_name=function_name,
+                                          existing_config=existing_configs)
         return
-    for config in provisioned_configs:
-        existing_type, qualifier = _resolve_existing_qualifier_type(config)
-        delete_func = _LAMBDA_CONCURRENCY_DELETE_HANDLERS[existing_type]
-        delete_func({
-            'name': function_name,
-            'qualifier': qualifier
-        })
+
+
+def _delete_lambda_prov_concur_config(function_name, existing_config):
+    if not existing_config:
+        return
+    for config in existing_config:
+        qualifier = _resolve_configured_existing_qualifier(
+            config)
+        _LAMBDA_CONN.delete_provisioned_concurrency_config(
+            name=function_name,
+            qualifier=qualifier)
         _LOG.info(
-            f'Existing provisioned concurrency configuration of type '
-            f'{existing_type} set up on qualifier {qualifier} '
+            f'Existing provisioned concurrency configuration '
+            f'set up on qualifier {qualifier} '
             f'was removed from lambda {function_name}')
 
 
-def _create_lambda_concur_config(function_name, meta, concurrency,
-                                 lambda_def=None):
+def _create_lambda_prov_concur_config(function_name, meta, concurrency,
+                                      lambda_def=None):
     if not lambda_def:
         lambda_def = _LAMBDA_CONN.get_function(lambda_name=function_name)
     qualifier = concurrency.get('qualifier')
     if not qualifier:
         raise AssertionError('Parameter `qualifier` is required for '
                              'concurrency configuration but it is absent')
-    if qualifier not in _LAMBDA_QUALIFIERS:
+    if qualifier not in _LAMBDA_PROV_CONCURRENCY_QUALIFIERS:
         raise AssertionError(f'Parameter `qualifier` must be one of '
-                             f'{_LAMBDA_QUALIFIERS}, but it is equal '
+                             f'{_LAMBDA_PROV_CONCURRENCY_QUALIFIERS}, but it is equal '
                              f'to ${qualifier}')
 
     resolved_qualified = _resolve_requested_qualifier(lambda_def, meta,
                                                       qualifier)
 
-    requested_provisioned_level = concurrency.get('provisioned_executions')
+    requested_provisioned_level = concurrency.get('value')
     if not requested_provisioned_level:
         raise AssertionError('Parameter `provisioned_level` is required '
                              'for concurrency configuration but '
                              'it is absent')
+    max_prov_limit = _LAMBDA_CONN.describe_function_concurrency(
+        name=function_name)
+    if not max_prov_limit:
+        max_prov_limit = _LAMBDA_CONN.get_unresolved_concurrent_executions()
 
-    unresolved_exec = _LAMBDA_CONN.get_unresolved_concurrent_executions()
-    if requested_provisioned_level > unresolved_exec:
-        _LOG.warn(
-            'The account does not have such amount of '
-            'unresolved executions. Current size - %s', unresolved_exec)
+    if requested_provisioned_level > max_prov_limit:
+        raise AssertionError(f'Requested provisioned concurrency for '
+                             f'lambda {function_name} must not be greater than '
+                             f'function concurrency limit if any or account '
+                             f'unreserved concurrency. '
+                             f'Max is set to {max_prov_limit}; '
+                             f'Requested: {requested_provisioned_level}')
 
-    else:
-        setup_concurrency_req = dict(
-            name=function_name,
-            qualifier=resolved_qualified,
-            provisioned_level=requested_provisioned_level,
-            type=qualifier)
-        _LAMBDA_CONCURRENCY_SETUP_MAPPING[qualifier](
-            **setup_concurrency_req)
+    _LAMBDA_CONN.configure_provisioned_concurrency(
+        name=function_name,
+        qualifier=resolved_qualified,
+        concurrent_executions=requested_provisioned_level)
+    _LOG.info(f'Provisioned concurrency has been configured for lambda '
+              f'{function_name} of type {qualifier}, '
+              f'value {requested_provisioned_level}')
 
 
 def _resolve_requested_qualifier(lambda_def, meta, qualifier):
     lambda_def['Alias'] = meta.get('alias')
     resolve_qualifier_req = lambda_def
-    # resolve_qualifier_req = \
-    # {
-    #   'Configuration':{lambda.get_function() resp},
-    #   'Alias':'${alias_name}
-    # }
     resolved_qualified = _LAMBDA_QUALIFIER_RESOLVER[qualifier](
         resolve_qualifier_req)
     return resolved_qualified
 
 
-def _resolve_existing_qualifier_type(existing_config):
+def _resolve_configured_existing_qualifier(existing_config):
     function_arn = existing_config.get('FunctionArn')
     parts = function_arn.split(':')
-    if len(parts) == 7:
-        return LAMBDA_CONCUR_QUALIFIER_FUNCTION, parts[-1]
-    else:
-        ending = parts[-1]
-        try:
-            version_value = int(ending)
-            return LAMBDA_CONCUR_QUALIFIER_VERSION, parts[-1]
-        except ValueError:
-            return LAMBDA_CONCUR_QUALIFIER_ALIAS, parts[-1]
+    return parts[-1]
 
 
 def _is_equal_lambda_layer(new_layer_sha, old_layer_name):
