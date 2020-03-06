@@ -28,7 +28,7 @@ with open(path.join(this_directory, 'README.md'), encoding='utf-8') as f:
 
 setup(
     name='aws-syndicate',
-    version='0.8.4',
+    version='0.9',
     packages=find_packages(),
     include_package_data=True,
     install_requires=[

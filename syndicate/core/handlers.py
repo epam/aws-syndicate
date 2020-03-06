@@ -48,6 +48,7 @@ from syndicate.core.helper import (check_required_param,
 
 
 @click.group(name='syndicate')
+@click.version_option(message='%(version)s')
 def syndicate():
     click.echo('Path to sdct.conf: ' + CONF_PATH)
 
