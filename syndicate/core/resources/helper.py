@@ -99,3 +99,16 @@ def build_description_obj(response, name, meta):
     if resource_type not in GLOBAL_AWS_SERVICES:
         obj['resource_meta']['region'] = meta.get('region', CONFIG.region)
     return obj
+
+
+def assert_required_params(required_params_names, all_params):
+    """
+    Raises error if there is at least one missing parameter.
+    :param required_params_names:
+    :param all_params:
+    :return:
+    """
+    missing = [param for param in required_params_names if
+               param not in all_params.keys()]
+    if missing:
+        raise AssertionError(f'Missing required parameters: {missing}')

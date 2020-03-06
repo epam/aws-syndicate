@@ -28,13 +28,13 @@ with open(path.join(this_directory, 'README.md'), encoding='utf-8') as f:
 
 setup(
     name='aws-syndicate',
-    version='0.8.3',
+    version='0.8.4',
     packages=find_packages(),
     include_package_data=True,
     install_requires=[
         'click==7.0',
-        'botocore==1.13.14',
-        'boto3==1.10.13',
+        'botocore==1.15.3',
+        'boto3==1.12.3',
         'configobj==5.0.6',
         'tqdm==4.19.5',
         'colorama==0.4.1'

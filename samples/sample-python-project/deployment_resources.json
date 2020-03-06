@@ -32,7 +32,8 @@
     "hash_key_name": "job_id",
     "hash_key_type": "S",
     "read_capacity": 1,
-    "write_capacity": 1
+    "write_capacity": 1,
+    "stream_view_type": "NEW_IMAGE"
   },
   "example-api": {
     "resource_name": "example-api",

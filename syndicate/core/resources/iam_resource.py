@@ -164,7 +164,7 @@ def _create_role_from_meta(name, meta):
         for policy in policies:
             arn = _IAM_CONN.get_policy_arn(policy)
             if not arn:
-                raise AssertionError('Can not get policy arn: %s.', policy)
+                raise AssertionError(f'Can not get policy arn: {policy}')
             _IAM_CONN.attach_policy(name, arn)
     else:
         raise AssertionError('There are no policies for role: %s.', name)

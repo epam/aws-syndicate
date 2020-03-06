@@ -172,7 +172,8 @@ def _create_api_gateway_from_meta(name, meta):
 
     api_resources = meta['resources']
 
-    api_id = _API_GATEWAY_CONN.create_rest_api(name)['id']
+    api_item = _API_GATEWAY_CONN.create_rest_api(name)
+    api_id = api_item['id']
 
     # deploy authorizers
     authorizers = meta.get('authorizers', {})
@@ -191,8 +192,11 @@ def _create_api_gateway_from_meta(name, meta):
                                             identity_source=val.get(
                                                 'identity_source'),
                                             ttl=val.get('ttl'))
-        _LAMBDA_CONN.add_invocation_permission(lambda_arn,
-                                               "apigateway.amazonaws.com")
+
+        _LAMBDA_CONN.add_invocation_permission(
+                    statement_id=api_id,
+                    name=lambda_arn,
+                    principal='apigateway.amazonaws.com')
     if api_resources:
         api_resp = meta.get('api_method_responses')
         api_integration_resp = meta.get('api_method_integration_responses')
@@ -439,8 +443,14 @@ def _create_method_from_metadata(api_id, resource_id, resource_path,
                 enable_proxy=enable_proxy,
                 cache_key_parameters=cache_key_parameters)
             # add permissions to invoke
-            _LAMBDA_CONN.add_invocation_permission(lambda_arn,
-                                                   "apigateway.amazonaws.com")
+            api_source_arn = f"arn:aws:execute-api:{CONFIG.region}:" \
+                f"{CONFIG.account_id}:{api_id}/*/{method}{resource_path}"
+            _LAMBDA_CONN.add_invocation_permission(
+                statement_id=(api_id + '-' + method + '-' +
+                              resource_path.replace('/', '')),
+                name=lambda_arn,
+                principal='apigateway.amazonaws.com',
+                source_arn=api_source_arn)
         elif integration_type == 'service':
             uri = method_meta.get('uri')
             role = method_meta.get('role')

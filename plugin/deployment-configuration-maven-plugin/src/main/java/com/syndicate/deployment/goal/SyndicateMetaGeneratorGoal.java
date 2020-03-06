@@ -98,6 +98,9 @@ public class SyndicateMetaGeneratorGoal extends AbstractMojo {
 	@Parameter(property = "maven.processor.generateBuildFile", defaultValue = "false")
 	private boolean generateBuildFile;
 
+	@Parameter(property = "maven.processor.buildId")
+	private String buildId;
+
 	@Parameter(required = true)
 	private String[] packages;
 
@@ -277,17 +280,20 @@ public class SyndicateMetaGeneratorGoal extends AbstractMojo {
 		if (getPropertyFromRootProject(project, SYNDICATE_BUILD_ID) != null) {
 			return;
 		}
-		String generatedBuildId = UUID.randomUUID().toString();
-		logger.info("Newly generated build id: " + generatedBuildId);
-		setPropertyToRootProject(project, SYNDICATE_BUILD_ID, generatedBuildId);
+		String buildId = this.buildId;
+		if (buildId == null) {
+			buildId = UUID.randomUUID().toString();
+			logger.info("Newly generated build id: " + buildId);
+		}
+		setPropertyToRootProject(project, SYNDICATE_BUILD_ID, buildId);
 		if (generateBuildFile) {
 			try {
 				String rootDirPath = getRootDirPath(project);
-				String sdctBuildFileName = generatedBuildId + BUILD_FILE_EXT;
+				String sdctBuildFileName = buildId + BUILD_FILE_EXT;
 				String filePathName = rootDirPath + '/' + sdctBuildFileName;
 				// never overrides the file due to check at the method beginning
 				writeToFile(rootDirPath, sdctBuildFileName,
-					JsonUtils.convertToJson(Collections.singletonMap("buildId", generatedBuildId)));
+					JsonUtils.convertToJson(Collections.singletonMap("buildId", buildId)));
 				logger.debug(filePathName + " file successfully created");
 			} catch (IOException e) {
 				logger.error("Failed to write " + BUILD_FILE_EXT, e);

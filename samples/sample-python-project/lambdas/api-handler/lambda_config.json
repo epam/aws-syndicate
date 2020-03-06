@@ -19,5 +19,10 @@
     "sqs_queue_name": "${sqs_queue_name}"
   },
   "publish_version": true,
-  "alias": "${lambda_alias_name}"
+  "alias": "${lambda_alias_name}",
+  "max_concurrency": 10,
+  "provisioned_concurrency": {
+    "qualifier": "VERSION",
+    "value": 8
+  }
 }
