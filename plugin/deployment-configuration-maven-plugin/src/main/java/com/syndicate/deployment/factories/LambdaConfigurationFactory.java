@@ -18,10 +18,12 @@ package com.syndicate.deployment.factories;
 
 import com.syndicate.deployment.annotations.lambda.LambdaConcurrency;
 import com.syndicate.deployment.annotations.lambda.LambdaHandler;
+import com.syndicate.deployment.annotations.lambda.LambdaProvisionedConcurrency;
 import com.syndicate.deployment.annotations.resources.DeadLetterConfiguration;
 import com.syndicate.deployment.model.DependencyItem;
 import com.syndicate.deployment.model.DeploymentRuntime;
 import com.syndicate.deployment.model.LambdaConfiguration;
+import com.syndicate.deployment.model.ProvisionedConcurrency;
 import com.syndicate.deployment.model.ResourceType;
 import com.syndicate.deployment.model.TracingMode;
 import com.syndicate.deployment.model.events.EventSourceItem;
@@ -78,6 +80,15 @@ public final class LambdaConfigurationFactory {
         if (lambdaConcurrency != null) {
             lambdaConfiguration.setConcurrentExecutions(lambdaConcurrency.executions());
         }
+
+        LambdaProvisionedConcurrency provisionedConcurrencyAnnotation = lambdaClass.getDeclaredAnnotation(LambdaProvisionedConcurrency.class);
+        if (provisionedConcurrencyAnnotation != null) {
+            ProvisionedConcurrency provisionedConcurrency = new ProvisionedConcurrency(
+            	provisionedConcurrencyAnnotation.type(),
+	            provisionedConcurrencyAnnotation.value());
+            lambdaConfiguration.setProvisionedConcurrency(provisionedConcurrency);
+        }
+
         DeadLetterConfiguration deadLetterConfiguration = lambdaClass.getDeclaredAnnotation(DeadLetterConfiguration.class);
         if (deadLetterConfiguration != null) {
             lambdaConfiguration.setDlResourceName(deadLetterConfiguration.resourceName());

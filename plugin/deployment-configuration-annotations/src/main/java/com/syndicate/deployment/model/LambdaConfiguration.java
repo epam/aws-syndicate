@@ -48,8 +48,11 @@ public class LambdaConfiguration {
     @JsonProperty("deployment_package")
     private String packageName;
 
-    @JsonProperty("concurrent_executions")
+    @JsonProperty("max_concurrency")
     private Integer concurrentExecutions;
+
+    @JsonProperty("provisioned_concurrency")
+    private ProvisionedConcurrency provisionedConcurrency;
 
     @JsonProperty("resource_type")
     private ResourceType resourceType;
@@ -132,6 +135,14 @@ public class LambdaConfiguration {
 
     public void setConcurrentExecutions(Integer concurrentExecutions) {
         this.concurrentExecutions = concurrentExecutions;
+    }
+
+    public ProvisionedConcurrency getProvisionedConcurrency() {
+        return provisionedConcurrency;
+    }
+
+    public void setProvisionedConcurrency(ProvisionedConcurrency provisionedConcurrency) {
+        this.provisionedConcurrency = provisionedConcurrency;
     }
 
     public ResourceType getResourceType() {
@@ -274,6 +285,12 @@ public class LambdaConfiguration {
         public Builder withConcurrentExecutions(Integer concurrentExecutions) {
             Objects.requireNonNull(concurrentExecutions, "Сoncurrent executions cannot be null");
             configuration.concurrentExecutions = concurrentExecutions;
+            return this;
+        }
+
+        public Builder withProvisionedConcurrency(ProvisionedConcurrency provisionedConcurrency) {
+            Objects.requireNonNull(provisionedConcurrency, "Provisioned concurrency configuration object cannot be null");
+            configuration.provisionedConcurrency = provisionedConcurrency;
             return this;
         }
 

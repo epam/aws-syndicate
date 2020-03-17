@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.4] - 2020-03-06
+### Added
+- Lambda provisioned concurrency configuration.
+- LambdaProvisionedConcurrency java annotation added aws-syndicate mvn plugin.
+- deployment-configuration-processor version bump to 1.5.8.
+### Changed
+- Lambda concurrency configuration field renamed in lambda_config.json from concurrency to max_concurrency.
+
 ## [0.8.3] - 2019-06-12
 ### Added
 - Generation meta for Lambda Layers.

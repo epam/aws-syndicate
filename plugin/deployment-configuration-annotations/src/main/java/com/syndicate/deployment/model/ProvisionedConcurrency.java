@@ -1,0 +1,54 @@
+/*
+ * Copyright 2018 EPAM Systems, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+ package com.syndicate.deployment.model;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+/**
+ * Created by Oleksandr Onsha on 2020-02-26
+ */
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public class ProvisionedConcurrency {
+
+	@JsonProperty("qualifier")
+	private ProvisionedConcurrencyType qualifier;
+
+	@JsonProperty("value")
+	private int value;
+
+	public ProvisionedConcurrency(ProvisionedConcurrencyType qualifier, int value) {
+		this.qualifier = qualifier;
+		this.value = value;
+	}
+
+	public ProvisionedConcurrencyType getQualifier() {
+		return qualifier;
+	}
+
+	public void setQualifier(ProvisionedConcurrencyType qualifier) {
+		this.qualifier = qualifier;
+	}
+
+	public int getValue() {
+		return value;
+	}
+
+	public void setValue(int value) {
+		this.value = value;
+	}
+}
