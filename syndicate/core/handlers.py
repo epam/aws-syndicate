@@ -48,6 +48,7 @@ from syndicate.core.helper import (check_required_param,
 
 
 @click.group(name='syndicate')
+@click.version_option()
 def syndicate():
     click.echo('Path to sdct.conf: ' + CONF_PATH)
 
@@ -69,6 +70,26 @@ def syndicate():
 def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
           clean_only_resources_path, excluded_resources,
           excluded_resources_path, excluded_types, rollback):
+    """
+    Cleans the application infrastructure.
+    :param deploy_name: name of the deploy
+    :param bundle_name: name of the bundle
+    :param clean_only_types: list of types that must be cleaned
+    :param clean_only_resources: list of names of resources that
+        must be cleaned
+    :param clean_only_resources_path: path to a json list which contains a list
+        of resources names which must be cleaned
+    :param excluded_resources: list of the resources names than must be skipped
+        while cleaning the application infrastructure
+    :param excluded_resources_path: path to a json list which contains a list
+        of resources names which must be skipped while cleaning
+        the application infrastructure
+    :param excluded_types: list of types that must be skipped while cleaning
+        the application infrastructure
+    :param rollback: used to clean resources that were created in scope of the
+        failed deploy
+    :return:
+    """
     click.echo('Command clean')
     click.echo('Deploy name: %s' % deploy_name)
     if clean_only_types:
@@ -119,6 +140,12 @@ def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
 @click.option('--project_path', '-path', nargs=1,
               callback=resolve_path_callback)
 def assemble_java_mvn(bundle_name, project_path):
+    """
+    Builds Java lambdas
+    :param bundle_name: name of the bundle
+    :param project_path: path to project folder
+    :return:
+    """
     click.echo('Command compile java project path: %s' % project_path)
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
@@ -132,6 +159,12 @@ def assemble_java_mvn(bundle_name, project_path):
 @click.option('--project_path', '-path', nargs=1,
               callback=resolve_path_callback)
 def assemble_python(bundle_name, project_path):
+    """
+    Builds Python lambdas
+    :param bundle_name: name of the bundle
+    :param project_path: path to project folder
+    :return:
+    """
     click.echo('Command assemble python: project_path: %s ' % project_path)
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
@@ -145,6 +178,12 @@ def assemble_python(bundle_name, project_path):
 @click.option('--project_path', '-path', nargs=1,
               callback=resolve_path_callback)
 def assemble_node(bundle_name, project_path):
+    """
+    Builds NodeJS lambdas
+    :param bundle_name: name of the bundle
+    :param project_path: path to project folder
+    :return:
+    """
     click.echo('Command assemble node: project_path: %s ' % project_path)
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
@@ -164,6 +203,13 @@ COMMAND_TO_BUILD_MAPPING = {
 @click.option('--bundle_name', nargs=1, callback=create_bundle_callback)
 @click.pass_context
 def build_artifacts(ctx, bundle_name):
+    """
+    Builds the application artifacts
+    :param ctx:
+    :param bundle_name: name of the bundle to which the artifacts
+        will be associated
+    :return:
+    """
     click.echo('Building artifacts ...')
     if CONFIG.build_projects_mapping:
         for key, values in CONFIG.build_projects_mapping.items():
@@ -185,6 +231,11 @@ def build_artifacts(ctx, bundle_name):
 @timeit
 @click.option('--bundle_name', nargs=1, callback=verify_bundle_callback)
 def package_meta(bundle_name):
+    """
+    Generates metadata about the application infrastructure
+    :param bundle_name: name of the bundle to generate metadata
+    :return:
+    """
     click.echo('Package meta, bundle: %s' % bundle_name)
     create_meta(bundle_name)
     click.echo('Meta was configured successfully.')
@@ -196,6 +247,10 @@ def package_meta(bundle_name):
 @syndicate.command(name='create_deploy_target_bucket')
 @timeit
 def create_deploy_target_bucket():
+    """
+    Creates a bucket in AWS account where all bundles will be uploaded
+    :return:
+    """
     click.echo('Create deploy target sdk: %s' % CONFIG.deploy_target_bucket)
     create_bundles_bucket()
     click.echo('Deploy target bucket was created successfully')
@@ -206,6 +261,13 @@ def create_deploy_target_bucket():
 @click.option('--bundle_name', nargs=1, callback=verify_meta_bundle_callback)
 @click.option('--force', is_flag=True)
 def upload_bundle(bundle_name, force=False):
+    """
+    Uploads bundle from local storage to AWS S3
+    :param bundle_name: name of the bundle to upload
+    :param force: used if the bundle with the same name as provided
+        already exists in an account
+    :return:
+    """
     click.echo('Upload bundle: %s' % bundle_name)
     if force:
         click.echo('Force upload')
@@ -229,6 +291,20 @@ def upload_bundle(bundle_name, force=False):
 @click.pass_context
 def copy_bundle(ctx, bundle_name, src_account_id, src_bucket_region,
                 src_bucket_name, role_name, force_upload):
+    """
+    Copies the bundle from the specified account-region-bucket to
+        account-region-bucket specified in sdct.conf
+    :param ctx:
+    :param bundle_name: name of the bundle to copy
+    :param src_account_id: id of the account where target bundle is stored
+    :param src_bucket_region: region of the bucket where target bundle
+        is stored
+    :param src_bucket_name: name of the bucket where target bundle is stored
+    :param role_name: name of the role that is assumed while copying
+    :param force_upload: used if the bundle with the same name as provided
+        already exists in a target account
+    :return:
+    """
     click.echo('Copy bundle: %s' % bundle_name)
     click.echo('Bundle name: %s' % bundle_name)
     click.echo('Source account id: %s' % src_account_id)
@@ -251,6 +327,13 @@ def copy_bundle(ctx, bundle_name, src_account_id, src_bucket_region,
 @click.pass_context
 @timeit
 def build_bundle(ctx, bundle_name, force_upload):
+    """
+    Builds bundle of an application
+    :param ctx:
+    :param bundle_name: name of the bundle
+    :param force_upload: used to override existing bundle
+    :return:
+    """
     if if_bundle_exist(bundle_name=bundle_name) and not force_upload:
         click.echo('Bundle name \'{0}\' already exists '
                    'in deploy bucket. Please use another bundle '
@@ -281,6 +364,26 @@ def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
            deploy_only_resources_path, excluded_resources,
            excluded_resources_path, excluded_types, continue_deploy,
            replace_output):
+    """
+    Deploys infrastructure from the specified bundle
+    :param deploy_name: name of the deploy
+    :param bundle_name: name of the bundle
+    :param deploy_only_types: list of types of the resources to deploy
+    :param deploy_only_resources: list of resources names to deploy
+    :param deploy_only_resources_path: path to a json file that contains
+        a list of resources names to deploy
+    :param excluded_resources: names of the resources which must be
+        skipped while deploy
+    :param excluded_resources_path: path to a json file that contains a list
+        of resources names which must be skipped while deploy
+    :param excluded_types: list of types of resources which must be
+        skipped while deploy
+    :param continue_deploy: continues deploy using the failed output.
+        Used only after previous deploy fail.
+    :param replace_output: flag to override the output file.
+        Used if previous output file must be overridden.
+    :return:
+    """
     click.echo('Command deploy backend')
     click.echo('Deploy name: %s' % deploy_name)
     if deploy_only_resources_path and os.path.exists(
@@ -328,8 +431,8 @@ def update(bundle_name, deploy_name, replace_output,
            update_only_resources_path,
            update_only_types=[]):
     """
-    Updates infrastructure from the provided bundle.
-    :param bundle_name: name of the bundle to get updated meta
+    Updates infrastructure from the provided bundle
+    :param bundle_name: name of the bundle
     :param deploy_name: name of the deploy
     :param update_only_resources: list of resources names to updated
     :param update_only_resources_path: path to a json file with list of

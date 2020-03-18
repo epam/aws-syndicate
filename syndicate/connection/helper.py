@@ -53,6 +53,7 @@ def retry(handler_func):
             'ConflictException',
             'An error occurred (InvalidParameterValueException) when calling'
             'CreateEventSourceMapping operation',
+            'The role defined for the function cannot be assumed by Lambda',
             'An error occurred (ResourceConflictException) when calling'
             ' the AddPermission operation: The statement id',
             'NoSuchUpload',
