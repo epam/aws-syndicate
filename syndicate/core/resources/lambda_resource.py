@@ -180,6 +180,7 @@ def _setup_function_concurrency(name, meta):
 
 
 @unpack_kwargs
+@retry
 def _create_lambda_from_meta(name, meta):
     _LOG.debug('Creating lambda %s', name)
     req_params = ['iam_role_name', 'runtime', 'memory', 'timeout', 'func_name']

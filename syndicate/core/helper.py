@@ -37,7 +37,7 @@ _LOG = get_logger('syndicate.core.helper')
 
 
 def create_pool(func, args, workers=None, *kwargs):
-    """ Create lambdas in pool in sub processes.
+    """ Create resources in pool in sub processes.
 
     :type args: iterable
     :type func: func
