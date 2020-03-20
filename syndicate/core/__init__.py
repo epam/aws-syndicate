@@ -36,20 +36,11 @@ def exception_handler(exception_type, exception, traceback):
 
 # sys.excepthook = exception_handler
 
-# suppress botocore warnings
-
-try:
-    CONF_PATH = os.environ['SDCT_CONF']
-except KeyError:
-    raise AssertionError('Environment variable SDCT_CONF is not set! '
-                         'Please verify that you configured '
-                         'framework correctly.')
-
 # CONF VARS ===================================================================
-CONFIG = ConfigHolder(CONF_PATH)
-
-sts = STSConnection(CONFIG.region, CONFIG.aws_access_key_id,
-                    CONFIG.aws_secret_access_key)
+CONF_PATH = None
+CONFIG = None
+CONN = None
+CREDENTIALS = None
 
 
 def _ready_to_assume():
@@ -62,26 +53,41 @@ def _ready_to_use_creds():
            CONFIG.aws_secret_access_key
 
 
-try:
-    CREDENTIALS = {
-        'region': CONFIG.region
-    }
-    if _ready_to_assume():
-        _LOG.debug('Starting to assume role ...')
-        # get credentials for 12 hours
-        temp_credentials = sts.get_temp_credentials(CONFIG.access_role,
-                                                    CONFIG.account_id,
-                                                    43200)
-        _LOG.debug('Role %s is assumed successfully' % CONFIG.access_role)
-        CREDENTIALS[ACCESS_KEY] = temp_credentials['AccessKeyId']
-        CREDENTIALS[SECRET_KEY] = temp_credentials['SecretAccessKey']
-        CREDENTIALS[SESSION_TOKEN] = temp_credentials['SessionToken']
-    elif _ready_to_use_creds():
-        _LOG.debug('Credentials access')
-        CREDENTIALS[ACCESS_KEY] = CONFIG.aws_access_key_id
-        CREDENTIALS[SECRET_KEY] = CONFIG.aws_secret_access_key
-    CONN = ConnectionProvider(CREDENTIALS)
-except ClientError:
-    raise AssertionError('Cannot assume {0} role. '
-                         'Please verify that you have configured '
-                         'the role correctly.'.format(CONFIG.access_role))
+def initialize_connection():
+    global CONFIG
+    global CONN
+    global CONF_PATH
+    global CREDENTIALS
+
+    CONF_PATH = os.environ.get('SDCT_CONF')
+    if not CONF_PATH:
+        raise AssertionError('Environment variable SDCT_CONF is not set! '
+                             'Please verify that you configured '
+                             'framework correctly.')
+
+    CONFIG = ConfigHolder(CONF_PATH)
+    sts = STSConnection(CONFIG.region, CONFIG.aws_access_key_id,
+                        CONFIG.aws_secret_access_key)
+    try:
+        CREDENTIALS = {
+            'region': CONFIG.region
+        }
+        if _ready_to_assume():
+            _LOG.debug('Starting to assume role ...')
+            # get CREDENTIALS for 12 hours
+            temp_credentials = sts.get_temp_credentials(CONFIG.access_role,
+                                                        CONFIG.account_id,
+                                                        43200)
+            _LOG.debug('Role %s is assumed successfully' % CONFIG.access_role)
+            CREDENTIALS[ACCESS_KEY] = temp_credentials['AccessKeyId']
+            CREDENTIALS[SECRET_KEY] = temp_credentials['SecretAccessKey']
+            CREDENTIALS[SESSION_TOKEN] = temp_credentials['SessionToken']
+        elif _ready_to_use_creds():
+            _LOG.debug('Credentials access')
+            CREDENTIALS[ACCESS_KEY] = CONFIG.aws_access_key_id
+            CREDENTIALS[SECRET_KEY] = CONFIG.aws_secret_access_key
+        CONN = ConnectionProvider(CREDENTIALS)
+    except ClientError:
+        raise AssertionError('Cannot assume {0} role. '
+                             'Please verify that you have configured '
+                             'the role correctly.'.format(CONFIG.access_role))

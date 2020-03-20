@@ -22,6 +22,16 @@ from syndicate.commons.log_helper import get_logger
 from syndicate.core.constants import (DEFAULT_SEP, IAM_POLICY, IAM_ROLE,
                                       S3_BUCKET_TYPE)
 
+RESOURCES_SUFFIX_CFG = 'resources_suffix'
+RESOURCES_PREFIX_CFG = 'resources_prefix'
+SECRET_ACCESS_KEY_CFG = 'aws_secret_access_key'
+AWS_ACCESS_KEY_ID_CFG = 'aws_access_key_id'
+PROJECTS_MAPPING_CFG = 'build_projects_mapping'
+ACCOUNT_ID_CFG = 'account_id'
+DEPLOY_TARGET_BUCKET_CFG = 'deploy_target_bucket'
+REGION_CFG = 'region'
+PROJECT_PATH_CFG = 'project_path'
+
 CONFIG_FILE_NAME = 'sdct.conf'
 
 _LOG = get_logger('core.conf.config_holder')
@@ -41,25 +51,31 @@ ALLOWED_BUILDS = [PYTHON_BUILD_TOOL_NAME, MVN_BUILD_TOOL_NAME,
                   NODE_BUILD_TOOL_NAME]
 
 REQUIRED_PARAMETERS = {
-    'project_path': 'string(min=1)',
-    'region': "region_func",
-    'deploy_target_bucket': 'string(min=3, max=63)',
-    'account_id': 'account_func',
-    'build_projects_mapping': 'project_func'
+    PROJECT_PATH_CFG: 'string(min=1)',
+    REGION_CFG: "region_func",
+    DEPLOY_TARGET_BUCKET_CFG: 'string(min=3, max=63)',
+    ACCOUNT_ID_CFG: 'account_func',
+    PROJECTS_MAPPING_CFG: 'project_func'
 }
 
+ALL_CONFIG_PARAMETERS = [
+    AWS_ACCESS_KEY_ID_CFG, SECRET_ACCESS_KEY_CFG,
+    RESOURCES_PREFIX_CFG, RESOURCES_SUFFIX_CFG
+]
+ALL_CONFIG_PARAMETERS.extend(REQUIRED_PARAMETERS.keys())
+
 ERROR_MESSAGE_MAPPING = {
-    'project_path': 'cannot be empty',
-    'region': "is invalid. Valid options: " + str(ALL_REGIONS),
-    'deploy_target_bucket': 'length must be between 3 and 63 characters',
-    'account_id': 'must be 12-digit number',
-    'build_projects_mapping': "must be as a mapping of build tool to project "
+    PROJECT_PATH_CFG: 'cannot be empty',
+    REGION_CFG: "is invalid. Valid options: " + str(ALL_REGIONS),
+    DEPLOY_TARGET_BUCKET_CFG: 'length must be between 3 and 63 characters',
+    ACCOUNT_ID_CFG: 'must be 12-digit number',
+    PROJECTS_MAPPING_CFG: "must be as a mapping of build tool to project "
                               "path, separated by ';'. Build tool name "
                               "and project path should be separated by ':'."
                               " Allowed build "
                               "tools values: " + str(ALLOWED_BUILDS),
-    'resources_prefix': 'length must be less than or equal to 5',
-    'resources_suffix': 'length must be less than or equal to 5'
+    RESOURCES_PREFIX_CFG: 'length must be less than or equal to 5',
+    RESOURCES_SUFFIX_CFG: 'length must be less than or equal to 5'
 }
 
 
@@ -124,21 +140,21 @@ class ConfigHolder:
         # validate
         param_valid_dict = self._config_dict.validate(validator=validator)
         # check non-required parameters
-        prefix_value = self._config_dict.get('resources_prefix')
+        prefix_value = self._config_dict.get(RESOURCES_PREFIX_CFG)
         if prefix_value:
             if len(prefix_value) > 5:
                 if not isinstance(param_valid_dict, dict):
-                    param_valid_dict = {'resources_prefix': False}
+                    param_valid_dict = {RESOURCES_PREFIX_CFG: False}
                 else:
-                    param_valid_dict['resources_prefix'] = False
+                    param_valid_dict[RESOURCES_PREFIX_CFG] = False
 
-        suffix_value = self._config_dict.get('resources_suffix')
+        suffix_value = self._config_dict.get(RESOURCES_SUFFIX_CFG)
         if suffix_value:
             if len(suffix_value) > 5:
                 if not isinstance(param_valid_dict, dict):
-                    param_valid_dict = {'resources_suffix': False}
+                    param_valid_dict = {RESOURCES_SUFFIX_CFG: False}
                 else:
-                    param_valid_dict['resources_suffix'] = False
+                    param_valid_dict[RESOURCES_SUFFIX_CFG] = False
 
         # processing results
         if isinstance(param_valid_dict, dict):
@@ -164,11 +180,11 @@ class ConfigHolder:
 
     @property
     def project_path(self):
-        return path_resolver(self._resolve_variable('project_path'))
+        return path_resolver(self._resolve_variable(PROJECT_PATH_CFG))
 
     @property
     def account_id(self):
-        return self._resolve_variable('account_id')
+        return self._resolve_variable(ACCOUNT_ID_CFG)
 
     @property
     def access_role(self):
@@ -176,24 +192,24 @@ class ConfigHolder:
 
     @property
     def aws_access_key_id(self):
-        return self._resolve_variable('aws_access_key_id')
+        return self._resolve_variable(AWS_ACCESS_KEY_ID_CFG)
 
     @property
     def aws_secret_access_key(self):
-        return self._resolve_variable('aws_secret_access_key')
+        return self._resolve_variable(SECRET_ACCESS_KEY_CFG)
 
     @property
     def region(self):
-        return self._resolve_variable('region')
+        return self._resolve_variable(REGION_CFG)
 
     @property
     def deploy_target_bucket(self):
-        return self._resolve_variable('deploy_target_bucket')
+        return self._resolve_variable(DEPLOY_TARGET_BUCKET_CFG)
 
     # mapping build tool : paths to project
     @property
     def build_projects_mapping(self):
-        mapping_value = self._resolve_variable('build_projects_mapping')
+        mapping_value = self._resolve_variable(PROJECTS_MAPPING_CFG)
         if mapping_value:
             mapping_dict = {}
             for i in mapping_value.split(';'):
@@ -208,7 +224,7 @@ class ConfigHolder:
 
     @property
     def resources_prefix(self):
-        prefix = self._resolve_variable('resources_prefix')
+        prefix = self._resolve_variable(RESOURCES_PREFIX_CFG)
         if prefix is None:
             return ''
         else:
@@ -216,7 +232,7 @@ class ConfigHolder:
 
     @property
     def resources_suffix(self):
-        suffix = self._resolve_variable('resources_suffix')
+        suffix = self._resolve_variable(RESOURCES_SUFFIX_CFG)
         if suffix is None:
             return ''
         else:

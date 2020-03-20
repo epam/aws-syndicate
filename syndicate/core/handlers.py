@@ -18,7 +18,7 @@ import os
 
 import click
 
-from syndicate.core import CONFIG, CONF_PATH
+from syndicate.core import CONFIG, CONF_PATH, initialize_connection
 from syndicate.core.build.artifact_processor import (RUNTIME_NODEJS,
                                                      assemble_artifacts,
                                                      RUNTIME_JAVA_8,
@@ -32,6 +32,7 @@ from syndicate.core.build.deployment_processor import (
     remove_deployment_resources, remove_failed_deploy_resources,
     update_deployment_resources)
 from syndicate.core.build.meta_processor import create_meta
+from syndicate.core.conf.config_generator import generate_configuration_files
 from syndicate.core.conf.config_holder import (MVN_BUILD_TOOL_NAME,
                                                PYTHON_BUILD_TOOL_NAME,
                                                NODE_BUILD_TOOL_NAME)
@@ -51,6 +52,59 @@ from syndicate.core.helper import (check_required_param,
 @click.version_option()
 def syndicate():
     click.echo('Path to sdct.conf: ' + CONF_PATH)
+    initialize_connection()
+
+
+@click.command(name='init')
+@click.option('--config_path', nargs=1,
+              help='Path to store generated configuration file')
+@click.option('--project_path', nargs=1,
+              help='Path to project folder. Default value: working dir')
+# account settings
+@click.option('--region', nargs=1, type=str, default='us-west-1',
+              help='The region that is used to deploy the application')
+@click.option('--account_id', nargs=1, callback=check_required_param, type=int,
+              help='[required] Id of the AWS account where to deploy '
+                   'application')
+@click.option('--access_key', args=1, type=str,
+              help='AWS access key id that is used to deploy the application.')  # todo get from .aws/credentials/[default] if not specified
+@click.option('--secret_key', args=1, type=str,
+              help='AWS secret key that is used to deploy the application.')  # todo get from .aws/credentials/[default] if not specified
+@click.option('--bundle_bucket_name', nargs=1, type=str,
+              help='Name of the bucket that is used for uploading artifacts. '
+                   'It will be created if specified.')
+# build_projects_mapping
+@click.option('--python_build_mapping', '-pbm', multiple=True,
+              help='List of the folders in a project where '
+                   'Python code must be assembled')
+@click.option('--java_build_mapping', '-jbm', multiple=True,
+              help='List of the folders in a project where '
+                   'Java code must be assembled')
+@click.option('--node_build_mapping', '-nbm', multiple=True,
+              help='List of the folders in a project where '
+                   'NodeJS code must be assembled')
+# deploy setting
+@click.option('--prefix', nargs=1, type=str,
+              help='Prefix that is added to project names while deployment '
+                   'by pattern: {prefix}resource_name{suffix}')
+@click.option('--suffix', nargs=1, type=str,
+              help='Suffix that is added to project names while deployment '
+                   'by pattern: {prefix}resource_name{suffix}')
+def init(config_path, path_to_project, region, account_id, access_key,
+         secret_key, bundle_bucket_name, python_build_mapping,
+         java_build_mapping, node_build_mapping, prefix, suffix):
+    generate_configuration_files(config_path=config_path,
+                                 project_path=path_to_project,
+                                 region=region,
+                                 account_id=account_id,
+                                 access_key=access_key,
+                                 secret_key=secret_key,
+                                 bundle_bucket_name=bundle_bucket_name,
+                                 python_build_mapping=python_build_mapping,
+                                 java_build_mapping=java_build_mapping,
+                                 node_build_mapping=node_build_mapping,
+                                 prefix=prefix,
+                                 suffix=suffix)
 
 
 # =============================================================================

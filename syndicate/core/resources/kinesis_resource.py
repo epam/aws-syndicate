@@ -16,57 +16,57 @@
 import time
 
 from syndicate.commons.log_helper import get_logger
-from syndicate.core import CONN, ClientError
+from syndicate.core import ClientError
 from syndicate.core.helper import create_pool, unpack_kwargs
 from syndicate.core.resources.helper import build_description_obj
 
 _LOG = get_logger('syndicate.core.resources.kinesis_resource')
-_KINESIS_CONN = CONN.kinesis()
 
 
-def create_kinesis_stream(args):
-    return create_pool(_create_kinesis_stream_from_meta, args)
+class KinesisResource:
 
+    def __init__(self, kin_conn) -> None:
+        self.kin_conn = kin_conn
 
-def remove_kinesis_streams(args):
-    create_pool(_remove_kinesis_stream, args)
+    def create_kinesis_stream(self, args):
+        return create_pool(self._create_kinesis_stream_from_meta, args)
 
+    def remove_kinesis_streams(self, args):
+        create_pool(self._remove_kinesis_stream, args)
 
-@unpack_kwargs
-def _remove_kinesis_stream(arn, config):
-    stream_name = config['resource_name']
-    try:
-        _KINESIS_CONN.remove_stream(stream_name=stream_name)
-        _LOG.info('Kinesis stream %s was removed.', stream_name)
-    except ClientError as e:
-        if e.response['Error']['Code'] == 'ResourceNotFoundException':
-            _LOG.warn('Kinesis stream %s is not found', stream_name)
-        else:
-            raise e
+    @unpack_kwargs
+    def _remove_kinesis_stream(self, arn, config):
+        stream_name = config['resource_name']
+        try:
+            self.kin_conn.remove_stream(stream_name=stream_name)
+            _LOG.info('Kinesis stream %s was removed.', stream_name)
+        except ClientError as e:
+            if e.response['Error']['Code'] == 'ResourceNotFoundException':
+                _LOG.warn('Kinesis stream %s is not found', stream_name)
+            else:
+                raise e
 
+    @unpack_kwargs
+    def _create_kinesis_stream_from_meta(self, name, meta):
+        response = self.kin_conn.get_stream(name)
+        if response:
+            stream_status = response['StreamDescription']['StreamStatus']
+            if stream_status == 'DELETING':
+                _LOG.debug('Waiting for deletion kinesis stream %s...', name)
+                time.sleep(120)
+            else:
+                _LOG.warn('%s kinesis stream exists', name)
+                return {
+                    response['StreamARN']: build_description_obj(response,
+                                                                 name, meta)
+                }
+        self.kin_conn.create_stream(stream_name=name,
+                                    shard_count=meta['shard_count'])
+        _LOG.info('Created kinesis stream %s.', name)
+        return self.describe_kinesis_stream(name=name, meta=meta)
 
-@unpack_kwargs
-def _create_kinesis_stream_from_meta(name, meta):
-    response = _KINESIS_CONN.get_stream(name)
-    if response:
-        stream_status = response['StreamDescription']['StreamStatus']
-        if stream_status == 'DELETING':
-            _LOG.debug('Waiting for deletion kinesis stream %s...', name)
-            time.sleep(120)
-        else:
-            _LOG.warn('%s kinesis stream exists', name)
-            return {
-                response['StreamARN']: build_description_obj(response,
-                                                             name, meta)
-            }
-    _KINESIS_CONN.create_stream(stream_name=name,
-                                shard_count=meta['shard_count'])
-    _LOG.info('Created kinesis stream %s.', name)
-    return describe_kinesis_stream(name=name, meta=meta)
-
-
-def describe_kinesis_stream(name, meta):
-    response = _KINESIS_CONN.get_stream(name)
-    return {
-        response['StreamARN']: build_description_obj(response, name, meta)
-    }
+    def describe_kinesis_stream(self, name, meta):
+        response = self.kin_conn.get_stream(name)
+        return {
+            response['StreamARN']: build_description_obj(response, name, meta)
+        }
