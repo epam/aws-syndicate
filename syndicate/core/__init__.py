@@ -14,6 +14,7 @@
     limitations under the License.
 """
 import os
+import sys
 
 from botocore.exceptions import ClientError
 
@@ -21,10 +22,11 @@ from syndicate.commons.log_helper import get_logger
 from syndicate.connection import ConnectionProvider
 from syndicate.connection.sts_connection import STSConnection
 from syndicate.core.conf.config_holder import ConfigHolder
+from syndicate.core.resources._processors_mapping import ProcessorFacade
+from syndicate.core.resources.resources_provider import ResourceProvider
 
 _LOG = get_logger('deployment.__init__')
 
-S3_PATH_NAME = 's3_path'
 SESSION_TOKEN = 'aws_session_token'
 SECRET_KEY = 'aws_secret_access_key'
 ACCESS_KEY = 'aws_access_key_id'
@@ -41,6 +43,8 @@ CONF_PATH = None
 CONFIG = None
 CONN = None
 CREDENTIALS = None
+RESOURCES_PROVIDER = None
+PROCESSOR_FACADE = None
 
 
 def _ready_to_assume():
@@ -58,12 +62,15 @@ def initialize_connection():
     global CONN
     global CONF_PATH
     global CREDENTIALS
+    global RESOURCES_PROVIDER
+    global PROCESSOR_FACADE
 
     CONF_PATH = os.environ.get('SDCT_CONF')
     if not CONF_PATH:
-        raise AssertionError('Environment variable SDCT_CONF is not set! '
-                             'Please verify that you configured '
-                             'framework correctly.')
+        _LOG.warn('Environment variable SDCT_CONF is not set! '
+                  'Please verify that you configured have provided path to '
+                  'correct config files or execute `syndicate init` command.')
+        sys.exit(0)
 
     CONFIG = ConfigHolder(CONF_PATH)
     sts = STSConnection(CONFIG.region, CONFIG.aws_access_key_id,
@@ -87,6 +94,11 @@ def initialize_connection():
             CREDENTIALS[ACCESS_KEY] = CONFIG.aws_access_key_id
             CREDENTIALS[SECRET_KEY] = CONFIG.aws_secret_access_key
         CONN = ConnectionProvider(CREDENTIALS)
+        RESOURCES_PROVIDER = ResourceProvider(config=CONFIG,
+                                              credentials=CREDENTIALS,
+                                              sts_conn=sts)
+        PROCESSOR_FACADE = ProcessorFacade(
+            resources_provider=RESOURCES_PROVIDER)
     except ClientError:
         raise AssertionError('Cannot assume {0} role. '
                              'Please verify that you have configured '

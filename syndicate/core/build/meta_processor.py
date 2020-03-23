@@ -17,7 +17,6 @@ import os
 from json import load
 
 from syndicate.commons.log_helper import get_logger
-from syndicate.core import CONFIG, S3_PATH_NAME
 from syndicate.core.build.helper import build_py_package_name
 from syndicate.core.build.validator.mapping import (VALIDATOR_BY_TYPE_MAPPING,
                                                     ALL_TYPES)
@@ -26,7 +25,8 @@ from syndicate.core.constants import (API_GATEWAY_TYPE, ARTIFACTS_FOLDER,
                                       BUILD_META_FILE_NAME, EBS_TYPE,
                                       LAMBDA_CONFIG_FILE_NAME, LAMBDA_TYPE,
                                       RESOURCES_FILE_NAME, RESOURCE_LIST,
-                                      IAM_ROLE, LAMBDA_LAYER_TYPE)
+                                      IAM_ROLE, LAMBDA_LAYER_TYPE,
+                                      S3_PATH_NAME)
 from syndicate.core.helper import (build_path, prettify_json,
                                    resolve_aliases_for_string,
                                    write_content_to_file)
@@ -37,9 +37,9 @@ DEFAULT_IAM_SUFFIX_LENGTH = 5
 _LOG = get_logger('syndicate.core.build.meta_processor')
 
 
-def validate_deployment_packages(meta_resources):
+def validate_deployment_packages(project_path, meta_resources):
     package_paths = artifact_paths(meta_resources)
-    bundles_path = build_path(CONFIG.project_path, ARTIFACTS_FOLDER)
+    bundles_path = build_path(project_path, ARTIFACTS_FOLDER)
     nonexistent_packages = []
     for package in package_paths:
         package_path = build_path(bundles_path, package)
@@ -156,7 +156,7 @@ def _check_duplicated_resources(initial_meta_dict, additional_item_name,
             else:
                 raise AssertionError(
                     "Error! Two resources with equal names were found! Name:"
-                    " {0}. Please, rename one of them. Fist resource: {1}. "
+                    " {0}. Please, rename one of them. First resource: {1}. "
                     "Second resource: {2}".format(additional_item_name,
                                                   initial_item,
                                                   additional_item))
@@ -204,9 +204,10 @@ def _populate_s3_path_lambda(meta, bundle_name):
 def _populate_s3_path_lambda_layer(meta, bundle_name):
     deployment_package = meta.get('deployment_package')
     if not deployment_package:
-        raise AssertionError('Lambda Layer config must contain deployment_package. '
-                             'Existing configuration'
-                             ': {0}'.format(prettify_json(meta)))
+        raise AssertionError(
+            'Lambda Layer config must contain deployment_package. '
+            'Existing configuration'
+            ': {0}'.format(prettify_json(meta)))
     else:
         meta[S3_PATH_NAME] = build_path(bundle_name, deployment_package)
 
@@ -300,13 +301,13 @@ def _look_for_configs(nested_files, resources_meta, path, bundle_name):
 
 
 # todo validate all required configs
-def create_resource_json(bundle_name):
+def create_resource_json(project_path, bundle_name):
     """ Create resource catalog json with all resource metadata in project.
     :type bundle_name: name of the bucket subdir
     """
     resources_meta = {}
 
-    for path, _, nested_items in os.walk(CONFIG.project_path):
+    for path, _, nested_items in os.walk(project_path):
         # there is no duplicates in single json, because json is a dict
 
         _look_for_configs(nested_items, resources_meta, path, bundle_name)
@@ -346,17 +347,19 @@ def _resolve_names_in_meta(resources_dict, old_value, new_value):
                     resources_dict.append(new_value)
 
 
-def create_meta(bundle_name):
+def create_meta(project_path, bundle_name):
     # create overall meta.json with all resource meta info
-    meta_path = build_path(CONFIG.project_path, ARTIFACTS_FOLDER,
+    meta_path = build_path(project_path, ARTIFACTS_FOLDER,
                            bundle_name)
     _LOG.info("Bundle path: {0}".format(meta_path))
-    overall_meta = create_resource_json(bundle_name=bundle_name)
+    overall_meta = create_resource_json(project_path=project_path,
+                                        bundle_name=bundle_name)
 
     write_content_to_file(meta_path, BUILD_META_FILE_NAME, overall_meta)
 
 
 def resolve_meta(overall_meta):
+    from syndicate.core import CONFIG
     iam_suffix = _resolve_iam_suffix(iam_suffix=CONFIG.iam_suffix)
     if CONFIG.aliases:
         for key, value in CONFIG.aliases.items():
@@ -371,7 +374,10 @@ def resolve_meta(overall_meta):
     for name, res_meta in overall_meta.items():
         resource_type = res_meta['resource_type']
         if resource_type in GLOBAL_AWS_SERVICES:
-            resolved_name = resolve_resource_name(name)
+            resolved_name = resolve_resource_name(
+                resource_name=name,
+                prefix=CONFIG.resources_prefix,
+                suffix=CONFIG.resources_suffix)
             # add iam_suffix to IAM role only if it is specified in config file
             if resource_type == IAM_ROLE and iam_suffix:
                 resolved_name = resolved_name + iam_suffix
@@ -385,10 +391,9 @@ def resolve_meta(overall_meta):
     return overall_meta
 
 
-def resolve_resource_name(resource_name):
+def resolve_resource_name(resource_name, prefix=None, suffix=None):
     return _resolve_suffix_name(
-        _resolve_prefix_name(resource_name, CONFIG.resources_prefix),
-        CONFIG.resources_suffix)
+        _resolve_prefix_name(resource_name, prefix), suffix)
 
 
 def resolve_resource_name_by_data(resource_name, resource_prefix,

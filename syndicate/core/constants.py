@@ -32,6 +32,8 @@ KINESIS_STREAM_TYPE = 'kinesis_stream'
 STATE_ACTIVITY_TYPE = 'state_activity'
 EC2_INSTANCE_TYPE = 'ec2_instance'
 
+S3_PATH_NAME = 's3_path'
+
 # == BUILD PARAMS =============================================================
 ARTIFACTS_FOLDER = 'bundles'
 BUILD_META_FILE_NAME = 'build_meta.json'

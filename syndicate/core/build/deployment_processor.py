@@ -19,6 +19,7 @@ from concurrent.futures import ALL_COMPLETED, ThreadPoolExecutor
 from functools import cmp_to_key
 
 from syndicate.commons.log_helper import get_logger
+from syndicate.core import PROCESSOR_FACADE
 from syndicate.core.build.bundle_processor import (create_deploy_output,
                                                    load_deploy_output,
                                                    load_failed_deploy_output,
@@ -32,10 +33,6 @@ from syndicate.core.constants import (BUILD_META_FILE_NAME,
                                       DEPLOY_RESOURCE_TYPE_PRIORITY,
                                       UPDATE_RESOURCE_TYPE_PRIORITY)
 from syndicate.core.helper import exit_on_exception, prettify_json
-from syndicate.core.resources import (APPLY_MAPPING, CREATE_RESOURCE,
-                                      DESCRIBE_RESOURCE, REMOVE_RESOURCE,
-                                      RESOURCE_CONFIGURATION_PROCESSORS,
-                                      RESOURCE_IDENTIFIER, UPDATE_RESOURCE)
 
 _LOG = get_logger('syndicate.core.build.deployment_processor')
 
@@ -122,7 +119,7 @@ def _build_args(name, meta, context, pass_context=False):
 
 
 def update_failed_output(res_name, res_meta, resource_type, output):
-    describe_func = DESCRIBE_RESOURCE[resource_type]
+    describe_func = PROCESSOR_FACADE.describe_handlers()[resource_type]
     failed_resource_output = describe_func(res_name, res_meta)
     if failed_resource_output:
         if isinstance(failed_resource_output, list):
@@ -134,14 +131,16 @@ def update_failed_output(res_name, res_meta, resource_type, output):
 
 
 def deploy_resources(resources):
-    return _process_resources(resources=resources,
-                              handlers_mapping=CREATE_RESOURCE)
+    return _process_resources(
+        resources=resources,
+        handlers_mapping=PROCESSOR_FACADE.create_handlers())
 
 
 def update_resources(resources):
-    return _process_resources(resources=resources,
-                              handlers_mapping=UPDATE_RESOURCE,
-                              pass_context=True)
+    return _process_resources(
+        resources=resources,
+        handlers_mapping=PROCESSOR_FACADE.update_handlers(),
+        pass_context=True)
 
 
 def clean_resources(output):
@@ -158,14 +157,14 @@ def clean_resources(output):
             continue
         elif res_type != resource_type:
             _LOG.info('Removing {0} resources ...'.format(resource_type))
-            func = REMOVE_RESOURCE[resource_type]
+            func = PROCESSOR_FACADE.remove_handlers()[resource_type]
             func(args)
             del args[:]
             args.append({'arn': arn, 'config': config})
             resource_type = res_type
     if args:
         _LOG.info('Removing {0} resources ...'.format(resource_type))
-        func = REMOVE_RESOURCE[resource_type]
+        func = PROCESSOR_FACADE.remove_handlers()[resource_type]
         func(args)
 
 
@@ -194,7 +193,8 @@ def continue_deploy_resources(resources, failed_output):
                     })
                 continue
             elif res_type != resource_type:
-                func = RESOURCE_CONFIGURATION_PROCESSORS.get(resource_type)
+                func = PROCESSOR_FACADE.resource_configuration_processor() \
+                    .get(resource_type)
                 if func:
                     response = func(args)
                     if response:
@@ -215,7 +215,8 @@ def continue_deploy_resources(resources, failed_output):
                 })
                 resource_type = res_type
         if args:
-            func = RESOURCE_CONFIGURATION_PROCESSORS.get(resource_type)
+            func = PROCESSOR_FACADE.resource_configuration_processor() \
+                .get(resource_type)
             if func:
                 response = func(args)
                 if response:
@@ -318,11 +319,12 @@ def update_deployment_resources(bundle_name, deploy_name, replace_output=False,
     _LOG.warn(
         'Please pay attention that only the '
         'following resources types are supported for update: {}'.format(
-            list(UPDATE_RESOURCE.keys())))
+            list(PROCESSOR_FACADE.update_handlers().keys())))
 
     # TODO make filter chain
     resources = dict((k, v) for (k, v) in resources.items() if
-                     v['resource_type'] in UPDATE_RESOURCE.keys())
+                     v['resource_type'] in
+                     PROCESSOR_FACADE.update_handlers().keys())
 
     if update_only_types:
         resources = dict((k, v) for (k, v) in resources.items() if
@@ -336,9 +338,10 @@ def update_deployment_resources(bundle_name, deploy_name, replace_output=False,
         prettify_json(resources)))
     resources_list = list(resources.items())
     resources_list.sort(key=cmp_to_key(_compare_update_resources))
-    success, output = _process_resources(resources=resources_list,
-                                         handlers_mapping=UPDATE_RESOURCE,
-                                         pass_context=True)
+    success, output = _process_resources(
+        resources=resources_list,
+        handlers_mapping=PROCESSOR_FACADE.update_handlers(),
+        pass_context=True)
     create_deploy_output(bundle_name=bundle_name,
                          deploy_name=deploy_name,
                          output=output,
@@ -500,12 +503,14 @@ def _apply_dynamic_changes(resources, output):
                                'skipping the apply'.format(dependency_name))
                 else:
                     dependency_type = res_config['resource_type']
-                    func = RESOURCE_IDENTIFIER.get(resource_type)
+                    func = PROCESSOR_FACADE.resource_identifier() \
+                        .get(resource_type)
                     if func:
                         resource_output = __find_output_by_resource_name(
                             output, name)
                         identifier = func(name, resource_output)
-                        apply_func = APPLY_MAPPING.get(change_type)
+                        apply_func = PROCESSOR_FACADE.mapping_applier() \
+                            .get(change_type)
                         if apply_func:
                             alias = '#{' + name + '}'
                             f = pool.submit(apply_func, alias, identifier,

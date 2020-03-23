@@ -28,7 +28,6 @@ from click import BadParameter
 from tqdm import tqdm
 
 from syndicate.commons.log_helper import get_logger
-from syndicate.core import CONFIG, CONN
 from syndicate.core.conf.config_holder import path_resolver
 from syndicate.core.constants import (ARTIFACTS_FOLDER, BUILD_META_FILE_NAME,
                                       DEFAULT_SEP)
@@ -125,6 +124,7 @@ def _find_alias_and_replace(some_string):
 
     :type some_string: str
     """
+    from syndicate.core import CONFIG
     first_index = some_string.index('${')
     second_index = some_string.index('}')
     alias_name = some_string[first_index + 2:second_index]
@@ -169,6 +169,7 @@ def resolve_path_callback(ctx, param, value):
 
 
 def create_bundle_callback(ctx, param, value):
+    from syndicate.core import CONFIG
     bundle_path = os.path.join(CONFIG.project_path, ARTIFACTS_FOLDER, value)
     if not os.path.exists(bundle_path):
         os.makedirs(bundle_path)
@@ -176,6 +177,7 @@ def create_bundle_callback(ctx, param, value):
 
 
 def verify_bundle_callback(ctx, param, value):
+    from syndicate.core import CONFIG
     bundle_path = os.path.join(CONFIG.project_path, ARTIFACTS_FOLDER, value)
     if not os.path.exists(bundle_path):
         raise AssertionError("Bundle name does not exist. Please, invoke "
@@ -184,6 +186,7 @@ def verify_bundle_callback(ctx, param, value):
 
 
 def verify_meta_bundle_callback(ctx, param, value):
+    from syndicate.core import CONFIG
     bundle_path = os.path.join(CONFIG.project_path, ARTIFACTS_FOLDER, value)
     build_meta_path = os.path.join(bundle_path, BUILD_META_FILE_NAME)
     if not os.path.exists(build_meta_path):
@@ -235,31 +238,3 @@ def handle_futures_progress_bar(futures):
     }
     for _ in tqdm(concurrent.futures.as_completed(futures), **kwargs):
         pass
-
-
-def check_deploy_name_for_duplicates(func):
-    """
-    Checks whether output file with specified name already exists.
-    Everywhere this decorator is used the following
-    :param func:
-    :return:
-    """
-    @wraps(func)
-    def real_wrapper(*args, **kwargs):
-        deploy_name = kwargs.get('deploy_name')
-        bundle_name = kwargs.get('bundle_name')
-        replace_output = kwargs.get('replace_output')
-        if deploy_name and bundle_name and not replace_output:
-            output_file_name = '{}/outputs/{}.json'.format(bundle_name, deploy_name)
-            exists = CONN.s3().is_file_exists(
-                CONFIG.deploy_target_bucket,
-                key=output_file_name)
-            if exists:
-                _LOG.warn('Output file already exists with name {}.'
-                          ' If it should be replaced with new one, '
-                          'use --replace_output flag.'.format(
-                    output_file_name))
-                return
-        return func(*args, **kwargs)
-
-    return real_wrapper

@@ -17,7 +17,6 @@ from syndicate.connection import ConnectionProvider
 from syndicate.core.resources.api_gateway_resource import ApiGatewayResource
 from syndicate.core.resources.cloud_watch_alarm_resource import \
     CloudWatchAlarmResource
-
 from syndicate.core.resources.cloud_watch_resource import CloudWatchResource
 from syndicate.core.resources.cognito_resource import CognitoResource
 from syndicate.core.resources.dynamo_db_resource import DynamoDBResource
@@ -36,12 +35,16 @@ from syndicate.core.resources.step_functions_resource import \
 class ResourceProvider:
     instance = None
 
-    def __init__(self, config, credentials) -> None:
+    def __init__(self, config, credentials, sts_conn) -> None:
+        self.sts_conn = sts_conn
         if not ResourceProvider.instance:
             ResourceProvider.instance = ResourceProvider.__Resources(
                 config=config,
                 credentials=credentials
             )
+
+    def sts(self):
+        return self.sts_conn
 
     def __getattr__(self, item):
         return getattr(self.instance, item)

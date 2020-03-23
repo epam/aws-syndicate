@@ -17,7 +17,7 @@ import os
 from time import sleep
 
 from syndicate.commons.log_helper import get_logger
-from syndicate.core import CONF_PATH, ClientError
+from syndicate.core import ClientError
 from syndicate.core.helper import create_pool, unpack_kwargs
 from syndicate.core.resources.helper import build_description_obj, chunks
 
@@ -56,6 +56,7 @@ class Ec2Resource:
 
     @unpack_kwargs
     def _create_ec2_from_meta(self, name, meta):
+        from syndicate.core import CONF_PATH
         # checking required parameters
         image_id = meta['image_id']
         image_data = self.ec2_conn.describe_image(image_id=image_id)

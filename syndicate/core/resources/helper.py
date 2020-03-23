@@ -16,7 +16,6 @@
 import json
 
 from syndicate.commons.log_helper import get_logger
-from syndicate.core import CONFIG
 from syndicate.core.conf.config_holder import GLOBAL_AWS_SERVICES
 
 _LOG = get_logger('syndicate.core.resources.helper')
@@ -47,6 +46,7 @@ def check_region_available(region_name, available_regions, res_meta=None):
 
 
 def create_args_for_multi_region(args, available_regions):
+    from syndicate.core import CONFIG
     new_region_args = []
     for arg_set in args:
         name = arg_set['name']
@@ -97,6 +97,7 @@ def build_description_obj(response, name, meta):
         'description': response
     }
     if resource_type not in GLOBAL_AWS_SERVICES:
+        from syndicate.core import CONFIG
         obj['resource_meta']['region'] = meta.get('region', CONFIG.region)
     return obj
 

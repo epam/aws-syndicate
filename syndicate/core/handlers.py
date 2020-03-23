@@ -36,13 +36,13 @@ from syndicate.core.conf.config_generator import generate_configuration_files
 from syndicate.core.conf.config_holder import (MVN_BUILD_TOOL_NAME,
                                                PYTHON_BUILD_TOOL_NAME,
                                                NODE_BUILD_TOOL_NAME)
+from syndicate.core.decorators import check_deploy_name_for_duplicates
 from syndicate.core.helper import (check_required_param,
                                    create_bundle_callback,
                                    handle_futures_progress_bar,
                                    resolve_path_callback, timeit,
                                    verify_bundle_callback,
-                                   verify_meta_bundle_callback,
-                                   check_deploy_name_for_duplicates)
+                                   verify_meta_bundle_callback)
 
 
 # TODO - command descriptions
@@ -51,26 +51,26 @@ from syndicate.core.helper import (check_required_param,
 @click.group(name='syndicate')
 @click.version_option()
 def syndicate():
-    click.echo('Path to sdct.conf: ' + CONF_PATH)
     initialize_connection()
+    click.echo('Path to sdct.conf: ' + CONF_PATH)
 
 
 @click.command(name='init')
-@click.option('--config_path', nargs=1,
+@click.option('--config_path',
               help='Path to store generated configuration file')
-@click.option('--project_path', nargs=1,
+@click.option('--project_path',
               help='Path to project folder. Default value: working dir')
 # account settings
-@click.option('--region', nargs=1, type=str, default='us-west-1',
+@click.option('--region', type=str, default='us-west-1',
               help='The region that is used to deploy the application')
-@click.option('--account_id', nargs=1, callback=check_required_param, type=int,
+@click.option('--account_id', callback=check_required_param, type=int,
               help='[required] Id of the AWS account where to deploy '
                    'application')
-@click.option('--access_key', args=1, type=str,
+@click.option('--access_key', type=str,
               help='AWS access key id that is used to deploy the application.')  # todo get from .aws/credentials/[default] if not specified
-@click.option('--secret_key', args=1, type=str,
+@click.option('--secret_key', type=str,
               help='AWS secret key that is used to deploy the application.')  # todo get from .aws/credentials/[default] if not specified
-@click.option('--bundle_bucket_name', nargs=1, type=str,
+@click.option('--bundle_bucket_name', type=str,
               help='Name of the bucket that is used for uploading artifacts. '
                    'It will be created if specified.')
 # build_projects_mapping
@@ -84,10 +84,10 @@ def syndicate():
               help='List of the folders in a project where '
                    'NodeJS code must be assembled')
 # deploy setting
-@click.option('--prefix', nargs=1, type=str,
+@click.option('--prefix', type=str,
               help='Prefix that is added to project names while deployment '
                    'by pattern: {prefix}resource_name{suffix}')
-@click.option('--suffix', nargs=1, type=str,
+@click.option('--suffix', type=str,
               help='Suffix that is added to project names while deployment '
                    'by pattern: {prefix}resource_name{suffix}')
 def init(config_path, path_to_project, region, account_id, access_key,
@@ -291,7 +291,8 @@ def package_meta(bundle_name):
     :return:
     """
     click.echo('Package meta, bundle: %s' % bundle_name)
-    create_meta(bundle_name)
+    create_meta(project_path=CONFIG.project_path,
+                bundle_name=bundle_name)
     click.echo('Meta was configured successfully.')
 
 
