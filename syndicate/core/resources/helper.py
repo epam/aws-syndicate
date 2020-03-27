@@ -16,7 +16,7 @@
 import json
 
 from syndicate.commons.log_helper import get_logger
-from syndicate.core.conf.config_holder import GLOBAL_AWS_SERVICES
+from syndicate.core.conf.processor import GLOBAL_AWS_SERVICES
 
 _LOG = get_logger('syndicate.core.resources.helper')
 

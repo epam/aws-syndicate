@@ -28,7 +28,7 @@ from click import BadParameter
 from tqdm import tqdm
 
 from syndicate.commons.log_helper import get_logger
-from syndicate.core.conf.config_holder import path_resolver
+from syndicate.core.conf.processor import path_resolver
 from syndicate.core.constants import (ARTIFACTS_FOLDER, BUILD_META_FILE_NAME,
                                       DEFAULT_SEP)
 

@@ -32,12 +32,13 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     install_requires=[
-        'click==7.0',
+        'click==7.1.1',
         'botocore==1.15.3',
         'boto3==1.12.3',
         'configobj==5.0.6',
         'tqdm==4.19.5',
-        'colorama==0.4.1'
+        'colorama==0.4.1',
+        'pyyaml==5.3.1'
     ],
     entry_points='''
         [console_scripts]

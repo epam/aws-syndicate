@@ -13,12 +13,14 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+import collections
 import json
 import os
+import sys
 
 import click
 
-from syndicate.core import CONFIG, CONF_PATH, initialize_connection
+from syndicate.core import CONF_PATH, initialize_connection
 from syndicate.core.build.artifact_processor import (RUNTIME_NODEJS,
                                                      assemble_artifacts,
                                                      RUNTIME_JAVA_8,
@@ -32,10 +34,10 @@ from syndicate.core.build.deployment_processor import (
     remove_deployment_resources, remove_failed_deploy_resources,
     update_deployment_resources)
 from syndicate.core.build.meta_processor import create_meta
-from syndicate.core.conf.config_generator import generate_configuration_files
-from syndicate.core.conf.config_holder import (MVN_BUILD_TOOL_NAME,
-                                               PYTHON_BUILD_TOOL_NAME,
-                                               NODE_BUILD_TOOL_NAME)
+from syndicate.core.conf.generator import generate_configuration_files
+from syndicate.core.conf.validator import (MVN_BUILD_TOOL_NAME,
+                                           PYTHON_BUILD_TOOL_NAME,
+                                           NODE_BUILD_TOOL_NAME)
 from syndicate.core.decorators import check_deploy_name_for_duplicates
 from syndicate.core.helper import (check_required_param,
                                    create_bundle_callback,
@@ -44,32 +46,50 @@ from syndicate.core.helper import (check_required_param,
                                    verify_bundle_callback,
                                    verify_meta_bundle_callback)
 
+INIT_COMMAND_NAME = 'init'
 
-# TODO - command descriptions
+
+class OrderedGroup(click.Group):
+    def __init__(self, name=None, commands=None, **attrs):
+        super(OrderedGroup, self).__init__(name, commands, **attrs)
+        self.commands = commands or collections.OrderedDict()
+
+    def list_commands(self, ctx):
+        return self.commands
 
 
-@click.group(name='syndicate')
+@click.group(name='syndicate', cls=OrderedGroup, chain=True)
 @click.version_option()
 def syndicate():
-    initialize_connection()
-    click.echo('Path to sdct.conf: ' + CONF_PATH)
+    if CONF_PATH:
+        click.echo('Path to sdct.conf: ' + CONF_PATH)
+        initialize_connection()
+    elif INIT_COMMAND_NAME in sys.argv:
+        pass
+    else:
+        click.echo('Environment variable SDCT_CONF is not set! '
+                   'Please verify that you configured have provided path to '
+                   'correct config files or execute `syndicate init` command.')
+        sys.exit(1)
 
 
-@click.command(name='init')
-@click.option('--config_path',
+@syndicate.command(name=INIT_COMMAND_NAME)
+@click.option('--config_path', type=str,
               help='Path to store generated configuration file')
-@click.option('--project_path',
+@click.option('--project_path', type=str,
               help='Path to project folder. Default value: working dir')
 # account settings
-@click.option('--region', type=str, default='us-west-1',
-              help='The region that is used to deploy the application')
 @click.option('--account_id', callback=check_required_param, type=int,
               help='[required] Id of the AWS account where to deploy '
                    'application')
-@click.option('--access_key', type=str,
-              help='AWS access key id that is used to deploy the application.')  # todo get from .aws/credentials/[default] if not specified
-@click.option('--secret_key', type=str,
-              help='AWS secret key that is used to deploy the application.')  # todo get from .aws/credentials/[default] if not specified
+@click.option('--region', type=str, default='us-west-1',
+              help='The region that is used to deploy the application')
+@click.password_option(
+    '--access_key', type=str,
+    help='AWS access key id that is used to deploy the application.')  # todo get from .aws/credentials/[default] if not specified
+@click.password_option(
+    '--secret_key', type=str,
+    help='AWS secret key that is used to deploy the application.')  # todo get from .aws/credentials/[default] if not specified
 @click.option('--bundle_bucket_name', type=str,
               help='Name of the bucket that is used for uploading artifacts. '
                    'It will be created if specified.')
@@ -80,7 +100,7 @@ def syndicate():
 @click.option('--java_build_mapping', '-jbm', multiple=True,
               help='List of the folders in a project where '
                    'Java code must be assembled')
-@click.option('--node_build_mapping', '-nbm', multiple=True,
+@click.option('--nodejs_build_mapping', '-nbm', multiple=True,
               help='List of the folders in a project where '
                    'NodeJS code must be assembled')
 # deploy setting
@@ -90,11 +110,48 @@ def syndicate():
 @click.option('--suffix', type=str,
               help='Suffix that is added to project names while deployment '
                    'by pattern: {prefix}resource_name{suffix}')
-def init(config_path, path_to_project, region, account_id, access_key,
+def init(config_path, project_path, account_id, region, access_key,
          secret_key, bundle_bucket_name, python_build_mapping,
-         java_build_mapping, node_build_mapping, prefix, suffix):
+         java_build_mapping, nodejs_build_mapping, prefix, suffix):
+    """
+    Configures aws-syndicate:
+    - generates sdct.conf using the provided parameters;
+    - creates default sdct_aliases.conf;
+    :param config_path: path where the generated configurations files
+        will be stored
+    :param project_path: path to a project which is supposed to be deployed
+        by aws-syndicate
+    :param account_id: id of the AWS account where an application
+        will be deployed
+    :param region: AWS region name where an application will be deployed
+    :param access_key: AWS access key id to access an AWS account specified
+        in account_id parameter. If access_key is not specified
+        the credentials from /$user/.aws/credentials will be used if any.
+        The provided credentials should provide enough permissions to deploy
+        the app.
+    :param secret_key: AWS secret access key to access an AWS account
+        specified in account_id parameter. If secret_key is not specified
+        the credentials from /$user/.aws/credentials will be used if any.
+        The provided credentials should provide enough permissions to deploy
+        the app.
+    :param bundle_bucket_name: name of the bucket in specified AWS account
+        where application bundles will be stored
+    :param python_build_mapping: path[s] to the python parts of an application.
+        Example: --python_build_mapping /src/$app_python_module/
+    :param java_build_mapping: path[s] to the java parts of an application.
+        Example: --java_build_mapping /src/$app_java_module/
+    :param nodejs_build_mapping: path[s] to the nodejs parts of an application.
+        Example: --nodejs_build_mapping /src/$node_python_module/
+    :param prefix: will be added to resource names of types
+    iam_role, iam_policy, s3_bucket.
+    Resource name pattern: {prefix}resource_name{suffix}
+    :param suffix: will be added to resource names of types
+    iam_role, iam_policy, s3_bucket.
+    Resource name pattern: {prefix}resource_name{suffix}
+    :return:
+    """
     generate_configuration_files(config_path=config_path,
-                                 project_path=path_to_project,
+                                 project_path=project_path,
                                  region=region,
                                  account_id=account_id,
                                  access_key=access_key,
@@ -102,12 +159,149 @@ def init(config_path, path_to_project, region, account_id, access_key,
                                  bundle_bucket_name=bundle_bucket_name,
                                  python_build_mapping=python_build_mapping,
                                  java_build_mapping=java_build_mapping,
-                                 node_build_mapping=node_build_mapping,
+                                 nodejs_build_mapping=nodejs_build_mapping,
                                  prefix=prefix,
                                  suffix=suffix)
 
 
-# =============================================================================
+@syndicate.command(name='build_bundle')
+@click.option('--bundle_name', nargs=1, callback=check_required_param)
+@click.option('--force_upload', is_flag=True, default=False)
+@click.pass_context
+@timeit
+def build_bundle(ctx, bundle_name, force_upload):
+    """
+    Builds bundle of an application
+    :param ctx:
+    :param bundle_name: name of the bundle
+    :param force_upload: used to override existing bundle
+    :return:
+    """
+    if if_bundle_exist(bundle_name=bundle_name) and not force_upload:
+        click.echo('Bundle name \'{0}\' already exists '
+                   'in deploy bucket. Please use another bundle '
+                   'name or delete the bundle'.format(bundle_name))
+        return
+    ctx.invoke(build_artifacts, bundle_name=bundle_name)
+    ctx.invoke(package_meta, bundle_name=bundle_name)
+    ctx.invoke(upload_bundle, bundle_name=bundle_name, force=force_upload)
+
+
+@syndicate.command(name='deploy')
+@click.option('--deploy_name', nargs=1, callback=check_required_param)
+@click.option('--bundle_name', nargs=1, callback=check_required_param)
+@click.option('--deploy_only_types', multiple=True)
+@click.option('--deploy_only_resources', multiple=True)
+@click.option('--deploy_only_resources_path', nargs=1)
+@click.option('--excluded_resources', multiple=True)
+@click.option('--excluded_resources_path', nargs=1)
+@click.option('--excluded_types', multiple=True)
+@click.option('--continue_deploy', is_flag=True)
+@click.option('--replace_output', nargs=1, is_flag=True, default=False)
+@check_deploy_name_for_duplicates
+@timeit
+def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
+           deploy_only_resources_path, excluded_resources,
+           excluded_resources_path, excluded_types, continue_deploy,
+           replace_output):
+    """
+    Deploys infrastructure from the specified bundle
+    :param deploy_name: name of the deploy
+    :param bundle_name: name of the bundle
+    :param deploy_only_types: list of types of the resources to deploy
+    :param deploy_only_resources: list of resources names to deploy
+    :param deploy_only_resources_path: path to a json file that contains
+        a list of resources names to deploy
+    :param excluded_resources: names of the resources which must be
+        skipped while deploy
+    :param excluded_resources_path: path to a json file that contains a list
+        of resources names which must be skipped while deploy
+    :param excluded_types: list of types of resources which must be
+        skipped while deploy
+    :param continue_deploy: continues deploy using the failed output.
+        Used only after previous deploy fail.
+    :param replace_output: flag to override the output file.
+        Used if previous output file must be overridden.
+    :return:
+    """
+    click.echo('Command deploy backend')
+    click.echo('Deploy name: %s' % deploy_name)
+    if deploy_only_resources_path and os.path.exists(
+            deploy_only_resources_path):
+        deploy_resources_list = json.load(open(deploy_only_resources_path))
+        deploy_only_resources = tuple(
+            set(deploy_only_resources + tuple(deploy_resources_list)))
+    if excluded_resources_path and os.path.exists(excluded_resources_path):
+        excluded_resources_list = json.load(open(excluded_resources_path))
+        excluded_resources = tuple(
+            set(excluded_resources + tuple(excluded_resources_list)))
+    if continue_deploy:
+        deploy_success = continue_deployment_resources(deploy_name,
+                                                       bundle_name,
+                                                       deploy_only_resources,
+                                                       deploy_only_types,
+                                                       excluded_resources,
+                                                       excluded_types,
+                                                       replace_output)
+
+    else:
+        deploy_success = create_deployment_resources(deploy_name, bundle_name,
+                                                     deploy_only_resources,
+                                                     deploy_only_types,
+                                                     excluded_resources,
+                                                     excluded_types,
+                                                     replace_output)
+    click.echo('Backend resources were deployed{0}.'.format(
+        '' if deploy_success else ' with errors. See deploy output file'))
+
+
+@syndicate.command(name='update')
+@click.option('--bundle_name', nargs=1, callback=check_required_param)
+@click.option('--deploy_name', nargs=1, callback=check_required_param)
+@click.option('--update_only_types', multiple=True)
+@click.option('--update_only_resources', multiple=True)
+@click.option('--update_only_resources_path', nargs=1)
+@click.option('--replace_output', nargs=1, is_flag=True, default=False)
+@check_deploy_name_for_duplicates
+@timeit
+def update(bundle_name, deploy_name, replace_output,
+           update_only_resources,
+           update_only_resources_path,
+           update_only_types=[]):
+    """
+    Updates infrastructure from the provided bundle
+    :param bundle_name: name of the bundle
+    :param deploy_name: name of the deploy
+    :param update_only_resources: list of resources names to updated
+    :param update_only_resources_path: path to a json file with list of
+        resources names to update
+    :param update_only_types: optional. List of a resources types to update.
+    :param replace_output: flag. If True, existing output file will be replaced
+    :return:
+    """
+    click.echo('Bundle name: {}'.format(bundle_name))
+    if update_only_types:
+        click.echo('Types to update: {}'.format(list(update_only_types)))
+    if update_only_resources:
+        click.echo('Resources to update: {}'.format(list(update_only_types)))
+    if update_only_resources_path:
+        click.echo('Path to list of resources to update: {}'.format(
+            update_only_resources_path))
+
+    if update_only_resources_path and os.path.exists(
+            update_only_resources_path):
+        update_resources_list = json.load(open(update_only_resources_path))
+        update_only_resources = tuple(
+            set(update_only_resources + tuple(update_resources_list)))
+    success = update_deployment_resources(
+        bundle_name=bundle_name,
+        deploy_name=deploy_name,
+        update_only_types=update_only_types,
+        update_only_resources=update_only_resources,
+        replace_output=replace_output)
+    if success:
+        return 'Update of resources has been successfully completed'
+    return 'Something went wrong during resources update'
 
 
 @syndicate.command(name='clean')
@@ -265,6 +459,8 @@ def build_artifacts(ctx, bundle_name):
     :return:
     """
     click.echo('Building artifacts ...')
+    from syndicate.core import CONFIG
+    import pdb; pdb.set_trace()
     if CONFIG.build_projects_mapping:
         for key, values in CONFIG.build_projects_mapping.items():
             for value in values:
@@ -278,9 +474,6 @@ def build_artifacts(ctx, bundle_name):
         click.echo('Projects to be built are not found')
 
 
-# =============================================================================
-
-
 @syndicate.command(name='package_meta')
 @timeit
 @click.option('--bundle_name', nargs=1, callback=verify_bundle_callback)
@@ -290,13 +483,11 @@ def package_meta(bundle_name):
     :param bundle_name: name of the bundle to generate metadata
     :return:
     """
+    from syndicate.core import CONFIG
     click.echo('Package meta, bundle: %s' % bundle_name)
     create_meta(project_path=CONFIG.project_path,
                 bundle_name=bundle_name)
     click.echo('Meta was configured successfully.')
-
-
-# =============================================================================
 
 
 @syndicate.command(name='create_deploy_target_bucket')
@@ -306,6 +497,7 @@ def create_deploy_target_bucket():
     Creates a bucket in AWS account where all bundles will be uploaded
     :return:
     """
+    from syndicate.core import CONFIG
     click.echo('Create deploy target sdk: %s' % CONFIG.deploy_target_bucket)
     create_bundles_bucket()
     click.echo('Deploy target bucket was created successfully')
@@ -371,151 +563,3 @@ def copy_bundle(ctx, bundle_name, src_account_id, src_bucket_region,
     click.echo('Bundle was downloaded successfully')
     ctx.invoke(upload_bundle, bundle_name=bundle_name, force=force_upload)
     click.echo('Bundle was copied successfully')
-
-
-# =============================================================================
-
-
-@syndicate.command(name='build_bundle')
-@click.option('--bundle_name', nargs=1, callback=check_required_param)
-@click.option('--force_upload', is_flag=True, default=False)
-@click.pass_context
-@timeit
-def build_bundle(ctx, bundle_name, force_upload):
-    """
-    Builds bundle of an application
-    :param ctx:
-    :param bundle_name: name of the bundle
-    :param force_upload: used to override existing bundle
-    :return:
-    """
-    if if_bundle_exist(bundle_name=bundle_name) and not force_upload:
-        click.echo('Bundle name \'{0}\' already exists '
-                   'in deploy bucket. Please use another bundle '
-                   'name or delete the bundle'.format(bundle_name))
-        return
-    ctx.invoke(build_artifacts, bundle_name=bundle_name)
-    ctx.invoke(package_meta, bundle_name=bundle_name)
-    ctx.invoke(upload_bundle, bundle_name=bundle_name, force=force_upload)
-
-
-# =============================================================================
-
-
-@syndicate.command(name='deploy')
-@click.option('--deploy_name', nargs=1, callback=check_required_param)
-@click.option('--bundle_name', nargs=1, callback=check_required_param)
-@click.option('--deploy_only_types', multiple=True)
-@click.option('--deploy_only_resources', multiple=True)
-@click.option('--deploy_only_resources_path', nargs=1)
-@click.option('--excluded_resources', multiple=True)
-@click.option('--excluded_resources_path', nargs=1)
-@click.option('--excluded_types', multiple=True)
-@click.option('--continue_deploy', is_flag=True)
-@click.option('--replace_output', nargs=1, is_flag=True, default=False)
-@check_deploy_name_for_duplicates
-@timeit
-def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
-           deploy_only_resources_path, excluded_resources,
-           excluded_resources_path, excluded_types, continue_deploy,
-           replace_output):
-    """
-    Deploys infrastructure from the specified bundle
-    :param deploy_name: name of the deploy
-    :param bundle_name: name of the bundle
-    :param deploy_only_types: list of types of the resources to deploy
-    :param deploy_only_resources: list of resources names to deploy
-    :param deploy_only_resources_path: path to a json file that contains
-        a list of resources names to deploy
-    :param excluded_resources: names of the resources which must be
-        skipped while deploy
-    :param excluded_resources_path: path to a json file that contains a list
-        of resources names which must be skipped while deploy
-    :param excluded_types: list of types of resources which must be
-        skipped while deploy
-    :param continue_deploy: continues deploy using the failed output.
-        Used only after previous deploy fail.
-    :param replace_output: flag to override the output file.
-        Used if previous output file must be overridden.
-    :return:
-    """
-    click.echo('Command deploy backend')
-    click.echo('Deploy name: %s' % deploy_name)
-    if deploy_only_resources_path and os.path.exists(
-            deploy_only_resources_path):
-        deploy_resources_list = json.load(open(deploy_only_resources_path))
-        deploy_only_resources = tuple(
-            set(deploy_only_resources + tuple(deploy_resources_list)))
-    if excluded_resources_path and os.path.exists(excluded_resources_path):
-        excluded_resources_list = json.load(open(excluded_resources_path))
-        excluded_resources = tuple(
-            set(excluded_resources + tuple(excluded_resources_list)))
-    if continue_deploy:
-        deploy_success = continue_deployment_resources(deploy_name,
-                                                       bundle_name,
-                                                       deploy_only_resources,
-                                                       deploy_only_types,
-                                                       excluded_resources,
-                                                       excluded_types,
-                                                       replace_output)
-
-    else:
-        deploy_success = create_deployment_resources(deploy_name, bundle_name,
-                                                     deploy_only_resources,
-                                                     deploy_only_types,
-                                                     excluded_resources,
-                                                     excluded_types,
-                                                     replace_output)
-    click.echo('Backend resources were deployed{0}.'.format(
-        '' if deploy_success else ' with errors. See deploy output file'))
-
-
-# =============================================================================
-
-@syndicate.command(name='update')
-@click.option('--bundle_name', nargs=1, callback=check_required_param)
-@click.option('--deploy_name', nargs=1, callback=check_required_param)
-@click.option('--update_only_types', multiple=True)
-@click.option('--update_only_resources', multiple=True)
-@click.option('--update_only_resources_path', nargs=1)
-@click.option('--replace_output', nargs=1, is_flag=True, default=False)
-@check_deploy_name_for_duplicates
-@timeit
-def update(bundle_name, deploy_name, replace_output,
-           update_only_resources,
-           update_only_resources_path,
-           update_only_types=[]):
-    """
-    Updates infrastructure from the provided bundle
-    :param bundle_name: name of the bundle
-    :param deploy_name: name of the deploy
-    :param update_only_resources: list of resources names to updated
-    :param update_only_resources_path: path to a json file with list of
-        resources names to update
-    :param update_only_types: optional. List of a resources types to update.
-    :param replace_output: flag. If True, existing output file will be replaced
-    :return:
-    """
-    click.echo('Bundle name: {}'.format(bundle_name))
-    if update_only_types:
-        click.echo('Types to update: {}'.format(list(update_only_types)))
-    if update_only_resources:
-        click.echo('Resources to update: {}'.format(list(update_only_types)))
-    if update_only_resources_path:
-        click.echo('Path to list of resources to update: {}'.format(
-            update_only_resources_path))
-
-    if update_only_resources_path and os.path.exists(
-            update_only_resources_path):
-        update_resources_list = json.load(open(update_only_resources_path))
-        update_only_resources = tuple(
-            set(update_only_resources + tuple(update_resources_list)))
-    success = update_deployment_resources(
-        bundle_name=bundle_name,
-        deploy_name=deploy_name,
-        update_only_types=update_only_types,
-        update_only_resources=update_only_resources,
-        replace_output=replace_output)
-    if success:
-        return 'Update of resources has been successfully completed'
-    return 'Something went wrong during resources update'

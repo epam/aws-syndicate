@@ -14,15 +14,14 @@
     limitations under the License.
 """
 import os
-import sys
 
 from botocore.exceptions import ClientError
 
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection import ConnectionProvider
 from syndicate.connection.sts_connection import STSConnection
-from syndicate.core.conf.config_holder import ConfigHolder
-from syndicate.core.resources._processors_mapping import ProcessorFacade
+from syndicate.core.conf.processor import ConfigHolder
+from syndicate.core.resources.processors_mapping import ProcessorFacade
 from syndicate.core.resources.resources_provider import ResourceProvider
 
 _LOG = get_logger('deployment.__init__')
@@ -39,7 +38,7 @@ def exception_handler(exception_type, exception, traceback):
 # sys.excepthook = exception_handler
 
 # CONF VARS ===================================================================
-CONF_PATH = None
+CONF_PATH = os.environ.get('SDCT_CONF')
 CONFIG = None
 CONN = None
 CREDENTIALS = None
@@ -64,13 +63,6 @@ def initialize_connection():
     global CREDENTIALS
     global RESOURCES_PROVIDER
     global PROCESSOR_FACADE
-
-    CONF_PATH = os.environ.get('SDCT_CONF')
-    if not CONF_PATH:
-        _LOG.warn('Environment variable SDCT_CONF is not set! '
-                  'Please verify that you configured have provided path to '
-                  'correct config files or execute `syndicate init` command.')
-        sys.exit(0)
 
     CONFIG = ConfigHolder(CONF_PATH)
     sts = STSConnection(CONFIG.region, CONFIG.aws_access_key_id,
@@ -99,6 +91,7 @@ def initialize_connection():
                                               sts_conn=sts)
         PROCESSOR_FACADE = ProcessorFacade(
             resources_provider=RESOURCES_PROVIDER)
+        _LOG.debug('aws-syndicate has been initialized')
     except ClientError:
         raise AssertionError('Cannot assume {0} role. '
                              'Please verify that you have configured '

@@ -15,40 +15,34 @@
 """
 import os
 
+import yaml
 from configobj import ConfigObj
 from validate import Validator, VdtTypeError
 
 from syndicate.commons.log_helper import get_logger
+from syndicate.core.conf.validator import (PROJECT_PATH_CFG, REGION_CFG,
+                                           DEPLOY_TARGET_BUCKET_CFG,
+                                           ACCOUNT_ID_CFG,
+                                           PROJECTS_MAPPING_CFG,
+                                           AWS_ACCESS_KEY_ID_CFG,
+                                           RESOURCES_PREFIX_CFG,
+                                           RESOURCES_SUFFIX_CFG,
+                                           AWS_SECRET_ACCESS_KEY_CFG,
+                                           ALL_REGIONS, ALLOWED_BUILD_TOOLS,
+                                           ConfigValidator)
 from syndicate.core.constants import (DEFAULT_SEP, IAM_POLICY, IAM_ROLE,
                                       S3_BUCKET_TYPE)
 
-RESOURCES_SUFFIX_CFG = 'resources_suffix'
-RESOURCES_PREFIX_CFG = 'resources_prefix'
-SECRET_ACCESS_KEY_CFG = 'aws_secret_access_key'
-AWS_ACCESS_KEY_ID_CFG = 'aws_access_key_id'
-PROJECTS_MAPPING_CFG = 'build_projects_mapping'
-ACCOUNT_ID_CFG = 'account_id'
-DEPLOY_TARGET_BUCKET_CFG = 'deploy_target_bucket'
-REGION_CFG = 'region'
-PROJECT_PATH_CFG = 'project_path'
+CONFIG_FILE_NAME = 'syndicate.yml'
+ALIASES_FILE_NAME = 'syndicate_aliases.yml'
 
-CONFIG_FILE_NAME = 'sdct.conf'
+LEGACY_CONFIG_FILE_NAME = 'sdct.conf'
+LEGACY_ALIASES_FILE_NAME = 'sdct_aliases.conf'
+DEFAULT_SECTION_NAME = 'default'
 
 _LOG = get_logger('core.conf.config_holder')
 
-ALL_REGIONS = ['us-east-1', 'us-east-2', 'us-west-1', 'us-west-2', 'sa-east-1',
-               'ca-central-1', 'eu-west-1', 'eu-central-1', 'eu-west-2',
-               'eu-west-3', 'ap-northeast-1', 'ap-northeast-2',
-               'ap-southeast-1', 'ap-southeast-2', 'ap-south-1', 'eu-north-1']
-
 GLOBAL_AWS_SERVICES = {IAM_ROLE, IAM_POLICY, S3_BUCKET_TYPE}
-
-PYTHON_BUILD_TOOL_NAME = 'python'
-NODE_BUILD_TOOL_NAME = 'node'
-MVN_BUILD_TOOL_NAME = 'mvn'
-
-ALLOWED_BUILDS = [PYTHON_BUILD_TOOL_NAME, MVN_BUILD_TOOL_NAME,
-                  NODE_BUILD_TOOL_NAME]
 
 REQUIRED_PARAMETERS = {
     PROJECT_PATH_CFG: 'string(min=1)',
@@ -59,7 +53,7 @@ REQUIRED_PARAMETERS = {
 }
 
 ALL_CONFIG_PARAMETERS = [
-    AWS_ACCESS_KEY_ID_CFG, SECRET_ACCESS_KEY_CFG,
+    AWS_ACCESS_KEY_ID_CFG, AWS_SECRET_ACCESS_KEY_CFG,
     RESOURCES_PREFIX_CFG, RESOURCES_SUFFIX_CFG
 ]
 ALL_CONFIG_PARAMETERS.extend(REQUIRED_PARAMETERS.keys())
@@ -70,10 +64,10 @@ ERROR_MESSAGE_MAPPING = {
     DEPLOY_TARGET_BUCKET_CFG: 'length must be between 3 and 63 characters',
     ACCOUNT_ID_CFG: 'must be 12-digit number',
     PROJECTS_MAPPING_CFG: "must be as a mapping of build tool to project "
-                              "path, separated by ';'. Build tool name "
-                              "and project path should be separated by ':'."
-                              " Allowed build "
-                              "tools values: " + str(ALLOWED_BUILDS),
+                          "path, separated by ';'. Build tool name "
+                          "and project path should be separated by ':'."
+                          " Allowed build "
+                          "tools values: " + str(ALLOWED_BUILD_TOOLS),
     RESOURCES_PREFIX_CFG: 'length must be less than or equal to 5',
     RESOURCES_SUFFIX_CFG: 'length must be less than or equal to 5'
 }
@@ -106,7 +100,7 @@ def _project_mapping(value):
         items = mapping.split(':')
         if len(items) != 2:
             raise VdtTypeError(value)
-        if items[0] not in ALLOWED_BUILDS:
+        if items[0] not in ALLOWED_BUILD_TOOLS:
             raise VdtTypeError(value)
     return value
 
@@ -114,23 +108,42 @@ def _project_mapping(value):
 class ConfigHolder:
     def __init__(self, dir_path):
         con_path = os.path.join(dir_path, CONFIG_FILE_NAME)
+        if os.path.isfile(con_path):
+            self._init_yaml_config(dir_path=dir_path, con_path=con_path)
+        else:
+            self._init_ini_config(dir_path=dir_path)
+
+    def _init_yaml_config(self, dir_path, con_path):
+        config_content = load_yaml_file_content(file_path=con_path)
+        if config_content:
+            validator = ConfigValidator(config_content)
+            errors = validator.validate()
+            if errors:
+                raise AssertionError(f'The following error occurred '
+                                     f'while {con_path} parsing: {errors}')
+        self._config_dict = config_content
+
+        aliases_path = os.path.join(dir_path, ALIASES_FILE_NAME)
+        aliases_content = load_yaml_file_content(file_path=aliases_path)
+        self._aliases = aliases_content
+
+    def _init_ini_config(self, dir_path):
+        con_path = os.path.join(dir_path, LEGACY_CONFIG_FILE_NAME)
         if not os.path.isfile(con_path):
-            raise Exception(
+            raise AssertionError(
                 'sdct.conf does not exist inside %s folder' % dir_path)
-        self._config_dict = ConfigObj(con_path, configspec=REQUIRED_PARAMETERS)
-        # validate
-        self._validate()
-        # load parameters to env vars
-        self._load_vars()
-        # init aliases
-        alias_path = os.path.join(dir_path, 'sdct_aliases.conf')
+        self._config_path = con_path
+        self._config_dict = ConfigObj(con_path,
+                                      configspec=REQUIRED_PARAMETERS)
+        self._validate_ini()
+        alias_path = os.path.join(dir_path, LEGACY_ALIASES_FILE_NAME)
         if not os.path.exists(alias_path):
             _LOG.warn('sdct_aliases.conf does not exist '
                       'inside %s folder' % dir_path)
         else:
             self._aliases = ConfigObj(alias_path)
 
-    def _validate(self):
+    def _validate_ini(self):
         # building a validator
         validator = Validator({
             'region_func': _region,
@@ -139,6 +152,8 @@ class ConfigHolder:
         })
         # validate
         param_valid_dict = self._config_dict.validate(validator=validator)
+        if not param_valid_dict:
+            raise Exception(f'Error while parsing {self._config_path}')
         # check non-required parameters
         prefix_value = self._config_dict.get(RESOURCES_PREFIX_CFG)
         if prefix_value:
@@ -167,16 +182,8 @@ class ConfigHolder:
             if messages:
                 raise Exception('Configuration is invalid. ' + messages)
 
-    def _load_vars(self):
-        for key, value in self._config_dict.items():
-            if os.environ.get(key) is None:
-                os.environ[key] = value
-
     def _resolve_variable(self, variable_name):
-        var = None
-        if self._config_dict.get(variable_name):
-            var = self._config_dict[variable_name]
-        return var
+        return self._config_dict.get(variable_name)
 
     @property
     def project_path(self):
@@ -196,7 +203,7 @@ class ConfigHolder:
 
     @property
     def aws_secret_access_key(self):
-        return self._resolve_variable(SECRET_ACCESS_KEY_CFG)
+        return self._resolve_variable(AWS_SECRET_ACCESS_KEY_CFG)
 
     @property
     def region(self):
@@ -210,6 +217,8 @@ class ConfigHolder:
     @property
     def build_projects_mapping(self):
         mapping_value = self._resolve_variable(PROJECTS_MAPPING_CFG)
+        if type(mapping_value) == dict:
+            return mapping_value
         if mapping_value:
             mapping_dict = {}
             for i in mapping_value.split(';'):
@@ -258,3 +267,10 @@ class ConfigHolder:
 
 def path_resolver(path):
     return path.replace('\\', DEFAULT_SEP).replace('//', DEFAULT_SEP)
+
+
+def load_yaml_file_content(file_path):
+    if not os.path.isfile(file_path):
+        raise AssertionError(f'There is no file by path: {file_path}')
+    with open(file_path, 'r') as yaml_file:
+        return yaml.load(yaml_file, Loader=yaml.FullLoader)

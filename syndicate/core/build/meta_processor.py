@@ -20,7 +20,7 @@ from syndicate.commons.log_helper import get_logger
 from syndicate.core.build.helper import build_py_package_name
 from syndicate.core.build.validator.mapping import (VALIDATOR_BY_TYPE_MAPPING,
                                                     ALL_TYPES)
-from syndicate.core.conf.config_holder import GLOBAL_AWS_SERVICES
+from syndicate.core.conf.processor import GLOBAL_AWS_SERVICES
 from syndicate.core.constants import (API_GATEWAY_TYPE, ARTIFACTS_FOLDER,
                                       BUILD_META_FILE_NAME, EBS_TYPE,
                                       LAMBDA_CONFIG_FILE_NAME, LAMBDA_TYPE,

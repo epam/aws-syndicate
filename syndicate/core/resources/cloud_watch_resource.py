@@ -18,7 +18,7 @@ import time
 from botocore.exceptions import ClientError
 
 from syndicate.commons.log_helper import get_logger
-from syndicate.core.conf.config_holder import ALL_REGIONS
+from syndicate.core.conf.processor import ALL_REGIONS
 from syndicate.core.helper import create_pool, unpack_kwargs
 from syndicate.core.resources.helper import (build_description_obj,
                                              create_args_for_multi_region,
