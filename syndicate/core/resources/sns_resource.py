@@ -17,7 +17,8 @@ from botocore.exceptions import ClientError
 
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.conf.processor import ALL_REGIONS
-from syndicate.core.helper import create_pool, unpack_kwargs
+from syndicate.core.helper import unpack_kwargs
+from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import (build_description_obj,
                                              check_region_available,
                                              create_args_for_multi_region,
@@ -26,7 +27,7 @@ from syndicate.core.resources.helper import (build_description_obj,
 _LOG = get_logger('core.resources.sns_resource')
 
 
-class SnsResource:
+class SnsResource(BaseResource):
 
     def __init__(self, conn_provider, region) -> None:
         self.connection_provider = conn_provider
@@ -116,7 +117,8 @@ class SnsResource:
         :type args: list
         """
         new_region_args = create_args_for_multi_region(args, ALL_REGIONS)
-        return create_pool(self._create_sns_topic_from_meta, new_region_args)
+        return self.create_pool(self._create_sns_topic_from_meta,
+                                new_region_args)
 
     def create_sns_application(self, args):
         """ Create sns application from meta in region/regions.
@@ -124,8 +126,8 @@ class SnsResource:
         :type args: list
         """
         new_region_args = create_args_for_multi_region(args, ALL_REGIONS)
-        return create_pool(self._create_platform_application_from_meta,
-                           new_region_args)
+        return self.create_pool(self._create_platform_application_from_meta,
+                                new_region_args)
 
     @unpack_kwargs
     def _create_sns_topic_from_meta(self, name, meta, region):
@@ -213,7 +215,7 @@ class SnsResource:
     }
 
     def remove_sns_topics(self, args):
-        create_pool(self._remove_sns_topic, args)
+        self.create_pool(self._remove_sns_topic, args)
 
     @unpack_kwargs
     def _remove_sns_topic(self, arn, config):
@@ -259,7 +261,7 @@ class SnsResource:
         return self.describe_sns_application(name, meta, region, arn)
 
     def remove_sns_application(self, args):
-        create_pool(self._remove_sns_application, args)
+        self.create_pool(self._remove_sns_application, args)
 
     @unpack_kwargs
     def _remove_sns_application(self, arn, config):

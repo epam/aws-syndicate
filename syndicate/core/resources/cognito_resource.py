@@ -16,13 +16,14 @@
 from botocore.exceptions import ClientError
 
 from syndicate.commons.log_helper import get_logger
-from syndicate.core.helper import create_pool, unpack_kwargs
+from syndicate.core.helper import unpack_kwargs
+from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import build_description_obj
 
 _LOG = get_logger('syndicate.core.resources.cognito_identity_resource')
 
 
-class CognitoResource:
+class CognitoResource(BaseResource):
 
     def __init__(self, cognito_conn, account_id, region) -> None:
         self.connection = cognito_conn
@@ -43,7 +44,8 @@ class CognitoResource:
 
         :type args: list
         """
-        return create_pool(self._create_cognito_identity_pool_from_meta, args)
+        return self.create_pool(self._create_cognito_identity_pool_from_meta,
+                                args)
 
     def describe_cognito_pool(self, name, meta, pool_id=None):
         if not pool_id:
@@ -86,7 +88,7 @@ class CognitoResource:
                                           pool_id=pool_id)
 
     def remove_cognito_identity_pools(self, args):
-        create_pool(self._remove_cognito_identity_pool, args)
+        self.create_pool(self._remove_cognito_identity_pool, args)
 
     @unpack_kwargs
     def _remove_cognito_identity_pool(self, arn, config):

@@ -16,14 +16,15 @@
 from botocore.exceptions import ClientError
 
 from syndicate.commons.log_helper import get_logger
-from syndicate.core.helper import create_pool, unpack_kwargs
+from syndicate.core.helper import unpack_kwargs
+from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import (build_description_obj, chunks,
                                              validate_params)
 
 _LOG = get_logger('syndicate.core.resources.alarm_resource')
 
 
-class CloudWatchAlarmResource:
+class CloudWatchAlarmResource(BaseResource):
 
     def __init__(self, cw_conn, sns_conn) -> None:
         self.client = cw_conn
@@ -34,7 +35,7 @@ class CloudWatchAlarmResource:
 
         :type args: list
         """
-        return create_pool(self._create_alarm_from_meta, args)
+        return self.create_pool(self._create_alarm_from_meta, args)
 
     def describe_alarm(self, name, meta):
         response = self.client.describe_alarms([name])[0]
@@ -80,7 +81,7 @@ class CloudWatchAlarmResource:
         return self.describe_alarm(name, meta)
 
     def remove_alarms(self, args):
-        create_pool(self.remove_alarm_list, chunks(args, 100))
+        self.create_pool(self.remove_alarm_list, chunks(args, 100))
 
     def remove_alarm_list(self, *alarm_list):
         alarm_names = [x['config']['resource_name'] for x in alarm_list[0]]

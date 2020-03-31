@@ -18,7 +18,8 @@ import time
 from botocore.exceptions import ClientError
 
 from syndicate.commons.log_helper import get_logger
-from syndicate.core.helper import create_pool, unpack_kwargs
+from syndicate.core.helper import unpack_kwargs
+from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import build_description_obj
 
 _LOG = get_logger('core.resources.sqs_resource')
@@ -30,7 +31,7 @@ AVAILABLE_REGIONS = ['us-east-2', 'us-east-1', 'us-west-1', 'us-west-2',
 FIFO_REGIONS = ['us-east-1', 'us-east-2', 'us-west-2', 'eu-west-1']
 
 
-class SqsResource:
+class SqsResource(BaseResource):
 
     def __init__(self, sqs_conn_builder, region, account_id) -> None:
         self.sqs_conn_builder = sqs_conn_builder
@@ -38,7 +39,7 @@ class SqsResource:
         self.account_id = account_id
 
     def create_sqs_queue(self, args):
-        return create_pool(self._create_sqs_queue_from_meta, args)
+        return self.create_pool(self._create_sqs_queue_from_meta, args)
 
     def describe_queue(self, queue_url, name, meta, resource_name, region):
         response = self.sqs_conn_builder(region).get_queue_attributes(
@@ -63,7 +64,7 @@ class SqsResource:
         }
 
     def remove_queues(self, args):
-        create_pool(self._remove_queue, args)
+        self.create_pool(self._remove_queue, args)
         # wait to remove all queues
         if args:
             time.sleep(60)
@@ -140,8 +141,7 @@ class SqsResource:
             resource_name += '.fifo'
         return resource_name
 
-    @staticmethod
-    def _build_queue_arn(resource_name, region):
+    def _build_queue_arn(self, resource_name, region):
         arn = 'arn:aws:sqs:{0}:{1}:{2}'.format(region, self.account_id,
                                                resource_name)
         return arn

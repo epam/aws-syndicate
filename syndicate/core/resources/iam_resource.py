@@ -17,14 +17,15 @@ from botocore.exceptions import ClientError
 
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import retry
-from syndicate.core.helper import create_pool, prettify_json, unpack_kwargs
+from syndicate.core.helper import prettify_json, unpack_kwargs
+from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import (build_description_obj,
                                              resolve_dynamic_identifier)
 
 _LOG = get_logger('syndicate.core.resources.iam_resource')
 
 
-class IamResource:
+class IamResource(BaseResource):
 
     def __init__(self, iam_conn, account_id, region) -> None:
         self.iam_conn = iam_conn
@@ -32,7 +33,7 @@ class IamResource:
         self.region = region
 
     def remove_policies(self, args):
-        create_pool(self._remove_policy, args)
+        self.create_pool(self._remove_policy, args)
 
     @unpack_kwargs
     def _remove_policy(self, arn, config):
@@ -51,7 +52,7 @@ class IamResource:
                 raise e
 
     def remove_roles(self, args):
-        create_pool(self._remove_role, args)
+        self.create_pool(self._remove_role, args)
 
     @unpack_kwargs
     def _remove_role(self, arn, config):
@@ -96,10 +97,12 @@ class IamResource:
         _LOG.info('Instance profile %s removed.', profile_name)
 
     def create_policies(self, args):
-        return create_pool(self, self._create_policy_from_meta, args)
+        return self.create_pool(job=self._create_policy_from_meta,
+                                parameters=args)
 
     def create_roles(self, args):
-        return create_pool(self, self._create_role_from_meta, args)
+        return self.create_pool(job=self._create_role_from_meta,
+                                parameters=args)
 
     @unpack_kwargs
     def _create_policy_from_meta(self, name, meta):
@@ -113,18 +116,18 @@ class IamResource:
         _LOG.info('Created IAM policy %s.', name)
         return self.describe_policy(name=name, meta=meta)
 
-    @staticmethod
-    def _build_policy_arn(name):
+    def _build_policy_arn(self, name):
         return 'arn:aws:iam::{0}:policy/{1}'.format(self.account_id, name)
 
     def describe_policy(self, name, meta, response=None):
         arn = self._build_policy_arn(name)
         if not response:
             response = self.iam_conn.get_policy(arn)
-        del response['Arn']
-        return {
-            arn: build_description_obj(response, name, meta)
-        }
+        if response:
+            del response['Arn']
+            return {
+                arn: build_description_obj(response, name, meta)
+            }
 
     @unpack_kwargs
     def _create_role_from_meta(self, name, meta):

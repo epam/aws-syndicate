@@ -18,7 +18,8 @@ import time
 from botocore.exceptions import ClientError
 
 from syndicate.commons.log_helper import get_logger
-from syndicate.core.helper import create_pool, unpack_kwargs
+from syndicate.core.helper import unpack_kwargs
+from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import (build_description_obj,
                                              validate_params)
 
@@ -29,11 +30,11 @@ _CORS_HEADER_NAME = 'Access-Control-Allow-Origin'
 _CORS_HEADER_VALUE = "'*'"
 
 
-class ApiGatewayResource:
+class ApiGatewayResource(BaseResource):
 
-    def __init__(self, apigw_conn, lambda_conn, account_id, region) -> None:
+    def __init__(self, apigw_conn, lambda_res, account_id, region) -> None:
         self.connection = apigw_conn
-        self.lambda_conn = lambda_conn
+        self.lambda_res = lambda_res
         self.account_id = account_id
         self.region = region
 
@@ -53,10 +54,10 @@ class ApiGatewayResource:
     
         :type args: list
         """
-        return create_pool(self._create_api_gateway_from_meta, args, 1)
+        return self.create_pool(self._create_api_gateway_from_meta, args, 1)
 
     def api_gateway_update_processor(self, args):
-        return create_pool(self._create_or_update_api_gateway, args, 1)
+        return self.create_pool(self._create_or_update_api_gateway, args, 1)
 
     @unpack_kwargs
     def _create_or_update_api_gateway(self, name, meta,
@@ -90,7 +91,8 @@ class ApiGatewayResource:
                         api_resources=api_resources,
                         api_resp=api_resp,
                         api_integration_resp=api_integration_resp)
-                    create_pool(self._create_resource_from_metadata, args, 1)
+                    self.create_pool(self._create_resource_from_metadata,
+                                     args, 1)
                     # add headers
                     # waiter b4 customization
                     time.sleep(10)
@@ -185,7 +187,7 @@ class ApiGatewayResource:
             lambda_version = val.get('lambda_version')
             lambda_name = val.get('lambda_name')
             lambda_alias = val.get('lambda_alias')
-            lambda_arn = self.lambda_conn. \
+            lambda_arn = self.lambda_res. \
                 resolve_lambda_arn_by_version_and_alias(lambda_name,
                                                         lambda_version,
                                                         lambda_alias)
@@ -198,7 +200,7 @@ class ApiGatewayResource:
                                                   'identity_source'),
                                               ttl=val.get('ttl'))
 
-            self.lambda_conn.add_invocation_permission(
+            self.lambda_res.add_invocation_permission(
                 statement_id=api_id,
                 name=lambda_arn,
                 principal='apigateway.amazonaws.com')
@@ -208,7 +210,7 @@ class ApiGatewayResource:
             args = self.__prepare_api_resources_args(api_id, api_resources,
                                                      api_resp,
                                                      api_integration_resp)
-            create_pool(self._create_resource_from_metadata, args, 1)
+            self.create_pool(self._create_resource_from_metadata, args, 1)
         else:
             _LOG.info('There is no resources in %s API Gateway description.',
                       name)
@@ -435,7 +437,7 @@ class ApiGatewayResource:
                 # alias has a higher priority than version in arn resolving
                 lambda_version = method_meta.get('lambda_version')
                 lambda_alias = method_meta.get('lambda_alias')
-                lambda_arn = self.lambda_conn. \
+                lambda_arn = self.lambda_res. \
                     resolve_lambda_arn_by_version_and_alias(lambda_name,
                                                             lambda_version,
                                                             lambda_alias)
@@ -451,7 +453,7 @@ class ApiGatewayResource:
                 # add permissions to invoke
                 api_source_arn = f"arn:aws:execute-api:{self.region}:" \
                     f"{self.account_id}:{api_id}/*/{method}{resource_path}"
-                self.lambda_conn.add_invocation_permission(
+                self.lambda_res.add_invocation_permission(
                     statement_id=(api_id + '-' + method + '-' +
                                   resource_path.replace('/', '')),
                     name=lambda_arn,

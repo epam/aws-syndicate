@@ -19,7 +19,6 @@ import json
 import os
 import subprocess
 import sys
-from concurrent.futures import ALL_COMPLETED, ThreadPoolExecutor
 from functools import wraps
 from threading import Thread
 from time import time
@@ -35,26 +34,6 @@ from syndicate.core.constants import (ARTIFACTS_FOLDER, BUILD_META_FILE_NAME,
 _LOG = get_logger('syndicate.core.helper')
 
 
-def create_pool(func, args, workers=None, *kwargs):
-    """ Create resources in pool in sub processes.
-
-    :type args: iterable
-    :type func: func
-    """
-    executor = ThreadPoolExecutor(workers) if workers else ThreadPoolExecutor()
-    try:
-        futures = [executor.submit(func, i, kwargs) for i in args]
-        concurrent.futures.wait(futures, return_when=ALL_COMPLETED)
-        responses = {}
-        for future in futures:
-            result = future.result()
-            if result:
-                responses.update(result)
-        return responses
-    finally:
-        executor.shutdown(wait=True)
-
-
 def unpack_kwargs(handler_func):
     """ Decorator for unpack kwargs.
 
@@ -65,7 +44,11 @@ def unpack_kwargs(handler_func):
     @wraps(handler_func)
     def wrapper(*kwargs):
         """ Wrapper func."""
-        return handler_func(**kwargs[0])
+        parameters = {}
+        for i in kwargs:
+            if type(i) is dict:
+                parameters = i
+        return handler_func(**parameters)
 
     return wrapper
 
@@ -83,7 +66,7 @@ def exit_on_exception(handler_func):
         try:
             return handler_func(*args, **kwargs)
         except Exception as e:
-            _LOG.error("Error occurred: %s", str(e))
+            _LOG.exception("Error occurred: %s", str(e))
             sys.exit(1)
 
     return wrapper

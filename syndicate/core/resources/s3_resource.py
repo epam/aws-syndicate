@@ -15,19 +15,20 @@
 """
 from syndicate.commons.log_helper import get_logger
 from syndicate.core import ClientError
-from syndicate.core.helper import create_pool, unpack_kwargs
+from syndicate.core.helper import unpack_kwargs
+from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import build_description_obj, chunks
 
 _LOG = get_logger('syndicate.core.resources.s3_resource')
 
 
-class S3Resource:
+class S3Resource(BaseResource):
 
     def __init__(self, s3_conn) -> None:
         self.s3_conn = s3_conn
 
     def create_s3_bucket(self, args):
-        return create_pool(self._create_s3_bucket_from_meta, args)
+        return self.create_pool(self._create_s3_bucket_from_meta, args)
 
     def describe_bucket(self, name, meta):
         arn = 'arn:aws:s3:::{0}'.format(name)
@@ -77,7 +78,7 @@ class S3Resource:
             return []
 
     def remove_buckets(self, args):
-        create_pool(self._remove_bucket, args)
+        self.create_pool(self._remove_bucket, args)
 
     @unpack_kwargs
     def _remove_bucket(self, arn, config):

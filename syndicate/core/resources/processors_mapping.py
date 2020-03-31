@@ -44,7 +44,7 @@ class ProcessorFacade:
             DYNAMO_TABLE_TYPE:
                 self.resources_provider.dynamodb().create_tables_by_10,
             CLOUD_WATCH_RULE_TYPE:
-                self.resources_provider.cw_resource().create_cloud_watch_rule,
+                self.resources_provider.cw().create_cloud_watch_rule,
             S3_BUCKET_TYPE:
                 self.resources_provider.s3().create_s3_bucket,
             API_GATEWAY_TYPE:
@@ -58,7 +58,7 @@ class ProcessorFacade:
             SQS_QUEUE_TYPE:
                 self.resources_provider.sqs().create_sqs_queue,
             CLOUD_WATCH_ALARM_TYPE:
-                self.resources_provider.cw().create_alarm,
+                self.resources_provider.cw_alarm().create_alarm,
             EBS_TYPE:
                 self.resources_provider.ebs().create_ebs,
             STEP_FUNCTION_TYPE:
@@ -82,7 +82,7 @@ class ProcessorFacade:
             DYNAMO_TABLE_TYPE:
                 self.resources_provider.dynamodb().describe_table,
             CLOUD_WATCH_RULE_TYPE:
-                self.resources_provider.cw_resource().describe_rule_from_meta,
+                self.resources_provider.cw().describe_rule_from_meta,
             S3_BUCKET_TYPE:
                 self.resources_provider.s3().describe_bucket,
             API_GATEWAY_TYPE:
@@ -96,7 +96,7 @@ class ProcessorFacade:
             SQS_QUEUE_TYPE:
                 self.resources_provider.sqs().describe_queue_from_meta,
             CLOUD_WATCH_ALARM_TYPE:
-                self.resources_provider.cw().describe_alarm,
+                self.resources_provider.cw_alarm().describe_alarm,
             EBS_TYPE:
                 self.resources_provider.ebs().describe_ebs,
             STEP_FUNCTION_TYPE:
@@ -110,11 +110,11 @@ class ProcessorFacade:
     def remove_handlers(self):
         return {
             CLOUD_WATCH_ALARM_TYPE:
-                self.resources_provider.cw().remove_alarms,
+                self.resources_provider.cw_alarm().remove_alarms,
             API_GATEWAY_TYPE:
                 self.resources_provider.api_gw().remove_api_gateways,
             CLOUD_WATCH_RULE_TYPE:
-                self.resources_provider.cw_resource().remove_cloud_watch_rules,
+                self.resources_provider.cw().remove_cloud_watch_rules,
             COGNITO_TYPE:
                 self.resources_provider.cognito().remove_cognito_identity_pools,
             DYNAMO_TABLE_TYPE:

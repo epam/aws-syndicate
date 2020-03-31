@@ -20,8 +20,9 @@ from botocore.exceptions import ClientError
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import retry
 from syndicate.core.build.meta_processor import S3_PATH_NAME
-from syndicate.core.helper import (create_pool, unpack_kwargs,
+from syndicate.core.helper import (unpack_kwargs,
                                    exit_on_exception)
+from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import (build_description_obj,
                                              validate_params,
                                              assert_required_params)
@@ -37,7 +38,7 @@ _LAMBDA_PROV_CONCURRENCY_QUALIFIERS = [LAMBDA_CONCUR_QUALIFIER_ALIAS,
                                        LAMBDA_CONCUR_QUALIFIER_VERSION]
 
 
-class LambdaResource:
+class LambdaResource(BaseResource):
 
     def __init__(self, lambda_conn, s3_conn, cw_logs_conn, sns_conn,
                  iam_conn, dynamodb_conn, sqs_conn, kinesis_conn,
@@ -123,13 +124,13 @@ class LambdaResource:
     
         :type args: list
         """
-        return create_pool(self._create_lambda_from_meta, args)
+        return self.create_pool(self._create_lambda_from_meta, args)
 
     def update_lambda(self, args):
-        return create_pool(self._update_lambda, args)
+        return self.create_pool(self._update_lambda, args)
 
     def update_lambda_layer(self, args):
-        return create_pool(self.create_lambda_layer_from_meta, args)
+        return self.create_pool(self.create_lambda_layer_from_meta, args)
 
     def describe_lambda(self, name, meta, response=None):
         if not response:
@@ -154,6 +155,14 @@ class LambdaResource:
         else:
             return self.lambda_conn.get_function(name)['Configuration'][
                 'FunctionArn']
+
+    def add_invocation_permission(self, name, principal, source_arn=None,
+                                  statement_id=None):
+        return self.lambda_conn.add_invocation_permission(
+            name=name,
+            principal=principal,
+            source_arn=source_arn,
+            statement_id=statement_id)
 
     def build_lambda_arn_with_alias(self, response, alias=None):
         name = response['Configuration']['FunctionName']
@@ -214,10 +223,11 @@ class LambdaResource:
             dl_type = dl_type.lower()
         dl_name = meta.get('dl_resource_name')
 
-        dl_target_arn = 'arn:aws:{0}:{1}:{2}:{3}'.format(dl_type,
-                                                         self.region,
-                                                         self.account_id,
-                                                         dl_name) if dl_type and dl_name else None
+        dl_target_arn = 'arn:aws:{0}:{1}:{2}:{3}'.format(
+            dl_type,
+            self.region,
+            self.account_id,
+            dl_name) if dl_type and dl_name else None
 
         publish_version = meta.get('publish_version', False)
         lambda_layers_arns = []
@@ -274,11 +284,12 @@ class LambdaResource:
             for trigger_meta in meta.get('event_sources'):
                 trigger_type = trigger_meta['resource_type']
                 func = self.CREATE_TRIGGER[trigger_type]
-                func(name, arn, role_name, trigger_meta)
+                func(self, name, arn, role_name, trigger_meta)
         # concurrency configuration
-        self._manage_provisioned_concurrency_configuration(function_name=name,
-                                                           meta=meta,
-                                                           lambda_def=lambda_def)
+        self._manage_provisioned_concurrency_configuration(
+            function_name=name,
+            meta=meta,
+            lambda_def=lambda_def)
         return self.describe_lambda(name, meta, lambda_def)
 
     @exit_on_exception
@@ -422,8 +433,7 @@ class LambdaResource:
         if not existing_config:
             return
         for config in existing_config:
-            qualifier = self._resolve_configured_existing_qualifier(
-                config)
+            qualifier = self._resolve_configured_existing_qualifier(config)
             self.lambda_conn.delete_provisioned_concurrency_config(
                 name=function_name,
                 qualifier=qualifier)
@@ -481,10 +491,11 @@ class LambdaResource:
         lambda_def['Alias'] = meta.get('alias')
         resolve_qualifier_req = lambda_def
         resolved_qualified = self._LAMBDA_QUALIFIER_RESOLVER[qualifier](
-            resolve_qualifier_req)
+            self, resolve_qualifier_req)
         return resolved_qualified
 
-    def _resolve_configured_existing_qualifier(self, existing_config):
+    @staticmethod
+    def _resolve_configured_existing_qualifier(existing_config):
         function_arn = existing_config.get('FunctionArn')
         parts = function_arn.split(':')
         return parts[-1]
@@ -680,7 +691,7 @@ class LambdaResource:
     }
 
     def remove_lambdas(self, args):
-        create_pool(self._remove_lambda, args)
+        self.create_pool(self._remove_lambda, args)
 
     @unpack_kwargs
     @retry
@@ -701,7 +712,7 @@ class LambdaResource:
                 raise e
 
     def create_lambda_layer(self, args):
-        return create_pool(self.create_lambda_layer_from_meta, args)
+        return self.create_pool(self.create_lambda_layer_from_meta, args)
 
     @unpack_kwargs
     def create_lambda_layer_from_meta(self, name, meta, context=None):
@@ -757,7 +768,7 @@ class LambdaResource:
         }
 
     def remove_lambda_layers(self, args):
-        return create_pool(self._remove_lambda_layers, args)
+        return self.create_pool(self._remove_lambda_layers, args)
 
     @unpack_kwargs
     @retry

@@ -83,7 +83,7 @@ class ResourceProvider:
                 )
             return self._cw_alarm_resource
 
-        def cw_resource(self):
+        def cw(self):
             if not self._cw_resource:
                 self._cw_resource = CloudWatchResource(
                     cw_events_conn_builder=self._conn_provider.cw_metric,
@@ -102,7 +102,7 @@ class ResourceProvider:
             if not self._api_gateway_resource:
                 self._api_gateway_resource = ApiGatewayResource(
                     apigw_conn=self._conn_provider.api_gateway(),
-                    lambda_conn=self._conn_provider.lambda_conn(),
+                    lambda_res=self.lambda_resource(),
                     account_id=self.config.account_id,
                     region=self.config.region
                 )
@@ -212,3 +212,4 @@ class ResourceProvider:
                     region=self.config.region,
                     account_id=self.config.account_id
                 )
+            return self._step_functions_resource

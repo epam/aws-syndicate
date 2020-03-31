@@ -16,13 +16,14 @@
 from botocore.exceptions import ClientError
 
 from syndicate.commons.log_helper import get_logger
+from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import (build_description_obj,
                                              validate_params)
 
 _LOG = get_logger('syndicate.core.resources.dynamo_db_resource')
 
 
-class DynamoDBResource:
+class DynamoDBResource(BaseResource):
 
     def __init__(self, dynamodb_conn, cw_alarm_conn,
                  app_as_conn, iam_conn) -> None:

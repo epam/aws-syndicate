@@ -364,7 +364,7 @@ def resolve_meta(overall_meta):
     if CONFIG.aliases:
         for key, value in CONFIG.aliases.items():
             name = '${' + key + '}'
-            overall_meta = resolve_dynamic_identifier(name, value,
+            overall_meta = resolve_dynamic_identifier(name, str(value),
                                                       overall_meta)
             _LOG.debug('Resolved meta was created')
     _LOG.debug(prettify_json(overall_meta))

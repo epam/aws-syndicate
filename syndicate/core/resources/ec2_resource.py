@@ -18,13 +18,14 @@ from time import sleep
 
 from syndicate.commons.log_helper import get_logger
 from syndicate.core import ClientError
-from syndicate.core.helper import create_pool, unpack_kwargs
+from syndicate.core.helper import unpack_kwargs
+from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import build_description_obj, chunks
 
 _LOG = get_logger('syndicate.core.resources.ec2_resource')
 
 
-class Ec2Resource:
+class Ec2Resource(BaseResource):
 
     def __init__(self, ec2_conn, iam_conn, region, account_id) -> None:
         self.ec2_conn = ec2_conn
@@ -52,7 +53,7 @@ class Ec2Resource:
         }
 
     def create_ec2(self, args):
-        return create_pool(self._create_ec2_from_meta, args)
+        return self.create_pool(self._create_ec2_from_meta, args)
 
     @unpack_kwargs
     def _create_ec2_from_meta(self, name, meta):
@@ -159,7 +160,7 @@ class Ec2Resource:
         return self.describe_ec2(name, meta, response)
 
     def remove_ec2_instances(self, args):
-        create_pool(self.remove_instance_list, chunks(args, 1000))
+        self.create_pool(self.remove_instance_list, chunks(args, 1000))
 
     def remove_instance_list(self, *instance_list):
         instance_ids = [x['config']['description']['InstanceId'] for x in

@@ -19,7 +19,6 @@ from concurrent.futures import ALL_COMPLETED, ThreadPoolExecutor
 from functools import cmp_to_key
 
 from syndicate.commons.log_helper import get_logger
-from syndicate.core import PROCESSOR_FACADE
 from syndicate.core.build.bundle_processor import (create_deploy_output,
                                                    load_deploy_output,
                                                    load_failed_deploy_output,
@@ -119,6 +118,7 @@ def _build_args(name, meta, context, pass_context=False):
 
 
 def update_failed_output(res_name, res_meta, resource_type, output):
+    from syndicate.core import PROCESSOR_FACADE
     describe_func = PROCESSOR_FACADE.describe_handlers()[resource_type]
     failed_resource_output = describe_func(res_name, res_meta)
     if failed_resource_output:
@@ -131,12 +131,14 @@ def update_failed_output(res_name, res_meta, resource_type, output):
 
 
 def deploy_resources(resources):
+    from syndicate.core import PROCESSOR_FACADE
     return _process_resources(
         resources=resources,
         handlers_mapping=PROCESSOR_FACADE.create_handlers())
 
 
 def update_resources(resources):
+    from syndicate.core import PROCESSOR_FACADE
     return _process_resources(
         resources=resources,
         handlers_mapping=PROCESSOR_FACADE.update_handlers(),
@@ -144,6 +146,7 @@ def update_resources(resources):
 
 
 def clean_resources(output):
+    from syndicate.core import PROCESSOR_FACADE
     args = []
     resource_type = None
     # clean all resources
@@ -170,6 +173,7 @@ def clean_resources(output):
 
 # todo implement saving failed output
 def continue_deploy_resources(resources, failed_output):
+    from syndicate.core import PROCESSOR_FACADE
     updated_output = {}
     deploy_result = True
     res_type = None
@@ -313,6 +317,7 @@ def create_deployment_resources(deploy_name, bundle_name,
 def update_deployment_resources(bundle_name, deploy_name, replace_output=False,
                                 update_only_types=None,
                                 update_only_resources=None):
+    from syndicate.core import PROCESSOR_FACADE
     resources = resolve_meta(load_meta_resources(bundle_name))
     _LOG.debug(prettify_json(resources))
 
@@ -488,6 +493,7 @@ def remove_failed_deploy_resources(deploy_name, bundle_name,
 
 
 def _apply_dynamic_changes(resources, output):
+    from syndicate.core import PROCESSOR_FACADE
     pool = ThreadPoolExecutor(max_workers=5)
     futures = []
     for name, meta in resources.items():

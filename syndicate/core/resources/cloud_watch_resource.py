@@ -19,7 +19,8 @@ from botocore.exceptions import ClientError
 
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.conf.processor import ALL_REGIONS
-from syndicate.core.helper import create_pool, unpack_kwargs
+from syndicate.core.helper import unpack_kwargs
+from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import (build_description_obj,
                                              create_args_for_multi_region,
                                              validate_params)
@@ -55,7 +56,7 @@ RULE_TYPES = {
 }
 
 
-class CloudWatchResource:
+class CloudWatchResource(BaseResource):
 
     def __init__(self, cw_events_conn_builder, account_id) -> None:
         self.cw_events_conn = cw_events_conn_builder()
@@ -94,8 +95,8 @@ class CloudWatchResource:
         :type args: list
         """
         new_region_args = create_args_for_multi_region(args, ALL_REGIONS)
-        return create_pool(self._create_cloud_watch_rule_from_meta,
-                           new_region_args)
+        return self.create_pool(self._create_cloud_watch_rule_from_meta,
+                                new_region_args)
 
     @unpack_kwargs
     def _create_cloud_watch_rule_from_meta(self, name, meta, region):
@@ -166,7 +167,7 @@ class CloudWatchResource:
             _LOG.debug('Rule %s removed', rule_name)
 
     def remove_cloud_watch_rules(self, args):
-        create_pool(self._remove_cloud_watch_rule, args)
+        self.create_pool(self._remove_cloud_watch_rule, args)
 
     @unpack_kwargs
     def _remove_cloud_watch_rule(self, arn, config):

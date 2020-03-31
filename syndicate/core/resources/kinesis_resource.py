@@ -17,22 +17,23 @@ import time
 
 from syndicate.commons.log_helper import get_logger
 from syndicate.core import ClientError
-from syndicate.core.helper import create_pool, unpack_kwargs
+from syndicate.core.helper import unpack_kwargs
+from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import build_description_obj
 
 _LOG = get_logger('syndicate.core.resources.kinesis_resource')
 
 
-class KinesisResource:
+class KinesisResource(BaseResource):
 
     def __init__(self, kin_conn) -> None:
         self.kin_conn = kin_conn
 
     def create_kinesis_stream(self, args):
-        return create_pool(self._create_kinesis_stream_from_meta, args)
+        return self.create_pool(self._create_kinesis_stream_from_meta, args)
 
     def remove_kinesis_streams(self, args):
-        create_pool(self._remove_kinesis_stream, args)
+        self.create_pool(self._remove_kinesis_stream, args)
 
     @unpack_kwargs
     def _remove_kinesis_stream(self, arn, config):

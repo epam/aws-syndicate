@@ -18,14 +18,15 @@ import time
 from botocore.exceptions import ClientError
 
 from syndicate.commons.log_helper import get_logger
-from syndicate.core.helper import create_pool, unpack_kwargs
+from syndicate.core.helper import unpack_kwargs
+from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import (build_description_obj,
                                              validate_params)
 
 _LOG = get_logger('core.resources.step_function_resource')
 
 
-class StepFunctionResource:
+class StepFunctionResource(BaseResource):
 
     def __init__(self, sf_conn, iam_conn, cw_events_conn, lambda_conn,
                  account_id, region) -> None:
@@ -37,13 +38,13 @@ class StepFunctionResource:
         self.region = region
 
     def create_state_machine(self, args):
-        return create_pool(self._create_state_machine_from_meta, args)
+        return self.create_pool(self._create_state_machine_from_meta, args)
 
     def create_activities(self, args):
-        return create_pool(self._create_activity_from_meta, args)
+        return self.create_pool(self._create_activity_from_meta, args)
 
     def remove_state_machines(self, args):
-        create_pool(self._remove_state_machine, args)
+        self.create_pool(self._remove_state_machine, args)
         if args:
             time.sleep(60)
 
@@ -68,7 +69,7 @@ class StepFunctionResource:
                 raise e
 
     def remove_activities(self, args):
-        create_pool(self._remove_activity, args)
+        self.create_pool(self._remove_activity, args)
 
     @unpack_kwargs
     def _remove_activity(self, arn, config):

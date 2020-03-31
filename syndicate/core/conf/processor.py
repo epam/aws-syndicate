@@ -191,7 +191,7 @@ class ConfigHolder:
 
     @property
     def account_id(self):
-        return self._resolve_variable(ACCOUNT_ID_CFG)
+        return str(self._resolve_variable(ACCOUNT_ID_CFG))
 
     @property
     def access_role(self):

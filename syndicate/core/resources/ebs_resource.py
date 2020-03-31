@@ -17,15 +17,17 @@ from time import time
 from uuid import uuid1
 
 from botocore.exceptions import ClientError
+
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.build.meta_processor import S3_PATH_NAME
-from syndicate.core.helper import create_pool, unpack_kwargs
+from syndicate.core.helper import unpack_kwargs
+from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import build_description_obj
 
 _LOG = get_logger('syndicate.core.resources.ebs_resource')
 
 
-class EbsResource:
+class EbsResource(BaseResource):
 
     def __init__(self, ec2_conn, iam_conn, ebs_conn, sns_conn,
                  s3_conn, region, account_id, deploy_target_bucket) -> None:
@@ -48,7 +50,7 @@ class EbsResource:
         }
 
     def create_ebs(self, args):
-        return create_pool(self._create_ebs_app_env_from_meta, args)
+        return self.create_pool(self._create_ebs_app_env_from_meta, args)
 
     @unpack_kwargs
     def _create_ebs_app_env_from_meta(self, name, meta):
@@ -214,7 +216,7 @@ class EbsResource:
         })
 
     def remove_ebs_apps(self, args):
-        create_pool(self._remove_ebs_app, args)
+        self.create_pool(self._remove_ebs_app, args)
 
     @unpack_kwargs
     def _remove_ebs_app(self, arn, config):

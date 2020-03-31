@@ -460,7 +460,6 @@ def build_artifacts(ctx, bundle_name):
     """
     click.echo('Building artifacts ...')
     from syndicate.core import CONFIG
-    import pdb; pdb.set_trace()
     if CONFIG.build_projects_mapping:
         for key, values in CONFIG.build_projects_mapping.items():
             for value in values:
