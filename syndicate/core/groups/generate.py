@@ -67,7 +67,7 @@ def project(ctx, project_name, lang, project_path):
               type=click.Choice(PROJECT_PROCESSORS))
 @click.option('--project_path', nargs=1,
               help='The path where project structure will be created')
-@click.option('--lambda_name', nargs=1,
+@click.option('--lambda_name', nargs=1, multiple=True, type=str,
               help='The lambda function name')
 @click.pass_context
 @timeit
@@ -78,7 +78,7 @@ def lambda_function(ctx, project_name, lang, project_path, lambda_name):
     :param project_name: the project name
     :param lang: name of programming language that will be used in the project
     :param project_path: the path where project structure will be created
-    :param lambda_name: the lambda function name
+    :param lambda_name: the lambda function name (multiple)
     :return:
     """
     click.echo('Project name: {}'.format(project_name))
@@ -86,8 +86,8 @@ def lambda_function(ctx, project_name, lang, project_path, lambda_name):
 
     proj_path = pathlib.Path().absolute() if not project_path else project_path
     click.echo('Project path: {}'.format(proj_path))
-    click.echo('Lambda name: {}'.format(lambda_name))
+    click.echo('Lambda names: {}'.format(str(lambda_name)))
     generate_lambda_function(project_name=project_name,
                              project_path=proj_path,
                              project_language=lang,
-                             lambda_name=lambda_name)
+                             lambda_names=lambda_name)

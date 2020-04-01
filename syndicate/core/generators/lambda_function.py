@@ -16,69 +16,114 @@
 
 import os
 
+from syndicate.core.generators import (
+    PYTHON_LAMBDA_HANDLER_TEMPLATE, NODEJS_LAMBDA_HANDLER_TEMPLATE, re_survey,
+    _touch, _mkdir)
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.groups import (PROJECT_JAVA, PROJECT_NODEJS, PROJECT_PYTHON)
 
-_LOG = get_logger('syndicate.core.project.processor')
+_LOG = get_logger('syndicate.core.generators.lambda_function')
 
 SLASH_SYMBOL = '/'
+
 FOLDER_LAMBDAS = '/lambdas'
 FOLDER_COMMONS = '/commons'
+FOLDER_SRC = '/src'
+FOLDER_MAIN = '/main'
+FOLDER_TEST = '/test'
+
 FILE_README = '/README.md'
 FILE_DEPLOYMENT_RESOURCES = '/deployment_resources.json'
 FILE_POM = '/pom.xml'
+FILE_INIT_PYTHON = '/__init__.py'
+FILE_LAMBDA_CONFIG = '/lambda_config.json'
+FILE_INDEX_JS = '/index.js'
+FILE_PACKAGE_LOCK = '/package-lock.json'
+FILE_PACKAGE = '/package.json'
 
+FILE_REQUIREMENTS = '/requirements.txt'
+FILE_LOCAL_REQUIREMENTS = '/local_requirements.txt'
 
-def _touch(path):
-    with open(path, 'a'):
-        os.utime(path, None)
+LAMBDA_FILE_SUFFIX = '-lambda.py'
+
+PYTHON_LAMBDA_FILES = [FILE_INIT_PYTHON, FILE_LOCAL_REQUIREMENTS,
+                       FILE_REQUIREMENTS, FILE_DEPLOYMENT_RESOURCES,
+                       FILE_LAMBDA_CONFIG]
+
+NODEJS_LAMBDA_FILES = [FILE_PACKAGE, FILE_PACKAGE_LOCK, FILE_INDEX_JS,
+                       FILE_DEPLOYMENT_RESOURCES, FILE_LAMBDA_CONFIG]
 
 
 def generate_lambda_function(project_name, project_path, project_language,
-                             lambda_name):
-    if not os.path.exists(project_path):
+                             lambda_names):
+    full_project_path = project_path + SLASH_SYMBOL + project_name if (
+            project_path[-1] != SLASH_SYMBOL) else project_path + project_name
+
+    if not os.path.exists(full_project_path):
         raise AssertionError(
-            'Path "{}" you have provided does not exist'.format(project_path))
+            'Project "{}" you have provided does not exist'.format(
+                full_project_path))
 
     processor = PROJECT_PROCESSORS.get(project_language)
     if not processor:
         raise RuntimeError('Wrong project language {0}'.format(
             project_language))
 
-    full_project_path = project_path + SLASH_SYMBOL + project_name if (
-            project_path[-1] != SLASH_SYMBOL) else project_path + project_name
+    lambdas_path = full_project_path + FOLDER_LAMBDAS
 
-    try:
-        os.makedirs(full_project_path)
-    except FileExistsError:
-        answer = input('Folder with name {0} is already exist by path {1}. '
-                       '\nOverride the project? [y/n]: '.format(
-                        project_name, project_path))
-        while answer not in ('y', 'n'):
-            answer = input('Please enter [y/n] value: ')
-            if answer == 'y':
-                os.makedirs(full_project_path, exist_ok=True)
-            elif answer == 'n':
-                return
+    if not os.path.exists(lambdas_path):
+        _mkdir(full_project_path + FOLDER_LAMBDAS, exist_ok=True)
 
-    os.makedirs(full_project_path + FOLDER_LAMBDAS, exist_ok=True)
-    _touch(full_project_path + FILE_README)
-    _touch(full_project_path + FILE_DEPLOYMENT_RESOURCES)
+    processor(lambda_names, lambdas_path)
 
-    processor(full_project_path)
     _LOG.info('Project {} has been successfully created.'.format(project_name))
 
 
-def _generate_python_project_hierarchy(full_project_path):
-    pass
+def _generate_python_project_hierarchy(lambda_names, lambdas_path):
+    for lambda_function in lambda_names:
+        lambda_folder = lambdas_path + SLASH_SYMBOL + lambda_function
+
+        _mkdir(path=lambda_folder,
+               fault_message='Lambda {} already exists.\nOverride the '
+                             'Lambda function? [y/n]: '.format(lambda_function))
+
+        lambda_handler_path = (lambda_folder + SLASH_SYMBOL + lambda_function +
+                               LAMBDA_FILE_SUFFIX)
+        _touch(lambda_handler_path)
+
+        with open(lambda_handler_path, 'w') as f:
+            f.write(PYTHON_LAMBDA_HANDLER_TEMPLATE)
+
+        for file in PYTHON_LAMBDA_FILES:
+            _touch(lambda_folder + file)
 
 
-def _generate_java_project_hierarchy(full_project_path):
-    _touch(full_project_path + FILE_POM)
+def _generate_java_project_hierarchy(lambda_names, lambdas_path):
+    for lambda_function in lambda_names:
+        lambda_folder = lambdas_path + SLASH_SYMBOL + lambda_function
+        _mkdir(lambda_folder, exist_ok=True)
+
+        src_folder_path = lambda_folder + FOLDER_SRC
+        _mkdir(src_folder_path, exist_ok=True)
+        _mkdir(src_folder_path + FOLDER_MAIN, exist_ok=True)
+        _mkdir(src_folder_path + FOLDER_TEST, exist_ok=True)
+
+        _touch(lambda_folder + FILE_DEPLOYMENT_RESOURCES)
+        _touch(lambda_folder + FILE_POM)
 
 
-def _generate_nodejs_project_hierarchy(full_project_path):
-    os.makedirs(full_project_path + FOLDER_COMMONS, exist_ok=True)
+def _generate_nodejs_project_hierarchy(lambda_names, lambdas_path):
+    for lambda_function in lambda_names:
+        lambda_folder = lambdas_path + SLASH_SYMBOL + lambda_function
+        _mkdir(lambda_folder, exist_ok=True)
+
+        for file in NODEJS_LAMBDA_FILES:
+            _touch(lambda_folder + file)
+
+        lambda_handler_path = (lambda_folder + SLASH_SYMBOL + FILE_INDEX_JS)
+
+        with open(lambda_handler_path, 'w') as f:
+            f.write(NODEJS_LAMBDA_HANDLER_TEMPLATE)
 
 
 PROJECT_PROCESSORS = {
