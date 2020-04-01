@@ -13,6 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+import collections
 import concurrent.futures
 import datetime
 import json
@@ -23,6 +24,7 @@ from functools import wraps
 from threading import Thread
 from time import time
 
+import click
 from click import BadParameter
 from tqdm import tqdm
 
@@ -221,3 +223,12 @@ def handle_futures_progress_bar(futures):
     }
     for _ in tqdm(concurrent.futures.as_completed(futures), **kwargs):
         pass
+
+
+class OrderedGroup(click.Group):
+    def __init__(self, name=None, commands=None, **attrs):
+        super(OrderedGroup, self).__init__(name, commands, **attrs)
+        self.commands = commands or collections.OrderedDict()
+
+    def list_commands(self, ctx):
+        return self.commands

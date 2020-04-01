@@ -17,8 +17,9 @@ import collections
 import json
 import os
 import sys
-
+import pathlib
 import click
+from syndicate.core.groups.generate import generate
 
 from syndicate.core import CONF_PATH, initialize_connection
 from syndicate.core.build.artifact_processor import (RUNTIME_NODEJS,
@@ -34,7 +35,7 @@ from syndicate.core.build.deployment_processor import (
     remove_deployment_resources, remove_failed_deploy_resources,
     update_deployment_resources)
 from syndicate.core.build.meta_processor import create_meta
-from syndicate.core.conf.generator import generate_configuration_files
+# from syndicate.core.conf.generator import generate_configuration_files
 from syndicate.core.conf.validator import (MVN_BUILD_TOOL_NAME,
                                            PYTHON_BUILD_TOOL_NAME,
                                            NODE_BUILD_TOOL_NAME)
@@ -49,16 +50,9 @@ from syndicate.core.helper import (check_required_param,
 INIT_COMMAND_NAME = 'init'
 
 
-class OrderedGroup(click.Group):
-    def __init__(self, name=None, commands=None, **attrs):
-        super(OrderedGroup, self).__init__(name, commands, **attrs)
-        self.commands = commands or collections.OrderedDict()
-
-    def list_commands(self, ctx):
-        return self.commands
-
-
-@click.group(name='syndicate', cls=OrderedGroup, chain=True)
+# todo check how to add multi commands as children to
+#  another multi command that is in chain mode
+@click.group(name='syndicate')#, cls=OrderedGroup, chain=True)
 @click.version_option()
 def syndicate():
     if CONF_PATH:
@@ -562,3 +556,6 @@ def copy_bundle(ctx, bundle_name, src_account_id, src_bucket_region,
     click.echo('Bundle was downloaded successfully')
     ctx.invoke(upload_bundle, bundle_name=bundle_name, force=force_upload)
     click.echo('Bundle was copied successfully')
+
+
+syndicate.add_command(generate)
