@@ -38,7 +38,7 @@ from syndicate.core.conf.validator import (MVN_BUILD_TOOL_NAME,
                                            PYTHON_BUILD_TOOL_NAME,
                                            NODE_BUILD_TOOL_NAME)
 from syndicate.core.decorators import check_deploy_name_for_duplicates
-from syndicate.core.groups.generate import generate
+from syndicate.core.groups.generate import generate, GENERATE_GROUP_NAME
 from syndicate.core.helper import (check_required_param,
                                    create_bundle_callback,
                                    handle_futures_progress_bar,
@@ -47,6 +47,14 @@ from syndicate.core.helper import (check_required_param,
                                    verify_meta_bundle_callback)
 
 INIT_COMMAND_NAME = 'init'
+commands_without_config = (
+    INIT_COMMAND_NAME,
+    GENERATE_GROUP_NAME
+)
+
+
+def _not_require_config(all_params):
+    return any(item in commands_without_config for item in all_params)
 
 
 # todo check how to add multi commands as children to
@@ -57,7 +65,7 @@ def syndicate():
     if CONF_PATH:
         click.echo('Path to sdct.conf: ' + CONF_PATH)
         initialize_connection()
-    elif INIT_COMMAND_NAME in sys.argv:
+    elif _not_require_config(sys.argv):
         pass
     else:
         click.echo('Environment variable SDCT_CONF is not set! '

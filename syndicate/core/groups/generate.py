@@ -21,8 +21,10 @@ from syndicate.core.generators.project import (generate_project_structure,
 from syndicate.core.generators.lambda_function import (generate_lambda_function)
 from syndicate.core.helper import (check_required_param, timeit, OrderedGroup)
 
+GENERATE_GROUP_NAME = 'generate'
 
-@click.group(name='generate', cls=OrderedGroup, chain=True)
+
+@click.group(name=GENERATE_GROUP_NAME, cls=OrderedGroup, chain=True)
 def generate():
     """Manages auto-generating"""
 
