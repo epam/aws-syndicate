@@ -455,7 +455,9 @@ class ApiGatewayResource(BaseResource):
                     f"{self.account_id}:{api_id}/*/{method}{resource_path}"
                 self.lambda_res.add_invocation_permission(
                     statement_id=(api_id + '-' + method + '-' +
-                                  resource_path.replace('/', '')),
+                                  resource_path[1:].replace('/', '_').
+                                  replace('{', '').
+                                  replace('}', '')),
                     name=lambda_arn,
                     principal='apigateway.amazonaws.com',
                     source_arn=api_source_arn)
