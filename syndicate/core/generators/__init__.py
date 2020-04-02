@@ -52,22 +52,10 @@ def re_survey(answer, project_path):
             return
 
 
-PYTHON_LAMBDA_HANDLER_TEMPLATE = """import json
+def _write_content_to_file(file, content):
+    with open(file, 'w') as f:
+        f.write(content)
 
-def lambda_handler(event, context):
-    # TODO implement
-    return {
-        'statusCode': 200,
-        'body': json.dumps('Hello from Lambda!')
-    }
-"""
 
-NODEJS_LAMBDA_HANDLER_TEMPLATE = """exports.handler = async (event) => {
-    // TODO implement
-    const response = {
-        statusCode: 200,
-        body: JSON.stringify('Hello from Lambda!'),
-    };
-    return response;
-};
-"""
+def _alias_variable(alias_name):
+    return '${' + alias_name + '}'

@@ -16,9 +16,12 @@
 
 import os
 
-from syndicate.core.generators import re_survey, _touch, _mkdir
 from syndicate.commons.log_helper import get_logger
-from syndicate.core.groups import (PROJECT_JAVA, PROJECT_NODEJS, PROJECT_PYTHON)
+from syndicate.core.generators import (_touch, _mkdir,
+                                       _write_content_to_file)
+from syndicate.core.generators.contents import _get_lambda_default_policy
+from syndicate.core.groups import (PROJECT_JAVA, PROJECT_NODEJS,
+                                   PROJECT_PYTHON)
 
 _LOG = get_logger('syndicate.core.generators.project')
 
@@ -52,7 +55,9 @@ def generate_project_structure(project_name, project_path, project_language):
 
         _mkdir(full_project_path + FOLDER_LAMBDAS, exist_ok=True)
         _touch(full_project_path + FILE_README)
-        _touch(full_project_path + FILE_DEPLOYMENT_RESOURCES)
+        default_lambda_policy = _get_lambda_default_policy()
+        _write_content_to_file(full_project_path + FILE_DEPLOYMENT_RESOURCES,
+                               default_lambda_policy)
 
         processor(full_project_path)
         _LOG.info('Project {} has been successfully created.'.format(

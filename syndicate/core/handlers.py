@@ -13,13 +13,11 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-import collections
 import json
 import os
 import sys
-import pathlib
+
 import click
-from syndicate.core.groups.generate import generate
 
 from syndicate.core import CONF_PATH, initialize_connection
 from syndicate.core.build.artifact_processor import (RUNTIME_NODEJS,
@@ -35,11 +33,12 @@ from syndicate.core.build.deployment_processor import (
     remove_deployment_resources, remove_failed_deploy_resources,
     update_deployment_resources)
 from syndicate.core.build.meta_processor import create_meta
-# from syndicate.core.conf.generator import generate_configuration_files
+from syndicate.core.conf.generator import generate_configuration_files
 from syndicate.core.conf.validator import (MVN_BUILD_TOOL_NAME,
                                            PYTHON_BUILD_TOOL_NAME,
                                            NODE_BUILD_TOOL_NAME)
 from syndicate.core.decorators import check_deploy_name_for_duplicates
+from syndicate.core.groups.generate import generate
 from syndicate.core.helper import (check_required_param,
                                    create_bundle_callback,
                                    handle_futures_progress_bar,
@@ -52,7 +51,7 @@ INIT_COMMAND_NAME = 'init'
 
 # todo check how to add multi commands as children to
 #  another multi command that is in chain mode
-@click.group(name='syndicate')#, cls=OrderedGroup, chain=True)
+@click.group(name='syndicate')  # , cls=OrderedGroup, chain=True)
 @click.version_option()
 def syndicate():
     if CONF_PATH:
