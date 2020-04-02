@@ -21,7 +21,8 @@ from botocore.exceptions import ClientError
 
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection import S3Connection
-from syndicate.core.build.helper import _json_serial
+from syndicate.core.build.helper import _json_serial, resolve_bundle_directory, \
+    resolve_all_bundles_directory
 from syndicate.core.build.meta_processor import validate_deployment_packages
 from syndicate.core.constants import (ARTIFACTS_FOLDER, BUILD_META_FILE_NAME,
                                       DEFAULT_SEP)
@@ -137,17 +138,15 @@ def if_bundle_exist(bundle_name):
 
 
 def upload_bundle_to_s3(bundle_name, force):
-    from syndicate.core import CONFIG
     if if_bundle_exist(bundle_name) and not force:
         raise AssertionError('Bundle name {0} already exists '
                              'in deploy bucket. Please use another bundle '
                              'name or delete the bundle'.format(bundle_name))
 
-    bundle_path = build_path(CONFIG.project_path, ARTIFACTS_FOLDER,
-                             bundle_name)
+    bundle_path = resolve_bundle_directory(bundle_name=bundle_name)
     build_meta_path = build_path(bundle_path, BUILD_META_FILE_NAME)
     meta_resources = json.load(open(build_meta_path))
-    validate_deployment_packages(project_path=CONFIG.project_path,
+    validate_deployment_packages(bundle_path=resolve_all_bundles_directory(),
                                  meta_resources=meta_resources)
     _LOG.info('Bundle was validated successfully')
     paths = []
@@ -158,8 +157,7 @@ def upload_bundle_to_s3(bundle_name, force):
     futures = []
     for path in paths:
         if 'output/' not in path:
-            path_to_package = build_path(CONFIG.project_path, ARTIFACTS_FOLDER,
-                                         bundle_name, path)
+            path_to_package = build_path(bundle_path, path)
             _LOG.debug('Going to upload file: {0}'.format(path_to_package))
             arg = {
                 'path': build_path(bundle_name, path),
@@ -249,7 +247,7 @@ def _download_package_from_s3(conn, bucket_name, key, path):
 
 @unpack_kwargs
 def _put_package_to_s3(path, path_to_package):
-    from syndicate.core import CONFIG, CONN
+    from syndicate.core import CONN, CONFIG
     CONN.s3().upload_single_file(path_to_package, path,
                                  CONFIG.deploy_target_bucket)
 

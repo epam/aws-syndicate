@@ -146,7 +146,7 @@ Command example:
     --suffix $suffix 
     --config_path $path_to_store_config
     
-All provided information is validated. 
+All the provided information is validated. 
 After the configuration files will be generated the command will return the following message:
 
     Syndicate initialization has been completed. Set SDCT_CONF:
@@ -155,13 +155,16 @@ After the configuration files will be generated the command will return the foll
 Just copy the last line of commands output and execute the command. 
 The commands sets the environment variable SDCT_CONF required by aws-syndicate 
 to operate.
-    
+
+> Pay attention that the default syndicate_aliases.yaml file has been generated. 
+> Your application may require additional aliases to be deployed - please add them to the file.
+
 For more details please execute `syndicate init --help`
 
 Deployment
 ------------
 The demo application consists of the following infrastructure:
-*  2 IAM roles
+* 2 IAM roles
 * 3 IAM policies
 * 1 DynamoDB table
 * 1 S3 bucket

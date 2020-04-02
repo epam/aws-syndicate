@@ -18,6 +18,9 @@ import zipfile
 from contextlib import closing
 from datetime import datetime, date
 
+from syndicate.core.constants import ARTIFACTS_FOLDER
+from syndicate.core.helper import build_path
+
 
 def build_py_package_name(lambda_name, lambda_version):
     return '{0}-{1}.zip'.format(lambda_name, lambda_version)
@@ -39,3 +42,12 @@ def _json_serial(obj):
     if isinstance(obj, (datetime, date)):
         return obj.isoformat()
     raise TypeError("Type %s not serializable" % type(obj))
+
+
+def resolve_all_bundles_directory():
+    from syndicate.core import CONF_PATH
+    return build_path(CONF_PATH, ARTIFACTS_FOLDER)
+
+
+def resolve_bundle_directory(bundle_name):
+    return build_path(resolve_all_bundles_directory(), bundle_name)
