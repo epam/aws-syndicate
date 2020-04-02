@@ -26,8 +26,7 @@ from distutils import dir_util
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.build.helper import build_py_package_name, zip_dir
 from syndicate.core.conf.processor import path_resolver
-from syndicate.core.constants import (ARTIFACTS_FOLDER,
-                                      LAMBDA_CONFIG_FILE_NAME,
+from syndicate.core.constants import (LAMBDA_CONFIG_FILE_NAME,
                                       REQ_FILE_NAME, LOCAL_REQ_FILE_NAME,
                                       DEFAULT_SEP)
 from syndicate.core.helper import (build_path, unpack_kwargs, execute_command,
@@ -39,15 +38,12 @@ _LOG = get_logger('python_runtime_assembler')
 _PY_EXT = "*.py"
 
 
-def assemble_python_lambdas(bundle_name, project_path):
+def assemble_python_lambdas(project_path, bundles_dir):
     from syndicate.core import CONFIG
     project_base_folder = os.path.basename(os.path.normpath(project_path))
     project_abs_path = build_path(CONFIG.project_path, project_path)
     _LOG.info('Going to process python project by path: {0}'.format(
         project_abs_path))
-    target_folder = build_path(CONFIG.project_path, ARTIFACTS_FOLDER,
-                               bundle_name)
-    _LOG.debug('Target directory: {0}'.format(target_folder))
     executor = ThreadPoolExecutor(max_workers=5)
     futures = []
     for root, sub_dirs, files in os.walk(project_abs_path):
@@ -59,7 +55,7 @@ def assemble_python_lambdas(bundle_name, project_path):
                     'project_base_folder': project_base_folder,
                     'project_path': project_path,
                     'root': root,
-                    'target_folder': target_folder
+                    'target_folder': bundles_dir
                 }
                 futures.append(executor.submit(_build_python_artifact, arg))
     concurrent.futures.wait(futures, return_when=ALL_COMPLETED)

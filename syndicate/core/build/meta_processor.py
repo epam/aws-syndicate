@@ -17,7 +17,8 @@ import os
 from json import load
 
 from syndicate.commons.log_helper import get_logger
-from syndicate.core.build.helper import build_py_package_name
+from syndicate.core.build.helper import (build_py_package_name,
+                                         resolve_bundle_directory)
 from syndicate.core.build.validator.mapping import (VALIDATOR_BY_TYPE_MAPPING,
                                                     ALL_TYPES)
 from syndicate.core.conf.processor import GLOBAL_AWS_SERVICES
@@ -37,12 +38,11 @@ DEFAULT_IAM_SUFFIX_LENGTH = 5
 _LOG = get_logger('syndicate.core.build.meta_processor')
 
 
-def validate_deployment_packages(project_path, meta_resources):
+def validate_deployment_packages(bundle_path, meta_resources):
     package_paths = artifact_paths(meta_resources)
-    bundles_path = build_path(project_path, ARTIFACTS_FOLDER)
     nonexistent_packages = []
     for package in package_paths:
-        package_path = build_path(bundles_path, package)
+        package_path = build_path(bundle_path, package)
         if not os.path.exists(package_path):
             nonexistent_packages.append(package_path)
 
@@ -303,6 +303,7 @@ def _look_for_configs(nested_files, resources_meta, path, bundle_name):
 # todo validate all required configs
 def create_resource_json(project_path, bundle_name):
     """ Create resource catalog json with all resource metadata in project.
+    :param project_path: path to the project
     :type bundle_name: name of the bucket subdir
     """
     resources_meta = {}
@@ -354,8 +355,8 @@ def create_meta(project_path, bundle_name):
     _LOG.info("Bundle path: {0}".format(meta_path))
     overall_meta = create_resource_json(project_path=project_path,
                                         bundle_name=bundle_name)
-
-    write_content_to_file(meta_path, BUILD_META_FILE_NAME, overall_meta)
+    bundle_dir = resolve_bundle_directory(bundle_name=bundle_name)
+    write_content_to_file(bundle_dir, BUILD_META_FILE_NAME, overall_meta)
 
 
 def resolve_meta(overall_meta):

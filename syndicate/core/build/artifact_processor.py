@@ -13,8 +13,10 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+import os
 
 from syndicate.commons.log_helper import get_logger
+from syndicate.core.build.helper import resolve_bundle_directory
 from syndicate.core.build.runtime.java import assemble_java_mvn_lambdas
 from syndicate.core.build.runtime.nodejs import assemble_node_lambdas
 from syndicate.core.build.runtime.python import assemble_python_lambdas
@@ -45,8 +47,14 @@ def assemble_artifacts(bundle_name, project_path, runtime):
             'Currently available runtimes:{}'.format(runtime,
                                                      SUPPORTED_RUNTIMES))
 
+    bundle_dir = resolve_bundle_directory(bundle_name=bundle_name)
+    if not os.path.exists(bundle_dir):
+        os.makedirs(bundle_dir)
+    _LOG.debug('Target directory: {0}'.format(bundle_dir))
+
     assemble_func = RUNTIME_TO_BUILDER_MAPPING.get(runtime)
     if not assemble_func:
         raise AssertionError(
             'There is no assembler for the runtime {}'.format(runtime))
-    assemble_func(bundle_name=bundle_name, project_path=project_path)
+    assemble_func(project_path=project_path,
+                  bundles_dir=bundle_dir)

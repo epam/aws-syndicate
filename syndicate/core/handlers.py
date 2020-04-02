@@ -61,11 +61,11 @@ class OrderedGroup(click.Group):
 @click.group(name='syndicate', cls=OrderedGroup, chain=True)
 @click.version_option()
 def syndicate():
-    if CONF_PATH:
+    if INIT_COMMAND_NAME in sys.argv:
+        pass
+    elif CONF_PATH:
         click.echo('Path to sdct.conf: ' + CONF_PATH)
         initialize_connection()
-    elif INIT_COMMAND_NAME in sys.argv:
-        pass
     else:
         click.echo('Environment variable SDCT_CONF is not set! '
                    'Please verify that you configured have provided path to '
