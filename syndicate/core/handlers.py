@@ -57,9 +57,7 @@ def _not_require_config(all_params):
     return any(item in commands_without_config for item in all_params)
 
 
-# todo check how to add multi commands as children to
-#  another multi command that is in chain mode
-@click.group(name='syndicate')  # , cls=OrderedGroup, chain=True)
+@click.group(name='syndicate')
 @click.version_option()
 def syndicate():
     if CONF_PATH:
