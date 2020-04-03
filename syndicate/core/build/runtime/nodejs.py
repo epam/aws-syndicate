@@ -54,6 +54,7 @@ def assemble_node_lambdas(project_path, bundles_dir):
 
 @unpack_kwargs
 def _build_node_artifact(item, root, target_folder):
+    _check_npm_is_installed()
     _LOG.debug('Building artifact in {0}'.format(target_folder))
     lambda_config_dict = json.load(open(build_path(root, item)))
     _LOG.debug('Root path: {}'.format(root))
@@ -65,7 +66,8 @@ def _build_node_artifact(item, root, target_folder):
     # create folder to store artifacts
     artifact_path = build_path(target_folder, artifact_name)
     _LOG.debug('Artifacts path: {0}'.format(artifact_path))
-    os.makedirs(artifact_path)
+    if not os.path.exists(artifact_path):
+        os.makedirs(artifact_path)
     _LOG.debug('Folders are created')
     # getting file content
     req_path = build_path(root, NODE_REQ_FILE_NAME)
@@ -81,7 +83,9 @@ def _build_node_artifact(item, root, target_folder):
         lock.acquire()
         try:
             # remove unused folder/files
-            shutil.rmtree(os.path.join(root, 'node_modules'))
+            node_modules_path = os.path.join(root, 'node_modules')
+            if os.path.exists(node_modules_path):
+                shutil.rmtree(node_modules_path)
             # todo Investigate deleting package_lock file
             # shutil.rmtree(os.path.join(root, 'package_lock.json'))
             shutil.rmtree(artifact_path)
@@ -97,3 +101,12 @@ def _build_node_artifact(item, root, target_folder):
             'assembling'.format(lambda_name))
         return 'Error occurred during the \'{0}\' lambda deployment package ' \
                'assembling'.format(lambda_name)
+
+
+def _check_npm_is_installed():
+    import subprocess
+    result = subprocess.call('npm -v', shell=True)
+    if result:
+        raise AssertionError(
+            'NPM is not installed. There is no ability to build '
+            'NodeJS bundle. Please, install npm are retry to build bundle.')
