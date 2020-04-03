@@ -67,8 +67,7 @@ NODEJS_LAMBDA_FILES = [FILE_PACKAGE, FILE_PACKAGE_LOCK, FILE_LAMBDA_CONFIG,
 
 def generate_lambda_function(project_name, project_path, project_language,
                              lambda_names):
-    full_project_path = project_path + SLASH_SYMBOL + project_name if (
-            project_path[-1] != SLASH_SYMBOL) else project_path + project_name
+    full_project_path = os.path.join(project_path, project_name)
 
     if not os.path.exists(full_project_path):
         raise AssertionError(
@@ -92,7 +91,7 @@ def generate_lambda_function(project_name, project_path, project_language,
 def _generate_python_project_lambdas(lambda_names, lambdas_path):
     for lambda_name in lambda_names:
         print(lambdas_path)
-        lambda_folder = lambdas_path + SLASH_SYMBOL + lambda_name
+        lambda_folder = os.path.join(lambdas_path, lambda_name)
 
         answer = _mkdir(
             path=lambda_folder,
@@ -127,8 +126,8 @@ def _generate_python_project_lambdas(lambda_names, lambdas_path):
 
 
 def _generate_java_project_lambdas(lambda_names, lambdas_path):
-    for lambda_function in lambda_names:
-        lambda_folder = lambdas_path + SLASH_SYMBOL + lambda_function
+    for lambda_name in lambda_names:
+        lambda_folder = os.path.join(lambdas_path, lambda_name)
         _mkdir(lambda_folder)
 
         src_folder_path = lambda_folder + FOLDER_SRC
@@ -143,12 +142,13 @@ def _generate_java_project_lambdas(lambda_names, lambdas_path):
 
 def _generate_nodejs_project_lambdas(lambda_names, lambdas_path):
     for lambda_name in lambda_names:
-        lambda_folder = lambdas_path + SLASH_SYMBOL + lambda_name
+
+        lambda_folder = os.path.join(lambdas_path, lambda_name)
 
         answer = _mkdir(
             path=lambda_folder,
-            fault_message=f'\nLambda {lambda_name} already exists.\nOverride the '
-            'Lambda function? [y/n]: ')
+            fault_message=f'\nLambda {lambda_name} already exists.\n'
+            f'Override the Lambda function? [y/n]: ')
         if not answer:
             _LOG.info(CANCEL_MESSAGE.format(lambda_name))
             continue
