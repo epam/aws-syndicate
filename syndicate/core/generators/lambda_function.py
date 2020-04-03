@@ -17,12 +17,16 @@ import os
 
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.generators import (_touch,
-                                       _mkdir, _write_content_to_file)
+                                       _mkdir, _write_content_to_file,
+                                       FILE_LAMBDA_HANDLER_PYTHON,
+                                       FILE_LAMBDA_HANDLER_NODEJS)
 from syndicate.core.generators.contents import (
     NODEJS_LAMBDA_HANDLER_TEMPLATE,
     PYTHON_LAMBDA_HANDLER_TEMPLATE,
     _generate_python_node_lambda_config,
-    _generate_lambda_role_config)
+    _generate_lambda_role_config, _generate_nodejs_node_lambda_config,
+    CANCEL_MESSAGE, _generate_package_nodejs_lambda,
+    _generate_package_lock_nodejs_lambda)
 from syndicate.core.groups import (PROJECT_JAVA, PROJECT_NODEJS,
                                    PROJECT_PYTHON)
 
@@ -41,14 +45,11 @@ FILE_DEPLOYMENT_RESOURCES = '/deployment_resources.json'
 FILE_POM = '/pom.xml'
 FILE_INIT_PYTHON = '/__init__.py'
 FILE_LAMBDA_CONFIG = '/lambda_config.json'
-FILE_INDEX_JS = '/index.js'
 FILE_PACKAGE_LOCK = '/package-lock.json'
 FILE_PACKAGE = '/package.json'
 
 FILE_REQUIREMENTS = '/requirements.txt'
 FILE_LOCAL_REQUIREMENTS = '/local_requirements.txt'
-
-FILE_LAMBDA_HANDLER = '/handler.py'
 
 LAMBDA_ROLE_NAME_PATTERN = '{0}-role'  # 0 - lambda_name
 POLICY_NAME_PATTERN = '{0}-policy'  # 0 - lambda_name
@@ -60,8 +61,8 @@ PYTHON_LAMBDA_FILES = [
     FILE_LAMBDA_CONFIG  # content
 ]  # + handler content
 
-NODEJS_LAMBDA_FILES = [FILE_PACKAGE, FILE_PACKAGE_LOCK, FILE_INDEX_JS,
-                       FILE_DEPLOYMENT_RESOURCES, FILE_LAMBDA_CONFIG]
+NODEJS_LAMBDA_FILES = [FILE_PACKAGE, FILE_PACKAGE_LOCK, FILE_LAMBDA_CONFIG,
+                       FILE_LAMBDA_HANDLER_NODEJS, FILE_DEPLOYMENT_RESOURCES]
 
 
 def generate_lambda_function(project_name, project_path, project_language,
@@ -85,8 +86,7 @@ def generate_lambda_function(project_name, project_path, project_language,
         _mkdir(full_project_path + FOLDER_LAMBDAS, exist_ok=True)
 
     processor(lambda_names, lambdas_path)
-
-    _LOG.info('Project {} has been successfully created.'.format(project_name))
+    _LOG.info(f'Lambda generating have been successfully performed.')
 
 
 def _generate_python_project_lambdas(lambda_names, lambdas_path):
@@ -94,17 +94,21 @@ def _generate_python_project_lambdas(lambda_names, lambdas_path):
         print(lambdas_path)
         lambda_folder = lambdas_path + SLASH_SYMBOL + lambda_name
 
-        _mkdir(
+        answer = _mkdir(
             path=lambda_folder,
-            fault_message='Lambda {} already exists.\nOverride the '
-                          'Lambda function? [y/n]: '.format(lambda_name))
+            fault_message=f'\nLambda {lambda_name} already exists.\nOverride the '
+            'Lambda function? [y/n]: ')
+        if not answer:
+            _LOG.info(CANCEL_MESSAGE.format(lambda_name))
+            continue
 
-        PYTHON_LAMBDA_FILES.append(FILE_LAMBDA_HANDLER)  # add lambda handler
+        PYTHON_LAMBDA_FILES.append(
+            FILE_LAMBDA_HANDLER_PYTHON)  # add lambda handler
         for file in PYTHON_LAMBDA_FILES:
             _touch(lambda_folder + file)
 
         # fill handler.py
-        _write_content_to_file(f'{lambda_folder}/{FILE_LAMBDA_HANDLER}',
+        _write_content_to_file(f'{lambda_folder}/{FILE_LAMBDA_HANDLER_PYTHON}',
                                PYTHON_LAMBDA_HANDLER_TEMPLATE)
 
         # fill deployment_resources.json
@@ -119,12 +123,13 @@ def _generate_python_project_lambdas(lambda_names, lambdas_path):
             f'{FOLDER_LAMBDAS}/{lambda_name}')
         _write_content_to_file(f'{lambda_folder}/{FILE_LAMBDA_CONFIG}',
                                lambda_def)
+        _LOG.info(f'Lambda {lambda_name} created')
 
 
 def _generate_java_project_lambdas(lambda_names, lambdas_path):
     for lambda_function in lambda_names:
         lambda_folder = lambdas_path + SLASH_SYMBOL + lambda_function
-        _mkdir(lambda_folder, exist_ok=True)
+        _mkdir(lambda_folder)
 
         src_folder_path = lambda_folder + FOLDER_SRC
         _mkdir(src_folder_path, exist_ok=True)
@@ -133,20 +138,51 @@ def _generate_java_project_lambdas(lambda_names, lambdas_path):
 
         _touch(lambda_folder + FILE_DEPLOYMENT_RESOURCES)
         _touch(lambda_folder + FILE_POM)
+        _LOG.info(f'Lambda {lambda_name} created')
 
 
 def _generate_nodejs_project_lambdas(lambda_names, lambdas_path):
-    for lambda_function in lambda_names:
-        lambda_folder = lambdas_path + SLASH_SYMBOL + lambda_function
-        _mkdir(lambda_folder, exist_ok=True)
+    for lambda_name in lambda_names:
+        lambda_folder = lambdas_path + SLASH_SYMBOL + lambda_name
+
+        answer = _mkdir(
+            path=lambda_folder,
+            fault_message=f'\nLambda {lambda_name} already exists.\nOverride the '
+            'Lambda function? [y/n]: ')
+        if not answer:
+            _LOG.info(CANCEL_MESSAGE.format(lambda_name))
+            continue
 
         for file in NODEJS_LAMBDA_FILES:
             _touch(lambda_folder + file)
 
-        lambda_handler_path = (lambda_folder + SLASH_SYMBOL + FILE_INDEX_JS)
+        # fill index.js
+        _write_content_to_file(f'{lambda_folder}/{FILE_LAMBDA_HANDLER_NODEJS}',
+                               NODEJS_LAMBDA_HANDLER_TEMPLATE)
 
-        with open(lambda_handler_path, 'w') as f:
-            f.write(NODEJS_LAMBDA_HANDLER_TEMPLATE)
+        # fill package.json
+        package_def = _generate_package_nodejs_lambda(lambda_name)
+        _write_content_to_file(f'{lambda_folder}/'f'{FILE_PACKAGE}',
+                               package_def)
+
+        # fill package.json
+        package_lock_def = _generate_package_lock_nodejs_lambda(lambda_name)
+        _write_content_to_file(f'{lambda_folder}/'f'{FILE_PACKAGE_LOCK}',
+                               package_lock_def)
+
+        # fill deployment_resources.json
+        role_def = _generate_lambda_role_config(
+            LAMBDA_ROLE_NAME_PATTERN.format(lambda_name))
+        _write_content_to_file(f'{lambda_folder}/{FILE_DEPLOYMENT_RESOURCES}',
+                               role_def)
+
+        # fill lambda_config.json
+        lambda_def = _generate_nodejs_node_lambda_config(
+            lambda_name,
+            f'{FOLDER_LAMBDAS}/{lambda_name}')
+        _write_content_to_file(f'{lambda_folder}/{FILE_LAMBDA_CONFIG}',
+                               lambda_def)
+        _LOG.info(f'Lambda {lambda_name} created')
 
 
 LAMBDAS_PROCESSORS = {

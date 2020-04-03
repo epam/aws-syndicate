@@ -70,7 +70,7 @@ def project(ctx, project_name, lang, project_path):
 @click.option('--project_path', nargs=1,
               help='The path where project structure will be created')
 @click.option('--lambda_name', nargs=1, multiple=True, type=str,
-              help='The lambda function name')
+              help='(multiple) The lambda function name')
 @click.pass_context
 @timeit
 def lambda_function(ctx, project_name, lang, project_path, lambda_name):

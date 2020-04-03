@@ -19,6 +19,9 @@ from syndicate.commons.log_helper import get_logger
 
 _LOG = get_logger('syndicate.core.generators')
 
+FILE_LAMBDA_HANDLER_PYTHON = '/handler.py'
+FILE_LAMBDA_HANDLER_NODEJS = '/index.js'
+
 
 def _touch(path):
     try:
@@ -26,30 +29,34 @@ def _touch(path):
             os.utime(path, None)
     except OSError:
         raise RuntimeError('Can not create new file by path {}. Syndicate '
-                           'does not have enough rights!'.format(path))
+                           'does not have enough permissions!'.format(path))
 
 
 def _mkdir(path, exist_ok=False, fault_message=None):
     try:
         os.makedirs(path, exist_ok=exist_ok)
+        return True
     except FileExistsError as e:
         if fault_message:
             answer = input(fault_message)
-            re_survey(answer, path)
+            return _re_survey(answer, path)
         else:
             _LOG.error(e)
     except OSError:
         raise RuntimeError('Can not create new folder by path {}. Syndicate '
-                           'does not have enough rights!'.format(path))
+                           'does not have enough permissions!'.format(path))
 
 
-def re_survey(answer, project_path):
+def _re_survey(answer, project_path):
     while answer not in ('y', 'n'):
         answer = input('Please enter [y/n] value: ')
+
         if answer == 'y':
             os.makedirs(project_path, exist_ok=True)
+            return True
         elif answer == 'n':
-            return
+            return False
+    return True
 
 
 def _write_content_to_file(file, content):

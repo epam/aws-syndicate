@@ -16,11 +16,14 @@
 import json
 
 from syndicate.core.conf.validator import LAMBDAS_ALIASES_NAME_CFG
-from syndicate.core.generators import _alias_variable
+from syndicate.core.generators import (_alias_variable,
+    FILE_LAMBDA_HANDLER_NODEJS)
 
 POLICY_LAMBDA_BASIC_EXECUTION = "lambda-basic-execution"
 
 LAMBDA_ROLE_NAME_PATTERN = '{0}-role'  # 0 - lambda_name
+
+CANCEL_MESSAGE = 'Creating of {} has been canceled.'
 
 PYTHON_LAMBDA_HANDLER_TEMPLATE = """import json
 
@@ -64,6 +67,49 @@ def _generate_python_node_lambda_config(lambda_name, lambda_relative_path):
         'env_variables': {},
         'publish_version': True,
         'alias': _alias_variable(LAMBDAS_ALIASES_NAME_CFG)
+    })
+
+
+def _generate_nodejs_node_lambda_config(lambda_name, lambda_relative_path):
+    return _stringify({
+        'version': '1.0',
+        'name': lambda_name,
+        'func_name': 'index.handler',
+        'resource_type': 'lambda',
+        'iam_role_name': LAMBDA_ROLE_NAME_PATTERN.format(lambda_name),
+        'runtime': 'nodejs10.x',
+        'memory': 128,
+        'timeout': 100,
+        'lambda_path': lambda_relative_path,
+        'dependencies': [],
+        'event_sources': [],
+        'env_variables': {},
+        'publish_version': True,
+        'alias': _alias_variable(LAMBDAS_ALIASES_NAME_CFG)
+    })
+
+
+def _generate_package_nodejs_lambda(lambda_name):
+    return _stringify({
+        "name": lambda_name,
+        "version": "1.0.0",
+        "description": "",
+        "main": FILE_LAMBDA_HANDLER_NODEJS[1:],
+        "scripts": {},
+        "author": "",
+        "license": "ISC",
+        "dependencies": {
+        }
+    })
+
+
+def _generate_package_lock_nodejs_lambda(lambda_name):
+    return _stringify({
+        "name": lambda_name,
+        "version": "1.0.0",
+        "lockfileVersion": 1,
+        "requires": True,
+        "dependencies": {}
     })
 
 
