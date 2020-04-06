@@ -13,20 +13,23 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+import json
 import os
 
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.generators import (_touch,
                                        _mkdir, _write_content_to_file,
                                        FILE_LAMBDA_HANDLER_PYTHON,
-                                       FILE_LAMBDA_HANDLER_NODEJS)
+                                       FILE_LAMBDA_HANDLER_NODEJS,
+                                       _read_content_from_file)
 from syndicate.core.generators.contents import (
     NODEJS_LAMBDA_HANDLER_TEMPLATE,
     PYTHON_LAMBDA_HANDLER_TEMPLATE,
     _generate_python_node_lambda_config,
     _generate_lambda_role_config, _generate_nodejs_node_lambda_config,
     CANCEL_MESSAGE, _generate_package_nodejs_lambda,
-    _generate_package_lock_nodejs_lambda)
+    _generate_package_lock_nodejs_lambda, JAVA_LAMBDA_HANDLER_CLASS,
+    SRC_MAIN_JAVA, FILE_POM)
 from syndicate.core.groups import (PROJECT_JAVA, PROJECT_NODEJS,
                                    PROJECT_PYTHON)
 
@@ -36,14 +39,9 @@ SLASH_SYMBOL = '/'
 
 FOLDER_LAMBDAS = '/lambdas'
 FOLDER_COMMONS = '/commons'
-FOLDER_SRC = '/src'
-FOLDER_MAIN = '/main'
-FOLDER_JAVA = '/java'
-FOLDER_TEST = '/test'
 
 FILE_README = '/README.md'
 FILE_DEPLOYMENT_RESOURCES = '/deployment_resources.json'
-FILE_POM = '/pom.xml'
 FILE_INIT_PYTHON = '/__init__.py'
 FILE_LAMBDA_CONFIG = '/lambda_config.json'
 FILE_PACKAGE_LOCK = '/package-lock.json'
@@ -82,11 +80,13 @@ def generate_lambda_function(project_name, project_path, project_language,
 
     lambdas_path = full_project_path + FOLDER_LAMBDAS
 
-    processor(lambda_names, lambdas_path)
+    processor(project_name=project_name, project_path=project_path,
+              lambda_names=lambda_names, lambdas_path=lambdas_path)
     _LOG.info(f'Lambda generating have been successfully performed.')
 
 
-def _generate_python_lambdas(lambda_names, lambdas_path):
+def _generate_python_lambdas(lambda_names, lambdas_path, project_name=None,
+                             project_path=None):
     if not os.path.exists(lambdas_path):
         _mkdir(lambdas_path, exist_ok=True)
     for lambda_name in lambda_names:
@@ -111,8 +111,9 @@ def _generate_python_lambdas(lambda_names, lambdas_path):
                                PYTHON_LAMBDA_HANDLER_TEMPLATE)
 
         # fill deployment_resources.json
+        pattern_format = LAMBDA_ROLE_NAME_PATTERN.format(lambda_name)
         role_def = _generate_lambda_role_config(
-            LAMBDA_ROLE_NAME_PATTERN.format(lambda_name))
+            pattern_format)
         _write_content_to_file(f'{lambda_folder}/{FILE_DEPLOYMENT_RESOURCES}',
                                role_def)
 
@@ -125,21 +126,77 @@ def _generate_python_lambdas(lambda_names, lambdas_path):
         _LOG.info(f'Lambda {lambda_name} created')
 
 
-def _generate_java_lambdas(lambda_names, lambdas_path):
+def _generate_java_lambdas(project_path, project_name, lambda_names,
+                           lambdas_path):
+    unified_lambda_name = _get_parts_split_by_chars(to_split=project_name,
+                                                    chars=['-', '_'])
+    java_package_name = unified_lambda_name.replace(' ', '')
+    java_package_name = f'com.{java_package_name}'
+    java_package_as_path = java_package_name.replace('.', '/')
+
+    pom_file_path = f'{project_path}/{project_name}/{FILE_POM}'
+    pom_xml_content = _read_content_from_file(pom_file_path)
+    pom_xml_content = pom_xml_content.replace(
+        '<!--packages to scan-->',
+        f'<package>{java_package_name}</package>')
+    _write_content_to_file(pom_file_path, pom_xml_content)
+
+    full_package_path = f'{project_path}/{project_name}/{SRC_MAIN_JAVA}/' \
+        f'{java_package_as_path}'
     for lambda_name in lambda_names:
-        lambda_folder = os.path.join(lambdas_path, lambda_name)
-        _mkdir(lambda_folder)
+        if not os.path.exists(full_package_path):
+            _mkdir(full_package_path, exist_ok=True)
 
-        java_folder_path = lambda_folder + FOLDER_SRC + \
-                           FOLDER_MAIN + FOLDER_JAVA
-        _mkdir(java_folder_path, exist_ok=True)
+        lambda_class_name = unified_lambda_name.title()
+        lambda_class_name = lambda_class_name.replace(' ', '')
+        java_handler_content = JAVA_LAMBDA_HANDLER_CLASS.replace(
+            '{java_package_name}',
+            java_package_name
+        )
+        java_handler_content = java_handler_content.replace(
+            '{lambda_name}',
+            lambda_name
+        )
+        java_handler_content = java_handler_content.replace(
+            '{lambda_class_name}',
+            lambda_class_name
+        )
+        lambda_role_name = LAMBDA_ROLE_NAME_PATTERN.format(lambda_name)
+        java_handler_content = java_handler_content.replace(
+            '{lambda_role_name}',
+            lambda_role_name
+        )
+        java_handler_file_name = f'{project_path}/{project_name}/' \
+            f'{SRC_MAIN_JAVA}/{java_package_as_path}/{lambda_class_name}.java'
+        _write_content_to_file(
+            java_handler_file_name,
+            java_handler_content
+        )
 
-        _touch(lambda_folder + FILE_DEPLOYMENT_RESOURCES)
-        _touch(lambda_folder + FILE_POM)
+        # add role to deployment_resource.json
+
+        dep_res_path = f'{project_path}/{project_name}' \
+            f'/{FILE_DEPLOYMENT_RESOURCES}'
+        deployment_resources = json.loads(_read_content_from_file(
+            dep_res_path
+        ))
+        deployment_resources.update(_generate_lambda_role_config(
+            lambda_role_name, stringify=False))
+        _write_content_to_file(dep_res_path,
+                               json.dumps(deployment_resources, indent=2))
+
         _LOG.info(f'Lambda {lambda_name} created')
 
 
-def _generate_nodejs_lambdas(lambda_names, lambdas_path):
+def _get_parts_split_by_chars(chars, to_split):
+    result = to_split
+    for char in chars:
+        result = result.replace(char, ' ')
+    return result
+
+
+def _generate_nodejs_lambdas(lambda_names, lambdas_path, project_name=None,
+                             project_path=None):
     if not os.path.exists(lambdas_path):
         _mkdir(lambdas_path, exist_ok=True)
     for lambda_name in lambda_names:

@@ -20,11 +20,10 @@ from syndicate.commons.log_helper import get_logger
 from syndicate.core.generators import (_touch, _mkdir,
                                        _write_content_to_file)
 from syndicate.core.generators.contents import (_get_lambda_default_policy,
-                                                JAVA_ROOT_POM_TEMPLATE)
+                                                JAVA_ROOT_POM_TEMPLATE,
+                                                SRC_MAIN_JAVA, FILE_POM)
 from syndicate.core.groups import (PROJECT_JAVA, PROJECT_NODEJS,
                                    PROJECT_PYTHON)
-
-SRC_MAIN_JAVA = '/src/main/java'
 
 _LOG = get_logger('syndicate.core.generators.project')
 
@@ -33,7 +32,7 @@ FOLDER_LAMBDAS = '/lambdas'
 FOLDER_COMMONS = '/commons'
 FILE_README = '/README.md'
 FILE_DEPLOYMENT_RESOURCES = '/deployment_resources.json'
-FILE_POM = '/pom.xml'
+
 
 
 def generate_project_structure(project_name, project_path, project_language):
@@ -69,7 +68,7 @@ def generate_project_structure(project_name, project_path, project_language):
         _LOG.error(str(e))
 
 
-def _generate_python_project_hierarchy(project_name, full_project_path):
+def _generate_python_project_hierarchy(full_project_path, project_name=None):
     _mkdir(full_project_path + FOLDER_LAMBDAS, exist_ok=True)
 
 
@@ -82,7 +81,7 @@ def _generate_java_project_hierarchy(project_name, full_project_path):
     _mkdir(full_project_path + SRC_MAIN_JAVA)
 
 
-def _generate_nodejs_project_hierarchy(project_name, full_project_path):
+def _generate_nodejs_project_hierarchy(full_project_path, project_name=None):
     _mkdir(full_project_path + FOLDER_LAMBDAS, exist_ok=True)
     _mkdir(full_project_path + FOLDER_COMMONS, exist_ok=True)
 

@@ -23,7 +23,35 @@ POLICY_LAMBDA_BASIC_EXECUTION = "lambda-basic-execution"
 
 LAMBDA_ROLE_NAME_PATTERN = '{0}-role'  # 0 - lambda_name
 
+SRC_MAIN_JAVA = '/src/main/java'
+FILE_POM = '/pom.xml'
 CANCEL_MESSAGE = 'Creating of {} has been canceled.'
+
+JAVA_LAMBDA_HANDLER_CLASS = """package {java_package_name};
+
+import com.amazonaws.services.lambda.runtime.Context;
+import com.amazonaws.services.lambda.runtime.RequestHandler;
+import com.syndicate.deployment.annotations.lambda.LambdaHandler;
+
+import java.util.HashMap;
+import java.util.Map;
+
+@LambdaHandler(lambdaName = "{lambda_name}",
+	roleName = "{lambda_role_name}",
+	isPublishVersion = true,
+	aliasName = "${lambdas_alias_name}"
+)
+public class {lambda_class_name} implements RequestHandler<Object, Map<String, Object>> {
+
+	public Map<String, Object> handleRequest(Object request, Context context) {
+		System.out.println("Hello from lambda");
+		Map<String, Object> resultMap = new HashMap<String, Object>();
+		resultMap.put("statusCode", 200);
+		resultMap.put("body", "Hello from Lambda");
+		return resultMap;
+	}
+}
+"""
 
 JAVA_ROOT_POM_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
@@ -63,7 +91,7 @@ JAVA_ROOT_POM_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
                 <version>${deployment-configuration-annotations.version}</version>
                 <configuration>
                     <packages>
-                        <package>com.generatedprojjava</package>
+                        <!--packages to scan-->
                     </packages>
                     <fileName>${project.name}-${project.version}.jar</fileName>
                 </configuration>
@@ -225,8 +253,8 @@ def _get_lambda_default_policy():
     })
 
 
-def _generate_lambda_role_config(role_name):
-    return _stringify({
+def _generate_lambda_role_config(role_name, stringify=True):
+    role_content = {
         role_name: {
             "predefined_policies": [],
             "principal_service": "lambda",
@@ -238,4 +266,5 @@ def _generate_lambda_role_config(role_name):
                 "${account_id}"
             ]
         }
-    })
+    }
+    return _stringify(role_content) if stringify else role_content

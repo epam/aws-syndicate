@@ -64,5 +64,10 @@ def _write_content_to_file(file, content):
         f.write(content)
 
 
+def _read_content_from_file(file):
+    with open(file, 'r') as f:
+        return f.read()
+
+
 def _alias_variable(alias_name):
     return '${' + alias_name + '}'
