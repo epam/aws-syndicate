@@ -86,7 +86,7 @@ def generate_lambda_function(project_name, project_path, project_language,
     _LOG.info(f'Lambda generating have been successfully performed.')
 
 
-def _generate_python_project_lambdas(lambda_names, lambdas_path):
+def _generate_python_lambdas(lambda_names, lambdas_path):
     if not os.path.exists(lambdas_path):
         _mkdir(lambdas_path, exist_ok=True)
     for lambda_name in lambda_names:
@@ -125,7 +125,7 @@ def _generate_python_project_lambdas(lambda_names, lambdas_path):
         _LOG.info(f'Lambda {lambda_name} created')
 
 
-def _generate_java_project_lambdas(lambda_names, lambdas_path):
+def _generate_java_lambdas(lambda_names, lambdas_path):
     for lambda_name in lambda_names:
         lambda_folder = os.path.join(lambdas_path, lambda_name)
         _mkdir(lambda_folder)
@@ -139,7 +139,7 @@ def _generate_java_project_lambdas(lambda_names, lambdas_path):
         _LOG.info(f'Lambda {lambda_name} created')
 
 
-def _generate_nodejs_project_lambdas(lambda_names, lambdas_path):
+def _generate_nodejs_lambdas(lambda_names, lambdas_path):
     if not os.path.exists(lambdas_path):
         _mkdir(lambdas_path, exist_ok=True)
     for lambda_name in lambda_names:
@@ -187,7 +187,7 @@ def _generate_nodejs_project_lambdas(lambda_names, lambdas_path):
 
 
 LAMBDAS_PROCESSORS = {
-    PROJECT_JAVA: _generate_java_project_lambdas,
-    PROJECT_NODEJS: _generate_nodejs_project_lambdas,
-    PROJECT_PYTHON: _generate_python_project_lambdas,
+    PROJECT_JAVA: _generate_java_lambdas,
+    PROJECT_NODEJS: _generate_nodejs_lambdas,
+    PROJECT_PYTHON: _generate_python_lambdas,
 }
