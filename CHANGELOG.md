@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - 2020-04-06
+### Added
+- Syndicate now supports configurations in YAML: syndicate.yml and syndicate_aliases.yml; The old ones (sdct.conf, sdct_alises.conf) are still supported.
+- Syndicate configuration generation. Command `syndicate init --help`
+- Python/Java/NodeJS project generation. Command `syndicate generate project --help`
+- Python/Java/NodeJS lambda generation. Command `syndicate generate lambda --help`
+- All commands from group `generate` and the command `syndicate init` are able to be executed without provided `SDCT_CONF` variable
+
+### Changed
+- All bundles now are stored to `$SDCT_CONF/bundles`folder.
+
+
 ## [0.8.5] - 2020-03-18
 ### Added
 - Version option. 'syndicate --version' is now available.
