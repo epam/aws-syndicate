@@ -44,7 +44,7 @@ setup(
         [console_scripts]
         syndicate=syndicate.core.handlers:syndicate
     ''',
-    download_url='https://github.com/epam/aws-syndicate/archive/0.9.tar.gz',
+    download_url='https://github.com/epam/aws-syndicate/archive/0.9.0.tar.gz',
     url='https://github.com/epam/aws-syndicate',
     long_description=long_description,
     long_description_content_type='text/markdown',
