@@ -35,6 +35,8 @@ from syndicate.core.constants import (ARTIFACTS_FOLDER, BUILD_META_FILE_NAME,
 
 _LOG = get_logger('syndicate.core.helper')
 
+CONF_PATH = os.environ.get('SDCT_CONF')
+
 
 def unpack_kwargs(handler_func):
     """ Decorator for unpack kwargs.
@@ -171,8 +173,7 @@ def verify_bundle_callback(ctx, param, value):
 
 
 def verify_meta_bundle_callback(ctx, param, value):
-    from syndicate.core import CONFIG
-    bundle_path = os.path.join(CONFIG.project_path, ARTIFACTS_FOLDER, value)
+    bundle_path = build_path(CONF_PATH, ARTIFACTS_FOLDER, value)
     build_meta_path = os.path.join(bundle_path, BUILD_META_FILE_NAME)
     if not os.path.exists(build_meta_path):
         raise AssertionError(

@@ -60,8 +60,13 @@ PYTHON_LAMBDA_FILES = [
     FILE_LAMBDA_CONFIG  # content
 ]  # + handler content
 
-NODEJS_LAMBDA_FILES = [FILE_PACKAGE, FILE_PACKAGE_LOCK, FILE_LAMBDA_CONFIG,
-                       FILE_LAMBDA_HANDLER_NODEJS, FILE_DEPLOYMENT_RESOURCES]
+NODEJS_LAMBDA_FILES = [
+    FILE_PACKAGE,
+    FILE_PACKAGE_LOCK,
+    FILE_LAMBDA_CONFIG,
+    FILE_LAMBDA_HANDLER_NODEJS,
+    FILE_DEPLOYMENT_RESOURCES
+]
 
 
 def generate_lambda_function(project_name, project_path, project_language,
