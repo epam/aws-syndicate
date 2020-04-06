@@ -115,7 +115,22 @@ class LambdaConnection(object):
         return self.client.create_alias(**params)
 
     def get_alias(self, function_name, name):
-        return self.client.get_alias(FunctionName=function_name, Name=name)
+        all_aliases = {}
+        next_marker = 1  # to enter the loop
+        while next_marker:
+            req_param = {
+                'FunctionName': function_name
+            }
+            if type(next_marker) == str:
+                req_param['Marker'] = next_marker
+
+            response = self.client.list_aliases(**req_param)
+
+            all_aliases.update({item.get('Name'): item for item in
+                                response.get('Aliases')})
+            if all_aliases.get(name):
+                return all_aliases.get(name)
+            next_marker = response.get('NextMarker')
 
     def add_event_source(self, func_name, stream_arn, batch_size=15,
                          start_position=None):

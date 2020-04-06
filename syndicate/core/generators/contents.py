@@ -17,13 +17,98 @@ import json
 
 from syndicate.core.conf.validator import LAMBDAS_ALIASES_NAME_CFG
 from syndicate.core.generators import (_alias_variable,
-    FILE_LAMBDA_HANDLER_NODEJS)
+                                       FILE_LAMBDA_HANDLER_NODEJS)
 
 POLICY_LAMBDA_BASIC_EXECUTION = "lambda-basic-execution"
 
 LAMBDA_ROLE_NAME_PATTERN = '{0}-role'  # 0 - lambda_name
 
 CANCEL_MESSAGE = 'Creating of {} has been canceled.'
+
+JAVA_ROOT_POM_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>{project_name}-group</groupId>
+    <artifactId>{project_name}</artifactId>
+    <version>1.0.0</version>
+
+    <properties>
+        <maven-shade-plugin.version>3.2.0</maven-shade-plugin.version>
+        <deployment-configuration-annotations.version>1.5.8</deployment-configuration-annotations.version>
+    </properties>
+
+    <dependencies>
+        <!-- AWS dependencies-->
+        <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-lambda-java-core</artifactId>
+            <version>1.2.0</version>
+        </dependency>
+        <!--Syndicate annotations-->
+        <dependency>
+            <groupId>net.sf.aws-syndicate</groupId>
+            <artifactId>deployment-configuration-annotations</artifactId>
+            <version>${deployment-configuration-annotations.version}</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>net.sf.aws-syndicate</groupId>
+                <artifactId>deployment-configuration-maven-plugin</artifactId>
+                <version>${deployment-configuration-annotations.version}</version>
+                <configuration>
+                    <packages>
+                        <package>com.generatedprojjava</package>
+                    </packages>
+                    <fileName>${project.name}-${project.version}.jar</fileName>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>generate-config</id>
+                        <phase>compile</phase>
+                        <inherited>false</inherited>
+                        <goals>
+                            <goal>gen-deployment-config</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>${maven-shade-plugin.version}</version>
+                <configuration>
+                    <filters>
+                        <filter>
+                            <artifact>*:*</artifact>
+                            <excludes>
+                                <exclude>META-INF/*.SF</exclude>
+                                <exclude>META-INF/*.DSA</exclude>
+                                <exclude>META-INF/*.RSA</exclude>
+                            </excludes>
+                        </filter>
+                    </filters>
+                    <createDependencyReducedPom>false</createDependencyReducedPom>
+                </configuration>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>
+"""
 
 PYTHON_LAMBDA_HANDLER_TEMPLATE = """import json
 

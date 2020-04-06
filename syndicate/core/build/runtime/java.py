@@ -22,7 +22,7 @@ from syndicate.core.helper import build_path, execute_command_by_path
 _LOG = get_logger('java_runtime_assembler')
 
 
-def assemble_java_mvn_lambdas(project_path, bundle_dir):
+def assemble_java_mvn_lambdas(project_path, bundles_dir):
     from syndicate.core import CONFIG
     src_path = build_path(CONFIG.project_path, project_path)
     _LOG.info(
@@ -35,6 +35,6 @@ def assemble_java_mvn_lambdas(project_path, bundle_dir):
             if file.endswith(".jar") or file.endswith(".war") \
                     or file.endswith(".zip"):
                 shutil.copyfile(build_path(root, file),
-                                build_path(bundle_dir, file))
+                                build_path(bundles_dir, file))
 
     _LOG.info('Java mvn project was processed successfully')

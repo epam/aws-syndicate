@@ -38,6 +38,7 @@ FOLDER_LAMBDAS = '/lambdas'
 FOLDER_COMMONS = '/commons'
 FOLDER_SRC = '/src'
 FOLDER_MAIN = '/main'
+FOLDER_JAVA = '/java'
 FOLDER_TEST = '/test'
 
 FILE_README = '/README.md'
@@ -81,14 +82,13 @@ def generate_lambda_function(project_name, project_path, project_language,
 
     lambdas_path = full_project_path + FOLDER_LAMBDAS
 
-    if not os.path.exists(lambdas_path):
-        _mkdir(full_project_path + FOLDER_LAMBDAS, exist_ok=True)
-
     processor(lambda_names, lambdas_path)
     _LOG.info(f'Lambda generating have been successfully performed.')
 
 
 def _generate_python_project_lambdas(lambda_names, lambdas_path):
+    if not os.path.exists(lambdas_path):
+        _mkdir(lambdas_path, exist_ok=True)
     for lambda_name in lambda_names:
         print(lambdas_path)
         lambda_folder = os.path.join(lambdas_path, lambda_name)
@@ -130,10 +130,9 @@ def _generate_java_project_lambdas(lambda_names, lambdas_path):
         lambda_folder = os.path.join(lambdas_path, lambda_name)
         _mkdir(lambda_folder)
 
-        src_folder_path = lambda_folder + FOLDER_SRC
-        _mkdir(src_folder_path, exist_ok=True)
-        _mkdir(src_folder_path + FOLDER_MAIN, exist_ok=True)
-        _mkdir(src_folder_path + FOLDER_TEST, exist_ok=True)
+        java_folder_path = lambda_folder + FOLDER_SRC + \
+                           FOLDER_MAIN + FOLDER_JAVA
+        _mkdir(java_folder_path, exist_ok=True)
 
         _touch(lambda_folder + FILE_DEPLOYMENT_RESOURCES)
         _touch(lambda_folder + FILE_POM)
@@ -141,6 +140,8 @@ def _generate_java_project_lambdas(lambda_names, lambdas_path):
 
 
 def _generate_nodejs_project_lambdas(lambda_names, lambdas_path):
+    if not os.path.exists(lambdas_path):
+        _mkdir(lambdas_path, exist_ok=True)
     for lambda_name in lambda_names:
 
         lambda_folder = os.path.join(lambdas_path, lambda_name)

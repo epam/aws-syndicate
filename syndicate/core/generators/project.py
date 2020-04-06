@@ -19,7 +19,8 @@ import os
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.generators import (_touch, _mkdir,
                                        _write_content_to_file)
-from syndicate.core.generators.contents import _get_lambda_default_policy
+from syndicate.core.generators.contents import (_get_lambda_default_policy,
+                                                JAVA_ROOT_POM_TEMPLATE)
 from syndicate.core.groups import (PROJECT_JAVA, PROJECT_NODEJS,
                                    PROJECT_PYTHON)
 
@@ -59,22 +60,27 @@ def generate_project_structure(project_name, project_path, project_language):
         _write_content_to_file(full_project_path + FILE_DEPLOYMENT_RESOURCES,
                                default_lambda_policy)
 
-        processor(full_project_path)
+        processor(project_name=project_name,
+                  full_project_path=full_project_path)
         _LOG.info('Project {} has been successfully created.'.format(
             project_name))
     except Exception as e:
         _LOG.error(str(e))
 
 
-def _generate_python_project_hierarchy(full_project_path):
+def _generate_python_project_hierarchy(project_name, full_project_path):
     pass
 
 
-def _generate_java_project_hierarchy(full_project_path):
+def _generate_java_project_hierarchy(project_name, full_project_path):
     _touch(full_project_path + FILE_POM)
+    pom_content = JAVA_ROOT_POM_TEMPLATE.replace('{project_name}',
+                                                 project_name)
+    _write_content_to_file(full_project_path + FILE_POM,
+                           pom_content)
 
 
-def _generate_nodejs_project_hierarchy(full_project_path):
+def _generate_nodejs_project_hierarchy(project_name, full_project_path):
     _mkdir(full_project_path + FOLDER_COMMONS, exist_ok=True)
 
 
