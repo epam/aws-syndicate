@@ -20,11 +20,12 @@ from botocore.exceptions import ClientError
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection import ConnectionProvider
 from syndicate.connection.sts_connection import STSConnection
-from syndicate.core.conf.config_holder import ConfigHolder
+from syndicate.core.conf.processor import ConfigHolder
+from syndicate.core.resources.processors_mapping import ProcessorFacade
+from syndicate.core.resources.resources_provider import ResourceProvider
 
 _LOG = get_logger('deployment.__init__')
 
-S3_PATH_NAME = 's3_path'
 SESSION_TOKEN = 'aws_session_token'
 SECRET_KEY = 'aws_secret_access_key'
 ACCESS_KEY = 'aws_access_key_id'
@@ -36,20 +37,13 @@ def exception_handler(exception_type, exception, traceback):
 
 # sys.excepthook = exception_handler
 
-# suppress botocore warnings
-
-try:
-    CONF_PATH = os.environ['SDCT_CONF']
-except KeyError:
-    raise AssertionError('Environment variable SDCT_CONF is not set! '
-                         'Please verify that you configured '
-                         'framework correctly.')
-
 # CONF VARS ===================================================================
-CONFIG = ConfigHolder(CONF_PATH)
-
-sts = STSConnection(CONFIG.region, CONFIG.aws_access_key_id,
-                    CONFIG.aws_secret_access_key)
+CONF_PATH = os.environ.get('SDCT_CONF')
+CONFIG = None
+CONN = None
+CREDENTIALS = None
+RESOURCES_PROVIDER = None
+PROCESSOR_FACADE = None
 
 
 def _ready_to_assume():
@@ -62,26 +56,43 @@ def _ready_to_use_creds():
            CONFIG.aws_secret_access_key
 
 
-try:
-    CREDENTIALS = {
-        'region': CONFIG.region
-    }
-    if _ready_to_assume():
-        _LOG.debug('Starting to assume role ...')
-        # get credentials for 12 hours
-        temp_credentials = sts.get_temp_credentials(CONFIG.access_role,
-                                                    CONFIG.account_id,
-                                                    43200)
-        _LOG.debug('Role %s is assumed successfully' % CONFIG.access_role)
-        CREDENTIALS[ACCESS_KEY] = temp_credentials['AccessKeyId']
-        CREDENTIALS[SECRET_KEY] = temp_credentials['SecretAccessKey']
-        CREDENTIALS[SESSION_TOKEN] = temp_credentials['SessionToken']
-    elif _ready_to_use_creds():
-        _LOG.debug('Credentials access')
-        CREDENTIALS[ACCESS_KEY] = CONFIG.aws_access_key_id
-        CREDENTIALS[SECRET_KEY] = CONFIG.aws_secret_access_key
-    CONN = ConnectionProvider(CREDENTIALS)
-except ClientError:
-    raise AssertionError('Cannot assume {0} role. '
-                         'Please verify that you have configured '
-                         'the role correctly.'.format(CONFIG.access_role))
+def initialize_connection():
+    global CONFIG
+    global CONN
+    global CONF_PATH
+    global CREDENTIALS
+    global RESOURCES_PROVIDER
+    global PROCESSOR_FACADE
+
+    CONFIG = ConfigHolder(CONF_PATH)
+    sts = STSConnection(CONFIG.region, CONFIG.aws_access_key_id,
+                        CONFIG.aws_secret_access_key)
+    try:
+        CREDENTIALS = {
+            'region': CONFIG.region
+        }
+        if _ready_to_assume():
+            _LOG.debug('Starting to assume role ...')
+            # get CREDENTIALS for 12 hours
+            temp_credentials = sts.get_temp_credentials(CONFIG.access_role,
+                                                        CONFIG.account_id,
+                                                        43200)
+            _LOG.debug('Role %s is assumed successfully' % CONFIG.access_role)
+            CREDENTIALS[ACCESS_KEY] = temp_credentials['AccessKeyId']
+            CREDENTIALS[SECRET_KEY] = temp_credentials['SecretAccessKey']
+            CREDENTIALS[SESSION_TOKEN] = temp_credentials['SessionToken']
+        elif _ready_to_use_creds():
+            _LOG.debug('Credentials access')
+            CREDENTIALS[ACCESS_KEY] = CONFIG.aws_access_key_id
+            CREDENTIALS[SECRET_KEY] = CONFIG.aws_secret_access_key
+        CONN = ConnectionProvider(CREDENTIALS)
+        RESOURCES_PROVIDER = ResourceProvider(config=CONFIG,
+                                              credentials=CREDENTIALS,
+                                              sts_conn=sts)
+        PROCESSOR_FACADE = ProcessorFacade(
+            resources_provider=RESOURCES_PROVIDER)
+        _LOG.debug('aws-syndicate has been initialized')
+    except ClientError:
+        raise AssertionError('Cannot assume {0} role. '
+                             'Please verify that you have configured '
+                             'the role correctly.'.format(CONFIG.access_role))

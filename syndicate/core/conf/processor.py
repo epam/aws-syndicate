@@ -15,51 +15,61 @@
 """
 import os
 
+import yaml
 from configobj import ConfigObj
 from validate import Validator, VdtTypeError
 
 from syndicate.commons.log_helper import get_logger
+from syndicate.core.conf.validator import (PROJECT_PATH_CFG, REGION_CFG,
+                                           DEPLOY_TARGET_BUCKET_CFG,
+                                           ACCOUNT_ID_CFG,
+                                           PROJECTS_MAPPING_CFG,
+                                           AWS_ACCESS_KEY_ID_CFG,
+                                           RESOURCES_PREFIX_CFG,
+                                           RESOURCES_SUFFIX_CFG,
+                                           AWS_SECRET_ACCESS_KEY_CFG,
+                                           ALL_REGIONS, ALLOWED_BUILD_TOOLS,
+                                           ConfigValidator)
 from syndicate.core.constants import (DEFAULT_SEP, IAM_POLICY, IAM_ROLE,
                                       S3_BUCKET_TYPE)
 
-CONFIG_FILE_NAME = 'sdct.conf'
+CONFIG_FILE_NAME = 'syndicate.yml'
+ALIASES_FILE_NAME = 'syndicate_aliases.yml'
+
+LEGACY_CONFIG_FILE_NAME = 'sdct.conf'
+LEGACY_ALIASES_FILE_NAME = 'sdct_aliases.conf'
+DEFAULT_SECTION_NAME = 'default'
 
 _LOG = get_logger('core.conf.config_holder')
 
-ALL_REGIONS = ['us-east-1', 'us-east-2', 'us-west-1', 'us-west-2', 'sa-east-1',
-               'ca-central-1', 'eu-west-1', 'eu-central-1', 'eu-west-2',
-               'eu-west-3', 'ap-northeast-1', 'ap-northeast-2',
-               'ap-southeast-1', 'ap-southeast-2', 'ap-south-1', 'eu-north-1']
-
 GLOBAL_AWS_SERVICES = {IAM_ROLE, IAM_POLICY, S3_BUCKET_TYPE}
 
-PYTHON_BUILD_TOOL_NAME = 'python'
-NODE_BUILD_TOOL_NAME = 'node'
-MVN_BUILD_TOOL_NAME = 'mvn'
-
-ALLOWED_BUILDS = [PYTHON_BUILD_TOOL_NAME, MVN_BUILD_TOOL_NAME,
-                  NODE_BUILD_TOOL_NAME]
-
 REQUIRED_PARAMETERS = {
-    'project_path': 'string(min=1)',
-    'region': "region_func",
-    'deploy_target_bucket': 'string(min=3, max=63)',
-    'account_id': 'account_func',
-    'build_projects_mapping': 'project_func'
+    PROJECT_PATH_CFG: 'string(min=1)',
+    REGION_CFG: "region_func",
+    DEPLOY_TARGET_BUCKET_CFG: 'string(min=3, max=63)',
+    ACCOUNT_ID_CFG: 'account_func',
+    PROJECTS_MAPPING_CFG: 'project_func'
 }
 
+ALL_CONFIG_PARAMETERS = [
+    AWS_ACCESS_KEY_ID_CFG, AWS_SECRET_ACCESS_KEY_CFG,
+    RESOURCES_PREFIX_CFG, RESOURCES_SUFFIX_CFG
+]
+ALL_CONFIG_PARAMETERS.extend(REQUIRED_PARAMETERS.keys())
+
 ERROR_MESSAGE_MAPPING = {
-    'project_path': 'cannot be empty',
-    'region': "is invalid. Valid options: " + str(ALL_REGIONS),
-    'deploy_target_bucket': 'length must be between 3 and 63 characters',
-    'account_id': 'must be 12-digit number',
-    'build_projects_mapping': "must be as a mapping of build tool to project "
-                              "path, separated by ';'. Build tool name "
-                              "and project path should be separated by ':'."
-                              " Allowed build "
-                              "tools values: " + str(ALLOWED_BUILDS),
-    'resources_prefix': 'length must be less than or equal to 5',
-    'resources_suffix': 'length must be less than or equal to 5'
+    PROJECT_PATH_CFG: 'cannot be empty',
+    REGION_CFG: "is invalid. Valid options: " + str(ALL_REGIONS),
+    DEPLOY_TARGET_BUCKET_CFG: 'length must be between 3 and 63 characters',
+    ACCOUNT_ID_CFG: 'must be 12-digit number',
+    PROJECTS_MAPPING_CFG: "must be as a mapping of build tool to project "
+                          "path, separated by ';'. Build tool name "
+                          "and project path should be separated by ':'."
+                          " Allowed build "
+                          "tools values: " + str(ALLOWED_BUILD_TOOLS),
+    RESOURCES_PREFIX_CFG: 'length must be less than or equal to 5',
+    RESOURCES_SUFFIX_CFG: 'length must be less than or equal to 5'
 }
 
 
@@ -90,7 +100,7 @@ def _project_mapping(value):
         items = mapping.split(':')
         if len(items) != 2:
             raise VdtTypeError(value)
-        if items[0] not in ALLOWED_BUILDS:
+        if items[0] not in ALLOWED_BUILD_TOOLS:
             raise VdtTypeError(value)
     return value
 
@@ -98,23 +108,42 @@ def _project_mapping(value):
 class ConfigHolder:
     def __init__(self, dir_path):
         con_path = os.path.join(dir_path, CONFIG_FILE_NAME)
+        if os.path.isfile(con_path):
+            self._init_yaml_config(dir_path=dir_path, con_path=con_path)
+        else:
+            self._init_ini_config(dir_path=dir_path)
+
+    def _init_yaml_config(self, dir_path, con_path):
+        config_content = load_yaml_file_content(file_path=con_path)
+        if config_content:
+            validator = ConfigValidator(config_content)
+            errors = validator.validate()
+            if errors:
+                raise AssertionError(f'The following error occurred '
+                                     f'while {con_path} parsing: {errors}')
+        self._config_dict = config_content
+
+        aliases_path = os.path.join(dir_path, ALIASES_FILE_NAME)
+        aliases_content = load_yaml_file_content(file_path=aliases_path)
+        self._aliases = aliases_content
+
+    def _init_ini_config(self, dir_path):
+        con_path = os.path.join(dir_path, LEGACY_CONFIG_FILE_NAME)
         if not os.path.isfile(con_path):
-            raise Exception(
+            raise AssertionError(
                 'sdct.conf does not exist inside %s folder' % dir_path)
-        self._config_dict = ConfigObj(con_path, configspec=REQUIRED_PARAMETERS)
-        # validate
-        self._validate()
-        # load parameters to env vars
-        self._load_vars()
-        # init aliases
-        alias_path = os.path.join(dir_path, 'sdct_aliases.conf')
+        self._config_path = con_path
+        self._config_dict = ConfigObj(con_path,
+                                      configspec=REQUIRED_PARAMETERS)
+        self._validate_ini()
+        alias_path = os.path.join(dir_path, LEGACY_ALIASES_FILE_NAME)
         if not os.path.exists(alias_path):
             _LOG.warn('sdct_aliases.conf does not exist '
                       'inside %s folder' % dir_path)
         else:
             self._aliases = ConfigObj(alias_path)
 
-    def _validate(self):
+    def _validate_ini(self):
         # building a validator
         validator = Validator({
             'region_func': _region,
@@ -123,22 +152,24 @@ class ConfigHolder:
         })
         # validate
         param_valid_dict = self._config_dict.validate(validator=validator)
+        if not param_valid_dict:
+            raise Exception(f'Error while parsing {self._config_path}')
         # check non-required parameters
-        prefix_value = self._config_dict.get('resources_prefix')
+        prefix_value = self._config_dict.get(RESOURCES_PREFIX_CFG)
         if prefix_value:
             if len(prefix_value) > 5:
                 if not isinstance(param_valid_dict, dict):
-                    param_valid_dict = {'resources_prefix': False}
+                    param_valid_dict = {RESOURCES_PREFIX_CFG: False}
                 else:
-                    param_valid_dict['resources_prefix'] = False
+                    param_valid_dict[RESOURCES_PREFIX_CFG] = False
 
-        suffix_value = self._config_dict.get('resources_suffix')
+        suffix_value = self._config_dict.get(RESOURCES_SUFFIX_CFG)
         if suffix_value:
             if len(suffix_value) > 5:
                 if not isinstance(param_valid_dict, dict):
-                    param_valid_dict = {'resources_suffix': False}
+                    param_valid_dict = {RESOURCES_SUFFIX_CFG: False}
                 else:
-                    param_valid_dict['resources_suffix'] = False
+                    param_valid_dict[RESOURCES_SUFFIX_CFG] = False
 
         # processing results
         if isinstance(param_valid_dict, dict):
@@ -151,24 +182,16 @@ class ConfigHolder:
             if messages:
                 raise Exception('Configuration is invalid. ' + messages)
 
-    def _load_vars(self):
-        for key, value in self._config_dict.items():
-            if os.environ.get(key) is None:
-                os.environ[key] = value
-
     def _resolve_variable(self, variable_name):
-        var = None
-        if self._config_dict.get(variable_name):
-            var = self._config_dict[variable_name]
-        return var
+        return self._config_dict.get(variable_name)
 
     @property
     def project_path(self):
-        return path_resolver(self._resolve_variable('project_path'))
+        return path_resolver(self._resolve_variable(PROJECT_PATH_CFG))
 
     @property
     def account_id(self):
-        return self._resolve_variable('account_id')
+        return str(self._resolve_variable(ACCOUNT_ID_CFG))
 
     @property
     def access_role(self):
@@ -176,24 +199,26 @@ class ConfigHolder:
 
     @property
     def aws_access_key_id(self):
-        return self._resolve_variable('aws_access_key_id')
+        return self._resolve_variable(AWS_ACCESS_KEY_ID_CFG)
 
     @property
     def aws_secret_access_key(self):
-        return self._resolve_variable('aws_secret_access_key')
+        return self._resolve_variable(AWS_SECRET_ACCESS_KEY_CFG)
 
     @property
     def region(self):
-        return self._resolve_variable('region')
+        return self._resolve_variable(REGION_CFG)
 
     @property
     def deploy_target_bucket(self):
-        return self._resolve_variable('deploy_target_bucket')
+        return self._resolve_variable(DEPLOY_TARGET_BUCKET_CFG)
 
     # mapping build tool : paths to project
     @property
     def build_projects_mapping(self):
-        mapping_value = self._resolve_variable('build_projects_mapping')
+        mapping_value = self._resolve_variable(PROJECTS_MAPPING_CFG)
+        if type(mapping_value) == dict:
+            return mapping_value
         if mapping_value:
             mapping_dict = {}
             for i in mapping_value.split(';'):
@@ -208,7 +233,7 @@ class ConfigHolder:
 
     @property
     def resources_prefix(self):
-        prefix = self._resolve_variable('resources_prefix')
+        prefix = self._resolve_variable(RESOURCES_PREFIX_CFG)
         if prefix is None:
             return ''
         else:
@@ -216,7 +241,7 @@ class ConfigHolder:
 
     @property
     def resources_suffix(self):
-        suffix = self._resolve_variable('resources_suffix')
+        suffix = self._resolve_variable(RESOURCES_SUFFIX_CFG)
         if suffix is None:
             return ''
         else:
@@ -242,3 +267,10 @@ class ConfigHolder:
 
 def path_resolver(path):
     return path.replace('\\', DEFAULT_SEP).replace('//', DEFAULT_SEP)
+
+
+def load_yaml_file_content(file_path):
+    if not os.path.isfile(file_path):
+        raise AssertionError(f'There is no file by path: {file_path}')
+    with open(file_path, 'r') as yaml_file:
+        return yaml.load(yaml_file, Loader=yaml.FullLoader)

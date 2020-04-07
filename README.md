@@ -128,47 +128,43 @@ Also [here](https://www.baeldung.com/install-maven-on-windows-linux-mac "here") 
 
 ## Common configuration
 
-Next, create and set up a configuration file **[sdct.conf](https://github.com/epam/aws-syndicate/blob/master/examples/demo-config/sdct.conf)**:
+It's time to configure aws-syndicate.
+Execute `syndicate init` command and provide all the required parameters.
+Command example: 
 
-	# absolute path to the examples/demo-project folder
-	project_path=FOLDER_PATH
+    syndicate init 
+    --project_path $project_path 
+    --region $region_name 
+    --account_id $account_id 
+    --access_key $access_key 
+    --secret_key $secret_key
+    --bundle_bucket_name $bundle_bucket_name 
+    --python_build_mapping $relative_path_to_python_proj
+    --java_build_mapping $relative_path_to_java_proj 
+    --nodejs_build_mapping $relative_path_to_nodejs_proj
+    --prefix $prefix 
+    --suffix $suffix 
+    --config_path $path_to_store_config
+    
+All the provided information is validated. 
+After the configuration files will be generated the command will return the following message:
 
-	resources_suffix=
-	resources_prefix=sdct-
-	# region name, example - eu-central-1
-	region=REGION_NAME
-	# bucket name to upload deployment artifacts, must be unique across all AWS accounts
-	deploy_target_bucket=BUCKET_NAME
-	# your account id
-	account_id=ACCOUNT_ID
-	access_role=
+    Syndicate initialization has been completed. Set SDCT_CONF:
+    export SDCT_CONF=$path_to_store_config
+    
+Just copy the last line of commands output and execute the command. 
+The commands sets the environment variable SDCT_CONF required by aws-syndicate 
+to operate.
 
-	aws_access_key_id=ACCESS_KEY_ID
-	aws_secret_access_key=SECRET_ACCESS_KEY
+> Pay attention that the default syndicate_aliases.yaml file has been generated. 
+> Your application may require additional aliases to be deployed - please add them to the file.
 
-	# build configuration
-	build_projects_mapping=mvn:/demo-java;python:/demo-python
-
-FOLDER_PATH - replace with absolute path to the folder **examples/demo-project** <br/> ACCOUNT_ID - replace with your AWS account id <br/> REGION_NAME - replace with region name where infrastructure will be deployed <br/> BUCKET_NAME - replace with an S3 bucket name which will be used as a storage for framework artifacts (bucket name must be unique across all AWS accounts) <br/> ACCESS_KEY_ID and SECRET_ACCESS_KEY - replace with AWS credentials for user with admin permissions
-
-Then, set up an aliases file **[sdct_aliases.conf](https://github.com/epam/aws-syndicate/blob/master/examples/demo-config/sdct_aliases.conf)**:
-
-    region=REGION_NAME
-	notification_bucket=BUCKET_NAME
-	account_id=ACCOUNT_ID
-
-ACCOUNT_ID - replace with your AWS account id <br/> BUCKET_NAME - replace with an S3 bucket name which will be used in demo application (bucket name must be unique across all AWS accounts) <br/> REGION_NAME - replace with region name where infrastructure will be deployed
-
-Then, set up an environment variable **SDCT_CONF**:
-
-    export SDCT_CONF=FOLDER_PATH
-
-FOLDER_PATH - absolute path to the folder where are located files **sdct.conf** and **sdct_aliases.conf**
+For more details please execute `syndicate init --help`
 
 Deployment
 ------------
 The demo application consists of the following infrastructure:
-*  2 IAM roles
+* 2 IAM roles
 * 3 IAM policies
 * 1 DynamoDB table
 * 1 S3 bucket

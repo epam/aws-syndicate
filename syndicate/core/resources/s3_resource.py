@@ -14,96 +14,97 @@
     limitations under the License.
 """
 from syndicate.commons.log_helper import get_logger
-from syndicate.core import CONN, ClientError
-from syndicate.core.helper import create_pool, unpack_kwargs
+from syndicate.core import ClientError
+from syndicate.core.helper import unpack_kwargs
+from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import build_description_obj, chunks
 
 _LOG = get_logger('syndicate.core.resources.s3_resource')
-_S3_CONN = CONN.s3()
 
 
-def create_s3_bucket(args):
-    return create_pool(_create_s3_bucket_from_meta, args)
+class S3Resource(BaseResource):
 
+    def __init__(self, s3_conn) -> None:
+        self.s3_conn = s3_conn
 
-def describe_bucket(name, meta):
-    arn = 'arn:aws:s3:::{0}'.format(name)
-    acl_response = _S3_CONN.get_bucket_acl(name)
-    location_response = _S3_CONN.get_bucket_location(name)
-    bucket_policy = _S3_CONN.get_bucket_policy(name)
-    response = {
-        'bucket_acl': acl_response,
-        'location': location_response,
-    }
-    if bucket_policy:
-        response['policy'] = bucket_policy
-    return {
-        arn: build_description_obj(response, name, meta)
-    }
+    def create_s3_bucket(self, args):
+        return self.create_pool(self._create_s3_bucket_from_meta, args)
 
+    def describe_bucket(self, name, meta):
+        arn = 'arn:aws:s3:::{0}'.format(name)
+        acl_response = self.s3_conn.get_bucket_acl(name)
+        location_response = self.s3_conn.get_bucket_location(name)
+        bucket_policy = self.s3_conn.get_bucket_policy(name)
+        response = {
+            'bucket_acl': acl_response,
+            'location': location_response,
+        }
+        if bucket_policy:
+            response['policy'] = bucket_policy
+        return {
+            arn: build_description_obj(response, name, meta)
+        }
 
-@unpack_kwargs
-def _create_s3_bucket_from_meta(name, meta):
-    if _S3_CONN.is_bucket_exists(name):
-        _LOG.warn('{0} bucket exists.'.format(name))
-        return describe_bucket(name, meta)
-    _S3_CONN.create_bucket(name, meta.get('acl'), meta.get('location'))
-    policy = meta.get('policy')
-    if policy:
-        _S3_CONN.add_bucket_policy(name, policy)
-        _LOG.debug('Policy on {0} S3 bucket is set up.'.format(name))
-    _LOG.info('Created S3 bucket {0}.'.format(name))
-    rules = meta.get('LifecycleConfiguration')
-    if rules:
-        _S3_CONN.add_bucket_rule(name, rules)
-        _LOG.debug('Rules on {0} S3 bucket are set up.'.format(name))
-    cors_configuration = meta.get('cors')
-    if cors_configuration:
-        _S3_CONN.put_cors(bucket_name=name, rules=cors_configuration)
-    return describe_bucket(name, meta)
+    @unpack_kwargs
+    def _create_s3_bucket_from_meta(self, name, meta):
+        if self.s3_conn.is_bucket_exists(name):
+            _LOG.warn('{0} bucket exists.'.format(name))
+            return self.describe_bucket(name, meta)
+        self.s3_conn.create_bucket(name, meta.get('acl'), meta.get('location'))
+        policy = meta.get('policy')
+        if policy:
+            self.s3_conn.add_bucket_policy(name, policy)
+            _LOG.debug('Policy on {0} S3 bucket is set up.'.format(name))
+        _LOG.info('Created S3 bucket {0}.'.format(name))
+        rules = meta.get('LifecycleConfiguration')
+        if rules:
+            self.s3_conn.add_bucket_rule(name, rules)
+            _LOG.debug('Rules on {0} S3 bucket are set up.'.format(name))
+        cors_configuration = meta.get('cors')
+        if cors_configuration:
+            self.s3_conn.put_cors(bucket_name=name, rules=cors_configuration)
+        return self.describe_bucket(name, meta)
 
-
-def _delete_objects(bucket_name, keys):
-    response = _S3_CONN.delete_objects(bucket_name, keys)
-    errors = response.get('Errors')
-    if errors:
-        error_keys = [{
-            'Key': i['Key'],
-            'VersionId': i['VersionId']
-        } for i in errors]
-        return error_keys
-    else:
-        return []
-
-
-def remove_buckets(args):
-    create_pool(_remove_bucket, args)
-
-
-@unpack_kwargs
-def _remove_bucket(arn, config):
-    bucket_name = config['resource_name']
-    try:
-        errors = []
-        keys = _S3_CONN.list_object_versions(bucket_name)
-        if keys:
-            for s3_keys in chunks(keys, 1000):
-                errors.extend(_delete_objects(bucket_name, s3_keys))
-
-        markers = _S3_CONN.list_object_markers(bucket_name)
-        if markers:
-            for s3_markers in chunks(markers, 1000):
-                errors.extend(_delete_objects(bucket_name, s3_markers))
-
+    def _delete_objects(self, bucket_name, keys):
+        response = self.s3_conn.delete_objects(bucket_name, keys)
+        errors = response.get('Errors')
         if errors:
-            raise AssertionError('Error occurred while deleting S3 objects'
-                                 ' from {0} bucket. Not deleted keys: '
-                                 '{1}'.format(bucket_name, str(errors)))
+            error_keys = [{
+                'Key': i['Key'],
+                'VersionId': i['VersionId']
+            } for i in errors]
+            return error_keys
         else:
-            _S3_CONN.delete_bucket(bucket_name)
-            _LOG.info('S3 bucket {0} was removed.'.format(bucket_name))
-    except ClientError as e:
-        if e.response['Error']['Code'] == 'NoSuchBucket':
-            _LOG.warn('S3 bucket {0} is not found'.format(bucket_name))
-        else:
-            raise e
+            return []
+
+    def remove_buckets(self, args):
+        self.create_pool(self._remove_bucket, args)
+
+    @unpack_kwargs
+    def _remove_bucket(self, arn, config):
+        bucket_name = config['resource_name']
+        try:
+            errors = []
+            keys = self.s3_conn.list_object_versions(bucket_name)
+            if keys:
+                for s3_keys in chunks(keys, 1000):
+                    errors.extend(self._delete_objects(bucket_name, s3_keys))
+
+            markers = self.s3_conn.list_object_markers(bucket_name)
+            if markers:
+                for s3_markers in chunks(markers, 1000):
+                    errors.extend(
+                        self._delete_objects(bucket_name, s3_markers))
+
+            if errors:
+                raise AssertionError('Error occurred while deleting S3 objects'
+                                     ' from {0} bucket. Not deleted keys: '
+                                     '{1}'.format(bucket_name, str(errors)))
+            else:
+                self.s3_conn.delete_bucket(bucket_name)
+                _LOG.info('S3 bucket {0} was removed.'.format(bucket_name))
+        except ClientError as e:
+            if e.response['Error']['Code'] == 'NoSuchBucket':
+                _LOG.warn('S3 bucket {0} is not found'.format(bucket_name))
+            else:
+                raise e

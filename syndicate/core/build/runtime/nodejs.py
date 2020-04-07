@@ -21,10 +21,8 @@ import threading
 from concurrent.futures.thread import ThreadPoolExecutor
 
 from syndicate.commons.log_helper import get_logger
-from syndicate.core import CONFIG
 from syndicate.core.build.helper import build_py_package_name, zip_dir
-from syndicate.core.constants import (ARTIFACTS_FOLDER,
-                                      LAMBDA_CONFIG_FILE_NAME,
+from syndicate.core.constants import (LAMBDA_CONFIG_FILE_NAME,
                                       NODE_REQ_FILE_NAME)
 from syndicate.core.helper import build_path, unpack_kwargs, execute_command
 from syndicate.core.resources.helper import validate_params
@@ -32,9 +30,8 @@ from syndicate.core.resources.helper import validate_params
 _LOG = get_logger('nodejs_runtime_assembler')
 
 
-def assemble_node_lambdas(bundle_name, project_path):
-    target_folder = build_path(CONFIG.project_path, ARTIFACTS_FOLDER,
-                               bundle_name)
+def assemble_node_lambdas(project_path, bundles_dir):
+    from syndicate.core import CONFIG
     project_abs_path = build_path(CONFIG.project_path, project_path)
 
     _LOG.info('Going to package lambdas starting by path {0}'.format(
@@ -48,7 +45,7 @@ def assemble_node_lambdas(bundle_name, project_path):
                 arg = {
                     'item': item,
                     'root': root,
-                    'target_folder': target_folder
+                    'target_folder': bundles_dir
                 }
                 futures.append(executor.submit(_build_node_artifact, arg))
     for future in concurrent.futures.as_completed(futures):
@@ -57,6 +54,7 @@ def assemble_node_lambdas(bundle_name, project_path):
 
 @unpack_kwargs
 def _build_node_artifact(item, root, target_folder):
+    _check_npm_is_installed()
     _LOG.debug('Building artifact in {0}'.format(target_folder))
     lambda_config_dict = json.load(open(build_path(root, item)))
     _LOG.debug('Root path: {}'.format(root))
@@ -68,7 +66,8 @@ def _build_node_artifact(item, root, target_folder):
     # create folder to store artifacts
     artifact_path = build_path(target_folder, artifact_name)
     _LOG.debug('Artifacts path: {0}'.format(artifact_path))
-    os.makedirs(artifact_path)
+    if not os.path.exists(artifact_path):
+        os.makedirs(artifact_path)
     _LOG.debug('Folders are created')
     # getting file content
     req_path = build_path(root, NODE_REQ_FILE_NAME)
@@ -84,9 +83,11 @@ def _build_node_artifact(item, root, target_folder):
         lock.acquire()
         try:
             # remove unused folder/files
-            shutil.rmtree(os.path.join(root, 'node_modules'))
+            node_modules_path = os.path.join(root, 'node_modules')
+            if os.path.exists(node_modules_path):
+                shutil.rmtree(node_modules_path)
             # todo Investigate deleting package_lock file
-            #shutil.rmtree(os.path.join(root, 'package_lock.json'))
+            # shutil.rmtree(os.path.join(root, 'package_lock.json'))
             shutil.rmtree(artifact_path)
         except FileNotFoundError as e:
             _LOG.exception('Error occurred while temp files removing.')
@@ -100,3 +101,12 @@ def _build_node_artifact(item, root, target_folder):
             'assembling'.format(lambda_name))
         return 'Error occurred during the \'{0}\' lambda deployment package ' \
                'assembling'.format(lambda_name)
+
+
+def _check_npm_is_installed():
+    import subprocess
+    result = subprocess.call('npm -v', shell=True)
+    if result:
+        raise AssertionError(
+            'NPM is not installed. There is no ability to build '
+            'NodeJS bundle. Please, install npm are retry to build bundle.')

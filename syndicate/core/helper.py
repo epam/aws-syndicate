@@ -13,47 +13,29 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+import collections
 import concurrent.futures
 import datetime
 import json
 import os
 import subprocess
 import sys
-from concurrent.futures import ALL_COMPLETED, ThreadPoolExecutor
 from functools import wraps
 from threading import Thread
 from time import time
 
+import click
 from click import BadParameter
 from tqdm import tqdm
 
 from syndicate.commons.log_helper import get_logger
-from syndicate.core import CONFIG, CONN
-from syndicate.core.conf.config_holder import path_resolver
+from syndicate.core.conf.processor import path_resolver
 from syndicate.core.constants import (ARTIFACTS_FOLDER, BUILD_META_FILE_NAME,
                                       DEFAULT_SEP)
 
 _LOG = get_logger('syndicate.core.helper')
 
-
-def create_pool(func, args, workers=None, *kwargs):
-    """ Create resources in pool in sub processes.
-
-    :type args: iterable
-    :type func: func
-    """
-    executor = ThreadPoolExecutor(workers) if workers else ThreadPoolExecutor()
-    try:
-        futures = [executor.submit(func, i, kwargs) for i in args]
-        concurrent.futures.wait(futures, return_when=ALL_COMPLETED)
-        responses = {}
-        for future in futures:
-            result = future.result()
-            if result:
-                responses.update(result)
-        return responses
-    finally:
-        executor.shutdown(wait=True)
+CONF_PATH = os.environ.get('SDCT_CONF')
 
 
 def unpack_kwargs(handler_func):
@@ -66,7 +48,11 @@ def unpack_kwargs(handler_func):
     @wraps(handler_func)
     def wrapper(*kwargs):
         """ Wrapper func."""
-        return handler_func(**kwargs[0])
+        parameters = {}
+        for i in kwargs:
+            if type(i) is dict:
+                parameters = i
+        return handler_func(**parameters)
 
     return wrapper
 
@@ -84,7 +70,7 @@ def exit_on_exception(handler_func):
         try:
             return handler_func(*args, **kwargs)
         except Exception as e:
-            _LOG.error("Error occurred: %s", str(e))
+            _LOG.exception("Error occurred: %s", str(e))
             sys.exit(1)
 
     return wrapper
@@ -125,6 +111,7 @@ def _find_alias_and_replace(some_string):
 
     :type some_string: str
     """
+    from syndicate.core import CONFIG
     first_index = some_string.index('${')
     second_index = some_string.index('}')
     alias_name = some_string[first_index + 2:second_index]
@@ -169,6 +156,7 @@ def resolve_path_callback(ctx, param, value):
 
 
 def create_bundle_callback(ctx, param, value):
+    from syndicate.core import CONFIG
     bundle_path = os.path.join(CONFIG.project_path, ARTIFACTS_FOLDER, value)
     if not os.path.exists(bundle_path):
         os.makedirs(bundle_path)
@@ -176,6 +164,7 @@ def create_bundle_callback(ctx, param, value):
 
 
 def verify_bundle_callback(ctx, param, value):
+    from syndicate.core import CONFIG
     bundle_path = os.path.join(CONFIG.project_path, ARTIFACTS_FOLDER, value)
     if not os.path.exists(bundle_path):
         raise AssertionError("Bundle name does not exist. Please, invoke "
@@ -184,7 +173,7 @@ def verify_bundle_callback(ctx, param, value):
 
 
 def verify_meta_bundle_callback(ctx, param, value):
-    bundle_path = os.path.join(CONFIG.project_path, ARTIFACTS_FOLDER, value)
+    bundle_path = build_path(CONF_PATH, ARTIFACTS_FOLDER, value)
     build_meta_path = os.path.join(bundle_path, BUILD_META_FILE_NAME)
     if not os.path.exists(build_meta_path):
         raise AssertionError(
@@ -237,29 +226,10 @@ def handle_futures_progress_bar(futures):
         pass
 
 
-def check_deploy_name_for_duplicates(func):
-    """
-    Checks whether output file with specified name already exists.
-    Everywhere this decorator is used the following
-    :param func:
-    :return:
-    """
-    @wraps(func)
-    def real_wrapper(*args, **kwargs):
-        deploy_name = kwargs.get('deploy_name')
-        bundle_name = kwargs.get('bundle_name')
-        replace_output = kwargs.get('replace_output')
-        if deploy_name and bundle_name and not replace_output:
-            output_file_name = '{}/outputs/{}.json'.format(bundle_name, deploy_name)
-            exists = CONN.s3().is_file_exists(
-                CONFIG.deploy_target_bucket,
-                key=output_file_name)
-            if exists:
-                _LOG.warn('Output file already exists with name {}.'
-                          ' If it should be replaced with new one, '
-                          'use --replace_output flag.'.format(
-                    output_file_name))
-                return
-        return func(*args, **kwargs)
+class OrderedGroup(click.Group):
+    def __init__(self, name=None, commands=None, **attrs):
+        super(OrderedGroup, self).__init__(name, commands, **attrs)
+        self.commands = commands or collections.OrderedDict()
 
-    return real_wrapper
+    def list_commands(self, ctx):
+        return self.commands

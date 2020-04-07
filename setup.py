@@ -28,22 +28,23 @@ with open(path.join(this_directory, 'README.md'), encoding='utf-8') as f:
 
 setup(
     name='aws-syndicate',
-    version='0.8.5',
+    version='0.9.0',
     packages=find_packages(),
     include_package_data=True,
     install_requires=[
-        'click==7.0',
+        'click==7.1.1',
         'botocore==1.15.3',
         'boto3==1.12.3',
         'configobj==5.0.6',
         'tqdm==4.19.5',
-        'colorama==0.4.1'
+        'colorama==0.4.1',
+        'pyyaml==5.3.1'
     ],
     entry_points='''
         [console_scripts]
         syndicate=syndicate.core.handlers:syndicate
     ''',
-    download_url='https://github.com/epam/aws-syndicate/archive/0.8.5.tar.gz',
+    download_url='https://github.com/epam/aws-syndicate/archive/0.9.0.tar.gz',
     url='https://github.com/epam/aws-syndicate',
     long_description=long_description,
     long_description_content_type='text/markdown',
