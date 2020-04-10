@@ -99,7 +99,7 @@ Also [here](https://www.baeldung.com/install-maven-on-windows-linux-mac "here") 
 	_*macOS*: Detailed guide how to install Python you can find [here](https://wsvincent.com/install-python3-mac/ "here"). If you use Ubuntu 16.04 or earlier [here](https://www.pytorials.com/install-python36-on-ubuntu/ "here") you can find installation guide._
 
 2) Installed package manager [PIP 9.0](https://pypi.org/project/pip/ "PIP 9.0") or higher version;
-3) Installed [virtualenv](https://virtualenv.pypa.io/en/latest/installation/ "virtualenv");
+3) Installed [virtualenv](https://virtualenv.pypa.io/en/latest/installation.html "virtualenv");
 4) Installed [Apache Maven 3.3.9](https://maven.apache.org/download.cgi "Apache Maven 3.3.9") or higher version.
 
 	_*Windows*: [Here](https://docs.wso2.com/display/IS323/Installing+Apache+Maven+on+Windows "Here") you can find detailed guild how to install [Apache Maven 3.3.9](https://maven.apache.org/download.cgi "Apache Maven 3.3.9")._
