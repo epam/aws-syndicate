@@ -7,6 +7,7 @@ import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBIndexRangeKey;
 import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBRangeKey;
 import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBTable;
 import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBVersionAttribute;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.syndicate.deployment.model.JsonSchema;
 import com.syndicate.deployment.model.JsonType;
 import com.syndicate.deployment.model.Pair;
@@ -44,14 +45,20 @@ public class DynamoDBDocumentAnnotationProcessor extends AbstractAnnotationProce
     }
 
     {
-        typeMapping.put(JsonType.LIST, Arrays.asList(Enum.class, List.class, Set.class));
-        typeMapping.put(JsonType.BOOL, Arrays.asList(boolean.class, Boolean.class));
-        typeMapping.put(JsonType.NUMBER, Arrays.asList(byte.class, Byte.class, short.class,
-                Short.class, long.class, Long.class,
-                float.class, Float.class, double.class, Double.class));
-        typeMapping.put(JsonType.INTEGER, Arrays.asList(int.class, Integer.class));
-        typeMapping.put(JsonType.OBJECT, Collections.singletonList(Map.class));
-        typeMapping.put(JsonType.STRING, Collections.singletonList(String.class));
+        typeMapping.put(JsonType.LIST,
+                Arrays.asList(List.class, Set.class, JsonNode.class));
+        typeMapping.put(JsonType.BOOL,
+                Arrays.asList(boolean.class, Boolean.class));
+        typeMapping.put(JsonType.NUMBER,
+                Arrays.asList(byte.class, Byte.class, short.class,
+                        Short.class, long.class, Long.class,
+                        float.class, Float.class, double.class, Double.class));
+        typeMapping.put(JsonType.INTEGER,
+                Arrays.asList(int.class, Integer.class));
+        typeMapping.put(JsonType.OBJECT,
+                Arrays.asList(Map.class, Enum.class, JsonNode.class));
+        typeMapping.put(JsonType.STRING,
+                Arrays.asList(String.class, Enum.class));
     }
 
     @Override
@@ -65,8 +72,8 @@ public class DynamoDBDocumentAnnotationProcessor extends AbstractAnnotationProce
         jsonSchema.setClassName(sourceClass.getName());
         for (Field field : nonStaticFields) {
             String fieldSchemaName = resolveFieldSchemaName(field);
-            JsonType fieldSchemaType = resolveFieldSchemaType(field);
-            jsonSchema.addProperty(fieldSchemaName, fieldSchemaType.getTypeName());
+            List<JsonType> fieldSchemaType = resolveFieldSchemaType(field);
+            jsonSchema.addProperty(fieldSchemaName, fieldSchemaType);
         }
         return new Pair<>(annotation.tableName(), jsonSchema);
     }
@@ -93,13 +100,11 @@ public class DynamoDBDocumentAnnotationProcessor extends AbstractAnnotationProce
         return resolve != null ? resolve : field.getName();
     }
 
-    // todo extend with Class-types fields processing
-    private JsonType resolveFieldSchemaType(Field field) {
-        for (Map.Entry<JsonType, List<Class<?>>> entry : typeMapping.entrySet()) {
-            if (entry.getValue().contains(field.getType())) {
-                return entry.getKey();
-            }
-        }
-        return JsonType.OBJECT;
+    private List<JsonType> resolveFieldSchemaType(Field field) {
+        List<JsonType> collect = typeMapping.entrySet().stream()
+                .filter(pair -> pair.getValue().contains(field.getType()))
+                .map(Map.Entry::getKey)
+                .collect(Collectors.toList());
+        return collect.isEmpty() ? Collections.singletonList(JsonType.OBJECT) : collect;
     }
 }

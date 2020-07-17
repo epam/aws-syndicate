@@ -1,5 +1,8 @@
 package com.syndicate.deployment.model;
 
+
+import com.fasterxml.jackson.annotation.JsonValue;
+
 public enum JsonType {
 
     LIST("array"),
@@ -15,6 +18,7 @@ public enum JsonType {
         this.typeName = typeName;
     }
 
+    @JsonValue
     public String getTypeName() {
         return typeName;
     }

@@ -3,7 +3,9 @@ package com.syndicate.deployment.model;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_EMPTY;
@@ -13,7 +15,7 @@ public class JsonSchema {
 
     public static final String DEFAULT_TYPE = "object";
 
-    private final String type;
+    private final List<JsonType> type;
 
 
     private final Map<String, JsonSchema> properties = new HashMap<>();
@@ -22,14 +24,14 @@ public class JsonSchema {
     private String className;
 
     public JsonSchema() {
-        type = DEFAULT_TYPE;
+        type = Collections.singletonList(JsonType.OBJECT);
     }
 
-    public JsonSchema(String type) {
+    public JsonSchema(List<JsonType> type) {
         this.type = type;
     }
 
-    public String getType() {
+    public List<JsonType> getType() {
         return type;
     }
 
@@ -37,7 +39,7 @@ public class JsonSchema {
         return properties;
     }
 
-    public void addProperty(String name, String type) {
+    public void addProperty(String name, List<JsonType> type) {
         properties.put(name, new JsonSchema(type));
     }
 
