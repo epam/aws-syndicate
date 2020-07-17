@@ -1,0 +1,26 @@
+<project>
+    <artifactId>deployment-configuration-maven-plugin</artifactId>
+    <build>
+        <plugins>
+            <plugin>
+                <configuration>
+                    <packages>
+                        <package>com.syndicate</package>
+                    </packages>
+                </configuration>
+                <groupId>com.aws.syndicate</groupId>
+                <artifactId>deployment-configuration-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>generate-config</id>
+                        <phase>compile</phase>
+                        <inherited>false</inherited>
+                        <goals>
+                            <goal>generate-dynamodb-schemes</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

@@ -17,21 +17,19 @@ import java.util.List;
 public class LayerAnnotationProcessor extends AbstractAnnotationProcessor<LayerConfiguration> implements IAnnotationProcessor<LayerConfiguration> {
 
 
-	@Override
-	protected Pair<String, LayerConfiguration> process(Class<?> sourceClass, String version,
-	                                                   String artifactName, String path) {
-		LambdaLayer layerDef = sourceClass.getAnnotation(LambdaLayer.class);
-
-		LayerConfiguration configuration = LayerConfigurationFactory.createLayerConfiguration(layerDef);
-		return new Pair<>(configuration.getName(), configuration);
-	}
+    @Override
+    protected Pair<String, LayerConfiguration> process(Class<?> sourceClass, String version, String fileName, String path) {
+        LambdaLayer layerDef = sourceClass.getAnnotation(LambdaLayer.class);
+        LayerConfiguration configuration = LayerConfigurationFactory.createLayerConfiguration(layerDef);
+        return new Pair<>(configuration.getName(), configuration);
+    }
 
 
-	public List<Class<?>> getAnnotatedClasses(String[] packages) {
-		List<Class<?>> lambdasClasses = new ArrayList<>();
-		for (String nestedPackage : packages) {
-			lambdasClasses.addAll(new Reflections(nestedPackage).getTypesAnnotatedWith(LambdaLayer.class));
-		}
-		return lambdasClasses;
-	}
+    public List<Class<?>> getAnnotatedClasses(String[] packages) {
+        List<Class<?>> lambdasClasses = new ArrayList<>();
+        for (String nestedPackage : packages) {
+            lambdasClasses.addAll(new Reflections(nestedPackage).getTypesAnnotatedWith(LambdaLayer.class));
+        }
+        return lambdasClasses;
+    }
 }

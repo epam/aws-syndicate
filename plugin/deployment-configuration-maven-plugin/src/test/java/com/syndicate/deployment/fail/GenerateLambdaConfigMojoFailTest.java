@@ -56,7 +56,7 @@ public class GenerateLambdaConfigMojoFailTest {
 
     private SyndicateMetaGeneratorGoal mojo = new SyndicateMetaGeneratorGoal();
 
-	private Properties EMPTY_PROPERTIES = new Properties();
+    private Properties EMPTY_PROPERTIES = new Properties();
 
     @Before
     public void setUp() throws Exception {
@@ -71,8 +71,8 @@ public class GenerateLambdaConfigMojoFailTest {
     public void testPluginClasspathExceptionThrown() throws Exception {
         final MavenProject mavenProject = mock(MavenProject.class);
         when(mavenProject.getBuild()).thenReturn(mock(Build.class));
-	    when(mavenProject.getParent()).thenReturn(mavenProject);
-	    when(mavenProject.getProperties()).thenReturn(EMPTY_PROPERTIES);
+        when(mavenProject.getParent()).thenReturn(mavenProject);
+        when(mavenProject.getProperties()).thenReturn(EMPTY_PROPERTIES);
         // build situation when smth went wrong with the dependencies
         when(mavenProject.getCompileClasspathElements()).thenThrow(DependencyResolutionRequiredException.class);
         final Build build = mock(Build.class);
@@ -113,8 +113,8 @@ public class GenerateLambdaConfigMojoFailTest {
         when(mavenProject.getBuild()).thenReturn(build);
         when(mavenProject.getVersion()).thenReturn("1.0.0");
         when(mavenProject.getBasedir()).thenReturn(file);
-	    when(mavenProject.getParent()).thenReturn(mavenProject);
-	    when(mavenProject.getProperties()).thenReturn(EMPTY_PROPERTIES);
+        when(mavenProject.getParent()).thenReturn(mavenProject);
+        when(mavenProject.getProperties()).thenReturn(EMPTY_PROPERTIES);
 
         // lambda config should be present
         folder.newFolder("target");

@@ -3,6 +3,7 @@ package com.syndicate.deployment.processor;
 import com.syndicate.deployment.model.Pair;
 import org.apache.maven.plugin.MojoExecutionException;
 
+import java.lang.annotation.Annotation;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -15,43 +16,41 @@ import java.util.stream.Collectors;
  */
 public abstract class AbstractAnnotationProcessor<T> implements IAnnotationProcessor<T> {
 
-	@Override
-	public Map<String, T> generateMeta(String absolutePath, String[] packages,
-	                                   String version, String fileName) throws MojoExecutionException {
-		Set<String> uniqueLambdaNames = new HashSet<>();
-		Map<String, T> configurations = new HashMap<>();
-		List<Class<?>> annotatedClasses = getAnnotatedClasses(packages);
-		for (Class<?> targetClass : annotatedClasses) {
-			Pair<String, T> metaPair = process(targetClass, version, fileName, absolutePath);
-			if (metaPair == null) {
-				continue;
-			}
+    @Override
+    public Map<String, T> generateMeta(String absolutePath, String[] packages,
+                                       String version, String fileName) throws MojoExecutionException {
+        Set<String> uniqueResources = new HashSet<>();
+        Map<String, T> configurations = new HashMap<>();
+        List<Class<?>> annotatedClasses = getAnnotatedClasses(packages);
+        for (Class<?> targetClass : annotatedClasses) {
+            Pair<String, T> metaPair = process(targetClass, version, fileName, absolutePath);
+            if (metaPair == null) {
+                continue;
+            }
+            String resourceName = metaPair.getKey();
 
-			String lambdaName = metaPair.getKey();
+            if (uniqueResources.contains(resourceName)) {
+                throw new MojoExecutionException("Find more than one resource with name : "
+                        + resourceName + "! Resource name must be unique.");
+            } else {
+                uniqueResources.add(resourceName);
+            }
 
-			if (uniqueLambdaNames.contains(lambdaName)) {
-				throw new MojoExecutionException("Find more than one resource with name : "
-					+ lambdaName + "! Resource name must be unique.");
-			} else {
-				uniqueLambdaNames.add(lambdaName);
-			}
+            if (configurations.containsKey(resourceName)) {
+                throw new MojoExecutionException("Configuration " + resourceName + " is duplicated.");
+            }
+            configurations.put(resourceName, metaPair.getValue());
+        }
+        return configurations;
+    }
 
-			if (configurations.containsKey(lambdaName)) {
-				throw new MojoExecutionException("Configuration " + lambdaName + " is duplicated.");
-			}
-			configurations.put(lambdaName, metaPair.getValue());
-		}
+    @Override
+    public Map<String, Object> convertMeta(Map<String, T> metaConfiguration) {
+        return metaConfiguration.entrySet().stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, e -> (Object) e.getValue()));
+    }
 
-		return configurations;
-	}
-
-	@Override
-	public Map<String, Object> convertMeta(Map<String, T> metaConfiguration) {
-		return metaConfiguration.entrySet().stream()
-			.collect(Collectors.toMap(Map.Entry::getKey, e -> (Object) e.getValue()));
-	}
-
-	protected abstract Pair<String, T> process(Class<?> sourceClass, String version, String fileName, String path);
+	protected abstract Pair<String, T> process(Class<?> sourceClass, String version, String fileName, String path) throws MojoExecutionException;
 
 	protected abstract List<Class<?>> getAnnotatedClasses(String[] packages);
 }
