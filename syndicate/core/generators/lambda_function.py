@@ -74,9 +74,9 @@ def generate_lambda_function(project_name, project_path, project_language,
     full_project_path = os.path.join(project_path, project_name)
 
     if not os.path.exists(full_project_path):
-        raise AssertionError(
-            'Project "{}" you have provided does not exist'.format(
-                full_project_path))
+        _LOG.info('Project "{}" you have provided does not exist'.format(
+            full_project_path))
+        return
 
     processor = LAMBDAS_PROCESSORS.get(project_language)
     if not processor:

@@ -13,6 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+import os
 import pathlib
 import click
 
@@ -31,9 +32,9 @@ def generate():
 
 @generate.command(name='project')
 @click.option('--project_name', nargs=1, callback=check_required_param,
-              help='The project name')
+              help='* The project name')
 @click.option('--lang', nargs=1, callback=check_required_param,
-              help='The name of programming language that will '
+              help='* The name of programming language that will '
                    'be used in the project',
               type=click.Choice(PROJECT_PROCESSORS))
 @click.option('--project_path', nargs=1,
@@ -54,6 +55,9 @@ def project(ctx, project_name, lang, project_path):
     click.echo('Language: {}'.format(lang))
 
     proj_path = pathlib.Path().absolute() if not project_path else project_path
+    if not os.access(proj_path, os.X_OK | os.W_OK):
+        return ('Incorrect permissions for the provided path {}'.format(
+            proj_path))
     click.echo('Project path: {}'.format(proj_path))
     generate_project_structure(project_name=project_name,
                                project_path=proj_path,
@@ -62,15 +66,17 @@ def project(ctx, project_name, lang, project_path):
 
 @generate.command(name='lambda')
 @click.option('--project_name', nargs=1, callback=check_required_param,
-              help='The project name')
+              help='* The project name')
 @click.option('--lang', nargs=1, callback=check_required_param,
-              help='The name of programming language that will '
+              help='* The name of programming language that will '
                    'be used in the project',
               type=click.Choice(PROJECT_PROCESSORS))
 @click.option('--project_path', nargs=1,
-              help='The path where project structure will be created')
+              help='The path where project structure will be created. '
+                   '(If not specified - will be used current directory)')
 @click.option('--lambda_name', nargs=1, multiple=True, type=str,
-              help='(multiple) The lambda function name')
+              callback=check_required_param,
+              help='(multiple) * The lambda function name')
 @click.pass_context
 @timeit
 def lambda_function(ctx, project_name, lang, project_path, lambda_name):
@@ -83,10 +89,13 @@ def lambda_function(ctx, project_name, lang, project_path, lambda_name):
     :param lambda_name: the lambda function name (multiple)
     :return:
     """
+    proj_path = pathlib.Path().absolute() if not project_path else project_path
+    if not os.access(proj_path, os.X_OK | os.W_OK):
+        return ('Incorrect permissions for the provided path {}'.format(
+            proj_path))
+
     click.echo('Project name: {}'.format(project_name))
     click.echo('Language: {}'.format(lang))
-
-    proj_path = pathlib.Path().absolute() if not project_path else project_path
     click.echo('Project path: {}'.format(proj_path))
     click.echo('Lambda names: {}'.format(str(lambda_name)))
     generate_lambda_function(project_name=project_name,

@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.1] - 2020-07-20
+### Added
+- Add required mark (asterisk) for required parameters in 'Help' section for `syndicate generate lambda` and `syndicate generate project` commands
+- Add validation for the empty `lambda_name` parameter in `syndicate generate lambda` command
+
+### Changed
+- Removed `traceback` from response after attempting to generate lambda without `project_path` parameter by `syndicate generate lambda` command
+- Remove `traceback` from response after attempting to generate lambda for non exist project by `syndicate generate lambda` command
+
 ## [0.9.0] - 2020-04-06
 ### Added
 - Syndicate now supports configurations in YAML: syndicate.yml and syndicate_aliases.yml; The old ones (sdct.conf, sdct_alises.conf) are still supported.
