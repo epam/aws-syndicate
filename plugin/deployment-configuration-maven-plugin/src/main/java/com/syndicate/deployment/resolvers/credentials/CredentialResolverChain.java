@@ -1,4 +1,4 @@
-package com.syndicate.deployment.resolvers;
+package com.syndicate.deployment.resolvers.credentials;
 
 import com.syndicate.deployment.api.model.request.SyndicateCredentials;
 

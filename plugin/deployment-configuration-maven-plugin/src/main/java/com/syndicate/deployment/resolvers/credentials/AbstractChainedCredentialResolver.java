@@ -1,4 +1,4 @@
-package com.syndicate.deployment.resolvers;
+package com.syndicate.deployment.resolvers.credentials;
 
 /**
  * Created by Oleksandr Onsha on 2019-08-15

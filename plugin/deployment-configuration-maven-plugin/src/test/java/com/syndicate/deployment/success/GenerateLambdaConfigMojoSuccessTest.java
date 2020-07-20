@@ -29,7 +29,7 @@ import com.syndicate.deployment.model.ResourceType;
 import com.syndicate.deployment.model.TracingMode;
 import com.syndicate.deployment.model.events.SnsTriggerEventSourceItem;
 import com.syndicate.deployment.model.terraform.TerraformLambdaConfiguration;
-import com.syndicate.deployment.resolvers.CredentialResolverChain;
+import com.syndicate.deployment.resolvers.credentials.CredentialResolverChain;
 import com.syndicate.deployment.success.syndicate.SnsLambdaExecutor;
 import com.syndicate.deployment.success.syndicate.SnsLambdaProcessor;
 import com.syndicate.deployment.success.terraform.BackgroundLambda;

@@ -1,7 +1,7 @@
-package com.syndicate.deployment.resolvers.impl;
+package com.syndicate.deployment.resolvers.credentials.impl;
 
 import com.syndicate.deployment.api.model.request.SyndicateCredentials;
-import com.syndicate.deployment.resolvers.AbstractChainedCredentialResolver;
+import com.syndicate.deployment.resolvers.credentials.AbstractChainedCredentialResolver;
 
 import java.security.InvalidParameterException;
 import java.util.Objects;

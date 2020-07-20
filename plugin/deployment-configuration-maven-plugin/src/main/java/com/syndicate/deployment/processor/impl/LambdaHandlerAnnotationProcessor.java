@@ -48,58 +48,56 @@ import java.util.Set;
  */
 public class LambdaHandlerAnnotationProcessor extends AbstractAnnotationProcessor<LambdaConfiguration> implements IAnnotationProcessor<LambdaConfiguration> {
 
-	private static final Map<Class, EventSourceType> ANNOTATIONS = new HashMap<>();
+    private static final Map<Class, EventSourceType> ANNOTATIONS = new HashMap<>();
 
+    static {
+        ANNOTATIONS.put(DynamoDbTriggerEventSource.class, EventSourceType.DYNAMODB_TRIGGER);
+        ANNOTATIONS.put(RuleEventSource.class, EventSourceType.CLOUDWATCH_RULE_TRIGGER);
+        ANNOTATIONS.put(S3EventSource.class, EventSourceType.S3_TRIGGER);
+        ANNOTATIONS.put(SnsEventSource.class, EventSourceType.SNS_TOPIC_TRIGGER);
+        ANNOTATIONS.put(SqsTriggerEventSource.class, EventSourceType.SQS_TRIGGER);
+    }
 
-	static {
-		ANNOTATIONS.put(DynamoDbTriggerEventSource.class, EventSourceType.DYNAMODB_TRIGGER);
-		ANNOTATIONS.put(RuleEventSource.class, EventSourceType.CLOUDWATCH_RULE_TRIGGER);
-		ANNOTATIONS.put(S3EventSource.class, EventSourceType.S3_TRIGGER);
-		ANNOTATIONS.put(SnsEventSource.class, EventSourceType.SNS_TOPIC_TRIGGER);
-		ANNOTATIONS.put(SqsTriggerEventSource.class, EventSourceType.SQS_TRIGGER);
-	}
+    @Override
+    protected Pair<String, LambdaConfiguration> process(Class<?> lambdaClass, String version, String fileName, String path) {
+        LambdaHandler lambdaHandler = lambdaClass.getAnnotation(LambdaHandler.class);
+        Set<EventSourceItem> events = new HashSet<>();
+        Set<DependencyItem> dependencies = new HashSet<>();
+        for (Map.Entry<Class, EventSourceType> annotationEntry : ANNOTATIONS.entrySet()) {
+            Annotation[] annotations = lambdaClass.getDeclaredAnnotationsByType(annotationEntry.getKey());
+            for (Annotation eventSource : annotations) {
+                EventSourceType eventSourceType = annotationEntry.getValue();
+                events.add(eventSourceType.createEventSourceItem(eventSource));
+                // auto-processing dependencies for event sources
+                dependencies.add(eventSourceType.createDependencyItem(eventSource));
+            }
+        }
+        // process additional resources such as tables, another buckets etc
+        DependsOn[] dependsOnAnnotations = lambdaClass.getDeclaredAnnotationsByType(DependsOn.class);
+        for (DependsOn annotation : dependsOnAnnotations) {
+            dependencies.add(DependencyItemFactory.createDependencyItem(annotation));
+        }
+        Map<String, String> envVariables = getEnvVariables(lambdaClass);
+        LambdaConfiguration lambdaConfiguration = LambdaConfigurationFactory.createLambdaConfiguration(version, lambdaClass, lambdaHandler, dependencies,
+                events, envVariables, fileName, path);
+        return new Pair<>(lambdaHandler.lambdaName(), lambdaConfiguration);
+    }
 
-	@Override
-	public Pair<String, LambdaConfiguration> process(Class<?> lambdaClass, String version, String fileName, String path) {
-		LambdaHandler lambdaHandler = lambdaClass.getAnnotation(LambdaHandler.class);
-		Set<EventSourceItem> events = new HashSet<>();
-		Set<DependencyItem> dependencies = new HashSet<>();
-		for (Map.Entry<Class, EventSourceType> annotationEntry : ANNOTATIONS.entrySet()) {
-			Annotation[] annotations = lambdaClass.getDeclaredAnnotationsByType(annotationEntry.getKey());
-			for (Annotation eventSource : annotations) {
-				EventSourceType eventSourceType = annotationEntry.getValue();
-				events.add(eventSourceType.createEventSourceItem(eventSource));
-				// auto-processing dependencies for event sources
-				dependencies.add(eventSourceType.createDependencyItem(eventSource));
-			}
-		}
-		// process additional resources such as tables, another buckets etc
-		DependsOn[] dependsOnAnnotations = lambdaClass.getDeclaredAnnotationsByType(DependsOn.class);
-		for (DependsOn annotation : dependsOnAnnotations) {
-			dependencies.add(DependencyItemFactory.createDependencyItem(annotation));
-		}
-		Map<String, String> envVariables = getEnvVariables(lambdaClass);
-		LambdaConfiguration lambdaConfiguration = LambdaConfigurationFactory.createLambdaConfiguration(version, lambdaClass, lambdaHandler, dependencies,
-			events, envVariables, fileName, path);
-		return new Pair<>(lambdaHandler.lambdaName(), lambdaConfiguration);
-	}
+    @Override
+    public List<Class<?>> getAnnotatedClasses(String[] packages) {
+        List<Class<?>> lambdasClasses = new ArrayList<>();
+        for (String nestedPackage : packages) {
+            lambdasClasses.addAll(new Reflections(nestedPackage).getTypesAnnotatedWith(LambdaHandler.class));
+        }
+        return lambdasClasses;
+    }
 
-	@Override
-	public List<Class<?>> getAnnotatedClasses(String[] packages) {
-		List<Class<?>> lambdasClasses = new ArrayList<>();
-		for (String nestedPackage : packages) {
-			lambdasClasses.addAll(new Reflections(nestedPackage).getTypesAnnotatedWith(LambdaHandler.class));
-		}
-		return lambdasClasses;
-	}
-
-	private Map<String, String> getEnvVariables(Class<?> lambdaClass) {
-		Map<String, String> envVariables = new HashMap<>();
-		EnvironmentVariable[] environmentVariablesAnnotations = lambdaClass.getDeclaredAnnotationsByType(EnvironmentVariable.class);
-		for (EnvironmentVariable annotation : environmentVariablesAnnotations) {
-			envVariables.put(annotation.key(), annotation.value());
-		}
-		return envVariables;
-	}
-
+    private Map<String, String> getEnvVariables(Class<?> lambdaClass) {
+        Map<String, String> envVariables = new HashMap<>();
+        EnvironmentVariable[] environmentVariablesAnnotations = lambdaClass.getDeclaredAnnotationsByType(EnvironmentVariable.class);
+        for (EnvironmentVariable annotation : environmentVariablesAnnotations) {
+            envVariables.put(annotation.key(), annotation.value());
+        }
+        return envVariables;
+    }
 }
