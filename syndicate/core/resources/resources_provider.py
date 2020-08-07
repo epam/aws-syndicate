@@ -86,7 +86,7 @@ class ResourceProvider:
         def cw(self):
             if not self._cw_resource:
                 self._cw_resource = CloudWatchResource(
-                    cw_events_conn_builder=self._conn_provider.cw_metric,
+                    cw_events_conn_builder=self._conn_provider.cw_events,
                     account_id=self.config.account_id
                 )
             return self._cw_resource

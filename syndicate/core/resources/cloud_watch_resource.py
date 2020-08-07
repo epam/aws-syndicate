@@ -65,7 +65,7 @@ class CloudWatchResource(BaseResource):
 
     def describe_rule(self, name, meta, region, response=None):
         if not response:
-            response = self.cw_events_conn(region).get_rule(name)
+            response = self._cw_events_conn_builder(region).get_rule(name)
         arn = response[ARN_KEY]
         del response[ARN_KEY]
         return {arn: build_description_obj(response, name, meta)}
@@ -78,7 +78,7 @@ class CloudWatchResource(BaseResource):
             ], ALL_REGIONS)
         responses = []
         for arg in new_region_args:
-            rule = self.cw_events_conn(arg['region']).get_rule(name)
+            rule = self._cw_events_conn_builder(arg['region']).get_rule(name)
             if rule:
                 responses.append(rule)
 
@@ -109,19 +109,19 @@ class CloudWatchResource(BaseResource):
         validate_params(name, meta, required_parameters)
 
         event_buses = meta.get('event_bus_accounts')
-        response = self.cw_events_conn(region).get_rule(name)
+        response = self._cw_events_conn_builder(region).get_rule(name)
         if response:
             _LOG.warn('%s rule exists in %s.', name, region)
             return self.describe_rule(name=name, meta=meta, region=region,
                                       response=response)
         try:
             func = RULE_TYPES[rule_type]
-            func(name, meta, self.cw_events_conn(region))
+            func(name, meta, self._cw_events_conn_builder(region))
             if event_buses:
                 time.sleep(5)
                 self._attach_tenant_rule_targets(name, region, event_buses)
             _LOG.info('Created cloud watch rule %s in %s.', name, region)
-            response = self.cw_events_conn(region).get_rule(name)
+            response = self._cw_events_conn_builder(region).get_rule(name)
             time.sleep(5)
             return self.describe_rule(name=name, meta=meta, region=region,
                                       response=response)
@@ -144,14 +144,15 @@ class CloudWatchResource(BaseResource):
                     _LOG.debug('Target to event bus %s is already attached',
                                target_arn)
                     return
-            self.cw_events_conn(region).add_rule_target(rule_name=rule_name,
-                                                        target_arn=target_arn)
+            self._cw_events_conn_builder(region).add_rule_target(
+                rule_name=rule_name,
+                target_arn=target_arn)
 
     def _handle_deactivation_for_cw_resources(self, cw_conn, region,
                                               rule_name):
         targets = cw_conn.list_targets_by_rule(rule_name)
         home_eb_arn = f'arn:aws:events:' \
-            f'{region}:{self.account_id}:event-bus/default'
+                      f'{region}:{self.account_id}:event-bus/default'
         _LOG.debug('Home account event bus arn: %s', home_eb_arn)
         for target in targets:
             resource_arn = target[ARN_KEY]
@@ -174,7 +175,7 @@ class CloudWatchResource(BaseResource):
         region = arn.split(':')[3]
         resource_name = config['resource_name']
         try:
-            self.cw_events_conn(region).remove_rule(resource_name)
+            self._cw_events_conn_builder(region).remove_rule(resource_name)
             _LOG.info('Rule %s was removed', resource_name)
         except ClientError as e:
             exception_type = e.response['Error']['Code']
