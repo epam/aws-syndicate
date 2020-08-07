@@ -59,8 +59,8 @@ def validate_dynamodb(table_name, table_meta):
                     res_name=table_name,
                     key_name_attr=SORT_KEY_NAME,
                     key_type_attr=SORT_KEY_TYPE)
-        sort_key_type = table_meta[SORT_KEY_TYPE]
-        if sort_key_type not in dynamodb_valid_key_types:
+        table_sort_key_type = table_meta[SORT_KEY_TYPE]
+        if table_sort_key_type not in dynamodb_valid_key_types:
             raise AssertionError(
                 'Sort key type of Table {0} is unsupported by DynamoDB. '
                 'Valid types are {1}'.format(table_name,
@@ -105,11 +105,11 @@ def validate_dynamodb(table_name, table_meta):
                                              index_key_name,
                                              index_key_type_value))
 
-            index_sort_key_value = index.get(INDEX_SORT_KEY_NAME)
+            index_sort_key_name = index.get(INDEX_SORT_KEY_NAME)
             assert_required_property(resource_name=INDEX_SORT_KEY_NAME,
                                      property_name='local_indexes.{0}'.format(
                                          INDEX_SORT_KEY_NAME),
-                                     property_value=index_sort_key_value)
+                                     property_value=index_sort_key_name)
             index_sort_key_type_value = index.get(INDEX_SORT_KEY_TYPE)
             assert_required_property(resource_name=INDEX_SORT_KEY_TYPE,
                                      property_name='local_indexes.{0}'.format(
@@ -123,16 +123,15 @@ def validate_dynamodb(table_name, table_meta):
                         table_name, dynamodb_valid_key_types))
             # LSI hash key must be equal to table's hash key
             if table_meta.get(SORT_KEY_NAME):
-                if index_sort_key_value == table_meta[SORT_KEY_TYPE] or \
-                        index_sort_key_type_value == sort_key_type:
+                if index_sort_key_name == table_meta[SORT_KEY_NAME]:
                     raise AssertionError(
-                        'Sort key name and type of LocalSecondaryIndex '
+                        'Sort key name of LocalSecondaryIndex '
                         'named {0} is equal to Table\'s {1} ones. '
                         'Sort key of LSI must differ from table\s. '
                         'Value: {2}'.format(
                             index_name,
                             table_name,
-                            index_sort_key_value
+                            index_sort_key_name
                         ))
 
 
