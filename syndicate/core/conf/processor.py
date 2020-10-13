@@ -198,6 +198,10 @@ class ConfigHolder:
         return self._resolve_variable('access_role')
 
     @property
+    def session_duration(self):
+        return int(self._resolve_variable('session_duration'))
+
+    @property
     def aws_access_key_id(self):
         return self._resolve_variable(AWS_ACCESS_KEY_ID_CFG)
 
