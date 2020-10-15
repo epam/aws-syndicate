@@ -199,7 +199,9 @@ class ConfigHolder:
 
     @property
     def session_duration(self):
-        return int(self._resolve_variable('session_duration'))
+        duration = self._resolve_variable('session_duration')
+        if duration:
+            return int(self._resolve_variable('session_duration'))
 
     @property
     def aws_access_key_id(self):
