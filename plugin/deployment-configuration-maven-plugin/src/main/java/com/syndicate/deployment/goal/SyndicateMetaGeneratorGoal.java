@@ -124,6 +124,10 @@ public class SyndicateMetaGeneratorGoal extends AbstractMetaGoal {
 
 
     protected void uploadMeta(Map<String, Object> configurations, SyndicateCredentials credentials) {
+        if (configurations.isEmpty()) {
+            logger.debug("No resources to upload.");
+            return;
+        }
         String buildId = ProjectUtils.getPropertyFromRootProject(project, SYNDICATE_BUILD_ID);
 
         SyndicateEnterpriseClient syndicateEnterpriseClient = Feign.builder()
@@ -136,6 +140,7 @@ public class SyndicateMetaGeneratorGoal extends AbstractMetaGoal {
 
         SaveMetaRequest saveMetaRequest = new SaveMetaRequest(buildId, Instant.now().toEpochMilli(),
                 new ArrayList<>(configurations.values()));
+        logger.debug("SaveMeta request body: " + saveMetaRequest);
 
         SaveMetaResponse saveMetaResponse = syndicateEnterpriseClient.saveMeta(token, saveMetaRequest);
         logger.info(saveMetaResponse.getMessage());
