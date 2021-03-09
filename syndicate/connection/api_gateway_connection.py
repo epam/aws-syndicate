@@ -276,7 +276,35 @@ class ApiGatewayConnection(object):
     def create_service_integration(self, acc_id, api_id, resource_id,
                                    method, integration_method, role,
                                    action, request_templates=None,
-                                   passthrough_behavior=None):
+                                   passthrough_behavior=None,
+                                   request_parameters=None):
+        """
+        Create API Gateway integration with AWS service.
+
+        :type acc_id: str
+        :param acc_id: Account id
+        :type api_id: str
+        :param api_id: Identifier of the RestApi
+        :type resource_id: str
+        :param resource_id: Request's resource ID
+        :type method: str
+        :param method: Request's HTTP method
+        :type integration_method: str
+        :param integration_method: Integration HTTP method
+        :type role: str
+        :param role: Execution role
+        :type action: str
+        :param action: using for URI, general template:
+        {region}:{subdomain.service|service}:path|action/{service_api}
+        :type request_templates: dict
+        :param request_templates: A key-value map where content type is a key
+        and the template is the value
+        :type passthrough_behavior: str
+        :param passthrough_behavior: WHEN_NO_MATCH , WHEN_NO_TEMPLATES , NEVER
+        :type request_parameters: dict
+        :param request_parameters: A key-value map specifying request parameters
+         (path, query string, header)
+        """
         uri = 'arn:aws:apigateway:{0}'.format(action)
 
         credentials = 'arn:aws:iam::*:user/*' if role == 'caller_identity' \
@@ -291,6 +319,8 @@ class ApiGatewayConnection(object):
             params['passthrough_behavior'] = passthrough_behavior
         if request_templates:
             params['request_templates'] = request_templates
+        if request_parameters:
+            params['request_parameters'] = request_parameters
         self.create_integration(**params)
 
     def create_mock_integration(self, api_id, resource_id, method,
