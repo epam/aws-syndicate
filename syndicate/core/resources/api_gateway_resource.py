@@ -430,6 +430,7 @@ class ApiGatewayResource(BaseResource):
         body_template = method_meta.get('integration_request_body_template')
         passthrough_behavior = method_meta.get(
             'integration_passthrough_behavior')
+        request_parameters = method_meta.get('integration_request_parameters')
         # TODO split to map - func implementation
         if integration_type:
             if integration_type == 'lambda':
@@ -472,7 +473,8 @@ class ApiGatewayResource(BaseResource):
                                                            integration_method,
                                                            role, uri,
                                                            body_template,
-                                                           passthrough_behavior)
+                                                           passthrough_behavior,
+                                                           request_parameters)
             elif integration_type == 'mock':
                 self.connection.create_mock_integration(api_id, resource_id,
                                                         method,
