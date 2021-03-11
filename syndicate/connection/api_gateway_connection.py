@@ -221,7 +221,7 @@ class ApiGatewayConnection(object):
 
     def create_request_validator(self, api_id, request_validator):
         """
-        Helper function for creating a request validator.
+        Helper function to create a request validator. Returns its id.
 
         :type api_id: str
         :param api_id: Identifier of the associated RestApi.
@@ -231,28 +231,34 @@ class ApiGatewayConnection(object):
         (validate_request_body, validate_request_parameters or both)
         :return: str, identifier of created RequestValidator.
         """
-        validator_name = request_validator.pop('name') if request_validator[
-            'name'] else None
+        try:
+            validator_name = request_validator.pop('name')
+        except KeyError:  # not critical error, occurs when there is no
+            # validator name in request_validator
+            validator_name = None
+
         check_params = {
-            ('validate_request_body', True): {
+            (('validate_request_body', True),): {
                 'name': 'Validate body' if not validator_name
                 else validator_name,
                 'validateRequestBody': True
             },
-            ('validate_request_parameters', True): {
+            (('validate_request_parameters', True),): {
                 'name': 'Validate query string parameters and headers' if
                 not validator_name else validator_name,
+                'validateRequestParameters': True
+            },
+            (('validate_request_body', True),
+             ('validate_request_parameters', True)): {
+                'name': 'Validate body, query string parameters, and headers' if
+                not validator_name else validator_name,
+                'validateRequestBody': True,
                 'validateRequestParameters': True
             }
         }
 
-        request_validator_params = {}
-        for validation in request_validator.items():
-            request_validator_params.update(check_params[validation])
-
-        if not validator_name and len(request_validator_params) == 3:
-            request_validator_params.update(
-                name='Validate body, query string parameters, and headers')
+        items = request_validator.items()
+        request_validator_params = check_params[tuple(items)]
 
         request_validator_id = self.client.create_request_validator(
             restApiId=api_id, **request_validator_params)['id']
