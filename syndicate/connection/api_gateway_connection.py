@@ -233,32 +233,25 @@ class ApiGatewayConnection(object):
         """
         try:
             validator_name = request_validator.pop('name')
-        except KeyError:  # not critical error, occurs when there is no
-            # validator name in request_validator
+        except KeyError:  # not critical error
             validator_name = None
 
-        check_params = {
-            (('validate_request_body', True),): {
-                'name': 'Validate body' if not validator_name
-                else validator_name,
-                'validateRequestBody': True
-            },
-            (('validate_request_parameters', True),): {
-                'name': 'Validate query string parameters and headers' if
-                not validator_name else validator_name,
-                'validateRequestParameters': True
-            },
-            (('validate_request_body', True),
-             ('validate_request_parameters', True)): {
-                'name': 'Validate body, query string parameters, and headers' if
-                not validator_name else validator_name,
-                'validateRequestBody': True,
-                'validateRequestParameters': True
-            }
-        }
+        request_validator_params = {}
 
-        items = request_validator.items()
-        request_validator_params = check_params[tuple(items)]
+        if ('validate_request_body', True) in request_validator.items():
+            request_validator_params.update({'validateRequestBody': True,
+                                             'name': 'Validate body'})
+        if ('validate_request_parameters', True) in request_validator.items():
+            request_validator_params.update({'validateRequestParameters': True,
+                                             'name': 'Validate query string '
+                                                     'parameters and headers'})
+
+        if not validator_name and len(request_validator_params) == 3:
+            request_validator_params.update({'name':
+                                                 'Validate body, query string '
+                                                 'parameters, and headers'})
+        elif validator_name and len(request_validator_params) < 3:
+            request_validator_params.update({'name': validator_name})
 
         request_validator_id = self.client.create_request_validator(
             restApiId=api_id, **request_validator_params)['id']
