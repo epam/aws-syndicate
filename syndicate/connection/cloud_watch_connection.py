@@ -60,7 +60,7 @@ class LogsConnection(object):
                                             destinationArn=lambda_arn)
 
     def create_log_group_with_retention_days(self, group_name: str,
-                                              retention_in_days: int):
+                                             retention_in_days: int = None):
         """ Creates a log group for provided lambda function and sets
         the retention .
 
@@ -74,11 +74,16 @@ class LogsConnection(object):
         log_group_name = '/aws/lambda/' + group_name
         self.client.create_log_group(logGroupName=log_group_name)
 
-        if retention_in_days in possible_retention_days:
-            self.client.put_retention_policy(
-                logGroupName=log_group_name,
-                retentionInDays=retention_in_days
-            )
+        if retention_in_days:
+            if retention_in_days in possible_retention_days:
+                self.client.put_retention_policy(
+                    logGroupName=log_group_name,
+                    retentionInDays=retention_in_days
+                )
+            else:
+                raise ValueError("Possible values for \"logs_expiration\" parameter"
+                                 " are: 1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180,"
+                                 " 365, 400, 545, 731, 1827, and 3653.")
 
     def get_log_group_arns(self):
         """ Returns ARNs for each log group that currently exists. """
