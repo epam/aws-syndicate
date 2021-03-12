@@ -60,7 +60,7 @@ class LogsConnection(object):
                                             destinationArn=lambda_arn)
 
     def create_log_group_with_retention_days(self, group_name: str,
-                                             retention_in_days: int = None):
+                                             retention_in_days: int):
         """ Creates a log group for provided lambda function and sets
         the retention .
 
@@ -68,9 +68,6 @@ class LogsConnection(object):
         :type retention_in_days: int
         """
 
-        if retention_in_days == None:
-            raise AttributeError("Missing \"logs_expiration\" parameter")
-            
         retention_in_days = int(retention_in_days)
 
         possible_retention_days = (1, 3, 5, 7, 14, 30, 60, 90, 120, 150,
