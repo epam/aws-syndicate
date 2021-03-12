@@ -171,7 +171,8 @@ class ApiGatewayConnection(object):
     def create_method(self, api_id, resource_id, method,
                       authorization_type=None, authorizer_id=None,
                       api_key_required=None, request_parameters=None,
-                      request_models=None):
+                      request_models=None,
+                      request_validator=None):
         """
         :type api_id: str
         :type resource_id: str
@@ -195,6 +196,10 @@ class ApiGatewayConnection(object):
         request's content type. Request models are represented as a key/value
         map, with a content type as the key and a Model name as the value.
         {'string': 'string'}
+        :type request_validator: dict
+        :param request_validator: Dictionary with values to create request
+        validator. It could contains name of validator and validate parameters
+        (validate_request_body, validate_request_parameters or both).
         """
         params = dict(restApiId=api_id, resourceId=resource_id,
                       httpMethod=method, authorizationType='NONE',
@@ -209,7 +214,54 @@ class ApiGatewayConnection(object):
             params['requestParameters'] = request_parameters
         if request_models:
             params['requestModels'] = request_models
+        if request_validator:
+            params['requestValidatorId'] = self.create_request_validator(
+                api_id, request_validator)
         self.client.put_method(**params)
+
+    def create_request_validator(self, api_id, request_validator):
+        """
+        Helper function to create a request validator. Returns its id.
+
+        :type api_id: str
+        :param api_id: Identifier of the associated RestApi.
+        :type request_validator: dict
+        :param request_validator: Dictionary with values to create request
+        validator. It could contains name of validator and validate parameters
+        (validate_request_body, validate_request_parameters or both)
+        :return: str, identifier of created RequestValidator.
+        """
+        try:
+            validator_name = request_validator.pop('name')
+        except KeyError:  # not critical error
+            validator_name = None
+
+        request_validator_params = {}
+
+        if ('validate_request_body', True) in request_validator.items():
+            request_validator_params.update({'validateRequestBody': True,
+                                             'name': 'Validate body'})
+        if ('validate_request_parameters', True) in request_validator.items():
+            request_validator_params.update({'validateRequestParameters': True,
+                                             'name': 'Validate query string '
+                                                     'parameters and headers'})
+
+        # Need an additional check for validator name.
+        # If the user wants to validate both the body and the parameters,
+        # the number of 'request_validator_params' parameters will be equal
+        # to three
+        SETTED_PARAMETERS = 3
+
+        if len(request_validator_params) == SETTED_PARAMETERS:
+            request_validator_params.update({'name': 'Validate body, query '
+                                                     'string parameters, '
+                                                     'and headers'})
+        if validator_name:
+            request_validator_params.update({'name': validator_name})
+
+        request_validator_id = self.client.create_request_validator(
+            restApiId=api_id, **request_validator_params)['id']
+        return request_validator_id
 
     def create_integration(self, api_id, resource_id, method, int_type,
                            integration_method=None, uri=None, credentials=None,
