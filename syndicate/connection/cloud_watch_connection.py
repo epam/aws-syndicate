@@ -68,6 +68,8 @@ class LogsConnection(object):
         :type retention_in_days: int
         """
 
+        retention_in_days = int(retention_in_days)
+
         if not retention_in_days:
             raise AttributeError("Missing \"logs_expiration\" parameter")
 
