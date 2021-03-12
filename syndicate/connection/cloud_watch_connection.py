@@ -69,7 +69,7 @@ class LogsConnection(object):
         """
 
         if not retention_in_days:
-            raise AttributeError("Missing \"\" parameter")
+            raise AttributeError("Missing \"logs_expiration\" parameter")
 
         possible_retention_days = (1, 3, 5, 7, 14, 30, 60, 90, 120, 150,
                                    180, 365, 400, 545, 731, 1827, 3653)
