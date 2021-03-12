@@ -59,29 +59,24 @@ class LogsConnection(object):
                                             filterPattern=filter_pattern,
                                             destinationArn=lambda_arn)
 
-    def create_log_groups(self, group_names):
-        """ Creates a log group for each provided name.
+    def create_log_groups_with_retention_days(self, group_name: str, retention_in_days: int):
+        """ Creates a log group for provided lambda function and sets the retention .
 
-        :type group_names: str
-        """
-        for each in group_names:
-            log_group_name = '/aws/lambda/' + each
-            self.client.create_log_group(logGroupName=log_group_name)
-
-    def put_retention_policy(self, retention_in_days: int):
-        """ Sets the retention for all existing log group.
-
+        :type group_name: str
         :type retention_in_days: int
         """
+
         possible_retention_days = (1, 3, 5, 7, 14, 30, 60, 90, 120, 150,
                                    180, 365, 400, 545, 731, 1827, 3653)
 
+        log_group_name = '/aws/lambda/' + group_name
+        self.client.create_log_group(logGroupName=log_group_name)
+
         if retention_in_days in possible_retention_days:
-            for each in self.get_log_group_names():
-                self.client.put_retention_policy(
-                    logGroupName=f'/aws/lambda/{each}',
-                    retentionInDays=retention_in_days
-                )
+            self.client.put_retention_policy(
+                logGroupName=log_group_name,
+                retentionInDays=retention_in_days
+            )
 
     def get_log_group_arns(self):
         """ Returns ARNs for each log group that currently exists. """
