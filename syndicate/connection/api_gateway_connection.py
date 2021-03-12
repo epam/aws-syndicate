@@ -237,7 +237,6 @@ class ApiGatewayConnection(object):
             validator_name = None
 
         request_validator_params = {}
-        SETTED_PARAMETERS = 3
 
         if ('validate_request_body', True) in request_validator.items():
             request_validator_params.update({'validateRequestBody': True,
@@ -246,6 +245,12 @@ class ApiGatewayConnection(object):
             request_validator_params.update({'validateRequestParameters': True,
                                              'name': 'Validate query string '
                                                      'parameters and headers'})
+
+        # Need an additional check for validator name.
+        # If the user wants to validate both the body and the parameters,
+        # the number of 'request_validator_params' parameters will be equal
+        # to three
+        SETTED_PARAMETERS = 3
 
         if len(request_validator_params) == SETTED_PARAMETERS:
             request_validator_params.update({'name': 'Validate body, query '
