@@ -264,8 +264,10 @@ class LambdaResource(BaseResource):
 
         log_group_name = name
         retention = meta.get('logs_expiration')
-        self.cw_logs_conn.\
-            create_log_group_with_retention_days(log_group_name, retention)
+        self.cw_logs_conn.create_log_group_with_retention_days(
+            group_name=log_group_name,
+            retention_in_days=retention
+        )
 
         lambda_def = self.__describe_lambda_by_version(
             name) if publish_version else self.lambda_conn.get_function(name)
