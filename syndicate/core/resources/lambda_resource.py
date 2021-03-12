@@ -261,6 +261,12 @@ class LambdaResource(BaseResource):
         _LOG.debug('Lambda created %s', name)
         # AWS sometimes returns None after function creation, needs for stability
         time.sleep(10)
+
+        log_group_name = meta.get('group_name')
+        retention = meta.get('retention_in_days')
+        self.cw_logs_conn.\
+            create_log_group_with_retention_days(log_group_name, retention)
+
         lambda_def = self.__describe_lambda_by_version(
             name) if publish_version else self.lambda_conn.get_function(name)
         version = lambda_def['Configuration']['Version']

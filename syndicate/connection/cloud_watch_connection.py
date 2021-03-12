@@ -59,8 +59,10 @@ class LogsConnection(object):
                                             filterPattern=filter_pattern,
                                             destinationArn=lambda_arn)
 
-    def create_log_groups_with_retention_days(self, group_name: str, retention_in_days: int):
-        """ Creates a log group for provided lambda function and sets the retention .
+    def create_log_group_with_retention_days(self, group_name: str,
+                                              retention_in_days: int):
+        """ Creates a log group for provided lambda function and sets
+        the retention .
 
         :type group_name: str
         :type retention_in_days: int
