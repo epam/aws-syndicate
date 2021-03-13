@@ -1,10 +1,28 @@
+language: java
 dist: trusty
 
 addons:
+  apt:
+    packages:
+      - openjdk-8-jdk
+      - openjdk-11-jdk
   sonarcloud:
     organization: "epam"
- 
-script:
-  - cd plugin && mvn test -B
-  - cd ../examples/java/demo-java && mvn test -B
-  - cd ../../.. && sonar-scanner
+
+
+jobs:
+  include:
+    - language: java
+      dist: trusty
+      jdk: openjdk8
+
+      script:
+        - cd plugin && mvn test -B
+        - cd ../examples/java/demo-java && mvn test -B
+
+    - language: java
+      dist: trusty
+      jdk: openjdk11
+
+      script:
+        - sonar-scanner
