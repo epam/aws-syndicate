@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated Python project examples
 - Added integration request parameters for API Gateway
 - Added request validator for API Gateway
+- Update Java version in Travis builds
 
 ## [0.9.4] - 2020-10-16
 ### Changed
