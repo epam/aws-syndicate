@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated Python project examples
 - Added integration request parameters for API Gateway
 - Added request validator for API Gateway
+- Fixed a lost first zero issue due to incorrect work `syndicate init` command for AWS accounts, which start at zero.
 - Added the ability to add `logs_expiration` parameter in lambda_config.json.
 - Update Java version in Travis builds
 

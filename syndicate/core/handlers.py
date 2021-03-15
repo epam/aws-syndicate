@@ -78,7 +78,7 @@ def syndicate():
 @click.option('--project_path', type=str,
               help='Path to project folder. Default value: working dir')
 # account settings
-@click.option('--account_id', callback=check_required_param, type=int,
+@click.option('--account_id', callback=check_required_param, type=str,
               help='[required] Id of the AWS account where to deploy '
                    'application')
 @click.option('--region', type=str, default='us-west-1',
