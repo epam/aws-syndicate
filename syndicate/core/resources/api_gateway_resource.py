@@ -456,10 +456,6 @@ class ApiGatewayResource(BaseResource):
                 api_source_arn = f"arn:aws:execute-api:{self.region}:" \
                                  f"{self.account_id}:{api_id}/*/{method}{resource_path}"
                 self.lambda_res.add_invocation_permission(
-                    statement_id=(api_id + '-' + method + '-' +
-                                  resource_path[1:].replace('/', '_').
-                                  replace('{', '').
-                                  replace('}', '')),
                     name=lambda_arn,
                     principal='apigateway.amazonaws.com',
                     source_arn=api_source_arn)
