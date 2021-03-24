@@ -36,6 +36,7 @@ from syndicate.connection.s3_connection import S3Connection
 from syndicate.connection.sns_connection import SNSConnection
 from syndicate.connection.sqs_connection import SqsConnection
 from syndicate.connection.step_functions_connection import SFConnection
+from syndicate.connection.batch_connection import BatchConnection
 
 
 class ConnectionProvider(object):
@@ -165,3 +166,24 @@ class ConnectionProvider(object):
             credentials['region'] = region
         return KMSConnection(**credentials)
 
+
+    @lru_cache(maxsize=None)
+    def batch_compenv(self, region=None):
+        credentials = self.credentials.copy()
+        if region:
+            credentials['region'] = region
+        return BatchConnection(**credentials)
+
+    @lru_cache(maxsize=None)
+    def batch_jobqueue(self, region=None):
+        credentials = self.credentials.copy()
+        if region:
+            credentials['region'] = region
+        return BatchConnection(**credentials)
+
+    @lru_cache(maxsize=None)
+    def batch_jobdef(self, region=None):
+        credentials = self.credentials.copy()
+        if region:
+            credentials['region'] = region
+        return BatchConnection(**credentials)

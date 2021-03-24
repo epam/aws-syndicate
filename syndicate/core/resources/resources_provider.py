@@ -30,6 +30,9 @@ from syndicate.core.resources.sns_resource import SnsResource
 from syndicate.core.resources.sqs_resource import SqsResource
 from syndicate.core.resources.step_functions_resource import \
     StepFunctionResource
+from syndicate.core.resources.batch_compenv_resource import BatchComputeEnvironmentResource
+from syndicate.core.resources.batch_jobqueue_resource import BatchJobQueueResource
+from syndicate.core.resources.batch_jobdef_resource import BatchJobDefinitionResource
 
 
 class ResourceProvider:
@@ -67,6 +70,9 @@ class ResourceProvider:
         _s3_resource = None
         _sqs_resource = None
         _step_functions_resource = None
+        _batch_compenv_resource = None
+        _batch_jobqueue_resource = None
+        _batch_jobdef_resource = None
 
         def __init__(self, config, credentials) -> None:
             self.credentials = credentials
@@ -213,3 +219,24 @@ class ResourceProvider:
                     account_id=self.config.account_id
                 )
             return self._step_functions_resource
+
+        def batch_compenv(self):
+            if not self._batch_compenv_resource:
+                self._batch_compenv_resource = BatchComputeEnvironmentResource(
+                    batch_conn=self._conn_provider.batch_compenv()
+                )
+            return self._batch_compenv_resource
+
+        def batch_jobqueue(self):
+            if not self._batch_jobqueue_resource:
+                self._batch_jobqueue_resource = BatchJobQueueResource(
+                    batch_conn=self._conn_provider.batch_jobqueue()
+                )
+            return self._batch_jobqueue_resource
+
+        def batch_jobdef(self):
+            if not self._batch_jobdef_resource:
+                self._batch_jobdef_resource = BatchJobDefinitionResource(
+                    batch_conn=self._conn_provider.batch_jobdef()
+                )
+            return self._batch_jobdef_resource
