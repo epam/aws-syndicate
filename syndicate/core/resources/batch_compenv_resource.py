@@ -25,8 +25,9 @@ _LOG = get_logger('syndicate.core.resources.batch_compenv')
 
 class BatchComputeEnvironmentResource(BaseResource):
 
-    def __init__(self, batch_conn):
+    def __init__(self, batch_conn, iam_conn):
         self.batch_conn = batch_conn
+        self.iam_conn = iam_conn
 
     def create_compute_environment(self, args):
         return self.create_pool(self._create_compute_environment_from_meta, args)
@@ -58,9 +59,12 @@ class BatchComputeEnvironmentResource(BaseResource):
         if 'resource_type' in params:
             del params['resource_type']
         if self._is_compute_env_exist(name):
-            raise AssertionError(
-                'AWS Batch Compute Environment with the given name already exists'
-            )
+            _LOG.warn(f'AWS Batch Compute Environment with the name {name} '
+                      f'already exists')
+            return self.describe_compute_environment(name, meta)
+        # resolve IAM Role name with IAM Role ARN
+        params['service_role'] = self.iam_conn.check_if_role_exists(
+            role_name=params['service_role'])
         self.batch_conn.create_compute_environment(**params)
 
         _LOG.info('Created Batch Compute Environment %s.', name)

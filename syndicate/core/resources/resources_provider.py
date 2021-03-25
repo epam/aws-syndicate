@@ -223,7 +223,8 @@ class ResourceProvider:
         def batch_compenv(self):
             if not self._batch_compenv_resource:
                 self._batch_compenv_resource = BatchComputeEnvironmentResource(
-                    batch_conn=self._conn_provider.batch_compenv()
+                    batch_conn=self._conn_provider.batch_compenv(),
+                    iam_conn=self._conn_provider.iam()
                 )
             return self._batch_compenv_resource
 
