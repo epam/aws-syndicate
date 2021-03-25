@@ -14,8 +14,9 @@
     limitations under the License.
 """
 from syndicate.commons.log_helper import get_logger
+from syndicate.core.build.validator.batch_compenv_validator import validate_batch_compenv
 from syndicate.core.build.validator.dynamodb_validator import validate_dynamodb
-from syndicate.core.constants import LAMBDA_CONFIG_FILE_NAME, DYNAMO_TABLE_TYPE
+from syndicate.core.constants import LAMBDA_CONFIG_FILE_NAME, DYNAMO_TABLE_TYPE, BATCH_COMPENV_TYPE
 
 ALL_TYPES = 'all_types'
 
@@ -40,5 +41,6 @@ def common_validate(resource_meta, all_meta):
 # validation customization
 VALIDATOR_BY_TYPE_MAPPING = {
     ALL_TYPES: common_validate,
-    DYNAMO_TABLE_TYPE: validate_dynamodb
+    DYNAMO_TABLE_TYPE: validate_dynamodb,
+    BATCH_COMPENV_TYPE: validate_batch_compenv
 }
