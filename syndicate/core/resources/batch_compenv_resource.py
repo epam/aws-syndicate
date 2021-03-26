@@ -22,6 +22,9 @@ from syndicate.core.resources.helper import build_description_obj
 
 _LOG = get_logger('syndicate.core.resources.batch_compenv')
 
+DEFAULT_STATE = 'ENABLED'
+DEFAULT_SERVICE_ROLE = 'AWSServiceRoleForBatch'
+
 
 class BatchComputeEnvironmentResource(BaseResource):
 
@@ -62,6 +65,15 @@ class BatchComputeEnvironmentResource(BaseResource):
             _LOG.warn(f'AWS Batch Compute Environment with the name {name} '
                       f'already exists')
             return self.describe_compute_environment(name, meta)
+
+        state = params.get('state')
+        if not state:
+            params['state'] = DEFAULT_STATE
+
+        service_role = params.get('service_role')
+        if not service_role:
+            params['service_role'] = DEFAULT_SERVICE_ROLE
+
         # resolve IAM Role name with IAM Role ARN
         params['service_role'] = self.iam_conn.check_if_role_exists(
             role_name=params['service_role'])

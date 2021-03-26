@@ -30,7 +30,8 @@ def validate_batch_compenv(compenv_name, compenv_meta):
     )
 
     state = compenv_meta.get('state')
-    _validate_options_field('state', state, COMPENV_STATES, False)
+    if state:
+        _validate_options_field('state', state, COMPENV_STATES, False)
 
     comenv_type = compenv_meta.get('compute_environment_type')
     _validate_options_field('compute_environment_type', comenv_type, COMPENV_TYPES, True)
@@ -38,8 +39,6 @@ def validate_batch_compenv(compenv_name, compenv_meta):
     compute_resources = compenv_meta.get('compute_resources')
     if compute_resources:
         new_meta['compute_resources'] = _validate_compute_resources(compenv_meta)
-
-    # return new_meta
 
 
 def _validate_compute_resources(meta):
@@ -120,8 +119,6 @@ def _validate_compute_resources(meta):
         raise AssertionError(
             "compute_resources__security_group_ids is required for jobs running on Fargate resources"
         )
-
-    ec2_keypair = compute_resources.get('ec2_key_pair')
 
     tags = compute_resources.get('tags')
     if tags:
