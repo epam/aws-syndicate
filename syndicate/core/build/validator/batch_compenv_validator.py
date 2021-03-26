@@ -22,155 +22,368 @@ ALLOCATION_STRATEGIES = ('BEST_FIT', 'BEST_FIT_PROGRESSIVE', 'SPOT_CAPACITY_OPTI
 
 
 def validate_batch_compenv(compenv_name, compenv_meta):
-    new_meta = dict(
-        resource_type=compenv_meta.get('resource_type'),
-        compute_environment_type=compenv_meta.get('compute_environment_type'),
-        state=compenv_meta.get('state'),
-        service_role=compenv_meta.get('service_role')
+    """
+    Performs check of Batch Compute Environment resources.
+    :param compenv_name: name of resource
+    :param compenv_meta: resource definition
+
+    :raises AssertionError in case of invalidity.
+
+    :return: None
+    """
+    _validate_required_field(
+        field_name='compute_environment_name',
+        field_value=compenv_name,
+        prefix=''
     )
 
     state = compenv_meta.get('state')
-    if state:
-        _validate_options_field('state', state, COMPENV_STATES, False)
+    _validate_options_field(
+        field_name='state',
+        field_value=state,
+        field_options=COMPENV_STATES,
+        prefix='',
+        required=False
+    )
 
-    comenv_type = compenv_meta.get('compute_environment_type')
-    _validate_options_field('compute_environment_type', comenv_type, COMPENV_TYPES, True)
+    compute_environment_type = compenv_meta.get('compute_environment_type')
+    _validate_options_field(
+        field_name='compute_environment_type',
+        field_value=compute_environment_type,
+        field_options=COMPENV_TYPES,
+        prefix='',
+        required=True
+    )
 
     compute_resources = compenv_meta.get('compute_resources')
     if compute_resources:
-        new_meta['compute_resources'] = _validate_compute_resources(compenv_meta)
+        _validate_compute_resources(compute_resources)
 
 
-def _validate_compute_resources(meta):
-    compute_resources = meta['compute_resources']
+def _validate_compute_resources(compute_resources):
+    """
+    Performs check of Batch Compute Environment compute resources.
+    :param compute_resources: compute resources definition
 
+    :raises AssertionError in case of invalidity.
+
+    :return: None
+    """
     compute_resource_type = compute_resources.get('type')
-    _validate_options_field('compute_resources__type', compute_resource_type, COMPUTE_RESOURCE_TYPES, required=True)
+    _validate_options_field(
+        field_name='compute_resource_type',
+        field_value=compute_resource_type,
+        field_options=COMPUTE_RESOURCE_TYPES,
+        required=True
+    )
 
     allocation_strategy = compute_resources.get('allocation_strategy')
-    _validate_options_field('compute_resources__allocation_strategy', allocation_strategy, ALLOCATION_STRATEGIES, False)
-    if allocation_strategy and compute_resource_type in ('FARGATE', 'FARGATE_SPOT'):
-        raise AssertionError(
-            "compute_resources__allocation_strategy isn't applicable to jobs running on Fargate resources"
-        )
+    _validate_options_field(
+        field_name='allocation_strategy',
+        field_value=allocation_strategy,
+        field_options=ALLOCATION_STRATEGIES,
+        required=False
+    )
+    _validate_fargate_forbidden_field(
+        field_name='allocation_strategy',
+        field_value=allocation_strategy,
+        prefix='',
+        compute_resource_type=compute_resource_type
+    )
 
     min_vcpus = compute_resources.get('minv_cpus')
-    if min_vcpus:
-        if compute_resource_type in ('FARGATE', 'FARGATE_SPOT'):
-            raise AssertionError(
-                "compute_resources__min_vcpus isn't applicable to jobs running on Fargate resources"
-            )
-
-        if not isinstance(min_vcpus, int):
-            raise AssertionError(
-                'compute_resources__min_vcpus must be an integer'
-            )
-
+    _validate_fargate_forbidden_field(
+        field_name='min_vcpus',
+        field_value=min_vcpus,
+        compute_resource_type=compute_resource_type
+    )
+    _validate_field_type(
+        field_name='min_vcpus',
+        field_value=min_vcpus,
+        required_type=int
+    )
     max_vcpus = compute_resources.get('maxv_cpus')
-    if max_vcpus:
-        if not isinstance(max_vcpus, int):
-            raise AssertionError(
-                'compute_resources__max_vcpus must be an integer'
-            )
-    else:
-        raise AssertionError(
-            "Missing required parameter: 'max_vpus'"
-        )
+    _validate_required_field(
+        field_name='max_vcpus',
+        field_value=max_vcpus
+    )
+    _validate_field_type(
+        field_name='max_vcpus',
+        field_value=max_vcpus,
+        required_type=int
+    )
 
     desired_vcpus = compute_resources.get('desiredv_cpus')
+    _validate_field_type(
+        field_name='desired_vcpus',
+        field_value=desired_vcpus,
+        required_type=int
+    )
+    _validate_fargate_forbidden_field(
+        field_name='desired_vcpus',
+        field_value=desired_vcpus,
+        compute_resource_type=compute_resource_type
+    )
     if desired_vcpus:
-        if not isinstance(desired_vcpus, int):
-            raise AssertionError(
-                'compute_resources__desired_vcpus must be an integer'
-            )
         if desired_vcpus > max_vcpus:
             raise AssertionError(
-                'compute_resources__desired_vcpus must be smaller or equal to max_vcpus'
+                'compute_resources__desired_vcpus must be smaller or equal than max_vcpus.'
             )
         if min_vcpus and desired_vcpus < min_vcpus:
             raise AssertionError(
-                'compute_resources__desired_vcpus must be greater or equeal to min_vcpus'
+                'compute_resources__desired_vcpus must be greater or equal than min_vcpus.'
             )
 
     instance_types = compute_resources.get('instance_types')
-    if instance_types:
-        if instance_types in FARGATE_RESOURCE_TYPES:
-            raise AssertionError(
-                "compute_resources__instance_types parameter isn't applicable to "
-                "jobs running on Fargate resources, and shouldn't be specified."
-            )
+    _validate_fargate_forbidden_field(
+        field_name='instance_types',
+        field_value=instance_types,
+        compute_resource_type=compute_resource_type
+    )
+    _validate_field_type(
+        field_name='instance_types',
+        field_value=instance_types,
+        required_type=list
+    )
 
     image_id = compute_resources.get('image_id')
-    if image_id:
-        if image_id in FARGATE_RESOURCE_TYPES:
-            raise AssertionError(
-                "compute_resources__image_id parameter isn't applicable to jobs "
-                "running on Fargate resources, and shouldn't be specified."
-            )
+    _validate_fargate_forbidden_field(
+        field_name='image_id',
+        field_value=image_id,
+        compute_resource_type=compute_resource_type
+    )
+    _validate_field_type(
+        field_name='image_id',
+        field_value=image_id,
+        required_type=str
+    )
 
     subnets = compute_resources.get('subnets')
-    if not subnets:
-        raise AssertionError(
-            "Missing required parameter: 'subnets'"
-        )
+    _validate_required_field(
+        field_name='subnets',
+        field_value=subnets
+    )
+    _validate_field_type(
+        field_name='subnets',
+        field_value=subnets,
+        required_type=list
+    )
 
     security_group_ids = compute_resources.get('security_group_ids')
+    _validate_field_type(
+        field_name='security_group_ids',
+        field_value=security_group_ids,
+        required_type=list
+    )
     if not security_group_ids and compute_resource_type in FARGATE_RESOURCE_TYPES:
         raise AssertionError(
             "compute_resources__security_group_ids is required for jobs running on Fargate resources"
         )
 
+    ec2_key_pair = compute_resources.get('ec2_key_pair')
+    _validate_fargate_forbidden_field(
+        field_name='ec2_key_pair',
+        field_value=ec2_key_pair,
+        compute_resource_type=compute_resource_type
+    )
+    _validate_field_type(
+        field_name='ec2_key_pair',
+        field_value=ec2_key_pair,
+        required_type=str
+    )
+
+    instance_role = compute_resources.get('instance_role')
+    _validate_fargate_forbidden_field(
+        field_name='instance_role',
+        field_value=instance_role,
+        compute_resource_type=compute_resource_type
+    )
+    _validate_field_type(
+        field_name='instance_role',
+        field_value=instance_role,
+        required_type=str
+    )
+
     tags = compute_resources.get('tags')
-    if tags:
-        if compute_resource_type in FARGATE_RESOURCE_TYPES:
-            raise AssertionError(
-                "compute_resources__tags parameter isn't applicable to jobs running on Fargate "
-                "resources, and shouldn't be specified."
-            )
+    _validate_fargate_forbidden_field(
+        field_name='tags',
+        field_value=tags,
+        compute_resource_type=compute_resource_type
+    )
+    _validate_field_type(
+        field_name='tags',
+        field_value=tags,
+        required_type=dict
+    )
 
     placement_group = compute_resources.get('placement_group')
-    if placement_group:
-        if compute_resource_type in FARGATE_RESOURCE_TYPES:
-            raise AssertionError(
-                "compute_resources__placement_group parameter isn't applicable to jobs running on "
-                "Fargate resources, and shouldn't be specified."
-            )
+    _validate_fargate_forbidden_field(
+        field_name='placement_group',
+        field_value=placement_group,
+        compute_resource_type=compute_resource_type
+    )
+    _validate_field_type(
+        field_name='placement_group',
+        field_value=placement_group,
+        required_type=str
+    )
 
     bid_percentage = compute_resources.get('bid_percentage')
-    if bid_percentage:
-        if not isinstance(bid_percentage, int):
-            raise AssertionError(
-                "compute_resources__bid_percentage must be an integer"
-            )
+    _validate_field_type(
+        field_name='bid_percentage',
+        field_value=bid_percentage,
+        required_type=int
+    )
+    _validate_fargate_forbidden_field(
+        field_name='bid_percentage',
+        field_value=bid_percentage,
+        compute_resource_type=compute_resource_type
+    )
 
     spot_iam_fleet_role = compute_resources.get('spot_iam_fleet_role')
-    if spot_iam_fleet_role:
-        if compute_resource_type in FARGATE_RESOURCE_TYPES:
-            raise AssertionError(
-                "compute_resources__spot_iam_fleet_role parameter isn't applicable to jobs running on Fargate "
-                "resources, and shouldn't be specified."
-            )
+    _validate_fargate_forbidden_field(
+        field_name='spot_iam_fleet_role',
+        field_value=spot_iam_fleet_role,
+        compute_resource_type=compute_resource_type
+    )
+    _validate_field_type(
+        field_name='spot_iam_fleet_role',
+        field_value=spot_iam_fleet_role,
+        required_type=str
+    )
 
     launch_template = compute_resources.get('launch_template')
+    _validate_fargate_forbidden_field(
+        field_name='launch_template',
+        field_value=launch_template,
+        compute_resource_type=compute_resource_type
+    )
+    _validate_field_type(
+        field_name='launch_template',
+        field_value=launch_template,
+        required_type=dict
+    )
+
     if launch_template:
-        if compute_resource_type in FARGATE_RESOURCE_TYPES:
+        launch_template_id = launch_template.get('launch_template_id')
+        _validate_field_type(
+            field_name='launch_template_id',
+            field_value=launch_template_id,
+            prefix='compute_resources__launch_template',
+            required_type=str
+        )
+
+        launch_template_name = launch_template.get('launch_template_name')
+        _validate_field_type(
+            field_name='launch_template_name',
+            field_value=launch_template_name,
+            prefix='compute_resources__launch_template',
+            required_type=str
+        )
+
+        launch_template_options = (launch_template_id, launch_template_name)
+        if all(launch_template_options) or not any(launch_template_options):
             raise AssertionError(
-                "compute_resources__launch_tamplate parameter isn't applicable to jobs running on Fargate "
-                "resources, and shouldn't be specified."
+                "You must specify either the 'launch_template_id' or 'launch_template_name', but not both."
             )
+    ec2_configuration = compute_resources.get('ec2_configuration')
+    _validate_field_type(
+        field_name='ec2_configuration',
+        field_value=ec2_configuration,
+        required_type=list
+    )
 
 
-def _validate_options_field(field_name, field_value, field_options, required=True):
+def _validate_options_field(field_name, field_value, field_options, prefix='compute_resources', required=True):
+    """
+    Checks whether a field contains value from options list.
+
+    :param field_name: name of field that will be displayed in case of invalidity
+    :param field_value: value of field to check
+    :param field_options: list of options that field can accept
+    :param prefix: prefix that will be displayed before field_name in case of invalidity
+    :param required: if field is required and can be empty
+
+    :raises AssertionError in case of invalidity.
+
+    :return: None
+    """
+    if prefix:
+        field_name = prefix + '__' + field_name
+
     if not required and not field_value:
         return
-
     if required and not field_value:
         raise AssertionError(
             "Missing required Compute Environment field: '{0}'".format(field_name)
         )
-
     if field_value not in field_options:
         raise AssertionError(
             "Compute Environment field: '{0}':'{1}' must be one of the following: {2}"
                 .format(field_name, str(field_value), field_options)
+        )
+
+
+def _validate_fargate_forbidden_field(field_name, field_value, compute_resource_type, prefix='compute_resources'):
+    """
+    Checks whether a field is forbidden to set for Fargate resources.
+
+    :param field_name: name of field that will be displayed in case of invalidity
+    :param field_value: value of field to check
+    :param compute_resource_type: current compute resource type
+    :param prefix: prefix that will be displayed before field_name in case of invalidity
+
+    :raises AssertionError in case if compute resource type belongs to Fargate resources and given field is not empty.
+
+    :return: None
+    """
+    if prefix:
+        field_name = prefix + '__' + field_name
+    if field_value and compute_resource_type in FARGATE_RESOURCE_TYPES:
+        raise AssertionError(
+            "{0} parameter isn't applicable to jobs running on Fargate resources, "
+            "and shouldn't be specified.".format(field_name)
+        )
+
+
+def _validate_required_field(field_name, field_value, prefix='compute_resources'):
+    """
+    Checks whether a field is not empty.
+
+    :param field_name: name of field that will be displayed in case of invalidity
+    :param field_value: value of field to check
+    :param prefix: prefix that will be displayed before field_name in case of invalidity
+
+    :raises AssertionError in case of invalidity.
+
+    :return: None
+    """
+    if prefix:
+        field_name = field_name + '__' + prefix
+
+    if not field_value:
+        raise AssertionError(
+            "Missing required Compute Environment field: {0}".format(field_name)
+        )
+
+
+def _validate_field_type(field_name, field_value, required_type, prefix='compute_resources'):
+    """
+    Checks whether a field is instance of the given type.
+
+    :param field_name: name of field that will be displayed in case of invalidity
+    :param field_value: value of field to check
+    :param required_type: required type
+    :param prefix: prefix that will be displayed before field_name in case of invalidity
+
+    :raises AssertionError in case of invalidity.
+
+    :return: None
+    """
+    if prefix:
+        field_name = field_name + '__' + prefix
+
+    if field_value is not None and not isinstance(field_value, required_type):
+        raise AssertionError(
+            "{0} parameter must be a {1}.".format(field_name, required_type.__name__)
         )
