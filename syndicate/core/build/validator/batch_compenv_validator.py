@@ -31,29 +31,43 @@ def validate_batch_compenv(compenv_name, compenv_meta):
 
     :return: None
     """
-    _validate_required_field(
-        field_name='compute_environment_name',
-        field_value=compenv_name,
-        prefix=''
-    )
-
-    state = compenv_meta.get('state')
-    _validate_options_field(
-        field_name='state',
-        field_value=state,
-        field_options=COMPENV_STATES,
-        prefix='',
-        required=False
-    )
-
-    compute_environment_type = compenv_meta.get('compute_environment_type')
-    _validate_options_field(
-        field_name='compute_environment_type',
-        field_value=compute_environment_type,
-        field_options=COMPENV_TYPES,
-        prefix='',
-        required=True
-    )
+    # Config stores a list of validation rules for each parameter.
+    # Each rule contains:
+    # - 'field name' - variable name that will be displayed in case of invalidity
+    # - 'field value' - parameter value
+    # - 'validators' - list of validator functions to test parameter
+    # - any other arguments that will be passed to validator
+    config = [
+        {
+            'field_name': 'compute_environment_name',
+            'field_value': compenv_name,
+            'prefix': '',
+            'validators': [
+                _validate_required_field
+            ]
+        },
+        {
+            'field_name': 'state',
+            'field_value': compenv_meta.get('state'),
+            'field_options': COMPENV_STATES,
+            'prefix': '',
+            'required': False,
+            'validators': [
+                _validate_options_field
+            ]
+        },
+        {
+            'field_name': 'compute_environment_type',
+            'field_value': compenv_meta.get('compute_environment_type'),
+            'field_options': COMPENV_TYPES,
+            'prefix': '',
+            'required': True,
+            'validators': [
+                _validate_options_field
+            ]
+        },
+    ]
+    _process_config(config)
 
     compute_resources = compenv_meta.get('compute_resources')
     if compute_resources:
@@ -70,61 +84,179 @@ def _validate_compute_resources(compute_resources):
     :return: None
     """
     compute_resource_type = compute_resources.get('type')
-    _validate_options_field(
-        field_name='compute_resource_type',
-        field_value=compute_resource_type,
-        field_options=COMPUTE_RESOURCE_TYPES,
-        required=True
-    )
-
-    allocation_strategy = compute_resources.get('allocation_strategy')
-    _validate_options_field(
-        field_name='allocation_strategy',
-        field_value=allocation_strategy,
-        field_options=ALLOCATION_STRATEGIES,
-        required=False
-    )
-    _validate_fargate_forbidden_field(
-        field_name='allocation_strategy',
-        field_value=allocation_strategy,
-        prefix='',
-        compute_resource_type=compute_resource_type
-    )
-
-    min_vcpus = compute_resources.get('minv_cpus')
-    _validate_fargate_forbidden_field(
-        field_name='min_vcpus',
-        field_value=min_vcpus,
-        compute_resource_type=compute_resource_type
-    )
-    _validate_field_type(
-        field_name='min_vcpus',
-        field_value=min_vcpus,
-        required_type=int
-    )
-    max_vcpus = compute_resources.get('maxv_cpus')
-    _validate_required_field(
-        field_name='max_vcpus',
-        field_value=max_vcpus
-    )
-    _validate_field_type(
-        field_name='max_vcpus',
-        field_value=max_vcpus,
-        required_type=int
-    )
+    compute_resource_config = [
+        {
+            'field_name': 'compute_resource_type',
+            'field_value': compute_resource_type,
+            'field_options': COMPUTE_RESOURCE_TYPES,
+            'required': True,
+            'validators': [
+                _validate_options_field
+            ]
+        },
+        {
+            'field_name': 'allocation_strategy',
+            'field_value': compute_resources.get('allocation_strategy'),
+            'field_options': ALLOCATION_STRATEGIES,
+            'compute_resource_type': compute_resource_type,
+            'required': False,
+            'validators': [
+                _validate_options_field,
+                _validate_fargate_forbidden_field
+            ]
+        },
+        {
+            'field_name': 'min_vcpus',
+            'field_value': compute_resources.get('minv_cpus'),
+            'compute_resource_type': compute_resource_type,
+            'required_type': int,
+            'validators': [
+                _validate_field_type,
+                _validate_fargate_forbidden_field
+            ]
+        },
+        {
+            'field_name': 'maxv_cpus',
+            'field_value': compute_resources.get('maxv_cpus'),
+            'compute_resource_type': compute_resource_type,
+            'required_type': int,
+            'validators': [
+                _validate_required_field,
+                _validate_field_type,
+            ]
+        },
+        {
+            'field_name': 'desiredv_cpus',
+            'field_value': compute_resources.get('desiredv_cpus'),
+            'compute_resource_type': compute_resource_type,
+            'required_type': int,
+            'validators': [
+                _validate_field_type,
+                _validate_fargate_forbidden_field
+            ]
+        },
+        {
+            'field_name': 'instance_types',
+            'field_value': compute_resources.get('instance_types'),
+            'compute_resource_type': compute_resource_type,
+            'required_type': list,
+            'validators': [
+                _validate_field_type,
+                _validate_fargate_forbidden_field
+            ]
+        },
+        {
+            'field_name': 'image_id',
+            'field_value': compute_resources.get('image_id'),
+            'compute_resource_type': compute_resource_type,
+            'required_type': str,
+            'validators': [
+                _validate_field_type,
+                _validate_fargate_forbidden_field
+            ]
+        },
+        {
+            'field_name': 'subnets',
+            'field_value': compute_resources.get('subnets'),
+            'required_type': list,
+            'validators': [
+                _validate_required_field,
+                _validate_field_type,
+            ]
+        },
+        {
+            'field_name': 'security_group_ids',
+            'field_value': compute_resources.get('security_group_ids'),
+            'required_type': list,
+            'validators': [
+                _validate_field_type,
+            ]
+        },
+        {
+            'field_name': 'ec2_key_pair',
+            'field_value': compute_resources.get('ec2_key_pair'),
+            'required_type': str,
+            'compute_resource_type': compute_resource_type,
+            'validators': [
+                _validate_field_type,
+                _validate_fargate_forbidden_field
+            ]
+        },
+        {
+            'field_name': 'instance_role',
+            'field_value': compute_resources.get('instance_role'),
+            'required_type': str,
+            'compute_resource_type': compute_resource_type,
+            'validators': [
+                _validate_field_type,
+                _validate_fargate_forbidden_field
+            ]
+        },
+        {
+            'field_name': 'tags',
+            'field_value': compute_resources.get('tags'),
+            'required_type': dict,
+            'compute_resource_type': compute_resource_type,
+            'validators': [
+                _validate_field_type,
+                _validate_fargate_forbidden_field
+            ]
+        },
+        {
+            'field_name': 'placement_group',
+            'field_value': compute_resources.get('placement_group'),
+            'required_type': str,
+            'compute_resource_type': compute_resource_type,
+            'validators': [
+                _validate_field_type,
+                _validate_fargate_forbidden_field
+            ]
+        },
+        {
+            'field_name': 'bid_percentage',
+            'field_value': compute_resources.get('bid_percentage'),
+            'required_type': int,
+            'compute_resource_type': compute_resource_type,
+            'validators': [
+                _validate_field_type,
+                _validate_fargate_forbidden_field
+            ]
+        },
+        {
+            'field_name': 'spot_iam_fleet_role',
+            'field_value': compute_resources.get('spot_iam_fleet_role'),
+            'required_type': str,
+            'compute_resource_type': compute_resource_type,
+            'validators': [
+                _validate_field_type,
+                _validate_fargate_forbidden_field
+            ]
+        },
+        {
+            'field_name': 'launch_template',
+            'field_value': compute_resources.get('launch_template'),
+            'required_type': dict,
+            'compute_resource_type': compute_resource_type,
+            'validators': [
+                _validate_field_type,
+                _validate_fargate_forbidden_field
+            ]
+        },
+        {
+            'field_name': 'ec2_configuration',
+            'field_value': compute_resources.get('ec2_configuration'),
+            'required_type': list,
+            'validators': [
+                _validate_field_type,
+            ]
+        },
+    ]
+    _process_config(compute_resource_config)
 
     desired_vcpus = compute_resources.get('desiredv_cpus')
-    _validate_field_type(
-        field_name='desired_vcpus',
-        field_value=desired_vcpus,
-        required_type=int
-    )
-    _validate_fargate_forbidden_field(
-        field_name='desired_vcpus',
-        field_value=desired_vcpus,
-        compute_resource_type=compute_resource_type
-    )
     if desired_vcpus:
+        min_vcpus = compute_resources.get('min_vcpus')
+        max_vcpus = compute_resources.get('max_vcpus')
         if desired_vcpus > max_vcpus:
             raise AssertionError(
                 'compute_resources__desired_vcpus must be smaller or equal than max_vcpus.'
@@ -134,136 +266,13 @@ def _validate_compute_resources(compute_resources):
                 'compute_resources__desired_vcpus must be greater or equal than min_vcpus.'
             )
 
-    instance_types = compute_resources.get('instance_types')
-    _validate_fargate_forbidden_field(
-        field_name='instance_types',
-        field_value=instance_types,
-        compute_resource_type=compute_resource_type
-    )
-    _validate_field_type(
-        field_name='instance_types',
-        field_value=instance_types,
-        required_type=list
-    )
-
-    image_id = compute_resources.get('image_id')
-    _validate_fargate_forbidden_field(
-        field_name='image_id',
-        field_value=image_id,
-        compute_resource_type=compute_resource_type
-    )
-    _validate_field_type(
-        field_name='image_id',
-        field_value=image_id,
-        required_type=str
-    )
-
-    subnets = compute_resources.get('subnets')
-    _validate_required_field(
-        field_name='subnets',
-        field_value=subnets
-    )
-    _validate_field_type(
-        field_name='subnets',
-        field_value=subnets,
-        required_type=list
-    )
-
     security_group_ids = compute_resources.get('security_group_ids')
-    _validate_field_type(
-        field_name='security_group_ids',
-        field_value=security_group_ids,
-        required_type=list
-    )
     if not security_group_ids and compute_resource_type in FARGATE_RESOURCE_TYPES:
         raise AssertionError(
             "compute_resources__security_group_ids is required for jobs running on Fargate resources"
         )
 
-    ec2_key_pair = compute_resources.get('ec2_key_pair')
-    _validate_fargate_forbidden_field(
-        field_name='ec2_key_pair',
-        field_value=ec2_key_pair,
-        compute_resource_type=compute_resource_type
-    )
-    _validate_field_type(
-        field_name='ec2_key_pair',
-        field_value=ec2_key_pair,
-        required_type=str
-    )
-
-    instance_role = compute_resources.get('instance_role')
-    _validate_fargate_forbidden_field(
-        field_name='instance_role',
-        field_value=instance_role,
-        compute_resource_type=compute_resource_type
-    )
-    _validate_field_type(
-        field_name='instance_role',
-        field_value=instance_role,
-        required_type=str
-    )
-
-    tags = compute_resources.get('tags')
-    _validate_fargate_forbidden_field(
-        field_name='tags',
-        field_value=tags,
-        compute_resource_type=compute_resource_type
-    )
-    _validate_field_type(
-        field_name='tags',
-        field_value=tags,
-        required_type=dict
-    )
-
-    placement_group = compute_resources.get('placement_group')
-    _validate_fargate_forbidden_field(
-        field_name='placement_group',
-        field_value=placement_group,
-        compute_resource_type=compute_resource_type
-    )
-    _validate_field_type(
-        field_name='placement_group',
-        field_value=placement_group,
-        required_type=str
-    )
-
-    bid_percentage = compute_resources.get('bid_percentage')
-    _validate_field_type(
-        field_name='bid_percentage',
-        field_value=bid_percentage,
-        required_type=int
-    )
-    _validate_fargate_forbidden_field(
-        field_name='bid_percentage',
-        field_value=bid_percentage,
-        compute_resource_type=compute_resource_type
-    )
-
-    spot_iam_fleet_role = compute_resources.get('spot_iam_fleet_role')
-    _validate_fargate_forbidden_field(
-        field_name='spot_iam_fleet_role',
-        field_value=spot_iam_fleet_role,
-        compute_resource_type=compute_resource_type
-    )
-    _validate_field_type(
-        field_name='spot_iam_fleet_role',
-        field_value=spot_iam_fleet_role,
-        required_type=str
-    )
-
     launch_template = compute_resources.get('launch_template')
-    _validate_fargate_forbidden_field(
-        field_name='launch_template',
-        field_value=launch_template,
-        compute_resource_type=compute_resource_type
-    )
-    _validate_field_type(
-        field_name='launch_template',
-        field_value=launch_template,
-        required_type=dict
-    )
-
     if launch_template:
         launch_template_id = launch_template.get('launch_template_id')
         _validate_field_type(
@@ -286,15 +295,10 @@ def _validate_compute_resources(compute_resources):
             raise AssertionError(
                 "You must specify either the 'launch_template_id' or 'launch_template_name', but not both."
             )
-    ec2_configuration = compute_resources.get('ec2_configuration')
-    _validate_field_type(
-        field_name='ec2_configuration',
-        field_value=ec2_configuration,
-        required_type=list
-    )
 
 
-def _validate_options_field(field_name, field_value, field_options, prefix='compute_resources', required=True):
+def _validate_options_field(field_name, field_value, field_options, prefix='compute_resources', required=True,
+                            **kwargs):
     """
     Checks whether a field contains value from options list.
 
@@ -324,7 +328,8 @@ def _validate_options_field(field_name, field_value, field_options, prefix='comp
         )
 
 
-def _validate_fargate_forbidden_field(field_name, field_value, compute_resource_type, prefix='compute_resources'):
+def _validate_fargate_forbidden_field(field_name, field_value, compute_resource_type, prefix='compute_resources',
+                                      **kwargs):
     """
     Checks whether a field is forbidden to set for Fargate resources.
 
@@ -346,7 +351,7 @@ def _validate_fargate_forbidden_field(field_name, field_value, compute_resource_
         )
 
 
-def _validate_required_field(field_name, field_value, prefix='compute_resources'):
+def _validate_required_field(field_name, field_value, prefix='compute_resources', **kwargs):
     """
     Checks whether a field is not empty.
 
@@ -367,7 +372,7 @@ def _validate_required_field(field_name, field_value, prefix='compute_resources'
         )
 
 
-def _validate_field_type(field_name, field_value, required_type, prefix='compute_resources'):
+def _validate_field_type(field_name, field_value, required_type, prefix='compute_resources', **kwargs):
     """
     Checks whether a field is instance of the given type.
 
@@ -387,3 +392,9 @@ def _validate_field_type(field_name, field_value, required_type, prefix='compute
         raise AssertionError(
             "{0} parameter must be a {1}.".format(field_name, required_type.__name__)
         )
+
+
+def _process_config(config):
+    for parameter in config:
+        for validator in parameter.get('validators'):
+            validator(**parameter)
