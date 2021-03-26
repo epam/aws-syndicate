@@ -5,6 +5,8 @@ from syndicate.core.resources.helper import build_description_obj
 
 _LOG = get_logger('syndicate.core.resources.batch_jobqueue')
 
+DEFAULT_STATE = 'ENABLED'
+
 
 class BatchJobQueueResource(BaseResource):
     def __init__(self, batch_conn):
@@ -43,6 +45,11 @@ class BatchJobQueueResource(BaseResource):
             raise AssertionError(
                 'AWS Batch Job Queue with the given name already exists'
             )
+
+        state = params.get('state')
+        if not state:
+            params['state'] = DEFAULT_STATE
+
         self.batch_conn.create_job_queue(**params)
         _LOG.info('Created Batch Job Queue %s.', name)
         return self.describe_job_queue(name, meta)
