@@ -15,6 +15,8 @@
 """
 import time
 
+from boto3 import client
+
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.helper import unpack_kwargs
 from syndicate.core.resources.base_resource import BaseResource
@@ -75,6 +77,20 @@ class BatchComputeEnvironmentResource(BaseResource):
 
         service_role = params.get('service_role')
         if not service_role:
+            role = self.iam_conn.get_role(role_name=DEFAULT_SERVICE_ROLE)
+            if not role:
+                _LOG.warn("Default Service Role '%s' not found and will be created", DEFAULT_SERVICE_ROLE)
+                self.iam_conn.create_custom_role(
+                    role_name=DEFAULT_SERVICE_ROLE,
+                    allowed_account=client('sts').get_caller_identity()['Account'],
+                    allowed_service='batch'
+                )
+                policy_arn = self.iam_conn.get_policy_arn(DEFAULT_SERVICE_ROLE)
+                self.iam_conn.attach_policy(
+                    role_name=DEFAULT_SERVICE_ROLE,
+                    policy_arn=policy_arn
+                )
+                _LOG.info("Created default service role %s", DEFAULT_SERVICE_ROLE)
             params['service_role'] = DEFAULT_SERVICE_ROLE
 
         # resolve IAM Role name with IAM Role ARN
