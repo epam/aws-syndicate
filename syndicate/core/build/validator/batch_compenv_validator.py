@@ -364,7 +364,7 @@ def _validate_required_field(field_name, field_value, prefix='compute_resources'
     :return: None
     """
     if prefix:
-        field_name = field_name + '__' + prefix
+        field_name = prefix + '__' + field_name
 
     if not field_value:
         raise AssertionError(
@@ -386,7 +386,7 @@ def _validate_field_type(field_name, field_value, required_type, prefix='compute
     :return: None
     """
     if prefix:
-        field_name = field_name + '__' + prefix
+        field_name = prefix + '__' + field_name
 
     if field_value is not None and not isinstance(field_value, required_type):
         raise AssertionError(
