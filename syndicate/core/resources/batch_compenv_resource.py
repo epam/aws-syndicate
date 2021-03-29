@@ -52,7 +52,10 @@ class BatchComputeEnvironmentResource(BaseResource):
             # need to disable compute env first
             self.batch_conn.update_compute_environment(arn, state='DISABLED')
 
-        return self.batch_conn.delete_compute_environment(compute_environment=arn)
+        self.batch_conn.delete_compute_environment(compute_environment=arn)
+
+        compute_environment_name = compute_environment_data['computeEnvironmentName']
+        _LOG.info('Batch Compute Environment %s was removed.', compute_environment_name)
 
     @unpack_kwargs
     def _create_compute_environment_from_meta(self, name, meta):

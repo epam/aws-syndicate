@@ -24,8 +24,9 @@ class BatchJobQueueResource(BaseResource):
     def remove_job_queue(self, args):
         self.create_pool(self._remove_job_queue, args)
 
-    def _remove_job_queue(self, config):
-        arn = config['arn']
+    @unpack_kwargs
+    def _remove_job_queue(self, arn, config):
+        job_queue_name = config.get('resource_name')
 
         self.batch_conn.update_job_queue(
             job_queue=arn,
@@ -33,6 +34,7 @@ class BatchJobQueueResource(BaseResource):
             compute_environment_order=[]
         )
         self.batch_conn.delete_job_queue(job_queue=arn)
+        _LOG.info('Batch Job Queue %s was removed.', job_queue_name)
 
     @unpack_kwargs
     def _create_job_queue_from_meta(self, name, meta):

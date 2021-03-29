@@ -51,4 +51,5 @@ class BatchJobDefinitionResource(BaseResource):
     @unpack_kwargs
     def _deregister_job_definition(self, arn, config):
         job_def_name = config['resource_name']
-        return self.batch_conn.deregister_job_definition(job_def_name)
+        self.batch_conn.deregister_job_definition(job_def_name)
+        _LOG.info('Batch Job Definition %s was removed.', job_def_name)
