@@ -13,6 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+from syndicate.core.build.validator.instance_types import INSTANCE_TYPES
 
 COMPENV_STATES = ('ENABLED', 'DISABLED')
 COMPENV_TYPES = ('UNMANAGED', 'MANAGED')
@@ -142,7 +143,7 @@ def _validate_compute_resources(compute_resources):
             'required_type': list,
             'validators': [
                 _validate_field_type,
-                _validate_fargate_forbidden_field
+                _validate_fargate_forbidden_field,
             ]
         },
         {
@@ -252,6 +253,15 @@ def _validate_compute_resources(compute_resources):
         },
     ]
     _process_config(compute_resource_config)
+
+
+    instance_types = compute_resources.get('instance_types')
+    for instance_type in instance_types:
+        _validate_options_field(
+            field_name='instance_types__item',
+            field_value=instance_type,
+            field_options=INSTANCE_TYPES
+        )
 
     desired_vcpus = compute_resources.get('desiredv_cpus')
     if desired_vcpus:
