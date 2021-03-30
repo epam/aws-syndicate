@@ -80,9 +80,10 @@ class BatchComputeEnvironmentResource(BaseResource):
             role = self.iam_conn.get_role(role_name=DEFAULT_SERVICE_ROLE)
             if not role:
                 _LOG.warn("Default Service Role '%s' not found and will be created", DEFAULT_SERVICE_ROLE)
+                allowed_account = self.iam_conn.resource.CurrentUser().arn.split(':')[4]
                 self.iam_conn.create_custom_role(
                     role_name=DEFAULT_SERVICE_ROLE,
-                    allowed_account=client('sts').get_caller_identity()['Account'],
+                    allowed_account=allowed_account,
                     allowed_service='batch'
                 )
                 policy_arn = self.iam_conn.get_policy_arn(DEFAULT_SERVICE_ROLE)
