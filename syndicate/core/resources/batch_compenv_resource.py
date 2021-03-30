@@ -40,8 +40,12 @@ class BatchComputeEnvironmentResource(BaseResource):
     def describe_compute_environment(self, name, meta):
         response = self.batch_conn.describe_compute_environments(name)
 
-        arn = response['computeEnvironments'][0]['computeEnvironmentArn'] # todo handle KeyError
-        return {arn: build_description_obj(response, name, meta)}
+        try:
+            arn = response['computeEnvironments'][0]['computeEnvironmentArn']
+            return {arn: build_description_obj(response, name, meta)}
+        except (KeyError, IndexError):
+            _LOG.warn("Batch Compute Environment %s not found", name)
+            return {}
 
     def remove_compute_environment(self, args):
         self.create_pool(self._remove_compute_environment, args)
@@ -49,7 +53,11 @@ class BatchComputeEnvironmentResource(BaseResource):
     @unpack_kwargs
     def _remove_compute_environment(self, arn, config):
         compute_environment_data = self.batch_conn.describe_compute_environments(arn)
-        compute_environment_data = compute_environment_data['computeEnvironments'][0]  # todo handle KeyError
+        try:
+            compute_environment_data = compute_environment_data['computeEnvironments'][0]
+        except (KeyError, IndexError):
+            _LOG.warn("Batch Compute Environment %s not found", config['resource_name'])
+            return
         if compute_environment_data['state'] == 'ENABLED':
             # need to disable compute env first
             self.batch_conn.update_compute_environment(arn, state='DISABLED')

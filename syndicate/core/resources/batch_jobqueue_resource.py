@@ -17,9 +17,12 @@ class BatchJobQueueResource(BaseResource):
 
     def describe_job_queue(self, name, meta):
         response = self.batch_conn.describe_job_queue(name)
-
-        arn = response['jobQueues'][0]['jobQueueArn']  # todo handle KeyError
-        return {arn: build_description_obj(response, name, meta)}
+        try:
+            arn = response['jobQueues'][0]['jobQueueArn']
+            return {arn: build_description_obj(response, name, meta)}
+        except (KeyError, IndexError):
+            _LOG.warn("Batch Job Queue %s not found", name)
+            return {}
 
     def remove_job_queue(self, args):
         self.create_pool(self._remove_job_queue, args)
@@ -44,9 +47,8 @@ class BatchJobQueueResource(BaseResource):
             del params['resource_type']
 
         if self._is_job_queue_exist(name):
-            raise AssertionError(
-                'AWS Batch Job Queue with the given name already exists'
-            )
+            _LOG.warn('Batch Job Queue %s already exists', name)
+            return self.describe_job_queue(name, meta)
 
         state = params.get('state')
         if not state:

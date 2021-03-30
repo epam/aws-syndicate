@@ -30,8 +30,12 @@ class BatchJobDefinitionResource(BaseResource):
 
     def describe_job_definition(self, name, meta):
         response = self.batch_conn.describe_job_definition(job_definition=name)
-        arn = response['jobDefinitions'][-1]['jobDefinitionArn']  # todo handle KeyError
-        return {arn: build_description_obj(response, name, meta)}
+        try:
+            arn = response['jobDefinitions'][-1]['jobDefinitionArn']
+            return {arn: build_description_obj(response, name, meta)}
+        except (KeyError, IndexError):
+            _LOG.warn("Batch Job Definition %s not found", name)
+            return {}
 
     def deregister_job_definition(self, args):
         self.create_pool(self._deregister_job_definition, args)
