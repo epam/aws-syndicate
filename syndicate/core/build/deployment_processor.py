@@ -367,14 +367,17 @@ def _filter_the_dict(dictionary, callback):
 def remove_deployment_resources(deploy_name, bundle_name,
                                 clean_only_resources=None,
                                 clean_only_types=None,
-                                excluded_resources=None, excluded_types=None):
+                                excluded_resources=None,
+                                excluded_types=None,
+                                skip_external=None):
     output = new_output = load_deploy_output(bundle_name, deploy_name)
     _LOG.info('Output file was loaded successfully')
     filters = [
         lambda v: v['resource_name'] in clean_only_resources,
         lambda v: v['resource_name'] not in excluded_resources,
         lambda v: v['resource_meta']['resource_type'] in clean_only_types,
-        lambda v: v['resource_meta']['resource_type'] not in excluded_types
+        lambda v: v['resource_meta']['resource_type'] not in excluded_types,
+        lambda v: not(v.get('external')) if skip_external else True
     ]
 
     for function in filters:

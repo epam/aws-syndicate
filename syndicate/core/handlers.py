@@ -314,9 +314,10 @@ def update(bundle_name, deploy_name, replace_output,
 @click.option('--excluded_resources_path', nargs=1, type=str)
 @click.option('--excluded_types', multiple=True)
 @click.option('--rollback', is_flag=True)
+@click.option('--skip_external', nargs=1, is_flag=True, default=False)
 def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
           clean_only_resources_path, excluded_resources,
-          excluded_resources_path, excluded_types, rollback):
+          excluded_resources_path, excluded_types, rollback, skip_external):
     """
     Cleans the application infrastructure.
     :param deploy_name: name of the deploy
@@ -335,6 +336,8 @@ def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
         the application infrastructure
     :param rollback: used to clean resources that were created in scope of the
         failed deploy
+    :param skip_external: used to skip resources that have been already
+        existed on a deploy stage
     :return:
     """
     click.echo('Command clean')
@@ -374,7 +377,8 @@ def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
                                     clean_only_resources=clean_only_resources,
                                     clean_only_types=clean_only_types,
                                     excluded_resources=excluded_resources,
-                                    excluded_types=excluded_types)
+                                    excluded_types=excluded_types,
+                                    skip_external=skip_external)
     click.echo('AWS resources were removed.')
 
 
