@@ -97,7 +97,10 @@ class DynamoDBResource(BaseResource):
                 res['Autoscaling'] = self._describe_autoscaling(
                     autoscaling_config,
                     name)
-            return self.describe_table(name, meta, res)
+            response = self.describe_table(name, meta, res)
+            arn = list(response.keys())[0]
+            response[arn]['external'] = True
+            return response
 
         self.dynamodb_conn.create_table(
             name, meta['hash_key_name'], meta['hash_key_type'],
@@ -242,6 +245,13 @@ class DynamoDBResource(BaseResource):
 
     def remove_dynamodb_tables(self, args):
         db_names = [x['config']['resource_name'] for x in args]
+        # db_names = []
+        # for arg in args:
+        #     db_name = arg['config']['resource_name']
+        #     if not arg['config'].get('external'):
+        #         db_names.append(db_name)
+        #     else:
+        #         _LOG.warn("Dynamo DB table is external ant won't be removed")
         self.dynamodb_conn.remove_tables_by_names(db_names)
         _LOG.info('Dynamo DB tables %s were removed', str(db_names))
         alarm_args = []
