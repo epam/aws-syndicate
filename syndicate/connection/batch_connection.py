@@ -100,7 +100,6 @@ class BatchConnection(object):
 
         if max_results:
             params['maxResults'] = max_results
-
         if next_token:
             params['nextToken'] = next_token
 
@@ -109,23 +108,13 @@ class BatchConnection(object):
     def update_job_queue(self, job_queue, state=None, priority=None, compute_environment_order=None):
         params = dict(jobQueue=job_queue)
 
-        available_states = ('ENABLED', 'DISABLED')
         if state:
-            if state not in available_states:
-                raise AssertionError(
-                    'Job queue state must be one of the following: {0}'.format(
-                        available_states)
-                )
             params['state'] = state
 
         if priority:
-            if not 0 < priority < 1000:
-                raise AssertionError(
-                    "Job queue priority must be between 0 and 1000"
-                )
             params['priority'] = priority
 
-        if compute_environment_order or isinstance(compute_environment_order, list):
+        if compute_environment_order:
             params['computeEnvironmentOrder'] = compute_environment_order
 
         return self.client.update_job_queue(**params)
@@ -156,7 +145,7 @@ class BatchConnection(object):
         if retry_strategy:
             params['retryStrategy'] = dict_keys_to_camel_case(retry_strategy)
 
-        if type(propagate_tags) == bool:
+        if propagate_tags is not None:
             params['propagateTags'] = propagate_tags
         if timeout:
             params['timeout'] = dict_keys_to_camel_case(timeout)
