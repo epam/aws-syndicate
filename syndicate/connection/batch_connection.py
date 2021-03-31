@@ -162,11 +162,13 @@ class BatchConnection(object):
         return self.client.describe_job_definitions(jobDefinitionName=job_definition)
 
     def deregister_job_definition(self, job_definition_name):
-        job_definition = '{0}:{1}'.format(job_definition_name,
-                                          self._get_job_def_last_revision_number(job_definition_name))
-        return self.client.deregister_job_definition(
-            jobDefinition=job_definition
-        )
+        revisions = self._get_job_def_revisions(job_definition_name=job_definition_name)
+
+        for revision in revisions:
+            job_definition = '{0}:{1}'.format(job_definition_name, revision)
+            self.client.deregister_job_definition(
+                jobDefinition=job_definition
+            )
 
     def get_compute_environment_waiter(self):
         waiter_id = 'ComputeEnvironmentWaiter'
@@ -224,6 +226,10 @@ class BatchConnection(object):
         })
         return create_waiter_with_client(waiter_id, model, self.client)
 
-    def _get_job_def_last_revision_number(self, job_definition_name):
-        job_definition = self.describe_job_definition(job_definition=job_definition_name)['jobDefinitions'][-1]
-        return job_definition['revision']
+    def _get_job_def_revisions(self, job_definition_name):
+        job_definition_data = self.describe_job_definition(job_definition=job_definition_name)
+        revisions = []
+        for job_def in job_definition_data['jobDefinitions']:
+            if job_def.get('status') == 'ACTIVE':
+                revisions.append(job_def.get('revision'))
+        return revisions
