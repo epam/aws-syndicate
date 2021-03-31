@@ -13,9 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-import time
-
-from boto3 import client
+from botocore.waiter import WaiterError
 
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.helper import unpack_kwargs
@@ -105,10 +103,15 @@ class BatchComputeEnvironmentResource(BaseResource):
         # resolve IAM Role name with IAM Role ARN
         params['service_role'] = self.iam_conn.check_if_role_exists(
             role_name=params['service_role'])
+
         self.batch_conn.create_compute_environment(**params)
+        try:
+            waiter = self.batch_conn.get_compute_environment_waiter()
+            waiter.wait(computeEnvironments=[name])
+        except WaiterError as e:
+            _LOG.error(e)
 
         _LOG.info('Created Batch Compute Environment %s.', name)
-        time.sleep(7)
         return self.describe_compute_environment(name, meta)
 
     def _is_compute_env_exist(self, compute_environment_name):

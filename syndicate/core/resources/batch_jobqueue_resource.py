@@ -13,6 +13,8 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+from botocore.exceptions import WaiterError
+
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.helper import unpack_kwargs
 from syndicate.core.resources.base_resource import BaseResource
@@ -70,6 +72,12 @@ class BatchJobQueueResource(BaseResource):
             params['state'] = DEFAULT_STATE
 
         self.batch_conn.create_job_queue(**params)
+        try:
+            waiter = self.batch_conn.get_job_queue_waiter()
+            waiter.wait(jobQueues=[name])
+        except WaiterError as e:
+            _LOG.error(e)
+
         _LOG.info('Created Batch Job Queue %s.', name)
         return self.describe_job_queue(name, meta)
 

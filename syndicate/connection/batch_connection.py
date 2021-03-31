@@ -15,6 +15,7 @@
 """
 
 from boto3 import client
+from botocore.waiter import WaiterModel, create_waiter_with_client
 
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import apply_methods_decorator, retry
@@ -166,6 +167,62 @@ class BatchConnection(object):
         return self.client.deregister_job_definition(
             jobDefinition=job_definition
         )
+
+    def get_compute_environment_waiter(self):
+        waiter_id = 'ComputeEnvironmentWaiter'
+        model = WaiterModel({
+            'version': 2,
+            'waiters': {
+                waiter_id: {
+                    'delay': 1,
+                    'operation': 'DescribeComputeEnvironments',
+                    'maxAttempts': 10,
+                    'acceptors': [
+                        {
+                            'expected': 'VALID',
+                            'matcher': 'pathAll',
+                            'state': 'success',
+                            'argument': 'computeEnvironments[].status'
+                        },
+                        {
+                            'expected': 'INVALID',
+                            'matcher': 'pathAny',
+                            'state': 'failure',
+                            'argument': 'computeEnvironments[].status'
+                        }
+                    ]
+                }
+            }
+        })
+        return create_waiter_with_client(waiter_id, model, self.client)
+
+    def get_job_queue_waiter(self):
+        waiter_id = 'JobQueueWaiter'
+        model = WaiterModel({
+            'version': 2,
+            'waiters': {
+                waiter_id: {
+                    'delay': 1,
+                    'operation': 'DescribeJobQueues',
+                    'maxAttempts': 10,
+                    'acceptors': [
+                        {
+                            'expected': 'VALID',
+                            'matcher': 'pathAll',
+                            'state': 'success',
+                            'argument': 'jobQueues[].status'
+                        },
+                        {
+                            'expected': 'INVALID',
+                            'matcher': 'pathAny',
+                            'state': 'failure',
+                            'argument': 'jobQueues[].status'
+                        }
+                    ]
+                }
+            }
+        })
+        return create_waiter_with_client(waiter_id, model, self.client)
 
     def _get_job_def_last_revision_number(self, job_definition_name):
         job_definition = self.describe_job_definition(job_definition=job_definition_name)['jobDefinitions'][-1]
