@@ -194,3 +194,8 @@ class ProcessorFacade:
             IAM_ROLE: self.resources_provider.iam().apply_trusted_to_role,
             IAM_POLICY: self.resources_provider.iam().apply_policy_content
         }
+
+    def compare_meta_handlers(self):
+        return {
+            DYNAMO_TABLE_TYPE: self.resources_provider.dynamodb().compare_meta,
+        }

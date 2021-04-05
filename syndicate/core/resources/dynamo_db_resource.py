@@ -16,6 +16,7 @@
 from botocore.exceptions import ClientError
 
 from syndicate.commons.log_helper import get_logger
+from syndicate.core.resources.abstract_external_resource import AbstractExternalResource
 from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import (build_description_obj,
                                              validate_params)
@@ -23,7 +24,7 @@ from syndicate.core.resources.helper import (build_description_obj,
 _LOG = get_logger('syndicate.core.resources.dynamo_db_resource')
 
 
-class DynamoDBResource(BaseResource):
+class DynamoDBResource(AbstractExternalResource, BaseResource):
 
     def __init__(self, dynamodb_conn, cw_alarm_conn,
                  app_as_conn, iam_conn) -> None:
@@ -77,6 +78,77 @@ class DynamoDBResource(BaseResource):
             arn: build_description_obj(res_obj, name, meta)
         }
 
+    def describe_meta(self, name):
+        meta = {
+            'resource_type': 'dynamodb_table',
+            'external': True
+        }
+        response = self.dynamodb_conn.describe_table(table_name=name)
+
+        if not response:
+            return {}
+
+        key_schema = {k['KeyType']: k['AttributeName'] for k in response['KeySchema']}
+        attribute_definitions = {k['AttributeName']: k['AttributeType'] for k in response['AttributeDefinitions']}
+
+        hash_key_name = key_schema.get('HASH')
+        hash_key_type = attribute_definitions[hash_key_name] if hash_key_name else None
+
+        sort_key_name = key_schema.get('RANGE')
+        sort_key_type = attribute_definitions[sort_key_name] if sort_key_name else None
+
+        meta.update({
+            'hash_key_name': hash_key_name,
+            'hash_key_type': hash_key_type,
+            'sort_key_name': sort_key_name,
+            'sort_key_type': sort_key_type,
+        })
+
+        gsi = response.get('GlobalSecondaryIndexes')
+        if gsi:
+            global_indexes = []
+            for index in gsi:
+                key_schema = {k['KeyType']: k['AttributeName'] for k in index['KeySchema']}
+
+                index_key_name = key_schema.get('HASH')
+                index_key_type = attribute_definitions.get(index_key_name) if index_key_name else None
+
+                sort_key_name = key_schema.get('RANGE')
+                sort_key_type = attribute_definitions.get(sort_key_name) if sort_key_name else None
+
+                index_data = {
+                    'name': index.get('IndexName'),
+                    'index_key_name': index_key_name,
+                    'index_key_type': index_key_type,
+                    'index_sort_key_name': sort_key_name,
+                    'index_sort_key_type': sort_key_type,
+                }
+                global_indexes.append(index_data)
+            global_indexes.sort(key=lambda k:k['name'])
+            meta['global_indexes'] = global_indexes
+
+        return {name: meta}
+
+    def define_resource_shape(self):
+        return {
+            'resource_type': None,
+            'hash_key_name': None,
+            'hash_key_type': None,
+            'sort_key_name': None,
+            'sort_key_type': None,
+            'global_indexes': [
+                {
+                    'name': None,
+                    'index_key_name': None,
+                    'index_key_type': None,
+                    'sort_key_name': None,
+                    'sort_key_type': None,
+                    'index_sort_key_name': None,
+                    'index_sort_key_type': None
+                }
+            ]
+        }
+
     def _create_dynamodb_table_from_meta(self, name, meta):
         """ Create Dynamo DB table from meta description after parameter
         validation.
@@ -99,7 +171,7 @@ class DynamoDBResource(BaseResource):
                     name)
             response = self.describe_table(name, meta, res)
             arn = list(response.keys())[0]
-            response[arn]['external'] = True
+            response[arn]['resource_meta']['external'] = True
             return response
 
         self.dynamodb_conn.create_table(
@@ -245,13 +317,6 @@ class DynamoDBResource(BaseResource):
 
     def remove_dynamodb_tables(self, args):
         db_names = [x['config']['resource_name'] for x in args]
-        # db_names = []
-        # for arg in args:
-        #     db_name = arg['config']['resource_name']
-        #     if not arg['config'].get('external'):
-        #         db_names.append(db_name)
-        #     else:
-        #         _LOG.warn("Dynamo DB table is external ant won't be removed")
         self.dynamodb_conn.remove_tables_by_names(db_names)
         _LOG.info('Dynamo DB tables %s were removed', str(db_names))
         alarm_args = []

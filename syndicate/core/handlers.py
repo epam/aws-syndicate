@@ -310,14 +310,14 @@ def update(bundle_name, deploy_name, replace_output,
 @click.option('--clean_only_types', multiple=True)
 @click.option('--clean_only_resources', multiple=True)
 @click.option('--clean_only_resources_path', nargs=1, type=str)
+@click.option('--clean_externals', nargs=1, is_flag=True, default=False)
 @click.option('--excluded_resources', multiple=True)
 @click.option('--excluded_resources_path', nargs=1, type=str)
 @click.option('--excluded_types', multiple=True)
 @click.option('--rollback', is_flag=True)
-@click.option('--skip_external', nargs=1, is_flag=True, default=False)
 def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
-          clean_only_resources_path, excluded_resources,
-          excluded_resources_path, excluded_types, rollback, skip_external):
+          clean_only_resources_path, clean_externals, excluded_resources,
+          excluded_resources_path, excluded_types, rollback):
     """
     Cleans the application infrastructure.
     :param deploy_name: name of the deploy
@@ -327,6 +327,7 @@ def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
         must be cleaned
     :param clean_only_resources_path: path to a json list which contains a list
         of resources names which must be cleaned
+    :param clean_externals: used to clean external resources
     :param excluded_resources: list of the resources names than must be skipped
         while cleaning the application infrastructure
     :param excluded_resources_path: path to a json list which contains a list
@@ -336,8 +337,6 @@ def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
         the application infrastructure
     :param rollback: used to clean resources that were created in scope of the
         failed deploy
-    :param skip_external: used to skip resources that have been already
-        existed on a deploy stage
     :return:
     """
     click.echo('Command clean')
@@ -378,7 +377,7 @@ def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
                                     clean_only_types=clean_only_types,
                                     excluded_resources=excluded_resources,
                                     excluded_types=excluded_types,
-                                    skip_external=skip_external)
+                                    clean_externals=clean_externals)
     click.echo('AWS resources were removed.')
 
 
