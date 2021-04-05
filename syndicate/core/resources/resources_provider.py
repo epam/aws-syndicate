@@ -238,6 +238,7 @@ class ResourceProvider:
         def batch_jobdef(self):
             if not self._batch_jobdef_resource:
                 self._batch_jobdef_resource = BatchJobDefinitionResource(
-                    batch_conn=self._conn_provider.batch_jobdef()
+                    batch_conn=self._conn_provider.batch_jobdef(),
+                    iam_conn=self._conn_provider.iam()
                 )
             return self._batch_jobdef_resource

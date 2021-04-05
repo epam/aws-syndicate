@@ -22,8 +22,9 @@ _LOG = get_logger('syndicate.core.resources.batch_jobdef')
 
 
 class BatchJobDefinitionResource(BaseResource):
-    def __init__(self, batch_conn):
+    def __init__(self, batch_conn, iam_conn):
         self.batch_conn = batch_conn
+        self.iam_conn = iam_conn
 
     def register_job_definition(self, args):
         return self.create_pool(self._register_job_definition_from_meta, args)
@@ -47,6 +48,20 @@ class BatchJobDefinitionResource(BaseResource):
 
         if 'resource_type' in params:
             del params['resource_type']
+
+        container_properties = params.get('container_properties')
+        if container_properties:
+            job_role_arn = container_properties.get('job_role_arn')
+            if job_role_arn:
+                params['container_properties']['job_role_arn'] = self.iam_conn.check_if_role_exists(
+                    role_name=job_role_arn
+                )
+
+            execution_role_arn = container_properties.get('execution_role_arn')
+            if execution_role_arn:
+                params['container_properties']['execution_role_arn'] = self.iam_conn.check_if_role_exists(
+                    role_name=execution_role_arn
+                )
 
         self.batch_conn.register_job_definition(**params)
         _LOG.info('Created Batch Job Definition %s.', name)
