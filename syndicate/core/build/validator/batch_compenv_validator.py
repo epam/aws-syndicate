@@ -263,15 +263,15 @@ def _validate_compute_resources(compute_resources):
             field_options=INSTANCE_TYPES
         )
 
-    desired_vcpus = compute_resources.get('desiredv_cpus')
-    if desired_vcpus:
-        min_vcpus = compute_resources.get('min_vcpus')
-        max_vcpus = compute_resources.get('max_vcpus')
-        if desired_vcpus > max_vcpus:
+    desiredv_cpus = compute_resources.get('desiredv_cpus')
+    if desiredv_cpus:
+        minv_cpus = compute_resources.get('minv_cpus')
+        maxv_cpus = compute_resources.get('maxv_cpus')
+        if desiredv_cpus > maxv_cpus:
             raise AssertionError(
                 'compute_resources__desired_vcpus must be smaller or equal than max_vcpus.'
             )
-        if min_vcpus and desired_vcpus < min_vcpus:
+        if minv_cpus and desiredv_cpus < minv_cpus:
             raise AssertionError(
                 'compute_resources__desired_vcpus must be greater or equal than min_vcpus.'
             )
