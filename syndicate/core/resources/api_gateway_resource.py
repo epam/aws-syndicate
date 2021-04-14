@@ -178,7 +178,9 @@ class ApiGatewayResource(BaseResource):
 
         api_resources = meta['resources']
 
-        api_item = self.connection.create_rest_api(name)
+        api_item = self.connection.create_rest_api(
+            api_name=name,
+            binary_media_types=meta.get('binary_media_types'))
         api_id = api_item['id']
 
         # deploy authorizers
@@ -191,8 +193,8 @@ class ApiGatewayResource(BaseResource):
                 resolve_lambda_arn_by_version_and_alias(lambda_name,
                                                         lambda_version,
                                                         lambda_alias)
-            uri = 'arn:aws:apigateway:{0}:lambda:path/2015-03-31/functions/{1}/invocations'.format(
-                self.region, lambda_arn)
+            uri = 'arn:aws:apigateway:{0}:lambda:path/2015-03-31/' \
+                  'functions/{1}/invocations'.format(self.region, lambda_arn)
             self.connection.create_authorizer(api_id=api_id, name=key,
                                               type=val['type'],
                                               authorizer_uri=uri,
@@ -454,12 +456,8 @@ class ApiGatewayResource(BaseResource):
                     cache_key_parameters=cache_key_parameters)
                 # add permissions to invoke
                 api_source_arn = f"arn:aws:execute-api:{self.region}:" \
-                    f"{self.account_id}:{api_id}/*/{method}{resource_path}"
+                                 f"{self.account_id}:{api_id}/*/{method}{resource_path}"
                 self.lambda_res.add_invocation_permission(
-                    statement_id=(api_id + '-' + method + '-' +
-                                  resource_path[1:].replace('/', '_').
-                                  replace('{', '').
-                                  replace('}', '')),
                     name=lambda_arn,
                     principal='apigateway.amazonaws.com',
                     source_arn=api_source_arn)

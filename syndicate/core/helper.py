@@ -21,6 +21,7 @@ import os
 import subprocess
 import sys
 from functools import wraps
+from pathlib import Path
 from threading import Thread
 from time import time
 
@@ -188,7 +189,11 @@ def write_content_to_file(file_path, file_name, obj):
     if os.path.exists(file_name):
         _LOG.warn('{0} already exists'.format(file_name))
     else:
-        with open(file_name, 'w') as meta_file:
+        folder_path = Path(file_path)
+        folder_path.mkdir(parents=True, exist_ok=True)
+        meta_file = Path(file_name)
+        meta_file.touch(exist_ok=True)
+        with open(file_name, 'w+') as meta_file:
             json.dump(obj, meta_file)
         _LOG.info('{0} file was created.'.format(meta_file.name))
 
