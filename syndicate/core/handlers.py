@@ -369,7 +369,8 @@ def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
                                        clean_only_resources=clean_only_resources,
                                        clean_only_types=clean_only_types,
                                        excluded_resources=excluded_resources,
-                                       excluded_types=excluded_types)
+                                       excluded_types=excluded_types,
+                                       clean_externals=clean_externals)
     else:
         remove_deployment_resources(deploy_name=deploy_name,
                                     bundle_name=bundle_name,

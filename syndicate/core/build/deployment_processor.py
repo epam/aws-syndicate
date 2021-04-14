@@ -485,7 +485,8 @@ def remove_failed_deploy_resources(deploy_name, bundle_name,
                                    clean_only_resources=None,
                                    clean_only_types=None,
                                    excluded_resources=None,
-                                   excluded_types=None):
+                                   excluded_types=None,
+                                   clean_externals=None):
     output = load_failed_deploy_output(bundle_name, deploy_name)
     _LOG.info('Failed output file was loaded successfully')
 
@@ -507,6 +508,9 @@ def remove_failed_deploy_resources(deploy_name, bundle_name,
                       v['resource_meta'][
                           'resource_type'] not in excluded_types)
 
+    if not clean_externals:
+        output = dict((k, v) for (k, v) in output.items() if
+                      not v['resource_meta'].get('external'))
     # sort resources with priority
     resources_list = list(output.items())
     resources_list.sort(key=cmp_to_key(_compare_clean_resources))
