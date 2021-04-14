@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.9.6] - 2021-03-24
 ### Changed
 - Add AWS Batch support
+- Add external resources support
 
 ## [0.9.5] - 2021-03-11
 ### Changed
