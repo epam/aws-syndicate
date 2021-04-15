@@ -95,7 +95,7 @@ def _build_python_artifact(item, project_base_folder, project_path, root,
         _LOG.debug(str(req_list))
         # install dependencies
         for lib in req_list:
-            command = 'pip3.9 install {0} -t {1}'.format(lib, artifact_path)
+            command = 'pip install {0} -t {1}'.format(lib, artifact_path)
             execute_command(command=command)
         _LOG.debug('3-rd party dependencies were installed successfully')
 
