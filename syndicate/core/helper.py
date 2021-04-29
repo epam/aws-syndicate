@@ -21,6 +21,7 @@ import os
 import subprocess
 import sys
 from functools import wraps
+from pathlib import Path
 from threading import Thread
 from time import time
 
@@ -188,7 +189,11 @@ def write_content_to_file(file_path, file_name, obj):
     if os.path.exists(file_name):
         _LOG.warn('{0} already exists'.format(file_name))
     else:
-        with open(file_name, 'w') as meta_file:
+        folder_path = Path(file_path)
+        folder_path.mkdir(parents=True, exist_ok=True)
+        meta_file = Path(file_name)
+        meta_file.touch(exist_ok=True)
+        with open(file_name, 'w+') as meta_file:
             json.dump(obj, meta_file)
         _LOG.info('{0} file was created.'.format(meta_file.name))
 
@@ -224,6 +229,33 @@ def handle_futures_progress_bar(futures):
     }
     for _ in tqdm(concurrent.futures.as_completed(futures), **kwargs):
         pass
+
+
+def string_to_camel_case(s: str):
+    temp = s.split('_')
+    res = temp[0] + ''.join(ele.title() for ele in temp[1:])
+    return str(res)
+
+
+def dict_keys_to_camel_case(d: dict):
+    new_d = {}
+    for key, value in d.items():
+        if isinstance(value, (str, int)):
+            new_d[string_to_camel_case(key)] = value
+
+        if isinstance(value, list):
+            new_list = []
+            for index, item in enumerate(value):
+                if isinstance(item, (str, int)):
+                    new_list.append(item)
+                if isinstance(item, dict):
+                    new_list.append(dict_keys_to_camel_case(item))
+            new_d[string_to_camel_case(key)] = new_list
+
+        if isinstance(value, dict):
+            new_d[string_to_camel_case(key)] = dict_keys_to_camel_case(value)
+
+    return new_d
 
 
 class OrderedGroup(click.Group):

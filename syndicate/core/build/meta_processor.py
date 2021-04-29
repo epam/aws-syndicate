@@ -141,9 +141,12 @@ def _check_duplicated_resources(initial_meta_dict, additional_item_name,
             init_deploy_stage = initial_item.get('deploy_stage')
             if init_deploy_stage:
                 additional_item['deploy_stage'] = init_deploy_stage
-            init_apply = initial_item.get('apply_changes', [])
-            add_apply = additional_item.get('apply_changes', [])
-            additional_item['apply_changes'] = init_apply + add_apply
+
+            additional_item = _merge_api_gw_list_typed_configurations(
+                initial_item,
+                additional_item,
+                ['binary_media_types', 'apply_changes']
+            )
 
             return additional_item
 
@@ -160,6 +163,17 @@ def _check_duplicated_resources(initial_meta_dict, additional_item_name,
                     "Second resource: {2}".format(additional_item_name,
                                                   initial_item,
                                                   additional_item))
+
+
+def _merge_api_gw_list_typed_configurations(initial_resource,
+                                            additional_resource,
+                                            property_names_list):
+    for property_name in property_names_list:
+        initial_property_value = initial_resource.get(property_name, [])
+        additional_resource_value = additional_resource.get(property_name, [])
+        additional_resource[
+            property_name] = initial_property_value + additional_resource_value
+    return additional_resource
 
 
 def _populate_s3_path_python_node(meta, bundle_name):

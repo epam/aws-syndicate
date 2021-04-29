@@ -38,10 +38,14 @@ class ApiGatewayConnection(object):
                              aws_session_token=aws_session_token)
         _LOG.debug('Opened new API Gateway connection.')
 
-    def create_rest_api(self, api_name, description=None, clone_from=None):
+    def create_rest_api(self, api_name,
+                        binary_media_types=None,
+                        description=None,
+                        clone_from=None):
         """
         :type api_name: str
         :type description: str
+        :type binary_media_types: list
         :type clone_from: str
         :param clone_from: The ID of the RestApi that you want to clone from.
         """
@@ -50,6 +54,8 @@ class ApiGatewayConnection(object):
             params['description'] = description
         if clone_from:
             params['cloneFrom'] = clone_from
+        if binary_media_types:
+            params['binaryMediaTypes'] = binary_media_types
         return self.client.create_rest_api(**params)
 
     def remove_api(self, api_id):

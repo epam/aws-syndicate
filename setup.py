@@ -28,7 +28,7 @@ with open(path.join(this_directory, 'README.md'), encoding='utf-8') as f:
 
 setup(
     name='aws-syndicate',
-    version='0.9.5',
+    version='0.9.6',
     packages=find_packages(),
     include_package_data=True,
     install_requires=[
@@ -38,7 +38,7 @@ setup(
         'configobj==5.0.6',
         'tqdm==4.19.5',
         'colorama==0.4.1',
-        'pyyaml==5.3.1'
+        'pyyaml==5.4'
     ],
     entry_points='''
         [console_scripts]
