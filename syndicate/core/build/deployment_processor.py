@@ -399,7 +399,6 @@ def remove_deployment_resources(deploy_name, bundle_name,
         lambda v: v['resource_name'] not in excluded_resources,
         lambda v: v['resource_meta']['resource_type'] in clean_only_types,
         lambda v: v['resource_meta']['resource_type'] not in excluded_types,
-        lambda v: not (v['resource_meta'].get('external')) if not clean_externals else True
     ]
 
     for function in filters:
@@ -407,11 +406,13 @@ def remove_deployment_resources(deploy_name, bundle_name,
         if some_result:
             new_output = some_result
 
+    if not clean_externals:
+        new_output = dict((k, v) for (k, v) in new_output.items() if
+                          not v['resource_meta'].get('external'))
     # sort resources with priority
     resources_list = list(new_output.items())
     resources_list.sort(key=cmp_to_key(_compare_clean_resources))
     _LOG.debug('Resources to delete: {0}'.format(resources_list))
-
     _LOG.info('Going to clean AWS resources')
     clean_resources(resources_list)
     # remove new_output from bucket
