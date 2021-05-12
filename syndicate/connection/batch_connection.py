@@ -176,7 +176,7 @@ class BatchConnection(object):
             'version': 2,
             'waiters': {
                 waiter_id: {
-                    'delay': 1,
+                    'delay': 2,
                     'operation': 'DescribeComputeEnvironments',
                     'maxAttempts': 10,
                     'acceptors': [
