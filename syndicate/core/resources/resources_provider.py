@@ -223,7 +223,7 @@ class ResourceProvider:
         def batch_compenv(self):
             if not self._batch_compenv_resource:
                 self._batch_compenv_resource = BatchComputeEnvironmentResource(
-                    batch_conn=self._conn_provider.batch_compenv(),
+                    batch_conn=self._conn_provider.batch(),
                     iam_conn=self._conn_provider.iam()
                 )
             return self._batch_compenv_resource
@@ -231,14 +231,14 @@ class ResourceProvider:
         def batch_jobqueue(self):
             if not self._batch_jobqueue_resource:
                 self._batch_jobqueue_resource = BatchJobQueueResource(
-                    batch_conn=self._conn_provider.batch_jobqueue()
+                    batch_conn=self._conn_provider.batch()
                 )
             return self._batch_jobqueue_resource
 
         def batch_jobdef(self):
             if not self._batch_jobdef_resource:
                 self._batch_jobdef_resource = BatchJobDefinitionResource(
-                    batch_conn=self._conn_provider.batch_jobdef(),
+                    batch_conn=self._conn_provider.batch(),
                     iam_conn=self._conn_provider.iam()
                 )
             return self._batch_jobdef_resource

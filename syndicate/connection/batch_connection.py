@@ -36,7 +36,9 @@ class BatchConnection(object):
                              aws_session_token=aws_session_token)
         _LOG.debug('Opened new Batch connection.')
 
-    def create_compute_environment(self, compute_environment_name, compute_environment_type, state, service_role=None,
+    def create_compute_environment(self, compute_environment_name,
+                                   compute_environment_type, state,
+                                   service_role=None,
                                    compute_resources=None):
         params = dict(
             computeEnvironmentName=compute_environment_name,
@@ -51,14 +53,16 @@ class BatchConnection(object):
 
         return self.client.create_compute_environment(**params)
 
-    def update_compute_environment(self, compute_environment, state=None, compute_resources=None, service_role=None):
+    def update_compute_environment(self, compute_environment, state=None,
+                                   compute_resources=None, service_role=None):
         params = dict(computeEnvironment=compute_environment)
 
         if state:
             params['state'] = state
 
         if compute_resources:
-            params['computeResources'] = dict_keys_to_camel_case(compute_resources)
+            params['computeResources'] = dict_keys_to_camel_case(
+                compute_resources)
 
         if service_role:
             params['serviceRole'] = service_role
@@ -75,9 +79,11 @@ class BatchConnection(object):
         return self.client.describe_compute_environments(**params)
 
     def delete_compute_environment(self, compute_environment):
-        return self.client.delete_compute_environment(computeEnvironment=compute_environment)
+        return self.client.delete_compute_environment(
+            computeEnvironment=compute_environment)
 
-    def create_job_queue(self, job_queue_name, state, priority, compute_environment_order, tags=None):
+    def create_job_queue(self, job_queue_name, state, priority,
+                         compute_environment_order, tags=None):
         params = dict(
             jobQueueName=job_queue_name,
             state=state,
@@ -90,7 +96,8 @@ class BatchConnection(object):
 
         return self.client.create_job_queue(**params)
 
-    def describe_job_queue(self, job_queues=None, max_results=None, next_token=None):
+    def describe_job_queue(self, job_queues=None, max_results=None,
+                           next_token=None):
         params = dict()
         if not job_queues:
             params['jobQueues'] = []
@@ -106,7 +113,8 @@ class BatchConnection(object):
 
         return self.client.describe_job_queues(**params)
 
-    def update_job_queue(self, job_queue, state=None, priority=None, compute_environment_order=None):
+    def update_job_queue(self, job_queue, state=None, priority=None,
+                         compute_environment_order=None):
         params = dict(jobQueue=job_queue)
 
         if state:
@@ -125,10 +133,13 @@ class BatchConnection(object):
             jobQueue=job_queue
         )
 
-    def register_job_definition(self, job_definition_name, job_definition_type, parameters=None,
-                                container_properties=None, node_properties=None, retry_strategy=None,
+    def register_job_definition(self, job_definition_name, job_definition_type,
+                                parameters=None,
+                                container_properties=None,
+                                node_properties=None, retry_strategy=None,
                                 propagate_tags=None,
-                                timeout=None, tags=None, platform_capabilities=None):
+                                timeout=None, tags=None,
+                                platform_capabilities=None):
 
         params = dict(
             jobDefinitionName=job_definition_name,
@@ -138,7 +149,8 @@ class BatchConnection(object):
             params['parameters'] = dict_keys_to_camel_case(parameters)
 
         if container_properties:
-            params['containerProperties'] = dict_keys_to_camel_case(container_properties)
+            params['containerProperties'] = dict_keys_to_camel_case(
+                container_properties)
 
         if node_properties:
             params['nodeProperties'] = dict_keys_to_camel_case(node_properties)
@@ -159,10 +171,12 @@ class BatchConnection(object):
         return self.client.register_job_definition(**params)
 
     def describe_job_definition(self, job_definition):
-        return self.client.describe_job_definitions(jobDefinitionName=job_definition)
+        return self.client.describe_job_definitions(
+            jobDefinitionName=job_definition)
 
     def deregister_job_definition(self, job_definition_name):
-        revisions = self._get_job_def_revisions(job_definition_name=job_definition_name)
+        revisions = self._get_job_def_revisions(
+            job_definition_name=job_definition_name)
 
         for revision in revisions:
             job_definition = '{0}:{1}'.format(job_definition_name, revision)
@@ -227,7 +241,8 @@ class BatchConnection(object):
         return create_waiter_with_client(waiter_id, model, self.client)
 
     def _get_job_def_revisions(self, job_definition_name):
-        job_definition_data = self.describe_job_definition(job_definition=job_definition_name)
+        job_definition_data = self.describe_job_definition(
+            job_definition=job_definition_name)
         revisions = []
         for job_def in job_definition_data['jobDefinitions']:
             if job_def.get('status') == 'ACTIVE':

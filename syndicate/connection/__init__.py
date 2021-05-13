@@ -18,6 +18,7 @@ from functools import lru_cache
 from syndicate.connection.api_gateway_connection import ApiGatewayConnection
 from syndicate.connection.application_autoscaling_connection import (
     ApplicationAutoscaling)
+from syndicate.connection.batch_connection import BatchConnection
 from syndicate.connection.cloud_watch_connection import (EventConnection,
                                                          LogsConnection,
                                                          MetricConnection)
@@ -36,7 +37,6 @@ from syndicate.connection.s3_connection import S3Connection
 from syndicate.connection.sns_connection import SNSConnection
 from syndicate.connection.sqs_connection import SqsConnection
 from syndicate.connection.step_functions_connection import SFConnection
-from syndicate.connection.batch_connection import BatchConnection
 
 
 class ConnectionProvider(object):
@@ -166,23 +166,8 @@ class ConnectionProvider(object):
             credentials['region'] = region
         return KMSConnection(**credentials)
 
-
     @lru_cache(maxsize=None)
-    def batch_compenv(self, region=None):
-        credentials = self.credentials.copy()
-        if region:
-            credentials['region'] = region
-        return BatchConnection(**credentials)
-
-    @lru_cache(maxsize=None)
-    def batch_jobqueue(self, region=None):
-        credentials = self.credentials.copy()
-        if region:
-            credentials['region'] = region
-        return BatchConnection(**credentials)
-
-    @lru_cache(maxsize=None)
-    def batch_jobdef(self, region=None):
+    def batch(self, region=None):
         credentials = self.credentials.copy()
         if region:
             credentials['region'] = region

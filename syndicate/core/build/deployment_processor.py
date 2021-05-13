@@ -269,7 +269,8 @@ def _compare_external_resources(expected_resources):
             errors[resource_name] = resource_errors
 
     if errors:
-        error = '\n'.join(errors.values())
+        import os
+        error = f'{os.linesep}'.join(errors.values())
         raise AssertionError(error)
 
 
@@ -306,7 +307,8 @@ def create_deployment_resources(deploy_name, bundle_name,
 
     _LOG.debug('Going to create: {0}'.format(prettify_json(resources)))
 
-    expected_external_resources = {key: value for key, value in resources.items() if value.get('external')}
+    expected_external_resources = {key: value for key, value in
+                                   resources.items() if value.get('external')}
     if expected_external_resources:
         _compare_external_resources(expected_external_resources)
         _LOG.info('External resources were matched successfully')
@@ -398,8 +400,7 @@ def remove_deployment_resources(deploy_name, bundle_name,
         lambda v: v['resource_name'] in clean_only_resources,
         lambda v: v['resource_name'] not in excluded_resources,
         lambda v: v['resource_meta']['resource_type'] in clean_only_types,
-        lambda v: v['resource_meta']['resource_type'] not in excluded_types,
-    ]
+        lambda v: v['resource_meta']['resource_type'] not in excluded_types]
 
     for function in filters:
         some_result = _filter_the_dict(new_output, function)
