@@ -41,7 +41,10 @@ _PY_EXT = "*.py"
 def assemble_python_lambdas(project_path, bundles_dir):
     from syndicate.core import CONFIG
     project_base_folder = os.path.basename(os.path.normpath(project_path))
-    project_abs_path = build_path(CONFIG.project_path, project_path)
+    if project_path != '.':
+        project_abs_path = build_path(CONFIG.project_path, project_path)
+    else:
+        project_abs_path = CONFIG.project_path
     _LOG.info('Going to process python project by path: {0}'.format(
         project_abs_path))
     executor = ThreadPoolExecutor(max_workers=5)
@@ -78,7 +81,8 @@ def _build_python_artifact(item, project_base_folder, project_path, root,
     # create folder to store artifacts
     artifact_path = build_path(target_folder, artifact_name)
     _LOG.debug('Artifacts path: {0}'.format(artifact_path))
-    os.makedirs(artifact_path)
+    if not os.path.isdir(artifact_path):
+        os.makedirs(artifact_path)
     _LOG.debug('Folders are created')
     # install requirements.txt content
     # getting file content

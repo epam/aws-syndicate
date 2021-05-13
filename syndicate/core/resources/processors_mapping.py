@@ -23,7 +23,9 @@ from syndicate.core.constants import (API_GATEWAY_TYPE, CLOUD_WATCH_ALARM_TYPE,
                                       SNS_PLATFORM_APPLICATION_TYPE,
                                       SNS_TOPIC_TYPE,
                                       SQS_QUEUE_TYPE, STATE_ACTIVITY_TYPE,
-                                      STEP_FUNCTION_TYPE, LAMBDA_LAYER_TYPE)
+                                      STEP_FUNCTION_TYPE, LAMBDA_LAYER_TYPE,
+                                      BATCH_COMPENV_TYPE, BATCH_JOBQUEUE_TYPE,
+                                      BATCH_JOBDEF_TYPE)
 
 
 class ProcessorFacade:
@@ -68,7 +70,13 @@ class ProcessorFacade:
             KINESIS_STREAM_TYPE:
                 self.resources_provider.kinesis().create_kinesis_stream,
             EC2_INSTANCE_TYPE:
-                self.resources_provider.ec2().create_ec2
+                self.resources_provider.ec2().create_ec2,
+            BATCH_COMPENV_TYPE:
+                self.resources_provider.batch_compenv().create_compute_environment,
+            BATCH_JOBQUEUE_TYPE:
+                self.resources_provider.batch_jobqueue().create_job_queue,
+            BATCH_JOBDEF_TYPE:
+                self.resources_provider.batch_jobdef().register_job_definition
         }
 
     def describe_handlers(self):
@@ -105,6 +113,12 @@ class ProcessorFacade:
                 self.resources_provider.step_functions().describe_activity,
             KINESIS_STREAM_TYPE:
                 self.resources_provider.kinesis().describe_kinesis_stream,
+            BATCH_COMPENV_TYPE:
+                self.resources_provider.batch_compenv().describe_compute_environment,
+            BATCH_JOBQUEUE_TYPE:
+                self.resources_provider.batch_jobqueue().describe_job_queue,
+            BATCH_JOBDEF_TYPE:
+                self.resources_provider.batch_jobdef().describe_job_definition
         }
 
     def remove_handlers(self):
@@ -144,7 +158,13 @@ class ProcessorFacade:
             STEP_FUNCTION_TYPE:
                 self.resources_provider.step_functions().remove_state_machines,
             STATE_ACTIVITY_TYPE:
-                self.resources_provider.step_functions().remove_activities
+                self.resources_provider.step_functions().remove_activities,
+            BATCH_COMPENV_TYPE:
+                self.resources_provider.batch_compenv().remove_compute_environment,
+            BATCH_JOBQUEUE_TYPE:
+                self.resources_provider.batch_jobqueue().remove_job_queue,
+            BATCH_JOBDEF_TYPE:
+                self.resources_provider.batch_jobdef().deregister_job_definition,
         }
 
     def update_handlers(self):
@@ -173,4 +193,9 @@ class ProcessorFacade:
         return {
             IAM_ROLE: self.resources_provider.iam().apply_trusted_to_role,
             IAM_POLICY: self.resources_provider.iam().apply_policy_content
+        }
+
+    def compare_meta_handlers(self):
+        return {
+            DYNAMO_TABLE_TYPE: self.resources_provider.dynamodb().compare_meta,
         }

@@ -113,3 +113,29 @@ def assert_required_params(required_params_names, all_params):
                param not in all_params.keys()]
     if missing:
         raise AssertionError(f'Missing required parameters: {missing}')
+
+
+def filter_dict_by_shape(d, shape):
+    new_d = {}
+    for attribute, value in shape.items():
+        if value is None:
+            new_d[attribute] = d.get(attribute)
+
+        if isinstance(value, list):
+            new_d[attribute] = filter_list_by_shape(d.get(attribute), value)
+
+        if isinstance(value, dict):
+            new_d[attribute] = filter_dict_by_shape(d.get(attribute), value)
+    return new_d
+
+
+def filter_list_by_shape(lst, shape):
+    if not shape[0] or not lst:
+        return lst
+
+    new_lst = []
+    if isinstance(shape[0], dict):
+        for d in lst:
+            new_lst.append(filter_dict_by_shape(d, shape[0]))
+
+    return new_lst

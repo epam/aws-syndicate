@@ -65,9 +65,11 @@ def retry(handler_func):
             'TopicArn can not be None',
             'DeleteRole',
             'Max attempts exceeded',
-            'UpdateGatewayResponse'
+            'UpdateGatewayResponse',
+            'Cannot delete, found existing JobQueue relationship',
+            'Cannot delete, resource is being modified',
         ]
-        for each in range(1, 20, 3):
+        for each in range(1, 35, 3):
             try:
                 return handler_func(*args, **kwargs)
             except ClientError as e:
