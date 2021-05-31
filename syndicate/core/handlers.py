@@ -176,6 +176,7 @@ def build_bundle(ctx, bundle_name, force_upload):
     :param force_upload: used to override existing bundle
     :return:
     """
+    ctx.invoke(run_tests)
     if if_bundle_exist(bundle_name=bundle_name) and not force_upload:
         click.echo('Bundle name \'{0}\' already exists '
                    'in deploy bucket. Please use another bundle '
@@ -447,6 +448,43 @@ COMMAND_TO_BUILD_MAPPING = {
     PYTHON_BUILD_TOOL_NAME: assemble_python,
     NODE_BUILD_TOOL_NAME: assemble_node
 }
+
+
+@syndicate.command(name='run_tests')
+@click.option('--suite', type=click.Choice(['unittest', 'pytest', 'nose'],
+                                           case_sensitive=False),
+              default='unittest')
+@click.option('--test_folder_name', nargs=1, default='tests')
+@timeit
+def run_tests(suite, test_folder_name):
+    """Discovers and runs unittests inside of python project root."""
+    click.echo('Running tests...')
+    import subprocess
+    from syndicate.core import CONFIG
+    project_path = CONFIG.project_path
+
+    test_folder = os.path.join(project_path, test_folder_name)
+    if not os.path.exists(test_folder):
+        click.echo(f'Tests not found, \'{test_folder_name}\' folder is missing'
+                   f' in \'{project_path}\'.')
+        return
+
+    test_lib_command_mapping = {
+        'unittest': 'python -m unittest',
+        'pytest': 'pytest',
+        'nose': 'nosetests'
+    }
+
+    workdir = os.getcwd()
+
+    os.chdir(project_path)
+    command = test_lib_command_mapping.get(suite)
+    result = subprocess.run(command.split())
+
+    os.chdir(workdir)
+    if result.returncode != 0:
+        click.echo('Some tests failed. Exiting.')
+        sys.exit(1)
 
 
 @syndicate.command(name='build_artifacts')
