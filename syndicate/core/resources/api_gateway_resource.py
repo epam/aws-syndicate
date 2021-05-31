@@ -25,7 +25,8 @@ from syndicate.core.resources.helper import (build_description_obj,
 
 _LOG = get_logger('syndicate.core.resources.api_gateway_resource')
 
-SUPPORTED_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'HEAD']
+SUPPORTED_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS',
+                     'HEAD']
 _CORS_HEADER_NAME = 'Access-Control-Allow-Origin'
 _CORS_HEADER_VALUE = "'*'"
 
