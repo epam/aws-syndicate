@@ -32,6 +32,7 @@ from syndicate.core.build.deployment_processor import (
     continue_deployment_resources, create_deployment_resources,
     remove_deployment_resources, remove_failed_deploy_resources,
     update_deployment_resources)
+from syndicate.core.build.warmup_processor import warmup_resources
 from syndicate.core.build.meta_processor import create_meta
 from syndicate.core.conf.generator import generate_configuration_files
 from syndicate.core.conf.validator import (MVN_BUILD_TOOL_NAME,
@@ -565,6 +566,26 @@ def copy_bundle(ctx, bundle_name, src_account_id, src_bucket_region,
     click.echo('Bundle was downloaded successfully')
     ctx.invoke(upload_bundle, bundle_name=bundle_name, force=force_upload)
     click.echo('Bundle was copied successfully')
+
+
+@syndicate.command(name='warmup')
+@click.option('--bundle_name', nargs=1, callback=check_required_param)
+@click.option('--deploy_name', nargs=1, callback=check_required_param)
+@timeit
+def warmup(bundle_name, deploy_name):
+    click.echo('Command warmup')
+    click.echo('Deploy name: %s' % deploy_name)
+
+    if not if_bundle_exist(bundle_name=bundle_name):
+        click.echo('Bundle name \'{0}\' does not exists '
+                   'in deploy bucket. Please use another bundle '
+                   'name or create the bundle'.format(bundle_name))
+        return
+
+    warmup_resources(deploy_name=deploy_name,
+                     bundle_name=bundle_name)
+
+    click.echo('AWS lambda resources were triggered.')
 
 
 syndicate.add_command(generate)
