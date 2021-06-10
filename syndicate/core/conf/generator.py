@@ -19,6 +19,7 @@ import sys
 import yaml
 
 from syndicate.commons.log_helper import get_logger
+from syndicate.connection.sts_connection import STSConnection
 from syndicate.core.conf.processor import (PROJECT_PATH_CFG,
                                            LEGACY_CONFIG_FILE_NAME,
                                            CONFIG_FILE_NAME,
@@ -27,22 +28,16 @@ from syndicate.core.conf.processor import (PROJECT_PATH_CFG,
                                            DEPLOY_TARGET_BUCKET_CFG,
                                            AWS_ACCESS_KEY_ID_CFG,
                                            AWS_SECRET_ACCESS_KEY_CFG,
-                                           PROJECTS_MAPPING_CFG,
                                            RESOURCES_PREFIX_CFG,
                                            RESOURCES_SUFFIX_CFG)
-from syndicate.core.conf.validator import (PYTHON_BUILD_TOOL_NAME,
-                                           MVN_BUILD_TOOL_NAME,
-                                           NODE_BUILD_TOOL_NAME,
-                                           LAMBDAS_ALIASES_NAME_CFG)
+from syndicate.core.conf.validator import (LAMBDAS_ALIASES_NAME_CFG)
 
 _LOG = get_logger('config_generator')
 
 
-def generate_configuration_files(config_path, region, account_id,
+def generate_configuration_files(config_path, region,
                                  access_key, secret_key,
-                                 bundle_bucket_name, python_build_mapping,
-                                 java_build_mapping,
-                                 nodejs_build_mapping, prefix, suffix,
+                                 bundle_bucket_name, prefix, suffix,
                                  project_path=None):
     if not config_path:
         _LOG.warn(f'The {config_path} property is not specified. '
@@ -69,15 +64,9 @@ def generate_configuration_files(config_path, region, account_id,
             raise AssertionError(
                 f'Provided project path {project_path} does not exists')
 
-    build_project_mapping = {}
-    if python_build_mapping:
-        build_project_mapping[PYTHON_BUILD_TOOL_NAME] = \
-            list(python_build_mapping)
-    if java_build_mapping:
-        build_project_mapping[MVN_BUILD_TOOL_NAME] = list(java_build_mapping)
-    if nodejs_build_mapping:
-        build_project_mapping[NODE_BUILD_TOOL_NAME] = \
-            list(nodejs_build_mapping)
+    sts = STSConnection(region, access_key, secret_key)
+    caller_identity = sts.get_caller_identity()
+    account_id = caller_identity['Account']
 
     config_content = {
         ACCOUNT_ID_CFG: account_id,
@@ -86,7 +75,6 @@ def generate_configuration_files(config_path, region, account_id,
         AWS_ACCESS_KEY_ID_CFG: access_key,
         AWS_SECRET_ACCESS_KEY_CFG: secret_key,
         PROJECT_PATH_CFG: project_path,
-        PROJECTS_MAPPING_CFG: build_project_mapping,
         RESOURCES_PREFIX_CFG: prefix,
         RESOURCES_SUFFIX_CFG: suffix
     }
