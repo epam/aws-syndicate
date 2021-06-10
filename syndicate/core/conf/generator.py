@@ -19,7 +19,7 @@ import sys
 import yaml
 from botocore.exceptions import ClientError
 
-from syndicate.commons.log_helper import get_logger
+from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.connection.sts_connection import STSConnection
 from syndicate.core.conf.processor import (PROJECT_PATH_CFG,
                                            LEGACY_CONFIG_FILE_NAME,
@@ -34,14 +34,27 @@ from syndicate.core.conf.processor import (PROJECT_PATH_CFG,
 from syndicate.core.conf.validator import (LAMBDAS_ALIASES_NAME_CFG)
 
 _LOG = get_logger('config_generator')
+_USER_LOG = get_user_logger('config_generator')
 
 
 def generate_configuration_files(config_path, region,
                                  access_key, secret_key,
                                  bundle_bucket_name, prefix, suffix,
                                  project_path=None):
+    try:
+        sts = STSConnection(region=region,
+                            aws_access_key_id=access_key,
+                            aws_secret_access_key=secret_key)
+        caller_identity = sts.get_caller_identity()
+        account_id = caller_identity['Account']
+    except ClientError:
+        _USER_LOG.error('Invalid credentials provided, please '
+                        'specify the correct one')
+        _LOG.exception('Error while account_id obtaining')
+        sys.exit(1)
+
     if not config_path:
-        _LOG.warn(f'The {config_path} property is not specified. '
+        _LOG.warn(f'The config_path property is not specified. '
                   f'The working directory is used')
         config_path = os.getcwd()
 
@@ -55,25 +68,15 @@ def generate_configuration_files(config_path, region,
             sys.exit(1)
 
     if not project_path:
-        _LOG.warn(f'The {PROJECT_PATH_CFG} property is not specified. '
-                  f'The working directory will be used as a project path. '
-                  f'To change the path, edit the {LEGACY_CONFIG_FILE_NAME} '
-                  f'by path {config_path}')
+        _USER_LOG.warn(f'The {PROJECT_PATH_CFG} property is not specified. '
+                       f'The working directory will be used as a project path. '
+                       f'To change the path, edit the {LEGACY_CONFIG_FILE_NAME} '
+                       f'by path {config_path}')
         project_path = os.getcwd()
     else:
         if not os.path.exists(project_path):
             raise AssertionError(
                 f'Provided project path {project_path} does not exists')
-
-    try:
-        sts = STSConnection(region=region,
-                            aws_access_key_id=access_key,
-                            aws_secret_access_key=secret_key)
-        caller_identity = sts.get_caller_identity()
-        account_id = caller_identity['Account']
-    except ClientError:
-        _LOG.error('Invalid credentials provided, please specify the correct one')
-        sys.exit(1)
 
     config_content = {
         ACCOUNT_ID_CFG: account_id,

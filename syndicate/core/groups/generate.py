@@ -15,10 +15,12 @@
 """
 import os
 import pathlib
+
 import click
 
 from syndicate.core.conf.generator import generate_configuration_files
-from syndicate.core.generators.lambda_function import (generate_lambda_function)
+from syndicate.core.generators.lambda_function import (
+    generate_lambda_function)
 from syndicate.core.generators.project import (generate_project_structure,
                                                PROJECT_PROCESSORS)
 from syndicate.core.helper import (check_required_param, timeit, OrderedGroup)
@@ -106,59 +108,30 @@ def lambda_function(ctx, project_name, lang, project_path, lambda_name):
 
 
 @generate.command(name='config')
-@click.option('--config_path', type=str,
+@click.option('--region',
+              help='* The region that is used to deploy the application',
+              required=True)
+@click.option('--bundle_bucket_name',
+              help='* Name of the bucket that is used for uploading artifacts.'
+                   ' It will be created if specified.', required=True)
+@click.option('--access_key',
+              help='AWS access key id that is used to deploy the application.')
+@click.option('--secret_key',
+              help='AWS secret key that is used to deploy the application.')
+@click.option('--config_path',
               help='Path to store generated configuration file')
-@click.option('--project_path', type=str,
+@click.option('--project_path',
               help='Path to project folder. Default value: working dir')
-# account settings
-@click.option('--region', type=str,
-              help='The region that is used to deploy the application', required=True)
-@click.option(
-    '--access_key', type=str,
-    help='AWS access key id that is used to deploy the application.')
-@click.option(
-    '--secret_key', type=str,
-    help='AWS secret key that is used to deploy the application.')
-@click.option('--bundle_bucket_name', type=str,
-              help='Name of the bucket that is used for uploading artifacts. '
-                   'It will be created if specified.', required=True)
-# deploy setting
-@click.option('--prefix', type=str,
+@click.option('--prefix',
               help='Prefix that is added to project names while deployment '
                    'by pattern: {prefix}resource_name{suffix}')
-@click.option('--suffix', type=str,
+@click.option('--suffix',
               help='Suffix that is added to project names while deployment '
                    'by pattern: {prefix}resource_name{suffix}')
 def config(config_path, project_path, region, access_key,
            secret_key, bundle_bucket_name, prefix, suffix):
     """
-    Configures aws-syndicate:
-    - generates sdct.conf using the provided parameters;
-    - creates default sdct_aliases.conf;
-    :param config_path: path where the generated configurations files
-        will be stored
-    :param project_path: path to a project which is supposed to be deployed
-        by aws-syndicate
-    :param region: AWS region name where an application will be deployed
-    :param access_key: AWS access key id to access an AWS account specified
-        in account_id parameter. If access_key is not specified
-        the credentials from /$user/.aws/credentials will be used if any.
-        The provided credentials should provide enough permissions to deploy
-        the app.
-    :param secret_key: AWS secret access key to access an AWS account
-        specified in account_id parameter. If secret_key is not specified
-        the credentials from /$user/.aws/credentials will be used if any.
-        The provided credentials should provide enough permissions to deploy
-        the app.
-    :param bundle_bucket_name: name of the bucket in specified AWS account
-        where application bundles will be stored
-    :param prefix: will be added to resource names of types
-    iam_role, iam_policy, s3_bucket.
-    Resource name pattern: {prefix}resource_name{suffix}
-    :param suffix: will be added to resource names of types
-    iam_role, iam_policy, s3_bucket.
-    Resource name pattern: {prefix}resource_name{suffix}
-    :return:
+    Creates Syndicate configuration files
     """
     generate_configuration_files(config_path=config_path,
                                  project_path=project_path,

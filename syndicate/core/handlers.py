@@ -60,7 +60,7 @@ def _not_require_config(all_params):
 @click.version_option()
 def syndicate():
     if CONF_PATH:
-        click.echo('Path to sdct.conf: ' + CONF_PATH)
+        click.echo('Configuration path used: ' + CONF_PATH)
         initialize_connection()
     elif _not_require_config(sys.argv):
         pass
