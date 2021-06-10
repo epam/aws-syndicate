@@ -17,6 +17,7 @@ import os
 import sys
 
 import yaml
+from botocore.exceptions import ClientError
 
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.sts_connection import STSConnection
@@ -64,9 +65,15 @@ def generate_configuration_files(config_path, region,
             raise AssertionError(
                 f'Provided project path {project_path} does not exists')
 
-    sts = STSConnection(region, access_key, secret_key)
-    caller_identity = sts.get_caller_identity()
-    account_id = caller_identity['Account']
+    try:
+        sts = STSConnection(region=region,
+                            aws_access_key_id=access_key,
+                            aws_secret_access_key=secret_key)
+        caller_identity = sts.get_caller_identity()
+        account_id = caller_identity['Account']
+    except ClientError:
+        _LOG.error('Invalid credentials provided, please specify the correct one')
+        sys.exit(1)
 
     config_content = {
         ACCOUNT_ID_CFG: account_id,
