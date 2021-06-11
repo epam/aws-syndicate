@@ -252,11 +252,13 @@ def _get_lambda_default_policy():
                             "logs:CreateLogGroup",
                             "logs:CreateLogStream",
                             "logs:PutLogEvents",
-                            "dynamodb:Get*",
-                            "dynamodb:Put*",
-                            "dynamodb:Describe*",
-                            "xray:PutTraceSegments",
-                            "xray:PutTelemetryRecords",
+                            "dynamodb:GetItem",
+                            "dynamodb:Query"
+                            "dynamodb:PutItem",
+                            "dynamodb:Batch*"
+                            "dynamodb:DeleteItem",
+                            "ssm:PutParameter",
+                            "ssm:GetParameter",
                             "kms:Decrypt"
                         ],
                         "Effect": "Allow",
