@@ -30,8 +30,9 @@ from syndicate.core.generators.contents import (
     CANCEL_MESSAGE, _generate_package_nodejs_lambda,
     _generate_package_lock_nodejs_lambda, JAVA_LAMBDA_HANDLER_CLASS,
     SRC_MAIN_JAVA, FILE_POM)
-from syndicate.core.groups import (PROJECT_JAVA, PROJECT_NODEJS,
-                                   PROJECT_PYTHON)
+from syndicate.core.groups import (RUNTIME_JAVA, RUNTIME_NODEJS,
+                                   RUNTIME_PYTHON)
+from syndicate.core.project_state import ProjectState
 
 _LOG = get_logger('syndicate.core.generators.lambda_function')
 
@@ -69,24 +70,39 @@ NODEJS_LAMBDA_FILES = [
 ]
 
 
-def generate_lambda_function(project_name, project_path, project_language,
-                             lambda_names):
-    full_project_path = os.path.join(project_path, project_name)
+def generate_common_module(src_path, runtime):
+    runtime_processor = COMMON_MODULE_PROCESSORS.get(runtime)
+    if not runtime_processor:
+        raise AssertionError(f'Unable to create a common module in {src_path}')
+    runtime_processor(src_path=src_path)
 
-    if not os.path.exists(full_project_path):
+
+def generate_lambda_function(project_path, runtime,
+                             lambda_names):
+    if not os.path.exists(project_path):
         _LOG.info('Project "{}" you have provided does not exist'.format(
-            full_project_path))
+            project_path))
         return
 
-    processor = LAMBDAS_PROCESSORS.get(project_language)
-    if not processor:
-        raise RuntimeError('Wrong project language {0}'.format(
-            project_language))
+    if not ProjectState.check_if_project_state_exists(
+            project_path=project_path):
+        _LOG.info(f'Seems that the path {project_path} is not a project')
+        return
 
-    lambdas_path = full_project_path + FOLDER_LAMBDAS
+    project_state = ProjectState(project_path=project_path)
+    if not project_state.lambdas:
+        generate_common_module(src_path=os.path.join(project_path, 'src'),
+                               runtime=runtime)
 
-    processor(project_name=project_name, project_path=project_path,
-              lambda_names=lambda_names, lambdas_path=lambdas_path)
+    # processor = LAMBDAS_PROCESSORS.get(project_language)
+    # if not processor:
+    #     raise RuntimeError('Wrong project language {0}'.format(
+    #         project_language))
+    #
+    # lambdas_path = full_project_path + FOLDER_LAMBDAS
+    #
+    # processor(project_name=project_name, project_path=project_path,
+    #           lambda_names=lambda_names, lambdas_path=lambdas_path)
     _LOG.info(f'Lambda generating have been successfully performed.')
 
 
@@ -101,7 +117,7 @@ def _generate_python_lambdas(lambda_names, lambdas_path, project_name=None,
         answer = _mkdir(
             path=lambda_folder,
             fault_message=f'\nLambda {lambda_name} already exists.\nOverride the '
-            'Lambda function? [y/n]: ')
+                          'Lambda function? [y/n]: ')
         if not answer:
             _LOG.info(CANCEL_MESSAGE.format(lambda_name))
             continue
@@ -112,15 +128,17 @@ def _generate_python_lambdas(lambda_names, lambdas_path, project_name=None,
             _touch(lambda_folder + file)
 
         # fill handler.py
-        _write_content_to_file(f'{lambda_folder}/{FILE_LAMBDA_HANDLER_PYTHON}',
-                               PYTHON_LAMBDA_HANDLER_TEMPLATE)
+        _write_content_to_file(
+            f'{lambda_folder}/{FILE_LAMBDA_HANDLER_PYTHON}',
+            PYTHON_LAMBDA_HANDLER_TEMPLATE)
 
         # fill deployment_resources.json
         pattern_format = LAMBDA_ROLE_NAME_PATTERN.format(lambda_name)
         role_def = _generate_lambda_role_config(
             pattern_format)
-        _write_content_to_file(f'{lambda_folder}/{FILE_DEPLOYMENT_RESOURCES}',
-                               role_def)
+        _write_content_to_file(
+            f'{lambda_folder}/{FILE_DEPLOYMENT_RESOURCES}',
+            role_def)
 
         # fill lambda_config.json
         lambda_def = _generate_python_node_lambda_config(
@@ -147,7 +165,7 @@ def _generate_java_lambdas(project_path, project_name, lambda_names,
     _write_content_to_file(pom_file_path, pom_xml_content)
 
     full_package_path = f'{project_path}/{project_name}/{SRC_MAIN_JAVA}/' \
-        f'{java_package_as_path}'
+                        f'{java_package_as_path}'
     for lambda_name in lambda_names:
         if not os.path.exists(full_package_path):
             _mkdir(full_package_path, exist_ok=True)
@@ -172,7 +190,7 @@ def _generate_java_lambdas(project_path, project_name, lambda_names,
             lambda_role_name
         )
         java_handler_file_name = f'{project_path}/{project_name}/' \
-            f'{SRC_MAIN_JAVA}/{java_package_as_path}/{lambda_class_name}.java'
+                                 f'{SRC_MAIN_JAVA}/{java_package_as_path}/{lambda_class_name}.java'
         _write_content_to_file(
             java_handler_file_name,
             java_handler_content
@@ -181,7 +199,7 @@ def _generate_java_lambdas(project_path, project_name, lambda_names,
         # add role to deployment_resource.json
 
         dep_res_path = f'{project_path}/{project_name}' \
-            f'/{FILE_DEPLOYMENT_RESOURCES}'
+                       f'/{FILE_DEPLOYMENT_RESOURCES}'
         deployment_resources = json.loads(_read_content_from_file(
             dep_res_path
         ))
@@ -211,7 +229,7 @@ def _generate_nodejs_lambdas(lambda_names, lambdas_path, project_name=None,
         answer = _mkdir(
             path=lambda_folder,
             fault_message=f'\nLambda {lambda_name} already exists.\n'
-            f'Override the Lambda function? [y/n]: ')
+                          f'Override the Lambda function? [y/n]: ')
         if not answer:
             _LOG.info(CANCEL_MESSAGE.format(lambda_name))
             continue
@@ -220,8 +238,9 @@ def _generate_nodejs_lambdas(lambda_names, lambdas_path, project_name=None,
             _touch(lambda_folder + file)
 
         # fill index.js
-        _write_content_to_file(f'{lambda_folder}/{FILE_LAMBDA_HANDLER_NODEJS}',
-                               NODEJS_LAMBDA_HANDLER_TEMPLATE)
+        _write_content_to_file(
+            f'{lambda_folder}/{FILE_LAMBDA_HANDLER_NODEJS}',
+            NODEJS_LAMBDA_HANDLER_TEMPLATE)
 
         # fill package.json
         package_def = _generate_package_nodejs_lambda(lambda_name)
@@ -229,15 +248,17 @@ def _generate_nodejs_lambdas(lambda_names, lambdas_path, project_name=None,
                                package_def)
 
         # fill package.json
-        package_lock_def = _generate_package_lock_nodejs_lambda(lambda_name)
+        package_lock_def = _generate_package_lock_nodejs_lambda(
+            lambda_name)
         _write_content_to_file(f'{lambda_folder}/'f'{FILE_PACKAGE_LOCK}',
                                package_lock_def)
 
         # fill deployment_resources.json
         role_def = _generate_lambda_role_config(
             LAMBDA_ROLE_NAME_PATTERN.format(lambda_name))
-        _write_content_to_file(f'{lambda_folder}/{FILE_DEPLOYMENT_RESOURCES}',
-                               role_def)
+        _write_content_to_file(
+            f'{lambda_folder}/{FILE_DEPLOYMENT_RESOURCES}',
+            role_def)
 
         # fill lambda_config.json
         lambda_def = _generate_nodejs_node_lambda_config(
@@ -249,7 +270,35 @@ def _generate_nodejs_lambdas(lambda_names, lambdas_path, project_name=None,
 
 
 LAMBDAS_PROCESSORS = {
-    PROJECT_JAVA: _generate_java_lambdas,
-    PROJECT_NODEJS: _generate_nodejs_lambdas,
-    PROJECT_PYTHON: _generate_python_lambdas,
+    RUNTIME_JAVA: _generate_java_lambdas,
+    RUNTIME_NODEJS: _generate_nodejs_lambdas,
+    RUNTIME_PYTHON: _generate_python_lambdas,
+}
+
+
+def _common_java_module(src_path):
+    pass
+
+
+def _common_nodejs_module(src_path):
+    pass
+
+
+def _common_python_module(src_path):
+    common_module_path = os.path.join(src_path, 'common')
+    _mkdir(path=common_module_path, exist_ok=True)
+    _touch(os.path.join(common_module_path, '__init__.py'))
+    abstract_lambda_path = os.path.join(common_module_path,
+                                        'abstract_lambda.py')
+    _touch(path=abstract_lambda_path)
+    _write_content_to_file(file=abstract_lambda_path, content='#todo')
+    logger_path = os.path.join(common_module_path, 'logger.py')
+    _touch(path=logger_path)
+    _write_content_to_file(file=logger_path, content='#todo')
+
+
+COMMON_MODULE_PROCESSORS = {
+    RUNTIME_JAVA: _common_java_module,
+    RUNTIME_NODEJS: _common_nodejs_module,
+    RUNTIME_PYTHON: _common_python_module
 }
