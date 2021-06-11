@@ -159,6 +159,22 @@ NODEJS_LAMBDA_HANDLER_TEMPLATE = """exports.handler = async (event) => {
 };
 """
 
+CHANGELOG_TEMPLATE = """# Changelog
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [1.0.0] - yyyy-MM-dd
+### Added
+    -  Added items
+
+### Changed
+    -  Changed items 
+
+### Removed
+    -  Removed items 
+"""
 
 def _stringify(dict_content):
     return json.dumps(dict_content, indent=2)

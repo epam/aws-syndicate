@@ -23,7 +23,8 @@ from syndicate.core.generators import (_touch, _mkdir,
                                        _write_content_to_file)
 from syndicate.core.generators.contents import (_get_lambda_default_policy,
                                                 JAVA_ROOT_POM_TEMPLATE,
-                                                SRC_MAIN_JAVA, FILE_POM)
+                                                SRC_MAIN_JAVA, FILE_POM,
+                                                CHANGELOG_TEMPLATE)
 from syndicate.core.groups import (RUNTIME_JAVA, RUNTIME_NODEJS,
                                    RUNTIME_PYTHON)
 from syndicate.core.project_state import PROJECT_STATE_FILE, ProjectState
@@ -72,12 +73,8 @@ def generate_project_structure(project_name, project_path):
         ProjectState.generate(project_name=project_name,
                               project_path=full_project_path)
 
-        changelog_path = os.getcwd() + FILE_CHANGELOG
-        with open(changelog_path, 'r') as changelog_file:
-            changelog_data = changelog_file.read()
-
         _write_content_to_file(full_project_path + FILE_CHANGELOG,
-                               changelog_data)
+                               CHANGELOG_TEMPLATE)
         _write_content_to_file(full_project_path + FILE_GITIGNORE,
                                PROJECT_STATE_FILE)
         _LOG.info('Project {} folder has been successfully created.'.format(
