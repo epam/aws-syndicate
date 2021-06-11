@@ -24,12 +24,11 @@ from syndicate.core.generators import (_touch,
                                        _read_content_from_file)
 from syndicate.core.generators.contents import (
     NODEJS_LAMBDA_HANDLER_TEMPLATE,
-    PYTHON_LAMBDA_HANDLER_TEMPLATE,
     _generate_python_node_lambda_config,
     _generate_lambda_role_config, _generate_nodejs_node_lambda_config,
     CANCEL_MESSAGE, _generate_package_nodejs_lambda,
     _generate_package_lock_nodejs_lambda, JAVA_LAMBDA_HANDLER_CLASS,
-    SRC_MAIN_JAVA, FILE_POM)
+    SRC_MAIN_JAVA, FILE_POM, PYTHON_LAMBDA_HANDLER_TEMPLATE)
 from syndicate.core.groups import (RUNTIME_JAVA, RUNTIME_NODEJS,
                                    RUNTIME_PYTHON)
 from syndicate.core.project_state import ProjectState
@@ -40,7 +39,7 @@ SLASH_SYMBOL = '/'
 
 FOLDER_LAMBDAS = '/lambdas'
 FOLDER_COMMONS = '/commons'
-FOLDER_CONTENT = '/content'
+FOLDER_CONTENT = '/static'
 
 FILE_README = '/README.md'
 FILE_DEPLOYMENT_RESOURCES = '/deployment_resources.json'
@@ -130,9 +129,11 @@ def _generate_python_lambdas(lambda_names, lambdas_path, project_name=None,
             _touch(lambda_folder + file)
 
         # fill handler.py
+        python_lambda_handler_template = PYTHON_LAMBDA_HANDLER_TEMPLATE.replace(
+            'LambdaName', lambda_name)
         _write_content_to_file(
             f'{lambda_folder}/{FILE_LAMBDA_HANDLER_PYTHON}',
-            PYTHON_LAMBDA_HANDLER_TEMPLATE)
+            python_lambda_handler_template)
 
         # fill deployment_resources.json
         pattern_format = LAMBDA_ROLE_NAME_PATTERN.format(lambda_name)

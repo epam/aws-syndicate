@@ -40,7 +40,7 @@ class ProjectState:
 
     @staticmethod
     def generate(project_path, project_name):
-        project_state = dict(name=project_name, path=project_path)
+        project_state = dict(name=project_name)
         with open(os.path.join(project_path, PROJECT_STATE_FILE),
                   'w') as state_file:
             yaml.dump(project_state, state_file)

@@ -16,8 +16,6 @@
 
 import os
 
-import yaml
-
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.generators import (_touch, _mkdir,
                                        _write_content_to_file)
@@ -29,7 +27,7 @@ from syndicate.core.generators.contents import (_get_lambda_default_policy,
                                                 README_TEMPLATE)
 from syndicate.core.groups import (RUNTIME_JAVA, RUNTIME_NODEJS,
                                    RUNTIME_PYTHON)
-from syndicate.core.project_state import PROJECT_STATE_FILE, ProjectState
+from syndicate.core.project_state import ProjectState
 
 _LOG = get_logger('syndicate.core.generators.project')
 
@@ -40,13 +38,6 @@ FILE_README = 'README.md'
 FILE_DEPLOYMENT_RESOURCES = 'deployment_resources.json'
 FILE_CHANGELOG = 'CHANGELOG.md'
 FILE_GITIGNORE = '.gitignore'
-
-
-def generate_project_state_file(project_name, project_path):
-    project_state = dict(name=project_name)
-    with open(os.path.join(project_path, PROJECT_STATE_FILE),
-              'w') as state_file:
-        yaml.dump(project_state, state_file)
 
 
 def generate_project_structure(project_name, project_path):

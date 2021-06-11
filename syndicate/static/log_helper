@@ -11,26 +11,18 @@ _name_to_level = {
     'DEBUG': logging.DEBUG
 }
 
-custodian_logger = logging.getLogger('custodian')
-custodian_logger.propagate = False
+logger = logging.getLogger('custodian')
+logger.propagate = False
 console_handler = logging.StreamHandler(stream=stdout)
 console_handler.setFormatter(
     logging.Formatter('%(asctime)s - %(levelname)s - %(name)s - %(message)s'))
 custodian_logger.addHandler(console_handler)
 
-try:
-    log_level = _name_to_level.get(os.environ['log_level'])
-except KeyError as e:
-    log_level = logging.DEBUG
-custodian_logger.setLevel(log_level)
+
+log_level = _name_to_level.get(os.environ.get('log_level'))
+if not log_level:
+    log_level = logging.INFO
 logging.captureWarnings(True)
-
-
-def get_logger(log_name, level=log_level):
-    module_logger = custodian_logger.getChild(log_name)
-    if level:
-        module_logger.setLevel(level)
-    return module_logger
 
 
 def get_logger(log_name, level=log_level):

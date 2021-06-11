@@ -138,15 +138,29 @@ JAVA_ROOT_POM_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
 </project>
 """
 
-PYTHON_LAMBDA_HANDLER_TEMPLATE = """import json
+PYTHON_LAMBDA_HANDLER_TEMPLATE = """from commons.log_helper import get_logger
+from commons.abstract_lambda import AbstractLambda
 
+_LOG = get_logger('lambda-name-handler')
+
+class LambdaName(AbstractLambda):
+
+    def validate_request(self, event) -> dict:
+        pass
+        
+    def handle_request(self, event, context):
+        \"\"\"
+        Explain incoming event here
+        \"\"\"
+        # todo implement business logic
+        return 200
+    
+
+HANDLER = LambdaName()
 
 def lambda_handler(event, context):
-    # TODO implement
-    return {
-        'statusCode': 200,
-        'body': json.dumps('Hello from Lambda!')
-    }
+    HANDLER.lambda_handler(event=event, context=context)
+   
 """
 
 NODEJS_LAMBDA_HANDLER_TEMPLATE = """exports.handler = async (event) => {
