@@ -24,7 +24,9 @@ from syndicate.core.generators import (_touch, _mkdir,
 from syndicate.core.generators.contents import (_get_lambda_default_policy,
                                                 JAVA_ROOT_POM_TEMPLATE,
                                                 SRC_MAIN_JAVA, FILE_POM,
-                                                CHANGELOG_TEMPLATE)
+                                                CHANGELOG_TEMPLATE,
+                                                GITIGNORE_CONTENT,
+                                                README_TEMPLATE)
 from syndicate.core.groups import (RUNTIME_JAVA, RUNTIME_NODEJS,
                                    RUNTIME_PYTHON)
 from syndicate.core.project_state import PROJECT_STATE_FILE, ProjectState
@@ -32,12 +34,12 @@ from syndicate.core.project_state import PROJECT_STATE_FILE, ProjectState
 _LOG = get_logger('syndicate.core.generators.project')
 
 SLASH_SYMBOL = '/'
-FOLDER_LAMBDAS = '/lambdas'
-FOLDER_COMMONS = '/commons'
-FILE_README = '/README.md'
-FILE_DEPLOYMENT_RESOURCES = '/deployment_resources.json'
-FILE_CHANGELOG = '/CHANGELOG.md'
-FILE_GITIGNORE = '/.gitignore'
+FOLDER_LAMBDAS = 'lambdas'
+FOLDER_COMMONS = 'commons'
+FILE_README = 'README.md'
+FILE_DEPLOYMENT_RESOURCES = 'deployment_resources.json'
+FILE_CHANGELOG = 'CHANGELOG.md'
+FILE_GITIGNORE = '.gitignore'
 
 
 def generate_project_state_file(project_name, project_path):
@@ -62,43 +64,46 @@ def generate_project_structure(project_name, project_path):
                fault_message='Folder {} already exists. \nOverride the '
                              'project? [y/n]: '.format(full_project_path))
 
-        path_to_readme = full_project_path + FILE_README
+        path_to_readme = os.path.join(full_project_path, FILE_README)
         _touch(path_to_readme)
-        _write_content_to_file(path_to_readme, '# ' + project_name)
+        readme_template = README_TEMPLATE.replace('project_name', project_name)
+        _write_content_to_file(file=path_to_readme,
+                               content=readme_template)
 
         default_lambda_policy = _get_lambda_default_policy()
-        _write_content_to_file(full_project_path + FILE_DEPLOYMENT_RESOURCES,
-                               default_lambda_policy)
+        _write_content_to_file(file=os.path.join(full_project_path,
+                                                 FILE_DEPLOYMENT_RESOURCES),
+                               content=default_lambda_policy)
         _mkdir(path=os.path.join(full_project_path, 'src'), exist_ok=True)
         ProjectState.generate(project_name=project_name,
                               project_path=full_project_path)
 
-        _write_content_to_file(full_project_path + FILE_CHANGELOG,
+        _write_content_to_file(os.path.join(full_project_path, FILE_CHANGELOG),
                                CHANGELOG_TEMPLATE)
-        _write_content_to_file(full_project_path + FILE_GITIGNORE,
-                               PROJECT_STATE_FILE)
+        _write_content_to_file(os.path.join(full_project_path, FILE_GITIGNORE),
+                               GITIGNORE_CONTENT)
         _LOG.info('Project {} folder has been successfully created.'.format(
             project_name))
     except Exception as e:
-        _LOG.error(str(e))
+        _LOG.exception(str(e))
 
 
 def _generate_python_project_hierarchy(full_project_path, project_name=None):
-    _mkdir(full_project_path + FOLDER_LAMBDAS, exist_ok=True)
+    _mkdir(os.path.join(full_project_path, FOLDER_LAMBDAS), exist_ok=True)
 
 
 def _generate_java_project_hierarchy(project_name, full_project_path):
-    _touch(full_project_path + FILE_POM)
+    pom_path = os.path.join(full_project_path, FILE_POM)
+    _touch(path=pom_path)
     pom_content = JAVA_ROOT_POM_TEMPLATE.replace('{project_name}',
                                                  project_name)
-    _write_content_to_file(full_project_path + FILE_POM,
-                           pom_content)
+    _write_content_to_file(file=pom_path, content=pom_content)
     _mkdir(full_project_path + SRC_MAIN_JAVA)
 
 
 def _generate_nodejs_project_hierarchy(full_project_path, project_name=None):
-    _mkdir(full_project_path + FOLDER_LAMBDAS, exist_ok=True)
-    _mkdir(full_project_path + FOLDER_COMMONS, exist_ok=True)
+    _mkdir(os.path.join(full_project_path, FOLDER_LAMBDAS), exist_ok=True)
+    _mkdir(os.path.join(full_project_path, FOLDER_COMMONS), exist_ok=True)
 
 
 PROJECT_PROCESSORS = {
