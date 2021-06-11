@@ -56,9 +56,9 @@ def generate_project_structure(project_name, project_path):
                 'Path "{}" you have provided does not exist'.format(
                     project_path))
 
-        full_project_path = project_path + SLASH_SYMBOL + project_name if (
-                project_path[
-                    -1] != SLASH_SYMBOL) else project_path + project_name
+        full_project_path = os.path.join(project_path, project_name) \
+            if (project_path[-1] != SLASH_SYMBOL) \
+            else project_path + project_name
 
         _mkdir(path=full_project_path,
                fault_message='Folder {} already exists. \nOverride the '

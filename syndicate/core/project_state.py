@@ -17,10 +17,18 @@ import os
 
 import yaml
 
+from syndicate.core.groups import RUNTIME_JAVA, RUNTIME_NODEJS, RUNTIME_PYTHON
+
 STATE_NAME = 'name'
 STATE_LAMBDAS = 'lambdas'
 
 PROJECT_STATE_FILE = '.syndicate'
+
+BUILD_MAPPINGS = {
+    RUNTIME_JAVA: {'java_build_mapping': '/jsrc/main/java'},
+    RUNTIME_PYTHON: {'python_build_mapping': '/src'},
+    RUNTIME_NODEJS: {'nodejs_build_mapping': '/app'}
+}
 
 
 class ProjectState:
@@ -51,7 +59,7 @@ class ProjectState:
 
     def save(self):
         with open(self.state_path, 'w') as state_file:
-            yaml.dump(self._dict, state_file)
+            yaml.dump(self._dict, state_file, sort_keys=False)
 
     @property
     def name(self):
@@ -71,5 +79,9 @@ class ProjectState:
         lambdas = self._dict.get(STATE_LAMBDAS)
         if not lambdas:
             lambdas = dict()
-            self._dict.update(STATE_LAMBDAS, lambdas)
+            self._dict.update({STATE_LAMBDAS: lambdas})
         lambdas.update({lambda_name: {'runtime': runtime}})
+
+    def add_project_build_mapping(self, runtime):
+        build_mapping_property = BUILD_MAPPINGS.get(runtime)
+        self._dict.update(build_mapping_property)

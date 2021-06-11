@@ -14,7 +14,6 @@
     limitations under the License.
 """
 import os
-import pathlib
 
 import click
 
@@ -56,9 +55,6 @@ def project(ctx, name, path):
 
 
 @generate.command(name='lambda')
-@click.option('--name', nargs=1, multiple=True, type=str,
-              callback=check_required_param,
-              help='(multiple) * The lambda function name')
 @click.option('--runtime', nargs=1, callback=check_required_param,
               help='* The name of programming language that will '
                    'be used in the project',
@@ -68,18 +64,16 @@ def project(ctx, name, path):
                    'in case it differs from $CWD')
 @click.pass_context
 @timeit
-def lambda_function(ctx, name, runtime, project_path):
+def lambda_function(ctx, runtime, project_path):
     """
     Generates required environment for lambda function
     """
-    proj_path = pathlib.Path().absolute() if not project_path else project_path
+    proj_path = os.getcwd() if not project_path else project_path
     if not os.access(proj_path, os.X_OK | os.W_OK):
         return ('Incorrect permissions for the provided path {}'.format(
             proj_path))
 
-    click.echo(f'Lambda names: {name}')
     click.echo(f'Runtime: {runtime}')
     click.echo(f'Project path: {proj_path}')
     generate_lambda_function(project_path=proj_path,
-                             runtime=runtime,
-                             lambda_names=name)
+                             runtime=runtime)
