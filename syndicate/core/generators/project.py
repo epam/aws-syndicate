@@ -35,6 +35,8 @@ FOLDER_LAMBDAS = '/lambdas'
 FOLDER_COMMONS = '/commons'
 FILE_README = '/README.md'
 FILE_DEPLOYMENT_RESOURCES = '/deployment_resources.json'
+FILE_CHANGELOG = '/CHANGELOG.md'
+FILE_GITIGNORE = '/.gitignore'
 
 
 def generate_project_state_file(project_name, project_path):
@@ -59,7 +61,10 @@ def generate_project_structure(project_name, project_path):
                fault_message='Folder {} already exists. \nOverride the '
                              'project? [y/n]: '.format(full_project_path))
 
-        _touch(full_project_path + FILE_README)
+        path_to_readme = full_project_path + FILE_README
+        _touch(path_to_readme)
+        _write_content_to_file(path_to_readme, '# ' + project_name)
+
         default_lambda_policy = _get_lambda_default_policy()
         _write_content_to_file(full_project_path + FILE_DEPLOYMENT_RESOURCES,
                                default_lambda_policy)
@@ -67,6 +72,14 @@ def generate_project_structure(project_name, project_path):
         ProjectState.generate(project_name=project_name,
                               project_path=full_project_path)
 
+        changelog_path = os.getcwd() + FILE_CHANGELOG
+        with open(changelog_path, 'r') as changelog_file:
+            changelog_data = changelog_file.read()
+
+        _write_content_to_file(full_project_path + FILE_CHANGELOG,
+                               changelog_data)
+        _write_content_to_file(full_project_path + FILE_GITIGNORE,
+                               PROJECT_STATE_FILE)
         _LOG.info('Project {} folder has been successfully created.'.format(
             project_name))
     except Exception as e:

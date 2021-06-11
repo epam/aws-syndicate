@@ -46,7 +46,7 @@ def project(ctx, name, path):
     """
     click.echo('Project name: {}'.format(name))
 
-    proj_path = os if not path else path
+    proj_path = os.getcwd() if not path else path
     if not os.access(proj_path, os.X_OK | os.W_OK):
         return ('Incorrect permissions for the provided path {}'.format(
             proj_path))
