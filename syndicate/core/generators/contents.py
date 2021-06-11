@@ -159,6 +159,75 @@ NODEJS_LAMBDA_HANDLER_TEMPLATE = """exports.handler = async (event) => {
 };
 """
 
+GITIGNORE_CONTENT = """.syndicate
+sdct.log
+"""
+
+CHANGELOG_TEMPLATE = """# Changelog
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [1.0.0] - yyyy-MM-dd
+### Added
+    -  Added items
+
+### Changed
+    -  Changed items 
+
+### Removed
+    -  Removed items 
+"""
+
+README_TEMPLATE = """# project_name
+
+High level project overview - business value it brings, non-detailed technical overview.
+
+### Notice
+All the technical details described below are actual for the particular
+version, or a range of versions of the software.
+### Actual for versions: 1.0.0
+
+## project_name diagram
+
+![project_name](pics/project_name_diagram.png)
+
+## Lambdas descriptions
+
+### Lambda `lambda-name`
+Lambda feature overview.
+
+### Required configuration
+#### Environment variables
+* environment_variable_name: description
+
+#### Trigger event
+```buildoutcfg
+{
+    "key": "value",
+    "key1": "value1",
+    "key2": "value3"
+}
+```
+* key: [Required] description of key
+* key1: description of key1
+
+#### Expected response
+```buildoutcfg
+{
+    "status": 200,
+    "message": "Operation succeeded"
+}
+```
+---
+
+## Deployment from scratch
+1. action 1 to deploy the software
+2. action 2
+...
+
+"""
 
 def _stringify(dict_content):
     return json.dumps(dict_content, indent=2)
@@ -236,11 +305,13 @@ def _get_lambda_default_policy():
                             "logs:CreateLogGroup",
                             "logs:CreateLogStream",
                             "logs:PutLogEvents",
-                            "dynamodb:Get*",
-                            "dynamodb:Put*",
-                            "dynamodb:Describe*",
-                            "xray:PutTraceSegments",
-                            "xray:PutTelemetryRecords",
+                            "dynamodb:GetItem",
+                            "dynamodb:Query",
+                            "dynamodb:PutItem",
+                            "dynamodb:Batch*",
+                            "dynamodb:DeleteItem",
+                            "ssm:PutParameter",
+                            "ssm:GetParameter",
                             "kms:Decrypt"
                         ],
                         "Effect": "Allow",
