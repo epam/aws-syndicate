@@ -18,6 +18,7 @@ import pathlib
 
 import click
 
+from syndicate.core.conf.generator import generate_configuration_files
 from syndicate.core.generators.lambda_function import (
     generate_lambda_function)
 from syndicate.core.generators.project import (generate_project_structure,
@@ -83,3 +84,39 @@ def lambda_function(ctx, name, runtime, project_path):
     generate_lambda_function(project_path=proj_path,
                              runtime=runtime,
                              lambda_names=name)
+
+
+@generate.command(name='config')
+@click.option('--region',
+              help='* The region that is used to deploy the application',
+              required=True)
+@click.option('--bundle_bucket_name',
+              help='* Name of the bucket that is used for uploading artifacts.'
+                   ' It will be created if specified.', required=True)
+@click.option('--access_key',
+              help='AWS access key id that is used to deploy the application.')
+@click.option('--secret_key',
+              help='AWS secret key that is used to deploy the application.')
+@click.option('--config_path',
+              help='Path to store generated configuration file')
+@click.option('--project_path',
+              help='Path to project folder. Default value: working dir')
+@click.option('--prefix',
+              help='Prefix that is added to project names while deployment '
+                   'by pattern: {prefix}resource_name{suffix}')
+@click.option('--suffix',
+              help='Suffix that is added to project names while deployment '
+                   'by pattern: {prefix}resource_name{suffix}')
+def config(config_path, project_path, region, access_key,
+           secret_key, bundle_bucket_name, prefix, suffix):
+    """
+    Creates Syndicate configuration files
+    """
+    generate_configuration_files(config_path=config_path,
+                                 project_path=project_path,
+                                 region=region,
+                                 access_key=access_key,
+                                 secret_key=secret_key,
+                                 bundle_bucket_name=bundle_bucket_name,
+                                 prefix=prefix,
+                                 suffix=suffix)
