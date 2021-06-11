@@ -46,7 +46,7 @@ def generate_configuration_files(config_path, region,
                             aws_access_key_id=access_key,
                             aws_secret_access_key=secret_key)
         caller_identity = sts.get_caller_identity()
-        account_id = caller_identity['Account']
+        account_id = int(caller_identity['Account'])
     except ClientError:
         _USER_LOG.error('Invalid credentials provided, please '
                         'specify the correct one')
@@ -88,21 +88,21 @@ def generate_configuration_files(config_path, region,
         RESOURCES_PREFIX_CFG: prefix,
         RESOURCES_SUFFIX_CFG: suffix
     }
+    config_content = {key: value for key, value in config_content.items()
+                      if value}
 
-    config_file_path = f'{config_path}/{CONFIG_FILE_NAME}'
+    config_file_path = os.path.join(config_path, CONFIG_FILE_NAME)
     with open(config_file_path, 'w') as config_file:
         yaml.dump(config_content, config_file)
 
     aliases_content = {
-        ACCOUNT_ID_CFG: account_id,
-        REGION_CFG: region,
         LAMBDAS_ALIASES_NAME_CFG: 'prod'
     }
-    aliases_file_path = f'{config_path}/{ALIASES_FILE_NAME}'
+    aliases_file_path = os.path.join(config_path, ALIASES_FILE_NAME)
     with open(aliases_file_path, 'w') as aliases_file:
         yaml.dump(aliases_content, aliases_file)
 
-    _LOG.info(
+    _USER_LOG.info(
         'Syndicate initialization has been completed. '
         f'Set SDCT_CONF:\nexport SDCT_CONF={config_path}')
 
