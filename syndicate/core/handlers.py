@@ -33,7 +33,6 @@ from syndicate.core.build.deployment_processor import (
     remove_deployment_resources, remove_failed_deploy_resources,
     update_deployment_resources)
 from syndicate.core.build.meta_processor import create_meta
-from syndicate.core.conf.generator import generate_configuration_files
 from syndicate.core.conf.validator import (MVN_BUILD_TOOL_NAME,
                                            PYTHON_BUILD_TOOL_NAME,
                                            NODE_BUILD_TOOL_NAME)
@@ -61,7 +60,7 @@ def _not_require_config(all_params):
 @click.version_option()
 def syndicate():
     if CONF_PATH:
-        click.echo('Path to sdct.conf: ' + CONF_PATH)
+        click.echo('Configuration path used: ' + CONF_PATH)
         initialize_connection()
     elif _not_require_config(sys.argv):
         pass
@@ -70,97 +69,6 @@ def syndicate():
                    'Please verify that you configured have provided path to '
                    'correct config files or execute `syndicate init` command.')
         sys.exit(1)
-
-
-@syndicate.command(name=INIT_COMMAND_NAME)
-@click.option('--config_path', type=str,
-              help='Path to store generated configuration file')
-@click.option('--project_path', type=str,
-              help='Path to project folder. Default value: working dir')
-# account settings
-@click.option('--account_id', callback=check_required_param, type=str,
-              help='[required] Id of the AWS account where to deploy '
-                   'application')
-@click.option('--region', type=str, default='us-west-1',
-              help='The region that is used to deploy the application')
-@click.password_option(
-    '--access_key', type=str,
-    help='AWS access key id that is used to deploy the application.')  # todo get from .aws/credentials/[default] if not specified
-@click.password_option(
-    '--secret_key', type=str,
-    help='AWS secret key that is used to deploy the application.')  # todo get from .aws/credentials/[default] if not specified
-@click.option('--bundle_bucket_name', type=str,
-              help='Name of the bucket that is used for uploading artifacts. '
-                   'It will be created if specified.')
-# build_projects_mapping
-@click.option('--python_build_mapping', '-pbm', multiple=True,
-              help='List of the folders in a project where '
-                   'Python code must be assembled')
-@click.option('--java_build_mapping', '-jbm', multiple=True,
-              help='List of the folders in a project where '
-                   'Java code must be assembled')
-@click.option('--nodejs_build_mapping', '-nbm', multiple=True,
-              help='List of the folders in a project where '
-                   'NodeJS code must be assembled')
-# deploy setting
-@click.option('--prefix', type=str,
-              help='Prefix that is added to project names while deployment '
-                   'by pattern: {prefix}resource_name{suffix}')
-@click.option('--suffix', type=str,
-              help='Suffix that is added to project names while deployment '
-                   'by pattern: {prefix}resource_name{suffix}')
-def init(config_path, project_path, account_id, region, access_key,
-         secret_key, bundle_bucket_name, python_build_mapping,
-         java_build_mapping, nodejs_build_mapping, prefix, suffix):
-    """
-    Configures aws-syndicate:
-    - generates sdct.conf using the provided parameters;
-    - creates default sdct_aliases.conf;
-    :param config_path: path where the generated configurations files
-        will be stored
-    :param project_path: path to a project which is supposed to be deployed
-        by aws-syndicate
-    :param account_id: id of the AWS account where an application
-        will be deployed
-    :param region: AWS region name where an application will be deployed
-    :param access_key: AWS access key id to access an AWS account specified
-        in account_id parameter. If access_key is not specified
-        the credentials from /$user/.aws/credentials will be used if any.
-        The provided credentials should provide enough permissions to deploy
-        the app.
-    :param secret_key: AWS secret access key to access an AWS account
-        specified in account_id parameter. If secret_key is not specified
-        the credentials from /$user/.aws/credentials will be used if any.
-        The provided credentials should provide enough permissions to deploy
-        the app.
-    :param bundle_bucket_name: name of the bucket in specified AWS account
-        where application bundles will be stored
-    :param python_build_mapping: path[s] to the python parts of an application.
-        Example: --python_build_mapping /src/$app_python_module/
-    :param java_build_mapping: path[s] to the java parts of an application.
-        Example: --java_build_mapping /src/$app_java_module/
-    :param nodejs_build_mapping: path[s] to the nodejs parts of an application.
-        Example: --nodejs_build_mapping /src/$node_python_module/
-    :param prefix: will be added to resource names of types
-    iam_role, iam_policy, s3_bucket.
-    Resource name pattern: {prefix}resource_name{suffix}
-    :param suffix: will be added to resource names of types
-    iam_role, iam_policy, s3_bucket.
-    Resource name pattern: {prefix}resource_name{suffix}
-    :return:
-    """
-    generate_configuration_files(config_path=config_path,
-                                 project_path=project_path,
-                                 region=region,
-                                 account_id=account_id,
-                                 access_key=access_key,
-                                 secret_key=secret_key,
-                                 bundle_bucket_name=bundle_bucket_name,
-                                 python_build_mapping=python_build_mapping,
-                                 java_build_mapping=java_build_mapping,
-                                 nodejs_build_mapping=nodejs_build_mapping,
-                                 prefix=prefix,
-                                 suffix=suffix)
 
 
 @syndicate.command(name='build_bundle')
