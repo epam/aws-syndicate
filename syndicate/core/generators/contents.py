@@ -352,7 +352,7 @@ _name_to_level = {
     'DEBUG': logging.DEBUG
 }
 
-logger = logging.getLogger('custodian')
+logger = logging.getLogger(__name__)
 logger.propagate = False
 console_handler = logging.StreamHandler(stream=stdout)
 console_handler.setFormatter(
