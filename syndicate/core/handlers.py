@@ -13,12 +13,14 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+import getpass
 import json
 import os
 import sys
+import time
+from datetime import datetime
 
 import click
-
 from syndicate.core import CONF_PATH, initialize_connection
 from syndicate.core.build.artifact_processor import (RUNTIME_NODEJS,
                                                      assemble_artifacts,
@@ -44,6 +46,7 @@ from syndicate.core.helper import (check_required_param,
                                    resolve_path_callback, timeit,
                                    verify_bundle_callback,
                                    verify_meta_bundle_callback)
+from syndicate.core.project_state import ProjectState
 
 INIT_COMMAND_NAME = 'init'
 commands_without_config = (
@@ -71,12 +74,12 @@ def syndicate():
         sys.exit(1)
 
 
-@syndicate.command(name='build_bundle')
-@click.option('--bundle_name', nargs=1, callback=check_required_param)
+@syndicate.command(name='build')
+@click.option('--bundle_name', nargs=1)
 @click.option('--force_upload', is_flag=True, default=False)
 @click.pass_context
 @timeit
-def build_bundle(ctx, bundle_name, force_upload):
+def build(ctx, bundle_name, force_upload):
     """
     Builds bundle of an application
     :param ctx:
@@ -84,14 +87,46 @@ def build_bundle(ctx, bundle_name, force_upload):
     :param force_upload: used to override existing bundle
     :return:
     """
+    from syndicate.core import CONFIG
+    project_path = CONFIG.project_path
+    if not bundle_name:
+        project_name = project_path.split("/")[-1]
+
+        date = datetime.now().strftime("%y%m%d.%H%M%S")
+        bundle_name = '{0}_{1}'.format(project_name, date)
+
     if if_bundle_exist(bundle_name=bundle_name) and not force_upload:
         click.echo('Bundle name \'{0}\' already exists '
                    'in deploy bucket. Please use another bundle '
                    'name or delete the bundle'.format(bundle_name))
         return
+
+    start = time.time()
     ctx.invoke(build_artifacts, bundle_name=bundle_name)
     ctx.invoke(package_meta, bundle_name=bundle_name)
-    ctx.invoke(upload_bundle, bundle_name=bundle_name, force=force_upload)
+    ctx.invoke(upload, bundle_name=bundle_name, force=force_upload)
+    end = time.time()
+
+    log_event(start=start, end=end, project_path=project_path,
+              bundle_name=bundle_name, operation_name='build')
+
+
+def log_event(start, end, project_path, bundle_name, operation_name):
+    username = getpass.getuser()
+    duration = end - start
+
+    start_date_formatted = datetime.fromtimestamp(start) \
+        .strftime('%Y-%m-%dT%H:%M:%SZ')
+    end_date_formatted = datetime.fromtimestamp(end) \
+        .strftime('%Y-%m-%dT%H:%M:%SZ')
+
+    project_state = ProjectState(project_path=project_path)
+    project_state.log_execution_event(operation=operation_name,
+                                      initiator=username,
+                                      bundle_name=bundle_name,
+                                      time_start=start_date_formatted,
+                                      time_end=end_date_formatted,
+                                      duration=duration)
 
 
 @syndicate.command(name='deploy')
@@ -371,15 +406,18 @@ def build_artifacts(ctx, bundle_name):
     """
     click.echo('Building artifacts ...')
     from syndicate.core import CONFIG
-    if CONFIG.build_projects_mapping:
-        for key, values in CONFIG.build_projects_mapping.items():
-            for value in values:
-                func = COMMAND_TO_BUILD_MAPPING.get(key)
-                if func:
-                    ctx.invoke(func, bundle_name=bundle_name,
-                               project_path=value)
-                else:
-                    click.echo('Build tool is not supported: %s' % key)
+    project_path = CONFIG.project_path
+
+    project_state = ProjectState(project_path=project_path)
+    build_mapping_dict = project_state.load_project_build_mapping()
+    if build_mapping_dict:
+        for key, value in build_mapping_dict.items():
+            func = COMMAND_TO_BUILD_MAPPING.get(key)
+            if func:
+                ctx.invoke(func, bundle_name=bundle_name,
+                           project_path=value)
+            else:
+                click.echo('Build tool is not supported: %s' % key)
     else:
         click.echo('Projects to be built are not found')
 
@@ -413,11 +451,11 @@ def create_deploy_target_bucket():
     click.echo('Deploy target bucket was created successfully')
 
 
-@syndicate.command(name='upload_bundle')
+@syndicate.command(name='upload')
 @timeit
 @click.option('--bundle_name', nargs=1, callback=verify_meta_bundle_callback)
 @click.option('--force', is_flag=True)
-def upload_bundle(bundle_name, force=False):
+def upload(bundle_name, force=False):
     """
     Uploads bundle from local storage to AWS S3
     :param bundle_name: name of the bundle to upload
@@ -428,8 +466,18 @@ def upload_bundle(bundle_name, force=False):
     click.echo('Upload bundle: %s' % bundle_name)
     if force:
         click.echo('Force upload')
+
+    from syndicate.core import CONFIG
+    project_path = CONFIG.project_path
+
+    start = time.time()
     futures = upload_bundle_to_s3(bundle_name=bundle_name, force=force)
     handle_futures_progress_bar(futures)
+    end = time.time()
+
+    log_event(start=start, end=end, project_path=project_path,
+              bundle_name=bundle_name, operation_name='upload')
+
     click.echo('Bundle was uploaded successfully')
 
 
@@ -471,7 +519,7 @@ def copy_bundle(ctx, bundle_name, src_account_id, src_bucket_region,
                           src_bucket_name, role_name)
     handle_futures_progress_bar(futures)
     click.echo('Bundle was downloaded successfully')
-    ctx.invoke(upload_bundle, bundle_name=bundle_name, force=force_upload)
+    ctx.invoke(upload, bundle_name=bundle_name, force=force_upload)
     click.echo('Bundle was copied successfully')
 
 
