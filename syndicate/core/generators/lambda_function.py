@@ -94,8 +94,6 @@ def generate_lambda_function(project_path, runtime, lambda_names):
     if not project_state.lambdas:
         generate_commons_module(src_path=src_path,
                                 runtime=runtime)
-        project_state.add_lambda(lambda_name=ABSTRACT_LAMBDA_NAME,
-                                 runtime=runtime)
         project_state.add_project_build_mapping(runtime=runtime)
 
     processor = LAMBDAS_PROCESSORS.get(runtime)
@@ -116,6 +114,9 @@ def _generate_python_lambdas(lambda_names, lambdas_path, project_state,
                              project_path=None):
     if not os.path.exists(lambdas_path):
         _mkdir(lambdas_path, exist_ok=True)
+
+    init_file = os.path.join(lambdas_path, '__init__.py')
+    _touch(init_file)
     for lambda_name in lambda_names:
         print(lambdas_path)
         lambda_folder = os.path.join(lambdas_path, lambda_name)
