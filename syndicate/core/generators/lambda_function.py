@@ -135,8 +135,10 @@ def _generate_python_lambdas(lambda_names, lambdas_path, project_state,
             _touch(lambda_folder + file)
 
         # fill handler.py
+        lambda_class_name = __lambda_name_to_class_name(
+            lambda_name=lambda_name)
         python_lambda_handler_template = PYTHON_LAMBDA_HANDLER_TEMPLATE.replace(
-            'LambdaName', lambda_name)
+            'LambdaName', lambda_class_name)
         _write_content_to_file(
             f'{lambda_folder}/{FILE_LAMBDA_HANDLER_PYTHON}',
             python_lambda_handler_template)
@@ -158,6 +160,13 @@ def _generate_python_lambdas(lambda_names, lambdas_path, project_state,
         project_state.add_lambda(lambda_name=lambda_name, runtime='python')
 
         _LOG.info(f'Lambda {lambda_name} created')
+
+
+def __lambda_name_to_class_name(lambda_name):
+    class_name = lambda_name.split('-')
+    if len(class_name) == 1:
+        class_name = lambda_name.split('_')
+    return ''.join([_.capitalize() for _ in class_name])
 
 
 def _generate_java_lambdas(project_path, project_name, lambda_names,

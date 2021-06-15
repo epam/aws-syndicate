@@ -86,6 +86,12 @@ def lambda_function(ctx, name, runtime, project_path):
 
 
 @generate.command(name='config')
+@click.option('--name',
+              required=True,
+              help='* Name of the configuration to create. '
+                   'Generated config will be create in folder '
+                   '.syndicate-config-{name}. May contain name '
+                   'of the environment.')
 @click.option('--region',
               help='* The region that is used to deploy the application',
               required=True)
@@ -106,12 +112,13 @@ def lambda_function(ctx, name, runtime, project_path):
 @click.option('--suffix',
               help='Suffix that is added to project names while deployment '
                    'by pattern: {prefix}resource_name{suffix}')
-def config(config_path, project_path, region, access_key,
+def config(name, config_path, project_path, region, access_key,
            secret_key, bundle_bucket_name, prefix, suffix):
     """
     Creates Syndicate configuration files
     """
-    generate_configuration_files(config_path=config_path,
+    generate_configuration_files(name=name,
+                                 config_path=config_path,
                                  project_path=project_path,
                                  region=region,
                                  access_key=access_key,

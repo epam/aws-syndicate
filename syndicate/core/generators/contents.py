@@ -244,8 +244,7 @@ Lambda feature overview.
 
 """
 
-ABSTRACT_LAMBDA_CONTENT = """
-from abc import abstractmethod
+ABSTRACT_LAMBDA_CONTENT = """from abc import abstractmethod
 
 from commons import ApplicationException, build_response
 from commons.log_helper import get_logger
@@ -298,8 +297,7 @@ class AbstractLambda:
                                   content='Internal server error')
 """
 
-INIT_CONTENT = """
-from commons.exception import ApplicationException
+INIT_CONTENT = """from commons.exception import ApplicationException
 
 RESPONSE_BAD_REQUEST_CODE = 400
 RESPONSE_UNAUTHORIZED = 401
@@ -327,8 +325,7 @@ def raise_error_response(code, content):
     raise ApplicationException(code=code, content=content)
 """
 
-EXCEPTION_CONTENT = """
-class ApplicationException(Exception):
+EXCEPTION_CONTENT = """class ApplicationException(Exception):
 
     def __init__(self, code, content):
         self.code = code
@@ -338,8 +335,7 @@ class ApplicationException(Exception):
         return f'{self.code}:{self.content}'
 """
 
-LOG_HELPER_CONTENT = """
-import logging
+LOG_HELPER_CONTENT = """import logging
 import os
 from sys import stdout
 

@@ -32,12 +32,13 @@ from syndicate.core.conf.processor import (PROJECT_PATH_CFG,
                                            RESOURCES_PREFIX_CFG,
                                            RESOURCES_SUFFIX_CFG)
 from syndicate.core.conf.validator import (LAMBDAS_ALIASES_NAME_CFG)
+from syndicate.core.generators import _mkdir
 
 _LOG = get_logger('config_generator')
 _USER_LOG = get_user_logger('config_generator')
 
 
-def generate_configuration_files(config_path, region,
+def generate_configuration_files(name, config_path, region,
                                  access_key, secret_key,
                                  bundle_bucket_name, prefix, suffix,
                                  project_path=None):
@@ -91,20 +92,23 @@ def generate_configuration_files(config_path, region,
     config_content = {key: value for key, value in config_content.items()
                       if value}
 
-    config_file_path = os.path.join(config_path, CONFIG_FILE_NAME)
+    config_folder_path = os.path.join(config_path, f'.syndicate-config-{name}')
+    _mkdir(path=config_folder_path)
+
+    config_file_path = os.path.join(config_folder_path, CONFIG_FILE_NAME)
     with open(config_file_path, 'w') as config_file:
         yaml.dump(config_content, config_file)
 
     aliases_content = {
         LAMBDAS_ALIASES_NAME_CFG: 'prod'
     }
-    aliases_file_path = os.path.join(config_path, ALIASES_FILE_NAME)
+    aliases_file_path = os.path.join(config_folder_path, ALIASES_FILE_NAME)
     with open(aliases_file_path, 'w') as aliases_file:
         yaml.dump(aliases_content, aliases_file)
 
     _USER_LOG.info(
         'Syndicate initialization has been completed. '
-        f'Set SDCT_CONF:\nexport SDCT_CONF={config_path}')
+        f'Set SDCT_CONF:\nexport SDCT_CONF={config_folder_path}')
 
 
 def generate_build_project_mapping(mapping_item, build_type):
