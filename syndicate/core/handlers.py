@@ -16,7 +16,8 @@
 import json
 import os
 import sys
-
+import pytest
+import subprocess
 import click
 
 from syndicate.core import CONF_PATH, initialize_connection
@@ -32,7 +33,7 @@ from syndicate.core.build.deployment_processor import (
     continue_deployment_resources, create_deployment_resources,
     remove_deployment_resources, remove_failed_deploy_resources,
     update_deployment_resources)
-from syndicate.core.build.warmup_processor import warmup_resources
+from syndicate.core.build.warmup_processor import warmup_resources, get_dir
 from syndicate.core.build.meta_processor import create_meta
 from syndicate.core.conf.generator import generate_configuration_files
 from syndicate.core.conf.validator import (MVN_BUILD_TOOL_NAME,
@@ -568,13 +569,22 @@ def copy_bundle(ctx, bundle_name, src_account_id, src_bucket_region,
     click.echo('Bundle was copied successfully')
 
 
+def execute_warmup(schema, warmup_dir):
+    warmup_schema_dir = warmup_dir.split(os.sep)[:-1]
+    warmup_schema_file = os.path.join('/', *warmup_schema_dir,
+                                      'schema.json')
+    with open(warmup_schema_file, 'w') as file:
+        json.dump(schema, file)
+    pytest.main(["-p", "no:warnings", warmup_dir])
+
+
 @syndicate.command(name='warmup')
 @click.option('--bundle_name', nargs=1, callback=check_required_param)
 @click.option('--deploy_name', nargs=1, callback=check_required_param)
 @timeit
 def warmup(bundle_name, deploy_name):
     click.echo('Command warmup')
-    click.echo('Deploy name: %s' % deploy_name)
+    click.echo(f'Deploy name: {deploy_name}')
 
     if not if_bundle_exist(bundle_name=bundle_name):
         click.echo('Bundle name \'{0}\' does not exists '
@@ -582,8 +592,13 @@ def warmup(bundle_name, deploy_name):
                    'name or create the bundle'.format(bundle_name))
         return
 
-    warmup_resources(deploy_name=deploy_name,
-                     bundle_name=bundle_name)
+    warmup_dir = get_dir()
+
+    schemes_list = warmup_resources(deploy_name=deploy_name,
+                                    bundle_name=bundle_name)
+
+    for schema in schemes_list:
+        execute_warmup(schema, warmup_dir)
 
     click.echo('AWS lambda resources were triggered.')
 
