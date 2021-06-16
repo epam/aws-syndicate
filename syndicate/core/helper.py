@@ -15,7 +15,8 @@
 """
 import collections
 import concurrent.futures
-import datetime
+from datetime import datetime, timedelta
+import getpass
 import json
 import os
 import subprocess
@@ -198,17 +199,40 @@ def write_content_to_file(file_path, file_name, obj):
         _LOG.info('{0} file was created.'.format(meta_file.name))
 
 
-def timeit(handler_func):
-    @wraps(handler_func)
-    def timed(*args, **kwargs):
-        ts = time()
-        result = handler_func(*args, **kwargs)
-        te = time()
-        _LOG.info('Stage %s, elapsed time: %s', handler_func.__name__,
-                  str(datetime.timedelta(seconds=te - ts)))
-        return result
+def timeit(action_name=None):
 
-    return timed
+    def internal_timeit(func):
+        @wraps(func)
+        def timed(*args, **kwargs):
+            ts = time()
+            result = func(*args, **kwargs)
+            te = time()
+            _LOG.info('Stage %s, elapsed time: %s', func.__name__,
+                      str(timedelta(seconds=te - ts)))
+            if action_name:
+                username = getpass.getuser()
+                duration = te - ts
+                start_date_formatted = datetime.fromtimestamp(ts) \
+                    .strftime('%Y-%m-%dT%H:%M:%SZ')
+                end_date_formatted = datetime.fromtimestamp(te) \
+                    .strftime('%Y-%m-%dT%H:%M:%SZ')
+
+                bundle_name = kwargs.get('bundle_name')
+                deploy_name = kwargs.get('deploy_name')
+                from syndicate.core import PROJECT_STATE
+                PROJECT_STATE.log_execution_event(
+                    operation=action_name,
+                    initiator=username,
+                    bundle_name=bundle_name,
+                    deploy_name=deploy_name,
+                    time_start=start_date_formatted,
+                    time_end=end_date_formatted,
+                    duration=duration)
+            return result
+
+        return timed
+
+    return internal_timeit
 
 
 def execute_parallel_tasks(*fns):

@@ -13,11 +13,9 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-import getpass
 import json
 import os
 import sys
-import time
 from datetime import datetime
 
 import click
@@ -48,7 +46,6 @@ from syndicate.core.helper import (check_required_param,
                                    resolve_path_callback, timeit,
                                    verify_bundle_callback,
                                    verify_meta_bundle_callback)
-from syndicate.core.project_state import ProjectState
 
 INIT_COMMAND_NAME = 'init'
 commands_without_config = (
@@ -82,7 +79,7 @@ def syndicate():
 @click.option('--bundle_name', nargs=1)
 @click.option('--force_upload', is_flag=True, default=False)
 @click.pass_context
-@timeit
+@timeit(action_name='build')
 def build(ctx, bundle_name, force_upload):
     """
     Builds bundle of an application
@@ -105,32 +102,9 @@ def build(ctx, bundle_name, force_upload):
                    'name or delete the bundle'.format(bundle_name))
         return
 
-    start = time.time()
     ctx.invoke(build_artifacts, bundle_name=bundle_name)
     ctx.invoke(package_meta, bundle_name=bundle_name)
     ctx.invoke(upload, bundle_name=bundle_name, force=force_upload)
-    end = time.time()
-
-    log_event(start=start, end=end, project_path=project_path,
-              bundle_name=bundle_name, operation_name='build')
-
-
-def log_event(start, end, project_path, bundle_name, operation_name):
-    username = getpass.getuser()
-    duration = end - start
-
-    start_date_formatted = datetime.fromtimestamp(start) \
-        .strftime('%Y-%m-%dT%H:%M:%SZ')
-    end_date_formatted = datetime.fromtimestamp(end) \
-        .strftime('%Y-%m-%dT%H:%M:%SZ')
-
-    project_state = ProjectState(project_path=project_path)
-    project_state.log_execution_event(operation=operation_name,
-                                      initiator=username,
-                                      bundle_name=bundle_name,
-                                      time_start=start_date_formatted,
-                                      time_end=end_date_formatted,
-                                      duration=duration)
 
 
 @syndicate.command(name='deploy')
@@ -145,7 +119,7 @@ def log_event(start, end, project_path, bundle_name, operation_name):
 @click.option('--continue_deploy', is_flag=True)
 @click.option('--replace_output', nargs=1, is_flag=True, default=False)
 @check_deploy_name_for_duplicates
-@timeit
+@timeit(action_name='deploy')
 def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
            deploy_only_resources_path, excluded_resources,
            excluded_resources_path, excluded_types, continue_deploy,
@@ -209,7 +183,7 @@ def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
 @click.option('--update_only_resources_path', nargs=1)
 @click.option('--replace_output', nargs=1, is_flag=True, default=False)
 @check_deploy_name_for_duplicates
-@timeit
+@timeit(action_name='update')
 def update(bundle_name, deploy_name, replace_output,
            update_only_resources,
            update_only_resources_path,
@@ -251,7 +225,7 @@ def update(bundle_name, deploy_name, replace_output,
 
 
 @syndicate.command(name='clean')
-@timeit
+@timeit(action_name='clean')
 @click.option('--deploy_name', nargs=1, callback=check_required_param)
 @click.option('--bundle_name', nargs=1, callback=check_required_param)
 @click.option('--clean_only_types', multiple=True)
@@ -333,7 +307,7 @@ def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
 
 
 @syndicate.command(name='assemble_java_mvn')
-@timeit
+@timeit()
 @click.option('--bundle_name', nargs=1, callback=create_bundle_callback)
 @click.option('--project_path', '-path', nargs=1,
               callback=resolve_path_callback)
@@ -352,7 +326,7 @@ def assemble_java_mvn(bundle_name, project_path):
 
 
 @syndicate.command(name='assemble_python')
-@timeit
+@timeit()
 @click.option('--bundle_name', nargs=1, callback=create_bundle_callback)
 @click.option('--project_path', '-path', nargs=1,
               callback=resolve_path_callback)
@@ -371,7 +345,7 @@ def assemble_python(bundle_name, project_path):
 
 
 @syndicate.command(name='assemble_node')
-@timeit
+@timeit()
 @click.option('--bundle_name', nargs=1, callback=create_bundle_callback)
 @click.option('--project_path', '-path', nargs=1,
               callback=resolve_path_callback)
@@ -397,7 +371,7 @@ COMMAND_TO_BUILD_MAPPING = {
 
 
 @syndicate.command(name='build_artifacts')
-@timeit
+@timeit()
 @click.option('--bundle_name', nargs=1, callback=create_bundle_callback)
 @click.pass_context
 def build_artifacts(ctx, bundle_name):
@@ -424,7 +398,7 @@ def build_artifacts(ctx, bundle_name):
 
 
 @syndicate.command(name='package_meta')
-@timeit
+@timeit()
 @click.option('--bundle_name', nargs=1, callback=verify_bundle_callback)
 def package_meta(bundle_name):
     """
@@ -440,7 +414,7 @@ def package_meta(bundle_name):
 
 
 @syndicate.command(name='create_deploy_target_bucket')
-@timeit
+@timeit()
 def create_deploy_target_bucket():
     """
     Creates a bucket in AWS account where all bundles will be uploaded
@@ -453,9 +427,9 @@ def create_deploy_target_bucket():
 
 
 @syndicate.command(name='upload')
-@timeit
 @click.option('--bundle_name', nargs=1, callback=verify_meta_bundle_callback)
 @click.option('--force', is_flag=True)
+@timeit(action_name='upload')
 def upload(bundle_name, force=False):
     """
     Uploads bundle from local storage to AWS S3
@@ -468,16 +442,8 @@ def upload(bundle_name, force=False):
     if force:
         click.echo('Force upload')
 
-    from syndicate.core import CONFIG
-    project_path = CONFIG.project_path
-
-    start = time.time()
     futures = upload_bundle_to_s3(bundle_name=bundle_name, force=force)
     handle_futures_progress_bar(futures)
-    end = time.time()
-
-    log_event(start=start, end=end, project_path=project_path,
-              bundle_name=bundle_name, operation_name='upload')
 
     click.echo('Bundle was uploaded successfully')
 
@@ -493,7 +459,7 @@ def upload(bundle_name, force=False):
 @click.option('--role_name', '-role', nargs=1,
               callback=check_required_param)
 @click.option('--force_upload', is_flag=True, default=False)
-@timeit
+@timeit()
 @click.pass_context
 def copy_bundle(ctx, bundle_name, src_account_id, src_bucket_region,
                 src_bucket_name, role_name, force_upload):

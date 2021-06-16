@@ -16,6 +16,7 @@
 import os
 
 import yaml
+
 from syndicate.core.groups import RUNTIME_JAVA, RUNTIME_NODEJS, RUNTIME_PYTHON
 
 STATE_NAME = 'name'
@@ -87,8 +88,8 @@ class ProjectState:
         build_project_mappings = self._dict.get(STATE_BUILD_PROJECT_MAPPING)
         if not build_project_mappings:
             build_project_mappings = dict()
-            self._dict.update({STATE_BUILD_PROJECT_MAPPING:
-                               build_project_mappings})
+            self._dict.update(
+                {STATE_BUILD_PROJECT_MAPPING: build_project_mappings})
         build_mapping = BUILD_MAPPINGS.get(runtime)
         build_project_mappings.update({runtime: build_mapping})
 
@@ -97,9 +98,10 @@ class ProjectState:
 
     def log_execution_event(self, **kwargs):
         events = self._dict.get(STATE_LOG_EVENTS)
+        kwargs = {key: value for key, value in kwargs.items() if value}
         if not events:
             events = []
             self._dict.update({STATE_LOG_EVENTS:
-                               events})
+                                   events})
         events.append(kwargs)
         self.save()
