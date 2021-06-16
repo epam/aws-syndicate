@@ -283,7 +283,7 @@ def create_deployment_resources(deploy_name, bundle_name,
                                 replace_output=False):
     resources = load_meta_resources(bundle_name)
     # validate_deployment_packages(resources)
-    _LOG.info('{0} file was loaded successfully'.format(BUILD_META_FILE_NAME))
+    _LOG.debug('{0} file was loaded successfully'.format(BUILD_META_FILE_NAME))
 
     # TODO make filter chain
     if deploy_only_resources:

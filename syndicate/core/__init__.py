@@ -21,6 +21,7 @@ from syndicate.commons.log_helper import get_logger
 from syndicate.connection import ConnectionProvider
 from syndicate.connection.sts_connection import STSConnection
 from syndicate.core.conf.processor import ConfigHolder
+from syndicate.core.project_state import ProjectState
 from syndicate.core.resources.processors_mapping import ProcessorFacade
 from syndicate.core.resources.resources_provider import ResourceProvider
 
@@ -44,6 +45,7 @@ CONN = None
 CREDENTIALS = None
 RESOURCES_PROVIDER = None
 PROCESSOR_FACADE = None
+PROJECT_STATE = None
 
 
 def _ready_to_assume():
@@ -97,3 +99,8 @@ def initialize_connection():
         raise AssertionError('Cannot assume {0} role. '
                              'Please verify that you have configured '
                              'the role correctly.'.format(CONFIG.access_role))
+
+
+def initialize_project_state():
+    global PROJECT_STATE
+    PROJECT_STATE = ProjectState(project_path=CONFIG.project_path)

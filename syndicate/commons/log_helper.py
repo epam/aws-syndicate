@@ -34,6 +34,8 @@ user_logger.addHandler(file_handler)
 
 sdct_logger = getLogger("sdct")
 sdct_logger.addHandler(file_handler)
+if LOG_LEVEL == DEBUG:
+    sdct_logger.addHandler(console_handler)
 
 logging.captureWarnings(True)
 

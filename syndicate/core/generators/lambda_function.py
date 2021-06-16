@@ -30,6 +30,7 @@ from syndicate.core.generators.contents import (
     _generate_package_lock_nodejs_lambda, JAVA_LAMBDA_HANDLER_CLASS,
     SRC_MAIN_JAVA, FILE_POM, PYTHON_LAMBDA_HANDLER_TEMPLATE, INIT_CONTENT,
     ABSTRACT_LAMBDA_CONTENT, EXCEPTION_CONTENT, LOG_HELPER_CONTENT)
+from syndicate.core.generators.project import FOLDER_COMMONS
 from syndicate.core.groups import (RUNTIME_JAVA, RUNTIME_NODEJS,
                                    RUNTIME_PYTHON)
 from syndicate.core.project_state import ProjectState
@@ -156,6 +157,10 @@ def _generate_python_lambdas(lambda_names, lambdas_path, project_state,
             f'{FOLDER_LAMBDAS}/{lambda_name}')
         _write_content_to_file(f'{lambda_folder}/{FILE_LAMBDA_CONFIG}',
                                lambda_def)
+
+        # fill local_dependencies.txt
+        _write_content_to_file(f'{lambda_folder}/{FILE_LOCAL_REQUIREMENTS}',
+                               FOLDER_COMMONS)
 
         project_state.add_lambda(lambda_name=lambda_name, runtime='python')
 
@@ -305,7 +310,7 @@ def _common_nodejs_module(src_path):
 
 
 def _common_python_module(src_path):
-    common_module_path = os.path.join(src_path, 'commons')
+    common_module_path = os.path.join(src_path, FOLDER_COMMONS)
     _mkdir(path=common_module_path, exist_ok=True)
 
     init_path = os.path.join(common_module_path, '__init__.py')

@@ -66,7 +66,6 @@ def generate_project_structure(project_name, project_path):
                                                  FILE_DEPLOYMENT_RESOURCES),
                                content=default_lambda_policy)
         _mkdir(path=os.path.join(full_project_path, 'src'), exist_ok=True)
-        _touch(path=os.path.join(full_project_path, 'src', '__init__.py'))
         ProjectState.generate(project_name=project_name,
                               project_path=full_project_path)
 

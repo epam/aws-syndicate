@@ -21,7 +21,9 @@ import time
 from datetime import datetime
 
 import click
-from syndicate.core import CONF_PATH, initialize_connection
+
+from syndicate.core import CONF_PATH, initialize_connection, \
+    initialize_project_state
 from syndicate.core.build.artifact_processor import (RUNTIME_NODEJS,
                                                      assemble_artifacts,
                                                      RUNTIME_JAVA_8,
@@ -65,12 +67,14 @@ def syndicate():
     if CONF_PATH:
         click.echo('Configuration path used: ' + CONF_PATH)
         initialize_connection()
+        initialize_project_state()
     elif _not_require_config(sys.argv):
         pass
     else:
         click.echo('Environment variable SDCT_CONF is not set! '
                    'Please verify that you configured have provided path to '
-                   'correct config files or execute `syndicate init` command.')
+                   'correct config files '
+                   'or execute `syndicate generate config` command.')
         sys.exit(1)
 
 
@@ -93,7 +97,7 @@ def build(ctx, bundle_name, force_upload):
         project_name = project_path.split("/")[-1]
 
         date = datetime.now().strftime("%y%m%d.%H%M%S")
-        bundle_name = '{0}_{1}'.format(project_name, date)
+        bundle_name = f'{project_name}_{date}'
 
     if if_bundle_exist(bundle_name=bundle_name) and not force_upload:
         click.echo('Bundle name \'{0}\' already exists '
@@ -405,11 +409,8 @@ def build_artifacts(ctx, bundle_name):
     :return:
     """
     click.echo('Building artifacts ...')
-    from syndicate.core import CONFIG
-    project_path = CONFIG.project_path
-
-    project_state = ProjectState(project_path=project_path)
-    build_mapping_dict = project_state.load_project_build_mapping()
+    from syndicate.core import PROJECT_STATE
+    build_mapping_dict = PROJECT_STATE.load_project_build_mapping()
     if build_mapping_dict:
         for key, value in build_mapping_dict.items():
             func = COMMAND_TO_BUILD_MAPPING.get(key)
