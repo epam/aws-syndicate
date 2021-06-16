@@ -21,7 +21,7 @@ from syndicate.commons.log_helper import get_logger
 from syndicate.connection import ConnectionProvider
 from syndicate.connection.sts_connection import STSConnection
 from syndicate.core.conf.processor import ConfigHolder
-from syndicate.core.project_state import ProjectState
+from syndicate.core.project_state.project_state import ProjectState
 from syndicate.core.resources.processors_mapping import ProcessorFacade
 from syndicate.core.resources.resources_provider import ResourceProvider
 

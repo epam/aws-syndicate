@@ -17,6 +17,7 @@
 import os
 
 from syndicate.commons.log_helper import get_logger
+from syndicate.core import ProjectState
 from syndicate.core.generators import (_touch, _mkdir,
                                        _write_content_to_file)
 from syndicate.core.generators.contents import (_get_lambda_default_policy,
@@ -27,7 +28,6 @@ from syndicate.core.generators.contents import (_get_lambda_default_policy,
                                                 README_TEMPLATE)
 from syndicate.core.groups import (RUNTIME_JAVA, RUNTIME_NODEJS,
                                    RUNTIME_PYTHON)
-from syndicate.core.project_state import ProjectState
 
 _LOG = get_logger('syndicate.core.generators.project')
 

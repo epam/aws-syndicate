@@ -46,6 +46,7 @@ from syndicate.core.helper import (check_required_param,
                                    resolve_path_callback, timeit,
                                    verify_bundle_callback,
                                    verify_meta_bundle_callback)
+from syndicate.core.project_state.sync_processor import sync_project_state
 
 INIT_COMMAND_NAME = 'init'
 commands_without_config = (
@@ -301,6 +302,16 @@ def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
                                     excluded_types=excluded_types,
                                     clean_externals=clean_externals)
     click.echo('AWS resources were removed.')
+
+
+@syndicate.command(name='sync')
+@timeit()
+def sync():
+    """
+    Syncs the state of local project state file (.syndicate) and
+    the remote one.
+    """
+    return sync_project_state()
 
 
 # =============================================================================
