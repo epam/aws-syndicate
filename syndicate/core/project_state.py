@@ -21,6 +21,7 @@ from syndicate.core.groups import RUNTIME_JAVA, RUNTIME_NODEJS, RUNTIME_PYTHON
 STATE_NAME = 'name'
 STATE_LAMBDAS = 'lambdas'
 STATE_BUILD_PROJECT_MAPPING = 'build_projects_mapping'
+STATE_LOG_EVENTS = 'events'
 
 PROJECT_STATE_FILE = '.syndicate'
 
@@ -93,3 +94,12 @@ class ProjectState:
 
     def load_project_build_mapping(self):
         return self._dict.get(STATE_BUILD_PROJECT_MAPPING)
+
+    def log_execution_event(self, **kwargs):
+        events = self._dict.get(STATE_LOG_EVENTS)
+        if not events:
+            events = []
+            self._dict.update({STATE_LOG_EVENTS:
+                               events})
+        events.append(kwargs)
+        self.save()
