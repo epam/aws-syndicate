@@ -38,7 +38,7 @@ def generate():
 @click.option('--path', nargs=1,
               help='The path where project structure will be created')
 @click.pass_context
-@timeit
+@timeit()
 def project(ctx, name, path):
     """
     Generates project with all the necessary components and in a right
@@ -67,7 +67,7 @@ def project(ctx, name, path):
               help='The path of the project to add lambda '
                    'in case it differs from $CWD')
 @click.pass_context
-@timeit
+@timeit()
 def lambda_function(ctx, name, runtime, project_path):
     """
     Generates required environment for lambda function
@@ -112,6 +112,7 @@ def lambda_function(ctx, name, runtime, project_path):
 @click.option('--suffix',
               help='Suffix that is added to project names while deployment '
                    'by pattern: {prefix}resource_name{suffix}')
+@timeit()
 def config(name, config_path, project_path, region, access_key,
            secret_key, bundle_bucket_name, prefix, suffix):
     """
