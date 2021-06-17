@@ -45,7 +45,7 @@ CONN = None
 CREDENTIALS = None
 RESOURCES_PROVIDER = None
 PROCESSOR_FACADE = None
-PROJECT_STATE = None
+PROJECT_STATE: ProjectState = None
 
 
 def _ready_to_assume():

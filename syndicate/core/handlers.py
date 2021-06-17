@@ -16,7 +16,6 @@
 import json
 import os
 import sys
-from datetime import datetime
 
 import click
 
@@ -45,7 +44,9 @@ from syndicate.core.helper import (check_required_param,
                                    handle_futures_progress_bar,
                                    resolve_path_callback, timeit,
                                    verify_bundle_callback,
-                                   verify_meta_bundle_callback)
+                                   verify_meta_bundle_callback,
+                                   resolve_default_value,
+                                   generate_default_bundle_name)
 from syndicate.core.project_state.project_state import MODIFICATION_LOCK
 from syndicate.core.project_state.sync_processor import sync_project_state
 
@@ -78,26 +79,18 @@ def syndicate():
 
 
 @syndicate.command(name='build')
-@click.option('--bundle_name', nargs=1)
-@click.option('--force_upload', is_flag=True, default=False)
+@click.option('--bundle_name', nargs=1,
+              callback=generate_default_bundle_name,
+              help='Name of the bundle to build. '
+                   'Default value: $ProjectName_%Y-%m-%dT%H:%M:%SZ')
+@click.option('--force_upload', is_flag=True, default=False,
+              help='Flag to override existing bundle with the same name')
 @click.pass_context
 @timeit(action_name='build')
 def build(ctx, bundle_name, force_upload):
     """
     Builds bundle of an application
-    :param ctx:
-    :param bundle_name: name of the bundle
-    :param force_upload: used to override existing bundle
-    :return:
     """
-    from syndicate.core import CONFIG
-    project_path = CONFIG.project_path
-    if not bundle_name:
-        project_name = project_path.split("/")[-1]
-
-        date = datetime.now().strftime("%y%m%d.%H%M%S")
-        bundle_name = f'{project_name}_{date}'
-
     if if_bundle_exist(bundle_name=bundle_name) and not force_upload:
         click.echo('Bundle name \'{0}\' already exists '
                    'in deploy bucket. Please use another bundle '
@@ -110,16 +103,30 @@ def build(ctx, bundle_name, force_upload):
 
 
 @syndicate.command(name='deploy')
-@click.option('--deploy_name', nargs=1, callback=check_required_param)
-@click.option('--bundle_name', nargs=1, callback=check_required_param)
-@click.option('--deploy_only_types', multiple=True)
-@click.option('--deploy_only_resources', multiple=True)
-@click.option('--deploy_only_resources_path', nargs=1)
-@click.option('--excluded_resources', multiple=True)
-@click.option('--excluded_resources_path', nargs=1)
-@click.option('--excluded_types', multiple=True)
-@click.option('--continue_deploy', is_flag=True)
-@click.option('--replace_output', nargs=1, is_flag=True, default=False)
+@click.option('--deploy_name',
+              callback=resolve_default_value,
+              help='Name of the deploy. Default value: name of the project')
+@click.option('--bundle_name',
+              callback=resolve_default_value,
+              help='Name of the bundle to deploy. '
+                   'Default value: name of the latest built bundle')
+@click.option('--deploy_only_types', multiple=True,
+              help='Types of the resources to deploy')
+@click.option('--deploy_only_resources', multiple=True,
+              help='Names of the resources to deploy')
+@click.option('--deploy_only_resources_path', nargs=1,
+              help='Path to file containing names of the resources to deploy')
+@click.option('--excluded_resources', multiple=True,
+              help='Names of the resources to skip while deploy.')
+@click.option('--excluded_resources_path', nargs=1,
+              help='Path to file containing names of the resources to skip '
+                   'while deploy')
+@click.option('--excluded_types', multiple=True,
+              help='Types of the resources to skip while deploy')
+@click.option('--continue_deploy', is_flag=True,
+              help='Flag to continue failed deploy')
+@click.option('--replace_output', is_flag=True, default=False,
+              help='Replaces the existing deploy output')
 @check_deploy_name_for_duplicates
 @timeit(action_name='deploy')
 def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
@@ -127,27 +134,8 @@ def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
            excluded_resources_path, excluded_types, continue_deploy,
            replace_output):
     """
-    Deploys infrastructure from the specified bundle
-    :param deploy_name: name of the deploy
-    :param bundle_name: name of the bundle
-    :param deploy_only_types: list of types of the resources to deploy
-    :param deploy_only_resources: list of resources names to deploy
-    :param deploy_only_resources_path: path to a json file that contains
-        a list of resources names to deploy
-    :param excluded_resources: names of the resources which must be
-        skipped while deploy
-    :param excluded_resources_path: path to a json file that contains a list
-        of resources names which must be skipped while deploy
-    :param excluded_types: list of types of resources which must be
-        skipped while deploy
-    :param continue_deploy: continues deploy using the failed output.
-        Used only after previous deploy fail.
-    :param replace_output: flag to override the output file.
-        Used if previous output file must be overridden.
-    :return:
+    Deploys the application infrastructure
     """
-    click.echo('Command deploy backend')
-    click.echo('Deploy name: %s' % deploy_name)
     sync_project_state()
     from syndicate.core import PROJECT_STATE
     if PROJECT_STATE.is_lock_free(MODIFICATION_LOCK):
@@ -201,14 +189,6 @@ def update(bundle_name, deploy_name, replace_output,
            update_only_types=[]):
     """
     Updates infrastructure from the provided bundle
-    :param bundle_name: name of the bundle
-    :param deploy_name: name of the deploy
-    :param update_only_resources: list of resources names to updated
-    :param update_only_resources_path: path to a json file with list of
-        resources names to update
-    :param update_only_types: optional. List of a resources types to update.
-    :param replace_output: flag. If True, existing output file will be replaced
-    :return:
     """
     click.echo('Bundle name: {}'.format(bundle_name))
     if update_only_types:

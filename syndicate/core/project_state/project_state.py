@@ -21,6 +21,8 @@ import yaml
 
 from syndicate.core.groups import RUNTIME_JAVA, RUNTIME_NODEJS, RUNTIME_PYTHON
 
+CAPITAL_LETTER_REGEX = '[A-Z][^A-Z]*'
+
 STATE_NAME = 'name'
 STATE_LOCKS = 'locks'
 STATE_LAMBDAS = 'lambdas'
@@ -59,13 +61,6 @@ class ProjectState:
     def check_if_project_state_exists(project_path):
         return os.path.exists(os.path.join(project_path, PROJECT_STATE_FILE))
 
-    def __load_project_state_file(self):
-        if not ProjectState.check_if_project_state_exists(self.project_path):
-            raise AssertionError(
-                f'There is no .syndicate file in {self.project_path}')
-        with open(self.state_path) as state_file:
-            return yaml.safe_load(state_file.read())
-
     def save(self):
         with open(self.state_path, 'w') as state_file:
             yaml.dump(self._dict, state_file, sort_keys=False)
@@ -73,6 +68,16 @@ class ProjectState:
     @property
     def name(self):
         return self._dict.get(STATE_NAME)
+
+    @property
+    def default_deploy_name(self):
+        import re
+        parts = []
+        if '_' in self.name:
+            parts.extend(self.name.split('_'))
+        if not parts:
+            parts = re.findall(CAPITAL_LETTER_REGEX, self.name)
+        return '-'.join([_.lower() for _ in parts])
 
     @name.setter
     def name(self, name):
@@ -85,46 +90,6 @@ class ProjectState:
             locks = dict()
             self._dict.update({STATE_LOCKS: locks})
         return locks
-
-    def is_lock_free(self, lock_name):
-        lock = self.locks.get(lock_name)
-        return not bool(lock.get(LOCK_LOCKED))
-
-    def acquire_lock(self, lock_name):
-        self.__modify_lock_state(lock_name, True)
-
-    def release_lock(self, lock_name):
-        self.__modify_lock_state(lock_name, False)
-
-    def actualize_locks(self, other_project_state):
-        locks = self.locks
-        other_locks = other_project_state.locks
-        all_lock_names = set(locks.keys()).union(set(other_locks.keys()))
-        for lock_name in all_lock_names:
-            lock = locks.get(lock_name)
-            other_lock = other_locks.get(lock_name)
-            if lock is None:
-                locks.update({lock_name: other_lock})
-            elif other_lock is None:
-                other_locks.update({lock_name: lock})
-            elif (lock.get(LOCK_LAST_MODIFICATION_DATE) <
-                    other_lock.get(LOCK_LAST_MODIFICATION_DATE)):
-                locks.update({lock_name: other_lock})
-            else:
-                other_locks.update({lock_name: lock})
-
-    def __modify_lock_state(self, lock_name, locked):
-        locks = self.locks
-        lock = locks.get(lock_name)
-        timestamp = datetime.fromtimestamp(time.time()) \
-            .strftime('%Y-%m-%dT%H:%M:%SZ')
-        modified_lock = {LOCK_LOCKED: locked,
-                         LOCK_LAST_MODIFICATION_DATE: timestamp}
-        if lock:
-            lock.update(modified_lock)
-        else:
-            locks.update({lock_name: modified_lock})
-        self.save()
 
     @property
     def lambdas(self):
@@ -145,6 +110,43 @@ class ProjectState:
     @events.setter
     def events(self, events):
         self._dict.update({STATE_LOG_EVENTS: events})
+
+    @property
+    def latest_built_bundle_name(self):
+        events = self.events
+        build_events = [event for event in events if
+                        event.get('operation') == 'build']
+        if build_events:
+            return build_events[0].get('bundle_name')
+
+    def is_lock_free(self, lock_name):
+        lock = self.locks.get(lock_name)
+        if not lock:
+            return True
+        return not bool(lock.get(LOCK_LOCKED))
+
+    def acquire_lock(self, lock_name):
+        self.__modify_lock_state(lock_name, True)
+
+    def release_lock(self, lock_name):
+        self.__modify_lock_state(lock_name, False)
+
+    def actualize_locks(self, other_project_state):
+        locks = self.locks
+        other_locks = other_project_state.locks
+        all_lock_names = set(locks.keys()).union(set(other_locks.keys()))
+        for lock_name in all_lock_names:
+            lock = locks.get(lock_name)
+            other_lock = other_locks.get(lock_name)
+            if lock is None:
+                locks.update({lock_name: other_lock})
+            elif other_lock is None:
+                other_locks.update({lock_name: lock})
+            elif (lock.get(LOCK_LAST_MODIFICATION_DATE) <
+                  other_lock.get(LOCK_LAST_MODIFICATION_DATE)):
+                locks.update({lock_name: other_lock})
+            else:
+                other_locks.update({lock_name: lock})
 
     def add_lambda(self, lambda_name, runtime):
         lambdas = self._dict.get(STATE_LAMBDAS)
@@ -168,11 +170,36 @@ class ProjectState:
     def log_execution_event(self, **kwargs):
         kwargs = {key: value for key, value in kwargs.items() if value}
         self.events.append(kwargs)
-        self.save()
+        self.__save_events()
 
     def add_execution_events(self, events):
         all_events = self.events
         all_events.extend(x for x in events if x not in all_events)
-        all_events.sort(key=lambda event: event.get('time_start'))
-        all_events = all_events[:20]
-        self.events = all_events
+        self.__save_events()
+
+    def __modify_lock_state(self, lock_name, locked):
+        locks = self.locks
+        lock = locks.get(lock_name)
+        timestamp = datetime.fromtimestamp(time.time()) \
+            .strftime('%Y-%m-%dT%H:%M:%SZ')
+        modified_lock = {LOCK_LOCKED: locked,
+                         LOCK_LAST_MODIFICATION_DATE: timestamp}
+        if lock:
+            lock.update(modified_lock)
+        else:
+            locks.update({lock_name: modified_lock})
+        self.save()
+
+    def __load_project_state_file(self):
+        if not ProjectState.check_if_project_state_exists(self.project_path):
+            raise AssertionError(
+                f'There is no .syndicate file in {self.project_path}')
+        with open(self.state_path) as state_file:
+            return yaml.safe_load(state_file.read())
+
+    def __save_events(self):
+        if len(self.events) > 20:
+            self.events = self.events[:20]
+        self.events.sort(key=lambda event: event.get('time_start'),
+                         reverse=True)
+        self.save()

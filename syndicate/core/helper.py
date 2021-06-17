@@ -162,6 +162,47 @@ def resolve_path_callback(ctx, param, value):
     return path_resolver(value)
 
 
+def generate_default_bundle_name(ctx, param, value):
+    if value:
+        return value
+    from syndicate.core import CONFIG
+    project_path = CONFIG.project_path
+    project_name = project_path.split("/")[-1]
+    date = datetime.now().strftime("%y%m%d.%H%M%S")
+    return f'{project_name}_{date}'
+
+
+def resolve_default_bundle_name():
+    from syndicate.core import PROJECT_STATE
+    bundle_name = PROJECT_STATE.latest_built_bundle_name
+    if not bundle_name:
+        click.echo('Property \'bundle\' is not specified and could '
+                   'not be resolved due to absence of data about the '
+                   'latest build operation')
+        return
+    return bundle_name
+
+
+def resolve_default_deploy_name():
+    from syndicate.core import PROJECT_STATE
+    return PROJECT_STATE.default_deploy_name
+
+
+param_resolver_map = {
+    'bundle_name': resolve_default_bundle_name,
+    'deploy_name': resolve_default_deploy_name
+}
+
+
+def resolve_default_value(ctx, param, value):
+    if not value:
+        param_resolver = param_resolver_map.get(param.name)
+        if not param_resolver:
+            raise AssertionError(
+                f'There is no resolver of default value for param {param.name}')
+        return param_resolver()
+
+
 def create_bundle_callback(ctx, param, value):
     from syndicate.core import CONFIG
     bundle_path = os.path.join(CONFIG.project_path, ARTIFACTS_FOLDER, value)
@@ -205,7 +246,6 @@ def write_content_to_file(file_path, file_name, obj):
 
 
 def timeit(action_name=None):
-
     def internal_timeit(func):
         @wraps(func)
         def timed(*args, **kwargs):
@@ -216,7 +256,7 @@ def timeit(action_name=None):
                       str(timedelta(seconds=te - ts)))
             if action_name:
                 username = getpass.getuser()
-                duration = te - ts
+                duration = round(te - ts, 3)
                 start_date_formatted = datetime.fromtimestamp(ts) \
                     .strftime('%Y-%m-%dT%H:%M:%SZ')
                 end_date_formatted = datetime.fromtimestamp(te) \
@@ -232,7 +272,7 @@ def timeit(action_name=None):
                     deploy_name=deploy_name,
                     time_start=start_date_formatted,
                     time_end=end_date_formatted,
-                    duration=duration)
+                    duration_sec=duration)
             return result
 
         return timed

@@ -111,8 +111,7 @@ def generate_lambda_function(project_path, runtime, lambda_names):
     _LOG.info(f'Lambda generating have been successfully performed.')
 
 
-def _generate_python_lambdas(lambda_names, lambdas_path, project_state,
-                             project_path=None):
+def _generate_python_lambdas(lambda_names, lambdas_path, project_state):
     if not os.path.exists(lambdas_path):
         _mkdir(lambdas_path, exist_ok=True)
 
