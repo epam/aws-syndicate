@@ -36,12 +36,23 @@ def sync_project_state():
         _LOG.debug('Push successful')
 
     else:
+        _LOG.debug('Syncing with remote .syndicate file.')
         remote_project_state = s3.load_file_body(bucket_name=bucket_name,
                                                  key=PROJECT_STATE_FILE)
-        # todo sync remote .syndicate with local one
-        # actualise locks state depending on last_modified_date
-        # merge events, sort by time acsending, cut to 20 most recent events
-        # flush to local dist
-        # push to s3
+        remote_project_state = yaml.unsafe_load(remote_project_state)
+
+        _LOG.debug('Actualizing the project state...')
+        PROJECT_STATE.actualize_locks(remote_project_state)
+        PROJECT_STATE.add_execution_events(remote_project_state.events)
+
+        _LOG.debug('Saving a local .syndicate file.')
+        PROJECT_STATE.save()
+
+        _LOG.debug('Synced the .syndicate file. Pushing...')
+        s3.put_object(file_obj=yaml.dump(PROJECT_STATE),
+                      key=PROJECT_STATE_FILE,
+                      bucket=bucket_name,
+                      content_type='application/x-yaml')
+        _LOG.debug('Push successful')
         _LOG.debug('Remote .syndicate file pulled')
     USER_LOG.info('Project state file has been successfully synced')

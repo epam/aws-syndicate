@@ -15,12 +15,12 @@
 """
 import collections
 import concurrent.futures
-from datetime import datetime, timedelta
 import getpass
 import json
 import os
 import subprocess
 import sys
+from datetime import datetime, timedelta
 from functools import wraps
 from pathlib import Path
 from threading import Thread
@@ -34,6 +34,8 @@ from syndicate.commons.log_helper import get_logger
 from syndicate.core.conf.processor import path_resolver
 from syndicate.core.constants import (ARTIFACTS_FOLDER, BUILD_META_FILE_NAME,
                                       DEFAULT_SEP)
+from syndicate.core.project_state.project_state import MODIFICATION_LOCK
+from syndicate.core.project_state.sync_processor import sync_project_state
 
 _LOG = get_logger('syndicate.core.helper')
 
@@ -73,6 +75,9 @@ def exit_on_exception(handler_func):
             return handler_func(*args, **kwargs)
         except Exception as e:
             _LOG.exception("Error occurred: %s", str(e))
+            from syndicate.core import PROJECT_STATE
+            PROJECT_STATE.release_lock(MODIFICATION_LOCK)
+            sync_project_state()
             sys.exit(1)
 
     return wrapper

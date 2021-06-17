@@ -46,6 +46,7 @@ from syndicate.core.helper import (check_required_param,
                                    resolve_path_callback, timeit,
                                    verify_bundle_callback,
                                    verify_meta_bundle_callback)
+from syndicate.core.project_state.project_state import MODIFICATION_LOCK
 from syndicate.core.project_state.sync_processor import sync_project_state
 
 INIT_COMMAND_NAME = 'init'
@@ -147,6 +148,13 @@ def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
     """
     click.echo('Command deploy backend')
     click.echo('Deploy name: %s' % deploy_name)
+    sync_project_state()
+    from syndicate.core import PROJECT_STATE
+    if PROJECT_STATE.is_lock_free(MODIFICATION_LOCK):
+        PROJECT_STATE.acquire_lock(MODIFICATION_LOCK)
+    else:
+        click.echo('The project modification is locked.')
+        return
     if deploy_only_resources_path and os.path.exists(
             deploy_only_resources_path):
         deploy_resources_list = json.load(open(deploy_only_resources_path))
@@ -174,6 +182,8 @@ def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
                                                      replace_output)
     click.echo('Backend resources were deployed{0}.'.format(
         '' if deploy_success else ' with errors. See deploy output file'))
+    PROJECT_STATE.release_lock(MODIFICATION_LOCK)
+    sync_project_state()
 
 
 @syndicate.command(name='update')
