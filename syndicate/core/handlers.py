@@ -103,7 +103,7 @@ def build(ctx, bundle_name, force_upload):
                    'name or delete the bundle'.format(bundle_name))
         return
 
-    ctx.invoke(build_artifacts, bundle_name=bundle_name)
+    ctx.invoke(assemble, bundle_name=bundle_name)
     ctx.invoke(package_meta, bundle_name=bundle_name)
     ctx.invoke(upload, bundle_name=bundle_name, force=force_upload)
 
@@ -381,11 +381,11 @@ COMMAND_TO_BUILD_MAPPING = {
 }
 
 
-@syndicate.command(name='build_artifacts')
+@syndicate.command(name='assemble')
 @timeit()
 @click.option('--bundle_name', nargs=1, callback=create_bundle_callback)
 @click.pass_context
-def build_artifacts(ctx, bundle_name):
+def assemble(ctx, bundle_name):
     """
     Builds the application artifacts
     :param ctx:
