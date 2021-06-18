@@ -140,6 +140,7 @@ def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
     from syndicate.core import PROJECT_STATE
     if PROJECT_STATE.is_lock_free(MODIFICATION_LOCK):
         PROJECT_STATE.acquire_lock(MODIFICATION_LOCK)
+        sync_project_state()
     else:
         click.echo('The project modification is locked.')
         return
