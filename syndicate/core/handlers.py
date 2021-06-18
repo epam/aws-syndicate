@@ -16,8 +16,6 @@
 import json
 import os
 import sys
-import pytest
-import subprocess
 import click
 
 from syndicate.core import CONF_PATH, initialize_connection
@@ -33,7 +31,7 @@ from syndicate.core.build.deployment_processor import (
     continue_deployment_resources, create_deployment_resources,
     remove_deployment_resources, remove_failed_deploy_resources,
     update_deployment_resources)
-from syndicate.core.build.warmup_processor import warmup_resources, get_dir
+from syndicate.core.build.warmup_processor import (warmup_resources,  process_schemas, warm_upper, process_existed_api_gw_id, process_inputted_api_gw_id)
 from syndicate.core.build.meta_processor import create_meta
 from syndicate.core.conf.generator import generate_configuration_files
 from syndicate.core.conf.validator import (MVN_BUILD_TOOL_NAME,
@@ -569,37 +567,33 @@ def copy_bundle(ctx, bundle_name, src_account_id, src_bucket_region,
     click.echo('Bundle was copied successfully')
 
 
-def execute_warmup(schema, warmup_dir):
-    warmup_schema_dir = warmup_dir.split(os.sep)[:-1]
-    warmup_schema_file = os.path.join('/', *warmup_schema_dir,
-                                      'schema.json')
-    with open(warmup_schema_file, 'w') as file:
-        json.dump(schema, file)
-    pytest.main(["-p", "no:warnings", warmup_dir])
-
-
 @syndicate.command(name='warmup')
-@click.option('--bundle_name', nargs=1, callback=check_required_param)
-@click.option('--deploy_name', nargs=1, callback=check_required_param)
+@click.option('--bundle_name', nargs=1)
+@click.option('--deploy_name', nargs=1)
+@click.option('--api_gw_id', nargs=1, multiple=True, type=str)
 @timeit
-def warmup(bundle_name, deploy_name):
+def warmup(bundle_name, deploy_name, api_gw_id):
     click.echo('Command warmup')
-    click.echo(f'Deploy name: {deploy_name}')
 
-    if not if_bundle_exist(bundle_name=bundle_name):
-        click.echo('Bundle name \'{0}\' does not exists '
-                   'in deploy bucket. Please use another bundle '
-                   'name or create the bundle'.format(bundle_name))
-        return
+    if bundle_name and deploy_name:
+        click.echo(f'Deploy name: {deploy_name}')
+        if not if_bundle_exist(bundle_name=bundle_name):
+            click.echo('Bundle name \'{0}\' does not exists '
+                       'in deploy bucket. Please use another bundle '
+                       'name or create the bundle'.format(bundle_name))
+            return
 
-    warmup_dir = get_dir()
+        schemas_list = warmup_resources(deploy_name=deploy_name,
+                                        bundle_name=bundle_name)
 
-    schemes_list = warmup_resources(deploy_name=deploy_name,
-                                    bundle_name=bundle_name)
+    elif api_gw_id:
+        schemas_list = process_inputted_api_gw_id(api_gw_id)
 
-    for schema in schemes_list:
-        execute_warmup(schema, warmup_dir)
+    else:
+        schemas_list = process_existed_api_gw_id()
 
+    uri_method_dict = process_schemas(schemas_list)
+    warm_upper(uri_method_dict)
     click.echo('AWS lambda resources were triggered.')
 
 
