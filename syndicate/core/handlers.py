@@ -48,6 +48,7 @@ from syndicate.core.helper import (check_required_param,
                                    resolve_default_value,
                                    generate_default_bundle_name)
 from syndicate.core.project_state.project_state import MODIFICATION_LOCK
+from syndicate.core.project_state.status_processor import project_state_status
 from syndicate.core.project_state.sync_processor import sync_project_state
 
 INIT_COMMAND_NAME = 'init'
@@ -303,6 +304,19 @@ def sync():
     the remote one.
     """
     return sync_project_state()
+
+
+@syndicate.command(name='status')
+@click.option('--events', 'category', flag_value='events',
+              help='Show event logs of the project')
+@click.option('--resources', 'category', flag_value='resources',
+              help='Show a summary of the project resources')
+@timeit()
+def status(category):
+    """
+    Shows the state of a local project state file (.syndicate).
+    """
+    click.echo(project_state_status(category))
 
 
 # =============================================================================
