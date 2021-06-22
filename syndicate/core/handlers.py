@@ -18,6 +18,7 @@ import os
 import sys
 import click
 
+from datetime import datetime
 from syndicate.core import CONF_PATH, initialize_connection
 from syndicate.core.build.artifact_processor import (RUNTIME_NODEJS,
                                                      assemble_artifacts,
@@ -31,7 +32,10 @@ from syndicate.core.build.deployment_processor import (
     continue_deployment_resources, create_deployment_resources,
     remove_deployment_resources, remove_failed_deploy_resources,
     update_deployment_resources)
-from syndicate.core.build.warmup_processor import (warmup_resources,  process_schemas, warm_upper, process_existed_api_gw_id, process_inputted_api_gw_id)
+from syndicate.core.build.warmup_processor import (warmup_resources,
+                                                   process_schemas, warm_upper,
+                                                   process_existed_api_gw_id,
+                                                   process_inputted_api_gw_id)
 from syndicate.core.build.meta_processor import create_meta
 from syndicate.core.conf.generator import generate_configuration_files
 from syndicate.core.conf.validator import (MVN_BUILD_TOOL_NAME,
@@ -571,9 +575,16 @@ def copy_bundle(ctx, bundle_name, src_account_id, src_bucket_region,
 @click.option('--bundle_name', nargs=1)
 @click.option('--deploy_name', nargs=1)
 @click.option('--api_gw_id', nargs=1, multiple=True, type=str)
+@click.option('--stage_name', nargs=1, multiple=True, type=str)
+@click.option('--lambda_auth', default=False)
+@click.option('--header_name', nargs=1)
+@click.option('--header_value', nargs=1)
 @timeit
-def warmup(bundle_name, deploy_name, api_gw_id):
+def warmup(bundle_name, deploy_name, api_gw_id, stage_name, lambda_auth, header_name, header_value):
     click.echo('Command warmup')
+    click.echo(f'Initiator: {os.getlogin()}')
+    now = datetime.now()
+    click.echo(f'Time start {now}')
 
     if bundle_name and deploy_name:
         click.echo(f'Deploy name: {deploy_name}')
@@ -587,13 +598,14 @@ def warmup(bundle_name, deploy_name, api_gw_id):
                                         bundle_name=bundle_name)
 
     elif api_gw_id:
-        schemas_list = process_inputted_api_gw_id(api_gw_id)
+        schemas_list = process_inputted_api_gw_id(api_gw_id, stage_name)
 
     else:
-        schemas_list = process_existed_api_gw_id()
+        schemas_list = process_existed_api_gw_id(stage_name)
 
     uri_method_dict = process_schemas(schemas_list)
-    warm_upper(uri_method_dict)
+    warm_upper(uri_method_dict, lambda_auth, header_name, header_value)
+    click.echo(f'Time end: {now}')
     click.echo('AWS lambda resources were triggered.')
 
 

@@ -62,22 +62,28 @@ def get_aws_sign():
     return auth
 
 
-def warm_upper(uri_method_dict):
+def lambda_auth_warm_up(warmup_method, uri, header_name, header_value):
+    params = {"warm_up": "true"}
+    headers = {header_name: header_value}
+    warmup_method(uri, headers=headers, params=params)
+
+
+def aws_iam_warm_up(warmup_method, uri):
     auth = get_aws_sign()
     headers = {"Content-Type": "application/json"}
-    payload = {"warmUp": "true"}
+    params = {"warm_up": "true"}
+    warmup_method(uri, auth=auth, headers=headers, params=params)
+
+
+def warm_upper(uri_method_dict, lambda_auth, header_name, header_value):
     for uri, methods in uri_method_dict.items():
         for method in methods:
-            if method in (POST_METHOD, PUT_METHOD, DELETE_METHOD):
-                warmup_method = methods_check.get(method)
-                response = warmup_method(uri, auth=auth, headers=headers, json=payload)
-                click.echo(f'URL: {uri} '
-                           f'Method: {method} {response.status_code} {response.reason}')
-            elif method == GET_METHOD:
-                warmup_method = methods_check.get(method)
-                response = warmup_method(uri, auth=auth, data=payload)
-                click.echo(f'URL: {uri} '
-                           f'Method: {method} Status code: {response.status_code} Reason: {response.reason}')
+            warmup_method = methods_check.get(method)
+            if lambda_auth:
+                lambda_auth_warm_up(warmup_method, uri, header_name,
+                                    header_value)
+            else:
+                aws_iam_warm_up(warmup_method, uri)
 
 
 def _get_api_gw_client():
@@ -110,62 +116,28 @@ def get_api_gw_export(rest_api_id, stage_name):
     return exported_schema
 
 
-def get_api_stages(rest_api_id, stages_info):
-    allowed_api_id = {}
-    stages = stages_info.get('item')
-    for stage in stages:
-        stage_name = stage.get('stageName')
-        exported_schema = get_api_gw_export(rest_api_id, stage_name)
-        if rest_api_id not in allowed_api_id:
-            allowed_api_id.update({rest_api_id: [exported_schema]})
-        else:
-            allowed_api_id[rest_api_id].append(exported_schema)
-    return allowed_api_id
-
-
-def process_existed_api_gw_id():
+def process_existed_api_gw_id(stage_name):
     api_gw_client = _get_api_gw_client()
     all_apis = api_gw_client.get_rest_apis().get('items', {})
-    schemas_list = []
-    all_api_id = set()
-    allowed_api_id = {}
+
+    allowed_api_name = {}
+    all_api_name = {}
     for api in all_apis:
         rest_api_id = api['id']
-        stages_info = api_gw_client.get_stages(restApiId=rest_api_id)
-        allowed_api_id = get_api_stages(rest_api_id, stages_info)
-        all_api_id.add(rest_api_id)
+        rest_api_name = api['name']
+        all_api_name.update({rest_api_name: rest_api_id})
 
-    no_stage_api = set(all_api_id).difference(allowed_api_id)
-    click.echo(f'API Gateway ID without Stages: {", ".join(no_stage_api)}')
-    click.echo(f'Allowed API Gateway ID: {", ".join(allowed_api_id)}')
-    user_input_id = input('Select API from existing (multiple IDs must be separated by commas): ')
+    click.echo(f'Existed API Gateway: {", ".join(all_api_name)}')
+    user_input_id = input('Select API from existing (multiple names must be separated by commas): ')
     user_input_id = user_input_id.split(",")
 
+    schemas_list = []
     for user_input in user_input_id:
         user_input = user_input.strip()
-        if user_input not in allowed_api_id:
-            raise AssertionError(f'Specify only allowed IDs: {", ".join(allowed_api_id)}')
-        for api_gw_meta in allowed_api_id[user_input]:
-            schema = transform_to_schema(api_gw_meta)
-            schemas_list.append(schema)
-    return schemas_list
+        if user_input not in all_api_name:
+            raise AssertionError(f'Specify only allowed IDs: {", ".join(allowed_api_name)}')
 
-
-def process_inputted_api_gw_id(api_id):
-    api_gw_client = _get_api_gw_client()
-    schemas_list = []
-    all_apis = api_gw_client.get_rest_apis().get('items', {})
-    allowed_id = []
-    for api in all_apis:
-        allowed_id.append(api['id'])
-    for rest_api_id in api_id:
-        if rest_api_id not in allowed_id:
-            click.echo(f'Provided {rest_api_id} API ID does not exists')
-            continue
-        stages_info = api_gw_client.get_stages(restApiId=rest_api_id)
-        allowed_api_id = get_api_stages(rest_api_id, stages_info)
-        no_stage_api = set(api_id).difference(set(allowed_api_id))
-        click.echo(f'API Gateway ID without Stages: {", ".join(no_stage_api)}')
+        allowed_api_id = get_api_stages(all_api_name[user_input], stage_name)
 
         for id, api_gw_meta in allowed_api_id.items():
             for meta in api_gw_meta:
@@ -174,8 +146,79 @@ def process_inputted_api_gw_id(api_id):
     return schemas_list
 
 
+def get_api_stages(rest_api_id, user_input_stage_name):
+    api_gw_client = _get_api_gw_client()
+    stages_info = api_gw_client.get_stages(restApiId=rest_api_id)
+    stages = stages_info.get('item')
+    all_stage_names = [stage.get('stageName') for stage in stages]
+
+    if not user_input_stage_name:
+        if len(all_stage_names) == 1:
+            stage_name = all_stage_names[0]
+        else:
+            click.echo(f'Stage name(s) for {rest_api_id} API ID: {", ".join(all_stage_names)}')
+            stage_name = input('Select Stage from existing: ')
+            if stage_name not in all_stage_names:
+                raise AssertionError(f'Provided Stage name does not exists')
+
+    else:
+        if isinstance(user_input_stage_name, str):
+            stage_name = [user_input_stage_name] if user_input_stage_name in all_stage_names else None
+        else:
+            stage_name = [stage for stage in user_input_stage_name if stage in all_stage_names]
+        if not stage_name:
+            raise AssertionError(
+                f'Provided Stage name does not exists, available stage name(s): {", ".join(all_stage_names)}')
+        stage_name = stage_name[0]
+
+    allowed_api_id = {}
+    exported_schema = get_api_gw_export(rest_api_id, stage_name)
+    allowed_api_id.update({rest_api_id: [exported_schema]})
+    return allowed_api_id
+
+
+def get_api_gw_integration(rest_api_id):
+    api_gw_client = _get_api_gw_client()
+
+    resource = api_gw_client.get_resources(
+        restApiId=rest_api_id
+    )
+    resource_items = resource['items']
+    resource_items_id = {item['id']: item['resourceMethods']
+                         for item in resource_items
+                         if 'resourceMethods' in item}
+
+    for resource_id, methods in resource_items_id.items():
+        for method in methods:
+            integration = api_gw_client.get_integration(restApiId=rest_api_id,
+                                                        resourceId=resource_id,
+                                                        httpMethod=method)
+
+
+def process_inputted_api_gw_id(api_id, stage_name):
+    api_gw_client = _get_api_gw_client()
+    all_apis = api_gw_client.get_rest_apis().get('items', {})
+
+    allowed_id = []
+    for api in all_apis:
+        allowed_id.append(api['id'])
+
+    schemas_list = []
+    for rest_api_id in api_id:
+        if rest_api_id not in allowed_id:
+            click.echo(f'Provided {rest_api_id} API ID does not exists')
+            continue
+
+        allowed_api_id = get_api_stages(rest_api_id, stage_name)
+        for id, api_gw_meta in allowed_api_id.items():
+            for meta in api_gw_meta:
+                schema = transform_to_schema(meta)
+                schemas_list.append(schema)
+    return schemas_list
+
+
 def load_schema(api_gw_resources_meta):
-    schemes = []
+    schemas = []
     for resource_arn, meta in api_gw_resources_meta.items():
         rest_api_id = resource_arn.split('/')[-1]
         stage_name = meta.get('resource_meta', {}).get('deploy_stage')
@@ -183,8 +226,8 @@ def load_schema(api_gw_resources_meta):
         exported_schema = get_api_gw_export(rest_api_id, stage_name)
 
         schema = transform_to_schema(exported_schema)
-        schemes.append(schema)
-    return schemes
+        schemas.append(schema)
+    return schemas
 
 
 @exit_on_exception
@@ -202,8 +245,8 @@ def warmup_resources(bundle_name, deploy_name):
         _LOG.warning('No resources to warmup, exiting')
         return
 
-    schemes = load_schema(api_gw_resources_meta=output)
-    return schemes
+    schemas = load_schema(api_gw_resources_meta=output)
+    return schemas
 
 
 def find_api_url(schema_doc):
