@@ -580,7 +580,8 @@ def copy_bundle(ctx, bundle_name, src_account_id, src_bucket_region,
 @click.option('--header_name', nargs=1)
 @click.option('--header_value', nargs=1)
 @timeit
-def warmup(bundle_name, deploy_name, api_gw_id, stage_name, lambda_auth, header_name, header_value):
+def warmup(bundle_name, deploy_name, api_gw_id, stage_name, lambda_auth,
+           header_name, header_value):
     click.echo('Command warmup')
     click.echo(f'Initiator: {os.getlogin()}')
     now = datetime.now()
@@ -589,21 +590,23 @@ def warmup(bundle_name, deploy_name, api_gw_id, stage_name, lambda_auth, header_
     if bundle_name and deploy_name:
         click.echo(f'Deploy name: {deploy_name}')
         if not if_bundle_exist(bundle_name=bundle_name):
-            click.echo('Bundle name \'{0}\' does not exists '
+            click.echo(f'Bundle name \'{bundle_name}\' does not exists '
                        'in deploy bucket. Please use another bundle '
-                       'name or create the bundle'.format(bundle_name))
+                       'name or create the bundle')
             return
 
-        schemas_list = warmup_resources(deploy_name=deploy_name,
-                                        bundle_name=bundle_name)
+        schemas_list, paths_to_be_triggered = warmup_resources(
+            deploy_name=deploy_name, bundle_name=bundle_name)
 
     elif api_gw_id:
-        schemas_list = process_inputted_api_gw_id(api_gw_id, stage_name)
+        schemas_list, paths_to_be_triggered = process_inputted_api_gw_id(
+            api_gw_id, stage_name)
 
     else:
-        schemas_list = process_existed_api_gw_id(stage_name)
+        schemas_list, paths_to_be_triggered = process_existed_api_gw_id(
+            stage_name)
 
-    uri_method_dict = process_schemas(schemas_list)
+    uri_method_dict = process_schemas(schemas_list, paths_to_be_triggered)
     warm_upper(uri_method_dict, lambda_auth, header_name, header_value)
     click.echo(f'Time end: {now}')
     click.echo('AWS lambda resources were triggered.')

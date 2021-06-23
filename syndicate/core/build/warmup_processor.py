@@ -33,19 +33,26 @@ methods_check = {
 }
 
 
-def process_schemas(schemas_list):
+def process_schemas(schemas_list, paths_to_be_triggered=None):
     uri_method_dict = dict()
     for schema in schemas_list:
-        url = schema.base_url.replace(schema.base_path[:-1], schema.base_path[1:-1])
+        url = schema.base_url.replace(schema.base_path[:-1],
+                                      schema.base_path[1:-1])
         resources = schema.operations
         for resource, definition in resources.items():
             resource_url = url + resource
-            for method in definition:
-                if method != OPTIONS_METHOD:
-                    if resource_url not in uri_method_dict:
-                        uri_method_dict.update({resource_url: [method]})
-                    elif resource_url in uri_method_dict:
-                        uri_method_dict[resource_url].append(method)
+            for api_gw_id, paths in paths_to_be_triggered.items():
+                if api_gw_id in url:
+                    for path in paths:
+                        if not resource_url.endswith(path):
+                            continue
+                        if resource_url not in uri_method_dict:
+                            uri_method_dict.update({resource_url: [
+                                each_path.lower() for each_path in
+                                paths[path]]})
+                        elif resource_url in uri_method_dict:
+                            uri_method_dict[resource_url].append(
+                                each_path.lower() for each_path in paths[path])
     return uri_method_dict
 
 
@@ -128,22 +135,26 @@ def process_existed_api_gw_id(stage_name):
         all_api_name.update({rest_api_name: rest_api_id})
 
     click.echo(f'Existed API Gateway: {", ".join(all_api_name)}')
-    user_input_id = input('Select API from existing (multiple names must be separated by commas): ')
+    user_input_id = input('Select API from existing (multiple names must be'
+                          ' separated by commas): ')
     user_input_id = user_input_id.split(",")
 
     schemas_list = []
+    paths_to_be_triggered = {}
     for user_input in user_input_id:
         user_input = user_input.strip()
         if user_input not in all_api_name:
-            raise AssertionError(f'Specify only allowed IDs: {", ".join(allowed_api_name)}')
+            raise AssertionError(
+                f'Specify only allowed IDs: {", ".join(allowed_api_name)}')
 
         allowed_api_id = get_api_stages(all_api_name[user_input], stage_name)
 
         for id, api_gw_meta in allowed_api_id.items():
             for meta in api_gw_meta:
+                paths_to_be_triggered.update({id: get_api_gw_integration(id)})
                 schema = transform_to_schema(meta)
                 schemas_list.append(schema)
-    return schemas_list
+    return schemas_list, paths_to_be_triggered
 
 
 def get_api_stages(rest_api_id, user_input_stage_name):
@@ -156,19 +167,23 @@ def get_api_stages(rest_api_id, user_input_stage_name):
         if len(all_stage_names) == 1:
             stage_name = all_stage_names[0]
         else:
-            click.echo(f'Stage name(s) for {rest_api_id} API ID: {", ".join(all_stage_names)}')
+            click.echo(f'Stage name(s) for {rest_api_id} API ID: '
+                       f'{", ".join(all_stage_names)}')
             stage_name = input('Select Stage from existing: ')
             if stage_name not in all_stage_names:
                 raise AssertionError(f'Provided Stage name does not exists')
 
     else:
         if isinstance(user_input_stage_name, str):
-            stage_name = [user_input_stage_name] if user_input_stage_name in all_stage_names else None
+            stage_name = [user_input_stage_name] \
+                if user_input_stage_name in all_stage_names else None
         else:
-            stage_name = [stage for stage in user_input_stage_name if stage in all_stage_names]
+            stage_name = [stage for stage in user_input_stage_name
+                          if stage in all_stage_names]
         if not stage_name:
             raise AssertionError(
-                f'Provided Stage name does not exists, available stage name(s): {", ".join(all_stage_names)}')
+                f'Provided Stage name does not exists, available stage '
+                f'name(s): {", ".join(all_stage_names)}')
         stage_name = stage_name[0]
 
     allowed_api_id = {}
@@ -188,11 +203,26 @@ def get_api_gw_integration(rest_api_id):
                          for item in resource_items
                          if 'resourceMethods' in item}
 
+    resource_items_path = {item['id']: item['path']
+                           for item in resource_items}
+
+    affected_lambda = []
+    allowed_path_method = {}
     for resource_id, methods in resource_items_id.items():
         for method in methods:
             integration = api_gw_client.get_integration(restApiId=rest_api_id,
                                                         resourceId=resource_id,
                                                         httpMethod=method)
+            if 'uri' in integration:
+                lambda_uri = integration['uri']
+                if lambda_uri not in affected_lambda:
+                    affected_lambda.append(lambda_uri)
+                    api_gw_path = resource_items_path[resource_id]
+                    if not api_gw_path in allowed_path_method:
+                        allowed_path_method.update({api_gw_path: [method]})
+                    else:
+                        allowed_path_method[api_gw_path].append(method)
+    return allowed_path_method
 
 
 def process_inputted_api_gw_id(api_id, stage_name):
@@ -204,6 +234,7 @@ def process_inputted_api_gw_id(api_id, stage_name):
         allowed_id.append(api['id'])
 
     schemas_list = []
+    paths_to_be_triggered = {}
     for rest_api_id in api_id:
         if rest_api_id not in allowed_id:
             click.echo(f'Provided {rest_api_id} API ID does not exists')
@@ -212,22 +243,26 @@ def process_inputted_api_gw_id(api_id, stage_name):
         allowed_api_id = get_api_stages(rest_api_id, stage_name)
         for id, api_gw_meta in allowed_api_id.items():
             for meta in api_gw_meta:
+                paths_to_be_triggered.update({id: get_api_gw_integration(id)})
                 schema = transform_to_schema(meta)
                 schemas_list.append(schema)
-    return schemas_list
+    return schemas_list, paths_to_be_triggered
 
 
 def load_schema(api_gw_resources_meta):
     schemas = []
+    paths_to_be_triggered = {}
     for resource_arn, meta in api_gw_resources_meta.items():
         rest_api_id = resource_arn.split('/')[-1]
         stage_name = meta.get('resource_meta', {}).get('deploy_stage')
 
         exported_schema = get_api_gw_export(rest_api_id, stage_name)
-
+        paths_to_be_triggered.update(
+            {rest_api_id: get_api_gw_integration(rest_api_id)}
+        )
         schema = transform_to_schema(exported_schema)
         schemas.append(schema)
-    return schemas
+    return schemas, paths_to_be_triggered
 
 
 @exit_on_exception
