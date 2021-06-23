@@ -19,6 +19,7 @@ import sys
 
 import click
 
+from syndicate.core.transform.transform_processor import generate_build_meta
 from syndicate.core import CONF_PATH, initialize_connection, \
     initialize_project_state
 from syndicate.core.build.artifact_processor import (RUNTIME_NODEJS,
@@ -46,7 +47,7 @@ from syndicate.core.helper import (check_required_param,
                                    verify_bundle_callback,
                                    verify_meta_bundle_callback,
                                    resolve_default_value,
-                                   generate_default_bundle_name)
+                                   generate_default_bundle_name, param_to_lower)
 from syndicate.core.project_state.project_state import MODIFICATION_LOCK
 from syndicate.core.project_state.sync_processor import sync_project_state
 
@@ -100,6 +101,25 @@ def build(ctx, bundle_name, force_upload):
     ctx.invoke(assemble, bundle_name=bundle_name)
     ctx.invoke(package_meta, bundle_name=bundle_name)
     ctx.invoke(upload, bundle_name=bundle_name, force=force_upload)
+
+
+@syndicate.command(name='transform')
+@click.option('--name',
+              callback=resolve_default_value,
+              help='Name of the bundle to transform. '
+                   'Default value: name of the latest built bundle')
+@click.option('--dsl', type=click.Choice(['CloudFormation', 'Terraform'],
+                                         case_sensitive=False),
+              callback=param_to_lower,
+              help='???')  # TODO
+@click.option('--output_dir', help='???')
+@timeit()
+def transform(name, dsl, output_dir):
+    generate_build_meta(bundle_name=name,
+                        dsl_list=[dsl],
+                        output_directory=output_dir)
+    click.echo("The '{0}' bundle is transformed into {1} dsl."
+               .format(name, dsl))
 
 
 @syndicate.command(name='deploy')

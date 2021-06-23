@@ -156,6 +156,13 @@ def check_required_param(ctx, param, value):
     return value
 
 
+def param_to_lower(ctx, param, value):
+    if isinstance(value, tuple):
+        return tuple([a_value.lower() for a_value in value])
+    if isinstance(value, str):
+        return value.lower()
+
+
 def resolve_path_callback(ctx, param, value):
     if not value:
         raise BadParameter('Parameter is required')
@@ -195,12 +202,13 @@ param_resolver_map = {
 
 
 def resolve_default_value(ctx, param, value):
-    if not value:
-        param_resolver = param_resolver_map.get(param.name)
-        if not param_resolver:
-            raise AssertionError(
-                f'There is no resolver of default value for param {param.name}')
-        return param_resolver()
+    if value:
+        return value
+    param_resolver = param_resolver_map.get(param.name)
+    if not param_resolver:
+        raise AssertionError(
+            f'There is no resolver of default value for param {param.name}')
+    return param_resolver()
 
 
 def create_bundle_callback(ctx, param, value):
