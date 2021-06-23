@@ -378,7 +378,8 @@ def resolve_meta(overall_meta):
     from syndicate.core import CONFIG
     iam_suffix = _resolve_iam_suffix(iam_suffix=CONFIG.iam_suffix)
     if CONFIG.aliases:
-        for key, value in CONFIG.aliases.items():
+        aliases = CONFIG.aliases
+        for key, value in aliases.items():
             name = '${' + key + '}'
             overall_meta = resolve_dynamic_identifier(name, str(value),
                                                       overall_meta)

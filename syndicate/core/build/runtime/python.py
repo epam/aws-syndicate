@@ -42,7 +42,7 @@ def assemble_python_lambdas(project_path, bundles_dir):
     from syndicate.core import CONFIG
     project_base_folder = os.path.basename(os.path.normpath(project_path))
     if project_path != '.':
-        project_abs_path = build_path(CONFIG.project_path, project_path)
+        project_abs_path = build_path(CONFIG.project_path, project_base_folder)
     else:
         project_abs_path = CONFIG.project_path
     _LOG.info('Going to process python project by path: {0}'.format(
@@ -130,7 +130,7 @@ def _install_local_req(artifact_path, local_req_path, project_base_folder,
     # copy folders
     for lrp in local_req_list:
         _LOG.info('Processing dependency: {0}'.format(lrp))
-        folder_path = build_path(artifact_path, project_base_folder, lrp)
+        folder_path = build_path(artifact_path, lrp)
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
 
@@ -147,7 +147,7 @@ def _install_local_req(artifact_path, local_req_path, project_base_folder,
             temp_path += DEFAULT_SEP + folders[i]
             src_path = build_path(CONFIG.project_path, project_path,
                                   temp_path)
-            dst_path = build_path(artifact_path, project_base_folder,
+            dst_path = build_path(artifact_path,
                                   temp_path)
             _copy_py_files(src_path, dst_path)
             i += 1

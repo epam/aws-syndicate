@@ -14,29 +14,33 @@
     limitations under the License.
 """
 import logging
+import os
 from logging import DEBUG, Formatter, INFO, getLogger
+
+LOG_LEVEL = DEBUG if os.environ.get('SDCT_DEBUG', False) else INFO
 
 # file output
 file_handler = logging.FileHandler(filename='sdct.log')
 file_handler.setFormatter(Formatter('%(asctime)s [%(levelname)s]'
                                     '  %(name)s,%(lineno)s  %(message)s'))
-file_handler.setLevel(DEBUG)
 
 # console output
 console_handler = logging.StreamHandler()
-console_handler.setLevel(INFO)
 console_handler.setFormatter(Formatter('%(message)s'))
 
+user_logger = getLogger("user-sdct")
+user_logger.addHandler(console_handler)
+user_logger.addHandler(file_handler)
+
 sdct_logger = getLogger("sdct")
-# add handlers
-sdct_logger.addHandler(console_handler)
 sdct_logger.addHandler(file_handler)
-sdct_logger.setLevel(DEBUG)
+if LOG_LEVEL == DEBUG:
+    sdct_logger.addHandler(console_handler)
 
 logging.captureWarnings(True)
 
 
-def get_logger(log_name, level=DEBUG):
+def get_logger(log_name, level=LOG_LEVEL):
     """
     :param level:   CRITICAL = 50
                     ERROR = 40
@@ -48,6 +52,23 @@ def get_logger(log_name, level=DEBUG):
     :type level: int
     """
     module_logger = sdct_logger.getChild(log_name)
+    if level:
+        module_logger.setLevel(level)
+    return module_logger
+
+
+def get_user_logger(log_name, level=LOG_LEVEL):
+    """
+    :param level:   CRITICAL = 50
+                    ERROR = 40
+                    WARNING = 30
+                    INFO = 20
+                    DEBUG = 10
+                    NOTSET = 0
+    :type log_name: str
+    :type level: int
+    """
+    module_logger = user_logger.getChild(log_name)
     if level:
         module_logger.setLevel(level)
     return module_logger
