@@ -32,7 +32,7 @@ LOCK_LOCKED = 'locked'
 LOCK_LAST_MODIFICATION_DATE = 'last_modification_date'
 
 MODIFICATION_LOCK = 'modification_lock'
-
+WARMUP_LOCK = 'is_warmup_locked'
 PROJECT_STATE_FILE = '.syndicate'
 
 BUILD_MAPPINGS = {

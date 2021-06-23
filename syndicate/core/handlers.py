@@ -51,7 +51,8 @@ from syndicate.core.helper import (check_required_param,
                                    verify_meta_bundle_callback,
                                    resolve_default_value,
                                    generate_default_bundle_name)
-from syndicate.core.project_state.project_state import MODIFICATION_LOCK
+from syndicate.core.project_state.project_state import (MODIFICATION_LOCK,
+                                                        WARMUP_LOCK)
 from syndicate.core.project_state.sync_processor import sync_project_state
 
 INIT_COMMAND_NAME = 'init'
@@ -504,7 +505,7 @@ def copy_bundle(ctx, bundle_name, src_account_id, src_bucket_region,
 @click.option('--lambda_auth', default=False, is_flag=True)
 @click.option('--header_name', nargs=1)
 @click.option('--header_value', nargs=1)
-@timeit
+@timeit(action_name='warmup')
 def warmup(bundle_name, deploy_name, api_gw_id, stage_name, lambda_auth,
            header_name, header_value):
     """
@@ -519,9 +520,16 @@ def warmup(bundle_name, deploy_name, api_gw_id, stage_name, lambda_auth,
        :param header_value: Lambda authorization header value
        :return:
        """
+    sync_project_state()
+    from syndicate.core import PROJECT_STATE
+    if PROJECT_STATE.is_lock_free(WARMUP_LOCK):
+        PROJECT_STATE.acquire_lock(WARMUP_LOCK)
+        sync_project_state()
+    else:
+        click.echo('The project modification is locked.')
+        return
+
     click.echo('Command warmup')
-    now = datetime.now()
-    click.echo(f'Time start {now}')
 
     if bundle_name and deploy_name:
         click.echo(f'Deploy name: {deploy_name}')
@@ -545,6 +553,8 @@ def warmup(bundle_name, deploy_name, api_gw_id, stage_name, lambda_auth,
     uri_method_dict = process_schemas(schemas_list, paths_to_be_triggered)
     warm_upper(uri_method_dict, lambda_auth, header_name, header_value)
     click.echo('AWS lambda resources were triggered.')
+    PROJECT_STATE.release_lock(WARMUP_LOCK)
+    sync_project_state()
 
 
 syndicate.add_command(generate)

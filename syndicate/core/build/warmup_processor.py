@@ -4,7 +4,6 @@ import boto3
 import requests
 import os
 import click
-import datetime
 
 from syndicate.commons.log_helper import get_logger
 from syndicate.core import ResourceProvider
@@ -92,7 +91,6 @@ def warm_upper(uri_method_dict, lambda_auth, header_name, header_value):
                                     header_value)
             else:
                 aws_iam_warm_up(warmup_method, uri)
-    _LOG.debug(f'time_end: {datetime.datetime.now().isoformat()}')
 
 
 def _get_api_gw_client():
@@ -126,9 +124,6 @@ def get_api_gw_export(rest_api_id, stage_name):
 
 
 def process_existed_api_gw_id(stage_name):
-    _LOG.info('Command warmup')
-    _LOG.info(f'Initiator: {os.getlogin()}')
-    _LOG.debug(f'time_start: {datetime.datetime.now().isoformat()}')
     api_gw_client = _get_api_gw_client()
     all_apis = api_gw_client.get_rest_apis().get('items', {})
 
@@ -231,9 +226,6 @@ def get_api_gw_integration(rest_api_id):
 
 
 def process_inputted_api_gw_id(api_id, stage_name):
-    _LOG.info('Command warmup')
-    _LOG.info(f'Initiator: {os.getlogin()}')
-    _LOG.debug(f'time_start: {datetime.datetime.now().isoformat()}')
     api_gw_client = _get_api_gw_client()
     all_apis = api_gw_client.get_rest_apis().get('items', {})
 
@@ -275,10 +267,6 @@ def load_schema(api_gw_resources_meta):
 
 @exit_on_exception
 def warmup_resources(bundle_name, deploy_name):
-    _LOG.info('operation: warmup')
-    _LOG.info(f'initiator: {os.getlogin()}')
-    _LOG.debug(f'bundle_name: {bundle_name}')
-    _LOG.debug(f'time_start: {datetime.datetime.now().isoformat()}')
     output = load_deploy_output(bundle_name, deploy_name)
 
     filters = [
