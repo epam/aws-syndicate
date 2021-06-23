@@ -75,7 +75,7 @@ def process_default_view():
         latest_operation = last_event.get('operation')
         result.append(LINE_SEP + 'Latest event: {}'.format(latest_operation))
         event_time = last_event.get('time_start')
-        duration = last_event.get('duration')
+        duration = last_event.get('duration_sec')
         data = [['', 'Bundle name: ', last_event.get('bundle_name')],
                 ['', 'Deploy name: ', last_event.get('deploy_name')],
                 ['', 'Initiated by: ', last_event.get('initiator')],
@@ -87,7 +87,8 @@ def process_default_view():
     if lambdas:
         headers = ['Type', 'Quantity']
         resources = [['Lambda', len(lambdas)]]
-        result.append(tabulate_data(resources, headers, 'simple'))
+        result.append(tabulate_data(data=resources, headers=headers,
+                                    tablefmt='simple'))
     else:
         result.append(indent('There are no lambdas in this project.'))
     return LINE_SEP + LINE_SEP.join(result)
@@ -107,12 +108,13 @@ def process_events_view():
             summaries.append([
                 event.get('operation'),
                 format_time(event.get('time_start')),
-                event.get('duration'),
+                event.get('duration_sec'),
                 event.get('initiator'),
                 event.get('bundle_name'),
                 event.get('deploy_name'),
             ])
-        result.append(tabulate_data(summaries, headers, tablefmt='simple'))
+        result.append(tabulate_data(data=summaries, headers=headers,
+                                    tablefmt='simple'))
     else:
         result.append('There are no events regarding this project.')
     return LINE_SEP + LINE_SEP.join(result)
@@ -129,7 +131,8 @@ def process_resources_view():
         lambdas_data = []
         for lambda_name, lambda_info in lambdas.items():
             lambdas_data.append([lambda_name, lambda_info.get('runtime')])
-        result.append(tabulate_data(lambdas_data, headers, tablefmt='simple'))
+        result.append(tabulate_data(data=lambdas_data, headers=headers,
+                                    tablefmt='simple'))
     else:
         result.append(indent('There are no lambdas in this project.'))
     return LINE_SEP + LINE_SEP.join(result)
@@ -153,7 +156,8 @@ def locks_summary(project_state):
             locks_data.append([display_name, state, last_mod_date])
         else:
             locks_data.append([display_name, 'Released', None])
-    result.append(tabulate_data(locks_data, headers, tablefmt='simple'))
+    result.append(tabulate_data(data=locks_data, headers=headers,
+                                tablefmt='simple'))
     return LINE_SEP.join(result)
 
 
