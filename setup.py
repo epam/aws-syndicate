@@ -21,7 +21,6 @@ SYNDICATE_DESCRIPTION = ('AWS-syndicate is an Amazon Web Services deployment '
                          'easily deploy serverless applications using '
                          'resource descriptions.')
 
-
 this_directory = path.abspath(path.dirname(__file__))
 with open(path.join(this_directory, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
@@ -38,7 +37,9 @@ setup(
         'configobj==5.0.6',
         'tqdm==4.19.5',
         'colorama==0.4.1',
-        'pyyaml==5.4'
+        'pyyaml==5.4',
+        'schemathesis==3.9.1',
+        'requests==2.25.1'
     ],
     entry_points='''
         [console_scripts]

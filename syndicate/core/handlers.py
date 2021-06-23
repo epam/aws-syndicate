@@ -576,14 +576,25 @@ def copy_bundle(ctx, bundle_name, src_account_id, src_bucket_region,
 @click.option('--deploy_name', nargs=1)
 @click.option('--api_gw_id', nargs=1, multiple=True, type=str)
 @click.option('--stage_name', nargs=1, multiple=True, type=str)
-@click.option('--lambda_auth', default=False)
+@click.option('--lambda_auth', default=False, is_flag=True)
 @click.option('--header_name', nargs=1)
 @click.option('--header_value', nargs=1)
 @timeit
 def warmup(bundle_name, deploy_name, api_gw_id, stage_name, lambda_auth,
            header_name, header_value):
+    """
+       Warmups Lambda resources
+       :param bundle_name: name of the bundle
+       :param deploy_name: name of the deploy
+       :param api_gw_id: id of the API Gateway to warmup Lambda function
+       :param stage_name: name of the API Gateway stage
+       :param lambda_auth: used to specify if Lambda operates as API Gateway
+       Lambda Authorizer
+       :param header_name: Lambda authorization header key
+       :param header_value: Lambda authorization header value
+       :return:
+       """
     click.echo('Command warmup')
-    click.echo(f'Initiator: {os.getlogin()}')
     now = datetime.now()
     click.echo(f'Time start {now}')
 
@@ -608,7 +619,6 @@ def warmup(bundle_name, deploy_name, api_gw_id, stage_name, lambda_auth,
 
     uri_method_dict = process_schemas(schemas_list, paths_to_be_triggered)
     warm_upper(uri_method_dict, lambda_auth, header_name, header_value)
-    click.echo(f'Time end: {now}')
     click.echo('AWS lambda resources were triggered.')
 
 
