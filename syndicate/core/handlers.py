@@ -176,11 +176,20 @@ def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
 
 
 @syndicate.command(name='update')
-@click.option('--bundle_name', nargs=1, callback=check_required_param)
-@click.option('--deploy_name', nargs=1, callback=check_required_param)
-@click.option('--update_only_types', multiple=True)
-@click.option('--update_only_resources', multiple=True)
-@click.option('--update_only_resources_path', nargs=1)
+@click.option('--bundle_name',
+              callback=resolve_default_value,
+              help='Name of the bundle to deploy. '
+                   'Default value: name of the latest built bundle')
+@click.option('--deploy_name',
+              callback=resolve_default_value,
+              help='Name of the deploy. Default value: name of the project')
+@click.option('--update_only_types', multiple=True,
+              help='Types of the resources to update')
+@click.option('--update_only_resources', multiple=True,
+              help='Names of the resources to deploy')
+@click.option('--update_only_resources_path', nargs=1,
+              help='Path to file containing names of the resources to skip '
+                   'while deploy')
 @click.option('--replace_output', nargs=1, is_flag=True, default=False)
 @check_deploy_name_for_duplicates
 @timeit(action_name='update')
