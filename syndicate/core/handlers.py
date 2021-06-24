@@ -18,13 +18,13 @@ import os
 import sys
 import click
 
-from datetime import datetime
 from syndicate.core import CONF_PATH, initialize_connection, \
     initialize_project_state
 from syndicate.core.build.artifact_processor import (RUNTIME_NODEJS,
                                                      assemble_artifacts,
                                                      RUNTIME_JAVA_8,
                                                      RUNTIME_PYTHON)
+from syndicate.core.build.profiler_processor import get_metric_statistics
 from syndicate.core.build.bundle_processor import (create_bundles_bucket,
                                                    load_bundle,
                                                    upload_bundle_to_s3,
@@ -555,6 +555,19 @@ def warmup(bundle_name, deploy_name, api_gw_id, stage_name, lambda_auth,
     click.echo('AWS lambda resources were triggered.')
     PROJECT_STATE.release_lock(WARMUP_LOCK)
     sync_project_state()
+
+
+@syndicate.command(name='profiler')
+@click.option('--bundle_name', nargs=1)
+@click.option('--deploy_name', nargs=1)
+@click.option('--from_date', nargs=1, multiple=True, type=str)
+@click.option('--to_date', nargs=1, multiple=True, type=str)
+def profiler(bundle_name, deploy_name, from_date, to_date):
+    """
+    Displays application Lambda metrics
+    """
+    click.echo('Command profiler')
+    get_metric_statistics(bundle_name, deploy_name, from_date, to_date)
 
 
 syndicate.add_command(generate)
