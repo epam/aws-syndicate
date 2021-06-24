@@ -542,7 +542,7 @@ def warmup(bundle_name, deploy_name, api_gw_id, stage_name, lambda_auth,
 
     uri_method_dict = process_schemas(schemas_list, paths_to_be_triggered)
     warm_upper(uri_method_dict, lambda_auth, header_name, header_value)
-    click.echo(' Application resources has been warmed up.')
+    click.echo(' Application resources have been warmed up.')
     PROJECT_STATE.release_lock(WARMUP_LOCK)
     sync_project_state()
 
