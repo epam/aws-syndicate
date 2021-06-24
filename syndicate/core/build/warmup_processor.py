@@ -8,7 +8,6 @@ from syndicate.commons.log_helper import get_logger
 from syndicate.core import ResourceProvider
 from syndicate.core.conf.processor import ConfigHolder
 from syndicate.core.build.bundle_processor import load_deploy_output
-from syndicate.core.build.deployment_processor import _filter_the_dict
 from syndicate.core.helper import exit_on_exception
 from requests_aws_sign import AWSV4Sign
 
@@ -120,7 +119,7 @@ def get_api_gw_export(rest_api_id, stage_name):
     return exported_schema
 
 
-def process_existed_api_gw_id(stage_name):
+def process_existing_api_gw_id(stage_name):
     api_gw_client = _get_api_gw_client()
     all_apis = api_gw_client.get_rest_apis().get('items', {})
 
@@ -266,12 +265,8 @@ def load_schema(api_gw_resources_meta):
 def warmup_resources(bundle_name, deploy_name):
     output = load_deploy_output(bundle_name, deploy_name)
 
-    filters = [
-        lambda v: v['resource_meta'].get('resource_type') == 'api_gateway'
-    ]
-
-    for function in filters:
-        output = _filter_the_dict(dictionary=output, callback=function)
+    output = {key: value for key, value in output.items() if
+              value['resource_meta'].get('resource_type') == 'api_gateway'}
 
     if not output:
         _LOG.warning('No resources to warmup, exiting')
@@ -291,6 +286,5 @@ def find_api_url(schema_doc):
 def find_api_methods(schema_doc):
     url = find_api_url(schema_doc)
     paths = schema_doc['paths']
-    url_method_dict = {}
-    url_method_dict.update({url: paths})
+    url_method_dict = {url: paths}
     return url_method_dict

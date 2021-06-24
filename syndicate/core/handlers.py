@@ -18,7 +18,6 @@ import os
 import sys
 import click
 
-from datetime import datetime
 from syndicate.core import CONF_PATH, initialize_connection, \
     initialize_project_state
 from syndicate.core.build.artifact_processor import (RUNTIME_NODEJS,
@@ -35,7 +34,7 @@ from syndicate.core.build.deployment_processor import (
     update_deployment_resources)
 from syndicate.core.build.warmup_processor import (warmup_resources,
                                                    process_schemas, warm_upper,
-                                                   process_existed_api_gw_id,
+                                                   process_existing_api_gw_id,
                                                    process_inputted_api_gw_id)
 from syndicate.core.build.meta_processor import create_meta
 from syndicate.core.conf.validator import (MVN_BUILD_TOOL_NAME,
@@ -509,24 +508,15 @@ def copy_bundle(ctx, bundle_name, src_account_id, src_bucket_region,
 def warmup(bundle_name, deploy_name, api_gw_id, stage_name, lambda_auth,
            header_name, header_value):
     """
-       Warmups Lambda resources
-       :param bundle_name: name of the bundle
-       :param deploy_name: name of the deploy
-       :param api_gw_id: id of the API Gateway to warmup Lambda function
-       :param stage_name: name of the API Gateway stage
-       :param lambda_auth: used to specify if Lambda operates as API Gateway
-       Lambda Authorizer
-       :param header_name: Lambda authorization header key
-       :param header_value: Lambda authorization header value
-       :return:
-       """
+    Warmups Lambda application resources
+    """
     sync_project_state()
     from syndicate.core import PROJECT_STATE
     if PROJECT_STATE.is_lock_free(WARMUP_LOCK):
         PROJECT_STATE.acquire_lock(WARMUP_LOCK)
         sync_project_state()
     else:
-        click.echo('The project modification is locked.')
+        click.echo('The project warmup is locked.')
         return
 
     click.echo('Command warmup')
@@ -547,12 +537,12 @@ def warmup(bundle_name, deploy_name, api_gw_id, stage_name, lambda_auth,
             api_gw_id, stage_name)
 
     else:
-        schemas_list, paths_to_be_triggered = process_existed_api_gw_id(
+        schemas_list, paths_to_be_triggered = process_existing_api_gw_id(
             stage_name)
 
     uri_method_dict = process_schemas(schemas_list, paths_to_be_triggered)
     warm_upper(uri_method_dict, lambda_auth, header_name, header_value)
-    click.echo('AWS lambda resources were triggered.')
+    click.echo(' Application resources has been warmed up.')
     PROJECT_STATE.release_lock(WARMUP_LOCK)
     sync_project_state()
 
