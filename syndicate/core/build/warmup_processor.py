@@ -1,5 +1,4 @@
 import json
-import schemathesis
 import boto3
 import requests
 import os
@@ -33,26 +32,25 @@ methods_check = {
 }
 
 
-def process_schemas(schemas_list, paths_to_be_triggered=None):
+def process_schemas(schemas_list, paths_to_be_triggered):
     uri_method_dict = dict()
     for schema in schemas_list:
-        url = schema.base_url.replace(schema.base_path[:-1],
-                                      schema.base_path[1:-1])
-        resources = schema.operations
-        for resource, definition in resources.items():
-            resource_url = url + resource
-            for api_gw_id, paths in paths_to_be_triggered.items():
-                if api_gw_id in url:
-                    for path in paths:
-                        if not resource_url.endswith(path):
-                            continue
-                        if resource_url not in uri_method_dict:
-                            uri_method_dict.update({resource_url: [
-                                each_path.lower() for each_path in
-                                paths[path]]})
-                        elif resource_url in uri_method_dict:
-                            uri_method_dict[resource_url].append(
-                                each_path.lower() for each_path in paths[path])
+        for url, definition in schema.items():
+            for resource in definition:
+                resource_url = url + resource
+                for api_gw_id, paths in paths_to_be_triggered.items():
+                    if api_gw_id in url:
+                        for path in paths:
+                            if not resource_url.endswith(path):
+                                continue
+                            if resource_url not in uri_method_dict:
+                                uri_method_dict.update({resource_url: [
+                                    each_path.lower() for each_path in
+                                    paths[path]]})
+                            elif resource_url in uri_method_dict:
+                                uri_method_dict[resource_url].append(
+                                    each_path.lower()
+                                    for each_path in paths[path])
     return uri_method_dict
 
 
@@ -70,7 +68,7 @@ def get_aws_sign():
 
 
 def lambda_auth_warm_up(warmup_method, uri, header_name, header_value):
-    params = {"warm_up": "true"}
+    params = {"warmUp": "true"}
     headers = {header_name: header_value}
     warmup_method(uri, headers=headers, params=params)
 
@@ -78,7 +76,7 @@ def lambda_auth_warm_up(warmup_method, uri, header_name, header_value):
 def aws_iam_warm_up(warmup_method, uri):
     auth = get_aws_sign()
     headers = {"Content-Type": "application/json"}
-    params = {"warm_up": "true"}
+    params = {"warmUp": "true"}
     warmup_method(uri, auth=auth, headers=headers, params=params)
 
 
@@ -108,8 +106,7 @@ def _replace_method_any(schema_file):
 def transform_to_schema(exported_schema):
     file_schema = json.loads(exported_schema['body'].read())
     file_schema = _replace_method_any(file_schema)
-    schema = schemathesis.from_file(str(file_schema),
-                                    base_url=find_api_url(file_schema))
+    schema = find_api_methods(file_schema)
     return schema
 
 
@@ -286,6 +283,14 @@ def warmup_resources(bundle_name, deploy_name):
 
 def find_api_url(schema_doc):
     server = schema_doc['servers'][0]
-    api_base_path = server['variables']['basePath']['default']
+    api_base_path = server['variables']['basePath']['default'][1:]
     url = server['url'].format(basePath=api_base_path)
     return url
+
+
+def find_api_methods(schema_doc):
+    url = find_api_url(schema_doc)
+    paths = schema_doc['paths']
+    url_method_dict = {}
+    url_method_dict.update({url: paths})
+    return url_method_dict
