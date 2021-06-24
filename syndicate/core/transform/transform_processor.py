@@ -13,16 +13,24 @@
 #  limitations under the License.
 
 import json
+import os
 
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.build.helper import resolve_bundle_directory
 from syndicate.core.constants import BUILD_META_FILE_NAME
 from syndicate.core.helper import build_path
+from syndicate.core.transform.cloudformation_transformer import CloudFormationTransformer
+from syndicate.core.transform.terraform_transformer import TerraformTransformer
 
 _LOG = get_logger('syndicate.core.build.transform_processor')
 
 TERRAFORM_DSL = 'terraform'
 CLOUD_FORMATION_DSL = 'cloudformation'
+
+TRANSFORM_PROCESSORS = {
+    TERRAFORM_DSL: TerraformTransformer(),
+    CLOUD_FORMATION_DSL: CloudFormationTransformer()
+}
 
 
 def generate_build_meta(bundle_name, dsl_list, output_directory):
@@ -37,21 +45,18 @@ def generate_build_meta(bundle_name, dsl_list, output_directory):
             _LOG.warning(f'There is no transformer for such dsl: {dsl}')
             continue
 
-        transformer(build_meta=meta_resources,
-                    output_directory=output_directory)
+        transformed_build_meta = \
+            transformer.transform_build_meta(build_meta=meta_resources)
+        if not output_directory:
+            output_path = build_path(
+                bundle_path, transformer.output_file_name())
+        elif not os.path.isabs(output_directory):
+            output_path = build_path(
+                os.getcwd(), output_directory, transformer.output_file_name())
+        else:
+            output_path = build_path(
+                output_directory, transformer.output_file_name())
+        with open(output_path, 'w') as output_file:
+            output_file.write('' if transformed_build_meta is None else transformed_build_meta)
 
     return None
-
-
-def _generate_terraform_meta(build_meta, output_directory):
-    return None
-
-
-def _generate_cloud_formation_meta(build_meta, output_directory):
-    return None
-
-
-TRANSFORM_PROCESSORS = {
-    TERRAFORM_DSL: _generate_terraform_meta,
-    CLOUD_FORMATION_DSL: _generate_cloud_formation_meta
-}
