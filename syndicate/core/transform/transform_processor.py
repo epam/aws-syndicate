@@ -19,7 +19,8 @@ from syndicate.commons.log_helper import get_logger
 from syndicate.core.build.helper import resolve_bundle_directory
 from syndicate.core.constants import BUILD_META_FILE_NAME
 from syndicate.core.helper import build_path
-from syndicate.core.transform.cloudformation_transformer import CloudFormationTransformer
+from syndicate.core.transform.cloudformation_transformer import \
+    CloudFormationTransformer
 from syndicate.core.transform.terraform_transformer import TerraformTransformer
 
 _LOG = get_logger('syndicate.core.build.transform_processor')
@@ -57,6 +58,7 @@ def generate_build_meta(bundle_name, dsl_list, output_directory):
             output_path = build_path(
                 output_directory, transformer.output_file_name())
         with open(output_path, 'w') as output_file:
-            output_file.write('' if transformed_build_meta is None else transformed_build_meta)
+            output_file.write(
+                '' if transformed_build_meta is None else transformed_build_meta)
 
     return None

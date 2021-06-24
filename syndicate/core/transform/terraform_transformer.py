@@ -11,30 +11,23 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-from syndicate.core.constants import IAM_POLICY, IAM_ROLE, LAMBDA_TYPE
-from syndicate.core.transform.build_meta_transformer import BuildMetaTransformer
+from syndicate.core.transform.build_meta_transformer import \
+    BuildMetaTransformer
 
 
 class TerraformTransformer(BuildMetaTransformer):
 
-    def __init__(self):
-        super().__init__({
-            IAM_POLICY: self.__transform_iam_managed_policy,
-            IAM_ROLE: self.__transform_iam_role,
-            LAMBDA_TYPE: self.__transform_iam_role
-        })
-
     def output_file_name(self) -> str:
         return 'terraform_template.tf'
 
-    def __transform_iam_managed_policy(self, name, resource):
-        return None
+    def _transform_iam_managed_policy(self, name, resource):
+        return "tf_policy"
 
-    def __transform_iam_role(self, name, resource):
-        return None
+    def _transform_iam_role(self, name, resource):
+        return "tf_role"
 
-    def __transform_lambda(self, name, resource):
-        return None
+    def _transform_lambda(self, name, resource):
+        return "tf_lambda"
 
-    def __compose_template(self):
-        return None
+    def _compose_template(self):
+        return self.resources
