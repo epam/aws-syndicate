@@ -17,6 +17,12 @@ from syndicate.core.transform.build_meta_transformer import \
 
 class TerraformTransformer(BuildMetaTransformer):
 
+    def __init__(self):
+        super().__init__()
+
+    def add_resource(self, transformed_resource):
+        pass  # TODO implement or design other approach
+
     def output_file_name(self) -> str:
         return 'terraform_template.tf'
 
@@ -30,4 +36,4 @@ class TerraformTransformer(BuildMetaTransformer):
         return "tf_lambda"
 
     def _compose_template(self):
-        return self.resources
+        return ''

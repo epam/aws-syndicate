@@ -13,13 +13,13 @@
 #  limitations under the License.
 from abc import abstractmethod
 
+from syndicate.core.build.meta_processor import resolve_meta
 from syndicate.core.constants import IAM_POLICY, IAM_ROLE, LAMBDA_TYPE
 
 
 class BuildMetaTransformer:
 
     def __init__(self):
-        self.resources = list()
         self.transformer_mapping = {
             IAM_POLICY: self._transform_iam_managed_policy,
             IAM_ROLE: self._transform_iam_role,
@@ -27,13 +27,13 @@ class BuildMetaTransformer:
         }
 
     def transform_build_meta(self, build_meta):
+        build_meta = resolve_meta(build_meta)
         for name, resource in build_meta.items():
             resource_type = resource.get('resource_type')
             transformer = self.transformer_mapping.get(resource_type)
             if transformer is None:
                 continue
-            transformed_resource = transformer(name=name, resource=resource)
-            self.resources.append(transformed_resource)
+            transformer(name=name, resource=resource)
         return self._compose_template()
 
     @abstractmethod
