@@ -9,7 +9,16 @@ from syndicate.core.build.bundle_processor import load_deploy_output
 from syndicate.core.helper import exit_on_exception
 from datetime import datetime, timedelta
 
-UTC_TIMESTAMP = f'Timestamp{os.linesep}(UTC)'
+MIN_STATISTIC_VALUE = 'Minimum'
+MAX_STATISTIC_VALUE = 'Maximum'
+AVG_STATISTIC_VALUE = 'Average'
+SUM_STATISTIC_VALUE = "Sum"
+
+DURATION_METRIC = "Duration"
+INVOCATION_METRIC = "Invocations"
+CONCURRENT_EXECUTIONS_METRIC = "ConcurrentExecutions"
+
+UTC_TIMESTAMP = f'Metrics time stamp{os.linesep}(UTC)'
 METRIC_NAMES = ["Invocations", "Errors", "Throttles", "Duration",
                 "DestinationDeliveryFailures", "DeadLetterErrors",
                 "IteratorAge", "ConcurrentExecutions"]
@@ -40,19 +49,24 @@ def get_lambdas_name(bundle_name, deploy_name):
 
 def process_metrics(metric_value_dict: dict):
     for lambda_name, metrics in metric_value_dict.items():
-        prettify_metrics_dict = {UTC_TIMESTAMP: []}
-        click.echo(f'Lambda function name: {lambda_name}')
+        prettify_metrics_dict = {}
+        click.echo(f'{os.linesep}Lambda function name: {lambda_name}')
         for metric_type in metrics:
             label = metric_type['Label']
             data_points = metric_type['Datapoints']
             data_points.sort(key=lambda date: date['Timestamp'], reverse=True)
+
+            if UTC_TIMESTAMP not in prettify_metrics_dict and data_points:
+                prettify_metrics_dict.update({UTC_TIMESTAMP: []})
+
             for data in data_points:
                 unit = f"{os.linesep}({data['Unit']})".replace('Milliseconds',
                                                                'Ms')
                 time_stamp = str(data['Timestamp']).split('+')[0]
-                metric_data = None
 
-                statistics = ['Average', 'Minimum', 'Maximum', "Sum"]
+                metric_data = None
+                statistics = [AVG_STATISTIC_VALUE, MIN_STATISTIC_VALUE,
+                              MAX_STATISTIC_VALUE, SUM_STATISTIC_VALUE]
                 for statistic in statistics:
                     if statistic in data:
                         metric_data = data[statistic]
@@ -61,16 +75,16 @@ def process_metrics(metric_value_dict: dict):
                         else:
                             metric_data = round(metric_data, 2)
 
-                response = f'{metric_data}'
                 if label + unit not in prettify_metrics_dict:
-                    prettify_metrics_dict.update({label + unit: [response]})
+                    prettify_metrics_dict.update({label + unit: [metric_data]})
                 else:
-                    prettify_metrics_dict[label + unit].append(response)
+                    prettify_metrics_dict[label + unit].append(metric_data)
 
                 if time_stamp not in prettify_metrics_dict[UTC_TIMESTAMP]:
                     prettify_metrics_dict[UTC_TIMESTAMP].append(time_stamp)
 
-        click.echo(tabulate(prettify_metrics_dict, headers='keys'))
+        click.echo(tabulate(prettify_metrics_dict, headers='keys',
+                            stralign='right'))
 
 
 def period_calculation(time_range):
@@ -96,7 +110,7 @@ def period_calculation(time_range):
 
 def validate_time_range(from_date, to_date):
     if not (from_date and to_date):
-        from_date = datetime.utcnow() - timedelta(hours=1)
+        from_date = datetime.utcnow() - timedelta(hours=20)
         to_date = datetime.utcnow()
     else:
         from_date = datetime.strptime(from_date, "%Y-%m-%dT%H:%M:%SZ")
@@ -144,14 +158,13 @@ def get_metric_statistics(bundle_name, deploy_name, from_date, to_date):
     period = period_calculation(time_range)
 
     lambda_names = get_lambdas_name(bundle_name, deploy_name)
-
     metric_value_dict = {}
     for lambda_name in lambda_names:
         for metric in METRIC_NAMES:
-            if metric == 'Duration':
-                statistics_abbreviation = {'Minimum': 'Min.',
-                                           'Average': 'Avg.',
-                                           'Maximum': 'Max.'}
+            if metric == DURATION_METRIC:
+                statistics_abbreviation = {MIN_STATISTIC_VALUE: 'Min.',
+                                           AVG_STATISTIC_VALUE: 'Avg.',
+                                           MAX_STATISTIC_VALUE: 'Max.'}
                 for statistic in statistics_abbreviation:
                     response = get_metric(lambda_name, metric, [statistic],
                                           from_date, to_date, period)
@@ -162,14 +175,21 @@ def get_metric_statistics(bundle_name, deploy_name, from_date, to_date):
                     metric_value_dict = save_metric_to_dict(metric_value_dict,
                                                             lambda_name,
                                                             response)
-            elif metric == "Invocations":
-                sum_statistic = ["Sum"]
+            elif metric == INVOCATION_METRIC:
+                sum_statistic = [SUM_STATISTIC_VALUE]
                 response = get_metric(lambda_name, metric, sum_statistic,
                                       from_date, to_date, period)
                 metric_value_dict = save_metric_to_dict(metric_value_dict,
                                                         lambda_name, response)
+            elif metric == CONCURRENT_EXECUTIONS_METRIC:
+                max_statistics = [MAX_STATISTIC_VALUE]
+                response = get_metric(lambda_name, metric, max_statistics,
+                                      from_date, to_date, period)
+                response['Label'] = 'Concurrent Executions'
+                metric_value_dict = save_metric_to_dict(metric_value_dict,
+                                                        lambda_name, response)
             else:
-                max_statistics = ["Maximum"]
+                max_statistics = [MAX_STATISTIC_VALUE]
                 response = get_metric(lambda_name, metric, max_statistics,
                                       from_date, to_date, period)
                 metric_value_dict = save_metric_to_dict(metric_value_dict,
