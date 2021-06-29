@@ -1,4 +1,5 @@
 import click
+import os
 
 from math import ceil
 from tabulate import tabulate
@@ -8,8 +9,9 @@ from syndicate.core.build.bundle_processor import load_deploy_output
 from syndicate.core.helper import exit_on_exception
 from datetime import datetime, timedelta
 
-METRIC_NAMES = ["Invocations", "Duration", "Errors",
-                "DestinationDeliveryFailures", "DeadLetterErrors", "Throttles",
+UTC_TIMESTAMP = f'Timestamp{os.linesep}(UTC)'
+METRIC_NAMES = ["Invocations", "Errors", "Throttles", "Duration",
+                "DestinationDeliveryFailures", "DeadLetterErrors",
                 "IteratorAge", "ConcurrentExecutions"]
 
 _LOG = get_logger('syndicate.core.build.profiler_processor')
@@ -38,15 +40,16 @@ def get_lambdas_name(bundle_name, deploy_name):
 
 def process_metrics(metric_value_dict: dict):
     for lambda_name, metrics in metric_value_dict.items():
-        prettify_metrics_dict = {'Timestamp': []}
+        prettify_metrics_dict = {UTC_TIMESTAMP: []}
         click.echo(f'Lambda function name: {lambda_name}')
         for metric_type in metrics:
             label = metric_type['Label']
             data_points = metric_type['Datapoints']
             data_points.sort(key=lambda date: date['Timestamp'], reverse=True)
             for data in data_points:
-                unit = data['Unit']
-                time_stamp = data['Timestamp']
+                unit = f"{os.linesep}({data['Unit']})".replace('Milliseconds',
+                                                               'Ms')
+                time_stamp = str(data['Timestamp']).split('+')[0]
                 metric_data = None
 
                 statistics = ['Average', 'Minimum', 'Maximum', "Sum"]
@@ -58,14 +61,14 @@ def process_metrics(metric_value_dict: dict):
                         else:
                             metric_data = round(metric_data, 2)
 
-                response = f'{metric_data} {unit}'
-                if label not in prettify_metrics_dict:
-                    prettify_metrics_dict.update({label: [response]})
+                response = f'{metric_data}'
+                if label + unit not in prettify_metrics_dict:
+                    prettify_metrics_dict.update({label + unit: [response]})
                 else:
-                    prettify_metrics_dict[label].append(response)
+                    prettify_metrics_dict[label + unit].append(response)
 
-                if time_stamp not in prettify_metrics_dict['Timestamp']:
-                    prettify_metrics_dict['Timestamp'].append(time_stamp)
+                if time_stamp not in prettify_metrics_dict[UTC_TIMESTAMP]:
+                    prettify_metrics_dict[UTC_TIMESTAMP].append(time_stamp)
 
         click.echo(tabulate(prettify_metrics_dict, headers='keys'))
 
@@ -93,7 +96,7 @@ def period_calculation(time_range):
 
 def validate_time_range(from_date, to_date):
     if not (from_date and to_date):
-        from_date = datetime.utcnow() - timedelta(hours=1)
+        from_date = datetime.utcnow() - timedelta(days=1)
         to_date = datetime.utcnow()
     else:
         from_date = datetime.strptime(from_date, "%Y-%m-%dT%H:%M:%SZ")
@@ -146,12 +149,16 @@ def get_metric_statistics(bundle_name, deploy_name, from_date, to_date):
     for lambda_name in lambda_names:
         for metric in METRIC_NAMES:
             if metric == 'Duration':
-                statistics = [['Minimum'], ['Average'], ['Maximum']]
-                for statistic in statistics:
-                    response = get_metric(lambda_name, metric, statistic,
+                statistics_abbreviation = {'Minimum': 'Min.',
+                                           'Average': 'Avg.',
+                                           'Maximum': 'Max.'}
+                for statistic in statistics_abbreviation:
+                    response = get_metric(lambda_name, metric, [statistic],
                                           from_date, to_date, period)
-                    statistic_name = statistic[0]
-                    response['Label'] = statistic_name + response['Label']
+                    statistic_name = statistic
+                    response['Label'] = statistics_abbreviation[
+                                        statistic_name] + ' ' + \
+                                        response['Label']
                     metric_value_dict = save_metric_to_dict(metric_value_dict,
                                                             lambda_name,
                                                             response)
