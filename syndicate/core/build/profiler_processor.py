@@ -96,7 +96,7 @@ def period_calculation(time_range):
 
 def validate_time_range(from_date, to_date):
     if not (from_date and to_date):
-        from_date = datetime.utcnow() - timedelta(days=1)
+        from_date = datetime.utcnow() - timedelta(hours=1)
         to_date = datetime.utcnow()
     else:
         from_date = datetime.strptime(from_date, "%Y-%m-%dT%H:%M:%SZ")
