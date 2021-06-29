@@ -567,7 +567,6 @@ def profiler(bundle_name, deploy_name, from_date, to_date):
     """
     Displays application Lambda metrics
     """
-    click.echo('Command profiler')
     metric_value_dict = get_metric_statistics(bundle_name, deploy_name,
                                               from_date, to_date)
     process_metrics(metric_value_dict)
