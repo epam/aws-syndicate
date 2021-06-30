@@ -49,6 +49,26 @@ def get_lambdas_name(bundle_name, deploy_name):
     return lambda_names
 
 
+def add_success_rate_column(prettify_metrics_dict):
+    invocations = []
+    errors = []
+    success_rate = []
+    for metric_type, metric_data in prettify_metrics_dict.items():
+        if metric_type.startswith(INVOCATION_METRIC):
+            invocations = metric_data
+        elif metric_type.startswith(ERROR_METRIC):
+            errors = metric_data
+
+    for idx, data in enumerate(invocations):
+        percent = round(((data - errors[idx]) / data) * 100, 2)
+        percent = f'{percent}%'
+        success_rate.append(percent)
+
+    if success_rate:
+        prettify_metrics_dict[SUCCESS_RATE_METRIC] = success_rate
+    return prettify_metrics_dict
+
+
 def process_metrics(metric_value_dict: dict):
     for lambda_name, metrics in metric_value_dict.items():
         prettify_metrics_dict = {}
@@ -85,20 +105,8 @@ def process_metrics(metric_value_dict: dict):
                 if time_stamp not in prettify_metrics_dict[UTC_TIMESTAMP]:
                     prettify_metrics_dict[UTC_TIMESTAMP].append(time_stamp)
 
-        invocations = []
-        errors = []
-        success_rate = []
-        for metric_type, metric_data in prettify_metrics_dict.items():
-            if metric_type.startswith(INVOCATION_METRIC):
-                invocations = metric_data
-            elif metric_type.startswith(ERROR_METRIC):
-                errors = metric_data
-        for idx, data in enumerate(invocations):
-            percent = round(((data - errors[idx]) / data) * 100, 2)
-            percent = f'{percent}%'
-            success_rate.append(percent)
+        add_success_rate_column(prettify_metrics_dict)
 
-        prettify_metrics_dict[SUCCESS_RATE_METRIC] = success_rate
         click.echo(tabulate(prettify_metrics_dict, headers='keys',
                             stralign='right'))
 
