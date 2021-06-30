@@ -16,10 +16,12 @@ SUM_STATISTIC_VALUE = "Sum"
 
 DURATION_METRIC = "Duration"
 INVOCATION_METRIC = "Invocations"
+ERROR_METRIC = "Errors"
 CONCURRENT_EXECUTIONS_METRIC = "ConcurrentExecutions"
+SUCCESS_RATE_METRIC = "Success rate"
 
 UTC_TIMESTAMP = f'Metrics time stamp{os.linesep}(UTC)'
-METRIC_NAMES = ["Invocations", "Errors", "Throttles", "Duration",
+METRIC_NAMES = ["Invocations", "Errors", "Success rate", "Throttles", "Duration",
                 "DestinationDeliveryFailures", "DeadLetterErrors",
                 "IteratorAge", "ConcurrentExecutions"]
 
@@ -83,6 +85,20 @@ def process_metrics(metric_value_dict: dict):
                 if time_stamp not in prettify_metrics_dict[UTC_TIMESTAMP]:
                     prettify_metrics_dict[UTC_TIMESTAMP].append(time_stamp)
 
+        invocations = []
+        errors = []
+        success_rate = []
+        for metric_type, metric_data in prettify_metrics_dict.items():
+            if metric_type.startswith(INVOCATION_METRIC):
+                invocations = metric_data
+            elif metric_type.startswith(ERROR_METRIC):
+                errors = metric_data
+        for idx, data in enumerate(invocations):
+            percent = round(((data - errors[idx]) / data) * 100, 2)
+            percent = f'{percent}%'
+            success_rate.append(percent)
+
+        prettify_metrics_dict[SUCCESS_RATE_METRIC] = success_rate
         click.echo(tabulate(prettify_metrics_dict, headers='keys',
                             stralign='right'))
 
@@ -110,7 +126,7 @@ def period_calculation(time_range):
 
 def validate_time_range(from_date, to_date):
     if not (from_date and to_date):
-        from_date = datetime.utcnow() - timedelta(hours=20)
+        from_date = datetime.utcnow() - timedelta(hours=1)
         to_date = datetime.utcnow()
     else:
         from_date = datetime.strptime(from_date, "%Y-%m-%dT%H:%M:%SZ")
