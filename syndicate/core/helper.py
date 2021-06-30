@@ -15,11 +15,12 @@
 """
 import collections
 import concurrent.futures
-import datetime
+import getpass
 import json
 import os
 import subprocess
 import sys
+from datetime import datetime, timedelta
 from functools import wraps
 from pathlib import Path
 from threading import Thread
@@ -33,6 +34,8 @@ from syndicate.commons.log_helper import get_logger
 from syndicate.core.conf.processor import path_resolver
 from syndicate.core.constants import (ARTIFACTS_FOLDER, BUILD_META_FILE_NAME,
                                       DEFAULT_SEP)
+from syndicate.core.project_state.project_state import MODIFICATION_LOCK
+from syndicate.core.project_state.sync_processor import sync_project_state
 
 _LOG = get_logger('syndicate.core.helper')
 
@@ -72,6 +75,9 @@ def exit_on_exception(handler_func):
             return handler_func(*args, **kwargs)
         except Exception as e:
             _LOG.exception("Error occurred: %s", str(e))
+            from syndicate.core import PROJECT_STATE
+            PROJECT_STATE.release_lock(MODIFICATION_LOCK)
+            sync_project_state()
             sys.exit(1)
 
     return wrapper
@@ -156,6 +162,47 @@ def resolve_path_callback(ctx, param, value):
     return path_resolver(value)
 
 
+def generate_default_bundle_name(ctx, param, value):
+    if value:
+        return value
+    from syndicate.core import CONFIG
+    project_path = CONFIG.project_path
+    project_name = project_path.split("/")[-1]
+    date = datetime.now().strftime("%y%m%d.%H%M%S")
+    return f'{project_name}_{date}'
+
+
+def resolve_default_bundle_name():
+    from syndicate.core import PROJECT_STATE
+    bundle_name = PROJECT_STATE.latest_built_bundle_name
+    if not bundle_name:
+        click.echo('Property \'bundle\' is not specified and could '
+                   'not be resolved due to absence of data about the '
+                   'latest build operation')
+        return
+    return bundle_name
+
+
+def resolve_default_deploy_name():
+    from syndicate.core import PROJECT_STATE
+    return PROJECT_STATE.default_deploy_name
+
+
+param_resolver_map = {
+    'bundle_name': resolve_default_bundle_name,
+    'deploy_name': resolve_default_deploy_name
+}
+
+
+def resolve_default_value(ctx, param, value):
+    if not value:
+        param_resolver = param_resolver_map.get(param.name)
+        if not param_resolver:
+            raise AssertionError(
+                f'There is no resolver of default value for param {param.name}')
+        return param_resolver()
+
+
 def create_bundle_callback(ctx, param, value):
     from syndicate.core import CONFIG
     bundle_path = os.path.join(CONFIG.project_path, ARTIFACTS_FOLDER, value)
@@ -198,17 +245,39 @@ def write_content_to_file(file_path, file_name, obj):
         _LOG.info('{0} file was created.'.format(meta_file.name))
 
 
-def timeit(handler_func):
-    @wraps(handler_func)
-    def timed(*args, **kwargs):
-        ts = time()
-        result = handler_func(*args, **kwargs)
-        te = time()
-        _LOG.info('Stage %s, elapsed time: %s', handler_func.__name__,
-                  str(datetime.timedelta(seconds=te - ts)))
-        return result
+def timeit(action_name=None):
+    def internal_timeit(func):
+        @wraps(func)
+        def timed(*args, **kwargs):
+            ts = time()
+            result = func(*args, **kwargs)
+            te = time()
+            _LOG.info('Stage %s, elapsed time: %s', func.__name__,
+                      str(timedelta(seconds=te - ts)))
+            if action_name:
+                username = getpass.getuser()
+                duration = round(te - ts, 3)
+                start_date_formatted = datetime.fromtimestamp(ts) \
+                    .strftime('%Y-%m-%dT%H:%M:%SZ')
+                end_date_formatted = datetime.fromtimestamp(te) \
+                    .strftime('%Y-%m-%dT%H:%M:%SZ')
 
-    return timed
+                bundle_name = kwargs.get('bundle_name')
+                deploy_name = kwargs.get('deploy_name')
+                from syndicate.core import PROJECT_STATE
+                PROJECT_STATE.log_execution_event(
+                    operation=action_name,
+                    initiator=username,
+                    bundle_name=bundle_name,
+                    deploy_name=deploy_name,
+                    time_start=start_date_formatted,
+                    time_end=end_date_formatted,
+                    duration_sec=duration)
+            return result
+
+        return timed
+
+    return internal_timeit
 
 
 def execute_parallel_tasks(*fns):
