@@ -16,9 +16,8 @@
 
 import os
 
-import yaml
-
 from syndicate.commons.log_helper import get_logger
+from syndicate.core import ProjectState
 from syndicate.core.generators import (_touch, _mkdir,
                                        _write_content_to_file)
 from syndicate.core.generators.contents import (_get_lambda_default_policy,
@@ -29,7 +28,6 @@ from syndicate.core.generators.contents import (_get_lambda_default_policy,
                                                 README_TEMPLATE)
 from syndicate.core.groups import (RUNTIME_JAVA, RUNTIME_NODEJS,
                                    RUNTIME_PYTHON)
-from syndicate.core.project_state import PROJECT_STATE_FILE, ProjectState
 
 _LOG = get_logger('syndicate.core.generators.project')
 
@@ -42,13 +40,6 @@ FILE_CHANGELOG = 'CHANGELOG.md'
 FILE_GITIGNORE = '.gitignore'
 
 
-def generate_project_state_file(project_name, project_path):
-    project_state = dict(name=project_name)
-    with open(os.path.join(project_path, PROJECT_STATE_FILE),
-              'w') as state_file:
-        yaml.dump(project_state, state_file)
-
-
 def generate_project_structure(project_name, project_path):
     try:
         if not os.path.exists(project_path):
@@ -56,9 +47,9 @@ def generate_project_structure(project_name, project_path):
                 'Path "{}" you have provided does not exist'.format(
                     project_path))
 
-        full_project_path = project_path + SLASH_SYMBOL + project_name if (
-                project_path[
-                    -1] != SLASH_SYMBOL) else project_path + project_name
+        full_project_path = os.path.join(project_path, project_name) \
+            if (project_path[-1] != SLASH_SYMBOL) \
+            else project_path + project_name
 
         _mkdir(path=full_project_path,
                fault_message='Folder {} already exists. \nOverride the '

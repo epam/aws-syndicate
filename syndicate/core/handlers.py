@@ -19,7 +19,8 @@ import sys
 
 import click
 
-from syndicate.core import CONF_PATH, initialize_connection
+from syndicate.core import CONF_PATH, initialize_connection, \
+    initialize_project_state
 from syndicate.core.build.artifact_processor import (RUNTIME_NODEJS,
                                                      assemble_artifacts,
                                                      RUNTIME_JAVA_8,
@@ -43,7 +44,11 @@ from syndicate.core.helper import (check_required_param,
                                    handle_futures_progress_bar,
                                    resolve_path_callback, timeit,
                                    verify_bundle_callback,
-                                   verify_meta_bundle_callback)
+                                   verify_meta_bundle_callback,
+                                   resolve_default_value,
+                                   generate_default_bundle_name)
+from syndicate.core.project_state.project_state import MODIFICATION_LOCK
+from syndicate.core.project_state.sync_processor import sync_project_state
 
 INIT_COMMAND_NAME = 'init'
 commands_without_config = (
@@ -62,77 +67,83 @@ def syndicate():
     if CONF_PATH:
         click.echo('Configuration path used: ' + CONF_PATH)
         initialize_connection()
+        initialize_project_state()
     elif _not_require_config(sys.argv):
         pass
     else:
         click.echo('Environment variable SDCT_CONF is not set! '
                    'Please verify that you configured have provided path to '
-                   'correct config files or execute `syndicate init` command.')
+                   'correct config files '
+                   'or execute `syndicate generate config` command.')
         sys.exit(1)
 
 
-@syndicate.command(name='build_bundle')
-@click.option('--bundle_name', nargs=1, callback=check_required_param)
-@click.option('--force_upload', is_flag=True, default=False)
+@syndicate.command(name='build')
+@click.option('--bundle_name', nargs=1,
+              callback=generate_default_bundle_name,
+              help='Name of the bundle to build. '
+                   'Default value: $ProjectName_%Y-%m-%dT%H:%M:%SZ')
+@click.option('--force_upload', is_flag=True, default=False,
+              help='Flag to override existing bundle with the same name')
 @click.pass_context
-@timeit
-def build_bundle(ctx, bundle_name, force_upload):
+@timeit(action_name='build')
+def build(ctx, bundle_name, force_upload):
     """
     Builds bundle of an application
-    :param ctx:
-    :param bundle_name: name of the bundle
-    :param force_upload: used to override existing bundle
-    :return:
     """
     if if_bundle_exist(bundle_name=bundle_name) and not force_upload:
         click.echo('Bundle name \'{0}\' already exists '
                    'in deploy bucket. Please use another bundle '
                    'name or delete the bundle'.format(bundle_name))
         return
-    ctx.invoke(build_artifacts, bundle_name=bundle_name)
+
+    ctx.invoke(assemble, bundle_name=bundle_name)
     ctx.invoke(package_meta, bundle_name=bundle_name)
-    ctx.invoke(upload_bundle, bundle_name=bundle_name, force=force_upload)
+    ctx.invoke(upload, bundle_name=bundle_name, force=force_upload)
 
 
 @syndicate.command(name='deploy')
-@click.option('--deploy_name', nargs=1, callback=check_required_param)
-@click.option('--bundle_name', nargs=1, callback=check_required_param)
-@click.option('--deploy_only_types', multiple=True)
-@click.option('--deploy_only_resources', multiple=True)
-@click.option('--deploy_only_resources_path', nargs=1)
-@click.option('--excluded_resources', multiple=True)
-@click.option('--excluded_resources_path', nargs=1)
-@click.option('--excluded_types', multiple=True)
-@click.option('--continue_deploy', is_flag=True)
-@click.option('--replace_output', nargs=1, is_flag=True, default=False)
+@click.option('--deploy_name',
+              callback=resolve_default_value,
+              help='Name of the deploy. Default value: name of the project')
+@click.option('--bundle_name',
+              callback=resolve_default_value,
+              help='Name of the bundle to deploy. '
+                   'Default value: name of the latest built bundle')
+@click.option('--deploy_only_types', multiple=True,
+              help='Types of the resources to deploy')
+@click.option('--deploy_only_resources', multiple=True,
+              help='Names of the resources to deploy')
+@click.option('--deploy_only_resources_path', nargs=1,
+              help='Path to file containing names of the resources to deploy')
+@click.option('--excluded_resources', multiple=True,
+              help='Names of the resources to skip while deploy.')
+@click.option('--excluded_resources_path', nargs=1,
+              help='Path to file containing names of the resources to skip '
+                   'while deploy')
+@click.option('--excluded_types', multiple=True,
+              help='Types of the resources to skip while deploy')
+@click.option('--continue_deploy', is_flag=True,
+              help='Flag to continue failed deploy')
+@click.option('--replace_output', is_flag=True, default=False,
+              help='Replaces the existing deploy output')
 @check_deploy_name_for_duplicates
-@timeit
+@timeit(action_name='deploy')
 def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
            deploy_only_resources_path, excluded_resources,
            excluded_resources_path, excluded_types, continue_deploy,
            replace_output):
     """
-    Deploys infrastructure from the specified bundle
-    :param deploy_name: name of the deploy
-    :param bundle_name: name of the bundle
-    :param deploy_only_types: list of types of the resources to deploy
-    :param deploy_only_resources: list of resources names to deploy
-    :param deploy_only_resources_path: path to a json file that contains
-        a list of resources names to deploy
-    :param excluded_resources: names of the resources which must be
-        skipped while deploy
-    :param excluded_resources_path: path to a json file that contains a list
-        of resources names which must be skipped while deploy
-    :param excluded_types: list of types of resources which must be
-        skipped while deploy
-    :param continue_deploy: continues deploy using the failed output.
-        Used only after previous deploy fail.
-    :param replace_output: flag to override the output file.
-        Used if previous output file must be overridden.
-    :return:
+    Deploys the application infrastructure
     """
-    click.echo('Command deploy backend')
-    click.echo('Deploy name: %s' % deploy_name)
+    sync_project_state()
+    from syndicate.core import PROJECT_STATE
+    if PROJECT_STATE.is_lock_free(MODIFICATION_LOCK):
+        PROJECT_STATE.acquire_lock(MODIFICATION_LOCK)
+        sync_project_state()
+    else:
+        click.echo('The project modification is locked.')
+        return
     if deploy_only_resources_path and os.path.exists(
             deploy_only_resources_path):
         deploy_resources_list = json.load(open(deploy_only_resources_path))
@@ -160,31 +171,34 @@ def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
                                                      replace_output)
     click.echo('Backend resources were deployed{0}.'.format(
         '' if deploy_success else ' with errors. See deploy output file'))
+    PROJECT_STATE.release_lock(MODIFICATION_LOCK)
+    sync_project_state()
 
 
 @syndicate.command(name='update')
-@click.option('--bundle_name', nargs=1, callback=check_required_param)
-@click.option('--deploy_name', nargs=1, callback=check_required_param)
-@click.option('--update_only_types', multiple=True)
-@click.option('--update_only_resources', multiple=True)
-@click.option('--update_only_resources_path', nargs=1)
+@click.option('--bundle_name',
+              callback=resolve_default_value,
+              help='Name of the bundle to deploy. '
+                   'Default value: name of the latest built bundle')
+@click.option('--deploy_name',
+              callback=resolve_default_value,
+              help='Name of the deploy. Default value: name of the project')
+@click.option('--update_only_types', multiple=True,
+              help='Types of the resources to update')
+@click.option('--update_only_resources', multiple=True,
+              help='Names of the resources to deploy')
+@click.option('--update_only_resources_path', nargs=1,
+              help='Path to file containing names of the resources to skip '
+                   'while deploy')
 @click.option('--replace_output', nargs=1, is_flag=True, default=False)
 @check_deploy_name_for_duplicates
-@timeit
+@timeit(action_name='update')
 def update(bundle_name, deploy_name, replace_output,
            update_only_resources,
            update_only_resources_path,
            update_only_types=[]):
     """
     Updates infrastructure from the provided bundle
-    :param bundle_name: name of the bundle
-    :param deploy_name: name of the deploy
-    :param update_only_resources: list of resources names to updated
-    :param update_only_resources_path: path to a json file with list of
-        resources names to update
-    :param update_only_types: optional. List of a resources types to update.
-    :param replace_output: flag. If True, existing output file will be replaced
-    :return:
     """
     click.echo('Bundle name: {}'.format(bundle_name))
     if update_only_types:
@@ -212,7 +226,7 @@ def update(bundle_name, deploy_name, replace_output,
 
 
 @syndicate.command(name='clean')
-@timeit
+@timeit(action_name='clean')
 @click.option('--deploy_name', nargs=1, callback=check_required_param)
 @click.option('--bundle_name', nargs=1, callback=check_required_param)
 @click.option('--clean_only_types', multiple=True)
@@ -290,11 +304,21 @@ def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
     click.echo('AWS resources were removed.')
 
 
+@syndicate.command(name='sync')
+@timeit()
+def sync():
+    """
+    Syncs the state of local project state file (.syndicate) and
+    the remote one.
+    """
+    return sync_project_state()
+
+
 # =============================================================================
 
 
 @syndicate.command(name='assemble_java_mvn')
-@timeit
+@timeit()
 @click.option('--bundle_name', nargs=1, callback=create_bundle_callback)
 @click.option('--project_path', '-path', nargs=1,
               callback=resolve_path_callback)
@@ -313,7 +337,7 @@ def assemble_java_mvn(bundle_name, project_path):
 
 
 @syndicate.command(name='assemble_python')
-@timeit
+@timeit()
 @click.option('--bundle_name', nargs=1, callback=create_bundle_callback)
 @click.option('--project_path', '-path', nargs=1,
               callback=resolve_path_callback)
@@ -332,7 +356,7 @@ def assemble_python(bundle_name, project_path):
 
 
 @syndicate.command(name='assemble_node')
-@timeit
+@timeit()
 @click.option('--bundle_name', nargs=1, callback=create_bundle_callback)
 @click.option('--project_path', '-path', nargs=1,
               callback=resolve_path_callback)
@@ -357,11 +381,11 @@ COMMAND_TO_BUILD_MAPPING = {
 }
 
 
-@syndicate.command(name='build_artifacts')
-@timeit
+@syndicate.command(name='assemble')
+@timeit()
 @click.option('--bundle_name', nargs=1, callback=create_bundle_callback)
 @click.pass_context
-def build_artifacts(ctx, bundle_name):
+def assemble(ctx, bundle_name):
     """
     Builds the application artifacts
     :param ctx:
@@ -370,22 +394,22 @@ def build_artifacts(ctx, bundle_name):
     :return:
     """
     click.echo('Building artifacts ...')
-    from syndicate.core import CONFIG
-    if CONFIG.build_projects_mapping:
-        for key, values in CONFIG.build_projects_mapping.items():
-            for value in values:
-                func = COMMAND_TO_BUILD_MAPPING.get(key)
-                if func:
-                    ctx.invoke(func, bundle_name=bundle_name,
-                               project_path=value)
-                else:
-                    click.echo('Build tool is not supported: %s' % key)
+    from syndicate.core import PROJECT_STATE
+    build_mapping_dict = PROJECT_STATE.load_project_build_mapping()
+    if build_mapping_dict:
+        for key, value in build_mapping_dict.items():
+            func = COMMAND_TO_BUILD_MAPPING.get(key)
+            if func:
+                ctx.invoke(func, bundle_name=bundle_name,
+                           project_path=value)
+            else:
+                click.echo('Build tool is not supported: %s' % key)
     else:
         click.echo('Projects to be built are not found')
 
 
 @syndicate.command(name='package_meta')
-@timeit
+@timeit()
 @click.option('--bundle_name', nargs=1, callback=verify_bundle_callback)
 def package_meta(bundle_name):
     """
@@ -401,7 +425,7 @@ def package_meta(bundle_name):
 
 
 @syndicate.command(name='create_deploy_target_bucket')
-@timeit
+@timeit()
 def create_deploy_target_bucket():
     """
     Creates a bucket in AWS account where all bundles will be uploaded
@@ -413,11 +437,11 @@ def create_deploy_target_bucket():
     click.echo('Deploy target bucket was created successfully')
 
 
-@syndicate.command(name='upload_bundle')
-@timeit
+@syndicate.command(name='upload')
 @click.option('--bundle_name', nargs=1, callback=verify_meta_bundle_callback)
 @click.option('--force', is_flag=True)
-def upload_bundle(bundle_name, force=False):
+@timeit(action_name='upload')
+def upload(bundle_name, force=False):
     """
     Uploads bundle from local storage to AWS S3
     :param bundle_name: name of the bundle to upload
@@ -428,8 +452,10 @@ def upload_bundle(bundle_name, force=False):
     click.echo('Upload bundle: %s' % bundle_name)
     if force:
         click.echo('Force upload')
+
     futures = upload_bundle_to_s3(bundle_name=bundle_name, force=force)
     handle_futures_progress_bar(futures)
+
     click.echo('Bundle was uploaded successfully')
 
 
@@ -444,7 +470,7 @@ def upload_bundle(bundle_name, force=False):
 @click.option('--role_name', '-role', nargs=1,
               callback=check_required_param)
 @click.option('--force_upload', is_flag=True, default=False)
-@timeit
+@timeit()
 @click.pass_context
 def copy_bundle(ctx, bundle_name, src_account_id, src_bucket_region,
                 src_bucket_name, role_name, force_upload):
@@ -471,7 +497,7 @@ def copy_bundle(ctx, bundle_name, src_account_id, src_bucket_region,
                           src_bucket_name, role_name)
     handle_futures_progress_bar(futures)
     click.echo('Bundle was downloaded successfully')
-    ctx.invoke(upload_bundle, bundle_name=bundle_name, force=force_upload)
+    ctx.invoke(upload, bundle_name=bundle_name, force=force_upload)
     click.echo('Bundle was copied successfully')
 
 

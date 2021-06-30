@@ -14,7 +14,6 @@
     limitations under the License.
 """
 import os
-import pathlib
 
 import click
 
@@ -39,7 +38,7 @@ def generate():
 @click.option('--path', nargs=1,
               help='The path where project structure will be created')
 @click.pass_context
-@timeit
+@timeit()
 def project(ctx, name, path):
     """
     Generates project with all the necessary components and in a right
@@ -68,12 +67,12 @@ def project(ctx, name, path):
               help='The path of the project to add lambda '
                    'in case it differs from $CWD')
 @click.pass_context
-@timeit
+@timeit()
 def lambda_function(ctx, name, runtime, project_path):
     """
     Generates required environment for lambda function
     """
-    proj_path = pathlib.Path().absolute() if not project_path else project_path
+    proj_path = os.getcwd() if not project_path else project_path
     if not os.access(proj_path, os.X_OK | os.W_OK):
         return ('Incorrect permissions for the provided path {}'.format(
             proj_path))
@@ -87,6 +86,12 @@ def lambda_function(ctx, name, runtime, project_path):
 
 
 @generate.command(name='config')
+@click.option('--name',
+              required=True,
+              help='* Name of the configuration to create. '
+                   'Generated config will be create in folder '
+                   '.syndicate-config-{name}. May contain name '
+                   'of the environment.')
 @click.option('--region',
               help='* The region that is used to deploy the application',
               required=True)
@@ -107,12 +112,14 @@ def lambda_function(ctx, name, runtime, project_path):
 @click.option('--suffix',
               help='Suffix that is added to project names while deployment '
                    'by pattern: {prefix}resource_name{suffix}')
-def config(config_path, project_path, region, access_key,
+@timeit()
+def config(name, config_path, project_path, region, access_key,
            secret_key, bundle_bucket_name, prefix, suffix):
     """
     Creates Syndicate configuration files
     """
-    generate_configuration_files(config_path=config_path,
+    generate_configuration_files(name=name,
+                                 config_path=config_path,
                                  project_path=project_path,
                                  region=region,
                                  access_key=access_key,
