@@ -559,8 +559,8 @@ def warmup(bundle_name, deploy_name, api_gw_id, stage_name, lambda_auth,
 
 
 @syndicate.command(name='profiler')
-@click.option('--bundle_name', nargs=1)
-@click.option('--deploy_name', nargs=1)
+@click.option('--bundle_name', nargs=1, callback=check_required_param)
+@click.option('--deploy_name', nargs=1, callback=check_required_param)
 @click.option('--from_date', nargs=1, type=str)
 @click.option('--to_date', nargs=1, type=str)
 def profiler(bundle_name, deploy_name, from_date, to_date):
