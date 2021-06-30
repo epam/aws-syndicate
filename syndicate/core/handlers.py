@@ -450,7 +450,7 @@ COMMAND_TO_BUILD_MAPPING = {
 }
 
 
-@syndicate.command(name='run_tests')
+@syndicate.command(name='test')
 @click.option('--suite', type=click.Choice(['unittest', 'pytest', 'nose'],
                                            case_sensitive=False),
               default='unittest')
@@ -477,7 +477,7 @@ def run_tests(suite, test_folder_name):
 
     workdir = os.getcwd()
 
-    os.chdir(project_path)
+    os.chdir(test_folder)
     command = test_lib_command_mapping.get(suite)
     result = subprocess.run(command.split())
 
