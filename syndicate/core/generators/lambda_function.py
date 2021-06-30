@@ -56,6 +56,12 @@ POLICY_NAME_PATTERN = '{0}-policy'  # 0 - lambda_name
 
 ABSTRACT_LAMBDA_NAME = 'abstract_lambda'
 
+PROJECT_STATE_PARAM = 'project_state'
+LAMBDAS_PATH_PARAM = 'lambdas_path'
+LAMBDA_NAMES_PARAM = 'lambda_names'
+PROJECT_NAME_PARAM = 'project_name'
+PROJECT_PATH_PARAM = 'project_path'
+
 PYTHON_LAMBDA_FILES = [
     FILE_INIT_PYTHON, FILE_LOCAL_REQUIREMENTS,
     FILE_REQUIREMENTS,
@@ -111,7 +117,11 @@ def generate_lambda_function(project_path, runtime, lambda_names):
     _LOG.info(f'Lambda generating have been successfully performed.')
 
 
-def _generate_python_lambdas(lambda_names, lambdas_path, project_state):
+def _generate_python_lambdas(**kwargs):
+    lambdas_path = kwargs.get(LAMBDAS_PATH_PARAM)
+    lambda_names = kwargs.get(LAMBDA_NAMES_PARAM)
+    project_state = kwargs.get(PROJECT_STATE_PARAM)
+
     if not os.path.exists(lambdas_path):
         _mkdir(lambdas_path, exist_ok=True)
 
@@ -173,8 +183,11 @@ def __lambda_name_to_class_name(lambda_name):
     return ''.join([_.capitalize() for _ in class_name])
 
 
-def _generate_java_lambdas(project_path, project_name, lambda_names,
-                           lambdas_path):
+def _generate_java_lambdas(**kwargs):
+    project_path = kwargs.get(PROJECT_PATH_PARAM)
+    project_name = kwargs.get(PROJECT_NAME_PARAM)
+    lambda_names = kwargs.get(LAMBDA_NAMES_PARAM, [])
+
     unified_lambda_name = _get_parts_split_by_chars(to_split=project_name,
                                                     chars=['-', '_'])
     java_package_name = unified_lambda_name.replace(' ', '')
@@ -242,8 +255,10 @@ def _get_parts_split_by_chars(chars, to_split):
     return result
 
 
-def _generate_nodejs_lambdas(lambda_names, lambdas_path, project_name=None,
-                             project_path=None):
+def _generate_nodejs_lambdas(**kwargs):
+    lambdas_path = kwargs.get(LAMBDAS_PATH_PARAM)
+    lambda_names = kwargs.get(LAMBDA_NAMES_PARAM, [])
+
     if not os.path.exists(lambdas_path):
         _mkdir(lambdas_path, exist_ok=True)
     for lambda_name in lambda_names:

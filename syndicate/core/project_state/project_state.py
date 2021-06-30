@@ -13,6 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+import getpass
 import os
 import time
 from datetime import datetime
@@ -30,8 +31,10 @@ STATE_BUILD_PROJECT_MAPPING = 'build_projects_mapping'
 STATE_LOG_EVENTS = 'events'
 LOCK_LOCKED = 'locked'
 LOCK_LAST_MODIFICATION_DATE = 'last_modification_date'
+LOCK_INITIATOR = 'initiator'
 
 MODIFICATION_LOCK = 'modification_lock'
+WARMUP_LOCK = 'warmup_lock'
 
 PROJECT_STATE_FILE = '.syndicate'
 
@@ -39,6 +42,10 @@ BUILD_MAPPINGS = {
     RUNTIME_JAVA: '/jsrc/main/java',
     RUNTIME_PYTHON: '/src',
     RUNTIME_NODEJS: '/app'
+}
+
+OPERATION_LOCK_MAPPINGS = {
+    'deploy': MODIFICATION_LOCK
 }
 
 
@@ -119,6 +126,14 @@ class ProjectState:
         if build_events:
             return build_events[0].get('bundle_name')
 
+    @property
+    def latest_modification(self):
+        events = self.events
+        modification_ops = ['deploy', 'update', 'clean']
+        latest = next((event for event in events if
+                       event.get('operation') in modification_ops), None)
+        return latest
+
     def is_lock_free(self, lock_name):
         lock = self.locks.get(lock_name)
         if not lock:
@@ -183,7 +198,8 @@ class ProjectState:
         timestamp = datetime.fromtimestamp(time.time()) \
             .strftime('%Y-%m-%dT%H:%M:%SZ')
         modified_lock = {LOCK_LOCKED: locked,
-                         LOCK_LAST_MODIFICATION_DATE: timestamp}
+                         LOCK_LAST_MODIFICATION_DATE: timestamp,
+                         LOCK_INITIATOR: getpass.getuser()}
         if lock:
             lock.update(modified_lock)
         else:
