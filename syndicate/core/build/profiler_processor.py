@@ -18,10 +18,10 @@ DURATION_METRIC = "Duration"
 INVOCATION_METRIC = "Invocations"
 ERROR_METRIC = "Errors"
 CONCURRENT_EXECUTIONS_METRIC = "ConcurrentExecutions"
-SUCCESS_RATE_METRIC = "Success rate"
+SUCCESS_RATE_METRIC = f"Success rate{os.linesep}(%)"
 
 UTC_TIMESTAMP = f'Metrics time stamp{os.linesep}(UTC)'
-METRIC_NAMES = ["Invocations", "Errors", "Success rate", "Throttles", "Duration",
+METRIC_NAMES = ["Invocations", "Errors", "Throttles", "Duration",
                 "DestinationDeliveryFailures", "DeadLetterErrors",
                 "IteratorAge", "ConcurrentExecutions"]
 
@@ -61,7 +61,6 @@ def add_success_rate_column(prettify_metrics_dict):
 
     for idx, data in enumerate(invocations):
         percent = round(((data - errors[idx]) / data) * 100, 2)
-        percent = f'{percent}%'
         success_rate.append(percent)
 
     if success_rate:
@@ -134,7 +133,7 @@ def period_calculation(time_range):
 
 def validate_time_range(from_date, to_date):
     if not (from_date and to_date):
-        from_date = datetime.utcnow() - timedelta(hours=1)
+        from_date = datetime.utcnow() - timedelta(hours=20)
         to_date = datetime.utcnow()
     else:
         from_date = datetime.strptime(from_date, "%Y-%m-%dT%H:%M:%SZ")
