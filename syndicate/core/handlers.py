@@ -98,9 +98,9 @@ def test(suite, test_folder_name):
         return
 
     test_lib_command_mapping = {
-        'unittest': 'python -m unittest',
-        'pytest': 'pytest',
-        'nose': 'nosetests'
+        'unittest': 'python -m unittest -v',
+        'pytest': 'pytest --no-header -v',
+        'nose': 'nosetests --verbose'
     }
 
     workdir = os.getcwd()
