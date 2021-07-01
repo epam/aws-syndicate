@@ -178,17 +178,29 @@ class LambdaResource(BaseResource):
         con_exec = meta.get(LAMBDA_MAX_CONCURRENCY)
         if con_exec:
             _LOG.debug('Going to set up concurrency executions')
-            unresolved_exec = self.lambda_conn.get_unresolved_concurrent_executions()
-            if con_exec <= unresolved_exec:
+            if self.check_concurrency_availability(con_exec):
                 self.lambda_conn.put_function_concurrency(
                     function_name=name,
                     concurrent_executions=con_exec)
                 _LOG.info(
-                    f'Concurrency limit for lambda {name} is set to {con_exec}')
-            else:
-                _LOG.warn(
-                    f'Account does not have such unresolved executions.'
-                    f' Current un - {unresolved_exec}')
+                    f'Concurrency limit for lambda {name} '
+                    f'is set to {con_exec}')
+
+    def check_concurrency_availability(self, requested_concurrency):
+        if not (isinstance(requested_concurrency, int)
+                and requested_concurrency >= 0):
+            _LOG.warn('The number of reserved concurrent executions '
+                      'must be a non-negative integer.')
+            return False
+        unresolved_exec = \
+            self.lambda_conn.get_unresolved_concurrent_executions()
+        if requested_concurrency <= unresolved_exec:
+            return True
+        else:
+            _LOG.warn(
+                f'Account does not have such unresolved executions.'
+                f' Current un - {unresolved_exec}')
+            return False
 
     @unpack_kwargs
     @retry
@@ -216,18 +228,11 @@ class LambdaResource(BaseResource):
         if not role_arn:
             raise AssertionError('Role {} does not exist; '
                                  'Lambda {} failed to be configured.'.format(
-                role_name, name))
+                                    role_name, name))
 
-        dl_type = meta.get('dl_resource_type')
-        if dl_type:
-            dl_type = dl_type.lower()
-        dl_name = meta.get('dl_resource_name')
-
-        dl_target_arn = 'arn:aws:{0}:{1}:{2}:{3}'.format(
-            dl_type,
-            self.region,
-            self.account_id,
-            dl_name) if dl_type and dl_name else None
+        dl_target_arn = self.get_dl_target_arn(meta=meta,
+                                               region=self.region,
+                                               account_id=self.account_id)
 
         publish_version = meta.get('publish_version', False)
         lambda_layers_arns = []
@@ -300,6 +305,19 @@ class LambdaResource(BaseResource):
             meta=meta,
             lambda_def=lambda_def)
         return self.describe_lambda(name, meta, lambda_def)
+
+    @staticmethod
+    def get_dl_target_arn(meta, region, account_id):
+        dl_type = meta.get('dl_resource_type')
+        if dl_type:
+            dl_type = dl_type.lower()
+        dl_name = meta.get('dl_resource_name')
+        dl_target_arn = 'arn:aws:{0}:{1}:{2}:{3}'.format(
+            dl_type,
+            region,
+            account_id,
+            dl_name) if dl_type and dl_name else None
+        return dl_target_arn
 
     @exit_on_exception
     @unpack_kwargs
@@ -458,17 +476,10 @@ class LambdaResource(BaseResource):
             lambda_def = self.lambda_conn.get_function(
                 lambda_name=function_name)
         qualifier = concurrency.get('qualifier')
-        if not qualifier:
-            raise AssertionError('Parameter `qualifier` is required for '
-                                 'concurrency configuration but it is absent')
-        if qualifier not in _LAMBDA_PROV_CONCURRENCY_QUALIFIERS:
-            raise AssertionError(f'Parameter `qualifier` must be one of '
-                                 f'{_LAMBDA_PROV_CONCURRENCY_QUALIFIERS}, but it is equal '
-                                 f'to ${qualifier}')
-
-        resolved_qualified = self._resolve_requested_qualifier(lambda_def,
-                                                               meta,
-                                                               qualifier)
+        resolved_qualifier = self._resolve_requested_qualifier(
+            lambda_def=lambda_def,
+            meta=meta,
+            qualifier=qualifier)
 
         requested_provisioned_level = concurrency.get('value')
         if not requested_provisioned_level:
@@ -490,18 +501,25 @@ class LambdaResource(BaseResource):
 
         self.lambda_conn.configure_provisioned_concurrency(
             name=function_name,
-            qualifier=resolved_qualified,
+            qualifier=resolved_qualifier,
             concurrent_executions=requested_provisioned_level)
         _LOG.info(f'Provisioned concurrency has been configured for lambda '
                   f'{function_name} of type {qualifier}, '
                   f'value {requested_provisioned_level}')
 
     def _resolve_requested_qualifier(self, lambda_def, meta, qualifier):
+        if not qualifier:
+            raise AssertionError('Parameter `qualifier` is required for '
+                                 'concurrency configuration but it is absent')
+        if qualifier not in _LAMBDA_PROV_CONCURRENCY_QUALIFIERS:
+            raise AssertionError(f'Parameter `qualifier` must be one of '
+                                 f'{_LAMBDA_PROV_CONCURRENCY_QUALIFIERS}, but it is equal '
+                                 f'to ${qualifier}')
         lambda_def['Alias'] = meta.get('alias')
         resolve_qualifier_req = lambda_def
-        resolved_qualified = self._LAMBDA_QUALIFIER_RESOLVER[qualifier](
+        resolved_qualifier = self._LAMBDA_QUALIFIER_RESOLVER[qualifier](
             self, resolve_qualifier_req)
-        return resolved_qualified
+        return resolved_qualifier
 
     @staticmethod
     def _resolve_configured_existing_qualifier(existing_config):

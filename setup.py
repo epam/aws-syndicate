@@ -38,7 +38,8 @@ setup(
         'configobj==5.0.6',
         'tqdm==4.19.5',
         'colorama==0.4.1',
-        'pyyaml==5.4'
+        'pyyaml==5.4',
+        'troposphere==2.7.1'
     ],
     entry_points='''
         [console_scripts]

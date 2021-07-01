@@ -13,3 +13,16 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+from troposphere import iam
+
+from syndicate.core.transform.cloudformation.cf_transform_helper import to_logic_name
+from syndicate.core.transform.cloudformation.converter.cf_resource_converter import CfResourceConverter
+
+
+class CfIamManagedPolicyConverter(CfResourceConverter):
+
+    def convert(self, name, resource):
+        policy = iam.ManagedPolicy(to_logic_name(name))
+        policy.ManagedPolicyName = name
+        policy.PolicyDocument = resource['policy_content']
+        return [policy]

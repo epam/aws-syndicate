@@ -13,3 +13,18 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+from abc import abstractmethod
+
+from troposphere import AWSObject
+from typing import List
+
+
+class CfResourceConverter(object):
+
+    def __init__(self, config=None, resources_provider=None):
+        self.config = config
+        self.resources_provider = resources_provider
+
+    @abstractmethod
+    def convert(self, name, resource) -> List[AWSObject]:
+        pass
