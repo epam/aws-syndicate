@@ -32,8 +32,8 @@ from syndicate.core.build.deployment_processor import (
     continue_deployment_resources, create_deployment_resources,
     remove_deployment_resources, remove_failed_deploy_resources,
     update_deployment_resources)
-from syndicate.core.build.warmup_processor import (warmup_resources,
-                                                   process_schemas, warm_upper,
+from syndicate.core.build.warmup_processor import (process_deploy_resources,
+                                                   process_api_gw_resources, warm_upper,
                                                    process_existing_api_gw_id,
                                                    process_inputted_api_gw_id)
 from syndicate.core.build.meta_processor import create_meta
@@ -529,20 +529,24 @@ def warmup(bundle_name, deploy_name, api_gw_id, stage_name, lambda_auth,
                        'name or create the bundle')
             return
 
-        schemas_list, paths_to_be_triggered = warmup_resources(
-            deploy_name=deploy_name, bundle_name=bundle_name)
+        paths_to_be_triggered, resource_path_warmup_key_mapping = \
+            process_deploy_resources(deploy_name=deploy_name,
+                                     bundle_name=bundle_name)
 
     elif api_gw_id:
-        schemas_list, paths_to_be_triggered = process_inputted_api_gw_id(
-            api_gw_id, stage_name)
+        paths_to_be_triggered, resource_path_warmup_key_mapping = \
+            process_inputted_api_gw_id(api_gw_id,stage_name, echo=click.echo)
 
     else:
-        schemas_list, paths_to_be_triggered = process_existing_api_gw_id(
-            stage_name)
+        paths_to_be_triggered, resource_path_warmup_key_mapping = \
+            process_existing_api_gw_id(stage_name, echo=click.echo)
 
-    uri_method_dict = process_schemas(schemas_list, paths_to_be_triggered)
-    warm_upper(uri_method_dict, lambda_auth, header_name, header_value)
-    click.echo(' Application resources have been warmed up.')
+    resource_method_mapping, resource_warmup_key_mapping = \
+        process_api_gw_resources(paths_to_be_triggered,
+                                 resource_path_warmup_key_mapping)
+    warm_upper(resource_method_mapping, resource_warmup_key_mapping,
+               lambda_auth, header_name, header_value)
+    click.echo('Application resources have been warmed up.')
     PROJECT_STATE.release_lock(WARMUP_LOCK)
     sync_project_state()
 
