@@ -31,4 +31,4 @@ class CfResourceConverter(object):
         pass
 
     def get_resource(self, name):
-        return self.template.resources[name]
+        return self.template.resources.get(name)

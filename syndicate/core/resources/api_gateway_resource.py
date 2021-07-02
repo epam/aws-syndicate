@@ -194,7 +194,8 @@ class ApiGatewayResource(BaseResource):
                 resolve_lambda_arn_by_version_and_alias(lambda_name,
                                                         lambda_version,
                                                         lambda_alias)
-            uri = self.get_authorizer_uri(self.region, lambda_arn)
+            uri = 'arn:aws:apigateway:{0}:lambda:path/2015-03-31/' \
+                  'functions/{1}/invocations'.format(self.region, lambda_arn)
             self.connection.create_authorizer(api_id=api_id, name=key,
                                               type=val['type'],
                                               authorizer_uri=uri,
@@ -228,16 +229,11 @@ class ApiGatewayResource(BaseResource):
         return self.describe_api_resources(api_id=api_id, meta=meta, name=name)
 
     @staticmethod
-    def get_authorizer_uri(region, lambda_arn):
-        return 'arn:aws:apigateway:{0}:lambda:path/2015-03-31/' \
-               'functions/{1}/invocations'.format(region, lambda_arn)
-
-    @staticmethod
     def get_deploy_stage_name(stage_name=None):
         return stage_name if stage_name else 'prod'
 
     def __deploy_api_gateway(self, api_id, meta, api_resources):
-        deploy_stage = self.get_deploy_stage_name(meta['deploy_stage'])
+        deploy_stage = self.get_deploy_stage_name(meta.get('deploy_stage'))
         cache_cluster_configuration = meta.get('cluster_cache_configuration')
         root_cache_enabled = cache_cluster_configuration.get(
             'cache_enabled') if cache_cluster_configuration else None

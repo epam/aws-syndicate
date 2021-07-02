@@ -58,7 +58,7 @@ class CloudFormationTransformer(BuildMetaTransformer):
             template=self.template,
             config=self.config,
             resources_provider=self.resources_provider)
-        converter.convert(name=name, resource=resource)
+        converter.convert(name=name, meta=resource)
 
     def _compose_template(self):
         return self.template.to_json()
