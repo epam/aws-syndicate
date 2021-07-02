@@ -18,6 +18,7 @@ import os
 import sys
 import click
 
+from tabulate import tabulate
 from syndicate.core import CONF_PATH, initialize_connection, \
     initialize_project_state
 from syndicate.core.build.artifact_processor import (RUNTIME_NODEJS,
@@ -569,7 +570,13 @@ def profiler(bundle_name, deploy_name, from_date, to_date):
     """
     metric_value_dict = get_metric_statistics(bundle_name, deploy_name,
                                               from_date, to_date)
-    process_metrics(metric_value_dict)
+    for lambda_name, metrics in metric_value_dict.items():
+        prettify_metrics_dict = {}
+
+        click.echo(f'{os.linesep}Lambda function name: {lambda_name}')
+        prettify_metrics_dict = process_metrics(prettify_metrics_dict, metrics)
+        click.echo(tabulate(prettify_metrics_dict, headers='keys',
+                            stralign='right'))
 
 
 syndicate.add_command(generate)

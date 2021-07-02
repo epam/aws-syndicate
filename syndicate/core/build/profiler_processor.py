@@ -1,8 +1,6 @@
-import click
 import os
 
 from math import ceil
-from tabulate import tabulate
 from syndicate.commons.log_helper import get_logger
 from syndicate.core import ResourceProvider
 from syndicate.core.build.bundle_processor import load_deploy_output
@@ -68,46 +66,47 @@ def add_success_rate_column(prettify_metrics_dict):
     return prettify_metrics_dict
 
 
-def process_metrics(metric_value_dict: dict):
-    for lambda_name, metrics in metric_value_dict.items():
-        prettify_metrics_dict = {}
-        click.echo(f'{os.linesep}Lambda function name: {lambda_name}')
-        for metric_type in metrics:
-            label = metric_type['Label']
-            data_points = metric_type['Datapoints']
-            data_points.sort(key=lambda date: date['Timestamp'], reverse=True)
+def handle_data_points(prettify_metrics_dict, data_points, label):
+    for data in data_points:
+        unit = f"{os.linesep}({data['Unit']})".replace('Milliseconds',
+                                                       'Ms')
+        label_unit = label + unit
 
-            if UTC_TIMESTAMP not in prettify_metrics_dict and data_points:
-                prettify_metrics_dict.update({UTC_TIMESTAMP: []})
+        time_stamp = str(data['Timestamp']).split('+')[0]
 
-            for data in data_points:
-                unit = f"{os.linesep}({data['Unit']})".replace('Milliseconds',
-                                                               'Ms')
-                time_stamp = str(data['Timestamp']).split('+')[0]
-
-                metric_data = None
-                statistics = [AVG_STATISTIC_VALUE, MIN_STATISTIC_VALUE,
-                              MAX_STATISTIC_VALUE, SUM_STATISTIC_VALUE]
-                for statistic in statistics:
-                    if statistic in data:
-                        metric_data = data[statistic]
-                        if int(metric_data) == metric_data:
-                            metric_data = int(metric_data)
-                        else:
-                            metric_data = round(metric_data, 2)
-
-                if label + unit not in prettify_metrics_dict:
-                    prettify_metrics_dict.update({label + unit: [metric_data]})
+        metric_data = None
+        statistics = [AVG_STATISTIC_VALUE, MIN_STATISTIC_VALUE,
+                      MAX_STATISTIC_VALUE, SUM_STATISTIC_VALUE]
+        for statistic in statistics:
+            if statistic in data:
+                metric_data = data[statistic]
+                if int(metric_data) == metric_data:
+                    metric_data = int(metric_data)
                 else:
-                    prettify_metrics_dict[label + unit].append(metric_data)
+                    metric_data = round(metric_data, 2)
 
-                if time_stamp not in prettify_metrics_dict[UTC_TIMESTAMP]:
-                    prettify_metrics_dict[UTC_TIMESTAMP].append(time_stamp)
+        if label_unit not in prettify_metrics_dict:
+            prettify_metrics_dict.update({label_unit: [metric_data]})
+        else:
+            prettify_metrics_dict[label_unit].append(metric_data)
 
-        add_success_rate_column(prettify_metrics_dict)
+        if time_stamp not in prettify_metrics_dict[UTC_TIMESTAMP]:
+            prettify_metrics_dict[UTC_TIMESTAMP].append(time_stamp)
 
-        click.echo(tabulate(prettify_metrics_dict, headers='keys',
-                            stralign='right'))
+
+def process_metrics(prettify_metrics_dict, metrics):
+    for metric_type in metrics:
+        label = metric_type['Label']
+        data_points = metric_type['Datapoints']
+        data_points.sort(key=lambda date: date['Timestamp'], reverse=True)
+
+        if UTC_TIMESTAMP not in prettify_metrics_dict and data_points:
+            prettify_metrics_dict.update({UTC_TIMESTAMP: []})
+
+        handle_data_points(prettify_metrics_dict, data_points, label)
+
+    add_success_rate_column(prettify_metrics_dict)
+    return prettify_metrics_dict
 
 
 def period_calculation(time_range):
@@ -133,7 +132,7 @@ def period_calculation(time_range):
 
 def validate_time_range(from_date, to_date):
     if not (from_date and to_date):
-        from_date = datetime.utcnow() - timedelta(hours=20)
+        from_date = datetime.utcnow() - timedelta(hours=1)
         to_date = datetime.utcnow()
     else:
         from_date = datetime.strptime(from_date, "%Y-%m-%dT%H:%M:%SZ")
@@ -175,6 +174,62 @@ def save_metric_to_dict(metric_value_dict, lambda_name, response):
     return metric_value_dict
 
 
+def process_duration_metric(lambda_name, metric, from_date, to_date, period,
+                            metric_value_dict):
+    statistics_abbreviation = {MIN_STATISTIC_VALUE: 'Min.',
+                               AVG_STATISTIC_VALUE: 'Avg.',
+                               MAX_STATISTIC_VALUE: 'Max.'}
+    for statistic in statistics_abbreviation:
+        response = get_metric(lambda_name, metric, [statistic],
+                              from_date, to_date, period)
+        statistic_name = statistic
+        response['Label'] = statistics_abbreviation[
+                                statistic_name] + ' ' + \
+                            response['Label']
+        metric_value_dict = save_metric_to_dict(metric_value_dict,
+                                                lambda_name,
+                                                response)
+    return metric_value_dict
+
+
+def process_invocation_metric(lambda_name, metric, from_date, to_date, period,
+                              metric_value_dict):
+    sum_statistic = [SUM_STATISTIC_VALUE]
+    response = get_metric(lambda_name, metric, sum_statistic,
+                          from_date, to_date, period)
+    metric_value_dict = save_metric_to_dict(metric_value_dict,
+                                            lambda_name, response)
+    return metric_value_dict
+
+
+def process_cncr_execution_metric(lambda_name, metric, from_date, to_date,
+                                  period, metric_value_dict):
+    max_statistics = [MAX_STATISTIC_VALUE]
+    response = get_metric(lambda_name, metric, max_statistics,
+                          from_date, to_date, period)
+    response['Label'] = 'Concurrent Executions'
+    metric_value_dict = save_metric_to_dict(metric_value_dict,
+                                            lambda_name, response)
+    return metric_value_dict
+
+
+METRIC_TYPE_HANDLERS = {
+    DURATION_METRIC: process_duration_metric,
+    INVOCATION_METRIC: process_invocation_metric,
+    CONCURRENT_EXECUTIONS_METRIC: process_cncr_execution_metric
+}
+
+
+def process_another_metrics_types(lambda_name, metric, from_date, to_date,
+                                  period, metric_value_dict):
+    max_statistics = [MAX_STATISTIC_VALUE]
+    response = get_metric(lambda_name, metric, max_statistics,
+                          from_date, to_date, period)
+    metric_value_dict = save_metric_to_dict(metric_value_dict,
+                                            lambda_name, response)
+    return metric_value_dict
+
+
 def get_metric_statistics(bundle_name, deploy_name, from_date, to_date):
     from_date, to_date, time_range = validate_time_range(from_date, to_date)
 
@@ -184,37 +239,12 @@ def get_metric_statistics(bundle_name, deploy_name, from_date, to_date):
     metric_value_dict = {}
     for lambda_name in lambda_names:
         for metric in METRIC_NAMES:
-            if metric == DURATION_METRIC:
-                statistics_abbreviation = {MIN_STATISTIC_VALUE: 'Min.',
-                                           AVG_STATISTIC_VALUE: 'Avg.',
-                                           MAX_STATISTIC_VALUE: 'Max.'}
-                for statistic in statistics_abbreviation:
-                    response = get_metric(lambda_name, metric, [statistic],
-                                          from_date, to_date, period)
-                    statistic_name = statistic
-                    response['Label'] = statistics_abbreviation[
-                                        statistic_name] + ' ' + \
-                                        response['Label']
-                    metric_value_dict = save_metric_to_dict(metric_value_dict,
-                                                            lambda_name,
-                                                            response)
-            elif metric == INVOCATION_METRIC:
-                sum_statistic = [SUM_STATISTIC_VALUE]
-                response = get_metric(lambda_name, metric, sum_statistic,
-                                      from_date, to_date, period)
-                metric_value_dict = save_metric_to_dict(metric_value_dict,
-                                                        lambda_name, response)
-            elif metric == CONCURRENT_EXECUTIONS_METRIC:
-                max_statistics = [MAX_STATISTIC_VALUE]
-                response = get_metric(lambda_name, metric, max_statistics,
-                                      from_date, to_date, period)
-                response['Label'] = 'Concurrent Executions'
-                metric_value_dict = save_metric_to_dict(metric_value_dict,
-                                                        lambda_name, response)
+            metric_handler = METRIC_TYPE_HANDLERS.get(metric)
+            if metric_handler:
+                metric_handler(lambda_name, metric, from_date, to_date, period,
+                               metric_value_dict)
             else:
-                max_statistics = [MAX_STATISTIC_VALUE]
-                response = get_metric(lambda_name, metric, max_statistics,
-                                      from_date, to_date, period)
-                metric_value_dict = save_metric_to_dict(metric_value_dict,
-                                                        lambda_name, response)
+                process_another_metrics_types(lambda_name, metric, from_date,
+                                              to_date, period,
+                                              metric_value_dict)
     return metric_value_dict
