@@ -14,9 +14,12 @@
     limitations under the License.
 """
 from abc import abstractmethod
+from functools import cmp_to_key
 
+from syndicate.core.build.deployment_processor import compare_deploy_resources
 from syndicate.core.build.meta_processor import resolve_meta
-from syndicate.core.constants import IAM_POLICY, IAM_ROLE, LAMBDA_TYPE
+from syndicate.core.constants import (IAM_POLICY, IAM_ROLE, LAMBDA_TYPE,
+                                      API_GATEWAY_TYPE)
 
 
 class BuildMetaTransformer(object):
@@ -29,12 +32,15 @@ class BuildMetaTransformer(object):
         self.transformer_mapping = {
             IAM_POLICY: self._transform_iam_managed_policy,
             IAM_ROLE: self._transform_iam_role,
-            LAMBDA_TYPE: self._transform_lambda
+            LAMBDA_TYPE: self._transform_lambda,
+            API_GATEWAY_TYPE: self._transform_api_gateway
         }
 
     def transform_build_meta(self, build_meta):
         build_meta = resolve_meta(build_meta)
-        for name, resource in build_meta.items():
+        resources_list = list(build_meta.items())
+        resources_list.sort(key=cmp_to_key(compare_deploy_resources))
+        for name, resource in resources_list:
             resource_type = resource.get('resource_type')
             transformer = self.transformer_mapping.get(resource_type)
             if transformer is None:
@@ -58,6 +64,10 @@ class BuildMetaTransformer(object):
 
     @abstractmethod
     def _transform_lambda(self, name, resource):
+        pass
+
+    @abstractmethod
+    def _transform_api_gateway(self, name, resource):
         pass
 
     @abstractmethod

@@ -34,3 +34,16 @@ def to_logic_name(resource_name):
         elif component_len == 1:
             formatted.append(component[0].upper())
     return ''.join(formatted)
+
+
+def lambda_function_logic_name(function_name):
+    return to_logic_name(function_name)
+
+
+def lambda_alias_logic_name(function_name, alias):
+    return to_logic_name('{}{}Alias'.format(
+        function_name, alias.capitalize()))
+
+
+def lambda_publish_version_logic_name(function_name):
+    return to_logic_name('{}PublishVersion'.format(function_name))

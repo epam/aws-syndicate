@@ -22,20 +22,19 @@ from ..cf_transform_helper import to_logic_name
 
 class CfIamRoleConverter(CfResourceConverter):
 
-    def convert(self, name, resource):
-        converted = []
-        allowed_accounts = resource.get('allowed_accounts', [])
-        principal_service = resource.get('principal_service')
-        external_id = resource.get('external_id')
-        trust_rltn = resource.get('trusted_relationships')
+    def convert(self, name, meta):
+        allowed_accounts = meta.get('allowed_accounts', [])
+        principal_service = meta.get('principal_service')
+        external_id = meta.get('external_id')
+        trust_rltn = meta.get('trusted_relationships')
         trusted_relationships = build_trusted_relationships(
             allowed_account=list(allowed_accounts),
             allowed_service=principal_service,
             external_id=external_id,
             trusted_relationships=trust_rltn)
 
-        custom_policies = resource.get('custom_policies', [])
-        predefined_policies = resource.get('predefined_policies', [])
+        custom_policies = meta.get('custom_policies', [])
+        predefined_policies = meta.get('predefined_policies', [])
         policy_arns = []
         for policy in predefined_policies:
             policy_arns.append(Ref(policy))
@@ -46,12 +45,12 @@ class CfIamRoleConverter(CfResourceConverter):
         role.AssumeRolePolicyDocument = trusted_relationships
         role.RoleName = name
         role.ManagedPolicyArns = policy_arns
-        converted.append(role)
+        self.template.add_resource(role)
 
-        instance_profile = resource.get('instance_profile')
+        instance_profile = meta.get('instance_profile')
         if instance_profile and instance_profile.lower() == 'true':
-            converted.append(self._instance_profile(profile_name=name))
-        return converted
+            self.template.add_resource(
+                self._instance_profile(profile_name=name))
 
     @staticmethod
     def _instance_profile(profile_name):

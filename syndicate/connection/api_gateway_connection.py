@@ -507,7 +507,7 @@ class ApiGatewayConnection(object):
                 allow_origin: "\'*\'"
             })
 
-    def deploy_api(self, api_id, stage_name='prod', stage_description='',
+    def deploy_api(self, api_id, stage_name, stage_description='',
                    description='', cache_cluster_enabled=False,
                    cache_cluster_size=None, variables=None):
         """

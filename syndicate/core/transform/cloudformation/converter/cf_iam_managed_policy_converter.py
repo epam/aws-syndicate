@@ -21,8 +21,8 @@ from syndicate.core.transform.cloudformation.converter.cf_resource_converter imp
 
 class CfIamManagedPolicyConverter(CfResourceConverter):
 
-    def convert(self, name, resource):
+    def convert(self, name, meta):
         policy = iam.ManagedPolicy(to_logic_name(name))
         policy.ManagedPolicyName = name
-        policy.PolicyDocument = resource['policy_content']
-        return [policy]
+        policy.PolicyDocument = meta['policy_content']
+        self.template.add_resource(policy)
