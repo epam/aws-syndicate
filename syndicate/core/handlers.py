@@ -261,19 +261,20 @@ def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
     """
     click.echo('Command clean')
     click.echo('Deploy name: %s' % deploy_name)
+    separator = ', '
     if clean_only_types:
-        click.echo('Clean only types: %s' % str(clean_only_types))
+        click.echo(f'Clean only types: {separator.join(clean_only_types)}')
     if clean_only_resources:
-        click.echo('Clean only resources : %s' % clean_only_resources)
+        click.echo(f'Clean only resources: '
+                   f'{separator.join(clean_only_resources)}')
     if clean_only_resources_path:
-        click.echo(
-            'Clean only resources path: %s' % clean_only_resources_path)
+        click.echo(f'Clean only resources path: {clean_only_resources_path}')
     if excluded_resources:
-        click.echo('Excluded resources: %s' % str(excluded_resources))
+        click.echo(f'Excluded resources: {separator.join(excluded_resources)}')
     if excluded_resources_path:
-        click.echo('Excluded resources path: %s' % excluded_resources_path)
+        click.echo(f'Excluded resources path: {excluded_resources_path}')
     if excluded_types:
-        click.echo('Excluded types: %s' % str(excluded_types))
+        click.echo(f'Excluded types: {separator.join(excluded_resources)}')
     if clean_only_resources_path and os.path.exists(
             clean_only_resources_path):
         clean_resources_list = json.load(open(clean_only_resources_path))

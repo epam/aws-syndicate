@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `generate lambda` command was improved, `common` module for python runtime is being generated with the first lambda
 - Provided ability to add information about created lambda to `.syndicate` file
 - Added `profiler` command that allows to display application Lambda metrics
+- Fixed an issue in `clean` command, associated with API Gateway skipping removing Lambda trigger permissions  
 
 ## [0.9.6] - 2021-04-29
 ### Changed
