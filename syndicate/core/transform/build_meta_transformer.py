@@ -18,8 +18,7 @@ from functools import cmp_to_key
 
 from syndicate.core.build.deployment_processor import compare_deploy_resources
 from syndicate.core.build.meta_processor import resolve_meta
-from syndicate.core.constants import (IAM_POLICY, IAM_ROLE, LAMBDA_TYPE,
-                                      API_GATEWAY_TYPE)
+from syndicate.core.constants import (DYNAMO_DB_STREAM_TYPE)
 from syndicate.core.constants import IAM_POLICY, IAM_ROLE, LAMBDA_TYPE, \
     DYNAMO_TABLE_TYPE, S3_BUCKET_TYPE, CLOUD_WATCH_RULE_TYPE, SQS_QUEUE_TYPE, \
     API_GATEWAY_TYPE, SNS_TOPIC_TYPE, CLOUD_WATCH_ALARM_TYPE, \
@@ -33,7 +32,6 @@ class BuildMetaTransformer(object):
         self.config = CONFIG
         self.resources_provider = RESOURCES_PROVIDER
 
-        self.resources = list()
         self.transformer_mapping = {
             IAM_POLICY: self._transform_iam_managed_policy,
             IAM_ROLE: self._transform_iam_role,
@@ -45,7 +43,7 @@ class BuildMetaTransformer(object):
             API_GATEWAY_TYPE: self._transform_api_gateway,
             SNS_TOPIC_TYPE: self._transform_sns_topic,
             CLOUD_WATCH_ALARM_TYPE: self._transform_cloudwatch_alarm,
-            EC2_INSTANCE_TYPE: self._transform_ec2_instance,
+            DYNAMO_DB_STREAM_TYPE: self._transform_dynamodb_stream
         }
 
     def transform_build_meta(self, build_meta):

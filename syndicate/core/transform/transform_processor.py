@@ -22,7 +22,7 @@ from syndicate.core.constants import BUILD_META_FILE_NAME
 from syndicate.core.helper import build_path
 from syndicate.core.transform.cloudformation.cloudformation_transformer import \
     CloudFormationTransformer
-from syndicate.core.transform.terraform_transformer import TerraformTransformer
+from core.transform.terraform.terraform_transformer import TerraformTransformer
 
 _LOG = get_logger('syndicate.core.build.transform_processor')
 
