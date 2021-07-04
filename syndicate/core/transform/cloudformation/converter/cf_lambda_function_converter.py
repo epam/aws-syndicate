@@ -19,87 +19,93 @@ from syndicate.connection.cloud_watch_connection import get_lambda_log_group_nam
 from syndicate.core.constants import S3_PATH_NAME
 from syndicate.core.resources.lambda_resource import LAMBDA_CONCUR_QUALIFIER_VERSION, LambdaResource, \
     LAMBDA_MAX_CONCURRENCY, PROVISIONED_CONCURRENCY, LAMBDA_CONCUR_QUALIFIER_ALIAS
-from syndicate.core.transform.cloudformation.cf_transform_helper import to_logic_name
+from syndicate.core.transform.cloudformation.cf_transform_helper import to_logic_name, \
+    lambda_publish_version_logic_name, lambda_alias_logic_name, lambda_function_logic_name
 from syndicate.core.transform.cloudformation.converter.cf_resource_converter import CfResourceConverter
 
 
 class CfLambdaFunctionConverter(CfResourceConverter):
 
-    def convert(self, name, resource):
-        converted = []
-        lambda_function = awslambda.Function(to_logic_name(name))
-        lambda_function.FunctionName = resource['name']
+    def convert(self, name, meta):
+        lambda_function = awslambda.Function(lambda_function_logic_name(name))
+        lambda_function.FunctionName = meta['name']
         lambda_function.Code = awslambda.Code(
             S3Bucket=self.config.deploy_target_bucket,
-            S3Key=resource[S3_PATH_NAME])
-        lambda_function.Handler = resource['func_name']
-        lambda_function.MemorySize = resource['memory']
-        lambda_function.Role = GetAtt(to_logic_name(resource['iam_role_name']), 'Arn')
-        lambda_function.Runtime = resource['runtime'].lower()
-        lambda_function.Timeout = resource['timeout']
+            S3Key=meta[S3_PATH_NAME])
+        lambda_function.Handler = meta['func_name']
+        lambda_function.MemorySize = meta['memory']
+        lambda_function.Role = GetAtt(to_logic_name(meta['iam_role_name']),
+                                      'Arn')
+        lambda_function.Runtime = meta['runtime'].lower()
+        lambda_function.Timeout = meta['timeout']
 
-        env_vars = resource.get('env_variables')
+        env_vars = meta.get('env_variables')
         if env_vars:
-            lambda_function.Environment = awslambda.Environment(Variables=env_vars)
+            lambda_function.Environment = \
+                awslambda.Environment(Variables=env_vars)
 
         dl_target_arn = LambdaResource.get_dl_target_arn(
-            resource, self.config.region, self.config.account_id)
+            meta=meta,
+            region=self.config.region,
+            account_id=self.config.account_id)
         if dl_target_arn:
-            lambda_function.DeadLetterConfig = awslambda.DeadLetterConfig(TargetArn=dl_target_arn)
+            lambda_function.DeadLetterConfig = \
+                awslambda.DeadLetterConfig(TargetArn=dl_target_arn)
 
-        layer_meta = resource.get('layers')
+        layer_meta = meta.get('layers')
         if layer_meta:
             lambda_layers = []
             for layer_name in layer_meta:
                 lambda_layers.append(Ref(layer_name))
             lambda_function.Layers = lambda_layers
 
-        vpc_sub_nets = resource.get('subnet_ids')
-        vpc_security_group = resource.get('security_group_ids')
+        vpc_sub_nets = meta.get('subnet_ids')
+        vpc_security_group = meta.get('security_group_ids')
         if vpc_sub_nets and vpc_security_group:
             lambda_function.VpcConfig = awslambda.VPCConfig(
                 SubnetIds=vpc_sub_nets,
                 SecurityGroupIds=vpc_security_group)
 
-        tracing_mode = resource.get('tracing_mode')
+        tracing_mode = meta.get('tracing_mode')
         if tracing_mode:
-            lambda_function.TracingConfig = awslambda.TracingConfig(Mode=tracing_mode)
+            lambda_function.TracingConfig = \
+                awslambda.TracingConfig(Mode=tracing_mode)
 
-        reserved_concur = resource.get(LAMBDA_MAX_CONCURRENCY)
-        lambda_resource = self.resources_provider.lambda_resource()
-        if lambda_resource.check_concurrency_availability(reserved_concur):
+        reserved_concur = meta.get(LAMBDA_MAX_CONCURRENCY)
+        lambda_service = self.resources_provider.lambda_resource()
+        if lambda_service.check_concurrency_availability(reserved_concur):
             lambda_function.ReservedConcurrentExecutions = reserved_concur
 
-        converted.append(lambda_function)
+        self.template.add_resource(lambda_function)
 
-        provisioned_concur = resource.get(PROVISIONED_CONCURRENCY)
+        provisioned_concur = meta.get(PROVISIONED_CONCURRENCY)
 
-        publish_version = resource.get('publish_version', False)
+        publish_version = meta.get('publish_version', False)
         version_resource = None
         if publish_version:
             version_resource = self._lambda_version(
                 lambda_name=lambda_function.title,
                 provisioned_concurrency=provisioned_concur)
-            converted.append(version_resource)
+            self.template.add_resource(version_resource)
 
-        alias = resource.get('alias')
+        alias = meta.get('alias')
         if alias:
-            converted.append(self._lambda_alias(
+            self.template.add_resource(self._lambda_alias(
                 lambda_name=lambda_function.title, alias=alias,
                 version_logic_name=version_resource.title,
                 provisioned_concurrency=provisioned_concur))
 
-        retention = resource.get('logs_expiration')
+        retention = meta.get('logs_expiration')
         if retention:
             group_name = get_lambda_log_group_name(lambda_name=name)
-            converted.append(self._log_group(group_name=group_name,
-                                             retention_in_days=retention))
+            self.template.add_resource(
+                self._log_group(group_name=group_name,
+                                retention_in_days=retention))
         # TODO: lambda event sources
-        event_sources = resource.get('event_sources')
-        return converted
+        event_sources = meta.get('event_sources')
 
     def _lambda_version(self, lambda_name, provisioned_concurrency=None):
-        version_name = to_logic_name('{}PublishVersion'.format(lambda_name))
+        version_name = lambda_publish_version_logic_name(lambda_name)
         lambda_version = awslambda.Version(version_name)
         lambda_version.FunctionName = Ref(lambda_name)
         self._add_provisioned_concur(
@@ -110,7 +116,9 @@ class CfLambdaFunctionConverter(CfResourceConverter):
 
     def _lambda_alias(self, lambda_name, alias, version_logic_name,
                       provisioned_concurrency=None):
-        alias_resource_name = to_logic_name('{}Alias'.format(lambda_name))
+        alias_resource_name = \
+            lambda_alias_logic_name(function_name=lambda_name,
+                                    alias=alias)
         lambda_alias = awslambda.Alias(alias_resource_name)
         lambda_alias.FunctionName = Ref(lambda_name)
         lambda_alias.Name = alias

@@ -17,6 +17,7 @@ from troposphere import Template
 
 from syndicate.core.transform.build_meta_transformer import \
     BuildMetaTransformer
+from syndicate.core.transform.cloudformation.converter.cf_api_gateway_converter import CfApiGatewayConverter
 from syndicate.core.transform.cloudformation.converter.cf_iam_managed_policy_converter import \
     CfIamManagedPolicyConverter
 from syndicate.core.transform.cloudformation.converter.cf_iam_role_converter import CfIamRoleConverter
@@ -47,12 +48,17 @@ class CloudFormationTransformer(BuildMetaTransformer):
                                resource=resource,
                                converter_type=CfLambdaFunctionConverter)
 
+    def _transform_api_gateway(self, name, resource):
+        self.convert_resources(name=name,
+                               resource=resource,
+                               converter_type=CfApiGatewayConverter)
+
     def convert_resources(self, name, resource, converter_type):
         converter = converter_type(
+            template=self.template,
             config=self.config,
             resources_provider=self.resources_provider)
-        for res in converter.convert(name=name, resource=resource):
-            self.template.add_resource(res)
+        converter.convert(name=name, meta=resource)
 
     def _compose_template(self):
         return self.template.to_json()

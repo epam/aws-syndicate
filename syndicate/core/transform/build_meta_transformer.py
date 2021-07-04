@@ -14,17 +14,25 @@
     limitations under the License.
 """
 from abc import abstractmethod
+from functools import cmp_to_key
 
+from syndicate.core.build.deployment_processor import compare_deploy_resources
 from syndicate.core.build.meta_processor import resolve_meta
+from syndicate.core.constants import (IAM_POLICY, IAM_ROLE, LAMBDA_TYPE,
+                                      API_GATEWAY_TYPE)
 from syndicate.core.constants import IAM_POLICY, IAM_ROLE, LAMBDA_TYPE, \
     DYNAMO_TABLE_TYPE, S3_BUCKET_TYPE, CLOUD_WATCH_RULE_TYPE, SQS_QUEUE_TYPE, \
     API_GATEWAY_TYPE, SNS_TOPIC_TYPE, CLOUD_WATCH_ALARM_TYPE, \
     EC2_INSTANCE_TYPE
 
 
-class BuildMetaTransformer:
+class BuildMetaTransformer(object):
 
     def __init__(self):
+        from syndicate.core import CONFIG, RESOURCES_PROVIDER
+        self.config = CONFIG
+        self.resources_provider = RESOURCES_PROVIDER
+
         self.resources = list()
         self.transformer_mapping = {
             IAM_POLICY: self._transform_iam_managed_policy,
@@ -42,17 +50,16 @@ class BuildMetaTransformer:
 
     def transform_build_meta(self, build_meta):
         build_meta = resolve_meta(build_meta)
-        for name, resource in build_meta.items():
+        resources_list = list(build_meta.items())
+        resources_list.sort(key=cmp_to_key(compare_deploy_resources))
+        for name, resource in resources_list:
             resource_type = resource.get('resource_type')
             transformer = self.transformer_mapping.get(resource_type)
             if transformer is None:
-                continue
-            transformed_resource = transformer(name=name, resource=resource)
-            if isinstance(transformed_resource, list):
-                for res in transformed_resource:
-                    self.resources.append(res)
-            else:
-                self.resources.append(transformed_resource)
+                raise ValueError(
+                    "Transformation is not supported for resources "
+                    "of the '{}' type".format(resource_type))
+            transformer(name=name, resource=resource)
         return self._compose_template()
 
     @abstractmethod

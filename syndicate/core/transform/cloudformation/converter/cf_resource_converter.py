@@ -15,16 +15,20 @@
 """
 from abc import abstractmethod
 
-from troposphere import AWSObject
-from typing import List
+from troposphere import Template
 
 
 class CfResourceConverter(object):
 
-    def __init__(self, config=None, resources_provider=None):
+    def __init__(self, template: Template, config=None,
+                 resources_provider=None):
+        self.template = template
         self.config = config
         self.resources_provider = resources_provider
 
     @abstractmethod
-    def convert(self, name, resource) -> List[AWSObject]:
+    def convert(self, name, meta):
         pass
+
+    def get_resource(self, name):
+        return self.template.resources.get(name)
