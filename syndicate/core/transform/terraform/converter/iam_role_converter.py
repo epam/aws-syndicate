@@ -1,6 +1,6 @@
 import json
 
-from connection.iam_connection import build_trusted_relationships
+from syndicate.connection.iam_connection import build_trusted_relationships
 from syndicate.core.transform.terraform.converter.tf_resource_converter import \
     TerraformResourceConverter
 
@@ -27,9 +27,10 @@ class IamRoleConverter(TerraformResourceConverter):
                                      assume_role_policy=policy_json)
         self.template.add_aws_iam_role(meta=resource_template)
 
-def generate_tf_template_for_iam_role(role_name,
-                                      managed_policies,
-                                      assume_role_policy):
+
+def iam_role(role_name,
+             managed_policies,
+             assume_role_policy):
     policy_arns_exp = []
     for policy in managed_policies:
         policy_arn = f'aws_iam_policy.{policy}.arn'

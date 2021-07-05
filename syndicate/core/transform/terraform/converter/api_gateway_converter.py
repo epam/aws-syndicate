@@ -113,7 +113,7 @@ class ApiGatewayConverter(TerraformResourceConverter):
 
 def generate_tf_template_for_api_gateway_api(api_name):
     resource = {
-        api_name: [
+        api_name:
             {
                 "endpoint_configuration": [
                     {
@@ -124,7 +124,6 @@ def generate_tf_template_for_api_gateway_api(api_name):
                 ],
                 "name": api_name
             }
-        ]
     }
     return resource
 
@@ -134,13 +133,12 @@ def get_api_gateway_resource(path_part, rest_api):
     parent_id = '${aws_api_gateway_rest_api.' + rest_api + '.root_resource_id}'
     rest_api_id = '${aws_api_gateway_rest_api.' + rest_api + '.id}'
     resource = {
-        resource_name: [
+        resource_name:
             {
                 "parent_id": parent_id,
                 "path_part": resource_name,
                 "rest_api_id": rest_api_id
             }
-        ]
     }
     return resource
 
@@ -152,14 +150,13 @@ def api_gateway_method_response(method_name, status_code, http_method,
     resource_id = '${aws_api_gateway_resource.' + resource_name + '.id}'
     rest_api_id = '${aws_api_gateway_rest_api.' + api_name + '.id}'
     resource = {
-        response_name: [
+        response_name:
             {
                 "http_method": method,
                 "resource_id": resource_id,
                 "rest_api_id": rest_api_id,
                 "status_code": status_code
             }
-        ]
     }
     return resource
 
@@ -171,7 +168,7 @@ def api_gateway_integration(integration_name, api_name, resource_name,
     rest_api_id = '${aws_api_gateway_rest_api.' + api_name + '.id}'
     uri = '${aws_lambda_function.' + lambda_name + '.invoke_arn}'
     resource = {
-        integration_name: [
+        integration_name:
             {
                 "http_method": http_method,
                 "resource_id": resource_id,
@@ -181,7 +178,6 @@ def api_gateway_integration(integration_name, api_name, resource_name,
                 "uri": uri,
                 "request_templates": request_template
             }
-        ]
     }
     return resource
 
@@ -190,13 +186,12 @@ def api_gateway_stage(api_name, stage_name, deployment_name):
     rest_api_id = "${aws_api_gateway_rest_api." + api_name + ".id}"
     deployment_name = '${aws_api_gateway_deployment.' + deployment_name + '.id}'
     resource = {
-        stage_name: [
+        stage_name:
             {
                 "deployment_id": deployment_name,
                 "rest_api_id": rest_api_id,
                 "stage_name": stage_name
             }
-        ]
     }
     return resource
 
@@ -211,12 +206,11 @@ def api_gateway_deployment(api_name, deployment_name, methods,
 
     rest_api_id = "${aws_api_gateway_rest_api." + api_name + ".id}"
     resource = {
-        deployment_name: [
+        deployment_name:
             {
                 "rest_api_id": rest_api_id,
                 "depends_on": dependencies
             }
-        ]
     }
     return resource
 

@@ -21,8 +21,7 @@ from syndicate.core.build.meta_processor import resolve_meta
 from syndicate.core.constants import (DYNAMO_DB_STREAM_TYPE)
 from syndicate.core.constants import IAM_POLICY, IAM_ROLE, LAMBDA_TYPE, \
     DYNAMO_TABLE_TYPE, S3_BUCKET_TYPE, CLOUD_WATCH_RULE_TYPE, SQS_QUEUE_TYPE, \
-    API_GATEWAY_TYPE, SNS_TOPIC_TYPE, CLOUD_WATCH_ALARM_TYPE, \
-    EC2_INSTANCE_TYPE
+    API_GATEWAY_TYPE, SNS_TOPIC_TYPE, CLOUD_WATCH_ALARM_TYPE
 
 
 class BuildMetaTransformer(object):
@@ -98,10 +97,6 @@ class BuildMetaTransformer(object):
 
     @abstractmethod
     def _transform_cloudwatch_alarm(self, name, resource):
-        pass
-
-    @abstractmethod
-    def _transform_ec2_instance(self, name, resource):
         pass
 
     @abstractmethod

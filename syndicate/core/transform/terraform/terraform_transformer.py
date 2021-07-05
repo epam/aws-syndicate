@@ -11,19 +11,23 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-
-from core.transform.terraform.converter.api_gateway_converter import \
-    ApiGatewayConverter
-from core.transform.terraform.converter.dynamo_db_converter import \
-    DynamoDbConverter
-from core.transform.terraform.converter.iam_policy_converter import \
-    IamPolicyConverter
-from core.transform.terraform.converter.iam_role_converter import \
-    IamRoleConverter
-from core.transform.terraform.converter.lambda_converter import LambdaConverter
+from syndicate.core.transform.terraform.converter.dynamo_db_stream_converter import \
+    DynamoDbStreamConverter
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.transform.build_meta_transformer import \
     BuildMetaTransformer
+from syndicate.core.transform.terraform.converter.api_gateway_converter import \
+    ApiGatewayConverter
+from syndicate.core.transform.terraform.converter.dynamo_db_converter import \
+    DynamoDbConverter
+from syndicate.core.transform.terraform.converter.iam_policy_converter import \
+    IamPolicyConverter
+from syndicate.core.transform.terraform.converter.iam_role_converter import \
+    IamRoleConverter
+from syndicate.core.transform.terraform.converter.lambda_converter import \
+    LambdaConverter
+from syndicate.core.transform.terraform.converter.s3_bucket_converter import \
+    S3BucketConverter
 from syndicate.core.transform.terraform.terraform_template import \
     TerraformTemplate
 
@@ -47,26 +51,33 @@ class TerraformTransformer(BuildMetaTransformer):
 
     def _transform_iam_managed_policy(self, name, resource):
         self.convert_resources(resource=resource,
-                               converter_type=IamPolicyConverter)
+                               converter_type=IamPolicyConverter,
+                               name=name)
 
     def _transform_iam_role(self, name, resource):
         self.convert_resources(resource=resource,
-                               converter_type=IamRoleConverter)
+                               converter_type=IamRoleConverter,
+                               name=name)
 
     def _transform_lambda(self, name, resource):
         self.convert_resources(resource=resource,
-                               converter_type=LambdaConverter)
+                               converter_type=LambdaConverter,
+                               name=name)
 
     def _transform_dynamo_db_table(self, name, resource):
         self.convert_resources(resource=resource,
-                               converter_type=DynamoDbConverter)
+                               converter_type=DynamoDbConverter,
+                               name=name)
+
+    def _transform_dynamodb_stream(self, name, resource):
+        self.convert_resources(resource=resource,
+                               converter_type=DynamoDbStreamConverter,
+                               name=name)
 
     def _transform_s3_bucket(self, name, resource):
-        location = resource.get('location')
-        acl = resource.get('acl')
-        policy = resource.get('policy')
-
-        pass
+        self.convert_resources(resource=resource,
+                               converter_type=S3BucketConverter,
+                               name=name)
 
     def _transform_cloud_watch_rule(self, name, resource):
         rule_type = resource.get('rule_type')
@@ -77,11 +88,8 @@ class TerraformTransformer(BuildMetaTransformer):
 
     def _transform_api_gateway(self, name, resource):
         self.convert_resources(resource=resource,
-                               converter_type=ApiGatewayConverter)
-
-    def convert_resources(self, resource, converter_type):
-        converter = converter_type(template=self.template, config=self.config)
-        converter.convert(resource=resource)
+                               converter_type=ApiGatewayConverter,
+                               name=name)
 
     def _transform_sns_topic(self, name, resource):
         deploy_stage = resource.get('deploy_stage')
@@ -101,25 +109,12 @@ class TerraformTransformer(BuildMetaTransformer):
 
         pass
 
-    def _transform_ec2_instance(self, name, resource):
-        metric_name = resource.get('metric_name')
-        period = resource.get('period')
-        evaluation_periods = resource.get('evaluation_periods')
-        threshold = resource.get('threshold')
-        comparison_operator = resource.get('comparison_operator')
-        statistic = resource.get('statistic')
-        sns_topics = resource.get('sns_topics')
-
-        pass
-
     def _transform_sqs_queue(self, name, resource):
         pass
 
-    def _transform_dynamodb_stream(self, name, resource):
-        table_name = resource.get('table')
-        stream_view_type = resource.get('stream_view_type')
-
-        pass
+    def convert_resources(self, name, resource, converter_type):
+        converter = converter_type(template=self.template, config=self.config)
+        converter.convert(name=name, resource=resource)
 
     def _compose_template(self):
         return self.template.compose_resources()

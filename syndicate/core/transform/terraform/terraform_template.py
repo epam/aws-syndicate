@@ -17,6 +17,7 @@ API_GATEWAY_STAGE_RESOURCE_NAME = 'aws_api_gateway_stage'
 API_GATEWAY_DEPLOYMENT_RESOURCE_NAME = 'aws_api_gateway_deployment'
 API_GATEWAY_INTEGRATION_RESPONSE_RESOURCE_NAME = 'aws_api_gateway_integration_response'
 API_GATEWAY_METHOD_RESOURCE_NAME = 'aws_api_gateway_method'
+S3_BUCKET_RESOURCE_NAME = 'aws_s3_bucket'
 
 RESOURCE_TYPES = [LAMBDA_RESOURCE_NAME, IAM_POLICY_RESOURCE_NAME,
                   IAM_ROLE_RESOURCE_NAME, DYNAMO_DB_TABLE_RESOURCE_NAME,
@@ -29,7 +30,7 @@ RESOURCE_TYPES = [LAMBDA_RESOURCE_NAME, IAM_POLICY_RESOURCE_NAME,
                   API_GATEWAY_STAGE_RESOURCE_NAME,
                   API_GATEWAY_DEPLOYMENT_RESOURCE_NAME,
                   API_GATEWAY_INTEGRATION_RESPONSE_RESOURCE_NAME,
-                  API_GATEWAY_METHOD_RESOURCE_NAME]
+                  API_GATEWAY_METHOD_RESOURCE_NAME, S3_BUCKET_RESOURCE_NAME]
 
 
 class TerraformTemplate(object):
@@ -49,6 +50,7 @@ class TerraformTemplate(object):
         self.aws_api_gateway_deployment = []
         self.aws_api_gateway_integration_response = []
         self.aws_api_gateway_method = []
+        self.aws_s3_bucket = []
 
         self.compose_resources_mapping = {
             LAMBDA_RESOURCE_NAME: self._aws_lambda,
@@ -64,7 +66,8 @@ class TerraformTemplate(object):
             API_GATEWAY_STAGE_RESOURCE_NAME: self._aws_api_gateway_stage,
             API_GATEWAY_DEPLOYMENT_RESOURCE_NAME: self._aws_api_gateway_deployment,
             API_GATEWAY_INTEGRATION_RESPONSE_RESOURCE_NAME: self._aws_api_gateway_integration_response,
-            API_GATEWAY_METHOD_RESOURCE_NAME: self._aws_api_gateway_method
+            API_GATEWAY_METHOD_RESOURCE_NAME: self._aws_api_gateway_method,
+            S3_BUCKET_RESOURCE_NAME: self._aws_aws_s3_bucket
         }
 
         self.resources = list()
@@ -121,6 +124,9 @@ class TerraformTemplate(object):
     def add_aws_api_gateway_method(self, meta):
         self.aws_api_gateway_method.append(meta)
 
+    def add_aws_s3_bucket(self, meta):
+        self.aws_s3_bucket.append(meta)
+
     def _aws_lambda(self):
         return self.aws_lambda_function
 
@@ -163,9 +169,15 @@ class TerraformTemplate(object):
     def _aws_api_gateway_method(self):
         return self.aws_api_gateway_method
 
-    def _add_dynamo_db_stream(self, table_name, view_type):
+    def _aws_aws_s3_bucket(self):
+        return self.aws_s3_bucket
+
+    def add_dynamo_db_stream(self, table_name, view_type):
         for table in self.aws_dynamodb_table:
-            print('table' + table)
+            for resource in table.values():
+                if table_name == resource.get('name'):
+                    resource.update({'stream_enabled': 'true'})
+                    resource.update({'stream_view_type': view_type})
 
     def compose_resources(self):
         for res_type in RESOURCE_TYPES:

@@ -95,7 +95,7 @@ def generate_tf_template_for_dynamo_table(table_name, hash_key, hash_key_type,
         g_index.append(index)
 
     resource = {
-        table_name: [
+        table_name:
             {
                 "name": table_name,
                 "hash_key": hash_key,
@@ -105,7 +105,6 @@ def generate_tf_template_for_dynamo_table(table_name, hash_key, hash_key_type,
                 "global_secondary_index": g_index,
                 "attribute": attributes
             }
-        ]
     }
     return resource
 
@@ -114,7 +113,7 @@ def get_dynamo_db_autoscaling_read_target(autoscaling_read_target, table_name,
                                           max_capacity, min_capacity):
     table_name_regex = "${aws_dynamodb_table." + table_name + ".name}"
     resource = {
-        autoscaling_read_target: [
+        autoscaling_read_target:
             {
                 "max_capacity": max_capacity,
                 "min_capacity": min_capacity,
@@ -122,7 +121,6 @@ def get_dynamo_db_autoscaling_read_target(autoscaling_read_target, table_name,
                 "scalable_dimension": "dynamodb:table:ReadCapacityUnits",
                 "service_namespace": "dynamodb"
             }
-        ]
     }
     return resource
 
@@ -132,7 +130,7 @@ def get_dynamo_db_autoscaling_write_target(autoscaling_write_target,
                                            min_capacity):
     table_name_regex = "${aws_dynamodb_table." + table_name + ".name}"
     resource = {
-        autoscaling_write_target: [
+        autoscaling_write_target:
             {
                 "max_capacity": max_capacity,
                 "min_capacity": min_capacity,
@@ -140,7 +138,6 @@ def get_dynamo_db_autoscaling_write_target(autoscaling_write_target,
                 "scalable_dimension": "dynamodb:table:WriteCapacityUnits",
                 "service_namespace": "dynamodb"
             }
-        ]
     }
 
     return resource
@@ -152,7 +149,7 @@ def get_dynamo_db_autoscaling_read_policy(autoscaling_read_target,
     scalable_dimension = '${aws_appautoscaling_target.' + autoscaling_read_target + '.scalable_dimension}'
     service_namespace = '${aws_appautoscaling_target.' + autoscaling_read_target + '.service_namespace}'
     resource = {
-        "dynamodb-test-table_read_policy": [
+        "dynamodb-test-table_read_policy":
             {
                 "name": f"dynamodb-read-capacity-utilization-{resource_id}",
                 "policy_type": "TargetTrackingScaling",
@@ -170,7 +167,6 @@ def get_dynamo_db_autoscaling_read_policy(autoscaling_read_target,
                     }
                 ]
             }
-        ]
     }
 
     return resource
@@ -182,7 +178,7 @@ def get_dynamo_db_autoscaling_write_policy(autoscaling_write_target,
     scalable_dimension = '${aws_appautoscaling_target.' + autoscaling_write_target + '.scalable_dimension}'
     service_namespace = '${aws_appautoscaling_target.' + autoscaling_write_target + '.service_namespace}'
     resource = {
-        "dynamodb-test-table_write_policy": [
+        "dynamodb-test-table_write_policy":
             {
                 "name": f"dynamodb-write-capacity-utilization-{resource_id}",
                 "policy_type": "TargetTrackingScaling",
@@ -200,6 +196,5 @@ def get_dynamo_db_autoscaling_write_policy(autoscaling_write_target,
                     }
                 ]
             }
-        ]
     }
     return resource

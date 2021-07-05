@@ -18,11 +18,10 @@ class IamPolicyConverter(TerraformResourceConverter):
 
 def iam_policy(policy_name, content):
     resource = {
-        policy_name: [
+        policy_name:
             {
                 "name": policy_name,
                 "policy": content
             }
-        ]
     }
     return resource
