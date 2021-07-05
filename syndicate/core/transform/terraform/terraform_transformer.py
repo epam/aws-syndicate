@@ -11,15 +11,21 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-from syndicate.core.transform.terraform.converter.dynamo_db_stream_converter import \
-    DynamoDbStreamConverter
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.transform.build_meta_transformer import \
     BuildMetaTransformer
 from syndicate.core.transform.terraform.converter.api_gateway_converter import \
     ApiGatewayConverter
+from syndicate.core.transform.terraform.converter.cloud_watch_alram_converter import \
+    CloudWatchAlarmConverter
+from syndicate.core.transform.terraform.converter.cloud_watch_rule_converter import \
+    CloudWatchRuleConverter
 from syndicate.core.transform.terraform.converter.dynamo_db_converter import \
     DynamoDbConverter
+from syndicate.core.transform.terraform.converter.dynamo_db_stream_converter import \
+    DynamoDbStreamConverter
+from syndicate.core.transform.terraform.converter.event_sources_converter import \
+    EventSourceConverter
 from syndicate.core.transform.terraform.converter.iam_policy_converter import \
     IamPolicyConverter
 from syndicate.core.transform.terraform.converter.iam_role_converter import \
@@ -28,6 +34,10 @@ from syndicate.core.transform.terraform.converter.lambda_converter import \
     LambdaConverter
 from syndicate.core.transform.terraform.converter.s3_bucket_converter import \
     S3BucketConverter
+from syndicate.core.transform.terraform.converter.sns_topic_converter import \
+    SNSTopicConverter
+from syndicate.core.transform.terraform.converter.sqs_converter import \
+    SQSQueueConverter
 from syndicate.core.transform.terraform.terraform_template import \
     TerraformTemplate
 
@@ -80,11 +90,9 @@ class TerraformTransformer(BuildMetaTransformer):
                                name=name)
 
     def _transform_cloud_watch_rule(self, name, resource):
-        rule_type = resource.get('rule_type')
-        expression = resource.get('expression')
-        region = resource.get('region')
-
-        pass
+        self.convert_resources(resource=resource,
+                               converter_type=CloudWatchRuleConverter,
+                               name=name)
 
     def _transform_api_gateway(self, name, resource):
         self.convert_resources(resource=resource,
@@ -92,29 +100,27 @@ class TerraformTransformer(BuildMetaTransformer):
                                name=name)
 
     def _transform_sns_topic(self, name, resource):
-        deploy_stage = resource.get('deploy_stage')
-        region = resource.get('region')
-        event_sources = resource.get('event_sources')
-
-        pass
-
-    def _transform_cloudwatch_alarm(self, name, resource):
-        metric_name = resource.get('metric_name')
-        period = resource.get('period')
-        evaluation_periods = resource.get('evaluation_periods')
-        threshold = resource.get('threshold')
-        comparison_operator = resource.get('comparison_operator')
-        statistic = resource.get('statistic')
-        sns_topics = resource.get('sns_topics')
-
-        pass
+        self.convert_resources(resource=resource,
+                               converter_type=SNSTopicConverter,
+                               name=name)
 
     def _transform_sqs_queue(self, name, resource):
-        pass
+        self.convert_resources(resource=resource,
+                               converter_type=SQSQueueConverter,
+                               name=name)
+
+    def _transform_cloudwatch_alarm(self, name, resource):
+        self.convert_resources(resource=resource,
+                               converter_type=CloudWatchAlarmConverter,
+                               name=name)
 
     def convert_resources(self, name, resource, converter_type):
         converter = converter_type(template=self.template, config=self.config)
         converter.convert(name=name, resource=resource)
+
+        event_sources_converter = EventSourceConverter(template=self.template,
+                                                       config=self.config)
+        event_sources_converter.convert(name=name, resource=resource)
 
     def _compose_template(self):
         return self.template.compose_resources()

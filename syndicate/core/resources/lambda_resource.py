@@ -37,6 +37,13 @@ LAMBDA_CONCUR_QUALIFIER_VERSION = 'VERSION'
 _LAMBDA_PROV_CONCURRENCY_QUALIFIERS = [LAMBDA_CONCUR_QUALIFIER_ALIAS,
                                        LAMBDA_CONCUR_QUALIFIER_VERSION]
 
+DYNAMO_DB_TRIGGER = 'dynamodb_trigger'
+CLOUD_WATCH_RULE_TRIGGER = 'cloudwatch_rule_trigger'
+S3_TRIGGER = 's3_trigger'
+SNS_TOPIC_TRIGGER = 'sns_topic_trigger'
+KINESIS_TRIGGER = 'kinesis_trigger'
+SQS_TRIGGER = 'sqs_trigger'
+
 
 class LambdaResource(BaseResource):
 
@@ -228,7 +235,7 @@ class LambdaResource(BaseResource):
         if not role_arn:
             raise AssertionError('Role {} does not exist; '
                                  'Lambda {} failed to be configured.'.format(
-                                    role_name, name))
+                role_name, name))
 
         dl_target_arn = self.get_dl_target_arn(meta=meta,
                                                region=self.region,
@@ -709,12 +716,12 @@ class LambdaResource(BaseResource):
                                           trigger_meta['starting_position'])
 
     CREATE_TRIGGER = {
-        'dynamodb_trigger': _create_dynamodb_trigger_from_meta,
-        'cloudwatch_rule_trigger': _create_cloud_watch_trigger_from_meta,
-        's3_trigger': _create_s3_trigger_from_meta,
-        'sns_topic_trigger': _create_sns_topic_trigger_from_meta,
-        'kinesis_trigger': _create_kinesis_stream_trigger_from_meta,
-        'sqs_trigger': _create_sqs_trigger_from_meta
+        DYNAMO_DB_TRIGGER: _create_dynamodb_trigger_from_meta,
+        CLOUD_WATCH_RULE_TRIGGER: _create_cloud_watch_trigger_from_meta,
+        S3_TRIGGER: _create_s3_trigger_from_meta,
+        SNS_TOPIC_TRIGGER: _create_sns_topic_trigger_from_meta,
+        KINESIS_TRIGGER: _create_kinesis_stream_trigger_from_meta,
+        SQS_TRIGGER: _create_sqs_trigger_from_meta
     }
 
     def remove_lambdas(self, args):

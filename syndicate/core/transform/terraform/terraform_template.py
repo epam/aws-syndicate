@@ -18,6 +18,11 @@ API_GATEWAY_DEPLOYMENT_RESOURCE_NAME = 'aws_api_gateway_deployment'
 API_GATEWAY_INTEGRATION_RESPONSE_RESOURCE_NAME = 'aws_api_gateway_integration_response'
 API_GATEWAY_METHOD_RESOURCE_NAME = 'aws_api_gateway_method'
 S3_BUCKET_RESOURCE_NAME = 'aws_s3_bucket'
+CLOUD_WATCH_EVENT_RULE = 'aws_cloudwatch_event_rule'
+CLOUD_WATCH_EVENT_TARGET = 'aws_cloudwatch_event_target'
+SNS_TOPIC_RESOURCE = 'aws_sns_topic'
+SQS_QUEUE_RESOURCE = 'aws_sqs_queue'
+CLOUD_WATCH_ALARM = 'aws_cloudwatch_metric_alarm'
 
 RESOURCE_TYPES = [LAMBDA_RESOURCE_NAME, IAM_POLICY_RESOURCE_NAME,
                   IAM_ROLE_RESOURCE_NAME, DYNAMO_DB_TABLE_RESOURCE_NAME,
@@ -30,7 +35,9 @@ RESOURCE_TYPES = [LAMBDA_RESOURCE_NAME, IAM_POLICY_RESOURCE_NAME,
                   API_GATEWAY_STAGE_RESOURCE_NAME,
                   API_GATEWAY_DEPLOYMENT_RESOURCE_NAME,
                   API_GATEWAY_INTEGRATION_RESPONSE_RESOURCE_NAME,
-                  API_GATEWAY_METHOD_RESOURCE_NAME, S3_BUCKET_RESOURCE_NAME]
+                  API_GATEWAY_METHOD_RESOURCE_NAME, S3_BUCKET_RESOURCE_NAME,
+                  CLOUD_WATCH_EVENT_RULE, CLOUD_WATCH_EVENT_TARGET,
+                  SNS_TOPIC_RESOURCE, SQS_QUEUE_RESOURCE, CLOUD_WATCH_ALARM]
 
 
 class TerraformTemplate(object):
@@ -51,6 +58,11 @@ class TerraformTemplate(object):
         self.aws_api_gateway_integration_response = []
         self.aws_api_gateway_method = []
         self.aws_s3_bucket = []
+        self.aws_cloudwatch_event_rule = []
+        self.aws_cloudwatch_event_target = []
+        self.aws_sns_topic = []
+        self.aws_sqs_queue = []
+        self.aws_cloudwatch_metric_alarm = []
 
         self.compose_resources_mapping = {
             LAMBDA_RESOURCE_NAME: self._aws_lambda,
@@ -67,7 +79,12 @@ class TerraformTemplate(object):
             API_GATEWAY_DEPLOYMENT_RESOURCE_NAME: self._aws_api_gateway_deployment,
             API_GATEWAY_INTEGRATION_RESPONSE_RESOURCE_NAME: self._aws_api_gateway_integration_response,
             API_GATEWAY_METHOD_RESOURCE_NAME: self._aws_api_gateway_method,
-            S3_BUCKET_RESOURCE_NAME: self._aws_aws_s3_bucket
+            S3_BUCKET_RESOURCE_NAME: self._aws_aws_s3_bucket,
+            CLOUD_WATCH_EVENT_RULE: self._aws_cloudwatch_event_rule,
+            CLOUD_WATCH_EVENT_TARGET: self._aws_cloudwatch_event_target,
+            SNS_TOPIC_RESOURCE: self._aws_sns_topic,
+            SQS_QUEUE_RESOURCE: self._aws_sqs_queue,
+            CLOUD_WATCH_ALARM: self._aws_cloudwatch_metric_alarm
         }
 
         self.resources = list()
@@ -127,6 +144,28 @@ class TerraformTemplate(object):
     def add_aws_s3_bucket(self, meta):
         self.aws_s3_bucket.append(meta)
 
+    def add_aws_cloudwatch_event_rule(self, meta):
+        self.aws_cloudwatch_event_rule.append(meta)
+
+    def add_dynamo_db_stream(self, table_name, view_type):
+        for table in self.aws_dynamodb_table:
+            for resource in table.values():
+                if table_name == resource.get('name'):
+                    resource.update({'stream_enabled': 'true'})
+                    resource.update({'stream_view_type': view_type})
+
+    def add_aws_cloudwatch_event_target(self, meta):
+        self.aws_cloudwatch_event_target.append(meta)
+
+    def add_aws_sns_topic(self, meta):
+        self.aws_sns_topic.append(meta)
+
+    def add_aws_sqs_queue(self, meta):
+        self.aws_sqs_queue.append(meta)
+
+    def add_aws_cloudwatch_metric_alarm(self, meta):
+        self.aws_cloudwatch_metric_alarm.append(meta)
+
     def _aws_lambda(self):
         return self.aws_lambda_function
 
@@ -172,12 +211,20 @@ class TerraformTemplate(object):
     def _aws_aws_s3_bucket(self):
         return self.aws_s3_bucket
 
-    def add_dynamo_db_stream(self, table_name, view_type):
-        for table in self.aws_dynamodb_table:
-            for resource in table.values():
-                if table_name == resource.get('name'):
-                    resource.update({'stream_enabled': 'true'})
-                    resource.update({'stream_view_type': view_type})
+    def _aws_cloudwatch_event_rule(self):
+        return self.aws_cloudwatch_event_rule
+
+    def _aws_cloudwatch_event_target(self):
+        return self.aws_cloudwatch_event_target
+
+    def _aws_sns_topic(self):
+        return self.aws_sns_topic
+
+    def _aws_sqs_queue(self):
+        return self.aws_sqs_queue
+
+    def _aws_cloudwatch_metric_alarm(self):
+        return self.aws_cloudwatch_metric_alarm
 
     def compose_resources(self):
         for res_type in RESOURCE_TYPES:

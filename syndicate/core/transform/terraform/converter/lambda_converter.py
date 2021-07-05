@@ -10,8 +10,9 @@ class LambdaConverter(TerraformResourceConverter):
         runtime = resource.get('runtime')
         memory = resource.get('memory')
         timeout = resource.get('timeout')
-        s3_path = resource.get('s3_path')
-        file_name = s3_path.split('/')[-1]
+        # s3_path = resource.get('s3_path')
+        version = resource.get('version')
+        file_name = f'{name}-{version}.zip'
         env_variables = resource.get('env_variables')
 
         # TODO ?????? !!!!!
