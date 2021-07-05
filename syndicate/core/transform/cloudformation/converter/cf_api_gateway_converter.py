@@ -23,7 +23,8 @@ from syndicate.connection.api_gateway_connection import \
      REQ_VALIDATOR_PARAM_VALIDATE_BODY,
      REQ_VALIDATOR_PARAM_VALIDATE_PARAMS, RESPONSE_PARAM_ALLOW_HEADERS, RESPONSE_PARAM_ALLOW_METHODS,
      RESPONSE_PARAM_ALLOW_ORIGIN)
-from syndicate.core.resources.api_gateway_resource import ApiGatewayResource, SUPPORTED_METHODS
+from syndicate.core.resources.api_gateway_resource import ApiGatewayResource, SUPPORTED_METHODS, API_REQUIRED_PARAMS
+from syndicate.core.resources.helper import validate_params
 from .cf_resource_converter import CfResourceConverter
 from ..cf_transform_helper import (to_logic_name,
                                    lambda_publish_version_logic_name,
@@ -37,6 +38,7 @@ _LOG = get_logger('syndicate.core.transform.cloudformation.'
 class CfApiGatewayConverter(CfResourceConverter):
 
     def convert(self, name, meta):
+        validate_params(name, meta, API_REQUIRED_PARAMS)
         rest_api = self._convert_rest_api(name=name, meta=meta)
         authorizers_mapping = self._convert_authorizers(meta=meta,
                                                         rest_api=rest_api)

@@ -23,6 +23,7 @@ from .converter.cf_iam_managed_policy_converter import \
     CfIamManagedPolicyConverter
 from .converter.cf_iam_role_converter import CfIamRoleConverter
 from .converter.cf_lambda_function_converter import CfLambdaFunctionConverter
+from .converter.cf_sqs_converter import CfSqsConverter
 
 
 class CloudFormationTransformer(BuildMetaTransformer):
@@ -72,7 +73,9 @@ class CloudFormationTransformer(BuildMetaTransformer):
         pass
 
     def _transform_sqs_queue(self, name, resource):
-        pass
+        self.convert_resources(name=name,
+                               resource=resource,
+                               converter_type=CfSqsConverter)
 
     def _transform_dynamodb_stream(self, name, resource):
         pass
