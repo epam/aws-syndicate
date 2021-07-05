@@ -15,13 +15,18 @@
 """
 from troposphere import GetAtt, Ref, logs, awslambda
 
-from syndicate.connection.cloud_watch_connection import get_lambda_log_group_name
+from syndicate.connection.cloud_watch_connection import \
+    get_lambda_log_group_name
 from syndicate.core.constants import S3_PATH_NAME
-from syndicate.core.resources.lambda_resource import LAMBDA_CONCUR_QUALIFIER_VERSION, LambdaResource, \
-    LAMBDA_MAX_CONCURRENCY, PROVISIONED_CONCURRENCY, LAMBDA_CONCUR_QUALIFIER_ALIAS
-from syndicate.core.transform.cloudformation.cf_transform_helper import to_logic_name, \
-    lambda_publish_version_logic_name, lambda_alias_logic_name, lambda_function_logic_name
-from syndicate.core.transform.cloudformation.converter.cf_resource_converter import CfResourceConverter
+from syndicate.core.resources.lambda_resource import \
+    (LAMBDA_CONCUR_QUALIFIER_VERSION, LambdaResource,
+     LAMBDA_MAX_CONCURRENCY, PROVISIONED_CONCURRENCY,
+     LAMBDA_CONCUR_QUALIFIER_ALIAS)
+from .cf_resource_converter import CfResourceConverter
+from ..cf_transform_helper import (to_logic_name,
+                                   lambda_publish_version_logic_name,
+                                   lambda_alias_logic_name,
+                                   lambda_function_logic_name)
 
 
 class CfLambdaFunctionConverter(CfResourceConverter):
@@ -86,14 +91,13 @@ class CfLambdaFunctionConverter(CfResourceConverter):
             version_resource = self._lambda_version(
                 lambda_name=lambda_function.title,
                 provisioned_concurrency=provisioned_concur)
-            self.template.add_resource(version_resource)
 
         alias = meta.get('alias')
         if alias:
-            self.template.add_resource(self._lambda_alias(
+            self._lambda_alias(
                 lambda_name=lambda_function.title, alias=alias,
                 version_logic_name=version_resource.title,
-                provisioned_concurrency=provisioned_concur))
+                provisioned_concurrency=provisioned_concur)
 
         retention = meta.get('logs_expiration')
         if retention:
@@ -112,6 +116,7 @@ class CfLambdaFunctionConverter(CfResourceConverter):
             resource=lambda_version,
             provisioned_concurrency=provisioned_concurrency,
             expected_qualifier=LAMBDA_CONCUR_QUALIFIER_VERSION)
+        self.template.add_resource(lambda_version)
         return lambda_version
 
     def _lambda_alias(self, lambda_name, alias, version_logic_name,
@@ -129,7 +134,7 @@ class CfLambdaFunctionConverter(CfResourceConverter):
             resource=lambda_alias,
             provisioned_concurrency=provisioned_concurrency,
             expected_qualifier=LAMBDA_CONCUR_QUALIFIER_ALIAS)
-        return lambda_alias
+        self.template.add_resource(lambda_alias)
 
     @staticmethod
     def _add_provisioned_concur(resource, provisioned_concurrency,

@@ -17,12 +17,37 @@ from troposphere import Ref, iam
 
 from syndicate.connection.iam_connection import build_trusted_relationships
 from .cf_resource_converter import CfResourceConverter
-from ..cf_transform_helper import to_logic_name
+from ..cf_transform_helper import to_logic_name, iam_role_logic_name
 
 
 class CfIamRoleConverter(CfResourceConverter):
 
     def convert(self, name, meta):
+        role = iam.Role(iam_role_logic_name(name))
+        role.RoleName = name
+        role.ManagedPolicyArns = self._prepare_policy_arns(meta)
+        role.AssumeRolePolicyDocument = \
+            self._build_assume_role_policy_document(meta)
+        self.template.add_resource(role)
+
+        instance_profile = meta.get('instance_profile')
+        if instance_profile and instance_profile.lower() == 'true':
+            self._convert_instance_profile(profile_name=name)
+
+    def _prepare_policy_arns(self, meta):
+        custom_policies = meta.get('custom_policies', [])
+        predefined_policies = meta.get('predefined_policies', [])
+        policy_arns = []
+        for policy in predefined_policies:
+            iam_service = self.resources_provider.iam()
+            policy_arn = iam_service.iam_conn.get_policy_arn(policy)
+            policy_arns.append(policy_arn)
+        for policy in custom_policies:
+            policy_arns.append(Ref(to_logic_name(policy)))
+        return policy_arns
+
+    @staticmethod
+    def _build_assume_role_policy_document(meta):
         allowed_accounts = meta.get('allowed_accounts', [])
         principal_service = meta.get('principal_service')
         external_id = meta.get('external_id')
@@ -32,30 +57,11 @@ class CfIamRoleConverter(CfResourceConverter):
             allowed_service=principal_service,
             external_id=external_id,
             trusted_relationships=trust_rltn)
+        return trusted_relationships
 
-        custom_policies = meta.get('custom_policies', [])
-        predefined_policies = meta.get('predefined_policies', [])
-        policy_arns = []
-        for policy in predefined_policies:
-            policy_arns.append(Ref(policy))
-        for policy in custom_policies:
-            policy_arns.append(Ref(to_logic_name(policy)))
-
-        role = iam.Role(to_logic_name(name))
-        role.AssumeRolePolicyDocument = trusted_relationships
-        role.RoleName = name
-        role.ManagedPolicyArns = policy_arns
-        self.template.add_resource(role)
-
-        instance_profile = meta.get('instance_profile')
-        if instance_profile and instance_profile.lower() == 'true':
-            self.template.add_resource(
-                self._instance_profile(profile_name=name))
-
-    @staticmethod
-    def _instance_profile(profile_name):
-        logic_id = to_logic_name(profile_name)
-        instance_profile = iam.InstanceProfile(logic_id)
+    def _convert_instance_profile(self, profile_name):
+        logic_name = to_logic_name(profile_name)
+        instance_profile = iam.InstanceProfile(logic_name)
         instance_profile.InstanceProfileName = profile_name
-        instance_profile.Roles = [Ref(logic_id)]
-        return instance_profile
+        instance_profile.Roles = [Ref(logic_name)]
+        self.template.add_resource(instance_profile)

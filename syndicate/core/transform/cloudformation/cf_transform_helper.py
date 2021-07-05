@@ -36,6 +36,10 @@ def to_logic_name(resource_name):
     return ''.join(formatted)
 
 
+def iam_role_logic_name(role_name):
+    return to_logic_name(role_name)
+
+
 def lambda_function_logic_name(function_name):
     return to_logic_name(function_name)
 

@@ -17,11 +17,12 @@ from troposphere import Template
 
 from syndicate.core.transform.build_meta_transformer import \
     BuildMetaTransformer
-from syndicate.core.transform.cloudformation.converter.cf_api_gateway_converter import CfApiGatewayConverter
-from syndicate.core.transform.cloudformation.converter.cf_iam_managed_policy_converter import \
+from .converter.cf_api_gateway_converter import CfApiGatewayConverter
+from .converter.cf_dynamodb_table_converter import CfDynamoDbTableConverter
+from .converter.cf_iam_managed_policy_converter import \
     CfIamManagedPolicyConverter
-from syndicate.core.transform.cloudformation.converter.cf_iam_role_converter import CfIamRoleConverter
-from syndicate.core.transform.cloudformation.converter.cf_lambda_function_converter import CfLambdaFunctionConverter
+from .converter.cf_iam_role_converter import CfIamRoleConverter
+from .converter.cf_lambda_function_converter import CfLambdaFunctionConverter
 
 
 class CloudFormationTransformer(BuildMetaTransformer):
@@ -48,10 +49,33 @@ class CloudFormationTransformer(BuildMetaTransformer):
                                resource=resource,
                                converter_type=CfLambdaFunctionConverter)
 
+    def _transform_dynamo_db_table(self, name, resource):
+        self.convert_resources(name=name,
+                               resource=resource,
+                               converter_type=CfDynamoDbTableConverter)
+
+    def _transform_s3_bucket(self, name, resource):
+        pass
+
+    def _transform_cloud_watch_rule(self, name, resource):
+        pass
+
     def _transform_api_gateway(self, name, resource):
         self.convert_resources(name=name,
                                resource=resource,
                                converter_type=CfApiGatewayConverter)
+
+    def _transform_sns_topic(self, name, resource):
+        pass
+
+    def _transform_cloudwatch_alarm(self, name, resource):
+        pass
+
+    def _transform_sqs_queue(self, name, resource):
+        pass
+
+    def _transform_dynamodb_stream(self, name, resource):
+        pass
 
     def convert_resources(self, name, resource, converter_type):
         converter = converter_type(
