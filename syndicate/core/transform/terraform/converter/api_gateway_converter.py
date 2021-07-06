@@ -78,86 +78,30 @@ class ApiGatewayConverter(TerraformResourceConverter):
                     integration_names.append(integration_name)
                     if integration_type:
                         if integration_type == 'lambda':
-                            lambda_name = method_meta['lambda_name']
-
-                            cache_configuration = method_meta.get(
-                                'cache_configuration')
-                            cache_key_parameters = cache_configuration.get(
-                                'cache_key_parameters') if cache_configuration else None
-
-                            int_type = 'AWS_PROXY' if enable_proxy else 'AWS'
-                            lambda_arn = build_function_invoke_arn_ref(
-                                lambda_name)
-                            passthrough_behavior = passthrough_behavior if passthrough_behavior else 'WHEN_NO_MATCH'
-                            integration = create_api_gateway_integration(
+                            self._create_lambda_integration(
+                                method_meta=method_meta,
+                                method_name=method_name, api_name=api_name,
                                 integration_name=integration_name,
-                                api_name=api_name,
-                                method_name=method_name,
-                                resource_name=resource_name,
-                                integration_type=int_type,
-                                request_template=integration_request_template,
-                                integration_method='POST',
-                                uri=lambda_arn,
-                                passthrough_behavior=passthrough_behavior,
-                                cache_key_parameters=cache_key_parameters)
-                            self.template.add_aws_api_gateway_integration(
-                                meta=integration)
+                                resource_name=resource_name)
                         elif integration_type == 'service':
-                            uri = method_meta.get('uri')
-                            role = method_meta.get('role')
-                            integration_method = http_method.get(
-                                'integration_method')
-                            uri = 'arn:aws:apigateway:{0}'.format(uri)
-
-                            credentials = ApiGatewayConnection.get_service_integration_credentials(
-                                self.config.accountId, role)
-                            passthrough_behavior = passthrough_behavior if passthrough_behavior else 'WHEN_NO_MATCH'
-
-                            integration = create_api_gateway_integration(
-                                integration_name=integration_name,
-                                api_name=api_name,
-                                method_name=method_name,
+                            self._create_service_integration(
                                 resource_name=resource_name,
-                                integration_type='AWS',
-                                request_template=integration_request_template,
-                                integration_method=integration_method,
-                                uri=uri,
-                                passthrough_behavior=passthrough_behavior,
-                                credentials=credentials)
-                            self.template.add_aws_api_gateway_integration(
-                                meta=integration)
+                                method_meta=method_meta,
+                                method_name=method_name, api_name=api_name,
+                                integration_name=integration_name)
                         elif integration_type == 'mock':
-                            passthrough_behavior = passthrough_behavior if passthrough_behavior else 'WHEN_NO_MATCH'
-                            integration = create_api_gateway_integration(
+                            self._create_mock_integration(
+                                method_meta=method_meta,
+                                resource_name=resource_name, api_name=api_name,
                                 integration_name=integration_name,
-                                api_name=api_name,
-                                method_name=method_name,
-                                resource_name=resource_name,
-                                integration_type='MOCK',
-                                request_template=integration_request_template,
-                                passthrough_behavior=passthrough_behavior)
-                            self.template.add_aws_api_gateway_integration(
-                                meta=integration)
+                                method_name=method_name)
                         elif integration_type == 'http':
-                            integration_method = method_meta.get(
-                                'integration_method')
-                            uri = method_meta.get('uri')
-                            enable_proxy = method_meta.get('enable_proxy')
-
-                            int_type = 'HTTP_PROXY' if enable_proxy else 'HTTP'
-                            passthrough_behavior = passthrough_behavior if passthrough_behavior else 'WHEN_NO_MATCH'
-                            integration = create_api_gateway_integration(
-                                integration_name=integration_name,
-                                api_name=api_name,
+                            self._create_http_integration(
+                                method_meta=method_meta,
                                 method_name=method_name,
+                                integration_name=integration_name,
                                 resource_name=resource_name,
-                                integration_type=int_type,
-                                request_template=integration_request_template,
-                                integration_method=integration_method,
-                                uri=uri,
-                                passthrough_behavior=passthrough_behavior)
-                            self.template.add_aws_api_gateway_integration(
-                                meta=integration)
+                                api_name=api_name)
 
                     responses = method_meta.get('responses')
                     for response in responses:
@@ -223,6 +167,114 @@ class ApiGatewayConverter(TerraformResourceConverter):
             self.template.add_aws_api_gateway_authorizer(meta=authorizer)
             authorizer_mappings.update({name: authorizer_ref})
         return authorizer_mappings
+
+    def _create_lambda_integration(self, method_meta, method_name, api_name,
+                                   integration_name, resource_name):
+        enable_proxy = method_meta.get('enable_proxy')
+        passthrough_behavior = method_meta.get(
+            'integration_passthrough_behavior')
+        lambda_name = method_meta['lambda_name']
+        integration_request_template = method_meta.get(
+            'integration_request_body_template')
+
+        cache_configuration = method_meta.get(
+            'cache_configuration')
+        cache_key_parameters = cache_configuration.get(
+            'cache_key_parameters') if cache_configuration else None
+
+        int_type = 'AWS_PROXY' if enable_proxy else 'AWS'
+        lambda_arn = build_function_invoke_arn_ref(
+            lambda_name)
+        passthrough_behavior = passthrough_behavior if passthrough_behavior else 'WHEN_NO_MATCH'
+        integration = create_api_gateway_integration(
+            integration_name=integration_name,
+            api_name=api_name,
+            method_name=method_name,
+            resource_name=resource_name,
+            integration_type=int_type,
+            request_template=integration_request_template,
+            integration_method='POST',
+            uri=lambda_arn,
+            passthrough_behavior=passthrough_behavior,
+            cache_key_parameters=cache_key_parameters)
+        self.template.add_aws_api_gateway_integration(
+            meta=integration)
+
+    def _create_service_integration(self, method_meta, integration_name,
+                                    api_name, method_name, resource_name):
+        integration_request_template = method_meta.get(
+            'integration_request_body_template')
+        passthrough_behavior = method_meta.get(
+            'integration_passthrough_behavior')
+        uri = method_meta.get('uri')
+        role = method_meta.get('role')
+        integration_method = method_meta.get(
+            'integration_method')
+        uri = 'arn:aws:apigateway:{0}'.format(uri)
+
+        credentials = ApiGatewayConnection.get_service_integration_credentials(
+            self.config.accountId, role)
+        passthrough_behavior = passthrough_behavior if passthrough_behavior else 'WHEN_NO_MATCH'
+
+        integration = create_api_gateway_integration(
+            integration_name=integration_name,
+            api_name=api_name,
+            method_name=method_name,
+            resource_name=resource_name,
+            integration_type='AWS',
+            request_template=integration_request_template,
+            integration_method=integration_method,
+            uri=uri,
+            passthrough_behavior=passthrough_behavior,
+            credentials=credentials)
+        self.template.add_aws_api_gateway_integration(
+            meta=integration)
+
+    def _create_mock_integration(self, method_meta, integration_name, api_name,
+                                 method_name, resource_name):
+        integration_request_template = method_meta.get(
+            'integration_request_body_template')
+        passthrough_behavior = method_meta.get(
+            'integration_passthrough_behavior')
+
+        passthrough_behavior = passthrough_behavior if passthrough_behavior else 'WHEN_NO_MATCH'
+        integration = create_api_gateway_integration(
+            integration_name=integration_name,
+            api_name=api_name,
+            method_name=method_name,
+            resource_name=resource_name,
+            integration_type='MOCK',
+            request_template=integration_request_template,
+            passthrough_behavior=passthrough_behavior)
+        self.template.add_aws_api_gateway_integration(
+            meta=integration)
+
+    def _create_http_integration(self, method_meta, integration_name, api_name,
+                                 method_name, resource_name):
+        integration_request_template = method_meta.get(
+            'integration_request_body_template')
+        passthrough_behavior = method_meta.get(
+            'integration_passthrough_behavior')
+
+        integration_method = method_meta.get(
+            'integration_method')
+        uri = method_meta.get('uri')
+        enable_proxy = method_meta.get('enable_proxy')
+
+        int_type = 'HTTP_PROXY' if enable_proxy else 'HTTP'
+        passthrough_behavior = passthrough_behavior if passthrough_behavior else 'WHEN_NO_MATCH'
+        integration = create_api_gateway_integration(
+            integration_name=integration_name,
+            api_name=api_name,
+            method_name=method_name,
+            resource_name=resource_name,
+            integration_type=int_type,
+            request_template=integration_request_template,
+            integration_method=integration_method,
+            uri=uri,
+            passthrough_behavior=passthrough_behavior)
+        self.template.add_aws_api_gateway_integration(
+            meta=integration)
 
     def _get_api_source_arn(self, rest_api_name, method_name, resource_name):
         rest_api_id = '${aws_api_gateway_rest_api.' + rest_api_name + '.id}'

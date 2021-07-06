@@ -1,7 +1,7 @@
-from core.transform.terraform.tf_transform_helper import \
-    build_cognito_identity_pool_id, build_iam_role_arn_ref
 from syndicate.core.transform.terraform.converter.tf_resource_converter import \
     TerraformResourceConverter
+from syndicate.core.transform.terraform.tf_transform_helper import \
+    build_cognito_identity_pool_id, build_iam_role_arn_ref
 
 
 class CognitoConverter(TerraformResourceConverter):
@@ -51,7 +51,7 @@ def cognito_identity_pool(identity_pool_name,
         identity_pool[
             'cognito_identity_providers'] = cognito_identity_providers
     if saml_provider_arns:
-        identity_pool['SamlProviderARNs'] = saml_provider_arns
+        identity_pool['saml_provider_arns'] = saml_provider_arns
 
     resource = {
         identity_pool_name: identity_pool

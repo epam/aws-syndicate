@@ -1,100 +1,162 @@
+from syndicate.core.resources.dynamo_db_resource import DynamoDBResource
 from syndicate.core.transform.terraform.converter.tf_resource_converter import \
     TerraformResourceConverter
-
-READ_CAPACITY_UNITS = 'ReadCapacityUnits'
-WRITE_CAPACITY_UNITS = 'WriteCapacityUnits'
+from syndicate.core.transform.terraform.tf_transform_helper import \
+    build_role_arn_ref
 
 
 class DynamoDbConverter(TerraformResourceConverter):
+
+    def _add_index_keys_to_definition(self, attributes, index):
+        self._append_attr_definition(attributes, index["index_key_name"],
+                                     index["index_key_type"])
+        if index.get('index_sort_key_name'):
+            self._append_attr_definition(attributes,
+                                         index["index_sort_key_name"],
+                                         index["index_sort_key_type"])
+
+    @staticmethod
+    def _append_attr_definition(attributes, attr_name, attr_type):
+        for each in attributes:
+            if each['name'] == attr_name:
+                return
+        attributes.append(dict(name=attr_name,
+                               type=attr_type))
 
     def convert(self, name, resource):
         hash_key_name = resource.get('hash_key_name')
         hash_key_type = resource.get('hash_key_type')
         sort_key_name = resource.get('sort_key_name')
-        sort_key_type = resource.get('sort_key_type')
         read_capacity = resource.get('read_capacity', 1)
         write_capacity = resource.get('write_capacity', 1)
-        global_indexes = resource.get('global_indexes')
-        external = resource.get('external')
         stream_view_type = resource.get('stream_view_type')
+
+        global_indexes = resource.get('global_indexes'),
+        local_indexes = resource.get('local_indexes'),
+
+        attributes = self._extract_attributes(global_indexes=global_indexes,
+                                              local_indexes=local_indexes,
+                                              hash_key_type=hash_key_type,
+                                              hash_key=hash_key_name,
+                                              sort_key_name=sort_key_name)
 
         dynamo_db_template = generate_tf_template_for_dynamo_table(
             hash_key=hash_key_name,
-            hash_key_type=hash_key_type,
             range_key=sort_key_name,
-            range_key_type=sort_key_type,
             read_capacity=read_capacity,
             write_capacity=write_capacity,
-            global_index=global_indexes,
             table_name=name,
-            stream_view_type=stream_view_type)
+            stream_view_type=stream_view_type,
+            attributes=attributes,
+            global_indexes=global_indexes,
+            local_indexes=local_indexes)
         self.template.add_aws_dynamodb_table(meta=dynamo_db_template)
 
         autoscaling = resource.get('autoscaling', [])
         for aut in autoscaling:
-            max_capacity = aut.get('max_capacity')
-            min_capacity = aut.get('min_capacity')
+            max_capacity = str(aut.get('max_capacity'))
+            min_capacity = str(aut.get('min_capacity'))
             dimension = aut.get('dimension')
-            target_utilization = aut.get('config').get('target_utilization')
+            resource_name = aut.get('resource_name')
+            role_name = aut.get('role_name')
 
-            mode = dimension.split(':')[-1]
-            if mode == READ_CAPACITY_UNITS:
-                read_target_name = f'dynamo_db_{name}_read_target'
-                read_target = get_dynamo_db_autoscaling_read_target(
-                    autoscaling_read_target=read_target_name, table_name=name,
-                    max_capacity=max_capacity, min_capacity=min_capacity)
-                read_policy = get_dynamo_db_autoscaling_read_policy(
-                    autoscaling_read_target=read_target_name,
-                    target_value=target_utilization)
-                self.template.add_aws_appautoscaling_target(meta=read_target)
-                self.template.add_aws_appautoscaling_policy(meta=read_policy)
-            elif mode == WRITE_CAPACITY_UNITS:
-                write_target_target_name = f'dynamo_db_{name}_write_target'
-                write_target = get_dynamo_db_autoscaling_write_target(
-                    autoscaling_write_target=write_target_target_name,
-                    max_capacity=max_capacity, min_capacity=min_capacity,
-                    table_name=name)
-                write_policy = get_dynamo_db_autoscaling_write_policy(
-                    autoscaling_write_target=write_target_target_name,
-                    target_value=target_utilization)
-                self.template.add_aws_appautoscaling_target(meta=write_target)
-                self.template.add_aws_appautoscaling_policy(meta=write_policy)
+            resource_id = DynamoDBResource.build_res_id(dimension=dimension,
+                                                        resource_name=resource_name,
+                                                        table_name=name)
+            target = dynamodb_scalable_target(resource_id=resource_id,
+                                              scalable_dimension=dimension,
+                                              min_capacity=min_capacity,
+                                              max_capacity=max_capacity,
+                                              role_name=role_name)
+
+            autoscaling_policy = aut.get('config')
+            if autoscaling_policy:
+                policy_name = autoscaling_policy['policy_name']
+                target_utilization = autoscaling_policy['target_utilization']
+                scale_in_cooldown = autoscaling_policy.get('scale_in_cooldown')
+                scale_out_cooldown = autoscaling_policy.get(
+                    'scale_out_cooldown')
+                metric_type = 'DynamoDBWriteCapacityUtilization' \
+                    if 'Write' in dimension \
+                    else 'DynamoDBReadCapacityUtilization'
+                target_policy = dynamo_db_autoscaling_target_policy(
+                    policy_name=policy_name,
+                    resource_id=resource_id,
+                    target_value=target_utilization,
+                    predefined_metric_type=metric_type,
+                    scale_in_cooldown=scale_in_cooldown,
+                    scale_out_cooldown=scale_out_cooldown)
+                self.template.add_aws_appautoscaling_target(meta=target)
+                self.template.add_aws_appautoscaling_policy(meta=target_policy)
+
+    def _extract_attributes(self, global_indexes, local_indexes, hash_key,
+                            hash_key_type, sort_key_name):
+        attributes = [{'name': hash_key,
+                       'type': hash_key_type}]
+
+        if sort_key_name:
+            attributes.append({'name': sort_key_name, 'type': 'RANGE'})
+
+        if global_indexes:
+            for index in global_indexes:
+                self._add_index_keys_to_definition(attributes=attributes,
+                                                   index=index)
+        if local_indexes:
+            for index in local_indexes:
+                self._add_index_keys_to_definition(attributes=attributes,
+                                                   index=index)
+        return attributes
 
 
-def generate_tf_template_for_dynamo_table(table_name, hash_key, hash_key_type,
-                                          range_key, range_key_type,
-                                          read_capacity, write_capacity,
-                                          global_index, stream_view_type):
-    attributes = [{'name': hash_key,
-                   'type': hash_key_type}]
-    if range_key:
-        attributes.append({'name': range_key,
-                           'type': range_key_type})
-    for index in global_index:
-        index_key_name = index.get('index_key_name')
-        if index_key_name not in [hash_key, range_key]:
-            index_key_type = index.get('index_key_type')
-            attributes.append({'name': index_key_name,
-                               'type': index_key_type})
+def generate_tf_template_for_dynamo_table(table_name, hash_key,
+                                          range_key,
+                                          read_capacity,
+                                          write_capacity,
+                                          attributes,
+                                          stream_view_type=None,
+                                          global_indexes=None,
+                                          local_indexes=None):
+    # attributes = [{'name': hash_key,
+    #                'type': hash_key_type}]
+    # if range_key:
+    #     attributes.append({'name': range_key,
+    #                        'type': range_key_type})
+    # for index in global_index:
+    #     index_key_name = index.get('index_key_name')
+    #     if index_key_name not in [hash_key, range_key]:
+    #         index_key_type = index.get('index_key_type')
+    #         attributes.append({'name': index_key_name,
+    #                            'type': index_key_type})
+    #
+    #     index_sort_key_name = index.get('index_sort_key_name')
+    #     if index_sort_key_name and index_sort_key_name not in [hash_key,
+    #                                                            range_key]:
+    #         index_sort_key_type = index.get('index_sort_key_type')
+    #         attributes.append({'name': index_sort_key_name,
+    #                            'type': index_sort_key_type})
 
-        index_sort_key_name = index.get('index_sort_key_name')
-        if index_sort_key_name and index_sort_key_name not in [hash_key,
-                                                               range_key]:
-            index_sort_key_type = index.get('index_sort_key_type')
-            attributes.append({'name': index_sort_key_name,
-                               'type': index_sort_key_type})
-
-    g_index = []
-    for gind in global_index:
+    gl_index_definitions = []
+    for gind in global_indexes:
         index = {
             'name': gind.get('name'),
             'hash_key': gind.get('index_key_name'),
             'range_key': gind.get('index_sort_key_name'),
             'projection_type': gind.get('projection_type'),
             'write_capacity': gind.get('write_capacity', 1),
-            'read_capacity': gind.get('read_capacity', 1)
+            'read_capacity': gind.get('read_capacity', 1),
+            'non_key_attributes': gind.get('non_key_attributes')
         }
-        g_index.append(index)
+        gl_index_definitions.append(index)
+
+    lc_index_definitions = []
+    for loc_ind in local_indexes:
+        index = {
+            'name': loc_ind.get('name'),
+            'range_key': loc_ind.get('index_sort_key_name'),
+            'projection_type': loc_ind.get('projection_type'),
+            'non_key_attributes': loc_ind.get('non_key_attributes')
+        }
+        lc_index_definitions.append(index)
 
     table_content = {
         "name": table_name,
@@ -102,7 +164,8 @@ def generate_tf_template_for_dynamo_table(table_name, hash_key, hash_key_type,
         "range_key": range_key,
         "read_capacity": read_capacity,
         "write_capacity": write_capacity,
-        "global_secondary_index": g_index,
+        "global_secondary_index": gl_index_definitions,
+        "local_secondary_index": lc_index_definitions,
         "attribute": attributes
     }
 
@@ -116,92 +179,88 @@ def generate_tf_template_for_dynamo_table(table_name, hash_key, hash_key_type,
     return resource
 
 
-def get_dynamo_db_autoscaling_read_target(autoscaling_read_target, table_name,
-                                          max_capacity, min_capacity):
-    table_name_regex = "${aws_dynamodb_table." + table_name + ".name}"
+def dynamodb_scalable_target(resource_id, scalable_dimension,
+                             min_capacity=None,
+                             max_capacity=None,
+                             role_name=None):
+    target = {
+        "scalable_dimension": scalable_dimension,
+        "service_namespace": 'dynamodb',
+        'resource_id': resource_id
+    }
+
+    if min_capacity:
+        target['max_capacity'] = int(min_capacity)
+    if max_capacity:
+        target['min_capacity'] = int(max_capacity)
+    if role_name:
+        target['role_arn'] = build_role_arn_ref(role_name=role_name)
+
     resource = {
-        autoscaling_read_target:
-            {
-                "max_capacity": max_capacity,
-                "min_capacity": min_capacity,
-                "resource_id": f"table/{table_name_regex}",
-                "scalable_dimension": "dynamodb:table:ReadCapacityUnits",
-                "service_namespace": "dynamodb"
-            }
+        resource_id: target
     }
     return resource
 
 
-def get_dynamo_db_autoscaling_write_target(autoscaling_write_target,
-                                           table_name, max_capacity,
-                                           min_capacity):
-    table_name_regex = "${aws_dynamodb_table." + table_name + ".name}"
+def dynamo_db_autoscaling_target_policy(target_value,
+                                        resource_id,
+                                        policy_name=None,
+                                        predefined_metric_type=None,
+                                        resource_label=None,
+                                        metric_name=None, namespace=None,
+                                        dimensions=None, statistic=None,
+                                        unit=None, scale_out_cooldown=None,
+                                        scale_in_cooldown=None):
+    resource_id = '${aws_appautoscaling_target.' + resource_id + '.resource_id}'
+    scalable_dimension = '${aws_appautoscaling_target.' + resource_id + '.scalable_dimension}'
+    service_namespace = '${aws_appautoscaling_target.' + resource_id + '.service_namespace}'
+
     resource = {
-        autoscaling_write_target:
-            {
-                "max_capacity": max_capacity,
-                "min_capacity": min_capacity,
-                "resource_id": f"table/{table_name_regex}",
-                "scalable_dimension": "dynamodb:table:WriteCapacityUnits",
-                "service_namespace": "dynamodb"
-            }
+        'name': f'dynamodb-read-capacity-utilization-{resource_id}',
+        'policy_type': 'TargetTrackingScaling',
+        'resource_id': resource_id,
+        'scalable_dimension': scalable_dimension,
+        'service_namespace': service_namespace,
+        'policy_name': policy_name
     }
 
-    return resource
+    target_scaling_config_dict = dict()
+    if target_value:
+        target_scaling_config_dict['target_value'] = target_value
+    predefined_config_dict = dict()
+    if predefined_metric_type:
+        predefined_config_dict[
+            'predefined_metric_type'] = predefined_metric_type
+    if resource_label:
+        predefined_config_dict['resource_label'] = resource_label
+    if predefined_config_dict:
+        target_scaling_config_dict[
+            'predefined_metric_specification'] = predefined_config_dict
 
+    customized_config_dict = dict()
+    if metric_name:
+        customized_config_dict['metric_name'] = metric_name
+    if namespace:
+        customized_config_dict['namespace'] = namespace
+    if dimensions:
+        customized_config_dict['dimensions'] = dimensions
+    if statistic:
+        customized_config_dict['statistic'] = statistic
+    if unit:
+        customized_config_dict['unit'] = unit
+    if customized_config_dict:
+        target_scaling_config_dict[
+            'customized_metric_specification'] = customized_config_dict
 
-def get_dynamo_db_autoscaling_read_policy(autoscaling_read_target,
-                                          target_value):
-    resource_id = '${aws_appautoscaling_target.' + autoscaling_read_target + '.resource_id}'
-    scalable_dimension = '${aws_appautoscaling_target.' + autoscaling_read_target + '.scalable_dimension}'
-    service_namespace = '${aws_appautoscaling_target.' + autoscaling_read_target + '.service_namespace}'
+    if scale_out_cooldown:
+        target_scaling_config_dict['scale_out_cooldown'] = scale_out_cooldown
+    if scale_in_cooldown:
+        target_scaling_config_dict['scale_in_cooldown'] = scale_in_cooldown
+    if target_scaling_config_dict:
+        resource[
+            'target_tracking_scaling_policy_configuration'] = target_scaling_config_dict
+
     resource = {
-        "dynamodb-test-table_read_policy":
-            {
-                "name": f"dynamodb-read-capacity-utilization-{resource_id}",
-                "policy_type": "TargetTrackingScaling",
-                "resource_id": resource_id,
-                "scalable_dimension": scalable_dimension,
-                "service_namespace": service_namespace,
-                "target_tracking_scaling_policy_configuration": [
-                    {
-                        "predefined_metric_specification": [
-                            {
-                                "predefined_metric_type": "DynamoDBReadCapacityUtilization"
-                            }
-                        ],
-                        "target_value": target_value
-                    }
-                ]
-            }
-    }
-
-    return resource
-
-
-def get_dynamo_db_autoscaling_write_policy(autoscaling_write_target,
-                                           target_value):
-    resource_id = '${aws_appautoscaling_target.' + autoscaling_write_target + '.resource_id}'
-    scalable_dimension = '${aws_appautoscaling_target.' + autoscaling_write_target + '.scalable_dimension}'
-    service_namespace = '${aws_appautoscaling_target.' + autoscaling_write_target + '.service_namespace}'
-    resource = {
-        "dynamodb-test-table_write_policy":
-            {
-                "name": f"dynamodb-write-capacity-utilization-{resource_id}",
-                "policy_type": "TargetTrackingScaling",
-                "resource_id": resource_id,
-                "scalable_dimension": scalable_dimension,
-                "service_namespace": service_namespace,
-                "target_tracking_scaling_policy_configuration": [
-                    {
-                        "predefined_metric_specification": [
-                            {
-                                "predefined_metric_type": "DynamoDBWriteCapacityUtilization"
-                            }
-                        ],
-                        "target_value": target_value
-                    }
-                ]
-            }
+        "dynamodb-test-table_read_policy": resource
     }
     return resource

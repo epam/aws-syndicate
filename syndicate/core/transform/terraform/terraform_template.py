@@ -28,6 +28,9 @@ SNS_APPLICATION_RESOURCE = 'aws_sns_platform_application'
 AWS_API_GATEWAY_AUTHORIZER = 'aws_api_gateway_authorizer'
 AWS_COGNITO_IDENTITY_POOL = 'aws_cognito_identity_pool'
 AWS_COGNITO_IDENTITY_POOL_ROLES_ATTACHMENT = 'aws_cognito_identity_pool_roles_attachment'
+AWS_LAMBDA_PROVISIONED_CONCURRENCY_CONFIG = 'aws_lambda_provisioned_concurrency_config'
+AWS_LAMBDA_ALIAS = 'aws_lambda_alias'
+CLOUD_WATCH_LOG_GROUP = 'cloud_watch_log_group'
 
 RESOURCE_TYPES = [LAMBDA_RESOURCE_NAME, IAM_POLICY_RESOURCE_NAME,
                   IAM_ROLE_RESOURCE_NAME, DYNAMO_DB_TABLE_RESOURCE_NAME,
@@ -45,7 +48,9 @@ RESOURCE_TYPES = [LAMBDA_RESOURCE_NAME, IAM_POLICY_RESOURCE_NAME,
                   SNS_TOPIC_RESOURCE, SQS_QUEUE_RESOURCE, CLOUD_WATCH_ALARM,
                   KINESIS_STREAM_RESOURCE, SNS_APPLICATION_RESOURCE,
                   AWS_API_GATEWAY_AUTHORIZER, AWS_COGNITO_IDENTITY_POOL,
-                  AWS_COGNITO_IDENTITY_POOL_ROLES_ATTACHMENT]
+                  AWS_COGNITO_IDENTITY_POOL_ROLES_ATTACHMENT,
+                  AWS_LAMBDA_PROVISIONED_CONCURRENCY_CONFIG, AWS_LAMBDA_ALIAS,
+                  CLOUD_WATCH_LOG_GROUP]
 
 
 class TerraformTemplate(object):
@@ -76,6 +81,9 @@ class TerraformTemplate(object):
         self.aws_api_gateway_authorizer = []
         self.aws_cognito_identity_pool = []
         self.aws_cognito_identity_pool_roles_attachment = []
+        self.aws_lambda_provisioned_concurrency_config = []
+        self.aws_lambda_alias = []
+        self.cloud_watch_log_group = []
 
         self.compose_resources_mapping = {
             LAMBDA_RESOURCE_NAME: self._aws_lambda,
@@ -102,7 +110,10 @@ class TerraformTemplate(object):
             SNS_APPLICATION_RESOURCE: self._aws_sns_platform_application,
             AWS_API_GATEWAY_AUTHORIZER: self._aws_api_gateway_authorizer,
             AWS_COGNITO_IDENTITY_POOL: self._aws_cognito_identity_pool,
-            AWS_COGNITO_IDENTITY_POOL_ROLES_ATTACHMENT: self._aws_cognito_identity_pool_roles_attachment
+            AWS_COGNITO_IDENTITY_POOL_ROLES_ATTACHMENT: self._aws_cognito_identity_pool_roles_attachment,
+            AWS_LAMBDA_PROVISIONED_CONCURRENCY_CONFIG: self._aws_lambda_provisioned_concurrency_config,
+            AWS_LAMBDA_ALIAS: self._aws_lambda_alias,
+            CLOUD_WATCH_LOG_GROUP: self._cloud_watch_log_group
         }
 
         self.resources = list()
@@ -199,6 +210,15 @@ class TerraformTemplate(object):
     def add_aws_cognito_identity_pool_roles_attachment(self, meta):
         self.aws_cognito_identity_pool_roles_attachment.append(meta)
 
+    def add_aws_lambda_provisioned_concurrency_config(self, meta):
+        self.aws_lambda_provisioned_concurrency_config.append(meta)
+
+    def add_aws_lambda_alias(self, meta):
+        self.aws_lambda_alias.append(meta)
+
+    def add_cloud_watch_log_group(self, meta):
+        self.cloud_watch_log_group.append(meta)
+
     def _aws_lambda(self):
         return self.aws_lambda_function
 
@@ -273,6 +293,15 @@ class TerraformTemplate(object):
 
     def _aws_cognito_identity_pool_roles_attachment(self):
         return self.aws_cognito_identity_pool_roles_attachment
+
+    def _aws_lambda_provisioned_concurrency_config(self):
+        return self.aws_lambda_provisioned_concurrency_config
+
+    def _aws_lambda_alias(self):
+        return self.aws_lambda_alias
+
+    def _cloud_watch_log_group(self):
+        return self.cloud_watch_log_group
 
     def compose_resources(self):
         for res_type in RESOURCE_TYPES:
