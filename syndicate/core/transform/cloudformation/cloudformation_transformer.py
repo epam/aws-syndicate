@@ -18,11 +18,14 @@ from troposphere import Template
 from syndicate.core.transform.build_meta_transformer import \
     BuildMetaTransformer
 from .converter.cf_api_gateway_converter import CfApiGatewayConverter
+from .converter.cf_cloudwatch_rule_converter import CfCloudWatchRuleConverter
 from .converter.cf_dynamodb_table_converter import CfDynamoDbTableConverter
 from .converter.cf_iam_managed_policy_converter import \
     CfIamManagedPolicyConverter
 from .converter.cf_iam_role_converter import CfIamRoleConverter
 from .converter.cf_lambda_function_converter import CfLambdaFunctionConverter
+from .converter.cf_s3_converter import CfS3Converter
+from .converter.cf_sns_converter import CfSnsConverter
 from .converter.cf_sqs_converter import CfSqsConverter
 
 
@@ -33,7 +36,7 @@ class CloudFormationTransformer(BuildMetaTransformer):
         self.template = Template()
 
     def output_file_name(self) -> str:
-        return 'cloudformation_template.json'
+        return 'cloudformation_template.yaml'
 
     def _transform_iam_managed_policy(self, name, resource):
         self.convert_resources(name=name,
@@ -56,10 +59,14 @@ class CloudFormationTransformer(BuildMetaTransformer):
                                converter_type=CfDynamoDbTableConverter)
 
     def _transform_s3_bucket(self, name, resource):
-        pass
+        self.convert_resources(name=name,
+                               resource=resource,
+                               converter_type=CfS3Converter)
 
     def _transform_cloud_watch_rule(self, name, resource):
-        pass
+        self.convert_resources(name=name,
+                               resource=resource,
+                               converter_type=CfCloudWatchRuleConverter)
 
     def _transform_api_gateway(self, name, resource):
         self.convert_resources(name=name,
@@ -67,7 +74,9 @@ class CloudFormationTransformer(BuildMetaTransformer):
                                converter_type=CfApiGatewayConverter)
 
     def _transform_sns_topic(self, name, resource):
-        pass
+        self.convert_resources(name=name,
+                               resource=resource,
+                               converter_type=CfSnsConverter)
 
     def _transform_cloudwatch_alarm(self, name, resource):
         pass
@@ -88,4 +97,4 @@ class CloudFormationTransformer(BuildMetaTransformer):
         converter.convert(name=name, meta=resource)
 
     def _compose_template(self):
-        return self.template.to_json()
+        return self.template.to_yaml()

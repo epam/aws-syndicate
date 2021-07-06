@@ -24,6 +24,8 @@ from syndicate.core.resources.helper import (build_description_obj,
                                              create_args_for_multi_region,
                                              validate_params)
 
+SNS_CLOUDWATCH_TRIGGER_REQUIRED_PARAMS = ['target_rule']
+
 _LOG = get_logger('core.resources.sns_resource')
 
 
@@ -198,7 +200,7 @@ class SnsResource(BaseResource):
 
     def _create_cloud_watch_trigger_from_meta(self, topic_name, trigger_meta,
                                               region):
-        required_parameters = ['target_rule']
+        required_parameters = SNS_CLOUDWATCH_TRIGGER_REQUIRED_PARAMS
         validate_params(topic_name, trigger_meta, required_parameters)
         rule_name = trigger_meta['target_rule']
 
