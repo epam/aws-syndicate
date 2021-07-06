@@ -23,6 +23,8 @@ from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import (build_description_obj,
                                              validate_params)
 
+API_REQUIRED_PARAMS = ['resources', 'deploy_stage']
+
 _LOG = get_logger('syndicate.core.resources.api_gateway_resource')
 
 SUPPORTED_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS',
@@ -174,8 +176,7 @@ class ApiGatewayResource(BaseResource):
         :type name: str
         :type meta: dict
         """
-        required_parameters = ['resources', 'deploy_stage']
-        validate_params(name, meta, required_parameters)
+        validate_params(name, meta, API_REQUIRED_PARAMS)
 
         api_resources = meta['resources']
 

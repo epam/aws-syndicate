@@ -18,7 +18,7 @@ from abc import abstractmethod
 from troposphere import Template
 
 
-class CfResourceConverter(object):
+class CfResourceConverter:
 
     def __init__(self, template: Template, config=None,
                  resources_provider=None):
