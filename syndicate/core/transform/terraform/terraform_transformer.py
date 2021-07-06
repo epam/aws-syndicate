@@ -11,6 +11,12 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
+from syndicate.core.transform.terraform.converter.cognito_converter import \
+    CognitoConverter
+from syndicate.core.transform.terraform.converter.kinesis_stream_converter import \
+    KinesisStreamConverter
+from syndicate.core.transform.terraform.converter.sns_app_converter import \
+    SNSApplicationConverter
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.transform.build_meta_transformer import \
     BuildMetaTransformer
@@ -99,6 +105,7 @@ class TerraformTransformer(BuildMetaTransformer):
                                converter_type=ApiGatewayConverter,
                                name=name)
 
+
     def _transform_sns_topic(self, name, resource):
         self.convert_resources(resource=resource,
                                converter_type=SNSTopicConverter,
@@ -114,8 +121,24 @@ class TerraformTransformer(BuildMetaTransformer):
                                converter_type=CloudWatchAlarmConverter,
                                name=name)
 
+    def _transform_kinesis_stream(self, name, resource):
+        self.convert_resources(resource=resource,
+                               converter_type=KinesisStreamConverter,
+                               name=name)
+
+    def _transform_sns_application(self, name, resource):
+        self.convert_resources(resource=resource,
+                               converter_type=SNSApplicationConverter,
+                               name=name)
+
+    def _transform_cognito(self, name, resource):
+        self.convert_resources(resource=resource,
+                               converter_type=CognitoConverter,
+                               name=name)
+
     def convert_resources(self, name, resource, converter_type):
-        converter = converter_type(template=self.template, config=self.config)
+        converter = converter_type(template=self.template, config=self.config,
+                                   resources_provider=self.resources_provider)
         converter.convert(name=name, resource=resource)
 
         event_sources_converter = EventSourceConverter(template=self.template,

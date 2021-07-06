@@ -23,6 +23,11 @@ CLOUD_WATCH_EVENT_TARGET = 'aws_cloudwatch_event_target'
 SNS_TOPIC_RESOURCE = 'aws_sns_topic'
 SQS_QUEUE_RESOURCE = 'aws_sqs_queue'
 CLOUD_WATCH_ALARM = 'aws_cloudwatch_metric_alarm'
+KINESIS_STREAM_RESOURCE = 'aws_kinesis_stream'
+SNS_APPLICATION_RESOURCE = 'aws_sns_platform_application'
+AWS_API_GATEWAY_AUTHORIZER = 'aws_api_gateway_authorizer'
+AWS_COGNITO_IDENTITY_POOL = 'aws_cognito_identity_pool'
+AWS_COGNITO_IDENTITY_POOL_ROLES_ATTACHMENT = 'aws_cognito_identity_pool_roles_attachment'
 
 RESOURCE_TYPES = [LAMBDA_RESOURCE_NAME, IAM_POLICY_RESOURCE_NAME,
                   IAM_ROLE_RESOURCE_NAME, DYNAMO_DB_TABLE_RESOURCE_NAME,
@@ -37,7 +42,10 @@ RESOURCE_TYPES = [LAMBDA_RESOURCE_NAME, IAM_POLICY_RESOURCE_NAME,
                   API_GATEWAY_INTEGRATION_RESPONSE_RESOURCE_NAME,
                   API_GATEWAY_METHOD_RESOURCE_NAME, S3_BUCKET_RESOURCE_NAME,
                   CLOUD_WATCH_EVENT_RULE, CLOUD_WATCH_EVENT_TARGET,
-                  SNS_TOPIC_RESOURCE, SQS_QUEUE_RESOURCE, CLOUD_WATCH_ALARM]
+                  SNS_TOPIC_RESOURCE, SQS_QUEUE_RESOURCE, CLOUD_WATCH_ALARM,
+                  KINESIS_STREAM_RESOURCE, SNS_APPLICATION_RESOURCE,
+                  AWS_API_GATEWAY_AUTHORIZER, AWS_COGNITO_IDENTITY_POOL,
+                  AWS_COGNITO_IDENTITY_POOL_ROLES_ATTACHMENT]
 
 
 class TerraformTemplate(object):
@@ -63,6 +71,11 @@ class TerraformTemplate(object):
         self.aws_sns_topic = []
         self.aws_sqs_queue = []
         self.aws_cloudwatch_metric_alarm = []
+        self.aws_kinesis_stream = []
+        self.aws_sns_platform_application = []
+        self.aws_api_gateway_authorizer = []
+        self.aws_cognito_identity_pool = []
+        self.aws_cognito_identity_pool_roles_attachment = []
 
         self.compose_resources_mapping = {
             LAMBDA_RESOURCE_NAME: self._aws_lambda,
@@ -84,7 +97,12 @@ class TerraformTemplate(object):
             CLOUD_WATCH_EVENT_TARGET: self._aws_cloudwatch_event_target,
             SNS_TOPIC_RESOURCE: self._aws_sns_topic,
             SQS_QUEUE_RESOURCE: self._aws_sqs_queue,
-            CLOUD_WATCH_ALARM: self._aws_cloudwatch_metric_alarm
+            CLOUD_WATCH_ALARM: self._aws_cloudwatch_metric_alarm,
+            KINESIS_STREAM_RESOURCE: self._aws_kinesis_stream,
+            SNS_APPLICATION_RESOURCE: self._aws_sns_platform_application,
+            AWS_API_GATEWAY_AUTHORIZER: self._aws_api_gateway_authorizer,
+            AWS_COGNITO_IDENTITY_POOL: self._aws_cognito_identity_pool,
+            AWS_COGNITO_IDENTITY_POOL_ROLES_ATTACHMENT: self._aws_cognito_identity_pool_roles_attachment
         }
 
         self.resources = list()
@@ -166,6 +184,21 @@ class TerraformTemplate(object):
     def add_aws_cloudwatch_metric_alarm(self, meta):
         self.aws_cloudwatch_metric_alarm.append(meta)
 
+    def add_aws_kinesis_stream(self, meta):
+        self.aws_kinesis_stream.append(meta)
+
+    def add_aws_sns_platform_application(self, meta):
+        self.aws_sns_platform_application.append(meta)
+
+    def add_aws_api_gateway_authorizer(self, meta):
+        self.aws_api_gateway_authorizer.append(meta)
+
+    def add_aws_cognito_identity_pool(self, meta):
+        self.aws_cognito_identity_pool.append(meta)
+
+    def add_aws_cognito_identity_pool_roles_attachment(self, meta):
+        self.aws_cognito_identity_pool_roles_attachment.append(meta)
+
     def _aws_lambda(self):
         return self.aws_lambda_function
 
@@ -225,6 +258,21 @@ class TerraformTemplate(object):
 
     def _aws_cloudwatch_metric_alarm(self):
         return self.aws_cloudwatch_metric_alarm
+
+    def _aws_kinesis_stream(self):
+        return self.aws_kinesis_stream
+
+    def _aws_sns_platform_application(self):
+        return self.aws_sns_platform_application
+
+    def _aws_api_gateway_authorizer(self):
+        return self.aws_api_gateway_authorizer
+
+    def _aws_cognito_identity_pool(self):
+        return self.aws_cognito_identity_pool
+
+    def _aws_cognito_identity_pool_roles_attachment(self):
+        return self.aws_cognito_identity_pool_roles_attachment
 
     def compose_resources(self):
         for res_type in RESOURCE_TYPES:

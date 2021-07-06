@@ -6,9 +6,11 @@ from syndicate.core.transform.terraform.terraform_template import \
 
 class TerraformResourceConverter:
 
-    def __init__(self, template: TerraformTemplate, config=None):
+    def __init__(self, template: TerraformTemplate, config=None,
+                 resources_provider=None):
         self.template = template
         self.config = config
+        self.resources_provider = resources_provider
 
     @abstractmethod
     def convert(self, name, resource):

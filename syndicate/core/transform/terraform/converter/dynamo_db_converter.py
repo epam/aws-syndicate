@@ -16,6 +16,7 @@ class DynamoDbConverter(TerraformResourceConverter):
         write_capacity = resource.get('write_capacity', 1)
         global_indexes = resource.get('global_indexes')
         external = resource.get('external')
+        stream_view_type = resource.get('stream_view_type')
 
         dynamo_db_template = generate_tf_template_for_dynamo_table(
             hash_key=hash_key_name,
@@ -25,7 +26,8 @@ class DynamoDbConverter(TerraformResourceConverter):
             read_capacity=read_capacity,
             write_capacity=write_capacity,
             global_index=global_indexes,
-            table_name=name)
+            table_name=name,
+            stream_view_type=stream_view_type)
         self.template.add_aws_dynamodb_table(meta=dynamo_db_template)
 
         autoscaling = resource.get('autoscaling', [])
@@ -62,7 +64,7 @@ class DynamoDbConverter(TerraformResourceConverter):
 def generate_tf_template_for_dynamo_table(table_name, hash_key, hash_key_type,
                                           range_key, range_key_type,
                                           read_capacity, write_capacity,
-                                          global_index):
+                                          global_index, stream_view_type):
     attributes = [{'name': hash_key,
                    'type': hash_key_type}]
     if range_key:
@@ -94,17 +96,22 @@ def generate_tf_template_for_dynamo_table(table_name, hash_key, hash_key_type,
         }
         g_index.append(index)
 
+    table_content = {
+        "name": table_name,
+        "hash_key": hash_key,
+        "range_key": range_key,
+        "read_capacity": read_capacity,
+        "write_capacity": write_capacity,
+        "global_secondary_index": g_index,
+        "attribute": attributes
+    }
+
+    if stream_view_type:
+        table_content.update({'stream_enabled': 'true'})
+        table_content.update({'stream_view_type': stream_view_type})
+
     resource = {
-        table_name:
-            {
-                "name": table_name,
-                "hash_key": hash_key,
-                "range_key": range_key,
-                "read_capacity": read_capacity,
-                "write_capacity": write_capacity,
-                "global_secondary_index": g_index,
-                "attribute": attributes
-            }
+        table_name: table_content
     }
     return resource
 
