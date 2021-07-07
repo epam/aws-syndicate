@@ -32,6 +32,11 @@ AWS_LAMBDA_PROVISIONED_CONCURRENCY_CONFIG = 'aws_lambda_provisioned_concurrency_
 AWS_LAMBDA_ALIAS = 'aws_lambda_alias'
 CLOUD_WATCH_LOG_GROUP = 'cloud_watch_log_group'
 SNS_TOPIC_POLICY = 'aws_sns_topic_policy'
+AWS_BATCH_JOB_DEFINITION = 'aws_batch_job_definition'
+AWS_BATCH_COMPUTE_ENVIRONMENT = 'aws_batch_compute_environment'
+AWS_BATCH_JOB_QUEUE = 'aws_batch_job_queue'
+AWS_IAM_INSTANCE_PROFILE = 'aws_iam_instance_profile'
+AWS_IAM_ROLE_POLICY_ATTACHMENT = 'aws_iam_role_policy_attachment'
 
 RESOURCE_TYPES = [LAMBDA_RESOURCE_NAME, IAM_POLICY_RESOURCE_NAME,
                   IAM_ROLE_RESOURCE_NAME, DYNAMO_DB_TABLE_RESOURCE_NAME,
@@ -51,7 +56,10 @@ RESOURCE_TYPES = [LAMBDA_RESOURCE_NAME, IAM_POLICY_RESOURCE_NAME,
                   AWS_API_GATEWAY_AUTHORIZER, AWS_COGNITO_IDENTITY_POOL,
                   AWS_COGNITO_IDENTITY_POOL_ROLES_ATTACHMENT,
                   AWS_LAMBDA_PROVISIONED_CONCURRENCY_CONFIG, AWS_LAMBDA_ALIAS,
-                  CLOUD_WATCH_LOG_GROUP, SNS_TOPIC_POLICY]
+                  CLOUD_WATCH_LOG_GROUP, SNS_TOPIC_POLICY,
+                  AWS_BATCH_JOB_DEFINITION, AWS_BATCH_COMPUTE_ENVIRONMENT,
+                  AWS_BATCH_JOB_QUEUE, AWS_IAM_INSTANCE_PROFILE,
+                  AWS_IAM_ROLE_POLICY_ATTACHMENT]
 
 
 class TerraformTemplate(object):
@@ -86,6 +94,11 @@ class TerraformTemplate(object):
         self.aws_lambda_alias = []
         self.cloud_watch_log_group = []
         self.aws_sns_topic_policy = []
+        self.aws_batch_job_definition = []
+        self.aws_batch_compute_environment = []
+        self.aws_batch_job_queue = []
+        self.aws_iam_instance_profile = []
+        self.aws_iam_role_policy_attachment = []
 
         self.compose_resources_mapping = {
             LAMBDA_RESOURCE_NAME: self._aws_lambda,
@@ -116,7 +129,12 @@ class TerraformTemplate(object):
             AWS_LAMBDA_PROVISIONED_CONCURRENCY_CONFIG: self._aws_lambda_provisioned_concurrency_config,
             AWS_LAMBDA_ALIAS: self._aws_lambda_alias,
             CLOUD_WATCH_LOG_GROUP: self._cloud_watch_log_group,
-            SNS_TOPIC_POLICY: self._aws_sns_topic_policy
+            SNS_TOPIC_POLICY: self._aws_sns_topic_policy,
+            AWS_BATCH_JOB_DEFINITION: self._aws_batch_job_definition,
+            AWS_BATCH_COMPUTE_ENVIRONMENT: self._aws_batch_compute_environment,
+            AWS_BATCH_JOB_QUEUE: self._aws_batch_job_queue,
+            AWS_IAM_INSTANCE_PROFILE: self._aws_iam_instance_profile,
+            AWS_IAM_ROLE_POLICY_ATTACHMENT: self._aws_iam_role_policy_attachment
         }
 
         self.resources = list()
@@ -179,12 +197,8 @@ class TerraformTemplate(object):
     def add_aws_cloudwatch_event_rule(self, meta):
         self.aws_cloudwatch_event_rule.append(meta)
 
-    def add_dynamo_db_stream(self, table_name, view_type):
-        for table in self.aws_dynamodb_table:
-            for resource in table.values():
-                if table_name == resource.get('name'):
-                    resource.update({'stream_enabled': 'true'})
-                    resource.update({'stream_view_type': view_type})
+    def add_aws_batch_job_definition(self, meta):
+        self.aws_batch_job_definition.append(meta)
 
     def add_aws_cloudwatch_event_target(self, meta):
         self.aws_cloudwatch_event_target.append(meta)
@@ -224,6 +238,21 @@ class TerraformTemplate(object):
 
     def add_aws_sns_topic_policy(self, meta):
         self.aws_sns_topic_policy.append(meta)
+
+    def add_aws_batch_job_queue(self, meta):
+        self.aws_batch_job_queue.append(meta)
+
+    def add_aws_batch_job_definition(self, meta):
+        self.aws_batch_job_definition.append(meta)
+
+    def add_aws_batch_compute_environment(self, meta):
+        self.aws_batch_compute_environment.append(meta)
+
+    def add_aws_iam_instance_profile(self, meta):
+        self.aws_iam_instance_profile.append(meta)
+
+    def add_aws_iam_role_policy_attachment(self, meta):
+        self.aws_iam_role_policy_attachment.append(meta)
 
     def _aws_lambda(self):
         return self.aws_lambda_function
@@ -311,6 +340,21 @@ class TerraformTemplate(object):
 
     def _aws_sns_topic_policy(self):
         return self.aws_sns_topic_policy
+
+    def _aws_batch_job_definition(self):
+        return self.aws_batch_job_definition
+
+    def _aws_batch_compute_environment(self):
+        return self.aws_batch_compute_environment
+
+    def _aws_batch_job_queue(self):
+        return self.aws_batch_job_queue
+
+    def _aws_iam_instance_profile(self):
+        return self.aws_iam_instance_profile
+
+    def _aws_iam_role_policy_attachment(self):
+        return self.aws_iam_role_policy_attachment
 
     def compose_resources(self):
         for res_type in RESOURCE_TYPES:

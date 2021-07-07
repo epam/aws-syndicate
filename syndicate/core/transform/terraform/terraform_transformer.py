@@ -11,12 +11,12 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-from syndicate.core.transform.terraform.converter.cognito_converter import \
-    CognitoConverter
-from syndicate.core.transform.terraform.converter.kinesis_stream_converter import \
-    KinesisStreamConverter
-from syndicate.core.transform.terraform.converter.sns_app_converter import \
-    SNSApplicationConverter
+from syndicate.core.transform.terraform.converter.batch_compenv_converter import \
+    BatchComputeEnvConverter
+from syndicate.core.transform.terraform.converter.batch_jobdef_converter import \
+    BatchJobDefConverter
+from syndicate.core.transform.terraform.converter.batch_jobqueue_converter import \
+    BatchJobQueueEnvConverter
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.transform.build_meta_transformer import \
     BuildMetaTransformer
@@ -26,20 +26,24 @@ from syndicate.core.transform.terraform.converter.cloud_watch_alram_converter im
     CloudWatchAlarmConverter
 from syndicate.core.transform.terraform.converter.cloud_watch_rule_converter import \
     CloudWatchRuleConverter
+from syndicate.core.transform.terraform.converter.cognito_converter import \
+    CognitoConverter
 from syndicate.core.transform.terraform.converter.dynamo_db_converter import \
     DynamoDbConverter
-from syndicate.core.transform.terraform.converter.dynamo_db_stream_converter import \
-    DynamoDbStreamConverter
 from syndicate.core.transform.terraform.converter.event_sources_converter import \
     EventSourceConverter
 from syndicate.core.transform.terraform.converter.iam_policy_converter import \
     IamPolicyConverter
 from syndicate.core.transform.terraform.converter.iam_role_converter import \
     IamRoleConverter
+from syndicate.core.transform.terraform.converter.kinesis_stream_converter import \
+    KinesisStreamConverter
 from syndicate.core.transform.terraform.converter.lambda_converter import \
     LambdaConverter
 from syndicate.core.transform.terraform.converter.s3_bucket_converter import \
     S3BucketConverter
+from syndicate.core.transform.terraform.converter.sns_app_converter import \
+    SNSApplicationConverter
 from syndicate.core.transform.terraform.converter.sns_topic_converter import \
     SNSTopicConverter
 from syndicate.core.transform.terraform.converter.sqs_converter import \
@@ -85,11 +89,6 @@ class TerraformTransformer(BuildMetaTransformer):
                                converter_type=DynamoDbConverter,
                                name=name)
 
-    def _transform_dynamodb_stream(self, name, resource):
-        self.convert_resources(resource=resource,
-                               converter_type=DynamoDbStreamConverter,
-                               name=name)
-
     def _transform_s3_bucket(self, name, resource):
         self.convert_resources(resource=resource,
                                converter_type=S3BucketConverter,
@@ -104,7 +103,6 @@ class TerraformTransformer(BuildMetaTransformer):
         self.convert_resources(resource=resource,
                                converter_type=ApiGatewayConverter,
                                name=name)
-
 
     def _transform_sns_topic(self, name, resource):
         self.convert_resources(resource=resource,
@@ -134,6 +132,21 @@ class TerraformTransformer(BuildMetaTransformer):
     def _transform_cognito(self, name, resource):
         self.convert_resources(resource=resource,
                                converter_type=CognitoConverter,
+                               name=name)
+
+    def _transform_batch_compenv(self, name, resource):
+        self.convert_resources(resource=resource,
+                               converter_type=BatchComputeEnvConverter,
+                               name=name)
+
+    def _transform_batch_jobqueue(self, name, resource):
+        self.convert_resources(resource=resource,
+                               converter_type=BatchJobQueueEnvConverter,
+                               name=name)
+
+    def _transform_batch_jobdef(self, name, resource):
+        self.convert_resources(resource=resource,
+                               converter_type=BatchJobDefConverter,
                                name=name)
 
     def convert_resources(self, name, resource, converter_type):

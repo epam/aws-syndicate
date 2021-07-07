@@ -1,8 +1,8 @@
 import json
 import uuid
 
-from core.resources.lambda_resource import CLOUD_WATCH_RULE_TRIGGER
-from core.transform.terraform.tf_transform_helper import \
+from syndicate.core.resources.lambda_resource import CLOUD_WATCH_RULE_TRIGGER
+from syndicate.core.transform.terraform.tf_transform_helper import \
     build_sns_topic_arn_ref, build_cloud_watch_event_rule_name_ref
 from syndicate.core.transform.terraform.converter.tf_resource_converter import \
     TerraformResourceConverter

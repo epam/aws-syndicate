@@ -20,7 +20,8 @@ from syndicate.core.build.deployment_processor import compare_deploy_resources
 from syndicate.core.build.meta_processor import resolve_meta
 from syndicate.core.constants import IAM_POLICY, IAM_ROLE, LAMBDA_TYPE, \
     DYNAMO_TABLE_TYPE, S3_BUCKET_TYPE, CLOUD_WATCH_RULE_TYPE, SQS_QUEUE_TYPE, \
-    API_GATEWAY_TYPE, SNS_TOPIC_TYPE, CLOUD_WATCH_ALARM_TYPE
+    API_GATEWAY_TYPE, SNS_TOPIC_TYPE, CLOUD_WATCH_ALARM_TYPE, \
+    BATCH_COMPENV_TYPE, BATCH_JOBQUEUE_TYPE, BATCH_JOBDEF_TYPE
 from syndicate.core.constants import (KINESIS_STREAM_TYPE,
                                       SNS_PLATFORM_APPLICATION_TYPE,
                                       COGNITO_TYPE)
@@ -46,7 +47,10 @@ class BuildMetaTransformer(object):
             CLOUD_WATCH_ALARM_TYPE: self._transform_cloudwatch_alarm,
             KINESIS_STREAM_TYPE: self._transform_kinesis_stream,
             SNS_PLATFORM_APPLICATION_TYPE: self._transform_sns_application,
-            COGNITO_TYPE: self._transform_cognito
+            COGNITO_TYPE: self._transform_cognito,
+            BATCH_COMPENV_TYPE: self._transform_batch_compenv,
+            BATCH_JOBQUEUE_TYPE: self._transform_batch_jobqueue,
+            BATCH_JOBDEF_TYPE: self._transform_batch_jobdef
         }
 
     def transform_build_meta(self, build_meta):
@@ -117,6 +121,18 @@ class BuildMetaTransformer(object):
 
     @abstractmethod
     def _transform_cognito(self, name, resource):
+        pass
+
+    @abstractmethod
+    def _transform_batch_compenv(self, name, resource):
+        pass
+
+    @abstractmethod
+    def _transform_batch_jobqueue(self, name, resource):
+        pass
+
+    @abstractmethod
+    def _transform_batch_jobdef(self, name, resource):
         pass
 
     @abstractmethod

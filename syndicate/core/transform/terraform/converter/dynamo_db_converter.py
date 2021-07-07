@@ -31,8 +31,8 @@ class DynamoDbConverter(TerraformResourceConverter):
         write_capacity = resource.get('write_capacity', 1)
         stream_view_type = resource.get('stream_view_type')
 
-        global_indexes = resource.get('global_indexes'),
-        local_indexes = resource.get('local_indexes'),
+        global_indexes = resource.get('global_indexes', [])
+        local_indexes = resource.get('local_indexes', [])
 
         attributes = self._extract_attributes(global_indexes=global_indexes,
                                               local_indexes=local_indexes,
@@ -89,8 +89,9 @@ class DynamoDbConverter(TerraformResourceConverter):
                 self.template.add_aws_appautoscaling_target(meta=target)
                 self.template.add_aws_appautoscaling_policy(meta=target_policy)
 
-    def _extract_attributes(self, global_indexes, local_indexes, hash_key,
-                            hash_key_type, sort_key_name):
+    def _extract_attributes(self, hash_key,
+                            hash_key_type, sort_key_name,
+                            global_indexes=None, local_indexes=None):
         attributes = [{'name': hash_key,
                        'type': hash_key_type}]
 
@@ -141,10 +142,10 @@ def generate_tf_template_for_dynamo_table(table_name, hash_key,
             'name': gind.get('name'),
             'hash_key': gind.get('index_key_name'),
             'range_key': gind.get('index_sort_key_name'),
-            'projection_type': gind.get('projection_type'),
+            'projection_type': gind.get('projection_type', 'ALL'),
             'write_capacity': gind.get('write_capacity', 1),
             'read_capacity': gind.get('read_capacity', 1),
-            'non_key_attributes': gind.get('non_key_attributes')
+            'non_key_attributes': gind.get('non_key_attributes'),
         }
         gl_index_definitions.append(index)
 

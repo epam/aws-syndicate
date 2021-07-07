@@ -47,15 +47,11 @@ def build_api_gateway_deployment_id_ref(deployment_name):
 
 
 def build_cognito_identity_pool_id(pool_name):
-    return '${aws_cognito_identity_pool.' + pool_name + '.id'
-
-
-def build_iam_role_arn_ref(role_name):
-    return '${aws_iam_role.' + role_name + '.arn'
+    return '${aws_cognito_identity_pool.' + pool_name + '.id}'
 
 
 def build_ref_to_lambda_layer_arn(layer_name):
-    return '${aws_lambda_layer_version.' + layer_name + '.arn'
+    return '${aws_lambda_layer_version.' + layer_name + '.arn}'
 
 
 def build_role_arn_ref(role_name):
@@ -68,3 +64,15 @@ def build_cloud_watch_event_rule_name_ref(target_rule):
 
 def build_resource_arn_ref(tf_resource_type, name):
     return '${' + tf_resource_type + '.' + name + '.arn}'
+
+
+def build_policy_arn_ref(policy_name):
+    return '${aws_iam_policy.' + policy_name + '.arn}'
+
+
+def build_com_env_arn(com_env_name):
+    return '${aws_batch_compute_environment.' + com_env_name + '.arn}'
+
+
+def build_role_name_ref(role_name):
+    return '${aws_iam_role.' + role_name + '.name}'

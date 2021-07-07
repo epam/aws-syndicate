@@ -1,6 +1,6 @@
 import uuid
 
-from core.transform.terraform.tf_transform_helper import \
+from syndicate.core.transform.terraform.tf_transform_helper import \
     build_cloud_watch_event_rule_name_ref, build_resource_arn_ref
 from syndicate.core.resources.lambda_resource import CLOUD_WATCH_RULE_TRIGGER
 from syndicate.core.transform.terraform.converter.tf_resource_converter import \
@@ -49,31 +49,31 @@ def cloud_watch_trigger(resource_type, resource_arn, rule_name):
     return resource
 
 
-def allow_service_invoke(topic, service):
-    policy_document = {
-        "Version": "2012-10-17",
-        "Statement": [
-            {
-                "Sid": str(uuid.uuid1()),
-                "Effect": "Allow",
-                "Principal":
-                    {
-                        "Service": service
-                    },
-                "Action": "sns:Publish",
-                "Resource": build_sns_topic_arn_ref(sns_topic=topic)
-            }
-        ]
-    }
-
-
-def sns_topic_policy(res_name, policy_json, topic):
-    resource = {
-        res_name: [
-            {
-                "arn": build_sns_topic_arn_ref(sns_topic=topic),
-                "policy": policy_json
-            }
-        ]
-    }
-    return resource
+# def allow_service_invoke(topic, service):
+#     policy_document = {
+#         "Version": "2012-10-17",
+#         "Statement": [
+#             {
+#                 "Sid": str(uuid.uuid1()),
+#                 "Effect": "Allow",
+#                 "Principal":
+#                     {
+#                         "Service": service
+#                     },
+#                 "Action": "sns:Publish",
+#                 "Resource": build_sns_topic_arn_ref(sns_topic=topic)
+#             }
+#         ]
+#     }
+#
+#
+# def sns_topic_policy(res_name, policy_json, topic):
+#     resource = {
+#         res_name: [
+#             {
+#                 "arn": build_sns_topic_arn_ref(sns_topic=topic),
+#                 "policy": policy_json
+#             }
+#         ]
+#     }
+#     return resource

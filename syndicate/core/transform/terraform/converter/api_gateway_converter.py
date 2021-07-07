@@ -1,5 +1,4 @@
 from syndicate.connection import ApiGatewayConnection
-from syndicate.core.resources.api_gateway_resource import SUPPORTED_METHODS
 from syndicate.core.transform.terraform.converter.tf_resource_converter import \
     TerraformResourceConverter
 from syndicate.core.transform.terraform.tf_transform_helper import \
@@ -14,6 +13,10 @@ CUSTOM_AUTH = 'CUSTOM'
 AWS_IAM_AUTH = 'AWS_IAM'
 COGNITO_USER_POOLS_AUTH = 'COGNITO_USER_POOLS'
 
+API_GATEWAY_SUPPORTED_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE',
+                                 'OPTIONS',
+                                 'HEAD', 'ANY']
+
 
 class ApiGatewayConverter(TerraformResourceConverter):
 
@@ -21,6 +24,7 @@ class ApiGatewayConverter(TerraformResourceConverter):
         api_name = resource.get('resource_name')
         rest_api_template = generate_tf_template_for_api_gateway(
             api_name=api_name)
+        print('API NAME' + api_name)
         self.template.add_aws_api_gateway_rest_api(meta=rest_api_template)
         auth_mappings = self._transform_authorizers(resource=resource,
                                                     api_name=api_name)
@@ -34,7 +38,7 @@ class ApiGatewayConverter(TerraformResourceConverter):
             self.template.add_aws_api_gateway_resource(
                 meta=api_gateway_resource)
 
-            for http_method in SUPPORTED_METHODS:
+            for http_method in API_GATEWAY_SUPPORTED_METHODS:
                 method_meta = res.get(http_method)
                 if method_meta:
                     resource_name = res_name.replace('/', '')
@@ -65,15 +69,7 @@ class ApiGatewayConverter(TerraformResourceConverter):
                     self.template.add_aws_api_gateway_method(
                         meta=method_template)
 
-                    integration_request_template = method_meta.get(
-                        'integration_request_body_template')
-
-                    enable_proxy = method_meta.get('enable_proxy')
                     integration_type = method_meta.get('integration_type')
-
-                    passthrough_behavior = method_meta.get(
-                        'integration_passthrough_behavior')
-
                     integration_name = f'{resource_name}_{http_method}_integration'
                     integration_names.append(integration_name)
                     if integration_type:
@@ -136,7 +132,7 @@ class ApiGatewayConverter(TerraformResourceConverter):
 
         deploy_stage = resource.get('deploy_stage')
         if deploy_stage:
-            deployment_name = f'{deploy_stage}_deployment'
+            deployment_name = f'{api_name}_{deploy_stage}_deployment'
             deployment = api_gateway_deployment(api_name=api_name,
                                                 deployment_name=deployment_name,
                                                 methods=method_names,
@@ -157,13 +153,16 @@ class ApiGatewayConverter(TerraformResourceConverter):
             ttl = val.get('ttl')
             auth_type = val.get('type')
 
-            authorizer_ref = build_authorizer_id_ref(authorizer_name=name)
-            authorizer = api_gateway_authorizer(authorizer_name=name,
-                                                authorizer_uri=lambda_arn,
-                                                rest_api_name=api_name,
-                                                ttl=ttl,
-                                                identity_source=identity_source,
-                                                auth_type=auth_type)
+            authorizer_name = f'{api_name}_authorizer'
+            authorizer_ref = build_authorizer_id_ref(
+                authorizer_name=authorizer_name)
+            authorizer = api_gateway_authorizer(
+                authorizer_name=authorizer_name,
+                authorizer_uri=lambda_arn,
+                rest_api_name=api_name,
+                ttl=ttl,
+                identity_source=identity_source,
+                auth_type=auth_type)
             self.template.add_aws_api_gateway_authorizer(meta=authorizer)
             authorizer_mappings.update({name: authorizer_ref})
         return authorizer_mappings
@@ -388,7 +387,7 @@ def api_gateway_stage(api_name, stage_name, deployment_name):
     deployment_id = build_api_gateway_deployment_id_ref(
         deployment_name=deployment_name)
     resource = {
-        stage_name:
+        f'{api_name}_stage':
             {
                 "deployment_id": deployment_id,
                 "rest_api_id": rest_api_id,
