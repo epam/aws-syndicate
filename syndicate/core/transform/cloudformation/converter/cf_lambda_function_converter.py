@@ -29,6 +29,7 @@ from syndicate.core.resources.lambda_resource import \
      SNS_TRIGGER_REQUIRED_PARAMS, KINESIS_TRIGGER_REQUIRED_PARAMS)
 from .cf_cloudwatch_rule_converter import attach_rule_target
 from .cf_dynamodb_table_converter import CfDynamoDbTableConverter
+from .cf_iam_role_converter import CfIamRoleConverter
 from .cf_resource_converter import CfResourceConverter
 from .cf_s3_converter import CfS3Converter
 from .cf_sns_converter import CfSnsConverter
@@ -137,11 +138,10 @@ class CfLambdaFunctionConverter(CfResourceConverter):
 
             trigger_type = trigger_meta['resource_type']
             func = self.CREATE_TRIGGER[trigger_type]
-            func(self, name, arn, role_name, trigger_meta)
+            func(self, name, arn, role, trigger_meta)
 
     def _create_dynamodb_trigger_from_meta(self, lambda_name, lambda_arn,
-                                           role_name,
-                                           trigger_meta):
+                                           role, trigger_meta):
         validate_params(lambda_name, trigger_meta,
                         DYNAMODB_TRIGGER_REQUIRED_PARAMS)
         table_name = trigger_meta['target_table']
@@ -157,7 +157,7 @@ class CfLambdaFunctionConverter(CfResourceConverter):
             event_source_name=table_name,
             trigger_meta=trigger_meta)
 
-    def _create_sqs_trigger_from_meta(self, lambda_name, lambda_arn, role_name,
+    def _create_sqs_trigger_from_meta(self, lambda_name, lambda_arn, role,
                                       trigger_meta):
         validate_params(lambda_name, trigger_meta, SQS_TRIGGER_REQUIRED_PARAMS)
         target_queue_name = trigger_meta['target_queue']
@@ -174,8 +174,7 @@ class CfLambdaFunctionConverter(CfResourceConverter):
             trigger_meta=trigger_meta)
 
     def _create_cloud_watch_trigger_from_meta(self, lambda_name, lambda_arn,
-                                              role_name,
-                                              trigger_meta):
+                                              role, trigger_meta):
         validate_params(lambda_name, trigger_meta,
                         CLOUD_WATCH_TRIGGER_REQUIRED_PARAMS)
         rule_name = trigger_meta['target_rule']
@@ -190,7 +189,7 @@ class CfLambdaFunctionConverter(CfResourceConverter):
             permission_qualifier=rule_name
         )
 
-    def _create_s3_trigger_from_meta(self, lambda_name, lambda_arn, role_name,
+    def _create_s3_trigger_from_meta(self, lambda_name, lambda_arn, role,
                                      trigger_meta):
         validate_params(lambda_name, trigger_meta, S3_TRIGGER_REQUIRED_PARAMS)
         target_bucket_name = trigger_meta['target_bucket']
@@ -215,8 +214,7 @@ class CfLambdaFunctionConverter(CfResourceConverter):
         )
 
     def _create_sns_topic_trigger_from_meta(self, lambda_name, lambda_arn,
-                                            role_name,
-                                            trigger_meta):
+                                            role, trigger_meta):
         validate_params(lambda_name, trigger_meta, SNS_TRIGGER_REQUIRED_PARAMS)
         topic_name = trigger_meta['target_topic']
 
@@ -239,19 +237,69 @@ class CfLambdaFunctionConverter(CfResourceConverter):
         )
 
     def _create_kinesis_stream_trigger_from_meta(self, lambda_name, lambda_arn,
-                                                 role_name, trigger_meta):
-        pass  # TODO: implement kinesis lambda trigger
+                                                 role, trigger_meta):
+        validate_params(lambda_name, trigger_meta,
+                        KINESIS_TRIGGER_REQUIRED_PARAMS)
+
+        stream_name = trigger_meta['target_stream']
+
+        stream = self.get_resource(to_logic_name(stream_name))
+        if not stream:
+            _LOG.error('Kinesis stream does not exist: {0}.'
+                       .format(stream_name))
+            return
+
+        policy_name = '{0}KinesisTo{1}Lambda'.format(stream_name, lambda_name)
+        policy_document = {
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Action": [
+                        "lambda:InvokeFunction"
+                    ],
+                    "Resource": [
+                        lambda_arn
+                    ]
+                },
+                {
+                    "Action": [
+                        "kinesis:DescribeStreams",
+                        "kinesis:DescribeStream",
+                        "kinesis:ListStreams",
+                        "kinesis:GetShardIterator",
+                        "Kinesis:GetRecords"
+                    ],
+                    "Effect": "Allow",
+                    "Resource": stream.get_att('Arn')
+                }
+            ],
+            "Version": "2012-10-17"
+        }
+        CfIamRoleConverter.attach_inline_policy(
+            role=role,
+            policy_name=policy_name,
+            policy_document=policy_document)
+        self._add_event_source_mapping(
+            lambda_arn=lambda_arn,
+            lambda_name=lambda_name,
+            event_source_arn=stream.get_att('Arn'),
+            event_source_name=stream_name,
+            trigger_meta=trigger_meta)
 
     def _add_event_source_mapping(self, lambda_arn, lambda_name,
                                   event_source_arn, event_source_name,
                                   trigger_meta):
+        starting_position = trigger_meta.get('starting_position')
+        if not starting_position:
+            starting_position = 'LATEST'
+
         event_source = awslambda.EventSourceMapping(to_logic_name(
             '{}{}EventSourceMapping'.format(lambda_name, event_source_name)))
         event_source.BatchSize = trigger_meta['batch_size']
         event_source.Enabled = True
         event_source.EventSourceArn = event_source_arn
         event_source.FunctionName = lambda_arn
-        event_source.StartingPosition = 'LATEST'
+        event_source.StartingPosition = starting_position
         self.template.add_resource(event_source)
 
     CREATE_TRIGGER = {

@@ -32,12 +32,16 @@ class KinesisConnection(object):
                              aws_session_token=aws_session_token)
         _LOG.debug('Opened new Kinesis connection.')
 
-    def create_stream(self, stream_name, shard_count):
+    @staticmethod
+    def validate_shard_count(shard_count):
         if not isinstance(shard_count, int) or shard_count > 25:
             raise TypeError(
                 'Shard count must be a valid integer '
                 'less than 25 (max value per region). Actual type: {0}'.format(
                     type(shard_count)))
+
+    def create_stream(self, stream_name, shard_count):
+        self.validate_shard_count(shard_count)
         params = dict(StreamName=stream_name, ShardCount=shard_count)
         return self.client.create_stream(**params)
 

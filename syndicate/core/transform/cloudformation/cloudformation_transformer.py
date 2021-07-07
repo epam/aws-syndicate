@@ -24,6 +24,7 @@ from .converter.cf_dynamodb_table_converter import CfDynamoDbTableConverter
 from .converter.cf_iam_managed_policy_converter import \
     CfIamManagedPolicyConverter
 from .converter.cf_iam_role_converter import CfIamRoleConverter
+from .converter.cf_kinesis_stream_converter import CfKinesisStreamConverter
 from .converter.cf_lambda_function_converter import CfLambdaFunctionConverter
 from .converter.cf_s3_converter import CfS3Converter
 from .converter.cf_sns_converter import CfSnsConverter
@@ -79,6 +80,11 @@ class CloudFormationTransformer(BuildMetaTransformer):
                                resource=resource,
                                converter_type=CfSnsConverter)
 
+    def _transform_sns_application(self, name, resource):
+        self.convert_resources(name=name,
+                               resource=resource,
+                               converter_type=CfSqsConverter)
+
     def _transform_cloudwatch_alarm(self, name, resource):
         self.convert_resources(name=name,
                                resource=resource,
@@ -91,6 +97,11 @@ class CloudFormationTransformer(BuildMetaTransformer):
 
     def _transform_dynamodb_stream(self, name, resource):
         pass
+
+    def _transform_kinesis_stream(self, name, resource):
+        self.convert_resources(name=name,
+                               resource=resource,
+                               converter_type=CfKinesisStreamConverter)
 
     def convert_resources(self, name, resource, converter_type):
         converter = converter_type(
