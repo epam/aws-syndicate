@@ -24,7 +24,6 @@ class ApiGatewayConverter(TerraformResourceConverter):
         api_name = resource.get('resource_name')
         rest_api_template = generate_tf_template_for_api_gateway(
             api_name=api_name)
-        print('API NAME' + api_name)
         self.template.add_aws_api_gateway_rest_api(meta=rest_api_template)
         auth_mappings = self._transform_authorizers(resource=resource,
                                                     api_name=api_name)

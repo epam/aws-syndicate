@@ -51,10 +51,8 @@ class BuildMetaTransformer(object):
             SNS_TOPIC_TYPE: self._transform_sns_topic,
             SNS_PLATFORM_APPLICATION_TYPE: self._transform_sns_application,
             CLOUD_WATCH_ALARM_TYPE: self._transform_cloudwatch_alarm,
-            DYNAMO_DB_STREAM_TYPE: self._transform_dynamodb_stream,
-            KINESIS_STREAM_TYPE: self._transform_kinesis_stream
+            # DYNAMO_DB_STREAM_TYPE: self._transform_dynamodb_stream,
             KINESIS_STREAM_TYPE: self._transform_kinesis_stream,
-            SNS_PLATFORM_APPLICATION_TYPE: self._transform_sns_application,
             COGNITO_TYPE: self._transform_cognito,
             BATCH_COMPENV_TYPE: self._transform_batch_compenv,
             BATCH_JOBQUEUE_TYPE: self._transform_batch_jobqueue,
@@ -145,10 +143,6 @@ class BuildMetaTransformer(object):
 
     @abstractmethod
     def _transform_batch_jobdef(self, name, resource):
-        pass
-
-    @abstractmethod
-    def _transform_kinesis_stream(self, name, resource):
         pass
 
     @abstractmethod

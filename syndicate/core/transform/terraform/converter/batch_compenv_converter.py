@@ -47,7 +47,7 @@ class BatchComputeEnvConverter(TerraformResourceConverter):
 
 def aws_iam_role_policy_attachment(role_name):
     resource = {
-        "ecs_instance_role":
+        f'{role_name}_policy_attachment':
             {
                 "policy_arn": ECS_POLICY_ARN,
                 "role": build_role_name_ref(role_name)
@@ -58,7 +58,7 @@ def aws_iam_role_policy_attachment(role_name):
 
 def aws_iam_instance_profile(role_name):
     resource = {
-        {
+        f'{role_name}_instance_profile': {
             "name": role_name,
             "role": build_role_name_ref(role_name)
         }

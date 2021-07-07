@@ -2,10 +2,10 @@ import json
 import uuid
 
 from syndicate.core.resources.lambda_resource import CLOUD_WATCH_RULE_TRIGGER
-from syndicate.core.transform.terraform.tf_transform_helper import \
-    build_sns_topic_arn_ref, build_cloud_watch_event_rule_name_ref
 from syndicate.core.transform.terraform.converter.tf_resource_converter import \
     TerraformResourceConverter
+from syndicate.core.transform.terraform.tf_transform_helper import \
+    build_sns_topic_arn_ref, build_cloud_watch_event_rule_name_ref
 
 
 class SNSTopicConverter(TerraformResourceConverter):
@@ -85,10 +85,9 @@ def sns_topic_policy(policy_json, topic):
 
 def sns_topic(sns_topic_name):
     resource = {
-        sns_topic_name: [
+        sns_topic_name:
             {
                 "name": sns_topic_name
             }
-        ]
     }
     return resource
