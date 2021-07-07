@@ -15,10 +15,11 @@
 """
 import uuid
 
-from troposphere import sns, Ref
+from troposphere import sns, Template
 
 from syndicate.core.resources.helper import validate_params
-from syndicate.core.resources.sns_resource import SNS_CLOUDWATCH_TRIGGER_REQUIRED_PARAMS
+from syndicate.core.resources.sns_resource import \
+    SNS_CLOUDWATCH_TRIGGER_REQUIRED_PARAMS
 from .cf_cloudwatch_rule_converter import attach_rule_target
 from .cf_resource_converter import CfResourceConverter
 from ..cf_transform_helper import to_logic_name
@@ -26,16 +27,27 @@ from ..cf_transform_helper import to_logic_name
 
 class CfSnsConverter(CfResourceConverter):
 
+    def __init__(self, template: Template, config=None,
+                 resources_provider=None):
+        super().__init__(template, config, resources_provider)
+        self.create_trigger = {
+            'cloudwatch_rule_trigger':
+                self._create_cloud_watch_trigger_from_meta
+        }
+
     def convert(self, name, meta):
         topic = sns.Topic(to_logic_name(name))
         topic.TopicName = name
+        topic.Subscription = []
+        self.template.add_resource(topic)
+        # region = meta.get('region') TODO: process region param
 
         event_sources = meta.get('event_sources')
         if event_sources:
             for trigger_meta in event_sources:
                 trigger_type = trigger_meta['resource_type']
-                func = self.CREATE_TRIGGER[trigger_type]
-                func(name, trigger_meta)
+                func = self.create_trigger[trigger_type]
+                func(topic, trigger_meta)
 
     def _create_cloud_watch_trigger_from_meta(self, topic, trigger_meta):
         required_parameters = SNS_CLOUDWATCH_TRIGGER_REQUIRED_PARAMS
@@ -43,15 +55,14 @@ class CfSnsConverter(CfResourceConverter):
         rule_name = trigger_meta['target_rule']
         rule = self.get_resource(to_logic_name(rule_name))
         attach_rule_target(rule=rule,
-                           target_arn=Ref(topic))
-        self.allow_service_invoke(topic=topic,
-                                  service='events.amazonaws.com')
+                           target_arn=topic.ref())
+        topic_policy = self.allow_service_invoke_policy(
+            topic=topic,
+            service='events.amazonaws.com')
+        self.template.add_resource(topic_policy)
 
-    CREATE_TRIGGER = {
-        'cloudwatch_rule_trigger': _create_cloud_watch_trigger_from_meta
-    }
-
-    def allow_service_invoke(self, topic, service):
+    @staticmethod
+    def allow_service_invoke_policy(topic, service):
         policy_document = {
             "Version": "2012-10-17",
             "Statement": [
@@ -63,12 +74,20 @@ class CfSnsConverter(CfResourceConverter):
                             "Service": service
                         },
                     "Action": "sns:Publish",
-                    "Resource": Ref(topic)
+                    "Resource": topic.ref()
                 }
             ]
         }
         topic_policy = sns.TopicPolicy(
             to_logic_name('{}TopicPolicy'.format(topic.title)))
-        topic_policy.Topics = [Ref(topic)]
+        topic_policy.Topics = [topic.ref()]
         topic_policy.PolicyDocument = policy_document
-        self.template.add_resource(topic_policy)
+        return topic_policy
+
+    @staticmethod
+    def subscribe(topic, protocol, endpoint):
+        subscriptions = topic.Subscription
+        subscriptions.append(sns.Subscription(
+            Protocol=protocol,
+            Endpoint=endpoint
+        ))

@@ -18,6 +18,7 @@ from troposphere import Template
 from syndicate.core.transform.build_meta_transformer import \
     BuildMetaTransformer
 from .converter.cf_api_gateway_converter import CfApiGatewayConverter
+from .converter.cf_cloudwatch_alarm_converter import CfCloudWatchAlarmConverter
 from .converter.cf_cloudwatch_rule_converter import CfCloudWatchRuleConverter
 from .converter.cf_dynamodb_table_converter import CfDynamoDbTableConverter
 from .converter.cf_iam_managed_policy_converter import \
@@ -79,7 +80,9 @@ class CloudFormationTransformer(BuildMetaTransformer):
                                converter_type=CfSnsConverter)
 
     def _transform_cloudwatch_alarm(self, name, resource):
-        pass
+        self.convert_resources(name=name,
+                               resource=resource,
+                               converter_type=CfCloudWatchAlarmConverter)
 
     def _transform_sqs_queue(self, name, resource):
         self.convert_resources(name=name,

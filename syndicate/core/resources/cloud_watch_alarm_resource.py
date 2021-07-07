@@ -21,6 +21,10 @@ from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import (build_description_obj, chunks,
                                              validate_params)
 
+CLOUDWATCH_ALARM_REQUIRED_PARAMS = ['metric_name', 'namespace', 'period',
+                                    'threshold', 'evaluation_periods',
+                                    'comparison_operator', 'statistic']
+
 _LOG = get_logger('syndicate.core.resources.alarm_resource')
 
 
@@ -51,11 +55,7 @@ class CloudWatchAlarmResource(BaseResource):
         :type name: str
         :type meta: dict
         """
-        required_parameters = ['metric_name', 'namespace', 'period',
-                               'threshold',
-                               'evaluation_periods', 'comparison_operator',
-                               'statistic']
-        validate_params(name, meta, required_parameters)
+        validate_params(name, meta, CLOUDWATCH_ALARM_REQUIRED_PARAMS)
 
         if self.client.is_alarm_exists(name):
             _LOG.warn('%s alarm exists.', name)

@@ -21,10 +21,15 @@ from syndicate.connection import ApiGatewayConnection
 from syndicate.connection.api_gateway_connection import \
     (REQ_VALIDATOR_PARAM_NAME,
      REQ_VALIDATOR_PARAM_VALIDATE_BODY,
-     REQ_VALIDATOR_PARAM_VALIDATE_PARAMS, RESPONSE_PARAM_ALLOW_HEADERS, RESPONSE_PARAM_ALLOW_METHODS,
+     REQ_VALIDATOR_PARAM_VALIDATE_PARAMS,
+     RESPONSE_PARAM_ALLOW_HEADERS,
+     RESPONSE_PARAM_ALLOW_METHODS,
      RESPONSE_PARAM_ALLOW_ORIGIN)
-from syndicate.core.resources.api_gateway_resource import ApiGatewayResource, SUPPORTED_METHODS, API_REQUIRED_PARAMS
+from syndicate.core.resources.api_gateway_resource import (ApiGatewayResource,
+                                                           SUPPORTED_METHODS,
+                                                           API_REQUIRED_PARAMS)
 from syndicate.core.resources.helper import validate_params
+from .cf_lambda_function_converter import CfLambdaFunctionConverter
 from .cf_resource_converter import CfResourceConverter
 from ..cf_transform_helper import (to_logic_name,
                                    lambda_publish_version_logic_name,
@@ -144,7 +149,7 @@ class CfApiGatewayConverter(CfResourceConverter):
 
     def _lambda_method_integration(self, method, method_meta, path, rest_api):
         lambda_name = method_meta.get('lambda_name')
-        function_arn = self._resolve_function_arn(meta=method_meta)
+        lambda_arn = self._resolve_lambda_arn(meta=method_meta)
         passthrough_behavior = method_meta.get('integration_passthrough_behavior')
         body_template = method_meta.get('integration_request_body_template')
         enable_proxy = method_meta.get('enable_proxy')
@@ -153,7 +158,7 @@ class CfApiGatewayConverter(CfResourceConverter):
             'cache_key_parameters') if cache_configuration else None
         integration = apigateway.Integration(
             to_logic_name('{0}{1}Integration'.format(path, method)))
-        lambda_uri = self.get_lambda_function_uri(lambda_arn=function_arn)
+        lambda_uri = self.get_lambda_function_uri(lambda_arn=lambda_arn)
         if cache_key_parameters:
             integration.CacheKeyParameters = cache_key_parameters
         if method_meta.get('lambda_region'):
@@ -167,11 +172,14 @@ class CfApiGatewayConverter(CfResourceConverter):
             api_id=Ref(rest_api),
             method=method,
             resource_path=path)
-        self._convert_lambda_permission(function_arn=function_arn,
-                                        lambda_name=lambda_name,
-                                        rest_api=rest_api,
-                                        source_arn=api_source_arn,
-                                        endpoint=path + method)
+        permission = CfLambdaFunctionConverter.convert_lambda_permission(
+            lambda_arn=lambda_arn,
+            lambda_name=lambda_name,
+            principal='apigateway',
+            source_arn=api_source_arn,
+            permission_qualifier=rest_api + path + method
+        )
+        self.template.add_resource(permission)
         return integration
 
     def _service_method_integration(self, method, method_meta, path):
@@ -359,28 +367,21 @@ class CfApiGatewayConverter(CfResourceConverter):
                 authorizer.AuthorizerResultTtlInSeconds = val.get('ttl')
                 authorizer.IdentitySource = val.get('identity_source')
 
-                function_arn = self._resolve_function_arn(meta=val)
+                lambda_arn = self._resolve_lambda_arn(meta=val)
 
-                authorizer_uri = self.get_lambda_function_uri(lambda_arn=function_arn)
+                authorizer_uri = self.get_lambda_function_uri(lambda_arn=lambda_arn)
                 authorizer.AuthorizerUri = authorizer_uri
                 self.template.add_resource(authorizer)
                 authorizers.append(authorizer)
 
-                self._convert_lambda_permission(function_arn=function_arn,
-                                                lambda_name=val.get('lambda_name'),
-                                                rest_api=rest_api)
-                authorizers_mapping = {x.Name: Ref(x) for x in authorizers}
+                permission = CfLambdaFunctionConverter.convert_lambda_permission(
+                    lambda_arn=lambda_arn,
+                    lambda_name=val.get('lambda_name'),
+                    principal='apigateway'
+                )
+                self.template.add_resource(permission)
+            authorizers_mapping = {x.Name: Ref(x) for x in authorizers}
         return authorizers_mapping
-
-    def _convert_lambda_permission(self, function_arn, lambda_name, rest_api, source_arn=None, endpoint=''):
-        lambda_permission = awslambda.Permission(to_logic_name(
-            '{0}{1}{2}Permission'.format(lambda_name, rest_api.title, endpoint)))
-        lambda_permission.FunctionName = function_arn
-        lambda_permission.Action = 'lambda:InvokeFunction'
-        lambda_permission.Principal = 'apigateway.amazonaws.com'
-        if source_arn:
-            lambda_permission.SourceArn = source_arn
-        self.template.add_resource(lambda_permission)
 
     def _convert_deployment(self, meta, rest_api):
         stage_name = \
@@ -427,29 +428,29 @@ class CfApiGatewayConverter(CfResourceConverter):
             parent_resource_id = Ref(resource)
         return target_resource
 
-    def _resolve_function_arn(self, meta):
+    def _resolve_lambda_arn(self, meta):
         lambda_name = meta.get('lambda_name')
         lambda_version = meta.get('lambda_version')
         lambda_alias = meta.get('lambda_alias')
-        function_arn = None
+        lambda_arn = None
         if lambda_alias:
             alias_resource = self.get_resource(
                 lambda_alias_logic_name(function_name=lambda_name,
                                         alias=lambda_alias))
             if alias_resource:
-                function_arn = Ref(alias_resource)
+                lambda_arn = Ref(alias_resource)
         elif lambda_version:
             version_resource = self.get_resource(
                 lambda_publish_version_logic_name(
                     function_name=lambda_name))
             if version_resource:
-                function_arn = Ref(version_resource)
+                lambda_arn = Ref(version_resource)
         else:
             function_resource = self.get_resource(
                 lambda_function_logic_name(function_name=lambda_name))
             if function_resource:
-                function_arn = GetAtt(function_resource.title, 'Arn')
-        if function_arn is None:
+                lambda_arn = GetAtt(function_resource.title, 'Arn')
+        if lambda_arn is None:
             function_ref = lambda_name
             if lambda_alias:
                 function_ref += ':' + lambda_alias
@@ -463,4 +464,4 @@ class CfApiGatewayConverter(CfResourceConverter):
             #         name=lambda_name,
             #         alias=lambda_alias,
             #         version=lambda_version)
-        return function_arn
+        return lambda_arn

@@ -15,8 +15,8 @@
 """
 from troposphere import iam
 
-from syndicate.core.transform.cloudformation.cf_transform_helper import to_logic_name
-from syndicate.core.transform.cloudformation.converter.cf_resource_converter import CfResourceConverter
+from .cf_resource_converter import CfResourceConverter
+from ..cf_transform_helper import to_logic_name
 
 
 class CfIamManagedPolicyConverter(CfResourceConverter):

@@ -13,7 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-from troposphere import sqs, Ref, GetAtt
+from troposphere import sqs, GetAtt
 
 from syndicate.core.resources.sqs_resource import FIFO_REGIONS, SqsResource
 from .cf_resource_converter import CfResourceConverter
@@ -109,5 +109,5 @@ class CfSqsConverter(CfResourceConverter):
             queue_policy = sqs.QueuePolicy(
                 to_logic_name('{}QueuePolicy'.format(name)))
             queue_policy.PolicyDocument = policy
-            queue_policy.Queues = [Ref(queue)]
+            queue_policy.Queues = [queue.ref()]
             self.template.add_resource(queue_policy)

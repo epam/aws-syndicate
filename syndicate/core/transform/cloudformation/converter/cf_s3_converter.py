@@ -13,11 +13,10 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-from troposphere import s3, Ref
+from troposphere import s3
 
 from .cf_resource_converter import CfResourceConverter
 from ..cf_transform_helper import to_logic_name
-
 
 CANNED_ACL_PARAMS_MAPPING = {
     'private': s3.Private,
@@ -50,7 +49,7 @@ class CfS3Converter(CfResourceConverter):
         if policy:
             bucket_policy = s3.BucketPolicy(
                 to_logic_name('{}BucketPolicy'.format(bucket.title)))
-            bucket_policy.Bucket = Ref(bucket)
+            bucket_policy.Bucket = bucket.ref()
             bucket_policy.PolicyDocument = policy
             self.template.add_resource(bucket_policy)
 
@@ -86,3 +85,29 @@ class CfS3Converter(CfResourceConverter):
                 cors_rules.append(s3.CorsRules.from_dict(title=None, d=rule))
             bucket.CorsConfiguration = \
                 s3.CorsConfiguration(CorsRules=cors_rules)
+
+    @staticmethod
+    def configure_event_source_for_lambda(bucket, lambda_arn, events,
+                                          filter_rules=None):
+        try:
+            notification_config = bucket.NotificationConfiguration
+        except AttributeError:
+            notification_config = s3.NotificationConfiguration()
+            bucket.NotificationConfiguration = notification_config
+        configs = []
+        for event in events:
+            config = s3.LambdaConfigurations(Event=event,
+                                             Function=lambda_arn)
+            configs.append(config)
+            if filter_rules:
+                rules = []
+                for rule in filter_rules:
+                    rules.append(s3.Rules(Name=rule['Name'],
+                                          Value=rule['Value']))
+                s3_key = s3.S3Key(Rules=rules)
+                config.Filter = s3.Filter(S3Key=s3_key)
+            try:
+                existing_configs = notification_config.LambdaConfigurations
+                existing_configs.extend(configs)
+            except AttributeError:
+                notification_config.LambdaConfigurations = configs
