@@ -27,6 +27,14 @@ from syndicate.core.resources.helper import (build_description_obj,
                                              validate_params,
                                              assert_required_params)
 
+DYNAMODB_TRIGGER_REQUIRED_PARAMS = ['target_table', 'batch_size']
+CLOUD_WATCH_TRIGGER_REQUIRED_PARAMS = ['target_rule']
+S3_TRIGGER_REQUIRED_PARAMS = ['target_bucket', 's3_events']
+SQS_TRIGGER_REQUIRED_PARAMS = ['target_queue', 'batch_size']
+SNS_TRIGGER_REQUIRED_PARAMS = ['target_topic']
+KINESIS_TRIGGER_REQUIRED_PARAMS = ['target_stream', 'batch_size',
+                                   'starting_position']
+
 PROVISIONED_CONCURRENCY = 'provisioned_concurrency'
 
 _LOG = get_logger('syndicate.core.resources.lambda_resource')
@@ -560,8 +568,8 @@ class LambdaResource(BaseResource):
     def _create_dynamodb_trigger_from_meta(self, lambda_name, lambda_arn,
                                            role_name,
                                            trigger_meta):
-        required_parameters = ['target_table', 'batch_size']
-        validate_params(lambda_name, trigger_meta, required_parameters)
+        validate_params(lambda_name, trigger_meta,
+                        DYNAMODB_TRIGGER_REQUIRED_PARAMS)
         table_name = trigger_meta['target_table']
 
         if not self.dynamodb_conn.is_stream_enabled(table_name):
@@ -579,8 +587,7 @@ class LambdaResource(BaseResource):
     @retry
     def _create_sqs_trigger_from_meta(self, lambda_name, lambda_arn, role_name,
                                       trigger_meta):
-        required_parameters = ['target_queue', 'batch_size']
-        validate_params(lambda_name, trigger_meta, required_parameters)
+        validate_params(lambda_name, trigger_meta, SQS_TRIGGER_REQUIRED_PARAMS)
         target_queue = trigger_meta['target_queue']
 
         if not self.sqs_conn.get_queue_url(target_queue, self.account_id):
@@ -600,8 +607,8 @@ class LambdaResource(BaseResource):
     def _create_cloud_watch_trigger_from_meta(self, lambda_name, lambda_arn,
                                               role_name,
                                               trigger_meta):
-        required_parameters = ['target_rule']
-        validate_params(lambda_name, trigger_meta, required_parameters)
+        validate_params(lambda_name, trigger_meta,
+                        CLOUD_WATCH_TRIGGER_REQUIRED_PARAMS)
         rule_name = trigger_meta['target_rule']
 
         rule_arn = self.cw_events_conn.get_rule_arn(rule_name)
@@ -615,8 +622,7 @@ class LambdaResource(BaseResource):
     @retry
     def _create_s3_trigger_from_meta(self, lambda_name, lambda_arn, role_name,
                                      trigger_meta):
-        required_parameters = ['target_bucket', 's3_events']
-        validate_params(lambda_name, trigger_meta, required_parameters)
+        validate_params(lambda_name, trigger_meta, S3_TRIGGER_REQUIRED_PARAMS)
         target_bucket = trigger_meta['target_bucket']
 
         if not self.s3_conn.is_bucket_exists(target_bucket):
@@ -641,8 +647,7 @@ class LambdaResource(BaseResource):
     def _create_sns_topic_trigger_from_meta(self, lambda_name, lambda_arn,
                                             role_name,
                                             trigger_meta):
-        required_params = ['target_topic']
-        validate_params(lambda_name, trigger_meta, required_params)
+        validate_params(lambda_name, trigger_meta, SNS_TRIGGER_REQUIRED_PARAMS)
         topic_name = trigger_meta['target_topic']
 
         region = trigger_meta.get('region')
@@ -655,9 +660,8 @@ class LambdaResource(BaseResource):
     @retry
     def _create_kinesis_stream_trigger_from_meta(self, lambda_name, lambda_arn,
                                                  role_name, trigger_meta):
-        required_parameters = ['target_stream', 'batch_size',
-                               'starting_position']
-        validate_params(lambda_name, trigger_meta, required_parameters)
+        validate_params(lambda_name, trigger_meta,
+                        KINESIS_TRIGGER_REQUIRED_PARAMS)
 
         stream_name = trigger_meta['target_stream']
 

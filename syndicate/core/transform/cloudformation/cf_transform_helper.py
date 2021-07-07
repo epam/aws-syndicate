@@ -51,3 +51,7 @@ def lambda_alias_logic_name(function_name, alias):
 
 def lambda_publish_version_logic_name(function_name):
     return to_logic_name('{}PublishVersion'.format(function_name))
+
+
+def dynamodb_table_logic_name(table_name):
+    return to_logic_name('{}Table'.format(table_name))

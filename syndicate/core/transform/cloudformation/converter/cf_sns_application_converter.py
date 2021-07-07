@@ -13,16 +13,13 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-from troposphere import iam
-
 from .cf_resource_converter import CfResourceConverter
-from ..cf_transform_helper import to_logic_name
 
 
-class CfIamManagedPolicyConverter(CfResourceConverter):
+class CfSnsApplicationConverter(CfResourceConverter):
 
     def convert(self, name, meta):
-        policy = iam.ManagedPolicy(to_logic_name(name))
-        policy.ManagedPolicyName = name
-        policy.PolicyDocument = meta['policy_content']
-        self.template.add_resource(policy)
+        # The converter may be implemented as a custom CF resource that
+        # invokes a lambda which performs a creation of an SNS application.
+        raise NotImplementedError(
+            'SNS platform application is not supported by CloudFormation.')

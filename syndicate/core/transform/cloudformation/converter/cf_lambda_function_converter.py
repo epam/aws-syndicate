@@ -15,18 +15,33 @@
 """
 from troposphere import GetAtt, Ref, logs, awslambda
 
+from syndicate.commons.log_helper import get_logger
 from syndicate.connection.cloud_watch_connection import \
     get_lambda_log_group_name
 from syndicate.core.constants import S3_PATH_NAME
+from syndicate.core.resources.helper import validate_params
 from syndicate.core.resources.lambda_resource import \
     (LAMBDA_CONCUR_QUALIFIER_VERSION, LambdaResource,
      LAMBDA_MAX_CONCURRENCY, PROVISIONED_CONCURRENCY,
-     LAMBDA_CONCUR_QUALIFIER_ALIAS)
+     LAMBDA_CONCUR_QUALIFIER_ALIAS,
+     DYNAMODB_TRIGGER_REQUIRED_PARAMS, SQS_TRIGGER_REQUIRED_PARAMS,
+     CLOUD_WATCH_TRIGGER_REQUIRED_PARAMS, S3_TRIGGER_REQUIRED_PARAMS,
+     SNS_TRIGGER_REQUIRED_PARAMS, KINESIS_TRIGGER_REQUIRED_PARAMS)
+from .cf_cloudwatch_rule_converter import attach_rule_target
+from .cf_dynamodb_table_converter import CfDynamoDbTableConverter
+from .cf_iam_role_converter import CfIamRoleConverter
 from .cf_resource_converter import CfResourceConverter
+from .cf_s3_converter import CfS3Converter
+from .cf_sns_converter import CfSnsConverter
 from ..cf_transform_helper import (to_logic_name,
                                    lambda_publish_version_logic_name,
                                    lambda_alias_logic_name,
-                                   lambda_function_logic_name)
+                                   lambda_function_logic_name,
+                                   iam_role_logic_name,
+                                   dynamodb_table_logic_name)
+
+_LOG = get_logger('syndicate.core.transform.cloudformation'
+                  '.converter.cf_lambda_function_converter')
 
 
 class CfLambdaFunctionConverter(CfResourceConverter):
@@ -39,6 +54,12 @@ class CfLambdaFunctionConverter(CfResourceConverter):
             S3Key=meta[S3_PATH_NAME])
         lambda_function.Handler = meta['func_name']
         lambda_function.MemorySize = meta['memory']
+        role_name = meta['iam_role_name']
+        role = self.get_resource(iam_role_logic_name(role_name))
+        if not role:
+            raise AssertionError(
+                'Role {} does not exist; '
+                'Lambda {} failed to be configured.'.format(role_name, name))
         lambda_function.Role = GetAtt(to_logic_name(meta['iam_role_name']),
                                       'Arn')
         lambda_function.Runtime = meta['runtime'].lower()
@@ -86,17 +107,18 @@ class CfLambdaFunctionConverter(CfResourceConverter):
         provisioned_concur = meta.get(PROVISIONED_CONCURRENCY)
 
         publish_version = meta.get('publish_version', False)
-        version_resource = None
+        lambda_version = None
         if publish_version:
-            version_resource = self._lambda_version(
+            lambda_version = self._lambda_version(
                 lambda_name=lambda_function.title,
                 provisioned_concurrency=provisioned_concur)
 
         alias = meta.get('alias')
+        lambda_alias = None
         if alias:
-            self._lambda_alias(
+            lambda_alias = self._lambda_alias(
                 lambda_name=lambda_function.title, alias=alias,
-                version_logic_name=version_resource.title,
+                version_logic_name=lambda_version.title,
                 provisioned_concurrency=provisioned_concur)
 
         retention = meta.get('logs_expiration')
@@ -105,8 +127,189 @@ class CfLambdaFunctionConverter(CfResourceConverter):
             self.template.add_resource(
                 self._log_group(group_name=group_name,
                                 retention_in_days=retention))
-        # TODO: lambda event sources
         event_sources = meta.get('event_sources')
+        for trigger_meta in event_sources:
+            if lambda_alias:
+                arn = lambda_alias.ref()
+            elif lambda_version:
+                arn = lambda_version.ref()
+            else:
+                arn = lambda_function.ref()
+
+            trigger_type = trigger_meta['resource_type']
+            func = self.CREATE_TRIGGER[trigger_type]
+            func(self, name, arn, role, trigger_meta)
+
+    def _create_dynamodb_trigger_from_meta(self, lambda_name, lambda_arn,
+                                           role, trigger_meta):
+        validate_params(lambda_name, trigger_meta,
+                        DYNAMODB_TRIGGER_REQUIRED_PARAMS)
+        table_name = trigger_meta['target_table']
+
+        table = self.get_resource(dynamodb_table_logic_name(table_name))
+
+        if not CfDynamoDbTableConverter.is_stream_enabled(table):
+            CfDynamoDbTableConverter.configure_table_stream(table)
+        self._add_event_source_mapping(
+            lambda_arn=lambda_arn,
+            lambda_name=lambda_name,
+            event_source_arn=table.get_att('StreamArn'),
+            event_source_name=table_name,
+            trigger_meta=trigger_meta)
+
+    def _create_sqs_trigger_from_meta(self, lambda_name, lambda_arn, role,
+                                      trigger_meta):
+        validate_params(lambda_name, trigger_meta, SQS_TRIGGER_REQUIRED_PARAMS)
+        target_queue_name = trigger_meta['target_queue']
+
+        target_queue = self.get_resource(to_logic_name(target_queue_name))
+        if not target_queue:
+            _LOG.error('Queue {} does not exist'.format(target_queue))
+            return
+        self._add_event_source_mapping(
+            lambda_arn=lambda_arn,
+            lambda_name=lambda_name,
+            event_source_arn=target_queue.get_att('Arn'),
+            event_source_name=target_queue_name,
+            trigger_meta=trigger_meta)
+
+    def _create_cloud_watch_trigger_from_meta(self, lambda_name, lambda_arn,
+                                              role, trigger_meta):
+        validate_params(lambda_name, trigger_meta,
+                        CLOUD_WATCH_TRIGGER_REQUIRED_PARAMS)
+        rule_name = trigger_meta['target_rule']
+        rule = self.get_resource(to_logic_name(rule_name))
+
+        attach_rule_target(rule=rule, target_arn=lambda_arn)
+        self.convert_lambda_permission(
+            lambda_arn=lambda_arn,
+            lambda_name=lambda_name,
+            principal='events',
+            source_arn=rule.get_att('Arn'),
+            permission_qualifier=rule_name
+        )
+
+    def _create_s3_trigger_from_meta(self, lambda_name, lambda_arn, role,
+                                     trigger_meta):
+        validate_params(lambda_name, trigger_meta, S3_TRIGGER_REQUIRED_PARAMS)
+        target_bucket_name = trigger_meta['target_bucket']
+
+        target_bucket = self.get_resource(to_logic_name(target_bucket_name))
+        if not target_bucket:
+            _LOG.error('S3 bucket {0} event source for lambda {1} '
+                       'was not created.'.format(target_bucket, lambda_name))
+            return
+        self.convert_lambda_permission(
+            lambda_arn=lambda_arn,
+            lambda_name=lambda_name,
+            principal='s3',
+            source_arn=target_bucket.get_att('Arn'),
+            permission_qualifier=target_bucket_name
+        )
+        CfS3Converter.configure_event_source_for_lambda(
+            bucket=target_bucket,
+            lambda_arn=lambda_arn,
+            events=trigger_meta['s3_events'],
+            filter_rules=trigger_meta.get('filter_rules')
+        )
+
+    def _create_sns_topic_trigger_from_meta(self, lambda_name, lambda_arn,
+                                            role, trigger_meta):
+        validate_params(lambda_name, trigger_meta, SNS_TRIGGER_REQUIRED_PARAMS)
+        topic_name = trigger_meta['target_topic']
+
+        topic = self.get_resource(to_logic_name(topic_name))
+        if not topic:
+            raise AssertionError(
+                'Topic does not exist: {0}.'.format(topic_name))
+
+        # region = trigger_meta.get('region') TODO: support region param
+
+        CfSnsConverter.subscribe(topic=topic,
+                                 protocol='lambda',
+                                 endpoint=lambda_arn)
+        self.convert_lambda_permission(
+            lambda_arn=lambda_arn,
+            lambda_name=lambda_name,
+            principal='sns',
+            source_arn=topic.ref(),
+            permission_qualifier=topic_name
+        )
+
+    def _create_kinesis_stream_trigger_from_meta(self, lambda_name, lambda_arn,
+                                                 role, trigger_meta):
+        validate_params(lambda_name, trigger_meta,
+                        KINESIS_TRIGGER_REQUIRED_PARAMS)
+
+        stream_name = trigger_meta['target_stream']
+
+        stream = self.get_resource(to_logic_name(stream_name))
+        if not stream:
+            _LOG.error('Kinesis stream does not exist: {0}.'
+                       .format(stream_name))
+            return
+
+        policy_name = '{0}KinesisTo{1}Lambda'.format(stream_name, lambda_name)
+        policy_document = {
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Action": [
+                        "lambda:InvokeFunction"
+                    ],
+                    "Resource": [
+                        lambda_arn
+                    ]
+                },
+                {
+                    "Action": [
+                        "kinesis:DescribeStreams",
+                        "kinesis:DescribeStream",
+                        "kinesis:ListStreams",
+                        "kinesis:GetShardIterator",
+                        "Kinesis:GetRecords"
+                    ],
+                    "Effect": "Allow",
+                    "Resource": stream.get_att('Arn')
+                }
+            ],
+            "Version": "2012-10-17"
+        }
+        CfIamRoleConverter.attach_inline_policy(
+            role=role,
+            policy_name=policy_name,
+            policy_document=policy_document)
+        self._add_event_source_mapping(
+            lambda_arn=lambda_arn,
+            lambda_name=lambda_name,
+            event_source_arn=stream.get_att('Arn'),
+            event_source_name=stream_name,
+            trigger_meta=trigger_meta)
+
+    def _add_event_source_mapping(self, lambda_arn, lambda_name,
+                                  event_source_arn, event_source_name,
+                                  trigger_meta):
+        starting_position = trigger_meta.get('starting_position')
+        if not starting_position:
+            starting_position = 'LATEST'
+
+        event_source = awslambda.EventSourceMapping(to_logic_name(
+            '{}{}EventSourceMapping'.format(lambda_name, event_source_name)))
+        event_source.BatchSize = trigger_meta['batch_size']
+        event_source.Enabled = True
+        event_source.EventSourceArn = event_source_arn
+        event_source.FunctionName = lambda_arn
+        event_source.StartingPosition = starting_position
+        self.template.add_resource(event_source)
+
+    CREATE_TRIGGER = {
+        'dynamodb_trigger': _create_dynamodb_trigger_from_meta,
+        'cloudwatch_rule_trigger': _create_cloud_watch_trigger_from_meta,
+        's3_trigger': _create_s3_trigger_from_meta,
+        'sns_topic_trigger': _create_sns_topic_trigger_from_meta,
+        'kinesis_trigger': _create_kinesis_stream_trigger_from_meta,
+        'sqs_trigger': _create_sqs_trigger_from_meta
+    }
 
     def _lambda_version(self, lambda_name, provisioned_concurrency=None):
         version_name = lambda_publish_version_logic_name(lambda_name)
@@ -135,6 +338,7 @@ class CfLambdaFunctionConverter(CfResourceConverter):
             provisioned_concurrency=provisioned_concurrency,
             expected_qualifier=LAMBDA_CONCUR_QUALIFIER_ALIAS)
         self.template.add_resource(lambda_alias)
+        return lambda_alias
 
     @staticmethod
     def _add_provisioned_concur(resource, provisioned_concurrency,
@@ -154,3 +358,16 @@ class CfLambdaFunctionConverter(CfResourceConverter):
         log_group.LogGroupName = group_name
         log_group.RetentionInDays = retention_in_days
         return log_group
+
+    @staticmethod
+    def convert_lambda_permission(lambda_arn, lambda_name, principal,
+                                  source_arn=None, permission_qualifier=''):
+        lambda_permission = awslambda.Permission(to_logic_name(
+            '{0}{1}{2}Permission'.format(
+                lambda_name, principal, permission_qualifier)))
+        lambda_permission.FunctionName = lambda_arn
+        lambda_permission.Action = 'lambda:InvokeFunction'
+        lambda_permission.Principal = '{}.amazonaws.com'.format(principal)
+        if source_arn:
+            lambda_permission.SourceArn = source_arn
+        return lambda_permission

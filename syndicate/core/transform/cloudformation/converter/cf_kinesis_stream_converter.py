@@ -13,16 +13,19 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-from troposphere import iam
+from troposphere import kinesis
 
+from syndicate.connection import KinesisConnection
 from .cf_resource_converter import CfResourceConverter
 from ..cf_transform_helper import to_logic_name
 
 
-class CfIamManagedPolicyConverter(CfResourceConverter):
+class CfKinesisStreamConverter(CfResourceConverter):
 
     def convert(self, name, meta):
-        policy = iam.ManagedPolicy(to_logic_name(name))
-        policy.ManagedPolicyName = name
-        policy.PolicyDocument = meta['policy_content']
-        self.template.add_resource(policy)
+        stream = kinesis.Stream(to_logic_name(name))
+        stream.Name = name
+        shard_count = meta['shard_count']
+        KinesisConnection.validate_shard_count(shard_count)
+        stream.ShardCount = shard_count
+        self.template.add_resource(stream)

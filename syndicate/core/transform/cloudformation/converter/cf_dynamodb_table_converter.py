@@ -14,7 +14,7 @@
     limitations under the License.
 """
 from troposphere import applicationautoscaling as app_scaling
-from troposphere import dynamodb, GetAtt
+from troposphere import dynamodb
 
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.dynamo_connection import (
@@ -24,7 +24,7 @@ from syndicate.core.resources.dynamo_db_resource import (
     DynamoDBResource)
 from syndicate.core.resources.helper import validate_params
 from .cf_resource_converter import CfResourceConverter
-from ..cf_transform_helper import to_logic_name, iam_role_logic_name
+from ..cf_transform_helper import to_logic_name, iam_role_logic_name, dynamodb_table_logic_name
 
 _LOG = get_logger('syndicate.core.transform.cloudformation.'
                   'converter.cf_dynamodb_table_converter')
@@ -105,7 +105,7 @@ class CfDynamoDbTableConverter(CfResourceConverter):
         _add_index_keys_to_definition(definition=definition,
                                       indexes=local_indexes)
 
-        table = dynamodb.Table(to_logic_name('{}Table'.format(name)))
+        table = dynamodb.Table(dynamodb_table_logic_name(name))
         table.AttributeDefinitions = definition
         table.KeySchema = schema
         table.ProvisionedThroughput = dynamodb.ProvisionedThroughput(
@@ -135,9 +135,8 @@ class CfDynamoDbTableConverter(CfResourceConverter):
             table.LocalSecondaryIndexes = local_secondary_indexes
 
         stream_view_type = meta.get('stream_view_type')
-        if stream_view_type:
-            table.StreamSpecification = dynamodb.StreamSpecification(
-                StreamViewType=stream_view_type)
+        self.configure_table_stream(table=table,
+                                    stream_view_type=stream_view_type)
 
         autoscaling_config = meta.get('autoscaling')
         if autoscaling_config:
@@ -159,7 +158,7 @@ class CfDynamoDbTableConverter(CfResourceConverter):
                     scalable_target.MaxCapacity = str(item['max_capacity'])
                     scalable_target.MinCapacity = str(item['min_capacity'])
                     scalable_target.ResourceId = resource_id
-                    scalable_target.RoleARN = GetAtt(role_res, "Arn")
+                    scalable_target.RoleARN = role_res.get_att('Arn')
                     scalable_target.ScalableDimension = dimension
                     scalable_target.ServiceNamespace = 'dynamodb'
                     scalable_target.DependsOn = table
@@ -201,3 +200,17 @@ class CfDynamoDbTableConverter(CfResourceConverter):
                 else:
                     _LOG.warn('Role {} is not found in build meta, '
                               'skipping autoscaling config.'.format(role_name))
+
+    @staticmethod
+    def is_stream_enabled(table):
+        try:
+            stream = table.StreamSpecification
+            return True
+        except AttributeError:
+            return False
+
+    @staticmethod
+    def configure_table_stream(table, stream_view_type='NEW_AND_OLD_IMAGES'):
+        if stream_view_type:
+            table.StreamSpecification = dynamodb.StreamSpecification(
+                StreamViewType=stream_view_type)

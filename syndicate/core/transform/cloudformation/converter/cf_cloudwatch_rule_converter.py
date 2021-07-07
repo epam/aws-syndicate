@@ -51,8 +51,8 @@ def _create_ec2_rule(rule_meta, rule_res):
 
 
 def _create_api_call_rule(rule_meta, rule_res):
-    aws_service = rule_meta.get('aws_service'),
-    operations = rule_meta.get('operations'),
+    aws_service = rule_meta.get('aws_service')
+    operations = rule_meta.get('operations')
     custom_pattern = rule_meta.get('custom_pattern')
     if custom_pattern:
         event_pattern = custom_pattern
@@ -85,10 +85,15 @@ RULE_TYPES = {
 }
 
 
-def attach_rule_target(rule, target_arn, target_id=str(uuid.uuid1())):
-    if not rule.Targets:
-        rule.Targets = []
-    rule.Targets.append(events.Target(
+def attach_rule_target(rule, target_arn, target_id=None):
+    if target_id is None:
+        target_id = str(uuid.uuid1())
+    try:
+        targets = rule.Targets
+    except AttributeError:
+        targets = []
+        rule.Targets = targets
+    targets.append(events.Target(
         Arn=target_arn,
         Id=target_id)
     )
@@ -101,6 +106,7 @@ class CfCloudWatchRuleConverter(CfResourceConverter):
 
         rule = events.Rule(to_logic_name(name))
         rule.Name = name
+        self.template.add_resource(rule)
 
         rule_type = meta['rule_type']
         func = RULE_TYPES[rule_type]
