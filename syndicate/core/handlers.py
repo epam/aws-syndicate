@@ -79,6 +79,43 @@ def syndicate():
         sys.exit(1)
 
 
+@syndicate.command(name='test')
+@click.option('--suite', type=click.Choice(['unittest', 'pytest', 'nose'],
+                                           case_sensitive=False),
+              default='unittest')
+@click.option('--test_folder_name', nargs=1, default='tests')
+@timeit()
+def test(suite, test_folder_name):
+    """Discovers and runs tests inside python project configuration path."""
+    click.echo('Running tests...')
+    import subprocess
+    from syndicate.core import CONFIG
+    project_path = CONFIG.project_path
+
+    test_folder = os.path.join(project_path, test_folder_name)
+    if not os.path.exists(test_folder):
+        click.echo(f'Tests not found, \'{test_folder_name}\' folder is missing'
+                   f' in \'{project_path}\'.')
+        return
+
+    test_lib_command_mapping = {
+        'unittest': 'python -m unittest -v',
+        'pytest': 'pytest --no-header -v',
+        'nose': 'nosetests --verbose'
+    }
+
+    workdir = os.getcwd()
+
+    os.chdir(test_folder)
+    command = test_lib_command_mapping.get(suite)
+    result = subprocess.run(command.split())
+
+    os.chdir(workdir)
+    if result.returncode != 0:
+        click.echo('Some tests failed. Exiting.')
+        sys.exit(1)
+
+
 @syndicate.command(name='build')
 @click.option('--bundle_name', nargs=1,
               callback=generate_default_bundle_name,
@@ -97,7 +134,7 @@ def build(ctx, bundle_name, force_upload):
                    'in deploy bucket. Please use another bundle '
                    'name or delete the bundle'.format(bundle_name))
         return
-
+    ctx.invoke(test)
     ctx.invoke(assemble, bundle_name=bundle_name)
     ctx.invoke(package_meta, bundle_name=bundle_name)
     ctx.invoke(upload, bundle_name=bundle_name, force=force_upload)

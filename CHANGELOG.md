@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `python_build_mapping`, `java_build_mapping`, `nodejs_build_mapping` was removed as they will be resolved using the `.syndicate` file
 - `generate lambda` command was improved, `common` module for python runtime is being generated with the first lambda
 - Provided ability to add information about created lambda to `.syndicate` file
+- Added `test` command that allows to run tests inside your python project
 
 ## [0.9.6] - 2021-04-29
 ### Changed
