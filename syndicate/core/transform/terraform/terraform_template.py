@@ -31,6 +31,7 @@ AWS_COGNITO_IDENTITY_POOL_ROLES_ATTACHMENT = 'aws_cognito_identity_pool_roles_at
 AWS_LAMBDA_PROVISIONED_CONCURRENCY_CONFIG = 'aws_lambda_provisioned_concurrency_config'
 AWS_LAMBDA_ALIAS = 'aws_lambda_alias'
 CLOUD_WATCH_LOG_GROUP = 'cloud_watch_log_group'
+SNS_TOPIC_POLICY = 'aws_sns_topic_policy'
 
 RESOURCE_TYPES = [LAMBDA_RESOURCE_NAME, IAM_POLICY_RESOURCE_NAME,
                   IAM_ROLE_RESOURCE_NAME, DYNAMO_DB_TABLE_RESOURCE_NAME,
@@ -50,7 +51,7 @@ RESOURCE_TYPES = [LAMBDA_RESOURCE_NAME, IAM_POLICY_RESOURCE_NAME,
                   AWS_API_GATEWAY_AUTHORIZER, AWS_COGNITO_IDENTITY_POOL,
                   AWS_COGNITO_IDENTITY_POOL_ROLES_ATTACHMENT,
                   AWS_LAMBDA_PROVISIONED_CONCURRENCY_CONFIG, AWS_LAMBDA_ALIAS,
-                  CLOUD_WATCH_LOG_GROUP]
+                  CLOUD_WATCH_LOG_GROUP, SNS_TOPIC_POLICY]
 
 
 class TerraformTemplate(object):
@@ -84,6 +85,7 @@ class TerraformTemplate(object):
         self.aws_lambda_provisioned_concurrency_config = []
         self.aws_lambda_alias = []
         self.cloud_watch_log_group = []
+        self.aws_sns_topic_policy = []
 
         self.compose_resources_mapping = {
             LAMBDA_RESOURCE_NAME: self._aws_lambda,
@@ -113,7 +115,8 @@ class TerraformTemplate(object):
             AWS_COGNITO_IDENTITY_POOL_ROLES_ATTACHMENT: self._aws_cognito_identity_pool_roles_attachment,
             AWS_LAMBDA_PROVISIONED_CONCURRENCY_CONFIG: self._aws_lambda_provisioned_concurrency_config,
             AWS_LAMBDA_ALIAS: self._aws_lambda_alias,
-            CLOUD_WATCH_LOG_GROUP: self._cloud_watch_log_group
+            CLOUD_WATCH_LOG_GROUP: self._cloud_watch_log_group,
+            SNS_TOPIC_POLICY: self._aws_sns_topic_policy
         }
 
         self.resources = list()
@@ -219,6 +222,9 @@ class TerraformTemplate(object):
     def add_cloud_watch_log_group(self, meta):
         self.cloud_watch_log_group.append(meta)
 
+    def add_aws_sns_topic_policy(self, meta):
+        self.aws_sns_topic_policy.append(meta)
+
     def _aws_lambda(self):
         return self.aws_lambda_function
 
@@ -302,6 +308,9 @@ class TerraformTemplate(object):
 
     def _cloud_watch_log_group(self):
         return self.cloud_watch_log_group
+
+    def _aws_sns_topic_policy(self):
+        return self.aws_sns_topic_policy
 
     def compose_resources(self):
         for res_type in RESOURCE_TYPES:

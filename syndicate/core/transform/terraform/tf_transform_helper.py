@@ -60,3 +60,11 @@ def build_ref_to_lambda_layer_arn(layer_name):
 
 def build_role_arn_ref(role_name):
     return '${aws_iam_role.' + role_name + '.arn}'
+
+
+def build_cloud_watch_event_rule_name_ref(target_rule):
+    return '${aws_cloudwatch_event_rule.' + target_rule + '.name}'
+
+
+def build_resource_arn_ref(tf_resource_type, name):
+    return '${' + tf_resource_type + '.' + name + '.arn}'
