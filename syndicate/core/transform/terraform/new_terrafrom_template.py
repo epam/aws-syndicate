@@ -37,11 +37,6 @@ AWS_BATCH_COMPUTE_ENVIRONMENT = 'aws_batch_compute_environment'
 AWS_BATCH_JOB_QUEUE = 'aws_batch_job_queue'
 AWS_IAM_INSTANCE_PROFILE = 'aws_iam_instance_profile'
 AWS_IAM_ROLE_POLICY_ATTACHMENT = 'aws_iam_role_policy_attachment'
-AWS_LAMBDA_EVENT_SOURCE_MAPPING = 'aws_lambda_event_source_mapping'
-AWS_IAM_ROLE_POLICY = 'aws_iam_role_policy'
-AWS_SNS_TOPIC_SUBSCRIPTION = 'aws_sns_topic_subscription'
-AWS_LAMBDA_PERMISSION = 'aws_lambda_permission'
-AWS_S3_BUCKET_NOTIFICATION = 'aws_s3_bucket_notification'
 
 RESOURCE_TYPES = [LAMBDA_RESOURCE_NAME, IAM_POLICY_RESOURCE_NAME,
                   IAM_ROLE_RESOURCE_NAME, DYNAMO_DB_TABLE_RESOURCE_NAME,
@@ -64,10 +59,7 @@ RESOURCE_TYPES = [LAMBDA_RESOURCE_NAME, IAM_POLICY_RESOURCE_NAME,
                   CLOUD_WATCH_LOG_GROUP, SNS_TOPIC_POLICY,
                   AWS_BATCH_JOB_DEFINITION, AWS_BATCH_COMPUTE_ENVIRONMENT,
                   AWS_BATCH_JOB_QUEUE, AWS_IAM_INSTANCE_PROFILE,
-                  AWS_IAM_ROLE_POLICY_ATTACHMENT,
-                  AWS_LAMBDA_EVENT_SOURCE_MAPPING,
-                  AWS_IAM_ROLE_POLICY, AWS_SNS_TOPIC_SUBSCRIPTION,
-                  AWS_LAMBDA_PERMISSION, AWS_S3_BUCKET_NOTIFICATION]
+                  AWS_IAM_ROLE_POLICY_ATTACHMENT]
 
 
 class TerraformTemplate(object):
@@ -107,11 +99,6 @@ class TerraformTemplate(object):
         self.aws_batch_job_queue = []
         self.aws_iam_instance_profile = []
         self.aws_iam_role_policy_attachment = []
-        self.aws_lambda_event_source_mapping = []
-        self.aws_iam_role_policy = []
-        self.aws_sns_topic_subscription = []
-        self.aws_lambda_permission = []
-        self.aws_s3_bucket_notification = []
 
         self.compose_resources_mapping = {
             LAMBDA_RESOURCE_NAME: self._aws_lambda,
@@ -147,12 +134,7 @@ class TerraformTemplate(object):
             AWS_BATCH_COMPUTE_ENVIRONMENT: self._aws_batch_compute_environment,
             AWS_BATCH_JOB_QUEUE: self._aws_batch_job_queue,
             AWS_IAM_INSTANCE_PROFILE: self._aws_iam_instance_profile,
-            AWS_IAM_ROLE_POLICY_ATTACHMENT: self._aws_iam_role_policy_attachment,
-            AWS_LAMBDA_EVENT_SOURCE_MAPPING: self._aws_lambda_event_source_mapping,
-            AWS_IAM_ROLE_POLICY: self._aws_iam_role_policy,
-            AWS_SNS_TOPIC_SUBSCRIPTION: self._aws_sns_topic_subscription,
-            AWS_LAMBDA_PERMISSION: self._aws_lambda_permission,
-            AWS_S3_BUCKET_NOTIFICATION: self._aws_s3_bucket_notification
+            AWS_IAM_ROLE_POLICY_ATTACHMENT: self._aws_iam_role_policy_attachment
         }
 
         self.resources = list()
@@ -272,21 +254,6 @@ class TerraformTemplate(object):
     def add_aws_iam_role_policy_attachment(self, meta):
         self.aws_iam_role_policy_attachment.append(meta)
 
-    def add_aws_lambda_event_source_mapping(self, meta):
-        self.aws_lambda_event_source_mapping.append(meta)
-
-    def add_aws_iam_role_policy(self, meta):
-        self.aws_iam_role_policy.append(meta)
-
-    def add_aws_sns_topic_subscription(self, meta):
-        self.aws_sns_topic_subscription.append(meta)
-
-    def add_aws_lambda_permission(self, meta):
-        self.aws_lambda_permission.append(meta)
-
-    def add_aws_s3_bucket_notification(self, meta):
-        self.aws_s3_bucket_notification.append(meta)
-
     def _aws_lambda(self):
         return self.aws_lambda_function
 
@@ -388,30 +355,6 @@ class TerraformTemplate(object):
 
     def _aws_iam_role_policy_attachment(self):
         return self.aws_iam_role_policy_attachment
-
-    def _aws_lambda_event_source_mapping(self):
-        return self.aws_lambda_event_source_mapping
-
-    def _aws_iam_role_policy(self):
-        return self.aws_iam_role_policy
-
-    def _aws_sns_topic_subscription(self):
-        return self.aws_sns_topic_subscription
-
-    def _aws_lambda_permission(self):
-        return self.aws_lambda_permission
-
-    def _aws_s3_bucket_notification(self):
-        return self.aws_s3_bucket_notification
-
-    def get_resource_by_name(self, resource_name):
-        for res_type in RESOURCE_TYPES:
-            resource_extractor = self.compose_resources_mapping.get(res_type)
-            resources_meta = resource_extractor()
-            if resources_meta:
-                for resource in resources_meta:
-                    if resource.get(resource_name):
-                        return resource.get(resource_name)
 
     def compose_resources(self):
         for res_type in RESOURCE_TYPES:

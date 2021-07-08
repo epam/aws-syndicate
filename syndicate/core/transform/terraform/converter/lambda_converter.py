@@ -1,3 +1,6 @@
+import json
+
+from syndicate.commons.log_helper import get_logger
 from syndicate.connection.cloud_watch_connection import \
     get_lambda_log_group_name
 from syndicate.core.resources.lambda_resource import LAMBDA_MAX_CONCURRENCY, \
@@ -7,7 +10,13 @@ from syndicate.core.transform.terraform.converter.tf_resource_converter import \
 from syndicate.core.transform.terraform.tf_transform_helper import \
     build_ref_to_lambda_layer_arn, build_function_arn_ref, build_role_arn_ref, \
     build_function_name_ref, build_lambda_version_ref, \
-    build_lambda_alias_name_ref
+    build_lambda_alias_name_ref, build_cloud_watch_event_rule_name_ref, \
+    build_role_id_ref, build_sns_topic_arn_ref, \
+    build_bucket_id_ref, build_bucket_arn_ref, build_dynamo_db_stream_arn_ref, \
+    build_kinesis_stream_arn_ref, build_sqs_queue_arn_ref
+
+_LOG = get_logger(
+    'syndicate.core.transform.terraform.converter.lambda_converter')
 
 
 class LambdaConverter(TerraformResourceConverter):
@@ -60,9 +69,10 @@ class LambdaConverter(TerraformResourceConverter):
                                          s3_bucket=s3_bucket,
                                          s3_key=s3_path)
         self.template.add_aws_lambda(meta=aws_lambda)
-
         self.configure_concurrency(resource=resource,
                                    function_name=name)
+        self.process_event_sources(resource_name=name, resource=resource,
+                                   role=iam_role_name)
 
     def configure_concurrency(self, resource, function_name):
         provisioned_concur = resource.get(PROVISIONED_CONCURRENCY)
@@ -76,6 +86,7 @@ class LambdaConverter(TerraformResourceConverter):
                     provisioned_concur=provisioned_concur)
                 self.template.add_aws_lambda_provisioned_concurrency_config(
                     meta=concurrency)
+                return
         alias = resource.get('alias')
         if alias:
             alias_resource_name = f'{function_name}_{alias}'
@@ -92,6 +103,286 @@ class LambdaConverter(TerraformResourceConverter):
                     alias_name=alias_resource_name)
                 self.template.add_aws_lambda_provisioned_concurrency_config(
                     meta=concurrency)
+
+    def process_event_sources(self, resource_name, resource, role):
+        event_sources = resource.get('event_sources')
+        if event_sources:
+            for trigger_meta in event_sources:
+                trigger_type = trigger_meta['resource_type']
+                starting_position = trigger_meta.get('starting_position')
+                if not starting_position:
+                    starting_position = 'LATEST'
+
+                func = self.CREATE_TRIGGER[trigger_type]
+                func(self, resource_name=resource_name,
+                     trigger_meta=trigger_meta,
+                     starting_position=starting_position, role=role)
+
+    def _create_dynamodb_trigger_from_meta(self, resource_name,
+                                           trigger_meta,
+                                           starting_position,
+                                           role):
+        event_source_res_type = trigger_meta.get('resource_type')
+        resource_ref = build_function_arn_ref(function_name=resource_name)
+
+        table_name = trigger_meta['target_table']
+        table = self.template.get_resource_by_name(resource_name=table_name)
+        if not table['stream_enabled']:
+            table.update({'stream_enabled': 'true',
+                          'stream_view_type': 'NEW_AND_OLD_IMAGES'})
+
+        stream_arn = build_dynamo_db_stream_arn_ref(table_name=table_name)
+
+        trigger_name = f'{resource_name}_{event_source_res_type}'
+        event_source = dynamodb_event_source(resource_name=trigger_name,
+                                             starting_position=starting_position,
+                                             function_arn_ref=resource_ref,
+                                             table_stream_arn=stream_arn)
+        self.template.add_aws_lambda_event_source_mapping(meta=event_source)
+
+    def _create_cloud_watch_trigger_from_meta(self, resource_name,
+                                              trigger_meta,
+                                              starting_position,
+                                              role):
+        event_source_res_type = trigger_meta.get('resource_type')
+        target_rule = trigger_meta.get('target_rule')
+        rule_ref = build_cloud_watch_event_rule_name_ref(
+            target_rule=target_rule)
+        resource_ref = build_function_arn_ref(function_name=resource_name)
+
+        trigger_name = f'{resource_name}_{event_source_res_type}'
+        event_source = cloud_watch_trigger(resource_name=trigger_name,
+                                           rule_ref=rule_ref,
+                                           resource_arn_ref=resource_ref)
+        self.template.add_aws_cloudwatch_event_target(event_source)
+
+    def _create_s3_trigger_from_meta(self, resource_name,
+                                     trigger_meta,
+                                     starting_position,
+                                     role):
+        target_bucket = trigger_meta['target_bucket']
+        events = trigger_meta['s3_events']
+
+        lambda_permission_name = f'{target_bucket}_{resource_name}_permission'
+        lambda_permission = aws_lambda_permission(
+            tf_resource_name=lambda_permission_name,
+            function_name=resource_name,
+            bucket_name=target_bucket)
+        self.template.add_aws_lambda_permission(meta=lambda_permission)
+
+        bucket_notification = aws_s3_bucket_notification(
+            bucket_name=target_bucket,
+            lambda_function=resource_name,
+            events=events,
+            lambda_permission=[lambda_permission_name])
+        self.template.add_aws_s3_bucket_notification(meta=bucket_notification)
+
+    def _create_sns_topic_trigger_from_meta(self, resource_name,
+                                            trigger_meta,
+                                            starting_position,
+                                            role):
+        event_source_res_type = trigger_meta.get('resource_type')
+        topic_name = trigger_meta['target_topic']
+
+        lambda_name_ref = build_function_arn_ref(function_name=resource_name)
+        trigger_name = f'{resource_name}_{event_source_res_type}'
+        topic_arn_ref = build_sns_topic_arn_ref(sns_topic=topic_name)
+        topic_subscription = aws_sns_topic_subscription(
+            resource_name=trigger_name,
+            topic_arn_ref=topic_arn_ref,
+            protocol='lambda',
+            endpoint=lambda_name_ref)
+        self.template.add_aws_sns_topic_subscription(meta=topic_subscription)
+
+    def _create_kinesis_stream_trigger_from_meta(self, resource_name,
+                                                 trigger_meta,
+                                                 starting_position,
+                                                 role):
+        event_source_res_type = trigger_meta.get('resource_type')
+        stream_name = trigger_meta['target_stream']
+        stream = self.template.get_resource_by_name(stream_name)
+        if not stream:
+            _LOG.error('Kinesis stream does not exist: {0}.'
+                       .format(stream_name))
+            return
+
+        stream_arn = build_kinesis_stream_arn_ref(stream_name=stream_name)
+        lambda_arn_ref = build_function_arn_ref(function_name=resource_name)
+        policy_name = '{0}KinesisTo{1}Lambda'.format(stream_name,
+                                                     resource_name)
+        policy_document = {
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Action": [
+                        "lambda:InvokeFunction"
+                    ],
+                    "Resource": [
+                        lambda_arn_ref
+                    ]
+                },
+                {
+                    "Action": [
+                        "kinesis:DescribeStreams",
+                        "kinesis:DescribeStream",
+                        "kinesis:ListStreams",
+                        "kinesis:GetShardIterator",
+                        "Kinesis:GetRecords"
+                    ],
+                    "Effect": "Allow",
+                    "Resource": stream_arn
+                }
+            ],
+            "Version": "2012-10-17"
+        }
+        role_id_ref = build_role_id_ref(role_name=role)
+        iam_role_policy = aws_iam_role_policy(policy_name=policy_name,
+                                              policy_content=json.dumps(
+                                                  policy_document),
+                                              role_id_ref=role_id_ref)
+        self.template.add_aws_iam_role_policy(meta=iam_role_policy)
+
+        trigger_name = f'{resource_name}_{event_source_res_type}'
+        kinesis_source_mapping(resource_name=trigger_name,
+                               kinesis_stream_arn=stream_arn)
+
+    def _create_sqs_trigger_from_meta(self, resource_name, trigger_meta,
+                                      starting_position, role):
+        event_source_res_type = trigger_meta.get('resource_type')
+        target_queue = trigger_meta['target_queue']
+
+        queue_arn_ref = build_sqs_queue_arn_ref(queue_name=target_queue)
+        resource_ref = build_function_arn_ref(function_name=resource_name)
+
+        trigger_name = f'{resource_name}_{event_source_res_type}'
+        event_source = sqs_source_mapping(resource_name=trigger_name,
+                                          sqs_queue_arn_ref=queue_arn_ref,
+                                          function_name_ref=resource_ref)
+        self.template.add_aws_lambda_event_source_mapping(meta=event_source)
+
+    CREATE_TRIGGER = {
+        'dynamodb_trigger': _create_dynamodb_trigger_from_meta,
+        'cloudwatch_rule_trigger': _create_cloud_watch_trigger_from_meta,
+        's3_trigger': _create_s3_trigger_from_meta,
+        'sns_topic_trigger': _create_sns_topic_trigger_from_meta,
+        'kinesis_trigger': _create_kinesis_stream_trigger_from_meta,
+        'sqs_trigger': _create_sqs_trigger_from_meta
+    }
+
+
+def aws_s3_bucket_notification(bucket_name, lambda_function,
+                               events, lambda_permission):
+    bucket_id_ref = build_bucket_id_ref(bucket_name=bucket_name)
+    lambda_function_arn_ref = build_function_arn_ref(
+        function_name=lambda_function)
+
+    dependencies = []
+    for permission in lambda_permission:
+        dependencies.append(f'aws_lambda_permission.{permission}')
+
+    resource = {
+        f'{bucket_name}_bucket_notification': {
+            'bucket': bucket_id_ref,
+            'lambda_function': {
+                'lambda_function_arn': lambda_function_arn_ref,
+                'events': events
+            },
+            'depends_on': dependencies
+        }
+    }
+    return resource
+
+
+def aws_lambda_permission(tf_resource_name, function_name, bucket_name):
+    function_arn_ref = build_function_arn_ref(function_name=function_name)
+    bucket_arn_ref = build_bucket_arn_ref(bucket_name=bucket_name)
+    resource = {
+        tf_resource_name: {
+            'function_name': function_arn_ref,
+            'action': 'lambda:InvokeFunction',
+            'principal': 's3.amazonaws.com',
+            'source_arn': bucket_arn_ref,
+            'statement_id': 'AllowExecutionFromS3Bucket'
+        }
+    }
+    return resource
+
+
+def aws_sns_topic_subscription(resource_name, topic_arn_ref, protocol,
+                               endpoint):
+    resource = {
+        resource_name: {
+            'topic_arn': topic_arn_ref,
+            'protocol': protocol,
+            'endpoint': endpoint
+        }
+    }
+    return resource
+
+
+def aws_iam_role_policy(policy_name, role_id_ref, policy_content):
+    resource = {
+        policy_name: {
+            'name': policy_name,
+            'role': role_id_ref,
+            'policy': policy_content
+        }
+    }
+    return resource
+
+
+def aws_iam_role_policy_attachment(role_name, policy_arn_ref, role_name_ref):
+    resource = {
+        f'{role_name}_policy_attachment': {
+            "policy_arn": policy_arn_ref,
+            "role": role_name_ref
+        }
+    }
+    return resource
+
+
+def kinesis_source_mapping(resource_name, kinesis_stream_arn):
+    resource = {
+        resource_name: {
+            "event_source_arn": kinesis_stream_arn,
+            "function_name": "aws_lambda_function.example.arn",
+            "starting_position": "LATEST"
+        }
+    }
+    return resource
+
+
+def sqs_source_mapping(resource_name, sqs_queue_arn_ref, function_name_ref):
+    resource = {
+        resource_name: {
+            "event_source_arn": sqs_queue_arn_ref,
+            "function_name": function_name_ref
+        }
+    }
+    return resource
+
+
+def cloud_watch_trigger(resource_name, resource_arn_ref, rule_ref):
+    resource = {
+        resource_name:
+            {
+                "arn": resource_arn_ref,
+                "rule": rule_ref
+            }
+    }
+    return resource
+
+
+def dynamodb_event_source(resource_name, table_stream_arn,
+                          function_arn_ref, starting_position):
+    resource = {
+        resource_name: {
+            "event_source_arn": table_stream_arn,
+            "function_name": function_arn_ref,
+            "starting_position": starting_position
+        }
+    }
+    return resource
 
 
 def cloud_watch_log_group(lambda_name, retention):

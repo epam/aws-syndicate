@@ -11,17 +11,17 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
+from syndicate.commons.log_helper import get_logger
+from syndicate.core.transform.build_meta_transformer import \
+    BuildMetaTransformer
+from syndicate.core.transform.terraform.converter.api_gateway_converter import \
+    ApiGatewayConverter
 from syndicate.core.transform.terraform.converter.batch_compenv_converter import \
     BatchComputeEnvConverter
 from syndicate.core.transform.terraform.converter.batch_jobdef_converter import \
     BatchJobDefConverter
 from syndicate.core.transform.terraform.converter.batch_jobqueue_converter import \
     BatchJobQueueEnvConverter
-from syndicate.commons.log_helper import get_logger
-from syndicate.core.transform.build_meta_transformer import \
-    BuildMetaTransformer
-from syndicate.core.transform.terraform.converter.api_gateway_converter import \
-    ApiGatewayConverter
 from syndicate.core.transform.terraform.converter.cloud_watch_alram_converter import \
     CloudWatchAlarmConverter
 from syndicate.core.transform.terraform.converter.cloud_watch_rule_converter import \
@@ -30,8 +30,6 @@ from syndicate.core.transform.terraform.converter.cognito_converter import \
     CognitoConverter
 from syndicate.core.transform.terraform.converter.dynamo_db_converter import \
     DynamoDbConverter
-from syndicate.core.transform.terraform.converter.event_sources_converter import \
-    EventSourceConverter
 from syndicate.core.transform.terraform.converter.iam_policy_converter import \
     IamPolicyConverter
 from syndicate.core.transform.terraform.converter.iam_role_converter import \
@@ -153,10 +151,6 @@ class TerraformTransformer(BuildMetaTransformer):
         converter = converter_type(template=self.template, config=self.config,
                                    resources_provider=self.resources_provider)
         converter.convert(name=name, resource=resource)
-
-        event_sources_converter = EventSourceConverter(template=self.template,
-                                                       config=self.config)
-        event_sources_converter.convert(name=name, resource=resource)
 
     def _compose_template(self):
         return self.template.compose_resources()

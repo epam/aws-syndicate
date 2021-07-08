@@ -76,3 +76,31 @@ def build_com_env_arn(com_env_name):
 
 def build_role_name_ref(role_name):
     return '${aws_iam_role.' + role_name + '.name}'
+
+
+def build_role_id_ref(role_name):
+    return '${aws_iam_role.' + role_name + '.id}'
+
+
+def build_instance_profile_arn_ref(instance_profile_name):
+    return '${aws_iam_instance_profile.' + instance_profile_name + '.arn}'
+
+
+def build_kinesis_stream_arn_ref(stream_name):
+    return '${aws_kinesis_stream.' + stream_name + '.arn}'
+
+
+def build_bucket_id_ref(bucket_name):
+    return '${aws_s3_bucket.' + bucket_name + '.id}'
+
+
+def build_bucket_arn_ref(bucket_name):
+    return '${aws_s3_bucket.' + bucket_name + '.arn}'
+
+
+def build_dynamo_db_stream_arn_ref(table_name):
+    return '${aws_dynamodb_table.' + table_name + '.stream_arn}'
+
+
+def build_sqs_queue_arn_ref(queue_name):
+    return '${aws_sqs_queue.' + queue_name + '.arn}'

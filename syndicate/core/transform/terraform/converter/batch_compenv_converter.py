@@ -2,7 +2,7 @@ from syndicate.core.resources.batch_compenv_resource import DEFAULT_STATE
 from syndicate.core.transform.terraform.converter.tf_resource_converter import \
     TerraformResourceConverter
 from syndicate.core.transform.terraform.tf_transform_helper import \
-    build_role_arn_ref, build_role_name_ref
+    build_role_name_ref, build_instance_profile_arn_ref
 
 ECS_POLICY_ARN = 'arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role'
 
@@ -26,7 +26,9 @@ class BatchComputeEnvConverter(TerraformResourceConverter):
         subnets = compute_resources.get('subnets', [])
         instance_role = compute_resources.get('instance_role')
 
-        profile = aws_iam_instance_profile(role_name=instance_role)
+        profile_name = f'{instance_role}_instance_profile'
+        profile = aws_iam_instance_profile(role_name=instance_role,
+                                           profile_name=profile_name)
         self.template.add_aws_iam_instance_profile(meta=profile)
         policy_attachment = aws_iam_role_policy_attachment(
             role_name=instance_role)
@@ -39,7 +41,7 @@ class BatchComputeEnvConverter(TerraformResourceConverter):
             desired_vcpus=desired_vcpus, minv_cpus=minv_cpus,
             instance_types=instance_types,
             security_group_ids=security_group_ids, subnets=subnets,
-            instance_role=instance_role)
+            instance_profile_name=profile_name)
 
         self.template.add_aws_batch_compute_environment(
             meta=aws_batch_compute_environment)
@@ -56,9 +58,9 @@ def aws_iam_role_policy_attachment(role_name):
     return resource
 
 
-def aws_iam_instance_profile(role_name):
+def aws_iam_instance_profile(profile_name, role_name):
     resource = {
-        f'{role_name}_instance_profile': {
+        profile_name: {
             "name": role_name,
             "role": build_role_name_ref(role_name)
         }
@@ -70,7 +72,7 @@ def batch_com_env(compute_environment_name, env_type, service_role, state,
                   res_type=None, minv_cpus=None, desired_vcpus=None,
                   maxv_cpus=None,
                   instance_types=None, security_group_ids=None, subnets=None,
-                  instance_role=None):
+                  instance_profile_name=None):
     params = {
         'compute_environment_name': compute_environment_name,
         'type': env_type,
@@ -93,9 +95,9 @@ def batch_com_env(compute_environment_name, env_type, service_role, state,
         comp_resources['security_group_ids'] = security_group_ids
     if subnets:
         comp_resources['subnets'] = subnets
-    if instance_role:
-        comp_resources['instance_role'] = build_role_arn_ref(
-            role_name=instance_role)
+    if instance_profile_name:
+        comp_resources['instance_role'] = build_instance_profile_arn_ref(
+            instance_profile_name=instance_profile_name)
 
     if comp_resources:
         params['compute_resources'] = comp_resources

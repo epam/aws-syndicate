@@ -35,20 +35,25 @@ class IamRoleConverter(TerraformResourceConverter):
         for policy in predefined_policies:
             iam_service = self.resources_provider.iam()
             policy_arn = iam_service.iam_conn.get_policy_arn(policy)
-            policy_arns.append(policy_arn)
+            if policy_arn:
+                policy_arns.append(policy_arn)
         for policy in custom_policies:
             policy_arns.append(build_policy_arn_ref(policy_name=policy))
         return policy_arns
 
 
 def iam_role(role_name,
-             policy_arns,
-             assume_role_policy):
+             assume_role_policy,
+             policy_arns=None):
+    role_params = {
+        'assume_role_policy': assume_role_policy,
+        'name': role_name
+    }
+
+    if policy_arns:
+        role_params['managed_policy_arns'] = policy_arns
+
     resource = {
-        role_name: {
-            "assume_role_policy": assume_role_policy,
-            "name": role_name,
-            "managed_policy_arns": policy_arns
-        }
+        role_name: role_params
     }
     return resource

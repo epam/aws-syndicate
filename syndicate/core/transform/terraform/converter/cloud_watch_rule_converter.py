@@ -1,3 +1,5 @@
+import json
+
 from syndicate.core.transform.terraform.converter.tf_resource_converter import \
     TerraformResourceConverter
 
@@ -60,7 +62,7 @@ def _create_api_call_rule(template, rule_name, resource):
         rule_name:
             {
                 "name": rule_name,
-                "event_pattern": pattern
+                "event_pattern": json.dumps(pattern)
             }
     }
     template.add_aws_cloudwatch_event_rule(meta=rule)
