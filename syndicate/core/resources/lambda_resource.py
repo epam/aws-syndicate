@@ -569,41 +569,6 @@ class LambdaResource(BaseResource):
             self.dynamodb_conn.enable_table_stream(table_name)
 
         stream = self.dynamodb_conn.get_table_stream_arn(table_name)
-        # TODO policy should be moved to meta
-        policy_name = '{0}TableTo{1}Lambda'.format(table_name, lambda_name)
-        policy_document = {
-            "Statement": [
-                {
-                    "Effect": "Allow",
-                    "Action": [
-                        "lambda:InvokeFunction"
-                    ],
-                    "Resource": [
-                        lambda_arn
-                    ]
-                },
-                {
-                    "Action": [
-                        "dynamodb:DescribeStream",
-                        "dynamodb:GetRecords",
-                        "dynamodb:GetShardIterator",
-                        "dynamodb:ListStreams",
-                        "dynamodb:ListShards"
-                    ],
-                    "Effect": "Allow",
-                    "Resource": stream
-                }
-            ],
-            "Version": "2012-10-17"
-        }
-        self.iam_conn.attach_inline_policy(role_name=role_name,
-                                           policy_name=policy_name,
-                                           policy_document=policy_document)
-        _LOG.debug('Inline policy %s is attached to role %s',
-                   policy_name, role_name)
-        _LOG.debug('Waiting for activation policy %s...', policy_name)
-        time.sleep(15)
-
         # TODO support another sub type
         self.lambda_conn.add_event_source(lambda_arn, stream,
                                           trigger_meta['batch_size'],
@@ -625,38 +590,6 @@ class LambdaResource(BaseResource):
         queue_arn = 'arn:aws:sqs:{0}:{1}:{2}'.format(self.region,
                                                      self.account_id,
                                                      target_queue)
-        # TODO policy should be moved to meta
-        policy_name = '{0}QueueTo{1}Lambda'.format(target_queue, lambda_name)
-        policy_document = {
-            "Statement": [
-                {
-                    "Effect": "Allow",
-                    "Action": [
-                        "lambda:InvokeFunction"
-                    ],
-                    "Resource": [
-                        lambda_arn
-                    ]
-                },
-                {
-                    "Action": [
-                        "sqs:ReceiveMessage",
-                        "sqs:DeleteMessage",
-                        "sqs:GetQueueAttributes"
-                    ],
-                    "Effect": "Allow",
-                    "Resource": queue_arn
-                }
-            ],
-            "Version": "2012-10-17"
-        }
-        self.iam_conn.attach_inline_policy(role_name=role_name,
-                                           policy_name=policy_name,
-                                           policy_document=policy_document)
-        _LOG.debug('Inline policy %s is attached to role %s',
-                   policy_name, role_name)
-        _LOG.debug('Waiting for activation policy %s...', policy_name)
-        time.sleep(15)
 
         self.lambda_conn.add_event_source(lambda_arn, queue_arn,
                                           trigger_meta['batch_size'])
@@ -767,7 +700,7 @@ class LambdaResource(BaseResource):
         _LOG.debug('Inline policy %s is attached to role %s',
                    policy_name, role_name)
         _LOG.debug('Waiting for activation policy %s...', policy_name)
-        time.sleep(15)
+        time.sleep(10)
 
         self._add_kinesis_event_source(lambda_arn, stream_arn, trigger_meta)
         _LOG.info('Lambda %s subscribed to kinesis stream %s', lambda_name,

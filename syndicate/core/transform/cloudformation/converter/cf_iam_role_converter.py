@@ -17,7 +17,7 @@ from troposphere import Ref, iam
 
 from syndicate.connection.iam_connection import build_trusted_relationships
 from .cf_resource_converter import CfResourceConverter
-from ..cf_transform_helper import to_logic_name, iam_role_logic_name
+from ..cf_transform_helper import to_logic_name, iam_role_logic_name, is_arn
 
 
 class CfIamRoleConverter(CfResourceConverter):
@@ -73,3 +73,13 @@ class CfIamRoleConverter(CfResourceConverter):
             PolicyName=policy_name,
             PolicyDocument=policy_document
         ))
+
+    @staticmethod
+    def attach_managed_policy(role, policy):
+        if is_arn(policy):
+            if policy not in role.ManagedPolicyArns:
+                role.ManagedPolicyArns.append(policy)
+        else:
+            ref = Ref(policy)
+            if ref not in role.ManagedPolicyArns:
+                role.ManagedPolicyArns.append(ref)
