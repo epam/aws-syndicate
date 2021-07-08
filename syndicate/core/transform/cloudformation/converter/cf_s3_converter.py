@@ -59,19 +59,44 @@ class CfS3Converter(CfResourceConverter):
             for rule in rule_document['Rules']:
                 if 'Prefix' not in rule:
                     rule['Prefix'] = ''
+                rule_id = rule.pop('ID', None)
+                if rule_id:
+                    rule['Id'] = rule_id
+                expiration = rule.pop('Expiration', None)
+                if expiration:
+                    if expiration.get('Date'):
+                        rule['ExpirationDate'] = expiration.get('Date')
+                    if expiration.get('Days'):
+                        rule['ExpirationInDays'] = expiration.get('Date')
+                    delete_marker = expiration.get('ExpiredObjectDeleteMarker')
+                    if delete_marker:
+                        rule['ExpiredObjectDeleteMarker'] = delete_marker
+                transitions = rule.get('Transitions')
+                if transitions:
+                    for each in transitions:
+                        transition_date = each.pop('Date', None)
+                        transition_days = each.pop('Days', None)
+                        if transition_date:
+                            each['TransitionDate'] = transition_date
+                        if transition_days:
+                            each['TransitionInDays'] = transition_days
                 rules.append(s3.LifecycleRule.from_dict(title=None, d=rule))
             bucket.LifecycleConfiguration = \
                 s3.LifecycleConfiguration(Rules=rules)
 
         cors_configuration = meta.get('cors')
         if cors_configuration:
-            # breakpoint()
             cors_rules = []
             for rule in cors_configuration:
                 # converting a rule to the expected format
                 for key in rule.keys():
-                    if key == 'Id':
-                        pass
+                    if key == 'ID':
+                        rule['Id'] = rule.pop(key)
+                        continue
+                    elif key == 'ExposeHeaders':
+                        rule['ExposedHeaders'] = rule.pop(key)
+                    elif key == 'MaxAgeSeconds':
+                        rule['MaxAge'] = rule.pop(key)
                     if isinstance(rule[key], list) \
                             or isinstance(rule[key], int):
                         pass  # expected
@@ -106,8 +131,8 @@ class CfS3Converter(CfResourceConverter):
                                           Value=rule['Value']))
                 s3_key = s3.S3Key(Rules=rules)
                 config.Filter = s3.Filter(S3Key=s3_key)
-            try:
-                existing_configs = notification_config.LambdaConfigurations
-                existing_configs.extend(configs)
-            except AttributeError:
-                notification_config.LambdaConfigurations = configs
+        try:
+            existing_configs = notification_config.LambdaConfigurations
+            existing_configs.extend(configs)
+        except AttributeError:
+            notification_config.LambdaConfigurations = configs

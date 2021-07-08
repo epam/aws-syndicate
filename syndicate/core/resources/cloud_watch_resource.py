@@ -146,7 +146,7 @@ class CloudWatchResource(BaseResource):
         for event_bus in event_buses:
             target_arn = get_event_bus_arn(event_bus=event_bus,
                                            region=region)
-            existing_targets = self.cw_events_conn(
+            existing_targets = self._cw_events_conn_builder(
                 region).list_targets_by_rule(
                 rule_name=rule_name)
             for target in existing_targets:

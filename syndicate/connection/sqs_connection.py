@@ -13,6 +13,8 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+import json
+
 from boto3 import client
 from botocore.exceptions import ClientError
 
@@ -69,6 +71,8 @@ class SqsConnection(object):
             attributes['MessageRetentionPeriod'] = str(
                 message_retention_period)
         if policy:
+            if isinstance(policy, dict):
+                policy = json.dumps(policy)
             attributes['Policy'] = policy
         if receive_message_wait_time_seconds:
             if receive_message_wait_time_seconds < 0 or receive_message_wait_time_seconds > 20:
@@ -78,6 +82,8 @@ class SqsConnection(object):
                 'ReceiveMessageWaitTimeSeconds'] = str(
                 receive_message_wait_time_seconds)
         if redrive_policy:
+            if isinstance(redrive_policy, dict):
+                redrive_policy = json.dumps(redrive_policy)
             attributes['RedrivePolicy'] = redrive_policy
         if visibility_timeout:
             if visibility_timeout < 0 or visibility_timeout > 43200:

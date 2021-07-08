@@ -17,7 +17,7 @@ from troposphere import sqs, GetAtt
 
 from syndicate.core.resources.sqs_resource import FIFO_REGIONS, SqsResource
 from .cf_resource_converter import CfResourceConverter
-from ..cf_transform_helper import to_logic_name
+from ..cf_transform_helper import to_logic_name, is_arn
 
 
 class CfSqsConverter(CfResourceConverter):
@@ -76,9 +76,19 @@ class CfSqsConverter(CfResourceConverter):
             queue.ReceiveMessageWaitTimeSeconds = receive_mes_wait_sec
 
         if redrive_policy:
+            dlq_target = redrive_policy['deadLetterTargetArn']
+            if is_arn(dlq_target):
+                dlq_name = dlq_target.split(':')[-1]
+                if is_fifo:
+                    dlq_name = dlq_name[:-len('.fifo')]
+                dlq_logic_name = to_logic_name(dlq_name)
+                if self.get_resource(dlq_logic_name):
+                    queue.DependsOn = dlq_logic_name
+            else:
+                dlq_target = GetAtt(
+                    redrive_policy['deadLetterTargetArn'], 'Arn')
             queue.RedrivePolicy = sqs.RedrivePolicy(
-                deadLetterTargetArn=GetAtt(
-                    redrive_policy['deadLetterTargetArn'], 'Arn'),
+                deadLetterTargetArn=dlq_target,
                 maxReceiveCount=redrive_policy['maxReceiveCount']
             )
 
