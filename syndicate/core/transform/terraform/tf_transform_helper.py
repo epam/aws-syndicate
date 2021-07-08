@@ -104,3 +104,7 @@ def build_dynamo_db_stream_arn_ref(table_name):
 
 def build_sqs_queue_arn_ref(queue_name):
     return '${aws_sqs_queue.' + queue_name + '.arn}'
+
+
+def build_sqs_queue_arn_ref(queue_name):
+    return '${aws_sqs_queue.' + queue_name + '.id}'

@@ -1,5 +1,7 @@
 import json
 
+from syndicate.core.transform.terraform.tf_transform_helper import \
+    build_sqs_queue_arn_ref
 from syndicate.core.transform.terraform.converter.tf_resource_converter import \
     TerraformResourceConverter
 
@@ -70,6 +72,18 @@ class SQSQueueConverter(TerraformResourceConverter):
                           visibility_timeout_seconds=vis_timeout,
                           policy=policy)
         self.template.add_aws_sqs_queue(queue)
+        sqs_policy = aws_sqs_queue_policy(queue_name=name, policy=policy)
+        self.template.add_aws_sqs_queue_policy(meta=sqs_policy)
+
+
+def aws_sqs_queue_policy(queue_name, policy):
+    resource = {
+        f'{queue_name}_policy': {
+            'queue_url': build_sqs_queue_arn_ref(queue_name=queue_name),
+            'policy ': policy
+        }
+    }
+    return resource
 
 
 def sqs_queue(fifo_queue, queue_name, delay_seconds,

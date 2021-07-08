@@ -42,6 +42,7 @@ AWS_IAM_ROLE_POLICY = 'aws_iam_role_policy'
 AWS_SNS_TOPIC_SUBSCRIPTION = 'aws_sns_topic_subscription'
 AWS_LAMBDA_PERMISSION = 'aws_lambda_permission'
 AWS_S3_BUCKET_NOTIFICATION = 'aws_s3_bucket_notification'
+AWS_SQS_POLICY = 'aws_sqs_queue_policy'
 
 RESOURCE_TYPES = [LAMBDA_RESOURCE_NAME, IAM_POLICY_RESOURCE_NAME,
                   IAM_ROLE_RESOURCE_NAME, DYNAMO_DB_TABLE_RESOURCE_NAME,
@@ -67,7 +68,8 @@ RESOURCE_TYPES = [LAMBDA_RESOURCE_NAME, IAM_POLICY_RESOURCE_NAME,
                   AWS_IAM_ROLE_POLICY_ATTACHMENT,
                   AWS_LAMBDA_EVENT_SOURCE_MAPPING,
                   AWS_IAM_ROLE_POLICY, AWS_SNS_TOPIC_SUBSCRIPTION,
-                  AWS_LAMBDA_PERMISSION, AWS_S3_BUCKET_NOTIFICATION]
+                  AWS_LAMBDA_PERMISSION, AWS_S3_BUCKET_NOTIFICATION,
+                  AWS_SQS_POLICY]
 
 
 class TerraformTemplate(object):
@@ -112,6 +114,7 @@ class TerraformTemplate(object):
         self.aws_sns_topic_subscription = []
         self.aws_lambda_permission = []
         self.aws_s3_bucket_notification = []
+        self.aws_sqs_queue_policy = []
 
         self.compose_resources_mapping = {
             LAMBDA_RESOURCE_NAME: self._aws_lambda,
@@ -152,7 +155,8 @@ class TerraformTemplate(object):
             AWS_IAM_ROLE_POLICY: self._aws_iam_role_policy,
             AWS_SNS_TOPIC_SUBSCRIPTION: self._aws_sns_topic_subscription,
             AWS_LAMBDA_PERMISSION: self._aws_lambda_permission,
-            AWS_S3_BUCKET_NOTIFICATION: self._aws_s3_bucket_notification
+            AWS_S3_BUCKET_NOTIFICATION: self._aws_s3_bucket_notification,
+            AWS_SQS_POLICY: self._aws_sqs_queue_policy
         }
 
         self.resources = list()
@@ -287,6 +291,9 @@ class TerraformTemplate(object):
     def add_aws_s3_bucket_notification(self, meta):
         self.aws_s3_bucket_notification.append(meta)
 
+    def add_aws_sqs_queue_policy(self, meta):
+        self.aws_sqs_queue_policy.append(meta)
+
     def _aws_lambda(self):
         return self.aws_lambda_function
 
@@ -403,6 +410,9 @@ class TerraformTemplate(object):
 
     def _aws_s3_bucket_notification(self):
         return self.aws_s3_bucket_notification
+
+    def _aws_sqs_queue_policy(self):
+        return self.aws_sqs_queue_policy
 
     def get_resource_by_name(self, resource_name):
         for res_type in RESOURCE_TYPES:
