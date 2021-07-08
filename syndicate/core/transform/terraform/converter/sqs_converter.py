@@ -80,7 +80,7 @@ def aws_sqs_queue_policy(queue_name, policy):
     resource = {
         f'{queue_name}_policy': {
             'queue_url': build_sqs_queue_arn_ref(queue_name=queue_name),
-            'policy ': policy
+            'policy': policy
         }
     }
     return resource
