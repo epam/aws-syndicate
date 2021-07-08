@@ -181,13 +181,14 @@ class CfLambdaFunctionConverter(CfResourceConverter):
         rule = self.get_resource(to_logic_name(rule_name))
 
         attach_rule_target(rule=rule, target_arn=lambda_arn)
-        self.convert_lambda_permission(
+        permission = self.convert_lambda_permission(
             lambda_arn=lambda_arn,
             lambda_name=lambda_name,
             principal='events',
             source_arn=rule.get_att('Arn'),
             permission_qualifier=rule_name
         )
+        self.template.add_resource(permission)
 
     def _create_s3_trigger_from_meta(self, lambda_name, lambda_arn, role,
                                      trigger_meta):
@@ -199,13 +200,14 @@ class CfLambdaFunctionConverter(CfResourceConverter):
             _LOG.error('S3 bucket {0} event source for lambda {1} '
                        'was not created.'.format(target_bucket, lambda_name))
             return
-        self.convert_lambda_permission(
+        permission = self.convert_lambda_permission(
             lambda_arn=lambda_arn,
             lambda_name=lambda_name,
             principal='s3',
             source_arn=target_bucket.get_att('Arn'),
             permission_qualifier=target_bucket_name
         )
+        self.template.add_resource(permission)
         CfS3Converter.configure_event_source_for_lambda(
             bucket=target_bucket,
             lambda_arn=lambda_arn,
@@ -228,13 +230,14 @@ class CfLambdaFunctionConverter(CfResourceConverter):
         CfSnsConverter.subscribe(topic=topic,
                                  protocol='lambda',
                                  endpoint=lambda_arn)
-        self.convert_lambda_permission(
+        permission = self.convert_lambda_permission(
             lambda_arn=lambda_arn,
             lambda_name=lambda_name,
             principal='sns',
             source_arn=topic.ref(),
             permission_qualifier=topic_name
         )
+        self.template.add_resource(permission)
 
     def _create_kinesis_stream_trigger_from_meta(self, lambda_name, lambda_arn,
                                                  role, trigger_meta):

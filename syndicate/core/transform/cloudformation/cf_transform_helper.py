@@ -16,12 +16,8 @@
 import re
 
 
-def ref(logic_id):
-    return {'Ref': logic_id}
-
-
-def get_att(logic_id, attribute):
-    return {'Fn::GetAtt': [logic_id, attribute]}
+def is_arn(line):
+    return line.startswith('arn:')
 
 
 def to_logic_name(resource_name):

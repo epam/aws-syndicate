@@ -22,6 +22,14 @@ from syndicate.connection.helper import apply_methods_decorator, retry
 _LOG = get_logger('syndicate.connection.kinesis_connection')
 
 
+def validate_shard_count(shard_count):
+    if not isinstance(shard_count, int) or shard_count > 25:
+        raise TypeError(
+            'Shard count must be a valid integer '
+            'less than 25 (max value per region). Actual type: {0}'.format(
+                type(shard_count)))
+
+
 @apply_methods_decorator(retry)
 class KinesisConnection(object):
     def __init__(self, region=None, aws_access_key_id=None,
@@ -32,16 +40,8 @@ class KinesisConnection(object):
                              aws_session_token=aws_session_token)
         _LOG.debug('Opened new Kinesis connection.')
 
-    @staticmethod
-    def validate_shard_count(shard_count):
-        if not isinstance(shard_count, int) or shard_count > 25:
-            raise TypeError(
-                'Shard count must be a valid integer '
-                'less than 25 (max value per region). Actual type: {0}'.format(
-                    type(shard_count)))
-
     def create_stream(self, stream_name, shard_count):
-        self.validate_shard_count(shard_count)
+        validate_shard_count(shard_count)
         params = dict(StreamName=stream_name, ShardCount=shard_count)
         return self.client.create_stream(**params)
 
