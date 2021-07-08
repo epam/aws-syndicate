@@ -8,41 +8,66 @@ class SQSQueueConverter(TerraformResourceConverter):
 
     def convert(self, name, resource):
         fifo_queue = resource.get('fifo_queue')
-        visibility_timeout = resource.get('visibility_timeout')
+        vis_timeout = resource.get('visibility_timeout')
+        if vis_timeout:
+            if vis_timeout < 0 or vis_timeout > 43200:
+                raise AssertionError(
+                    'Visibility timeout must be '
+                    'between 0 and 43200 seconds')
         delay_seconds = resource.get('delay_seconds')
+        if delay_seconds:
+            if delay_seconds < 0 or delay_seconds > 900:
+                raise AssertionError(
+                    'Delay seconds for queue must be '
+                    'between 0 and 900 seconds')
+
         maximum_message_size = resource.get('maximum_message_size')
+        if maximum_message_size:
+            if maximum_message_size < 1024 or maximum_message_size > 262144:
+                raise AssertionError(
+                    'Maximum message size must be '
+                    'between 1024 and 262144 bytes')
+
         message_retention_period = resource.get('message_retention_period')
-        receive_message_wait_time_seconds = resource.get(
+        if message_retention_period:
+            if message_retention_period < 60 or message_retention_period > 1209600:
+                raise AssertionError(
+                    'Message retention size must be '
+                    'between 60 and 1209600 seconds')
+
+        receive_mes_wait_sec = resource.get(
             'receive_message_wait_time_seconds')
+        if receive_mes_wait_sec:
+            if receive_mes_wait_sec < 0 or receive_mes_wait_sec > 20:
+                raise AssertionError(
+                    'Receive message wait time must be '
+                    'between 0 and 20 seconds')
+
         content_based_deduplication = resource.get(
             'content_based_deduplication')
-
+        redrive_policy = resource.get('redrive_policy')
         policy = resource.get('policy')
         if policy:
             policy = json.dumps(policy)
 
-        redrive_policy = None
-        dead_letter_target_arn = resource.get('deadLetterTargetArn')
-        max_receive_count = resource.get('maxReceiveCount')
-        if dead_letter_target_arn and max_receive_count:
-            redrive_policy = json.dumps(build_redrive_policy(
-                dead_letter_target_arn=dead_letter_target_arn,
-                max_receive_count=max_receive_count))
-
         kms_master_key_id = resource.get('kms_master_key_id')
-        kms_data_key_reuse_period_seconds = resource.get(
+        kms_data_reuse_period = resource.get(
             'kms_data_key_reuse_period_seconds')
+        if kms_data_reuse_period < 60 or kms_data_reuse_period > 86400:
+            raise AssertionError(
+                'KMS key reuse period must be '
+                'between 60 and 86400 seconds')
 
         queue = sqs_queue(queue_name=name, redrive_policy=redrive_policy,
                           delay_seconds=delay_seconds,
-                          receive_wait_time_seconds=receive_message_wait_time_seconds,
+                          receive_wait_time_seconds=receive_mes_wait_sec,
                           max_message_size=maximum_message_size,
                           message_retention_seconds=message_retention_period,
                           fifo_queue=fifo_queue,
                           content_based_deduplication=content_based_deduplication,
                           kms_master_key_id=kms_master_key_id,
-                          kms_data_key_reuse_period_seconds=kms_data_key_reuse_period_seconds,
-                          visibility_timeout_seconds=visibility_timeout,
+                          kms_data_key_reuse_period_seconds=kms_data_reuse_period,
+                          visibility_timeout_seconds=vis_timeout,
                           policy=policy)
         self.template.add_aws_sqs_queue(queue)
 
@@ -73,7 +98,11 @@ def sqs_queue(fifo_queue, queue_name, delay_seconds,
             {'receive_wait_time_seconds': receive_wait_time_seconds})
 
     if redrive_policy:
-        sqs_template.update({'redrive_policy': redrive_policy})
+        redrive_policy = {
+            'deadLetterTargetArn': redrive_policy['deadLetterTargetArn'],
+            'maxReceiveCount': redrive_policy['maxReceiveCount']
+        }
+        sqs_template.update({'redrive_policy': json.dumps(redrive_policy)})
 
     if content_based_deduplication:
         sqs_template.update(
