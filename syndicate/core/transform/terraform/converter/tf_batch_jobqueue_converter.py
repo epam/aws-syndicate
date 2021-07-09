@@ -1,4 +1,4 @@
-from core.transform.terraform.tf_resource_reference_builder import \
+from syndicate.core.transform.terraform.tf_resource_reference_builder import \
     build_com_env_arn
 from syndicate.core.resources.batch_jobqueue_resource import DEFAULT_STATE
 from syndicate.core.transform.terraform.converter.tf_resource_converter import \

@@ -1,6 +1,6 @@
-from core.transform.terraform.tf_resource_name_builder import \
+from syndicate.core.transform.terraform.tf_resource_name_builder import \
     build_terraform_resource_name
-from core.transform.terraform.tf_resource_reference_builder import \
+from syndicate.core.transform.terraform.tf_resource_reference_builder import \
     build_role_name_ref, build_instance_profile_arn_ref
 from syndicate.core.resources.batch_compenv_resource import DEFAULT_STATE
 from syndicate.core.transform.terraform.converter.tf_resource_converter import \

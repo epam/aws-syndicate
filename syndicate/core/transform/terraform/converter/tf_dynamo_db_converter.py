@@ -1,6 +1,6 @@
-from core.transform.terraform.tf_resource_name_builder import \
+from syndicate.core.transform.terraform.tf_resource_name_builder import \
     build_terraform_resource_name
-from core.transform.terraform.tf_resource_reference_builder import \
+from syndicate.core.transform.terraform.tf_resource_reference_builder import \
     build_role_arn_ref, build_aws_appautoscaling_target_resource_id_ref, \
     build_aws_appautoscaling_target_scalable_dimension_ref, \
     build_aws_appautoscaling_target_service_namespace_ref

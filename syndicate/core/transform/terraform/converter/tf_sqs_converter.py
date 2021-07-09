@@ -1,8 +1,8 @@
 import json
 
-from core.transform.terraform.tf_resource_name_builder import \
+from syndicate.core.transform.terraform.tf_resource_name_builder import \
     build_terraform_resource_name
-from core.transform.terraform.tf_resource_reference_builder import \
+from syndicate.core.transform.terraform.tf_resource_reference_builder import \
     build_sqs_queue_id_ref
 from syndicate.core.transform.terraform.converter.tf_resource_converter import \
     TerraformResourceConverter

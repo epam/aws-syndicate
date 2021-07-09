@@ -1,6 +1,6 @@
-from core.transform.terraform.tf_resource_name_builder import \
+from syndicate.core.transform.terraform.tf_resource_name_builder import \
     build_terraform_resource_name
-from core.transform.terraform.tf_resource_reference_builder import \
+from syndicate.core.transform.terraform.tf_resource_reference_builder import \
     build_api_gateway_resource_id_ref, build_api_gateway_resource_path_ref
 from syndicate.connection import ApiGatewayConnection
 from syndicate.core.transform.terraform.converter.tf_resource_converter import \

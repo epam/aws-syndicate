@@ -1,6 +1,6 @@
 import json
 
-from core.transform.terraform.tf_resource_reference_builder import \
+from syndicate.core.transform.terraform.tf_resource_reference_builder import \
     build_policy_arn_ref
 from syndicate.connection.iam_connection import build_trusted_relationships
 from syndicate.core.transform.terraform.converter.tf_resource_converter import \
