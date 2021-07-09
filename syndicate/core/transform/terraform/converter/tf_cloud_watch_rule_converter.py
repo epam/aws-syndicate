@@ -1,5 +1,10 @@
 import json
 
+from core.resources.cloud_watch_resource import \
+    validate_cloud_watch_rule_params
+from syndicate.core.resources.cloud_watch_alarm_resource import \
+    CLOUDWATCH_ALARM_REQUIRED_PARAMS
+from syndicate.core.resources.helper import validate_params
 from syndicate.core.transform.terraform.converter.tf_resource_converter import \
     TerraformResourceConverter
 
@@ -78,6 +83,8 @@ RULE_TYPES = {
 class CloudWatchRuleConverter(TerraformResourceConverter):
 
     def convert(self, name, resource):
+        validate_cloud_watch_rule_params(name=name, meta=resource)
+
         rule_type = resource['rule_type']
         func = RULE_TYPES[rule_type]
         func(template=self.template, rule_name=name, resource=resource)

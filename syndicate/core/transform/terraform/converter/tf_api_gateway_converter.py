@@ -1,3 +1,5 @@
+from syndicate.core.resources.api_gateway_resource import API_REQUIRED_PARAMS
+from syndicate.core.resources.helper import validate_params
 from syndicate.core.transform.terraform.tf_resource_name_builder import \
     build_terraform_resource_name
 from syndicate.core.transform.terraform.tf_resource_reference_builder import \
@@ -24,6 +26,8 @@ API_GATEWAY_SUPPORTED_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE',
 class ApiGatewayConverter(TerraformResourceConverter):
 
     def convert(self, name, resource):
+        validate_params(name, resource, API_REQUIRED_PARAMS)
+
         api_name = resource.get('resource_name')
         rest_api_template = generate_tf_template_for_api_gateway(
             api_name=api_name)

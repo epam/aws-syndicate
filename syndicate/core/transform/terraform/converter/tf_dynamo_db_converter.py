@@ -1,12 +1,14 @@
+from syndicate.core.resources.helper import validate_params
+from syndicate.core.resources.dynamo_db_resource import DynamoDBResource, \
+    DYNAMODB_TABLE_REQUIRED_PARAMS, AUTOSCALING_REQUIRED_PARAMS
+from syndicate.core.transform.terraform.converter.tf_resource_converter import \
+    TerraformResourceConverter
 from syndicate.core.transform.terraform.tf_resource_name_builder import \
     build_terraform_resource_name
 from syndicate.core.transform.terraform.tf_resource_reference_builder import \
     build_role_arn_ref, build_aws_appautoscaling_target_resource_id_ref, \
     build_aws_appautoscaling_target_scalable_dimension_ref, \
     build_aws_appautoscaling_target_service_namespace_ref
-from syndicate.core.resources.dynamo_db_resource import DynamoDBResource
-from syndicate.core.transform.terraform.converter.tf_resource_converter import \
-    TerraformResourceConverter
 
 
 class DynamoDbConverter(TerraformResourceConverter):
@@ -28,6 +30,8 @@ class DynamoDbConverter(TerraformResourceConverter):
                                type=attr_type))
 
     def convert(self, name, resource):
+        validate_params(name, resource, DYNAMODB_TABLE_REQUIRED_PARAMS)
+
         hash_key_name = resource.get('hash_key_name')
         hash_key_type = resource.get('hash_key_type')
         sort_key_name = resource.get('sort_key_name')
@@ -60,6 +64,8 @@ class DynamoDbConverter(TerraformResourceConverter):
 
         autoscaling = resource.get('autoscaling', [])
         for aut in autoscaling:
+            validate_params(name, aut, AUTOSCALING_REQUIRED_PARAMS)
+
             max_capacity = str(aut.get('max_capacity'))
             min_capacity = str(aut.get('min_capacity'))
             dimension = aut.get('dimension')

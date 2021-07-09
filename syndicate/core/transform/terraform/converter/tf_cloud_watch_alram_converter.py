@@ -1,3 +1,6 @@
+from syndicate.core.resources.cloud_watch_alarm_resource import \
+    CLOUDWATCH_ALARM_REQUIRED_PARAMS
+from syndicate.core.resources.helper import validate_params
 from syndicate.core.transform.terraform.tf_resource_reference_builder import \
     build_sns_topic_arn_ref
 from syndicate.core.transform.terraform.converter.tf_resource_converter import \
@@ -7,6 +10,8 @@ from syndicate.core.transform.terraform.converter.tf_resource_converter import \
 class CloudWatchAlarmConverter(TerraformResourceConverter):
 
     def convert(self, name, resource):
+        validate_params(name, resource, CLOUDWATCH_ALARM_REQUIRED_PARAMS)
+
         metric_name = resource.get('metric_name')
         period = resource.get('period')
         evaluation_periods = resource.get('evaluation_periods')
