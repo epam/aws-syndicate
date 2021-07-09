@@ -17,7 +17,7 @@ import re
 
 
 def is_arn(line):
-    return line.startswith('arn:')
+    return isinstance(line, str) and line.startswith('arn:')
 
 
 def to_logic_name(resource_name):
