@@ -1,8 +1,12 @@
+from core.transform.terraform.tf_resource_name_builder import \
+    build_terraform_resource_name
+from core.transform.terraform.tf_resource_reference_builder import \
+    build_role_arn_ref, build_aws_appautoscaling_target_resource_id_ref, \
+    build_aws_appautoscaling_target_scalable_dimension_ref, \
+    build_aws_appautoscaling_target_service_namespace_ref
 from syndicate.core.resources.dynamo_db_resource import DynamoDBResource
 from syndicate.core.transform.terraform.converter.tf_resource_converter import \
     TerraformResourceConverter
-from syndicate.core.transform.terraform.tf_transform_helper import \
-    build_role_arn_ref
 
 
 class DynamoDbConverter(TerraformResourceConverter):
@@ -62,7 +66,8 @@ class DynamoDbConverter(TerraformResourceConverter):
             resource_name = aut.get('resource_name')
             role_name = aut.get('role_name')
 
-            tf_target_resource_name = f'{name}_scalable_target'
+            tf_target_resource_name = build_terraform_resource_name(name,
+                                                                    'scalable_target')
             resource_id = DynamoDBResource.build_res_id(dimension=dimension,
                                                         resource_name=resource_name,
                                                         table_name=name)
@@ -196,9 +201,12 @@ def dynamo_db_autoscaling_target_policy(target_value,
                                         dimensions=None, statistic=None,
                                         unit=None, scale_out_cooldown=None,
                                         scale_in_cooldown=None):
-    resource_id = '${aws_appautoscaling_target.' + target_name + '.resource_id}'
-    scalable_dimension = '${aws_appautoscaling_target.' + target_name + '.scalable_dimension}'
-    service_namespace = '${aws_appautoscaling_target.' + target_name + '.service_namespace}'
+    resource_id = build_aws_appautoscaling_target_resource_id_ref(
+        target_name=target_name)
+    scalable_dimension = build_aws_appautoscaling_target_scalable_dimension_ref(
+        target_name=target_name)
+    service_namespace = build_aws_appautoscaling_target_service_namespace_ref(
+        target_name=target_name)
 
     resource = {
         'name': f'dynamodb-read-capacity-utilization-{resource_id}',

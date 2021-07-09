@@ -1,8 +1,10 @@
+from core.transform.terraform.tf_resource_name_builder import \
+    build_terraform_resource_name
+from core.transform.terraform.tf_resource_reference_builder import \
+    build_role_name_ref, build_instance_profile_arn_ref
 from syndicate.core.resources.batch_compenv_resource import DEFAULT_STATE
 from syndicate.core.transform.terraform.converter.tf_resource_converter import \
     TerraformResourceConverter
-from syndicate.core.transform.terraform.tf_transform_helper import \
-    build_role_name_ref, build_instance_profile_arn_ref
 
 ECS_POLICY_ARN = 'arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role'
 
@@ -49,7 +51,7 @@ class BatchComputeEnvConverter(TerraformResourceConverter):
 
 def aws_iam_role_policy_attachment(role_name):
     resource = {
-        f'{role_name}_policy_attachment':
+        build_terraform_resource_name(role_name, 'policy_attachment'):
             {
                 "policy_arn": ECS_POLICY_ARN,
                 "role": build_role_name_ref(role_name)

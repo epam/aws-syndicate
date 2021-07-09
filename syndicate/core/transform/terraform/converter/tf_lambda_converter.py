@@ -1,5 +1,14 @@
 import json
 
+from core.transform.terraform.tf_resource_name_builder import \
+    build_terraform_resource_name
+from core.transform.terraform.tf_resource_reference_builder import \
+    build_ref_to_lambda_layer_arn, build_function_arn_ref, \
+    build_dynamo_db_stream_arn_ref, build_cloud_watch_event_rule_name_ref, \
+    build_sns_topic_arn_ref, build_kinesis_stream_arn_ref, build_role_id_ref, \
+    build_sqs_queue_arn_ref, build_bucket_id_ref, build_bucket_arn_ref, \
+    build_function_name_ref, build_lambda_version_ref, \
+    build_lambda_alias_name_ref, build_role_arn_ref
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.cloud_watch_connection import \
     get_lambda_log_group_name
@@ -7,13 +16,6 @@ from syndicate.core.resources.lambda_resource import LAMBDA_MAX_CONCURRENCY, \
     PROVISIONED_CONCURRENCY
 from syndicate.core.transform.terraform.converter.tf_resource_converter import \
     TerraformResourceConverter
-from syndicate.core.transform.terraform.tf_transform_helper import \
-    build_ref_to_lambda_layer_arn, build_function_arn_ref, build_role_arn_ref, \
-    build_function_name_ref, build_lambda_version_ref, \
-    build_lambda_alias_name_ref, build_cloud_watch_event_rule_name_ref, \
-    build_role_id_ref, build_sns_topic_arn_ref, \
-    build_bucket_id_ref, build_bucket_arn_ref, build_dynamo_db_stream_arn_ref, \
-    build_kinesis_stream_arn_ref, build_sqs_queue_arn_ref
 
 _LOG = get_logger(
     'syndicate.core.transform.terraform.converter.lambda_converter')
@@ -133,7 +135,8 @@ class LambdaConverter(TerraformResourceConverter):
 
         stream_arn = build_dynamo_db_stream_arn_ref(table_name=table_name)
 
-        trigger_name = f'{resource_name}_{event_source_res_type}'
+        trigger_name = build_terraform_resource_name(resource_name,
+                                                     event_source_res_type)
         event_source = dynamodb_event_source(resource_name=trigger_name,
                                              starting_position=starting_position,
                                              function_arn_ref=resource_ref,
@@ -150,7 +153,8 @@ class LambdaConverter(TerraformResourceConverter):
             target_rule=target_rule)
         resource_ref = build_function_arn_ref(function_name=resource_name)
 
-        trigger_name = f'{resource_name}_{event_source_res_type}'
+        trigger_name = build_terraform_resource_name(resource_name,
+                                                     event_source_res_type)
         event_source = cloud_watch_trigger(resource_name=trigger_name,
                                            rule_ref=rule_ref,
                                            resource_arn_ref=resource_ref)
@@ -163,7 +167,9 @@ class LambdaConverter(TerraformResourceConverter):
         target_bucket = trigger_meta['target_bucket']
         events = trigger_meta['s3_events']
 
-        lambda_permission_name = f'{target_bucket}_{resource_name}_permission'
+        lambda_permission_name = build_terraform_resource_name(target_bucket,
+                                                               resource_name,
+                                                               'permission')
         lambda_permission = aws_lambda_permission(
             tf_resource_name=lambda_permission_name,
             function_name=resource_name,
@@ -185,7 +191,8 @@ class LambdaConverter(TerraformResourceConverter):
         topic_name = trigger_meta['target_topic']
 
         lambda_name_ref = build_function_arn_ref(function_name=resource_name)
-        trigger_name = f'{resource_name}_{event_source_res_type}'
+        trigger_name = build_terraform_resource_name(resource_name,
+                                                     event_source_res_type)
         topic_arn_ref = build_sns_topic_arn_ref(sns_topic=topic_name)
         topic_subscription = aws_sns_topic_subscription(
             resource_name=trigger_name,

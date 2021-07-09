@@ -1,9 +1,9 @@
 import json
 
+from core.transform.terraform.tf_resource_reference_builder import \
+    build_role_arn_ref
 from syndicate.core.transform.terraform.converter.tf_resource_converter import \
     TerraformResourceConverter
-from syndicate.core.transform.terraform.tf_transform_helper import \
-    build_role_arn_ref
 
 
 class BatchJobDefConverter(TerraformResourceConverter):

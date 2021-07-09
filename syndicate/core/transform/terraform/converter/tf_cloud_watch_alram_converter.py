@@ -1,4 +1,4 @@
-from syndicate.core.transform.terraform.tf_transform_helper import \
+from core.transform.terraform.tf_resource_reference_builder import \
     build_sns_topic_arn_ref
 from syndicate.core.transform.terraform.converter.tf_resource_converter import \
     TerraformResourceConverter

@@ -22,12 +22,16 @@ def build_authorizer_id_ref(authorizer_name):
     return '${aws_api_gateway_authorizer.' + authorizer_name + '.id}'
 
 
-def build_method_name_reference(method_name):
+def build_api_gateway_method_name_reference(method_name):
     return '${aws_api_gateway_method.' + method_name + '.http_method}'
 
 
-def build_resource_id_ref(resource_name):
+def build_api_gateway_resource_id_ref(resource_name):
     return '${aws_api_gateway_resource.' + resource_name + '.id}'
+
+
+def build_api_gateway_resource_path_ref(resource_name):
+    return '${aws_api_gateway_resource.' + resource_name + '.path}'
 
 
 def build_rest_api_id_ref(api_name):
@@ -112,3 +116,15 @@ def build_sqs_queue_arn_ref(queue_name):
 
 def build_sqs_queue_id_ref(queue_name):
     return '${aws_sqs_queue.' + queue_name + '.id}'
+
+
+def build_aws_appautoscaling_target_resource_id_ref(target_name):
+    return '${aws_appautoscaling_target.' + target_name + '.resource_id}'
+
+
+def build_aws_appautoscaling_target_scalable_dimension_ref(target_name):
+    return '${aws_appautoscaling_target.' + target_name + '..scalable_dimension}'
+
+
+def build_aws_appautoscaling_target_service_namespace_ref(target_name):
+    return '${aws_appautoscaling_target.' + target_name + '.service_namespace}'

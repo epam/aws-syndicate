@@ -1,9 +1,11 @@
 import json
 
+from core.transform.terraform.tf_resource_name_builder import \
+    build_terraform_resource_name
+from core.transform.terraform.tf_resource_reference_builder import \
+    build_sqs_queue_id_ref
 from syndicate.core.transform.terraform.converter.tf_resource_converter import \
     TerraformResourceConverter
-from syndicate.core.transform.terraform.tf_transform_helper import \
-    build_sqs_queue_id_ref
 
 
 class SQSQueueConverter(TerraformResourceConverter):
@@ -78,7 +80,7 @@ class SQSQueueConverter(TerraformResourceConverter):
 
 def aws_sqs_queue_policy(queue_name, policy):
     resource = {
-        f'{queue_name}_policy': {
+        build_terraform_resource_name(queue_name, 'policy'): {
             'queue_url': build_sqs_queue_id_ref(queue_name=queue_name),
             'policy': policy
         }

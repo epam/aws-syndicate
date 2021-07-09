@@ -1,12 +1,15 @@
+from core.transform.terraform.tf_resource_name_builder import \
+    build_terraform_resource_name
+from core.transform.terraform.tf_resource_reference_builder import \
+    build_api_gateway_resource_id_ref, build_api_gateway_resource_path_ref
 from syndicate.connection import ApiGatewayConnection
 from syndicate.core.transform.terraform.converter.tf_resource_converter import \
     TerraformResourceConverter
-from syndicate.core.transform.terraform.tf_transform_helper import \
+from syndicate.core.transform.terraform.tf_resource_reference_builder import \
     build_function_invoke_arn_ref, build_authorizer_id_ref, \
-    build_method_name_reference, build_function_name_ref, \
+    build_api_gateway_method_name_reference, build_function_name_ref, \
     build_rest_api_id_ref, build_api_gateway_root_resource_id_ref, \
-    build_api_gateway_deployment_id_ref, \
-    build_resource_id_ref
+    build_api_gateway_deployment_id_ref
 
 NONE_AUTH = 'NONE'
 CUSTOM_AUTH = 'CUSTOM'
@@ -42,8 +45,9 @@ class ApiGatewayConverter(TerraformResourceConverter):
                 if method_meta:
                     resource_name = res_name.replace('/', '')
 
-                    method_name = f'{resource_name}-{http_method}'
-                    method_names.append(method_name)
+                    tf_method_resource_name = build_terraform_resource_name(
+                        resource_name, http_method)
+                    method_names.append(tf_method_resource_name)
 
                     authorization_type = method_meta.get('authorization_type')
                     if authorization_type not in ['NONE', 'AWS_IAM']:
@@ -62,38 +66,41 @@ class ApiGatewayConverter(TerraformResourceConverter):
                         resource_name=resource_name,
                         rest_api=api_name,
                         authorization=authorization_type,
-                        method_name=method_name,
+                        method_name=tf_method_resource_name,
                         request_parameters=method_request_parameters,
                         authorizer_id=authorizer_id)
                     self.template.add_aws_api_gateway_method(
                         meta=method_template)
 
                     integration_type = method_meta.get('integration_type')
-                    integration_name = f'{resource_name}_{http_method}_integration'
+                    integration_name = build_terraform_resource_name(
+                        resource_name, http_method)
                     integration_names.append(integration_name)
                     if integration_type:
                         if integration_type == 'lambda':
                             self._create_lambda_integration(
                                 method_meta=method_meta,
-                                method_name=method_name, api_name=api_name,
+                                method_name=tf_method_resource_name,
+                                api_name=api_name,
                                 integration_name=integration_name,
                                 resource_name=resource_name)
                         elif integration_type == 'service':
                             self._create_service_integration(
                                 resource_name=resource_name,
                                 method_meta=method_meta,
-                                method_name=method_name, api_name=api_name,
+                                method_name=tf_method_resource_name,
+                                api_name=api_name,
                                 integration_name=integration_name)
                         elif integration_type == 'mock':
                             self._create_mock_integration(
                                 method_meta=method_meta,
                                 resource_name=resource_name, api_name=api_name,
                                 integration_name=integration_name,
-                                method_name=method_name)
+                                method_name=tf_method_resource_name)
                         elif integration_type == 'http':
                             self._create_http_integration(
                                 method_meta=method_meta,
-                                method_name=method_name,
+                                method_name=tf_method_resource_name,
                                 integration_name=integration_name,
                                 resource_name=resource_name,
                                 api_name=api_name)
@@ -106,7 +113,7 @@ class ApiGatewayConverter(TerraformResourceConverter):
                             status_code=status_code,
                             api_name=api_name,
                             http_method=http_method,
-                            method_name=method_name)
+                            method_name=tf_method_resource_name)
                         self.template.add_aws_api_gateway_method_response(
                             meta=method_response)
 
@@ -123,7 +130,7 @@ class ApiGatewayConverter(TerraformResourceConverter):
                             status_code=status_code,
                             response_template=response_templates,
                             http_method=http_method,
-                            method_name=method_name,
+                            method_name=tf_method_resource_name,
                             integration=integration_name,
                             selection_pattern=error_regex)
                         self.template.add_aws_api_gateway_integration_response(
@@ -275,11 +282,13 @@ class ApiGatewayConverter(TerraformResourceConverter):
             meta=integration)
 
     def _get_api_source_arn(self, rest_api_name, method_name, resource_name):
-        rest_api_id = '${aws_api_gateway_rest_api.' + rest_api_name + '.id}'
+        rest_api_id = build_rest_api_id_ref(api_name=rest_api_name)
         region = '${' + self.config.region + '}'
         account_id = '${' + self.config.accountId + '}'
-        method = '${aws_api_gateway_method.' + method_name + '.http_method}'
-        resource = '${aws_api_gateway_resource.' + resource_name + '.path}'
+        method = build_api_gateway_method_name_reference(
+            method_name=method_name)
+        resource = build_api_gateway_resource_path_ref(
+            resource_name=resource_name)
         return f'arn:aws:execute-api:{region}:{account_id}:{rest_api_id}/*/{method}{resource}'
 
     def _get_lambda_function_uri(self, lambda_name):
@@ -323,9 +332,11 @@ def get_api_gateway_resource(path_part, rest_api):
 
 def api_gateway_method_response(method_name, status_code, http_method,
                                 resource_name, api_name):
-    response_name = f'{resource_name}_{http_method}_{status_code}_method_response'
-    method = build_method_name_reference(method_name=method_name)
-    resource_id = build_resource_id_ref(resource_name=resource_name)
+    response_name = build_terraform_resource_name(resource_name, http_method,
+                                                  status_code)
+    method = build_api_gateway_method_name_reference(method_name=method_name)
+    resource_id = build_api_gateway_resource_id_ref(
+        resource_name=resource_name)
     rest_api_id = build_rest_api_id_ref(api_name=api_name)
     resource = {
         response_name:
@@ -348,9 +359,10 @@ def create_api_gateway_integration(integration_name, api_name,
                                    passthrough_behavior=None,
                                    credentials=None,
                                    cache_key_parameters=None):
-    resource_id = build_resource_id_ref(resource_name=resource_name)
+    resource_id = build_api_gateway_resource_id_ref(
+        resource_name=resource_name)
     rest_api_id = build_rest_api_id_ref(api_name=api_name)
-    http_method = build_method_name_reference(method_name)
+    http_method = build_api_gateway_method_name_reference(method_name)
 
     integration = {
         "http_method": http_method,
@@ -420,9 +432,12 @@ def create_api_gateway_integration_response(resource_name, api_name,
                                             http_method, method_name,
                                             integration,
                                             selection_pattern=None):
-    integration_response_name = f'{resource_name}_{http_method}_{status_code}_integration_response'
-    method = build_method_name_reference(method_name)
-    resource_id = build_resource_id_ref(resource_name=resource_name)
+    integration_response_name = build_terraform_resource_name(resource_name,
+                                                              http_method,
+                                                              status_code)
+    method = build_api_gateway_method_name_reference(method_name)
+    resource_id = build_api_gateway_resource_id_ref(
+        resource_name=resource_name)
     rest_api_id = build_rest_api_id_ref(api_name=api_name)
     resource = {
         integration_response_name: [
@@ -446,8 +461,9 @@ def get_api_gateway_method(http_method, resource_name, rest_api,
                            authorization=None,
                            authorizer_id=None,
                            request_parameters=None):
-    resource_id = '${aws_api_gateway_resource.' + resource_name + '.id}'
-    rest_api_id = '${aws_api_gateway_rest_api.' + rest_api + '.id}'
+    resource_id = build_api_gateway_resource_id_ref(
+        resource_name=resource_name)
+    rest_api_id = build_rest_api_id_ref(api_name=rest_api)
 
     method_meta = {
         "authorization": authorization,
