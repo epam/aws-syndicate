@@ -1,7 +1,7 @@
-from syndicate.core.transform.terraform.tf_resource_reference_builder import \
-    build_cognito_identity_pool_id, build_role_arn_ref
 from syndicate.core.transform.terraform.converter.tf_resource_converter import \
     TerraformResourceConverter
+from syndicate.core.transform.terraform.tf_resource_reference_builder import \
+    build_cognito_identity_pool_id, build_role_arn_ref
 
 
 class CognitoConverter(TerraformResourceConverter):
@@ -67,14 +67,14 @@ def aws_cognito_identity_pool_attachment(identity_pool_name, authenticated,
         "identity_pool_id": identity_pool_id_ref
     }
 
-    roles = []
+    roles = {}
     if authenticated:
         auth_role_ref = build_role_arn_ref(role_name=authenticated)
-        roles.append({'authenticated': auth_role_ref})
+        roles['authenticated'] = auth_role_ref
 
     if unauthenticated:
         unauth_role_ref = build_role_arn_ref(role_name=unauthenticated)
-        roles.append({'unauthenticated': unauth_role_ref})
+        roles['unauthenticated']: unauth_role_ref
 
     if roles:
         attachment.update({'roles': roles})

@@ -11,6 +11,8 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
+from syndicate.core.transform.terraform.converter.tf_lambda_layer_converter import \
+    LambdaLayerConverter
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.transform.build_meta_transformer import \
     BuildMetaTransformer
@@ -149,7 +151,7 @@ class TerraformTransformer(BuildMetaTransformer):
 
     def _transform_lambda_layer(self, name, resource):
         self.convert_resources(resource=resource,
-                               converter_type=BatchJobDefConverter,
+                               converter_type=LambdaLayerConverter,
                                name=name)
 
     def convert_resources(self, name, resource, converter_type):
