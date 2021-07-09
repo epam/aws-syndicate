@@ -14,37 +14,37 @@
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.transform.build_meta_transformer import \
     BuildMetaTransformer
-from syndicate.core.transform.terraform.converter.api_gateway_converter import \
+from syndicate.core.transform.terraform.converter.tf_api_gateway_converter import \
     ApiGatewayConverter
-from syndicate.core.transform.terraform.converter.batch_compenv_converter import \
+from syndicate.core.transform.terraform.converter.tf_batch_compenv_converter import \
     BatchComputeEnvConverter
-from syndicate.core.transform.terraform.converter.batch_jobdef_converter import \
+from syndicate.core.transform.terraform.converter.tf_batch_jobdef_converter import \
     BatchJobDefConverter
-from syndicate.core.transform.terraform.converter.batch_jobqueue_converter import \
+from syndicate.core.transform.terraform.converter.tf_batch_jobqueue_converter import \
     BatchJobQueueEnvConverter
-from syndicate.core.transform.terraform.converter.cloud_watch_alram_converter import \
+from syndicate.core.transform.terraform.converter.tf_cloud_watch_alram_converter import \
     CloudWatchAlarmConverter
-from syndicate.core.transform.terraform.converter.cloud_watch_rule_converter import \
+from syndicate.core.transform.terraform.converter.tf_cloud_watch_rule_converter import \
     CloudWatchRuleConverter
-from syndicate.core.transform.terraform.converter.cognito_converter import \
+from syndicate.core.transform.terraform.converter.tf_cognito_converter import \
     CognitoConverter
-from syndicate.core.transform.terraform.converter.dynamo_db_converter import \
+from syndicate.core.transform.terraform.converter.tf_dynamo_db_converter import \
     DynamoDbConverter
-from syndicate.core.transform.terraform.converter.iam_policy_converter import \
+from syndicate.core.transform.terraform.converter.tf_iam_policy_converter import \
     IamPolicyConverter
-from syndicate.core.transform.terraform.converter.iam_role_converter import \
+from syndicate.core.transform.terraform.converter.tf_iam_role_converter import \
     IamRoleConverter
-from syndicate.core.transform.terraform.converter.kinesis_stream_converter import \
+from syndicate.core.transform.terraform.converter.tf_kinesis_stream_converter import \
     KinesisStreamConverter
-from syndicate.core.transform.terraform.converter.lambda_converter import \
+from syndicate.core.transform.terraform.converter.tf_lambda_converter import \
     LambdaConverter
-from syndicate.core.transform.terraform.converter.s3_bucket_converter import \
+from syndicate.core.transform.terraform.converter.tf_s3_bucket_converter import \
     S3BucketConverter
-from syndicate.core.transform.terraform.converter.sns_app_converter import \
+from syndicate.core.transform.terraform.converter.tf_sns_app_converter import \
     SNSApplicationConverter
-from syndicate.core.transform.terraform.converter.sns_topic_converter import \
+from syndicate.core.transform.terraform.converter.tf_sns_topic_converter import \
     SNSTopicConverter
-from syndicate.core.transform.terraform.converter.sqs_converter import \
+from syndicate.core.transform.terraform.converter.tf_sqs_converter import \
     SQSQueueConverter
 from syndicate.core.transform.terraform.terraform_template import \
     TerraformTemplate
