@@ -121,10 +121,10 @@ class CloudFormationTransformer(BuildMetaTransformer):
             converter_type=CfBatchComputeEnvironmentConverter)
 
     def _transform_batch_jobqueue(self, name, resource):
-        pass
+        raise NotImplementedError()
 
     def _transform_batch_jobdef(self, name, resource):
-        pass
+        raise NotImplementedError()
 
     def convert_resources(self, name, resource, converter_type):
         converter = converter_type(

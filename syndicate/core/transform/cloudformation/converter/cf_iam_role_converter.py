@@ -33,8 +33,8 @@ class CfIamRoleConverter(CfResourceConverter):
         self.template.add_resource(role)
 
         instance_profile = meta.get('instance_profile')
-        if instance_profile and instance_profile.lower() == 'true':
-            self._convert_instance_profile(profile_name=name)
+        if instance_profile and str(instance_profile).lower() == 'true':
+            self._convert_instance_profile(role_name=name)
 
     def _prepare_policy_arns(self, meta):
         custom_policies = meta.get('custom_policies', [])
@@ -61,11 +61,11 @@ class CfIamRoleConverter(CfResourceConverter):
             trusted_relationships=trust_rltn)
         return trusted_relationships
 
-    def _convert_instance_profile(self, profile_name):
-        logic_name = to_logic_name('IAMInstanceProfile', profile_name)
+    def _convert_instance_profile(self, role_name):
+        logic_name = to_logic_name('IAMInstanceProfile', role_name)
         instance_profile = iam.InstanceProfile(logic_name)
-        instance_profile.InstanceProfileName = profile_name
-        instance_profile.Roles = [Ref(logic_name)]
+        instance_profile.InstanceProfileName = role_name
+        instance_profile.Roles = [Ref(iam_role_logic_name(role_name))]
         self.template.add_resource(instance_profile)
 
     @staticmethod
