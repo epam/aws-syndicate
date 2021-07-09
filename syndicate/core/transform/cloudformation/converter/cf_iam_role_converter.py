@@ -68,11 +68,13 @@ class CfIamRoleConverter(CfResourceConverter):
         self.template.add_resource(instance_profile)
 
     @staticmethod
-    def attach_inline_policy(role, policy_name, policy_document):
-        role.Policies.append(iam.Policy(
-            PolicyName=policy_name,
-            PolicyDocument=policy_document
-        ))
+    def convert_inline_policy(role, policy_name, policy_document):
+        logic_name = to_logic_name('IAMPolicy{}'.format(policy_name))
+        policy = iam.PolicyType(logic_name)
+        policy.PolicyDocument = policy_document
+        policy.PolicyName = policy_name
+        policy.Roles = [role.ref()]
+        return policy
 
     @staticmethod
     def attach_managed_policy(role, policy):

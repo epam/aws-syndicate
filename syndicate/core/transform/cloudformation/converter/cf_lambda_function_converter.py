@@ -27,6 +27,7 @@ from syndicate.core.resources.lambda_resource import \
      DYNAMODB_TRIGGER_REQUIRED_PARAMS, SQS_TRIGGER_REQUIRED_PARAMS,
      CLOUD_WATCH_TRIGGER_REQUIRED_PARAMS, S3_TRIGGER_REQUIRED_PARAMS,
      SNS_TRIGGER_REQUIRED_PARAMS, KINESIS_TRIGGER_REQUIRED_PARAMS)
+from syndicate.core.resources.s3_resource import S3Resource
 from .cf_cloudwatch_rule_converter import attach_rule_target
 from .cf_dynamodb_table_converter import CfDynamoDbTableConverter
 from .cf_iam_role_converter import CfIamRoleConverter
@@ -150,12 +151,13 @@ class CfLambdaFunctionConverter(CfResourceConverter):
 
         if not CfDynamoDbTableConverter.is_stream_enabled(table):
             CfDynamoDbTableConverter.configure_table_stream(table)
-        self._add_event_source_mapping(
+        self.template.add_resource(self._event_source_mapping(
             lambda_arn=lambda_arn,
             lambda_name=lambda_name,
             event_source_arn=table.get_att('StreamArn'),
             event_source_name=table_name,
-            trigger_meta=trigger_meta)
+            batch_size=trigger_meta['batch_size'],
+            starting_position='LATEST'))
 
     def _create_sqs_trigger_from_meta(self, lambda_name, lambda_arn, role,
                                       trigger_meta):
@@ -166,12 +168,12 @@ class CfLambdaFunctionConverter(CfResourceConverter):
         if not target_queue:
             _LOG.error('Queue {} does not exist'.format(target_queue))
             return
-        self._add_event_source_mapping(
+        self.template.add_resource(self._event_source_mapping(
             lambda_arn=lambda_arn,
             lambda_name=lambda_name,
             event_source_arn=target_queue.get_att('Arn'),
             event_source_name=target_queue_name,
-            trigger_meta=trigger_meta)
+            batch_size=trigger_meta['batch_size']))
 
     def _create_cloud_watch_trigger_from_meta(self, lambda_name, lambda_arn,
                                               role, trigger_meta):
@@ -204,9 +206,10 @@ class CfLambdaFunctionConverter(CfResourceConverter):
             lambda_arn=lambda_arn,
             lambda_name=lambda_name,
             principal='s3',
-            source_arn=target_bucket.get_att('Arn'),
+            source_arn=S3Resource.get_bucket_arn(target_bucket_name),
             permission_qualifier=target_bucket_name
         )
+        target_bucket.DependsOn = permission
         self.template.add_resource(permission)
         CfS3Converter.configure_event_source_for_lambda(
             bucket=target_bucket,
@@ -278,32 +281,34 @@ class CfLambdaFunctionConverter(CfResourceConverter):
             ],
             "Version": "2012-10-17"
         }
-        CfIamRoleConverter.attach_inline_policy(
+        policy = CfIamRoleConverter.convert_inline_policy(
             role=role,
             policy_name=policy_name,
             policy_document=policy_document)
-        self._add_event_source_mapping(
+        self.template.add_resource(policy)
+        event_mapping = self._event_source_mapping(
             lambda_arn=lambda_arn,
             lambda_name=lambda_name,
             event_source_arn=stream.get_att('Arn'),
             event_source_name=stream_name,
-            trigger_meta=trigger_meta)
+            batch_size=trigger_meta['batch_size'],
+            starting_position=trigger_meta['starting_position'])
+        event_mapping.DependsOn = policy
+        self.template.add_resource(event_mapping)
 
-    def _add_event_source_mapping(self, lambda_arn, lambda_name,
-                                  event_source_arn, event_source_name,
-                                  trigger_meta):
-        starting_position = trigger_meta.get('starting_position')
-        if not starting_position:
-            starting_position = 'LATEST'
-
+    @staticmethod
+    def _event_source_mapping(lambda_arn, lambda_name,
+                              event_source_arn, event_source_name,
+                              batch_size, starting_position=None):
         event_source = awslambda.EventSourceMapping(to_logic_name(
             '{}{}EventSourceMapping'.format(lambda_name, event_source_name)))
-        event_source.BatchSize = trigger_meta['batch_size']
+        event_source.BatchSize = batch_size
         event_source.Enabled = True
         event_source.EventSourceArn = event_source_arn
         event_source.FunctionName = lambda_arn
-        event_source.StartingPosition = starting_position
-        self.template.add_resource(event_source)
+        if starting_position:
+            event_source.StartingPosition = starting_position
+        return event_source
 
     CREATE_TRIGGER = {
         'dynamodb_trigger': _create_dynamodb_trigger_from_meta,

@@ -31,7 +31,7 @@ class S3Resource(BaseResource):
         return self.create_pool(self._create_s3_bucket_from_meta, args)
 
     def describe_bucket(self, name, meta):
-        arn = 'arn:aws:s3:::{0}'.format(name)
+        arn = self.get_bucket_arn(name)
         acl_response = self.s3_conn.get_bucket_acl(name)
         location_response = self.s3_conn.get_bucket_location(name)
         bucket_policy = self.s3_conn.get_bucket_policy(name)
@@ -44,6 +44,10 @@ class S3Resource(BaseResource):
         return {
             arn: build_description_obj(response, name, meta)
         }
+
+    @staticmethod
+    def get_bucket_arn(name):
+        return 'arn:aws:s3:::{0}'.format(name)
 
     @unpack_kwargs
     def _create_s3_bucket_from_meta(self, name, meta):

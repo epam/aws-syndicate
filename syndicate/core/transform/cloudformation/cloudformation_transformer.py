@@ -18,8 +18,11 @@ from troposphere import Template
 from syndicate.core.transform.build_meta_transformer import \
     BuildMetaTransformer
 from .converter.cf_api_gateway_converter import CfApiGatewayConverter
+from .converter.cf_batch_compenv_converter import \
+    CfBatchComputeEnvironmentConverter
 from .converter.cf_cloudwatch_alarm_converter import CfCloudWatchAlarmConverter
 from .converter.cf_cloudwatch_rule_converter import CfCloudWatchRuleConverter
+from .converter.cf_cognito_converter import CfCognitoConverter
 from .converter.cf_dynamodb_table_converter import CfDynamoDbTableConverter
 from .converter.cf_iam_managed_policy_converter import \
     CfIamManagedPolicyConverter
@@ -85,6 +88,11 @@ class CloudFormationTransformer(BuildMetaTransformer):
                                resource=resource,
                                converter_type=CfSqsConverter)
 
+    def _transform_cognito(self, name, resource):
+        self.convert_resources(name=name,
+                               resource=resource,
+                               converter_type=CfCognitoConverter)
+
     def _transform_cloudwatch_alarm(self, name, resource):
         self.convert_resources(name=name,
                                resource=resource,
@@ -95,13 +103,22 @@ class CloudFormationTransformer(BuildMetaTransformer):
                                resource=resource,
                                converter_type=CfSqsConverter)
 
-    def _transform_dynamodb_stream(self, name, resource):
-        pass
-
     def _transform_kinesis_stream(self, name, resource):
         self.convert_resources(name=name,
                                resource=resource,
                                converter_type=CfKinesisStreamConverter)
+
+    def _transform_batch_compenv(self, name, resource):
+        self.convert_resources(
+            name=name,
+            resource=resource,
+            converter_type=CfBatchComputeEnvironmentConverter)
+
+    def _transform_batch_jobqueue(self, name, resource):
+        pass
+
+    def _transform_batch_jobdef(self, name, resource):
+        pass
 
     def convert_resources(self, name, resource, converter_type):
         converter = converter_type(

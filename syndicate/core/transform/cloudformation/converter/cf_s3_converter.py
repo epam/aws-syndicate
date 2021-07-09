@@ -67,7 +67,7 @@ class CfS3Converter(CfResourceConverter):
                     if expiration.get('Date'):
                         rule['ExpirationDate'] = expiration.get('Date')
                     if expiration.get('Days'):
-                        rule['ExpirationInDays'] = expiration.get('Date')
+                        rule['ExpirationInDays'] = expiration.get('Days')
                     delete_marker = expiration.get('ExpiredObjectDeleteMarker')
                     if delete_marker:
                         rule['ExpiredObjectDeleteMarker'] = delete_marker
@@ -89,19 +89,22 @@ class CfS3Converter(CfResourceConverter):
             cors_rules = []
             for rule in cors_configuration:
                 # converting a rule to the expected format
-                for key in rule.keys():
+                for key in list(rule.keys()):
+                    new_key = key
                     if key == 'ID':
                         rule['Id'] = rule.pop(key)
                         continue
                     elif key == 'ExposeHeaders':
-                        rule['ExposedHeaders'] = rule.pop(key)
+                        new_key = 'ExposedHeaders'
+                        rule[new_key] = rule.pop(key)
                     elif key == 'MaxAgeSeconds':
-                        rule['MaxAge'] = rule.pop(key)
-                    if isinstance(rule[key], list) \
-                            or isinstance(rule[key], int):
+                        new_key = 'MaxAge'
+                        rule[new_key] = rule.pop(key)
+                    if isinstance(rule[new_key], list) \
+                            or isinstance(rule[new_key], int):
                         pass  # expected
-                    elif isinstance(rule[key], str):
-                        rule[key] = [rule[key]]
+                    elif isinstance(rule[new_key], str):
+                        rule[new_key] = [rule[new_key]]
                     else:
                         raise AssertionError(
                             'CORS rule attribute {0} has invalid value: {1}. '
