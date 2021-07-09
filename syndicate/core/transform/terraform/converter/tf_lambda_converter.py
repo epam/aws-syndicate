@@ -12,7 +12,7 @@ from syndicate.core.resources.lambda_resource import LAMBDA_MAX_CONCURRENCY, \
 from syndicate.core.transform.terraform.converter.tf_resource_converter import \
     TerraformResourceConverter
 from syndicate.core.transform.terraform.tf_resource_name_builder import \
-    build_terraform_resource_name
+    build_terraform_resource_name, lambda_layer_name
 from syndicate.core.transform.terraform.tf_resource_reference_builder import \
     build_ref_to_lambda_layer_arn, build_function_arn_ref, \
     build_dynamo_db_stream_arn_ref, build_cloud_watch_event_rule_name_ref, \
@@ -50,6 +50,11 @@ class LambdaConverter(TerraformResourceConverter):
         layer_meta = resource.get('layers')
         if layer_meta:
             for layer_name in layer_meta:
+                layer = self.template.get_resource_by_name(
+                    lambda_layer_name(layer_name=layer_name))
+                if not layer:
+                    raise AssertionError("Lambda layer '{}' is not present "
+                                         "in build meta.".format(layer_name))
                 layer_ref = build_ref_to_lambda_layer_arn(
                     layer_name=layer_name)
                 lambda_layers_arns.append(layer_ref)
@@ -471,7 +476,7 @@ def template_for_lambda(lambda_name, role_name, handler, runtime,
                         timeout=None,
                         env_variables=None, layers=None, publish=False,
                         reserved_concurrent_executions=None,
-                        tracing_mode=None):
+                        tracing_mode=None, lambda_layers_arns=None):
     role_arn_exp = build_role_arn_ref(role_name=role_name)
 
     lambda_res = {
@@ -508,6 +513,8 @@ def template_for_lambda(lambda_name, role_name, handler, runtime,
     if reserved_concurrent_executions:
         lambda_res[
             'reserved_concurrent_executions'] = reserved_concurrent_executions
+    if lambda_layers_arns:
+        lambda_res['layers'] = lambda_layers_arns
 
     resource = {lambda_name: lambda_res}
     return resource

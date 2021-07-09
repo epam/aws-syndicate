@@ -147,6 +147,11 @@ class TerraformTransformer(BuildMetaTransformer):
                                converter_type=BatchJobDefConverter,
                                name=name)
 
+    def _transform_lambda_layer(self, name, resource):
+        self.convert_resources(resource=resource,
+                               converter_type=BatchJobDefConverter,
+                               name=name)
+
     def convert_resources(self, name, resource, converter_type):
         converter = converter_type(template=self.template, config=self.config,
                                    resources_provider=self.resources_provider)

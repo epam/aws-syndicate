@@ -3,3 +3,7 @@ def build_terraform_resource_name(*args):
     for arg in args:
         res_name.append(arg[0].upper() + arg[1:])
     return ''.join(res_name)
+
+
+def lambda_layer_name(layer_name):
+    return build_terraform_resource_name(layer_name, 'layer')
