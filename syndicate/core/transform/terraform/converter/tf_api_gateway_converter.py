@@ -1,12 +1,15 @@
+from syndicate.connection.api_gateway_connection import \
+    REQ_VALIDATOR_PARAM_NAME, \
+    REQ_VALIDATOR_PARAM_VALIDATE_BODY, REQ_VALIDATOR_PARAM_VALIDATE_PARAMS, \
+    ApiGatewayConnection
 from syndicate.core.resources.api_gateway_resource import API_REQUIRED_PARAMS
 from syndicate.core.resources.helper import validate_params
+from syndicate.core.transform.terraform.converter.tf_resource_converter import \
+    TerraformResourceConverter
 from syndicate.core.transform.terraform.tf_resource_name_builder import \
     build_terraform_resource_name
 from syndicate.core.transform.terraform.tf_resource_reference_builder import \
     build_api_gateway_resource_id_ref, build_api_gateway_resource_path_ref
-from syndicate.connection import ApiGatewayConnection
-from syndicate.core.transform.terraform.converter.tf_resource_converter import \
-    TerraformResourceConverter
 from syndicate.core.transform.terraform.tf_resource_reference_builder import \
     build_function_invoke_arn_ref, build_authorizer_id_ref, \
     build_api_gateway_method_name_reference, build_function_name_ref, \
@@ -16,7 +19,6 @@ from syndicate.core.transform.terraform.tf_resource_reference_builder import \
 NONE_AUTH = 'NONE'
 CUSTOM_AUTH = 'CUSTOM'
 AWS_IAM_AUTH = 'AWS_IAM'
-COGNITO_USER_POOLS_AUTH = 'COGNITO_USER_POOLS'
 
 API_GATEWAY_SUPPORTED_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE',
                                  'OPTIONS',
@@ -28,7 +30,7 @@ class ApiGatewayConverter(TerraformResourceConverter):
     def convert(self, name, resource):
         validate_params(name, resource, API_REQUIRED_PARAMS)
 
-        api_name = resource.get('resource_name')
+        api_name = name
         rest_api_template = generate_tf_template_for_api_gateway(
             api_name=api_name)
         self.template.add_aws_api_gateway_rest_api(meta=rest_api_template)
@@ -39,20 +41,22 @@ class ApiGatewayConverter(TerraformResourceConverter):
         integration_names = []
         resources = resource.get('resources')
         for res_name, res in resources.items():
-            api_gateway_resource = get_api_gateway_resource(path_part=res_name,
-                                                            rest_api=api_name)
-            self.template.add_aws_api_gateway_resource(
-                meta=api_gateway_resource)
+            api_gateway_resource, resource_name = self._create_api_gateway_resource(
+                path_part=res_name, api_name=api_name)
 
             for http_method in API_GATEWAY_SUPPORTED_METHODS:
                 method_meta = res.get(http_method)
                 if method_meta:
-                    resource_name = res_name.replace('/', '')
 
                     tf_method_resource_name = build_terraform_resource_name(
                         resource_name, http_method)
                     method_names.append(tf_method_resource_name)
+                    self.create_request_validator(method_meta=method_meta,
+                                                  api_name=api_name,
+                                                  resource_name=resource_name,
+                                                  http_method=http_method)
 
+                    authorizer_id = None
                     authorization_type = method_meta.get('authorization_type')
                     if authorization_type not in ['NONE', 'AWS_IAM']:
                         authorizer_id = auth_mappings.get(
@@ -152,6 +156,35 @@ class ApiGatewayConverter(TerraformResourceConverter):
                                       deployment_name=deployment_name)
             self.template.add_aws_api_gateway_stage(meta=stage)
             self.template.add_aws_api_gateway_deployment(meta=deployment)
+
+    def _create_api_gateway_resource(self, path_part, api_name):
+        resource = None
+        resource_name = None
+        parent_id = build_api_gateway_root_resource_id_ref(api_name=api_name)
+        resource_path = path_part[1:]
+        path_arr = resource_path.split('/')
+        for path in path_arr:
+            cur_resource_path = ''.join(path_arr[:path_arr.index(path) + 1])
+            api_resource_name = build_terraform_resource_name(
+                cur_resource_path, 'resource')
+            existing_resource = self.template.get_resource_by_name(
+                api_resource_name)
+            if existing_resource:
+                resource = existing_resource
+                resource_name = api_resource_name
+                continue
+            api_gateway_resource = get_api_gateway_resource(
+                path_part=path,
+                rest_api=api_name,
+                resource_name=api_resource_name,
+                parent_id=parent_id)
+            self.template.add_aws_api_gateway_resource(
+                meta=api_gateway_resource)
+            parent_id = build_api_gateway_resource_id_ref(
+                resource_name=api_resource_name)
+            resource = api_gateway_resource
+            resource_name = api_resource_name
+        return resource, resource_name
 
     def _transform_authorizers(self, resource, api_name):
         authorizer_mappings = {}
@@ -301,6 +334,50 @@ class ApiGatewayConverter(TerraformResourceConverter):
         arn = f'arn:aws:apigateway:{region}:lambda:path/2015-03-31/functions/{lambda_arn}/invocations'
         return arn
 
+    def create_request_validator(self, method_meta, resource_name, api_name,
+                                 http_method):
+        request_validator_meta = method_meta.get('request_validator')
+        if request_validator_meta:
+            validator_params = \
+                ApiGatewayConnection.get_request_validator_params(
+                    request_validator_meta)
+            validator_name = validator_params.get(REQ_VALIDATOR_PARAM_NAME)
+            validate_body = validator_params.get(
+                REQ_VALIDATOR_PARAM_VALIDATE_BODY)
+            validate_param = validator_params.get(
+                REQ_VALIDATOR_PARAM_VALIDATE_PARAMS)
+
+            tf_validator_res_name = build_terraform_resource_name(api_name,
+                                                                  resource_name,
+                                                                  http_method,
+                                                                  'Validator')
+            request_validator = aws_api_gateway_request_validator(
+                resource_name=tf_validator_res_name,
+                validator_name=validator_name,
+                validate_request_body=validate_body,
+                validate_request_parameters=validate_param,
+                rest_api_name=api_name)
+            self.template.add_aws_api_gateway_request_validator(
+                meta=request_validator)
+
+
+def aws_api_gateway_request_validator(resource_name, validator_name,
+                                      rest_api_name,
+                                      validate_request_body=None,
+                                      validate_request_parameters=None):
+    validator = {
+        'name': validator_name,
+        'rest_api_id': build_rest_api_id_ref(api_name=rest_api_name)
+    }
+    if validate_request_body:
+        validator['validate_request_body'] = validate_request_body
+    if validate_request_parameters:
+        validator['validate_request_parameters'] = validate_request_parameters
+    resource = {
+        resource_name: validator
+    }
+    return resource
+
 
 def generate_tf_template_for_api_gateway(api_name):
     resource = {
@@ -319,15 +396,13 @@ def generate_tf_template_for_api_gateway(api_name):
     return resource
 
 
-def get_api_gateway_resource(path_part, rest_api):
-    resource_name = path_part.replace('/', '')
-    parent_id = build_api_gateway_root_resource_id_ref(api_name=rest_api)
+def get_api_gateway_resource(resource_name, path_part, rest_api, parent_id):
     rest_api_id = build_rest_api_id_ref(api_name=rest_api)
     resource = {
         resource_name:
             {
                 "parent_id": parent_id,
-                "path_part": resource_name,
+                "path_part": path_part,
                 "rest_api_id": rest_api_id
             }
     }
