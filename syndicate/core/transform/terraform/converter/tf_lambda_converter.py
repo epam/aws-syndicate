@@ -243,8 +243,10 @@ class LambdaConverter(TerraformResourceConverter):
         self.template.add_aws_iam_role_policy(meta=iam_role_policy)
 
         trigger_name = f'{resource_name}_{event_source_res_type}'
-        kinesis_source_mapping(resource_name=trigger_name,
-                               kinesis_stream_arn=stream_arn)
+        source_mapping = kinesis_source_mapping(resource_name=trigger_name,
+                                                kinesis_stream_arn=stream_arn,
+                                                lambda_arn_ref=lambda_arn_ref)
+        self.template.add_aws_lambda_event_source_mapping(meta=source_mapping)
 
     def _create_sqs_trigger_from_meta(self, resource_name, trigger_meta,
                                       starting_position, role):
@@ -341,11 +343,11 @@ def aws_iam_role_policy_attachment(role_name, policy_arn_ref, role_name_ref):
     return resource
 
 
-def kinesis_source_mapping(resource_name, kinesis_stream_arn):
+def kinesis_source_mapping(resource_name, kinesis_stream_arn, lambda_arn_ref):
     resource = {
         resource_name: {
             "event_source_arn": kinesis_stream_arn,
-            "function_name": "aws_lambda_function.example.arn",
+            "function_name": lambda_arn_ref,
             "starting_position": "LATEST"
         }
     }
