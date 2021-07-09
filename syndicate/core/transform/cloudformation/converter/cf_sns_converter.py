@@ -22,7 +22,8 @@ from syndicate.core.resources.sns_resource import \
     SNS_CLOUDWATCH_TRIGGER_REQUIRED_PARAMS
 from .cf_cloudwatch_rule_converter import attach_rule_target
 from .cf_resource_converter import CfResourceConverter
-from ..cf_transform_helper import to_logic_name
+from ..cf_transform_helper import (to_logic_name, sns_topic_logic_name,
+                                   cloudwatch_rule_logic_name)
 
 
 class CfSnsConverter(CfResourceConverter):
@@ -36,7 +37,7 @@ class CfSnsConverter(CfResourceConverter):
         }
 
     def convert(self, name, meta):
-        topic = sns.Topic(to_logic_name(name))
+        topic = sns.Topic(sns_topic_logic_name(name))
         topic.TopicName = name
         topic.Subscription = []
         self.template.add_resource(topic)
@@ -53,7 +54,7 @@ class CfSnsConverter(CfResourceConverter):
         required_parameters = SNS_CLOUDWATCH_TRIGGER_REQUIRED_PARAMS
         validate_params(topic.TopicName, trigger_meta, required_parameters)
         rule_name = trigger_meta['target_rule']
-        rule = self.get_resource(to_logic_name(rule_name))
+        rule = self.get_resource(cloudwatch_rule_logic_name(rule_name))
         attach_rule_target(rule=rule,
                            target_arn=topic.ref())
         topic_policy = self.allow_service_invoke_policy(
@@ -79,7 +80,7 @@ class CfSnsConverter(CfResourceConverter):
             ]
         }
         topic_policy = sns.TopicPolicy(
-            to_logic_name('{}TopicPolicy'.format(topic.title)))
+            to_logic_name('SNSTopicPolicy', topic.title))
         topic_policy.Topics = [topic.ref()]
         topic_policy.PolicyDocument = policy_document
         return topic_policy

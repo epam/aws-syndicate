@@ -20,7 +20,7 @@ from troposphere import events
 from syndicate.core.resources.cloud_watch_resource import \
     validate_cloud_watch_rule_params, get_event_bus_arn
 from .cf_resource_converter import CfResourceConverter
-from ..cf_transform_helper import to_logic_name
+from ..cf_transform_helper import cloudwatch_rule_logic_name
 
 
 def _create_schedule_rule(rule_meta, rule_res):
@@ -104,7 +104,7 @@ class CfCloudWatchRuleConverter(CfResourceConverter):
     def convert(self, name, meta):
         validate_cloud_watch_rule_params(name=name, meta=meta)
 
-        rule = events.Rule(to_logic_name(name))
+        rule = events.Rule(cloudwatch_rule_logic_name(name))
         rule.Name = name
         self.template.add_resource(rule)
 

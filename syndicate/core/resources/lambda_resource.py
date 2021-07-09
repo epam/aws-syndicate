@@ -27,6 +27,8 @@ from syndicate.core.resources.helper import (build_description_obj,
                                              validate_params,
                                              assert_required_params)
 
+LAMBDA_LAYER_REQUIRED_PARAMS = ['runtimes', 'deployment_package']
+
 DYNAMODB_TRIGGER_REQUIRED_PARAMS = ['target_table', 'batch_size']
 CLOUD_WATCH_TRIGGER_REQUIRED_PARAMS = ['target_rule']
 S3_TRIGGER_REQUIRED_PARAMS = ['target_bucket', 's3_events']
@@ -760,9 +762,7 @@ class LambdaResource(BaseResource):
         :param context: because of usage in 'update' flow
         :return:
         """
-        req_params = ['runtimes', 'deployment_package']
-
-        validate_params(name, meta, req_params)
+        validate_params(name, meta, LAMBDA_LAYER_REQUIRED_PARAMS)
 
         key = meta[S3_PATH_NAME]
         file_name = key.split('/')[-1]

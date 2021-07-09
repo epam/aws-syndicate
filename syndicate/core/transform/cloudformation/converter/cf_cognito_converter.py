@@ -27,7 +27,8 @@ class CfCognitoConverter(CfResourceConverter):
         open_id_arns = ['arn:aws:iam::{0}:oidc-provider/{1}'.format(
             account_id, n) for n in open_id_provider_names]
 
-        identity_pool = cognito.IdentityPool(to_logic_name(name))
+        logic_name = to_logic_name('CognitoIdentityPool', name)
+        identity_pool = cognito.IdentityPool(logic_name)
         identity_pool.AllowUnauthenticatedIdentities = False
         self.template.add_resource(identity_pool)
 
@@ -42,7 +43,7 @@ class CfCognitoConverter(CfResourceConverter):
         unauth_role_name = meta.get('unauth_role')
         if auth_role_name or unauth_role_name:
             role_attachment = cognito.IdentityPoolRoleAttachment(
-                to_logic_name('{}IdentityPoolRoleAttachment'.format(name)))
+                to_logic_name('CognitoIdentityPoolRoleAttachment', name))
             role_attachment.IdentityPoolId = identity_pool.ref()
             self.template.add_resource(role_attachment)
 

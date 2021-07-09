@@ -23,7 +23,7 @@ from syndicate.core.constants import \
      CLOUD_WATCH_RULE_TYPE, SQS_QUEUE_TYPE, API_GATEWAY_TYPE, SNS_TOPIC_TYPE,
      CLOUD_WATCH_ALARM_TYPE, KINESIS_STREAM_TYPE, COGNITO_TYPE,
      SNS_PLATFORM_APPLICATION_TYPE, BATCH_COMPENV_TYPE, BATCH_JOBQUEUE_TYPE,
-     BATCH_JOBDEF_TYPE)
+     BATCH_JOBDEF_TYPE, LAMBDA_LAYER_TYPE)
 
 
 class BuildMetaTransformer(object):
@@ -37,6 +37,7 @@ class BuildMetaTransformer(object):
             IAM_POLICY: self._transform_iam_managed_policy,
             IAM_ROLE: self._transform_iam_role,
             LAMBDA_TYPE: self._transform_lambda,
+            LAMBDA_LAYER_TYPE: self._transform_lambda_layer,
             DYNAMO_TABLE_TYPE: self._transform_dynamo_db_table,
             S3_BUCKET_TYPE: self._transform_s3_bucket,
             CLOUD_WATCH_RULE_TYPE: self._transform_cloud_watch_rule,
@@ -81,6 +82,10 @@ class BuildMetaTransformer(object):
 
     @abstractmethod
     def _transform_lambda(self, name, resource):
+        pass
+
+    @abstractmethod
+    def _transform_lambda_layer(self, name, resource):
         pass
 
     @abstractmethod

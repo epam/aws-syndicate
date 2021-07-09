@@ -17,7 +17,7 @@ from troposphere import sqs, GetAtt
 
 from syndicate.core.resources.sqs_resource import FIFO_REGIONS, SqsResource
 from .cf_resource_converter import CfResourceConverter
-from ..cf_transform_helper import to_logic_name
+from ..cf_transform_helper import to_logic_name, sqs_queue_logic_name
 
 
 class CfSqsConverter(CfResourceConverter):
@@ -43,7 +43,7 @@ class CfSqsConverter(CfResourceConverter):
             raise AssertionError('FIFO queue is not available in {0}.'
                                  .format(region))
 
-        queue = sqs.Queue(to_logic_name(name))
+        queue = sqs.Queue(sqs_queue_logic_name(name))
         queue.QueueName = queue_name
         self.template.add_resource(queue)
 
@@ -106,7 +106,7 @@ class CfSqsConverter(CfResourceConverter):
 
         if policy:
             queue_policy = sqs.QueuePolicy(
-                to_logic_name('{}QueuePolicy'.format(name)))
+                to_logic_name('SQSQueuePolicy', name))
             queue_policy.PolicyDocument = policy
             queue_policy.Queues = [queue.ref()]
             self.template.add_resource(queue_policy)

@@ -29,6 +29,7 @@ from .converter.cf_iam_managed_policy_converter import \
 from .converter.cf_iam_role_converter import CfIamRoleConverter
 from .converter.cf_kinesis_stream_converter import CfKinesisStreamConverter
 from .converter.cf_lambda_function_converter import CfLambdaFunctionConverter
+from .converter.cf_lambda_layer_converter import CfLambdaLayerConverter
 from .converter.cf_s3_converter import CfS3Converter
 from .converter.cf_sns_converter import CfSnsConverter
 from .converter.cf_sqs_converter import CfSqsConverter
@@ -57,6 +58,11 @@ class CloudFormationTransformer(BuildMetaTransformer):
         self.convert_resources(name=name,
                                resource=resource,
                                converter_type=CfLambdaFunctionConverter)
+
+    def _transform_lambda_layer(self, name, resource):
+        self.convert_resources(name=name,
+                               resource=resource,
+                               converter_type=CfLambdaLayerConverter)
 
     def _transform_dynamo_db_table(self, name, resource):
         self.convert_resources(name=name,

@@ -22,7 +22,8 @@ from syndicate.core.resources.batch_compenv_resource import \
      DEFAULT_SERVICE_ROLE)
 from .cf_iam_role_converter import CfIamRoleConverter
 from .cf_resource_converter import CfResourceConverter
-from ..cf_transform_helper import to_logic_name, iam_role_logic_name
+from ..cf_transform_helper import (to_logic_name, iam_role_logic_name,
+                                   iam_managed_policy_logic_name)
 
 _LOG = get_logger('syndicate.core.transform.cloudformation'
                   '.converter.cf_batch_compenv_converter')
@@ -31,7 +32,8 @@ _LOG = get_logger('syndicate.core.transform.cloudformation'
 class CfBatchComputeEnvironmentConverter(CfResourceConverter):
 
     def convert(self, name, meta):
-        comp_env = batch.ComputeEnvironment(to_logic_name(name))
+        logic_name = to_logic_name('BatchComputeEnvironment', name)
+        comp_env = batch.ComputeEnvironment(logic_name)
 
         meta['compute_environment_name'] = name
 
@@ -58,7 +60,7 @@ class CfBatchComputeEnvironmentConverter(CfResourceConverter):
                     'principal_service': 'batch'
                 })
 
-                policy = self.get_resource(to_logic_name(DEFAULT_SERVICE_ROLE))
+                policy = self.get_resource(iam_managed_policy_logic_name(DEFAULT_SERVICE_ROLE))
                 CfIamRoleConverter.attach_managed_policy(role=role, policy=policy)
             service_role = DEFAULT_SERVICE_ROLE
         role = self.get_resource(iam_role_logic_name(service_role))

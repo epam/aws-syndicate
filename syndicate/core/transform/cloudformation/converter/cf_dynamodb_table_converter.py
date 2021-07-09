@@ -24,7 +24,8 @@ from syndicate.core.resources.dynamo_db_resource import (
     DynamoDBResource)
 from syndicate.core.resources.helper import validate_params
 from .cf_resource_converter import CfResourceConverter
-from ..cf_transform_helper import to_logic_name, iam_role_logic_name, dynamodb_table_logic_name
+from ..cf_transform_helper import (to_logic_name, iam_role_logic_name,
+                                   dynamodb_table_logic_name)
 
 _LOG = get_logger('syndicate.core.transform.cloudformation.'
                   'converter.cf_dynamodb_table_converter')
@@ -154,7 +155,8 @@ class CfDynamoDbTableConverter(CfResourceConverter):
                         table_name=name)
                     scalable_target = app_scaling.ScalableTarget(
                         to_logic_name(
-                            '{}ScalableTarget'.format(resource_name)))
+                            'ApplicationAutoScalingScalableTarget',
+                            resource_name))
                     scalable_target.MaxCapacity = str(item['max_capacity'])
                     scalable_target.MinCapacity = str(item['min_capacity'])
                     scalable_target.ResourceId = resource_id
@@ -178,7 +180,8 @@ class CfDynamoDbTableConverter(CfResourceConverter):
 
                         scaling_policy = app_scaling.ScalingPolicy(
                             to_logic_name(
-                                '{}ScalingPolicy'.format(resource_name)))
+                                'ApplicationAutoScalingScalingPolicy',
+                                resource_name))
                         scaling_policy.PolicyName = policy_name
                         scaling_policy.PolicyType = 'TargetTrackingScaling'
                         scaling_policy.ResourceId = resource_id

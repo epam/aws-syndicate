@@ -20,34 +20,66 @@ def is_arn(line):
     return isinstance(line, str) and line.startswith('arn:')
 
 
-def to_logic_name(resource_name):
-    name_components = re.split('[^a-zA-Z0-9]', resource_name)
+def to_logic_name(resource_type, *parts):
     formatted = []
-    for component in name_components:
-        component_len = len(component)
-        if component_len > 1:
-            formatted.append(component[0].upper() + component[1:])
-        elif component_len == 1:
-            formatted.append(component[0].upper())
-    return ''.join(formatted)
+    for name_part in parts:
+        name_components = re.split('[^a-zA-Z0-9]', name_part)
+        for component in name_components:
+            component_len = len(component)
+            if component_len > 1:
+                formatted.append(component[0].upper() + component[1:])
+            elif component_len == 1:
+                formatted.append(component[0].upper())
+    return resource_type + ''.join(formatted)
+
+
+def iam_managed_policy_logic_name(policy_name):
+    return to_logic_name('IAMManagedPolicy', policy_name)
 
 
 def iam_role_logic_name(role_name):
-    return to_logic_name(role_name)
+    return to_logic_name('IAMRole', role_name)
+
+
+def lambda_layer_logic_name(layer_name):
+    return to_logic_name('LambdaLayerVersion', layer_name)
 
 
 def lambda_function_logic_name(function_name):
-    return to_logic_name(function_name)
+    return to_logic_name('LambdaFunction', function_name)
 
 
 def lambda_alias_logic_name(function_name, alias):
-    return to_logic_name('{}{}Alias'.format(
-        function_name, alias.capitalize()))
+    return to_logic_name('LambdaAlias', function_name, alias)
 
 
 def lambda_publish_version_logic_name(function_name):
-    return to_logic_name('{}PublishVersion'.format(function_name))
+    return to_logic_name('LambdaVersion', function_name)
 
 
 def dynamodb_table_logic_name(table_name):
-    return to_logic_name('{}Table'.format(table_name))
+    return to_logic_name('DynamoDBTable', table_name)
+
+
+def api_gateway_method_logic_name(path, method):
+    return to_logic_name('ApiGatewayMethod', path, method)
+
+
+def sns_topic_logic_name(topic_name):
+    return to_logic_name('SNSTopic', topic_name)
+
+
+def sqs_queue_logic_name(queue_name):
+    return to_logic_name('SQSQueue', queue_name)
+
+
+def s3_bucket_logic_name(bucket_name):
+    return to_logic_name('S3Bucket', bucket_name)
+
+
+def cloudwatch_rule_logic_name(rule_name):
+    return to_logic_name('EventsRule', rule_name)
+
+
+def kinesis_stream_logic_name(stream_name):
+    return to_logic_name('KinesisStream', stream_name)

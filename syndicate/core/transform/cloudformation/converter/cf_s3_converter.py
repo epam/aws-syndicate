@@ -16,7 +16,7 @@
 from troposphere import s3
 
 from .cf_resource_converter import CfResourceConverter
-from ..cf_transform_helper import to_logic_name
+from ..cf_transform_helper import to_logic_name, s3_bucket_logic_name
 
 CANNED_ACL_PARAMS_MAPPING = {
     'private': s3.Private,
@@ -33,7 +33,7 @@ CANNED_ACL_PARAMS_MAPPING = {
 class CfS3Converter(CfResourceConverter):
 
     def convert(self, name, meta):
-        bucket = s3.Bucket(to_logic_name(name))
+        bucket = s3.Bucket(s3_bucket_logic_name(name))
         bucket.BucketName = name
         self.template.add_resource(bucket)
 
@@ -48,7 +48,7 @@ class CfS3Converter(CfResourceConverter):
         policy = meta.get('policy')
         if policy:
             bucket_policy = s3.BucketPolicy(
-                to_logic_name('{}BucketPolicy'.format(bucket.title)))
+                to_logic_name('S3BucketPolicy', bucket.title))
             bucket_policy.Bucket = bucket.ref()
             bucket_policy.PolicyDocument = policy
             self.template.add_resource(bucket_policy)
