@@ -123,7 +123,7 @@ def build_aws_appautoscaling_target_resource_id_ref(target_name):
 
 
 def build_aws_appautoscaling_target_scalable_dimension_ref(target_name):
-    return '${aws_appautoscaling_target.' + target_name + '..scalable_dimension}'
+    return '${aws_appautoscaling_target.' + target_name + '.scalable_dimension}'
 
 
 def build_aws_appautoscaling_target_service_namespace_ref(target_name):
