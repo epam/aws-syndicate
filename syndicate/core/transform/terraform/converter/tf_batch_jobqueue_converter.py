@@ -1,8 +1,8 @@
-from syndicate.core.transform.terraform.tf_resource_reference_builder import \
-    build_com_env_arn
 from syndicate.core.resources.batch_jobqueue_resource import DEFAULT_STATE
 from syndicate.core.transform.terraform.converter.tf_resource_converter import \
     TerraformResourceConverter
+from syndicate.core.transform.terraform.tf_resource_reference_builder import \
+    build_com_env_arn
 
 
 class BatchJobQueueEnvConverter(TerraformResourceConverter):
@@ -26,8 +26,8 @@ def job_queue(name, state, priority, compute_environment_order):
     }
 
     com_env_order = []
+    compute_environment_order.sort(key=lambda o: o['order'], reverse=False)
     for order_def in compute_environment_order:
-        order = order_def['order']
         compute_env = order_def['compute_environment']
         com_env_order.append(build_com_env_arn(com_env_name=compute_env))
 

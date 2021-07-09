@@ -1,9 +1,9 @@
 import json
 
-from syndicate.core.transform.terraform.tf_resource_reference_builder import \
-    build_role_arn_ref
 from syndicate.core.transform.terraform.converter.tf_resource_converter import \
     TerraformResourceConverter
+from syndicate.core.transform.terraform.tf_resource_reference_builder import \
+    build_role_arn_ref
 
 
 class BatchJobDefConverter(TerraformResourceConverter):
@@ -15,9 +15,6 @@ class BatchJobDefConverter(TerraformResourceConverter):
         timeout = resource.get('timeout')
         tags = resource.get('tags')
         retry_strategy = resource.get('retry_strategy')
-        if container_properties:
-            job_role_arn = container_properties.get('job_role_arn')
-            execution_role_arn = container_properties.get('execution_role_arn')
 
         batch_job_definition = batch_job_def(job_def_name=name,
                                              job_def_type=job_definition_type,

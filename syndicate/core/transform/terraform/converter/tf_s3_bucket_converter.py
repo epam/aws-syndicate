@@ -19,20 +19,6 @@ class S3BucketConverter(TerraformResourceConverter):
                 rules.append(rule)
 
         cors_configuration = resource.get('cors')
-        if cors_configuration:
-            for rule in cors_configuration:
-                for key in rule.keys():
-                    if isinstance(rule[key], list) \
-                            or isinstance(rule[key], int):
-                        pass  # expected
-                    elif isinstance(rule[key], str):
-                        rule[key] = [rule[key]]
-                    else:
-                        raise AssertionError(
-                            'Value of CORS rule attribute {0} has invalid '
-                            'value: {1}. Should be str, int or list'.format(
-                                key, rule[key]))
-
         s3_bucket_meta = s3_bucket(bucket_name=name, acl=acl,
                                    policy=json.dumps(policy),
                                    cors_rules=cors_configuration,
