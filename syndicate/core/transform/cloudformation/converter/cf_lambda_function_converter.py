@@ -34,12 +34,13 @@ from .cf_iam_role_converter import CfIamRoleConverter
 from .cf_resource_converter import CfResourceConverter
 from .cf_s3_converter import CfS3Converter
 from .cf_sns_converter import CfSnsConverter
-from ..cf_transform_helper import (to_logic_name,
-                                   lambda_publish_version_logic_name,
-                                   lambda_alias_logic_name,
-                                   lambda_function_logic_name,
-                                   iam_role_logic_name,
-                                   dynamodb_table_logic_name)
+from ..cf_transform_helper import \
+    (to_logic_name, lambda_publish_version_logic_name,
+     lambda_alias_logic_name, lambda_function_logic_name,
+     iam_role_logic_name, dynamodb_table_logic_name,
+     sqs_queue_logic_name, cloudwatch_rule_logic_name,
+     s3_bucket_logic_name, sns_topic_logic_name,
+     kinesis_stream_logic_name, lambda_layer_logic_name)
 
 _LOG = get_logger('syndicate.core.transform.cloudformation'
                   '.converter.cf_lambda_function_converter')
@@ -61,8 +62,8 @@ class CfLambdaFunctionConverter(CfResourceConverter):
             raise AssertionError(
                 'Role {} does not exist; '
                 'Lambda {} failed to be configured.'.format(role_name, name))
-        lambda_function.Role = GetAtt(to_logic_name(meta['iam_role_name']),
-                                      'Arn')
+        lambda_function.Role = \
+            GetAtt(iam_role_logic_name(meta['iam_role_name']), 'Arn')
         lambda_function.Runtime = meta['runtime'].lower()
         lambda_function.Timeout = meta['timeout']
 
@@ -83,7 +84,12 @@ class CfLambdaFunctionConverter(CfResourceConverter):
         if layer_meta:
             lambda_layers = []
             for layer_name in layer_meta:
-                lambda_layers.append(Ref(layer_name))
+                layer_logic_name = lambda_layer_logic_name(layer_name)
+                layer = self.get_resource(layer_logic_name)
+                if not layer:
+                    raise AssertionError("Lambda layer '{}' is not present "
+                                         "in build meta.".format(layer_name))
+                lambda_layers.append(layer.ref())
             lambda_function.Layers = lambda_layers
 
         vpc_sub_nets = meta.get('subnet_ids')
@@ -111,14 +117,14 @@ class CfLambdaFunctionConverter(CfResourceConverter):
         lambda_version = None
         if publish_version:
             lambda_version = self._lambda_version(
-                lambda_name=lambda_function.title,
+                function=lambda_function,
                 provisioned_concurrency=provisioned_concur)
 
         alias = meta.get('alias')
         lambda_alias = None
         if alias:
             lambda_alias = self._lambda_alias(
-                lambda_name=lambda_function.title, alias=alias,
+                function=lambda_function, alias=alias,
                 version_logic_name=lambda_version.title,
                 provisioned_concurrency=provisioned_concur)
 
@@ -129,17 +135,18 @@ class CfLambdaFunctionConverter(CfResourceConverter):
                 self._log_group(group_name=group_name,
                                 retention_in_days=retention))
         event_sources = meta.get('event_sources')
-        for trigger_meta in event_sources:
-            if lambda_alias:
-                arn = lambda_alias.ref()
-            elif lambda_version:
-                arn = lambda_version.ref()
-            else:
-                arn = lambda_function.ref()
+        if event_sources:
+            for trigger_meta in event_sources:
+                if lambda_alias:
+                    arn = lambda_alias.ref()
+                elif lambda_version:
+                    arn = lambda_version.ref()
+                else:
+                    arn = lambda_function.ref()
 
-            trigger_type = trigger_meta['resource_type']
-            func = self.CREATE_TRIGGER[trigger_type]
-            func(self, name, arn, role, trigger_meta)
+                trigger_type = trigger_meta['resource_type']
+                func = self.CREATE_TRIGGER[trigger_type]
+                func(self, name, arn, role, trigger_meta)
 
     def _create_dynamodb_trigger_from_meta(self, lambda_name, lambda_arn,
                                            role, trigger_meta):
@@ -164,7 +171,8 @@ class CfLambdaFunctionConverter(CfResourceConverter):
         validate_params(lambda_name, trigger_meta, SQS_TRIGGER_REQUIRED_PARAMS)
         target_queue_name = trigger_meta['target_queue']
 
-        target_queue = self.get_resource(to_logic_name(target_queue_name))
+        queue_logic_name = sqs_queue_logic_name(target_queue_name)
+        target_queue = self.get_resource(queue_logic_name)
         if not target_queue:
             _LOG.error('Queue {} does not exist'.format(target_queue))
             return
@@ -180,7 +188,7 @@ class CfLambdaFunctionConverter(CfResourceConverter):
         validate_params(lambda_name, trigger_meta,
                         CLOUD_WATCH_TRIGGER_REQUIRED_PARAMS)
         rule_name = trigger_meta['target_rule']
-        rule = self.get_resource(to_logic_name(rule_name))
+        rule = self.get_resource(cloudwatch_rule_logic_name(rule_name))
 
         attach_rule_target(rule=rule, target_arn=lambda_arn)
         permission = self.convert_lambda_permission(
@@ -197,7 +205,8 @@ class CfLambdaFunctionConverter(CfResourceConverter):
         validate_params(lambda_name, trigger_meta, S3_TRIGGER_REQUIRED_PARAMS)
         target_bucket_name = trigger_meta['target_bucket']
 
-        target_bucket = self.get_resource(to_logic_name(target_bucket_name))
+        bucket_logic_name = s3_bucket_logic_name(target_bucket_name)
+        target_bucket = self.get_resource(bucket_logic_name)
         if not target_bucket:
             _LOG.error('S3 bucket {0} event source for lambda {1} '
                        'was not created.'.format(target_bucket, lambda_name))
@@ -223,7 +232,7 @@ class CfLambdaFunctionConverter(CfResourceConverter):
         validate_params(lambda_name, trigger_meta, SNS_TRIGGER_REQUIRED_PARAMS)
         topic_name = trigger_meta['target_topic']
 
-        topic = self.get_resource(to_logic_name(topic_name))
+        topic = self.get_resource(sns_topic_logic_name(topic_name))
         if not topic:
             raise AssertionError(
                 'Topic does not exist: {0}.'.format(topic_name))
@@ -249,7 +258,7 @@ class CfLambdaFunctionConverter(CfResourceConverter):
 
         stream_name = trigger_meta['target_stream']
 
-        stream = self.get_resource(to_logic_name(stream_name))
+        stream = self.get_resource(kinesis_stream_logic_name(stream_name))
         if not stream:
             _LOG.error('Kinesis stream does not exist: {0}.'
                        .format(stream_name))
@@ -301,7 +310,7 @@ class CfLambdaFunctionConverter(CfResourceConverter):
                               event_source_arn, event_source_name,
                               batch_size, starting_position=None):
         event_source = awslambda.EventSourceMapping(to_logic_name(
-            '{}{}EventSourceMapping'.format(lambda_name, event_source_name)))
+            'LambdaEventSourceMapping', lambda_name, event_source_name))
         event_source.BatchSize = batch_size
         event_source.Enabled = True
         event_source.EventSourceArn = event_source_arn
@@ -319,10 +328,10 @@ class CfLambdaFunctionConverter(CfResourceConverter):
         'sqs_trigger': _create_sqs_trigger_from_meta
     }
 
-    def _lambda_version(self, lambda_name, provisioned_concurrency=None):
-        version_name = lambda_publish_version_logic_name(lambda_name)
+    def _lambda_version(self, function, provisioned_concurrency=None):
+        version_name = lambda_publish_version_logic_name(function.FunctionName)
         lambda_version = awslambda.Version(version_name)
-        lambda_version.FunctionName = Ref(lambda_name)
+        lambda_version.FunctionName = Ref(function)
         self._add_provisioned_concur(
             resource=lambda_version,
             provisioned_concurrency=provisioned_concurrency,
@@ -330,13 +339,13 @@ class CfLambdaFunctionConverter(CfResourceConverter):
         self.template.add_resource(lambda_version)
         return lambda_version
 
-    def _lambda_alias(self, lambda_name, alias, version_logic_name,
+    def _lambda_alias(self, function, alias, version_logic_name,
                       provisioned_concurrency=None):
         alias_resource_name = \
-            lambda_alias_logic_name(function_name=lambda_name,
+            lambda_alias_logic_name(function_name=function.FunctionName,
                                     alias=alias)
         lambda_alias = awslambda.Alias(alias_resource_name)
-        lambda_alias.FunctionName = Ref(lambda_name)
+        lambda_alias.FunctionName = Ref(function)
         lambda_alias.Name = alias
         lambda_alias.FunctionVersion = GetAtt(version_logic_name, 'Version') \
             if version_logic_name else '$LATEST'
@@ -361,7 +370,7 @@ class CfLambdaFunctionConverter(CfResourceConverter):
 
     @staticmethod
     def _log_group(group_name, retention_in_days):
-        name = to_logic_name('{}LogGroup'.format(group_name))
+        name = to_logic_name('LogsLogGroup', group_name)
         log_group = logs.LogGroup(name)
         log_group.LogGroupName = group_name
         log_group.RetentionInDays = retention_in_days
@@ -371,8 +380,7 @@ class CfLambdaFunctionConverter(CfResourceConverter):
     def convert_lambda_permission(lambda_arn, lambda_name, principal,
                                   source_arn=None, permission_qualifier=''):
         lambda_permission = awslambda.Permission(to_logic_name(
-            '{0}{1}{2}Permission'.format(
-                lambda_name, principal, permission_qualifier)))
+            'LambdaPermission', lambda_name, principal, permission_qualifier))
         lambda_permission.FunctionName = lambda_arn
         lambda_permission.Action = 'lambda:InvokeFunction'
         lambda_permission.Principal = '{}.amazonaws.com'.format(principal)

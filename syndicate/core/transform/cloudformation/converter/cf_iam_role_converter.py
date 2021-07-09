@@ -17,7 +17,8 @@ from troposphere import Ref, iam
 
 from syndicate.connection.iam_connection import build_trusted_relationships
 from .cf_resource_converter import CfResourceConverter
-from ..cf_transform_helper import to_logic_name, iam_role_logic_name, is_arn
+from ..cf_transform_helper import (to_logic_name, iam_role_logic_name, is_arn,
+                                   iam_managed_policy_logic_name)
 
 
 class CfIamRoleConverter(CfResourceConverter):
@@ -44,7 +45,7 @@ class CfIamRoleConverter(CfResourceConverter):
             policy_arn = iam_service.iam_conn.get_policy_arn(policy)
             policy_arns.append(policy_arn)
         for policy in custom_policies:
-            policy_arns.append(Ref(to_logic_name(policy)))
+            policy_arns.append(Ref(iam_managed_policy_logic_name(policy)))
         return policy_arns
 
     @staticmethod
@@ -61,7 +62,7 @@ class CfIamRoleConverter(CfResourceConverter):
         return trusted_relationships
 
     def _convert_instance_profile(self, profile_name):
-        logic_name = to_logic_name(profile_name)
+        logic_name = to_logic_name('IAMInstanceProfile', profile_name)
         instance_profile = iam.InstanceProfile(logic_name)
         instance_profile.InstanceProfileName = profile_name
         instance_profile.Roles = [Ref(logic_name)]
@@ -69,7 +70,7 @@ class CfIamRoleConverter(CfResourceConverter):
 
     @staticmethod
     def convert_inline_policy(role, policy_name, policy_document):
-        logic_name = to_logic_name('IAMPolicy{}'.format(policy_name))
+        logic_name = to_logic_name('IAMPolicy', policy_name)
         policy = iam.PolicyType(logic_name)
         policy.PolicyDocument = policy_document
         policy.PolicyName = policy_name

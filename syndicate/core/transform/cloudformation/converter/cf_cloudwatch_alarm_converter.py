@@ -19,7 +19,7 @@ from syndicate.core.resources.cloud_watch_alarm_resource import \
     CLOUDWATCH_ALARM_REQUIRED_PARAMS
 from syndicate.core.resources.helper import validate_params
 from .cf_resource_converter import CfResourceConverter
-from ..cf_transform_helper import to_logic_name
+from ..cf_transform_helper import to_logic_name, sns_topic_logic_name
 
 
 class CfCloudWatchAlarmConverter(CfResourceConverter):
@@ -27,7 +27,7 @@ class CfCloudWatchAlarmConverter(CfResourceConverter):
     def convert(self, name, meta):
         validate_params(name, meta, CLOUDWATCH_ALARM_REQUIRED_PARAMS)
 
-        alarm = cloudwatch.Alarm(to_logic_name(name))
+        alarm = cloudwatch.Alarm(to_logic_name('CloudWatchAlarm', name))
 
         alarm.AlarmName = name
         alarm.ComparisonOperator = meta['comparison_operator']
@@ -42,7 +42,7 @@ class CfCloudWatchAlarmConverter(CfResourceConverter):
         if sns_topics:
             sns_topic_arns = []
             for each in sns_topics:
-                topic = self.get_resource(to_logic_name(each))
+                topic = self.get_resource(sns_topic_logic_name(each))
                 sns_topic_arns.append(topic.ref())
                 alarm.AlarmActions = sns_topic_arns
 

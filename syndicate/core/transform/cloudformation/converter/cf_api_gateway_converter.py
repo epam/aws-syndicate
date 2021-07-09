@@ -34,7 +34,8 @@ from .cf_resource_converter import CfResourceConverter
 from ..cf_transform_helper import (to_logic_name,
                                    lambda_publish_version_logic_name,
                                    lambda_alias_logic_name,
-                                   lambda_function_logic_name)
+                                   lambda_function_logic_name,
+                                   api_gateway_method_logic_name)
 
 _LOG = get_logger('syndicate.core.transform.cloudformation.'
                   'converter.cf_api_gateway_converter')
@@ -47,15 +48,18 @@ class CfApiGatewayConverter(CfResourceConverter):
         rest_api = self._convert_rest_api(name=name, meta=meta)
         authorizers_mapping = self._convert_authorizers(meta=meta,
                                                         rest_api=rest_api)
-        self._convert_api_resources(meta=meta, rest_api=rest_api,
-                                    authorizers_mapping=authorizers_mapping)
-        self._convert_deployment(meta=meta, rest_api=rest_api)
+        methods = self._convert_api_resources(
+            meta=meta, rest_api=rest_api,
+            authorizers_mapping=authorizers_mapping)
+        self._convert_deployment(meta=meta, rest_api=rest_api, methods=methods)
 
     def _convert_api_resources(self, meta, rest_api, authorizers_mapping):
         api_resources = meta.get('resources')
+        methods = []
         if api_resources:
             for path, resource_meta in api_resources.items():
-                self._process_resource(authorizers_mapping, meta, path, resource_meta, rest_api)
+                methods.extend(self._process_resource(authorizers_mapping, meta, path, resource_meta, rest_api))
+        return methods
 
     def _process_resource(self, authorizers_mapping, meta, path, resource_meta, rest_api):
         if not path.startswith('/'):
@@ -65,8 +69,9 @@ class CfApiGatewayConverter(CfResourceConverter):
         enable_cors = str(resource_meta.get('enable_cors')).lower() == 'true'
         target_resource = self._convert_resource(rest_api=rest_api,
                                                  resource_path=path)
+        methods = []
         for method, method_meta in resource_meta.items():
-            method_res = apigateway.Method(to_logic_name('{0}{1}Method'.format(path, method)))
+            method_res = apigateway.Method(api_gateway_method_logic_name(path, method))
             if method == 'enable_cors' or method not in SUPPORTED_METHODS:
                 continue
             authorization_type = method_meta.get('authorization_type')
@@ -104,8 +109,10 @@ class CfApiGatewayConverter(CfResourceConverter):
 
             integration_responses = self._convert_integration_responses(enable_cors, meta, method_meta)
             integration.IntegrationResponses = integration_responses
+            methods.append(method_res)
         if enable_cors:
-            self._enable_cors_for_resource(rest_api, path, target_resource)
+            methods.append(self._enable_cors_for_resource(rest_api, path, target_resource))
+        return methods
 
     def _convert_request_validator(self, method_meta, method_resource, rest_api):
         request_validator_meta = method_meta.get('request_validator')
@@ -113,7 +120,7 @@ class CfApiGatewayConverter(CfResourceConverter):
             validator_params = \
                 ApiGatewayConnection.get_request_validator_params(request_validator_meta)
             request_validator = apigateway.RequestValidator(
-                to_logic_name('{}RequestValidator'.format(method_resource.title)))
+                to_logic_name('ApiGatewayRequestValidator', method_resource.title))
             request_validator.Name = validator_params.get(REQ_VALIDATOR_PARAM_NAME)
             request_validator.RestApiId = Ref(rest_api)
             request_validator.ValidateRequestBody = validator_params.get(REQ_VALIDATOR_PARAM_VALIDATE_BODY)
@@ -123,7 +130,7 @@ class CfApiGatewayConverter(CfResourceConverter):
             method_resource.RequestValidatorId = Ref(request_validator)
 
     def _convert_rest_api(self, name, meta):
-        rest_api = apigateway.RestApi(to_logic_name(name))
+        rest_api = apigateway.RestApi(to_logic_name('ApiGatewayRestApi', name))
         rest_api.Name = name
         binary_media_types = meta.get('binary_media_types')
         if binary_media_types:
@@ -156,8 +163,7 @@ class CfApiGatewayConverter(CfResourceConverter):
         cache_configuration = method_meta.get('cache_configuration')
         cache_key_parameters = cache_configuration.get(
             'cache_key_parameters') if cache_configuration else None
-        integration = apigateway.Integration(
-            to_logic_name('{0}{1}Integration'.format(path, method)))
+        integration = apigateway.Integration()
         lambda_uri = self.get_lambda_function_uri(lambda_arn=lambda_arn)
         if cache_key_parameters:
             integration.CacheKeyParameters = cache_key_parameters
@@ -177,7 +183,7 @@ class CfApiGatewayConverter(CfResourceConverter):
             lambda_name=lambda_name,
             principal='apigateway',
             source_arn=api_source_arn,
-            permission_qualifier=rest_api + path + method
+            permission_qualifier=rest_api.Name + path + method
         )
         self.template.add_resource(permission)
         return integration
@@ -191,8 +197,7 @@ class CfApiGatewayConverter(CfResourceConverter):
         integration_method = method_meta.get('integration_method')
         credentials = ApiGatewayConnection.get_service_integration_credentials(
             self.config.account_id, role)
-        integration = apigateway.Integration(
-            to_logic_name('{0}{1}Integration'.format(path, method)))
+        integration = apigateway.Integration()
         integration.Credentials = credentials
         integration.IntegrationHttpMethod = integration_method
         integration.PassthroughBehavior = passthrough_behavior if passthrough_behavior else 'WHEN_NO_MATCH'
@@ -203,8 +208,7 @@ class CfApiGatewayConverter(CfResourceConverter):
         return integration
 
     def _mock_method_integration(self, method, method_meta, path):
-        integration = apigateway.Integration(
-            to_logic_name('{0}{1}Integration'.format(path, method)))
+        integration = apigateway.Integration()
         passthrough_behavior = method_meta.get('integration_passthrough_behavior')
         body_template = method_meta.get('integration_request_body_template')
         integration.PassthroughBehavior = passthrough_behavior
@@ -218,8 +222,7 @@ class CfApiGatewayConverter(CfResourceConverter):
         passthrough_behavior = method_meta.get('integration_passthrough_behavior')
         body_template = method_meta.get('integration_request_body_template')
         uri = method_meta.get('uri')
-        integration = apigateway.Integration(
-            to_logic_name('{0}{1}Integration'.format(path, method)))
+        integration = apigateway.Integration()
         integration.IntegrationHttpMethod = integration_method
         integration.PassthroughBehavior = passthrough_behavior if passthrough_behavior else 'WHEN_NO_MATCH'
         integration.RequestTemplates = body_template
@@ -273,14 +276,13 @@ class CfApiGatewayConverter(CfResourceConverter):
 
     def _enable_cors_for_resource(self, rest_api, path, target_resource):
         method = 'OPTIONS'
-        options_method = apigateway.Method(to_logic_name('{0}{1}Method'.format(path, method)))
+        options_method = apigateway.Method(api_gateway_method_logic_name(path, method))
         options_method.HttpMethod = method
         options_method.AuthorizationType = 'NONE'
         options_method.ResourceId = Ref(target_resource)
         options_method.RestApiId = Ref(rest_api)
         self.template.add_resource(options_method)
-        integration = apigateway.Integration(
-            to_logic_name('{0}{1}Integration'.format(path, method)))
+        integration = apigateway.Integration()
         integration.RequestTemplates = {
             'application/json': '{"statusCode": 200}'
         }
@@ -302,6 +304,7 @@ class CfApiGatewayConverter(CfResourceConverter):
                 RESPONSE_PARAM_ALLOW_ORIGIN: "'*'"
             })
         integration.IntegrationResponses = [integr_resp]
+        return options_method
 
     def get_lambda_function_uri(self, lambda_arn):
         left_part = 'arn:aws:apigateway:{0}:lambda:path' \
@@ -360,7 +363,7 @@ class CfApiGatewayConverter(CfResourceConverter):
         if authorizers_meta:
             authorizers = list()
             for key, val in authorizers_meta.items():
-                authorizer_name = to_logic_name('{}Authorizer'.format(key))
+                authorizer_name = to_logic_name('ApiGatewayAuthorizer', key)
                 authorizer = apigateway.Authorizer(authorizer_name)
                 authorizer.RestApiId = Ref(rest_api)
                 authorizer.Type = val.get('type')
@@ -383,7 +386,7 @@ class CfApiGatewayConverter(CfResourceConverter):
             authorizers_mapping = {x.Name: Ref(x) for x in authorizers}
         return authorizers_mapping
 
-    def _convert_deployment(self, meta, rest_api):
+    def _convert_deployment(self, meta, rest_api, methods):
         stage_name = \
             ApiGatewayResource.get_deploy_stage_name(meta.get('deploy_stage'))
         cache_cluster_configuration = meta.get('cluster_cache_configuration')
@@ -394,7 +397,7 @@ class CfApiGatewayConverter(CfResourceConverter):
         cache_cluster_size = \
             str(cache_size_value) if cache_size_value else None
         deployment = apigateway.Deployment(
-            to_logic_name('{}Deployment'.format(rest_api.title)))
+            to_logic_name('ApiGatewayDeployment', rest_api.title))
         stage = apigateway.StageDescription()
         if str(cache_cluster_enabled).lower() == 'true':
             stage.CacheClusterEnabled = True
@@ -402,10 +405,13 @@ class CfApiGatewayConverter(CfResourceConverter):
             stage.CacheClusterSize = cache_cluster_size
         if cache_cluster_enabled:
             cache_ttl_sec = cache_cluster_configuration.get('cache_ttl_sec')
-            stage.CacheTtlInSeconds = cache_ttl_sec
+            if cache_ttl_sec:
+                stage.CacheTtlInSeconds = cache_ttl_sec
         deployment.StageDescription = stage
         deployment.RestApiId = Ref(rest_api)
         deployment.StageName = stage_name
+        deployment.DependsOn = methods
+        self.template.add_resource(deployment)
 
     def _convert_resource(self, rest_api, resource_path):
         parent_resource_id = GetAtt(rest_api.title, 'RootResourceId')
@@ -414,7 +420,7 @@ class CfApiGatewayConverter(CfResourceConverter):
         target_resource = None
         for path_part in resource_path_split:
             cur_resource_path = ''.join(resource_path.partition(path_part)[:2])
-            api_resource_name = to_logic_name('{}ApiGatewayResource'.format(cur_resource_path))
+            api_resource_name = to_logic_name('ApiGatewayResource', cur_resource_path)
             existing_resource = self.get_resource(api_resource_name)
             if existing_resource:
                 target_resource = existing_resource

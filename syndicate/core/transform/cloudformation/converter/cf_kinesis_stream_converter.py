@@ -17,13 +17,13 @@ from troposphere import kinesis
 
 from syndicate.connection.kinesis_connection import validate_shard_count
 from .cf_resource_converter import CfResourceConverter
-from ..cf_transform_helper import to_logic_name
+from ..cf_transform_helper import kinesis_stream_logic_name
 
 
 class CfKinesisStreamConverter(CfResourceConverter):
 
     def convert(self, name, meta):
-        stream = kinesis.Stream(to_logic_name(name))
+        stream = kinesis.Stream(kinesis_stream_logic_name(name))
         stream.Name = name
         shard_count = meta['shard_count']
         validate_shard_count(shard_count)

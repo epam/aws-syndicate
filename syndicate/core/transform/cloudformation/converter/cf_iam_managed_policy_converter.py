@@ -16,13 +16,14 @@
 from troposphere import iam
 
 from .cf_resource_converter import CfResourceConverter
-from ..cf_transform_helper import to_logic_name
+from ..cf_transform_helper import iam_managed_policy_logic_name
 
 
 class CfIamManagedPolicyConverter(CfResourceConverter):
 
     def convert(self, name, meta):
-        policy = iam.ManagedPolicy(to_logic_name(name))
+        logic_name = iam_managed_policy_logic_name(name)
+        policy = iam.ManagedPolicy(logic_name)
         policy.ManagedPolicyName = name
         policy.PolicyDocument = meta['policy_content']
         self.template.add_resource(policy)
