@@ -1,9 +1,9 @@
 import json
 
-from syndicate.core.resources.helper import validate_params
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.cloud_watch_connection import \
     get_lambda_log_group_name
+from syndicate.core.resources.helper import validate_params
 from syndicate.core.resources.lambda_resource import LAMBDA_MAX_CONCURRENCY, \
     PROVISIONED_CONCURRENCY, DYNAMODB_TRIGGER_REQUIRED_PARAMS, \
     SQS_TRIGGER_REQUIRED_PARAMS, CLOUD_WATCH_TRIGGER_REQUIRED_PARAMS, \
@@ -272,16 +272,12 @@ class LambdaConverter(TerraformResourceConverter):
         self.template.add_aws_lambda_event_source_mapping(meta=source_mapping)
 
     def _create_sqs_trigger_from_meta(self, lambda_name, trigger_meta,
-                                      starting_position, role):
+                                      starting_position, role, trigger_name):
         validate_params(lambda_name, trigger_meta,
                         SQS_TRIGGER_REQUIRED_PARAMS)
-
-        event_source_res_type = trigger_meta.get('resource_type')
         target_queue = trigger_meta['target_queue']
-
         queue_arn_ref = build_sqs_queue_arn_ref(queue_name=target_queue)
         resource_ref = build_function_arn_ref(function_name=lambda_name)
-
         event_source = sqs_source_mapping(resource_name=trigger_name,
                                           sqs_queue_arn_ref=queue_arn_ref,
                                           function_name_ref=resource_ref)

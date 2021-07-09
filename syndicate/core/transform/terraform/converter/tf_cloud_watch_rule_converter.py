@@ -1,10 +1,7 @@
 import json
 
-from core.resources.cloud_watch_resource import \
+from syndicate.core.resources.cloud_watch_resource import \
     validate_cloud_watch_rule_params
-from syndicate.core.resources.cloud_watch_alarm_resource import \
-    CLOUDWATCH_ALARM_REQUIRED_PARAMS
-from syndicate.core.resources.helper import validate_params
 from syndicate.core.transform.terraform.converter.tf_resource_converter import \
     TerraformResourceConverter
 
