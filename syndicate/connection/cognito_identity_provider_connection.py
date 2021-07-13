@@ -38,7 +38,7 @@ class CognitoIdentityProviderConnection(object):
         _LOG.debug('Opened new Cognito identity connection.')
 
     def create_user_pool(self, pool_name, auto_verified_attributes=None,
-                         username_attributes=None):
+                         username_attributes=None, policies=None):
         """
         Crete Cognito user pool and get user pool id.
         """
@@ -47,6 +47,8 @@ class CognitoIdentityProviderConnection(object):
             params['AutoVerifiedAttributes'] = auto_verified_attributes
         if username_attributes:
             params['UsernameAttributes'] = username_attributes
+        if policies:
+            params['Policies'] = policies
 
         response = self.client.create_user_pool(**params)
         return response['UserPool'].get('Id')
@@ -114,3 +116,7 @@ class CognitoIdentityProviderConnection(object):
         :type user_pool_id: str
         """
         self.client.delete_user_pool(UserPoolId=user_pool_id)
+
+    def add_custom_attributes(self, user_pool_id, attributes):
+        self.client.add_custom_attributes(UserPoolId=user_pool_id,
+                                          CustomAttributes=attributes)

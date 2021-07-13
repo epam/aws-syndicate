@@ -16,7 +16,8 @@
 from botocore.exceptions import ClientError
 
 from syndicate.commons.log_helper import get_logger
-from syndicate.core.helper import unpack_kwargs
+from syndicate.core.helper import (
+    unpack_kwargs, dict_keys_to_capitalized_camel_case)
 from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import build_description_obj
 
@@ -66,20 +67,27 @@ class CognitoUserPoolResource(BaseResource):
 
         _LOG.info('Creating user pool %s', name)
         auto_verified_attributes = meta.get('auto_verified_attributes', None)
-        if not auto_verified_attributes in ('phone_number', 'email', None):
+        if auto_verified_attributes not in ('phone_number', 'email', None):
             _LOG.warn('Incorrect value for auto_verified_attributes: %s',
                       auto_verified_attributes)
             auto_verified_attributes = None
         username_attributes = meta.get('username_attributes', None)
-        if not username_attributes in ('phone_number', 'email', None):
+        if username_attributes not in ('phone_number', 'email', None):
             _LOG.warn('Incorrect value for username_attributes: %s',
                       username_attributes)
             username_attributes = None
+        policies = meta.get('password_policy')
+        if policies:
+            policies = {'PasswordPolicy': dict_keys_to_capitalized_camel_case(
+                policies)}
 
         pool_id = self.connection.create_user_pool(
             pool_name=name, auto_verified_attributes=auto_verified_attributes,
-            username_attributes=username_attributes)
+            username_attributes=username_attributes, policies=policies)
 
+        custom_attributes = meta.get('custom_attributes')
+        if custom_attributes:
+            self.add_custom_attributes(pool_id, custom_attributes)
         client = meta.get('client')
         if client:
             self.connection.create_user_pool_client(
@@ -119,3 +127,10 @@ class CognitoUserPoolResource(BaseResource):
             # find id from the output
             return pool_output['description']['UserPool']['Id']
         return self.connection.if_pool_exists_by_name(name)
+
+    def add_custom_attributes(self, user_pool_id, attributes):
+        custom_attributes = []
+        for attr in attributes:
+            attr['attribute_data_type'] = attr.pop('type')
+            custom_attributes.append(dict_keys_to_capitalized_camel_case(attr))
+        self.connection.add_custom_attributes(user_pool_id, custom_attributes)
