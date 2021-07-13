@@ -15,10 +15,12 @@
 """
 from syndicate.connection import ConnectionProvider
 from syndicate.core.resources.api_gateway_resource import ApiGatewayResource
-from syndicate.core.resources.cloud_watch_alarm_resource import \
-    CloudWatchAlarmResource
+from syndicate.core.resources.cloud_watch_alarm_resource import (
+    CloudWatchAlarmResource)
 from syndicate.core.resources.cloud_watch_resource import CloudWatchResource
-from syndicate.core.resources.cognito_resource import CognitoResource
+from syndicate.core.resources.cognito_resource import CognitoIdentityResource
+from syndicate.core.resources.cognito_user_pool_resource import (
+    CognitoUserPoolResource)
 from syndicate.core.resources.dynamo_db_resource import DynamoDBResource
 from syndicate.core.resources.ebs_resource import EbsResource
 from syndicate.core.resources.ec2_resource import Ec2Resource
@@ -28,11 +30,14 @@ from syndicate.core.resources.lambda_resource import LambdaResource
 from syndicate.core.resources.s3_resource import S3Resource
 from syndicate.core.resources.sns_resource import SnsResource
 from syndicate.core.resources.sqs_resource import SqsResource
-from syndicate.core.resources.step_functions_resource import \
-    StepFunctionResource
-from syndicate.core.resources.batch_compenv_resource import BatchComputeEnvironmentResource
-from syndicate.core.resources.batch_jobqueue_resource import BatchJobQueueResource
-from syndicate.core.resources.batch_jobdef_resource import BatchJobDefinitionResource
+from syndicate.core.resources.step_functions_resource import (
+    StepFunctionResource)
+from syndicate.core.resources.batch_compenv_resource import (
+    BatchComputeEnvironmentResource)
+from syndicate.core.resources.batch_jobqueue_resource import (
+    BatchJobQueueResource)
+from syndicate.core.resources.batch_jobdef_resource import (
+    BatchJobDefinitionResource)
 
 
 class ResourceProvider:
@@ -60,7 +65,8 @@ class ResourceProvider:
         _cw_resource = None
         _sns_resource = None
         _api_gateway_resource = None
-        _cognito_resource = None
+        _cognito_identity_resource = None
+        _cognito_user_pool_resource = None
         _dynamodb_resource = None
         _ebs_resource = None
         _ec2_resource = None
@@ -114,15 +120,26 @@ class ResourceProvider:
                 )
             return self._api_gateway_resource
 
-        def cognito(self):
-            self._cognito_resource = CognitoResource(
+        def cognito_identity(self):
+            self._cognito_identity_resource = CognitoIdentityResource(
                 cognito_conn=self._conn_provider.cognito_identity(),
                 account_id=self.config.account_id,
                 region=self.config.region
             )
-            if not self._cognito_resource:
+            if not self._cognito_identity_resource:
                 pass
-            return self._cognito_resource
+            return self._cognito_identity_resource
+
+        def cognito_user_pool(self):
+            self._cognito_user_pool_resource = CognitoUserPoolResource(
+                cognito_idp_conn=
+                self._conn_provider.cognito_identity_provider(),
+                account_id=self.config.account_id,
+                region=self.config.region
+            )
+            if not self._cognito_user_pool_resource:
+                pass
+            return self._cognito_user_pool_resource
 
         def dynamodb(self):
             if not self._dynamodb_resource:
