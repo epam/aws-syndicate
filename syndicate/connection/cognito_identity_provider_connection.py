@@ -53,8 +53,7 @@ class CognitoIdentityProviderConnection(object):
 
     def create_user_pool_client(
             self, user_pool_id, client_name, generate_secret=True,
-            refresh_token_validity=None, access_token_validity=None,
-            id_token_validity=None, token_validity_units=None,
+            refresh_token_validity=None,
             read_attributes=None,
             write_attributes=None, explicit_auth_flows=None,
             supported_identity_providers=None,
@@ -67,12 +66,6 @@ class CognitoIdentityProviderConnection(object):
                       GenerateSecret=generate_secret)
         if refresh_token_validity:
             params.update(RefreshTokenValidity=refresh_token_validity)
-        if access_token_validity:
-            params.update(AccessTokenValidity=access_token_validity)
-        if id_token_validity:
-            params.update(IdTokenValidity=id_token_validity)
-        if token_validity_units:
-            params.update(TokenValidityUnits=token_validity_units)
         if read_attributes:
             params.update(ReadAttributes=read_attributes)
         if write_attributes:

@@ -104,9 +104,9 @@ class ProcessorFacade:
                 self.resources_provider.api_gw().describe_api_resources,
             COGNITO_USER_POOL_TYPE:
                 self.resources_provider.cognito_user_pool()
-                    .describe_cognito_pool,
+                    .describe_user_pool,
             COGNITO_FEDERATED_POOL_TYPE:
-                self.resources_provider.cognito_identity().describe_user_pool,
+                self.resources_provider.cognito_identity().describe_cognito_pool,
             SNS_TOPIC_TYPE:
                 self.resources_provider.sns().describe_sns_from_meta,
             SNS_PLATFORM_APPLICATION_TYPE:
