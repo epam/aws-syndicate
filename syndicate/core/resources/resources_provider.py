@@ -18,7 +18,8 @@ from syndicate.core.resources.api_gateway_resource import ApiGatewayResource
 from syndicate.core.resources.cloud_watch_alarm_resource import (
     CloudWatchAlarmResource)
 from syndicate.core.resources.cloud_watch_resource import CloudWatchResource
-from syndicate.core.resources.cognito_resource import CognitoIdentityResource
+from syndicate.core.resources.cognito_identity_resource import (
+    CognitoIdentityResource)
 from syndicate.core.resources.cognito_user_pool_resource import (
     CognitoUserPoolResource)
 from syndicate.core.resources.dynamo_db_resource import DynamoDBResource
@@ -115,6 +116,7 @@ class ResourceProvider:
                 self._api_gateway_resource = ApiGatewayResource(
                     apigw_conn=self._conn_provider.api_gateway(),
                     lambda_res=self.lambda_resource(),
+                    cognito_res=self.cognito_user_pool(),
                     account_id=self.config.account_id,
                     region=self.config.region
                 )

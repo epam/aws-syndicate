@@ -100,7 +100,7 @@ class CognitoIdentityProviderConnection(object):
         return response['UserPoolClient'].get('ClientId')
 
     def if_pool_exists_by_name(self, user_pool_name):
-        for pool in self.client.list_user_pools(MaxResults=1)['UserPools']:
+        for pool in self.client.list_user_pools(MaxResults=60)['UserPools']:
             if pool.get('Name') == user_pool_name:
                 return pool['Id']
 

@@ -109,7 +109,7 @@ class CognitoUserPoolResource(BaseResource):
         :param name: user pools name
         :return: user pools ID
         """
-        return self.connection.get_user_pool_id(user_pool_name=name)
+        return self.connection.if_pool_exists_by_name(user_pool_name=name)
 
     def cognito_resource_identifier(self, name, output=None):
         if output:
