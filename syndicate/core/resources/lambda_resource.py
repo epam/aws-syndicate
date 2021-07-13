@@ -798,3 +798,6 @@ class LambdaResource(BaseResource):
                 _LOG.warn('Lambda Layer {} is not found'.format(layer_name))
             else:
                 raise e
+
+    def remove_invocation_permission(self, func_name):
+        return self.lambda_conn.remove_invocation_permission(func_name)

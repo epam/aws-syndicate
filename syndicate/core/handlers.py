@@ -16,15 +16,17 @@
 import json
 import os
 import sys
-
 import click
 
+from tabulate import tabulate
 from syndicate.core import CONF_PATH, initialize_connection, \
     initialize_project_state
 from syndicate.core.build.artifact_processor import (RUNTIME_NODEJS,
                                                      assemble_artifacts,
                                                      RUNTIME_JAVA_8,
                                                      RUNTIME_PYTHON)
+from syndicate.core.build.profiler_processor import (get_metric_statistics,
+                                                     process_metrics)
 from syndicate.core.build.bundle_processor import (create_bundles_bucket,
                                                    load_bundle,
                                                    upload_bundle_to_s3,
@@ -300,22 +302,22 @@ def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
     :return:
     """
     click.echo('Command clean')
-    click.echo('Deploy name: %s' % deploy_name)
+    click.echo(f'Deploy name: {deploy_name}')
+    separator = ', '
     if clean_only_types:
-        click.echo('Clean only types: %s' % str(clean_only_types))
+        click.echo(f'Clean only types: {separator.join(clean_only_types)}')
     if clean_only_resources:
-        click.echo('Clean only resources : %s' % clean_only_resources)
+        click.echo(f'Clean only resources: '
+                   f'{separator.join(clean_only_resources)}')
     if clean_only_resources_path:
-        click.echo(
-            'Clean only resources path: %s' % clean_only_resources_path)
+        click.echo(f'Clean only resources path: {clean_only_resources_path}')
     if excluded_resources:
-        click.echo('Excluded resources: %s' % str(excluded_resources))
+        click.echo(f'Excluded resources: {separator.join(excluded_resources)}')
     if excluded_resources_path:
-        click.echo('Excluded resources path: %s' % excluded_resources_path)
+        click.echo(f'Excluded resources path: {excluded_resources_path}')
     if excluded_types:
-        click.echo('Excluded types: %s' % str(excluded_types))
-    if clean_only_resources_path and os.path.exists(
-            clean_only_resources_path):
+        click.echo(f'Excluded types: {separator.join(excluded_resources)}')
+    if clean_only_resources_path and os.path.exists(clean_only_resources_path):
         clean_resources_list = json.load(open(clean_only_resources_path))
         clean_only_resources = tuple(
             set(clean_only_resources + tuple(clean_resources_list)))
@@ -550,6 +552,26 @@ def copy_bundle(ctx, bundle_name, src_account_id, src_bucket_region,
     click.echo('Bundle was downloaded successfully')
     ctx.invoke(upload, bundle_name=bundle_name, force=force_upload)
     click.echo('Bundle was copied successfully')
+
+
+@syndicate.command(name='profiler')
+@click.option('--bundle_name', nargs=1, callback=check_required_param)
+@click.option('--deploy_name', nargs=1, callback=check_required_param)
+@click.option('--from_date', nargs=1, type=str)
+@click.option('--to_date', nargs=1, type=str)
+def profiler(bundle_name, deploy_name, from_date, to_date):
+    """
+    Displays Lambda metrics
+    """
+    metric_value_dict = get_metric_statistics(bundle_name, deploy_name,
+                                              from_date, to_date)
+    for lambda_name, metrics in metric_value_dict.items():
+        prettify_metrics_dict = {}
+
+        click.echo(f'{os.linesep}Lambda function name: {lambda_name}')
+        prettify_metrics_dict = process_metrics(prettify_metrics_dict, metrics)
+        click.echo(tabulate(prettify_metrics_dict, headers='keys',
+                            stralign='right'))
 
 
 syndicate.add_command(generate)

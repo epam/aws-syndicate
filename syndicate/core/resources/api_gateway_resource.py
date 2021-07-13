@@ -600,6 +600,19 @@ class ApiGatewayResource(BaseResource):
                                                            _CORS_HEADER_NAME,
                                                            _CORS_HEADER_VALUE)
 
+    @staticmethod
+    def _get_lambdas_invoked_by_api_gw(resources_meta):
+        affected_lambdas = []
+
+        for resource, meta in resources_meta.items():
+            for method, description in meta.items():
+                if method in SUPPORTED_METHODS:
+                    lambda_name = description.get('lambda_name')
+                    if lambda_name and lambda_name not in affected_lambdas:
+                        affected_lambdas.append(lambda_name)
+
+        return affected_lambdas
+
     def remove_api_gateways(self, args):
         for arg in args:
             self._remove_api_gateway(**arg)
@@ -607,8 +620,16 @@ class ApiGatewayResource(BaseResource):
             time.sleep(60)
 
     def _remove_api_gateway(self, arn, config):
+        resources_meta = config['resource_meta']['resources']
+        lambdas_invoked_by_api_gw = self._get_lambdas_invoked_by_api_gw(
+            resources_meta)
+
         api_id = config['description']['id']
         try:
+            for lambda_name in lambdas_invoked_by_api_gw:
+                self.lambda_res.remove_invocation_permission(
+                    func_name=lambda_name)
+
             self.connection.remove_api(api_id)
             _LOG.info('API Gateway %s was removed.', api_id)
         except ClientError as e:
