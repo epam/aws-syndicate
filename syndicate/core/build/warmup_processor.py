@@ -29,7 +29,8 @@ methods_check = {
 }
 
 
-def process_api_gw_resources(paths_to_be_triggered, resource_path_warmup_key_mapping):
+def process_api_gw_resources(paths_to_be_triggered,
+                             resource_path_warmup_key_mapping):
     resource_method_mapping = {}
     resource_warmup_key_mapping = {}
     for api_gw_link, path_method_mapping in paths_to_be_triggered.items():
@@ -56,29 +57,19 @@ def get_aws_sign():
     return auth
 
 
-def lambda_auth_warm_up(warmup_method, uri, header_name, header_value, warmup_key):
-    params = {warmup_key: "true"}
-    headers = {header_name: header_value}
-    warmup_method(uri, headers=headers, params=params)
-
-
-def aws_iam_warm_up(warmup_method, uri, warmup_key):
-    auth = get_aws_sign()
-    params = {warmup_key: "true"}
-    warmup_method(uri, auth=auth, params=params)
-
-
 def warm_upper(resource_method_mapping, resource_warmup_key_mapping,
                lambda_auth, header_name, header_value):
     for uri, methods in resource_method_mapping.items():
         for method in methods:
             warmup_method = methods_check.get(method)
             warmup_key = resource_warmup_key_mapping[uri]
+            params = {warmup_key: "true"}
             if lambda_auth:
-                lambda_auth_warm_up(warmup_method, uri, header_name,
-                                    header_value, warmup_key)
+                headers = {header_name: header_value}
+                warmup_method(uri, headers=headers, params=params)
             else:
-                aws_iam_warm_up(warmup_method, uri, warmup_key)
+                auth = get_aws_sign()
+                warmup_method(uri, auth=auth, params=params)
 
 
 def _get_api_gw_client():
@@ -210,8 +201,19 @@ def process_deploy_resources(bundle_name, deploy_name):
         _LOG.warning('No resources to warmup, exiting')
         return
 
-    paths_to_be_triggered, resource_path_warmup_key_mapping = \
-        handle_api_gw_paths(api_gw_resources_meta=output)
+    paths_to_be_triggered = {}
+    resource_path_warmup_key_mapping = {}
+    for resource_arn, meta in output.items():
+        rest_api_id = resource_arn.split('/')[-1]
+        stage_name = meta.get('resource_meta', {}).get('deploy_stage')
+
+        paths_to_be_triggered, resource_path_warmup_key_mapping = \
+            handle_paths_to_be_triggered(rest_api_id=rest_api_id,
+                                         stage_name=stage_name,
+                                         paths_to_be_triggered=
+                                         paths_to_be_triggered,
+                                         resource_path_warmup_key_mapping=
+                                         resource_path_warmup_key_mapping)
     return paths_to_be_triggered, resource_path_warmup_key_mapping
 
 
@@ -230,9 +232,13 @@ def process_inputted_api_gw_id(api_id, stage_name, echo):
             continue
 
         stage_name = get_api_stage(rest_api_id, stage_name, echo=echo)
-        handle_paths_to_be_triggered(rest_api_id, stage_name,
-                                     paths_to_be_triggered,
-                                     resource_path_warmup_key_mapping)
+        paths_to_be_triggered, resource_path_warmup_key_mapping = \
+            handle_paths_to_be_triggered(rest_api_id=rest_api_id,
+                                         stage_name=stage_name,
+                                         paths_to_be_triggered=
+                                         paths_to_be_triggered,
+                                         resource_path_warmup_key_mapping=
+                                         resource_path_warmup_key_mapping)
     return paths_to_be_triggered, resource_path_warmup_key_mapping
 
 
@@ -261,6 +267,13 @@ def process_existing_api_gw_id(stage_name, echo):
         handle_paths_to_be_triggered(rest_api_id, stage_name,
                                      paths_to_be_triggered,
                                      resource_path_warmup_key_mapping)
+        paths_to_be_triggered, resource_path_warmup_key_mapping = \
+            handle_paths_to_be_triggered(rest_api_id=rest_api_id,
+                                         stage_name=stage_name,
+                                         paths_to_be_triggered=
+                                         paths_to_be_triggered,
+                                         resource_path_warmup_key_mapping=
+                                         resource_path_warmup_key_mapping)
     return paths_to_be_triggered, resource_path_warmup_key_mapping
 
 
@@ -274,17 +287,4 @@ def handle_paths_to_be_triggered(rest_api_id, stage_name,
         {api_gw_link: allowed_path_method_mapping})
     resource_path_warmup_key_mapping.update(
         {api_gw_link: allowed_path_warmup_key_mapping})
-    return paths_to_be_triggered, allowed_path_warmup_key_mapping
-
-
-def handle_api_gw_paths(api_gw_resources_meta):
-    paths_to_be_triggered = {}
-    resource_path_warmup_key_mapping = {}
-    for resource_arn, meta in api_gw_resources_meta.items():
-        rest_api_id = resource_arn.split('/')[-1]
-        stage_name = meta.get('resource_meta', {}).get('deploy_stage')
-
-        handle_paths_to_be_triggered(rest_api_id, stage_name,
-                                     paths_to_be_triggered,
-                                     resource_path_warmup_key_mapping)
     return paths_to_be_triggered, resource_path_warmup_key_mapping

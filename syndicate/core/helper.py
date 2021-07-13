@@ -245,6 +245,24 @@ def write_content_to_file(file_path, file_name, obj):
         _LOG.info('{0} file was created.'.format(meta_file.name))
 
 
+def sync_lock(lock_type):
+    def real_wrapper(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            sync_project_state()
+            from syndicate.core import PROJECT_STATE
+            if PROJECT_STATE.is_lock_free(lock_type):
+                PROJECT_STATE.acquire_lock(lock_type)
+                sync_project_state()
+            else:
+                raise AssertionError(f'The project {lock_type} is locked.')
+            func(*args, **kwargs)
+            PROJECT_STATE.release_lock(lock_type)
+            sync_project_state()
+        return wrapper
+    return real_wrapper
+
+
 def timeit(action_name=None):
     def internal_timeit(func):
         @wraps(func)
