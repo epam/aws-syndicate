@@ -78,8 +78,7 @@ class CognitoUserPoolResource(BaseResource):
             username_attributes = None
         policies = meta.get('password_policy')
         if policies:
-            policies = {'PasswordPolicy': dict_keys_to_capitalized_camel_case(
-                policies)}
+            policies = self.__validate_policies(policies)
 
         pool_id = self.connection.create_user_pool(
             pool_name=name, auto_verified_attributes=auto_verified_attributes,
@@ -134,3 +133,19 @@ class CognitoUserPoolResource(BaseResource):
             attr['attribute_data_type'] = attr.pop('type')
             custom_attributes.append(dict_keys_to_capitalized_camel_case(attr))
         self.connection.add_custom_attributes(user_pool_id, custom_attributes)
+
+    @staticmethod
+    def __validate_policies(policies):
+        if not policies.get('minimum_length'):
+            policies['minimum_length'] = 6
+        if not policies.get('require_uppercase'):
+            policies['require_uppercase'] = True
+        if not policies.get('require_symbols'):
+            policies['require_symbols'] = True
+        if not policies.get('require_lowercase'):
+            policies['require_lowercase'] = True
+        if not policies.get('require_numbers'):
+            policies['require_numbers'] = True
+
+        return {'PasswordPolicy': dict_keys_to_capitalized_camel_case(
+            policies)}
