@@ -25,6 +25,8 @@ from syndicate.connection.cloud_watch_connection import (EventConnection,
 from syndicate.connection.cloudfront_connection import CloudFrontConnection
 from syndicate.connection.cognito_identity_connection import (
     CognitoIdentityConnection)
+from syndicate.connection.cognito_identity_provider_connection import \
+    CognitoIdentityProviderConnection
 from syndicate.connection.dynamo_connection import DynamoConnection
 from syndicate.connection.ec2_connection import EC2Connection
 from syndicate.connection.elastic_beanstalk_connection import (
@@ -77,6 +79,13 @@ class ConnectionProvider(object):
         if region:
             credentials['region'] = region
         return CognitoIdentityConnection(**credentials)
+
+    @lru_cache(maxsize=None)
+    def cognito_identity_provider(self, region=None):
+        credentials = self.credentials.copy()
+        if region:
+            credentials['region'] = region
+        return CognitoIdentityProviderConnection(**credentials)
 
     @lru_cache(maxsize=None)
     def iam(self):
