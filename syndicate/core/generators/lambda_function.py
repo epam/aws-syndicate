@@ -34,12 +34,14 @@ from syndicate.core.generators.contents import (
 from syndicate.core.generators.project import FOLDER_COMMONS
 from syndicate.core.groups import (RUNTIME_JAVA, RUNTIME_NODEJS,
                                    RUNTIME_PYTHON)
+from syndicate.core.project_state import ProjectState
 
 _LOG = get_logger('syndicate.core.generators.lambda_function')
 
 SLASH_SYMBOL = '/'
 
 FOLDER_LAMBDAS = '/lambdas'
+FOLDER_COMMONS = '/commons'
 
 FILE_README = '/README.md'
 FILE_DEPLOYMENT_RESOURCES = '/deployment_resources.json'
@@ -78,14 +80,15 @@ NODEJS_LAMBDA_FILES = [
 ]
 
 
-def generate_commons_module(src_path, runtime):
+def generate_common_module(src_path, runtime):
     runtime_processor = COMMON_MODULE_PROCESSORS.get(runtime)
     if not runtime_processor:
         raise AssertionError(f'Unable to create a common module in {src_path}')
     runtime_processor(src_path=src_path)
 
 
-def generate_lambda_function(project_path, runtime, lambda_names):
+def generate_lambda_function(project_path, runtime,
+                             lambda_names):
     if not os.path.exists(project_path):
         _LOG.info('Project "{}" you have provided does not exist'.format(
             project_path))
