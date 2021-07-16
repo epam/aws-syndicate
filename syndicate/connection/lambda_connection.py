@@ -246,8 +246,8 @@ class LambdaConnection(object):
         self.client.delete_event_source_mapping(UUID=uuid)
 
     def remove_invocation_permission(self, func_name):
-        """Removes permission for API Gateway to be able invoke lambda.
-
+        """
+        Removes permission for API Gateway to be able invoke lambda.
         :type func_name: str
         """
 

@@ -309,7 +309,7 @@ def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
     :return:
     """
     click.echo('Command clean')
-    click.echo('Deploy name: %s' % deploy_name)
+    click.echo(f'Deploy name: {deploy_name}')
     separator = ', '
     if clean_only_types:
         click.echo(f'Clean only types: {separator.join(clean_only_types)}')
@@ -324,8 +324,7 @@ def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
         click.echo(f'Excluded resources path: {excluded_resources_path}')
     if excluded_types:
         click.echo(f'Excluded types: {separator.join(excluded_resources)}')
-    if clean_only_resources_path and os.path.exists(
-            clean_only_resources_path):
+    if clean_only_resources_path and os.path.exists(clean_only_resources_path):
         clean_resources_list = json.load(open(clean_only_resources_path))
         clean_only_resources = tuple(
             set(clean_only_resources + tuple(clean_resources_list)))
