@@ -34,8 +34,7 @@ LOCK_LAST_MODIFICATION_DATE = 'last_modification_date'
 LOCK_INITIATOR = 'initiator'
 
 MODIFICATION_LOCK = 'modification_lock'
-WARMUP_LOCK = 'warmup_lock'
-
+WARMUP_LOCK = 'warm_up_lock'
 PROJECT_STATE_FILE = '.syndicate'
 
 BUILD_MAPPINGS = {

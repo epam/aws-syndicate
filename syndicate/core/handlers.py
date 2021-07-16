@@ -35,9 +35,9 @@ from syndicate.core.build.deployment_processor import (
     continue_deployment_resources, create_deployment_resources,
     remove_deployment_resources, remove_failed_deploy_resources,
     update_deployment_resources)
-from syndicate.core.build.warmup_processor import (warmup_resources,
-                                                   process_schemas, warm_upper,
-                                                   process_existed_api_gw_id,
+from syndicate.core.build.warmup_processor import (process_deploy_resources,
+                                                   process_api_gw_resources, warm_upper,
+                                                   process_existing_api_gw_id,
                                                    process_inputted_api_gw_id)
 from syndicate.core.build.meta_processor import create_meta
 from syndicate.core.conf.validator import (MVN_BUILD_TOOL_NAME,
@@ -52,7 +52,8 @@ from syndicate.core.helper import (check_required_param,
                                    verify_bundle_callback,
                                    verify_meta_bundle_callback,
                                    resolve_default_value,
-                                   generate_default_bundle_name)
+                                   generate_default_bundle_name,
+                                   sync_lock)
 from syndicate.core.project_state.project_state import (MODIFICATION_LOCK,
                                                         WARMUP_LOCK)
 from syndicate.core.project_state.status_processor import project_state_status
@@ -173,6 +174,7 @@ def build(ctx, bundle_name, force_upload):
 @click.option('--replace_output', is_flag=True, default=False,
               help='Replaces the existing deploy output')
 @check_deploy_name_for_duplicates
+@sync_lock(lock_type=MODIFICATION_LOCK)
 @timeit(action_name='deploy')
 def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
            deploy_only_resources_path, excluded_resources,
@@ -561,38 +563,27 @@ def copy_bundle(ctx, bundle_name, src_account_id, src_bucket_region,
 
 
 @syndicate.command(name='warmup')
-@click.option('--bundle_name', nargs=1)
-@click.option('--deploy_name', nargs=1)
-@click.option('--api_gw_id', nargs=1, multiple=True, type=str)
-@click.option('--stage_name', nargs=1, multiple=True, type=str)
-@click.option('--lambda_auth', default=False, is_flag=True)
-@click.option('--header_name', nargs=1)
-@click.option('--header_value', nargs=1)
+@click.option('--bundle_name', nargs=1,
+              help='Name of the bundle. Should be specified with deploy_name'
+                   ' parameter.')
+@click.option('--deploy_name', nargs=1, help='Name of the deploy.')
+@click.option('--api_gw_id', nargs=1, multiple=True, type=str,
+              help='Provide API Gateway IDs to warmup.')
+@click.option('--stage_name', nargs=1, multiple=True, type=str,
+              help='Name of stages of provided API Gateway IDs.')
+@click.option('--lambda_auth', default=False, is_flag=True,
+              help='Should be specified if API Gateway Lambda Authorizer is '
+                   'enabled')
+@click.option('--header_name', nargs=1, help='Name of authentication header.')
+@click.option('--header_value', nargs=1, help='Name of authentication header '
+                                              'value.')
+@sync_lock(lock_type=WARMUP_LOCK)
 @timeit(action_name='warmup')
 def warmup(bundle_name, deploy_name, api_gw_id, stage_name, lambda_auth,
            header_name, header_value):
     """
-       Warmups Lambda resources
-       :param bundle_name: name of the bundle
-       :param deploy_name: name of the deploy
-       :param api_gw_id: id of the API Gateway to warmup Lambda function
-       :param stage_name: name of the API Gateway stage
-       :param lambda_auth: used to specify if Lambda operates as API Gateway
-       Lambda Authorizer
-       :param header_name: Lambda authorization header key
-       :param header_value: Lambda authorization header value
-       :return:
-       """
-    sync_project_state()
-    from syndicate.core import PROJECT_STATE
-    if PROJECT_STATE.is_lock_free(WARMUP_LOCK):
-        PROJECT_STATE.acquire_lock(WARMUP_LOCK)
-        sync_project_state()
-    else:
-        click.echo('The project modification is locked.')
-        return
-
-    click.echo('Command warmup')
+    Warmups Lambda functions.
+    """
 
     if bundle_name and deploy_name:
         click.echo(f'Deploy name: {deploy_name}')
@@ -602,22 +593,28 @@ def warmup(bundle_name, deploy_name, api_gw_id, stage_name, lambda_auth,
                        'name or create the bundle')
             return
 
-        schemas_list, paths_to_be_triggered = warmup_resources(
-            deploy_name=deploy_name, bundle_name=bundle_name)
+        paths_to_be_triggered, resource_path_warmup_key_mapping = \
+            process_deploy_resources(deploy_name=deploy_name,
+                                     bundle_name=bundle_name)
 
     elif api_gw_id:
-        schemas_list, paths_to_be_triggered = process_inputted_api_gw_id(
-            api_gw_id, stage_name)
+        paths_to_be_triggered, resource_path_warmup_key_mapping = \
+            process_inputted_api_gw_id(api_id=api_gw_id, stage_name=stage_name,
+                                       echo=click.echo)
 
     else:
-        schemas_list, paths_to_be_triggered = process_existed_api_gw_id(
-            stage_name)
+        paths_to_be_triggered, resource_path_warmup_key_mapping = \
+            process_existing_api_gw_id(stage_name=stage_name, echo=click.echo)
 
-    uri_method_dict = process_schemas(schemas_list, paths_to_be_triggered)
-    warm_upper(uri_method_dict, lambda_auth, header_name, header_value)
-    click.echo('AWS lambda resources were triggered.')
-    PROJECT_STATE.release_lock(WARMUP_LOCK)
-    sync_project_state()
+    resource_method_mapping, resource_warmup_key_mapping = \
+        process_api_gw_resources(paths_to_be_triggered=paths_to_be_triggered,
+                                 resource_path_warmup_key_mapping=
+                                 resource_path_warmup_key_mapping)
+    warm_upper(resource_method_mapping=resource_method_mapping,
+               resource_warmup_key_mapping=resource_warmup_key_mapping,
+               lambda_auth=lambda_auth, header_name=header_name,
+               header_value=header_value)
+    click.echo('Application resources have been warmed up.')
 
 
 @syndicate.command(name='profiler')
