@@ -231,6 +231,33 @@ def handle_futures_progress_bar(futures):
         pass
 
 
+def string_to_camel_case(s: str):
+    temp = s.split('_')
+    res = temp[0] + ''.join(ele.title() for ele in temp[1:])
+    return str(res)
+
+
+def dict_keys_to_camel_case(d: dict):
+    new_d = {}
+    for key, value in d.items():
+        if isinstance(value, (str, int)):
+            new_d[string_to_camel_case(key)] = value
+
+        if isinstance(value, list):
+            new_list = []
+            for index, item in enumerate(value):
+                if isinstance(item, (str, int)):
+                    new_list.append(item)
+                if isinstance(item, dict):
+                    new_list.append(dict_keys_to_camel_case(item))
+            new_d[string_to_camel_case(key)] = new_list
+
+        if isinstance(value, dict):
+            new_d[string_to_camel_case(key)] = dict_keys_to_camel_case(value)
+
+    return new_d
+
+
 class OrderedGroup(click.Group):
     def __init__(self, name=None, commands=None, **attrs):
         super(OrderedGroup, self).__init__(name, commands, **attrs)

@@ -18,6 +18,7 @@ from functools import lru_cache
 from syndicate.connection.api_gateway_connection import ApiGatewayConnection
 from syndicate.connection.application_autoscaling_connection import (
     ApplicationAutoscaling)
+from syndicate.connection.batch_connection import BatchConnection
 from syndicate.connection.cloud_watch_connection import (EventConnection,
                                                          LogsConnection,
                                                          MetricConnection)
@@ -165,3 +166,9 @@ class ConnectionProvider(object):
             credentials['region'] = region
         return KMSConnection(**credentials)
 
+    @lru_cache(maxsize=None)
+    def batch(self, region=None):
+        credentials = self.credentials.copy()
+        if region:
+            credentials['region'] = region
+        return BatchConnection(**credentials)

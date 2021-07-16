@@ -15,7 +15,8 @@ public class LayerConfigurationFactory {
 
 		LayerConfiguration configuration = new LayerConfiguration.Builder()
 			.withName(layerDefinition.layerName())
-			.withDeploymentPackage(layerDefinition.layerName() + "-assembly.zip") // TODO: 2019-12-03 how to get assembly id here?
+			.withDeploymentPackage(layerDefinition.layerName() + "-assembly"
+                    + layerDefinition.artifactExtension().getExtension()) // TODO: 2019-12-03 how to get assembly id here?
 			.withResourceType(ResourceType.LAMBDA_LAYER)
 			.withRuntimes(DeploymentRuntime.JAVA8).build();
 

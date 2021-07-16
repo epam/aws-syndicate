@@ -246,6 +246,7 @@ def _populate_s3_path(meta, bundle_name):
 RUNTIME_PATH_RESOLVER = {
     'python2.7': _populate_s3_path_python_node,
     'python3.7': _populate_s3_path_python_node,
+    'python3.8': _populate_s3_path_python_node,
     'java8': _populate_s3_path_java,
     'nodejs10.x': _populate_s3_path_python_node,
     'nodejs8.10': _populate_s3_path_python_node

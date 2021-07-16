@@ -25,7 +25,8 @@ from syndicate.core.resources.helper import (build_description_obj,
 
 _LOG = get_logger('syndicate.core.resources.api_gateway_resource')
 
-SUPPORTED_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'HEAD']
+SUPPORTED_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS',
+                     'HEAD']
 _CORS_HEADER_NAME = 'Access-Control-Allow-Origin'
 _CORS_HEADER_VALUE = "'*'"
 
@@ -425,13 +426,15 @@ class ApiGatewayResource(BaseResource):
             authorizer_id=method_meta.get('authorizer_id'),
             api_key_required=method_meta.get('api_key_required'),
             request_parameters=method_meta.get('method_request_parameters'),
-            request_models=method_meta.get('method_request_models'))
+            request_models=method_meta.get('method_request_models'),
+            request_validator=method_meta.get('request_validator'))
         # second step: create integration
         integration_type = method_meta.get('integration_type')
         # set up integration - lambda or aws service
         body_template = method_meta.get('integration_request_body_template')
         passthrough_behavior = method_meta.get(
             'integration_passthrough_behavior')
+        request_parameters = method_meta.get('integration_request_parameters')
         # TODO split to map - func implementation
         if integration_type:
             if integration_type == 'lambda':
@@ -470,7 +473,8 @@ class ApiGatewayResource(BaseResource):
                                                            integration_method,
                                                            role, uri,
                                                            body_template,
-                                                           passthrough_behavior)
+                                                           passthrough_behavior,
+                                                           request_parameters)
             elif integration_type == 'mock':
                 self.connection.create_mock_integration(api_id, resource_id,
                                                         method,

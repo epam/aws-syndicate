@@ -256,6 +256,24 @@ def __find_output_by_resource_name(output, resource_name):
     return found_items
 
 
+def _compare_external_resources(expected_resources):
+    from syndicate.core import PROCESSOR_FACADE
+    compare_funcs = PROCESSOR_FACADE.compare_meta_handlers()
+
+    errors = {}
+
+    for resource_name, resource_meta in expected_resources.items():
+        func = compare_funcs[resource_meta.get('resource_type')]
+        resource_errors = func(resource_name, resource_meta)
+        if resource_errors:
+            errors[resource_name] = resource_errors
+
+    if errors:
+        import os
+        error = f'{os.linesep}'.join(errors.values())
+        raise AssertionError(error)
+
+
 @exit_on_exception
 def create_deployment_resources(deploy_name, bundle_name,
                                 deploy_only_resources=None,
@@ -288,6 +306,12 @@ def create_deployment_resources(deploy_name, bundle_name,
     _LOG.debug(prettify_json(resources))
 
     _LOG.debug('Going to create: {0}'.format(prettify_json(resources)))
+
+    expected_external_resources = {key: value for key, value in
+                                   resources.items() if value.get('external')}
+    if expected_external_resources:
+        _compare_external_resources(expected_external_resources)
+        _LOG.info('External resources were matched successfully')
 
     # sort resources with priority
     resources_list = list(resources.items())
@@ -367,26 +391,29 @@ def _filter_the_dict(dictionary, callback):
 def remove_deployment_resources(deploy_name, bundle_name,
                                 clean_only_resources=None,
                                 clean_only_types=None,
-                                excluded_resources=None, excluded_types=None):
+                                excluded_resources=None,
+                                excluded_types=None,
+                                clean_externals=None):
     output = new_output = load_deploy_output(bundle_name, deploy_name)
     _LOG.info('Output file was loaded successfully')
     filters = [
         lambda v: v['resource_name'] in clean_only_resources,
         lambda v: v['resource_name'] not in excluded_resources,
         lambda v: v['resource_meta']['resource_type'] in clean_only_types,
-        lambda v: v['resource_meta']['resource_type'] not in excluded_types
-    ]
+        lambda v: v['resource_meta']['resource_type'] not in excluded_types]
 
     for function in filters:
         some_result = _filter_the_dict(new_output, function)
         if some_result:
             new_output = some_result
 
+    if not clean_externals:
+        new_output = dict((k, v) for (k, v) in new_output.items() if
+                          not v['resource_meta'].get('external'))
     # sort resources with priority
     resources_list = list(new_output.items())
     resources_list.sort(key=cmp_to_key(_compare_clean_resources))
     _LOG.debug('Resources to delete: {0}'.format(resources_list))
-
     _LOG.info('Going to clean AWS resources')
     clean_resources(resources_list)
     # remove new_output from bucket
@@ -460,7 +487,8 @@ def remove_failed_deploy_resources(deploy_name, bundle_name,
                                    clean_only_resources=None,
                                    clean_only_types=None,
                                    excluded_resources=None,
-                                   excluded_types=None):
+                                   excluded_types=None,
+                                   clean_externals=None):
     output = load_failed_deploy_output(bundle_name, deploy_name)
     _LOG.info('Failed output file was loaded successfully')
 
@@ -482,6 +510,9 @@ def remove_failed_deploy_resources(deploy_name, bundle_name,
                       v['resource_meta'][
                           'resource_type'] not in excluded_types)
 
+    if not clean_externals:
+        output = dict((k, v) for (k, v) in output.items() if
+                      not v['resource_meta'].get('external'))
     # sort resources with priority
     resources_list = list(output.items())
     resources_list.sort(key=cmp_to_key(_compare_clean_resources))

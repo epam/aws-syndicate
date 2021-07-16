@@ -4,10 +4,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.9.5] - 2021-02-09
-### Added
-- parameter binary_media_type for API Gateway resource type
+## [0.9.6] - 2021-04-29
+### Changed
+- Add AWS Batch support
+- Add external resources support
+- Add parameter binary_media_type for API Gateway resource type
+- Parameter binary_media_type for API Gateway resource type
 
+## [0.9.5] - 2021-03-11
+### Changed
+- Updated Python project examples
+- Added integration request parameters for API Gateway
+- Added request validator for API Gateway
+- Fixed a lost first zero issue due to incorrect work `syndicate init` command for AWS accounts, which start at zero.
+- Added the ability to add `logs_expiration` parameter in lambda_config.json.
+- Update Java version in Travis builds
 
 ## [0.9.4] - 2020-10-16
 ### Changed

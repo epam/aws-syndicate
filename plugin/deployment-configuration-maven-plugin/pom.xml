@@ -7,16 +7,16 @@
     <parent>
         <groupId>net.sf.aws-syndicate</groupId>
         <artifactId>deployment-configuration-processor</artifactId>
-        <version>1.5.10</version>
+        <version>1.5.11</version>
     </parent>
 
     <artifactId>deployment-configuration-maven-plugin</artifactId>
-    <version>1.5.10</version>
+    <version>1.5.11</version>
     <packaging>maven-plugin</packaging>
 
     <properties>
         <dependency.maven.version>3.3.9</dependency.maven.version>
-        <junit.version>4.12</junit.version>
+        <junit.version>4.13.1</junit.version>
         <maven-plugin-annotations.version>3.3</maven-plugin-annotations.version>
         <maven-plugin-plugin.version>3.5</maven-plugin-plugin.version>
         <maven-plugin-testing-harness.version>3.3.0</maven-plugin-testing-harness.version>
@@ -28,7 +28,7 @@
         <dependency>
             <groupId>net.sf.aws-syndicate</groupId>
             <artifactId>deployment-configuration-annotations</artifactId>
-            <version>1.5.10</version>
+            <version>1.5.11</version>
         </dependency>
         <dependency>
             <groupId>org.reflections</groupId>
