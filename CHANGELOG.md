@@ -14,7 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Provided ability to add information about created lambda to `.syndicate` file
 - Added `test` command that allows to run tests inside your python project
 - Added `profiler` command that allows to display application Lambda metrics
-- Fixed an issue in `clean` command, associated with API Gateway skipping removing Lambda trigger permissions  
+- Fixed an issue in `clean` command, associated with API Gateway skipping removing Lambda trigger permissions
+- Add ANY, PATCH to supported methods in API Gateway
 
 ## [0.9.6] - 2021-04-29
 ### Changed
