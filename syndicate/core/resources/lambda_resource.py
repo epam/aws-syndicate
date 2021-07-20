@@ -385,6 +385,7 @@ class LambdaResource(BaseResource):
         self._manage_provisioned_concurrency_configuration(function_name=name,
                                                            meta=meta,
                                                            lambda_def=context)
+        return self.describe_lambda(name, meta, response)
 
     def _set_function_concurrency(self, name, meta):
         provisioned = self.lambda_conn.describe_provisioned_concurrency_configs(

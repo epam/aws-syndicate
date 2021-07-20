@@ -29,7 +29,7 @@ GENERATE_GROUP_NAME = 'generate'
 
 @click.group(name=GENERATE_GROUP_NAME, cls=OrderedGroup, chain=True)
 def generate():
-    """Manages auto-generating"""
+    """Generates project, lambda or configs"""
 
 
 @generate.command(name='project')
@@ -46,7 +46,7 @@ def project(ctx, name, path):
     """
     click.echo('Project name: {}'.format(name))
 
-    proj_path = os if not path else path
+    proj_path = os.getcwd() if not path else path
     if not os.access(proj_path, os.X_OK | os.W_OK):
         return ('Incorrect permissions for the provided path {}'.format(
             proj_path))
@@ -60,8 +60,7 @@ def project(ctx, name, path):
               callback=check_required_param,
               help='(multiple) * The lambda function name')
 @click.option('--runtime', nargs=1, callback=check_required_param,
-              help='* The name of programming language that will '
-                   'be used in the project',
+              help='* Lambda runtime',
               type=click.Choice(PROJECT_PROCESSORS))
 @click.option('--project_path', nargs=1,
               help='The path of the project to add lambda '

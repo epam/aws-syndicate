@@ -35,7 +35,7 @@ from syndicate.core.conf.validator import (LAMBDAS_ALIASES_NAME_CFG)
 from syndicate.core.generators import _mkdir
 
 _LOG = get_logger('config_generator')
-_USER_LOG = get_user_logger('config_generator')
+_USER_LOG = get_user_logger()
 
 
 def generate_configuration_files(name, config_path, region,

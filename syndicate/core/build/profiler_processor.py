@@ -33,7 +33,6 @@ def _get_cw_client():
 @exit_on_exception
 def get_lambdas_name(bundle_name, deploy_name):
     output = load_deploy_output(bundle_name, deploy_name)
-
     lambda_output = {key: value for key, value in output.items() if
                      value['resource_meta'].get('resource_type') == 'lambda'}
 

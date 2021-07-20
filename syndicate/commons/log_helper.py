@@ -57,7 +57,7 @@ def get_logger(log_name, level=LOG_LEVEL):
     return module_logger
 
 
-def get_user_logger(log_name, level=LOG_LEVEL):
+def get_user_logger(level=LOG_LEVEL):
     """
     :param level:   CRITICAL = 50
                     ERROR = 40
@@ -68,7 +68,7 @@ def get_user_logger(log_name, level=LOG_LEVEL):
     :type log_name: str
     :type level: int
     """
-    module_logger = user_logger.getChild(log_name)
+    module_logger = user_logger.getChild('child')
     if level:
         module_logger.setLevel(level)
     return module_logger

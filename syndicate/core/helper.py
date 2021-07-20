@@ -30,7 +30,7 @@ import click
 from click import BadParameter
 from tqdm import tqdm
 
-from syndicate.commons.log_helper import get_logger
+from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.conf.processor import path_resolver
 from syndicate.core.constants import (ARTIFACTS_FOLDER, BUILD_META_FILE_NAME,
                                       DEFAULT_SEP)
@@ -38,6 +38,7 @@ from syndicate.core.project_state.project_state import MODIFICATION_LOCK
 from syndicate.core.project_state.sync_processor import sync_project_state
 
 _LOG = get_logger('syndicate.core.helper')
+USER_LOG = get_user_logger()
 
 CONF_PATH = os.environ.get('SDCT_CONF')
 
@@ -172,9 +173,12 @@ def generate_default_bundle_name(ctx, param, value):
     return f'{project_name}_{date}'
 
 
-def resolve_default_bundle_name():
+def resolve_default_bundle_name(command_name):
     from syndicate.core import PROJECT_STATE
-    bundle_name = PROJECT_STATE.latest_built_bundle_name
+    if command_name == 'clean':
+        bundle_name = PROJECT_STATE.latest_deployed_bundle_name
+    else:
+        bundle_name = PROJECT_STATE.latest_built_bundle_name
     if not bundle_name:
         click.echo('Property \'bundle\' is not specified and could '
                    'not be resolved due to absence of data about the '
@@ -183,7 +187,7 @@ def resolve_default_bundle_name():
     return bundle_name
 
 
-def resolve_default_deploy_name():
+def resolve_default_deploy_name(command_name):
     from syndicate.core import PROJECT_STATE
     return PROJECT_STATE.default_deploy_name
 
@@ -195,12 +199,16 @@ param_resolver_map = {
 
 
 def resolve_default_value(ctx, param, value):
+    command_name = ctx.info_name
     if not value:
         param_resolver = param_resolver_map.get(param.name)
         if not param_resolver:
             raise AssertionError(
-                f'There is no resolver of default value for param {param.name}')
-        return param_resolver()
+                f'There is no resolver of default value '
+                f'for param {param.name}')
+        resolved_value = param_resolver(command_name=command_name)
+        USER_LOG.info(f'Resolved value of {param.name}: {resolved_value}')
+        return resolved_value
 
 
 def create_bundle_callback(ctx, param, value):

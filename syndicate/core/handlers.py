@@ -16,17 +16,16 @@
 import json
 import os
 import sys
-import click
 
+import click
 from tabulate import tabulate
+
 from syndicate.core import CONF_PATH, initialize_connection, \
     initialize_project_state
 from syndicate.core.build.artifact_processor import (RUNTIME_NODEJS,
                                                      assemble_artifacts,
                                                      RUNTIME_JAVA_8,
                                                      RUNTIME_PYTHON)
-from syndicate.core.build.profiler_processor import (get_metric_statistics,
-                                                     process_metrics)
 from syndicate.core.build.bundle_processor import (create_bundles_bucket,
                                                    load_bundle,
                                                    upload_bundle_to_s3,
@@ -35,11 +34,14 @@ from syndicate.core.build.deployment_processor import (
     continue_deployment_resources, create_deployment_resources,
     remove_deployment_resources, remove_failed_deploy_resources,
     update_deployment_resources)
+from syndicate.core.build.meta_processor import create_meta
+from syndicate.core.build.profiler_processor import (get_metric_statistics,
+                                                     process_metrics)
 from syndicate.core.build.warmup_processor import (process_deploy_resources,
-                                                   process_api_gw_resources, warm_upper,
+                                                   process_api_gw_resources,
+                                                   warm_upper,
                                                    process_existing_api_gw_id,
                                                    process_inputted_api_gw_id)
-from syndicate.core.build.meta_processor import create_meta
 from syndicate.core.conf.validator import (MVN_BUILD_TOOL_NAME,
                                            PYTHON_BUILD_TOOL_NAME,
                                            NODE_BUILD_TOOL_NAME)
@@ -74,7 +76,7 @@ def _not_require_config(all_params):
 @click.version_option()
 def syndicate():
     if CONF_PATH:
-        click.echo('Configuration path used: ' + CONF_PATH)
+        click.echo('Configuration used: ' + CONF_PATH)
         initialize_connection()
         initialize_project_state()
     elif _not_require_config(sys.argv):
@@ -185,12 +187,6 @@ def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
     """
     sync_project_state()
     from syndicate.core import PROJECT_STATE
-    if PROJECT_STATE.is_lock_free(MODIFICATION_LOCK):
-        PROJECT_STATE.acquire_lock(MODIFICATION_LOCK)
-        sync_project_state()
-    else:
-        click.echo('The project modification is locked.')
-        return
     if deploy_only_resources_path and os.path.exists(
             deploy_only_resources_path):
         deploy_resources_list = json.load(open(deploy_only_resources_path))
@@ -274,8 +270,8 @@ def update(bundle_name, deploy_name, replace_output,
 
 @syndicate.command(name='clean')
 @timeit(action_name='clean')
-@click.option('--deploy_name', nargs=1, callback=check_required_param)
-@click.option('--bundle_name', nargs=1, callback=check_required_param)
+@click.option('--deploy_name', nargs=1, callback=resolve_default_value)
+@click.option('--bundle_name', nargs=1, callback=resolve_default_value)
 @click.option('--clean_only_types', multiple=True)
 @click.option('--clean_only_resources', multiple=True)
 @click.option('--clean_only_resources_path', nargs=1, type=str)
@@ -289,24 +285,6 @@ def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
           excluded_resources_path, excluded_types, rollback):
     """
     Cleans the application infrastructure.
-    :param deploy_name: name of the deploy
-    :param bundle_name: name of the bundle
-    :param clean_only_types: list of types that must be cleaned
-    :param clean_only_resources: list of names of resources that
-        must be cleaned
-    :param clean_only_resources_path: path to a json list which contains a list
-        of resources names which must be cleaned
-    :param clean_externals: used to clean external resources
-    :param excluded_resources: list of the resources names than must be skipped
-        while cleaning the application infrastructure
-    :param excluded_resources_path: path to a json list which contains a list
-        of resources names which must be skipped while cleaning
-        the application infrastructure
-    :param excluded_types: list of types that must be skipped while cleaning
-        the application infrastructure
-    :param rollback: used to clean resources that were created in scope of the
-        failed deploy
-    :return:
     """
     click.echo('Command clean')
     click.echo(f'Deploy name: {deploy_name}')
@@ -372,6 +350,82 @@ def status(category):
     Shows the state of a local project state file (.syndicate).
     """
     click.echo(project_state_status(category))
+
+
+@syndicate.command(name='warmup')
+@click.option('--bundle_name', nargs=1, callback=resolve_default_value,
+              help='Name of the bundle. Should be specified with deploy_name'
+                   ' parameter.')
+@click.option('--deploy_name', nargs=1, callback=resolve_default_value,
+              help='Name of the deploy.')
+@click.option('--api_gw_id', nargs=1, multiple=True, type=str,
+              help='Provide API Gateway IDs to warmup.')
+@click.option('--stage_name', nargs=1, multiple=True, type=str,
+              help='Name of stages of provided API Gateway IDs.')
+@click.option('--lambda_auth', default=False, is_flag=True,
+              help='Should be specified if API Gateway Lambda Authorizer is '
+                   'enabled')
+@click.option('--header_name', nargs=1, help='Name of authentication header.')
+@click.option('--header_value', nargs=1, help='Name of authentication header '
+                                              'value.')
+@sync_lock(lock_type=WARMUP_LOCK)
+@timeit(action_name='warmup')
+def warmup(bundle_name, deploy_name, api_gw_id, stage_name, lambda_auth,
+           header_name, header_value):
+    """
+    Warmups Lambda functions.
+    """
+
+    if bundle_name and deploy_name:
+        click.echo(f'Deploy name: {deploy_name}')
+        if not if_bundle_exist(bundle_name=bundle_name):
+            click.echo(f'Bundle name \'{bundle_name}\' does not exists '
+                       'in deploy bucket. Please use another bundle '
+                       'name or create the bundle')
+            return
+
+        paths_to_be_triggered, resource_path_warmup_key_mapping = \
+            process_deploy_resources(deploy_name=deploy_name,
+                                     bundle_name=bundle_name)
+
+    elif api_gw_id:
+        paths_to_be_triggered, resource_path_warmup_key_mapping = \
+            process_inputted_api_gw_id(api_id=api_gw_id, stage_name=stage_name,
+                                       echo=click.echo)
+
+    else:
+        paths_to_be_triggered, resource_path_warmup_key_mapping = \
+            process_existing_api_gw_id(stage_name=stage_name, echo=click.echo)
+
+    resource_method_mapping, resource_warmup_key_mapping = \
+        process_api_gw_resources(paths_to_be_triggered=paths_to_be_triggered,
+                                 resource_path_warmup_key_mapping=
+                                 resource_path_warmup_key_mapping)
+    warm_upper(resource_method_mapping=resource_method_mapping,
+               resource_warmup_key_mapping=resource_warmup_key_mapping,
+               lambda_auth=lambda_auth, header_name=header_name,
+               header_value=header_value)
+    click.echo('Application resources have been warmed up.')
+
+
+@syndicate.command(name='profiler')
+@click.option('--bundle_name', nargs=1, callback=resolve_default_value)
+@click.option('--deploy_name', nargs=1, callback=resolve_default_value)
+@click.option('--from_date', nargs=1, type=str)
+@click.option('--to_date', nargs=1, type=str)
+def profiler(bundle_name, deploy_name, from_date, to_date):
+    """
+    Displays application Lambda metrics
+    """
+    metric_value_dict = get_metric_statistics(bundle_name, deploy_name,
+                                              from_date, to_date)
+    for lambda_name, metrics in metric_value_dict.items():
+        prettify_metrics_dict = {}
+
+        click.echo(f'{os.linesep}Lambda function name: {lambda_name}')
+        prettify_metrics_dict = process_metrics(prettify_metrics_dict, metrics)
+        click.echo(tabulate(prettify_metrics_dict, headers='keys',
+                            stralign='right'))
 
 
 # =============================================================================
@@ -559,81 +613,6 @@ def copy_bundle(ctx, bundle_name, src_account_id, src_bucket_region,
     click.echo('Bundle was downloaded successfully')
     ctx.invoke(upload, bundle_name=bundle_name, force=force_upload)
     click.echo('Bundle was copied successfully')
-
-
-@syndicate.command(name='warmup')
-@click.option('--bundle_name', nargs=1,
-              help='Name of the bundle. Should be specified with deploy_name'
-                   ' parameter.')
-@click.option('--deploy_name', nargs=1, help='Name of the deploy.')
-@click.option('--api_gw_id', nargs=1, multiple=True, type=str,
-              help='Provide API Gateway IDs to warmup.')
-@click.option('--stage_name', nargs=1, multiple=True, type=str,
-              help='Name of stages of provided API Gateway IDs.')
-@click.option('--lambda_auth', default=False, is_flag=True,
-              help='Should be specified if API Gateway Lambda Authorizer is '
-                   'enabled')
-@click.option('--header_name', nargs=1, help='Name of authentication header.')
-@click.option('--header_value', nargs=1, help='Name of authentication header '
-                                              'value.')
-@sync_lock(lock_type=WARMUP_LOCK)
-@timeit(action_name='warmup')
-def warmup(bundle_name, deploy_name, api_gw_id, stage_name, lambda_auth,
-           header_name, header_value):
-    """
-    Warmups Lambda functions.
-    """
-
-    if bundle_name and deploy_name:
-        click.echo(f'Deploy name: {deploy_name}')
-        if not if_bundle_exist(bundle_name=bundle_name):
-            click.echo(f'Bundle name \'{bundle_name}\' does not exists '
-                       'in deploy bucket. Please use another bundle '
-                       'name or create the bundle')
-            return
-
-        paths_to_be_triggered, resource_path_warmup_key_mapping = \
-            process_deploy_resources(deploy_name=deploy_name,
-                                     bundle_name=bundle_name)
-
-    elif api_gw_id:
-        paths_to_be_triggered, resource_path_warmup_key_mapping = \
-            process_inputted_api_gw_id(api_id=api_gw_id, stage_name=stage_name,
-                                       echo=click.echo)
-
-    else:
-        paths_to_be_triggered, resource_path_warmup_key_mapping = \
-            process_existing_api_gw_id(stage_name=stage_name, echo=click.echo)
-
-    resource_method_mapping, resource_warmup_key_mapping = \
-        process_api_gw_resources(paths_to_be_triggered=paths_to_be_triggered,
-                                 resource_path_warmup_key_mapping=
-                                 resource_path_warmup_key_mapping)
-    warm_upper(resource_method_mapping=resource_method_mapping,
-               resource_warmup_key_mapping=resource_warmup_key_mapping,
-               lambda_auth=lambda_auth, header_name=header_name,
-               header_value=header_value)
-    click.echo('Application resources have been warmed up.')
-
-
-@syndicate.command(name='profiler')
-@click.option('--bundle_name', nargs=1, callback=check_required_param)
-@click.option('--deploy_name', nargs=1, callback=check_required_param)
-@click.option('--from_date', nargs=1, type=str)
-@click.option('--to_date', nargs=1, type=str)
-def profiler(bundle_name, deploy_name, from_date, to_date):
-    """
-    Displays application Lambda metrics
-    """
-    metric_value_dict = get_metric_statistics(bundle_name, deploy_name,
-                                              from_date, to_date)
-    for lambda_name, metrics in metric_value_dict.items():
-        prettify_metrics_dict = {}
-
-        click.echo(f'{os.linesep}Lambda function name: {lambda_name}')
-        prettify_metrics_dict = process_metrics(prettify_metrics_dict, metrics)
-        click.echo(tabulate(prettify_metrics_dict, headers='keys',
-                            stralign='right'))
 
 
 syndicate.add_command(generate)

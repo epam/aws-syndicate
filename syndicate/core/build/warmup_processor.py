@@ -1,13 +1,14 @@
+import os
+
 import boto3
 import requests
-import os
+from requests_aws_sign import AWSV4Sign
 
 from syndicate.commons.log_helper import get_logger
 from syndicate.core import ResourceProvider
-from syndicate.core.conf.processor import ConfigHolder
 from syndicate.core.build.bundle_processor import load_deploy_output
+from syndicate.core.conf.processor import ConfigHolder
 from syndicate.core.helper import exit_on_exception
-from requests_aws_sign import AWSV4Sign
 
 _LOG = get_logger('syndicate.core.build.warmup_processor')
 

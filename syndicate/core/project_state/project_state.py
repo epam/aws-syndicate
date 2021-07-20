@@ -119,11 +119,30 @@ class ProjectState:
 
     @property
     def latest_built_bundle_name(self):
+        return self._latest_operation_bundle_name(operation_name='build',
+                                                  attribute='bundle_name')
+
+    @property
+    def latest_built_deploy_name(self):
+        return self._latest_operation_bundle_name(operation_name='build',
+                                                  attribute='deploy_name')
+
+    @property
+    def latest_deployed_bundle_name(self):
+        return self._latest_operation_bundle_name(operation_name='deploy',
+                                                  attribute='bundle_name')
+
+    @property
+    def latest_deployed_deploy_name(self):
+        return self._latest_operation_bundle_name(operation_name='deploy',
+                                                  attribute='deploy_name')
+
+    def _latest_operation_bundle_name(self, operation_name, attribute):
         events = self.events
         build_events = [event for event in events if
-                        event.get('operation') == 'build']
+                        event.get('operation') == operation_name]
         if build_events:
-            return build_events[0].get('bundle_name')
+            return build_events[0].get(attribute)
 
     @property
     def latest_modification(self):
