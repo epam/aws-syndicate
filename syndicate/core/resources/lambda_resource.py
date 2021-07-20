@@ -385,6 +385,7 @@ class LambdaResource(BaseResource):
         self._manage_provisioned_concurrency_configuration(function_name=name,
                                                            meta=meta,
                                                            lambda_def=context)
+        return self.describe_lambda(name, meta, response)
 
     def _set_function_concurrency(self, name, meta):
         provisioned = self.lambda_conn.describe_provisioned_concurrency_configs(
@@ -798,3 +799,6 @@ class LambdaResource(BaseResource):
                 _LOG.warn('Lambda Layer {} is not found'.format(layer_name))
             else:
                 raise e
+
+    def remove_invocation_permission(self, func_name):
+        return self.lambda_conn.remove_invocation_permission(func_name)

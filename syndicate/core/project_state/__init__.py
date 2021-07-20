@@ -13,6 +13,3 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-RUNTIME_JAVA = 'java'
-RUNTIME_NODEJS = 'nodejs'
-RUNTIME_PYTHON = 'python'

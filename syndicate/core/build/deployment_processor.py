@@ -18,7 +18,7 @@ import json
 from concurrent.futures import ALL_COMPLETED, ThreadPoolExecutor
 from functools import cmp_to_key
 
-from syndicate.commons.log_helper import get_logger
+from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.build.bundle_processor import (create_deploy_output,
                                                    load_deploy_output,
                                                    load_failed_deploy_output,
@@ -34,6 +34,7 @@ from syndicate.core.constants import (BUILD_META_FILE_NAME,
 from syndicate.core.helper import exit_on_exception, prettify_json
 
 _LOG = get_logger('syndicate.core.build.deployment_processor')
+USER_LOG = get_user_logger()
 
 
 def get_dependencies(name, meta, resources_dict, resources):
@@ -74,7 +75,7 @@ def _process_resources(resources, handlers_mapping, pass_context=False):
                                         pass_context=pass_context))
                 continue
             elif current_res_type != resource_type:
-                _LOG.info('Processing {0} resources ...'.format(resource_type))
+                USER_LOG.info(f'Processing {resource_type} resources')
                 func = handlers_mapping[resource_type]
                 response = func(args)  # todo exception may be raised here
                 if response:
@@ -86,15 +87,16 @@ def _process_resources(resources, handlers_mapping, pass_context=False):
                                         pass_context=pass_context))
                 resource_type = current_res_type
         if args:
-            _LOG.info('Processing {0} resources ...'.format(resource_type))
+            USER_LOG.info(f'Processing {resource_type} resources')
             func = handlers_mapping[resource_type]
             response = func(args)
             if response:
                 output.update(response)
         return True, output
     except Exception as e:
-        _LOG.exception('Error occurred while {0} '
-                       'resource creating: {1}'.format(resource_type, str(e)))
+        USER_LOG.exception('Error occurred while {0} '
+                           'resource creating: {1}'.format(resource_type,
+                                                           str(e)))
         # args list always contains one item here
         return False, update_failed_output(args[0]['name'], args[0]['meta'],
                                            resource_type, output)
@@ -283,7 +285,7 @@ def create_deployment_resources(deploy_name, bundle_name,
                                 replace_output=False):
     resources = load_meta_resources(bundle_name)
     # validate_deployment_packages(resources)
-    _LOG.info('{0} file was loaded successfully'.format(BUILD_META_FILE_NAME))
+    _LOG.debug('{0} file was loaded successfully'.format(BUILD_META_FILE_NAME))
 
     # TODO make filter chain
     if deploy_only_resources:
@@ -320,20 +322,20 @@ def create_deployment_resources(deploy_name, bundle_name,
     _LOG.info('Going to deploy AWS resources')
     success, output = deploy_resources(resources_list)
     if success:
-        _LOG.info('AWS resources were deployed successfully')
+        USER_LOG.info('AWS resources were deployed successfully')
 
         # apply dynamic changes that uses ARNs
         _LOG.info('Going to apply dynamic changes')
         _apply_dynamic_changes(resources, output)
-        _LOG.info('Dynamic changes were applied successfully')
+        USER_LOG.info('Dynamic changes were applied successfully')
 
-    _LOG.info('Going to create deploy output')
+    USER_LOG.info('Going to create deploy output')
     create_deploy_output(bundle_name=bundle_name,
                          deploy_name=deploy_name,
                          output=output,
                          success=success,
                          replace_output=replace_output)
-    _LOG.info('Deploy output for {0} was created.'.format(deploy_name))
+    USER_LOG.info('Deploy output for {0} was created.'.format(deploy_name))
     return success
 
 

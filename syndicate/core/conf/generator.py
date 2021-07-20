@@ -17,8 +17,10 @@ import os
 import sys
 
 import yaml
+from botocore.exceptions import ClientError
 
-from syndicate.commons.log_helper import get_logger
+from syndicate.commons.log_helper import get_logger, get_user_logger
+from syndicate.connection.sts_connection import STSConnection
 from syndicate.core.conf.processor import (PROJECT_PATH_CFG,
                                            LEGACY_CONFIG_FILE_NAME,
                                            CONFIG_FILE_NAME,
@@ -27,25 +29,33 @@ from syndicate.core.conf.processor import (PROJECT_PATH_CFG,
                                            DEPLOY_TARGET_BUCKET_CFG,
                                            AWS_ACCESS_KEY_ID_CFG,
                                            AWS_SECRET_ACCESS_KEY_CFG,
-                                           PROJECTS_MAPPING_CFG,
                                            RESOURCES_PREFIX_CFG,
                                            RESOURCES_SUFFIX_CFG)
-from syndicate.core.conf.validator import (PYTHON_BUILD_TOOL_NAME,
-                                           MVN_BUILD_TOOL_NAME,
-                                           NODE_BUILD_TOOL_NAME,
-                                           LAMBDAS_ALIASES_NAME_CFG)
+from syndicate.core.conf.validator import (LAMBDAS_ALIASES_NAME_CFG)
+from syndicate.core.generators import _mkdir
 
 _LOG = get_logger('config_generator')
+_USER_LOG = get_user_logger()
 
 
-def generate_configuration_files(config_path, region, account_id,
+def generate_configuration_files(name, config_path, region,
                                  access_key, secret_key,
-                                 bundle_bucket_name, python_build_mapping,
-                                 java_build_mapping,
-                                 nodejs_build_mapping, prefix, suffix,
+                                 bundle_bucket_name, prefix, suffix,
                                  project_path=None):
+    try:
+        sts = STSConnection(region=region,
+                            aws_access_key_id=access_key,
+                            aws_secret_access_key=secret_key)
+        caller_identity = sts.get_caller_identity()
+        account_id = int(caller_identity['Account'])
+    except ClientError:
+        _USER_LOG.error('Invalid credentials provided, please '
+                        'specify the correct one')
+        _LOG.exception('Error while account_id obtaining')
+        sys.exit(1)
+
     if not config_path:
-        _LOG.warn(f'The {config_path} property is not specified. '
+        _LOG.warn(f'The config_path property is not specified. '
                   f'The working directory is used')
         config_path = os.getcwd()
 
@@ -59,25 +69,15 @@ def generate_configuration_files(config_path, region, account_id,
             sys.exit(1)
 
     if not project_path:
-        _LOG.warn(f'The {PROJECT_PATH_CFG} property is not specified. '
-                  f'The working directory will be used as a project path. '
-                  f'To change the path, edit the {LEGACY_CONFIG_FILE_NAME} '
-                  f'by path {config_path}')
+        _USER_LOG.warn(f'The {PROJECT_PATH_CFG} property is not specified. '
+                       f'The working directory will be used as a project path. '
+                       f'To change the path, edit the {LEGACY_CONFIG_FILE_NAME} '
+                       f'by path {config_path}')
         project_path = os.getcwd()
     else:
         if not os.path.exists(project_path):
             raise AssertionError(
                 f'Provided project path {project_path} does not exists')
-
-    build_project_mapping = {}
-    if python_build_mapping:
-        build_project_mapping[PYTHON_BUILD_TOOL_NAME] = \
-            list(python_build_mapping)
-    if java_build_mapping:
-        build_project_mapping[MVN_BUILD_TOOL_NAME] = list(java_build_mapping)
-    if nodejs_build_mapping:
-        build_project_mapping[NODE_BUILD_TOOL_NAME] = \
-            list(nodejs_build_mapping)
 
     config_content = {
         ACCOUNT_ID_CFG: account_id,
@@ -86,27 +86,29 @@ def generate_configuration_files(config_path, region, account_id,
         AWS_ACCESS_KEY_ID_CFG: access_key,
         AWS_SECRET_ACCESS_KEY_CFG: secret_key,
         PROJECT_PATH_CFG: project_path,
-        PROJECTS_MAPPING_CFG: build_project_mapping,
         RESOURCES_PREFIX_CFG: prefix,
         RESOURCES_SUFFIX_CFG: suffix
     }
+    config_content = {key: value for key, value in config_content.items()
+                      if value}
 
-    config_file_path = f'{config_path}/{CONFIG_FILE_NAME}'
+    config_folder_path = os.path.join(config_path, f'.syndicate-config-{name}')
+    _mkdir(path=config_folder_path)
+
+    config_file_path = os.path.join(config_folder_path, CONFIG_FILE_NAME)
     with open(config_file_path, 'w') as config_file:
         yaml.dump(config_content, config_file)
 
     aliases_content = {
-        ACCOUNT_ID_CFG: account_id,
-        REGION_CFG: region,
         LAMBDAS_ALIASES_NAME_CFG: 'prod'
     }
-    aliases_file_path = f'{config_path}/{ALIASES_FILE_NAME}'
+    aliases_file_path = os.path.join(config_folder_path, ALIASES_FILE_NAME)
     with open(aliases_file_path, 'w') as aliases_file:
         yaml.dump(aliases_content, aliases_file)
 
-    _LOG.info(
+    _USER_LOG.info(
         'Syndicate initialization has been completed. '
-        f'Set SDCT_CONF:\nexport SDCT_CONF={config_path}')
+        f'Set SDCT_CONF:\nexport SDCT_CONF={config_folder_path}')
 
 
 def generate_build_project_mapping(mapping_item, build_type):

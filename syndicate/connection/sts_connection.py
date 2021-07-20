@@ -50,3 +50,8 @@ class STSConnection(object):
             DurationSeconds=duration
         )
         return response['Credentials']
+
+    def get_caller_identity(self):
+        """ Returns details about the IAM identity whose credentials are used to call the API.
+        """
+        return self.client.get_caller_identity()

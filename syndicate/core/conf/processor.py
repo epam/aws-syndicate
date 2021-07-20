@@ -126,6 +126,7 @@ class ConfigHolder:
         aliases_path = os.path.join(dir_path, ALIASES_FILE_NAME)
         aliases_content = load_yaml_file_content(file_path=aliases_path)
         self._aliases = aliases_content
+        self._aliases.update(self.default_aliases)
 
     def _init_ini_config(self, dir_path):
         con_path = os.path.join(dir_path, LEGACY_CONFIG_FILE_NAME)
@@ -142,6 +143,7 @@ class ConfigHolder:
                       'inside %s folder' % dir_path)
         else:
             self._aliases = ConfigObj(alias_path)
+            self._aliases.update(self.default_aliases)
 
     def _validate_ini(self):
         # building a validator
@@ -184,6 +186,13 @@ class ConfigHolder:
 
     def _resolve_variable(self, variable_name):
         return self._config_dict.get(variable_name)
+
+    @property
+    def default_aliases(self):
+        return {
+            ACCOUNT_ID_CFG: self.account_id,
+            REGION_CFG: self.region
+        }
 
     @property
     def project_path(self):

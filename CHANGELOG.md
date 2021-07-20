@@ -4,8 +4,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.9.6.1] - 2021-07-20
+## [1.0.0] - 2021-06-11
 ### Changed
+- `init` command was replaced with `generate config`
+- Interface of command was improved, `access_key` and `secret_key` params made optional
+- Removed `account_id` param and provided ability to resolve it by STS or instance profile
+- `python_build_mapping`, `java_build_mapping`, `nodejs_build_mapping` was removed as they will be resolved using the `.syndicate` file
+- `generate lambda` command was improved, `common` module for python runtime is being generated with the first lambda
+- Provided ability to add information about created lambda to `.syndicate` file
+- Added `test` command that allows to run tests inside your python project
+- Added `profiler` command that allows to display application Lambda metrics
+- Fixed an issue in `clean` command, associated with API Gateway skipping removing Lambda trigger permissions
 - Add ANY, PATCH to supported methods in API Gateway
 
 ## [0.9.6] - 2021-04-29

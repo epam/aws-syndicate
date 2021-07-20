@@ -630,3 +630,7 @@ class ApiGatewayConnection(object):
                 items.extend(response.get('items'))
             position = response.get('position')
         return items
+
+    def get_authorizer(self, rest_api_id, authorizer_id):
+        return self.client.get_authorizer(restApiId=rest_api_id,
+                                          authorizerId=authorizer_id)

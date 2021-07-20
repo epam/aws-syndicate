@@ -13,6 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+import json
 import uuid
 
 from boto3 import client
@@ -243,6 +244,25 @@ class LambdaConnection(object):
         :param uuid: str
         """
         self.client.delete_event_source_mapping(UUID=uuid)
+
+    def remove_invocation_permission(self, func_name):
+        """
+        Removes permission for API Gateway to be able invoke lambda.
+        :type func_name: str
+        """
+
+        policies = self.client.get_policy(FunctionName=func_name)
+        policies = json.loads(policies['Policy'])
+        policies_meta = policies['Statement']
+
+        invocation_permission_sid_list = []
+        for policy in policies_meta:
+            if policy['Action'] == 'lambda:InvokeFunction':
+                invocation_permission_sid_list.append(policy['Sid'])
+
+        for sid in invocation_permission_sid_list:
+            self.client.remove_permission(FunctionName=func_name,
+                                          StatementId=sid)
 
     def add_invocation_permission(self, name, principal, source_arn=None,
                                   statement_id=None):

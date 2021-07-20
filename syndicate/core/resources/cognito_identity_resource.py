@@ -23,7 +23,7 @@ from syndicate.core.resources.helper import build_description_obj
 _LOG = get_logger('syndicate.core.resources.cognito_identity_resource')
 
 
-class CognitoResource(BaseResource):
+class CognitoIdentityResource(BaseResource):
 
     def __init__(self, cognito_conn, account_id, region) -> None:
         self.connection = cognito_conn
