@@ -166,17 +166,14 @@ class TerraformTemplate(object):
             AWS_LAMBDA_LAYER_VERSION: self._aws_lambda_layer_version
         }
 
+        self.provider = provider
         self.resources = list()
-        self.provider = list()
-        provider_config = {
-            provider: [
-                {
-                    "profile": profile,
-                    "region": region
-                }
-            ]
+        self.providers = list()
+        default_provider = {
+            "profile": profile,
+            "region": region
         }
-        self.provider.append(provider_config)
+        self.providers.append(default_provider)
 
     def add_aws_lambda(self, meta):
         self.aws_lambda_function.append(meta)
@@ -307,6 +304,17 @@ class TerraformTemplate(object):
     def add_aws_lambda_layer_version(self, meta):
         self.aws_lambda_layer_version.append(meta)
 
+    def add_provider_if_not_exists(self, region):
+        for provider in self.providers:
+            if provider['region'] == region:
+                return
+        self.providers.append(
+            {
+                'region': region,
+                'alias': region
+            }
+        )
+
     def _aws_lambda(self):
         return self.aws_lambda_function
 
@@ -433,6 +441,9 @@ class TerraformTemplate(object):
     def _aws_lambda_layer_version(self):
         return self.aws_lambda_layer_version
 
+    def provider_name(self):
+        return self.provider
+
     def get_resource_by_name(self, resource_name):
         for res_type in RESOURCE_TYPES:
             resource_extractor = self.compose_resources_mapping.get(res_type)
@@ -448,5 +459,5 @@ class TerraformTemplate(object):
             resources_meta = resource_extractor()
             if resources_meta:
                 self.resources.append({res_type: resources_meta})
-        return json.dumps({PROVIDER_KEY: self.provider,
+        return json.dumps({PROVIDER_KEY: {self.provider: self.providers},
                            RESOURCE_KEY: self.resources})

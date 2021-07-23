@@ -144,16 +144,28 @@ class ApiGatewayConverter(TerraformResourceConverter):
                         self.template.add_aws_api_gateway_integration_response(
                             meta=integration_response)
 
+        self._create_api_gateway_deployment(resource=resource,
+                                            api_name=api_name,
+                                            method_names=method_names,
+                                            integration_names=integration_names)
+
+    def _create_api_gateway_deployment(self, resource, api_name, method_names,
+                                       integration_names):
         deploy_stage = resource.get('deploy_stage')
         if deploy_stage:
-            deployment_name = f'{api_name}_{deploy_stage}_deployment'
+            deployment_name = build_terraform_resource_name(api_name,
+                                                            deploy_stage,
+                                                            'deployment')
             deployment = api_gateway_deployment(api_name=api_name,
                                                 deployment_name=deployment_name,
                                                 methods=method_names,
                                                 integration_names=integration_names)
+            cache_cluster_configuration = resource.get(
+                'cluster_cache_configuration')
             stage = api_gateway_stage(api_name=api_name,
                                       stage_name=deploy_stage,
-                                      deployment_name=deployment_name)
+                                      deployment_name=deployment_name,
+                                      cache_cluster_configuration=cache_cluster_configuration)
             self.template.add_aws_api_gateway_stage(meta=stage)
             self.template.add_aws_api_gateway_deployment(meta=deployment)
 
@@ -472,17 +484,33 @@ def create_api_gateway_integration(integration_name, api_name,
     return resource
 
 
-def api_gateway_stage(api_name, stage_name, deployment_name):
+def api_gateway_stage(api_name, stage_name, deployment_name,
+                      cache_cluster_configuration=None):
     rest_api_id = build_rest_api_id_ref(api_name=api_name)
     deployment_id = build_api_gateway_deployment_id_ref(
         deployment_name=deployment_name)
+
+    stage_meta = {
+        "deployment_id": deployment_id,
+        "rest_api_id": rest_api_id,
+        "stage_name": stage_name
+    }
+
+    if cache_cluster_configuration:
+        cache_cluster_enabled = cache_cluster_configuration.get(
+            'cache_enabled')
+        cache_size_value = cache_cluster_configuration.get(
+            'cache_size')
+        cache_cluster_size = str(cache_size_value)
+
+        if str(cache_cluster_enabled).lower() == 'true':
+            stage_meta['cache_cluster_enabled'] = cache_cluster_enabled
+        if cache_cluster_size:
+            stage_meta['cache_cluster_size'] = cache_cluster_size
+
+    stage_resource_name = build_terraform_resource_name(api_name, 'stage')
     resource = {
-        f'{api_name}_stage':
-            {
-                "deployment_id": deployment_id,
-                "rest_api_id": rest_api_id,
-                "stage_name": stage_name
-            }
+        stage_resource_name: stage_meta
     }
     return resource
 
