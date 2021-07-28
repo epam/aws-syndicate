@@ -199,16 +199,17 @@ param_resolver_map = {
 
 
 def resolve_default_value(ctx, param, value):
+    if value:
+        return value
     command_name = ctx.info_name
-    if not value:
-        param_resolver = param_resolver_map.get(param.name)
-        if not param_resolver:
-            raise AssertionError(
-                f'There is no resolver of default value '
-                f'for param {param.name}')
-        resolved_value = param_resolver(command_name=command_name)
-        USER_LOG.info(f'Resolved value of {param.name}: {resolved_value}')
-        return resolved_value
+    param_resolver = param_resolver_map.get(param.name)
+    if not param_resolver:
+        raise AssertionError(
+            f'There is no resolver of default value '
+            f'for param {param.name}')
+    resolved_value = param_resolver(command_name=command_name)
+    USER_LOG.info(f'Resolved value of {param.name}: {resolved_value}')
+    return resolved_value
 
 
 def create_bundle_callback(ctx, param, value):

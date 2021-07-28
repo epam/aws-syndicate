@@ -424,6 +424,8 @@ def profiler(bundle_name, deploy_name, from_date, to_date):
 
         click.echo(f'{os.linesep}Lambda function name: {lambda_name}')
         prettify_metrics_dict = process_metrics(prettify_metrics_dict, metrics)
+        if not prettify_metrics_dict:
+            click.echo('No executions found')
         click.echo(tabulate(prettify_metrics_dict, headers='keys',
                             stralign='right'))
 
