@@ -232,8 +232,13 @@ class ProjectState:
             return yaml.safe_load(state_file.read())
 
     def __save_events(self):
-        if len(self.events) > 20:
-            self.events = self.events[:20]
+        """
+        Save events to the .syndicate file 
+        
+        Sorts and sets the limit on the number of events in the file.
+        """
         self.events.sort(key=lambda event: event.get('time_start'),
                          reverse=True)
+        if len(self.events) > 20:
+            self.events = self.events[:20]
         self.save()
