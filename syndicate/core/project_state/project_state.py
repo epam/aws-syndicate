@@ -234,8 +234,7 @@ class ProjectState:
     def __save_events(self):
         """
         Save events to the .syndicate file
-
-        Sorts and sets the limit on the number of events in the file.
+        Sorts and sets the limit on the number of events in the file
         """
         self.events.sort(key=lambda event: event.get('time_start'),
                          reverse=True)
