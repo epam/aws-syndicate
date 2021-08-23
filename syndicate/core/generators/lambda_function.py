@@ -133,8 +133,8 @@ def _generate_python_lambdas(**kwargs):
 
     init_file = os.path.join(lambdas_path, '__init__.py')
     _touch(init_file)
+    print(f'Lambdas path: {lambdas_path}')
     for lambda_name in lambda_names:
-        print(lambdas_path)
         lambda_folder = os.path.join(lambdas_path, lambda_name)
 
         answer = _mkdir(

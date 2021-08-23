@@ -18,8 +18,6 @@ import os
 import sys
 
 import click
-from tabulate import tabulate
-
 from syndicate.core import CONF_PATH, initialize_connection, \
     initialize_project_state
 from syndicate.core.build.artifact_processor import (RUNTIME_NODEJS,
@@ -60,6 +58,7 @@ from syndicate.core.project_state.project_state import (MODIFICATION_LOCK,
                                                         WARMUP_LOCK)
 from syndicate.core.project_state.status_processor import project_state_status
 from syndicate.core.project_state.sync_processor import sync_project_state
+from tabulate import tabulate
 
 INIT_COMMAND_NAME = 'init'
 commands_without_config = (
@@ -76,7 +75,7 @@ def _not_require_config(all_params):
 @click.version_option()
 def syndicate():
     if CONF_PATH:
-        click.echo('Configuration used: ' + CONF_PATH)
+        click.echo('Used configuration from the next path: ' + CONF_PATH)
         initialize_connection()
         initialize_project_state()
     elif _not_require_config(sys.argv):
@@ -396,6 +395,11 @@ def warmup(bundle_name, deploy_name, api_gw_id, stage_name, lambda_auth,
     else:
         paths_to_be_triggered, resource_path_warmup_key_mapping = \
             process_existing_api_gw_id(stage_name=stage_name, echo=click.echo)
+
+    if not (paths_to_be_triggered or resource_path_warmup_key_mapping):
+        click.echo('Cannot warmup lambda functions because API Gateway'
+                   ' resources not found')
+        return
 
     resource_method_mapping, resource_warmup_key_mapping = \
         process_api_gw_resources(paths_to_be_triggered=paths_to_be_triggered,

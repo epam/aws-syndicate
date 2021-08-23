@@ -265,7 +265,14 @@ def sync_lock(lock_type):
                 sync_project_state()
             else:
                 raise AssertionError(f'The project {lock_type} is locked.')
-            func(*args, **kwargs)
+            try:
+                func(*args, **kwargs)
+            except Exception as e:
+                _LOG.exception("Error occurred: %s", str(e))
+                from syndicate.core import PROJECT_STATE
+                PROJECT_STATE.release_lock(lock_type)
+                sync_project_state()
+                sys.exit(1)
             PROJECT_STATE.release_lock(lock_type)
             sync_project_state()
         return wrapper

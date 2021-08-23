@@ -14,7 +14,7 @@
     limitations under the License.
 """
 import os
-import pathlib
+
 import click
 
 from syndicate.core.conf.generator import generate_configuration_files
@@ -76,7 +76,8 @@ def lambda_function(ctx, name, runtime, project_path):
         return ('Incorrect permissions for the provided path {}'.format(
             proj_path))
 
-    click.echo(f'Lambda names: {name}')
+    lambda_names = ', '.join(name)
+    click.echo(f'Lambda names: {lambda_names}')
     click.echo(f'Runtime: {runtime}')
     click.echo(f'Project path: {proj_path}')
     generate_lambda_function(project_path=proj_path,
