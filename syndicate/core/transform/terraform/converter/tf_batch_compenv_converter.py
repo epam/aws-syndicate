@@ -7,7 +7,7 @@ from syndicate.core.transform.terraform.converter.tf_resource_converter import \
 from syndicate.core.transform.terraform.tf_resource_name_builder import \
     build_terraform_resource_name
 from syndicate.core.transform.terraform.tf_resource_reference_builder import \
-    build_role_name_ref, build_instance_profile_arn_ref
+    build_role_name_ref, build_instance_profile_arn_ref, build_role_arn_ref
 
 _LOG = get_logger('syndicate.core.transform.terraform'
                   '.converter.tf_batch_compenv_converter')
@@ -22,28 +22,11 @@ class BatchComputeEnvConverter(TerraformResourceConverter):
     def convert(self, name, resource):
         state = resource.get('state')
         if not state:
-            resource['state'] = DEFAULT_STATE
+            state = DEFAULT_STATE
 
-        service_role = resource.get('service_role')
-        if not service_role:
-            role = self.template.get_resource_by_name(AWS_BATCH_SERVICE_ROLE)
-            if not role:
-                batch_service_role = aws_batch_service_role(
-                    AWS_BATCH_SERVICE_ROLE)
-                self.template.add_aws_iam_role(meta=batch_service_role)
-                batch_service_role_policy_attachment = aws_iam_role_policy_attachment(
-                    role_name=AWS_BATCH_SERVICE_ROLE,
-                    policy_arn=BATCH_SERVICE_ROLE)
-                self.template.add_aws_iam_role_policy_attachment(
-                    batch_service_role_policy_attachment)
-                service_role = AWS_BATCH_SERVICE_ROLE
-        role = self.template.get_resource_by_name(service_role)
-        if not role:
-            raise AssertionError("IAM role '{}' is not present "
-                                 "in build meta.".format(service_role))
+        service_role_arn = self.service_role_arn(resource_meta=resource)
 
         env_type = resource.get('compute_environment_type')
-
         compute_resources = resource.get('compute_resources', {})
         res_type = compute_resources.get('type')
         minv_cpus = compute_resources.get('minv_cpus')
@@ -67,7 +50,8 @@ class BatchComputeEnvConverter(TerraformResourceConverter):
 
         aws_batch_compute_environment = batch_com_env(
             compute_environment_name=name, env_type=env_type, state=state,
-            service_role=service_role, res_type=res_type,
+            service_role=service_role_arn,
+            res_type=res_type,
             maxv_cpus=maxv_cpus,
             desired_vcpus=desired_vcpus, minv_cpus=minv_cpus,
             instance_types=instance_types,
@@ -76,6 +60,26 @@ class BatchComputeEnvConverter(TerraformResourceConverter):
 
         self.template.add_aws_batch_compute_environment(
             meta=aws_batch_compute_environment)
+
+    def service_role_arn(self, resource_meta):
+        service_role = resource_meta.get('service_role')
+        if not service_role:
+            role = self.template.get_resource_by_name(AWS_BATCH_SERVICE_ROLE)
+            if not role:
+                batch_service_role = aws_batch_service_role(
+                    AWS_BATCH_SERVICE_ROLE)
+                self.template.add_aws_iam_role(meta=batch_service_role)
+                batch_service_role_policy_attachment = aws_iam_role_policy_attachment(
+                    role_name=AWS_BATCH_SERVICE_ROLE,
+                    policy_arn=BATCH_SERVICE_ROLE)
+                self.template.add_aws_iam_role_policy_attachment(
+                    batch_service_role_policy_attachment)
+                return build_role_arn_ref(AWS_BATCH_SERVICE_ROLE)
+        role = self.template.get_resource_by_name(service_role)
+        if not role:
+            raise AssertionError("IAM role '{}' is not present "
+                                 "in build meta.".format(service_role))
+        return build_role_arn_ref(role_name=role)
 
 
 def aws_batch_service_role(role_name):
