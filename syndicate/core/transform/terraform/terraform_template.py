@@ -441,7 +441,7 @@ class TerraformTemplate(object):
     def _aws_lambda_layer_version(self):
         return self.aws_lambda_layer_version
 
-    def provider_name(self):
+    def provider_type(self):
         return self.provider
 
     def get_resource_by_name(self, resource_name):

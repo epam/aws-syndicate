@@ -149,7 +149,11 @@ class LambdaConverter(TerraformResourceConverter):
         resource_ref = build_function_arn_ref(function_name=lambda_name)
         table_name = trigger_meta['target_table']
         table = self.template.get_resource_by_name(resource_name=table_name)
-        if not table['stream_enabled']:
+        if not table:
+            raise AssertionError(f'Table {table_name} specified in '
+                                 f'{lambda_name} trigger meta, but doesnt'
+                                 f' exist in the lis of resources to deploy')
+        if table['stream_enabled']:
             table.update({'stream_enabled': 'true',
                           'stream_view_type': 'NEW_AND_OLD_IMAGES'})
 

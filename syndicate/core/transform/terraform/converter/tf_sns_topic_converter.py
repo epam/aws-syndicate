@@ -16,22 +16,19 @@ class SNSTopicConverter(TerraformResourceConverter):
     def convert(self, name, resource):
         regions = deploy_regions(resource_name=name, meta=resource)
         if len(regions) == 1 and regions[0] == self.config.region:
-            region = self.config.region
-            self.create_sns_topic_in_region(region=region,
-                                            name=name, resource=resource)
+            self.create_sns_topic_in_region(name=name, resource=resource)
         else:
             for region in regions:
                 self.template.add_provider_if_not_exists(region=region)
-                provider_type = self.template.provider_name()
+                provider_type = self.template.provider_type()
                 provider = f'{provider_type}.{region}'
 
                 self.create_sns_topic_in_region(name=name, resource=resource,
-                                                provider=provider,
-                                                region=region)
+                                                provider=provider)
 
-    def create_sns_topic_in_region(self, name, resource, region,
+    def create_sns_topic_in_region(self, name, resource, region=None,
                                    provider=None):
-        tf_resource_name = f'{name}_{region}'
+        tf_resource_name = f'{name}_{region}' if region else name
         topic = sns_topic(topic_resource_name=tf_resource_name,
                           sns_topic_name=name, provider=provider)
         self.template.add_aws_sns_topic(meta=topic)

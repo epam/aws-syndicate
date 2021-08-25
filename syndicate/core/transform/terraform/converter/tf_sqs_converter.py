@@ -8,6 +8,8 @@ from syndicate.core.transform.terraform.tf_resource_name_builder import \
 from syndicate.core.transform.terraform.tf_resource_reference_builder import \
     build_sqs_queue_id_ref
 
+FIFO_REGIONS = ['us-east-1', 'us-east-2', 'us-west-2', 'eu-west-1']
+
 
 class SQSQueueConverter(TerraformResourceConverter):
 
@@ -25,6 +27,11 @@ class SQSQueueConverter(TerraformResourceConverter):
     def create_sqs_queue_in_region(self, name, resource,
                                    region=None):
         fifo_queue = resource.get('fifo_queue')
+        region_for_check = region if region else self.config.region
+        if fifo_queue and region_for_check not in FIFO_REGIONS:
+            raise AssertionError('FIFO queue is not available in {0}.'
+                                 .format(region_for_check))
+
         vis_timeout = resource.get('visibility_timeout')
         if vis_timeout:
             if vis_timeout < 0 or vis_timeout > 43200:
@@ -107,7 +114,7 @@ class SQSQueueConverter(TerraformResourceConverter):
 
         if region:
             policy_meta[
-                'provider'] = f'{self.template.provider_name()}.{region}'
+                'provider'] = f'{self.template.provider_type()}.{region}'
             policy_resource_name += f'_{region}'
 
         resource = {
@@ -172,7 +179,7 @@ class SQSQueueConverter(TerraformResourceConverter):
 
         if region:
             sqs_template[
-                'provider'] = f'{self.template.provider_name()}.{region}'
+                'provider'] = f'{self.template.provider_type()}.{region}'
 
         resource = {
             tf_queue_name: sqs_template
