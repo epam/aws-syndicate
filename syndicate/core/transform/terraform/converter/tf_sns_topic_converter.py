@@ -15,16 +15,17 @@ class SNSTopicConverter(TerraformResourceConverter):
 
     def convert(self, name, resource):
         regions = deploy_regions(resource_name=name, meta=resource)
-        if len(regions) == 1 and regions[0] == self.config.region:
-            self.create_sns_topic_in_region(name=name, resource=resource)
-        else:
-            for region in regions:
-                self.template.add_provider_if_not_exists(region=region)
+        default_region = self.config.region
+        for region in regions:
+            self.template.add_provider_if_not_exists(region=region)
+            provider = None
+            if region != default_region:
                 provider_type = self.template.provider_type()
                 provider = f'{provider_type}.{region}'
 
-                self.create_sns_topic_in_region(name=name, resource=resource,
-                                                provider=provider)
+            self.create_sns_topic_in_region(name=name, resource=resource,
+                                            provider=provider,
+                                            region=region)
 
     def create_sns_topic_in_region(self, name, resource, region=None,
                                    provider=None):
@@ -32,26 +33,29 @@ class SNSTopicConverter(TerraformResourceConverter):
         topic = sns_topic(topic_resource_name=tf_resource_name,
                           sns_topic_name=name, provider=provider)
         self.template.add_aws_sns_topic(meta=topic)
-        self.process_event_sources(resource=resource, topic_name=name)
+        self.process_event_sources(resource=resource,
+                                   topic_tf_name=tf_resource_name,
+                                   region=region)
 
-    def process_event_sources(self, resource, topic_name):
+    def process_event_sources(self, resource, topic_tf_name, region=None):
         event_sources = resource.get('event_sources')
         if event_sources:
             for event_source in event_sources:
                 event_source_res_type = event_source.get('resource_type')
                 if event_source_res_type == CLOUD_WATCH_RULE_TRIGGER:
                     target_rule = event_source.get('target_rule')
+                    target_rule = f'{target_rule}_{region}' if region else target_rule
                     rule_exp = build_cloud_watch_event_rule_name_ref(
                         target_rule=target_rule)
 
                     sns_topic_arn = build_sns_topic_arn_ref(
-                        sns_topic=topic_name)
+                        sns_topic=topic_tf_name)
 
-                    trigger = cloud_watch_trigger(topic_name=topic_name,
+                    trigger = cloud_watch_trigger(topic_tf_name=topic_tf_name,
                                                   rule_name=rule_exp,
                                                   topic_arn=sns_topic_arn)
                     self.template.add_aws_cloudwatch_event_target(trigger)
-                    self._allow_service_invoke(topic=topic_name)
+                    self._allow_service_invoke(topic=topic_tf_name)
 
     def _allow_service_invoke(self, topic):
         topic_policy_document = sns_topic_policy_document(topic=topic)
@@ -60,9 +64,9 @@ class SNSTopicConverter(TerraformResourceConverter):
         self.template.add_aws_sns_topic_policy(meta=topic_policy)
 
 
-def cloud_watch_trigger(topic_name, topic_arn, rule_name):
+def cloud_watch_trigger(topic_tf_name, topic_arn, rule_name):
     resource = {
-        build_terraform_resource_name(topic_name, 'trigger'):
+        build_terraform_resource_name(topic_tf_name, 'trigger'):
             {
                 "arn": topic_arn,
                 "rule": rule_name

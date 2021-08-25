@@ -15,17 +15,20 @@ class SQSQueueConverter(TerraformResourceConverter):
 
     def convert(self, name, resource):
         regions = deploy_regions(resource_name=name, meta=resource)
-        if len(regions) == 1 and regions[0] == self.config.region:
-            self.create_sqs_queue_in_region(name=name, resource=resource)
-        else:
-            for region in regions:
+        default_region = self.config.region
+        for region in regions:
+            provider = None
+            if region != default_region:
                 self.template.add_provider_if_not_exists(region=region)
-                self.create_sqs_queue_in_region(name=name,
-                                                resource=resource,
-                                                region=region)
+                provider_type = self.template.provider_type()
+                provider = f'{provider_type}.{region}'
+            self.create_sqs_queue_in_region(name=name,
+                                            resource=resource,
+                                            region=region,
+                                            provider=provider)
 
     def create_sqs_queue_in_region(self, name, resource,
-                                   region=None):
+                                   region=None, provider=None):
         fifo_queue = resource.get('fifo_queue')
         region_for_check = region if region else self.config.region
         if fifo_queue and region_for_check not in FIFO_REGIONS:
@@ -77,10 +80,11 @@ class SQSQueueConverter(TerraformResourceConverter):
         kms_master_key_id = resource.get('kms_master_key_id')
         kms_data_reuse_period = resource.get(
             'kms_data_key_reuse_period_seconds')
-        if kms_data_reuse_period < 60 or kms_data_reuse_period > 86400:
-            raise AssertionError(
-                'KMS key reuse period must be '
-                'between 60 and 86400 seconds')
+        if kms_data_reuse_period:
+            if kms_data_reuse_period < 60 or kms_data_reuse_period > 86400:
+                raise AssertionError(
+                    'KMS key reuse period must be '
+                    'between 60 and 86400 seconds')
 
         tf_queue_name = f'{name}_{region}' if region else name
         queue = self._sqs_queue(tf_queue_name=tf_queue_name, queue_name=name,
@@ -95,30 +99,32 @@ class SQSQueueConverter(TerraformResourceConverter):
                                 kms_data_key_reuse_period_seconds=kms_data_reuse_period,
                                 visibility_timeout_seconds=vis_timeout,
                                 policy=policy,
-                                region=region)
+                                provider=provider)
         self.template.add_aws_sqs_queue(queue)
-        sqs_policy = self._aws_sqs_queue_policy(queue_name=name, policy=policy,
-                                                region=region,
-                                                tf_queue_name=tf_queue_name)
-        self.template.add_aws_sqs_queue_policy(meta=sqs_policy)
 
-    def _aws_sqs_queue_policy(self, tf_queue_name, queue_name, policy,
-                              region=None):
-        policy_resource_name = build_terraform_resource_name(queue_name,
-                                                             'policy')
+        if policy:
+            tf_policy_name = build_terraform_resource_name(name,
+                                                           'policy', region)
+            sqs_policy = self._aws_sqs_queue_policy(
+                tf_policy_name=tf_policy_name,
+                policy=policy,
+                tf_queue_name=tf_queue_name,
+                provider=provider)
+            self.template.add_aws_sqs_queue_policy(meta=sqs_policy)
 
+    @staticmethod
+    def _aws_sqs_queue_policy(tf_queue_name, tf_policy_name, policy,
+                              provider=None):
         policy_meta = {
             'queue_url': build_sqs_queue_id_ref(queue_name=tf_queue_name),
             'policy': policy
         }
 
-        if region:
-            policy_meta[
-                'provider'] = f'{self.template.provider_type()}.{region}'
-            policy_resource_name += f'_{region}'
+        if provider:
+            policy_meta['provider'] = provider
 
         resource = {
-            policy_resource_name: policy_meta
+            tf_policy_name: policy_meta
         }
         return resource
 
@@ -129,7 +135,8 @@ class SQSQueueConverter(TerraformResourceConverter):
                    content_based_deduplication=None, kms_master_key_id=None,
                    kms_data_key_reuse_period_seconds=None,
                    visibility_timeout_seconds=None,
-                   policy=None, redrive_policy=None, region=None):
+                   policy=None, redrive_policy=None,
+                   provider=None):
         sqs_template = {}
 
         if fifo_queue:
@@ -177,9 +184,8 @@ class SQSQueueConverter(TerraformResourceConverter):
             sqs_template.update(
                 {'message_retention_seconds': message_retention_seconds})
 
-        if region:
-            sqs_template[
-                'provider'] = f'{self.template.provider_type()}.{region}'
+        if provider:
+            sqs_template['provider'] = provider
 
         resource = {
             tf_queue_name: sqs_template

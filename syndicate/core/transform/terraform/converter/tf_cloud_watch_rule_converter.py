@@ -19,13 +19,18 @@ class CloudWatchRuleConverter(TerraformResourceConverter):
         rule_type = resource['rule_type']
         regions = deploy_regions(resource_name=name, meta=resource)
         func = RULE_TYPES[rule_type]
+        default_region = self.config.region
         for region in regions:
             self.template.add_provider_if_not_exists(region=region)
-            provider_type = self.template.provider_type()
-            provider = f'{provider_type}.{region}'
+            tf_resource_name = f'{name}_{region}'
+            provider = None
+            if region != default_region:
+                provider_type = self.template.provider_type()
+                provider = f'{provider_type}.{region}'
 
             func(template=self.template, rule_name=name,
-                 resource=resource, region=region)
+                 resource=resource, resource_name=tf_resource_name,
+                 provider=provider)
 
 
 def event_pattern(event_source, event_names):
@@ -39,7 +44,7 @@ def event_pattern(event_source, event_names):
 
 
 def _create_ec2_rule(template, rule_name, resource,
-                     region=None, provider=None):
+                     resource_name, provider=None):
     instances = resource.get('instances')
     instance_states = resource.get('instance_states')
 
@@ -65,12 +70,12 @@ def _create_ec2_rule(template, rule_name, resource,
             event_pattern["detail"] = {"state": instance_states}
 
     rule = {
-        rule_name: rule_meta
+        resource_name: rule_meta
     }
     template.add_aws_cloudwatch_event_rule(meta=rule)
 
 
-def _create_schedule_rule(template, rule_name, resource, region=None,
+def _create_schedule_rule(template, rule_name, resource, resource_name,
                           provider=None):
     expression = resource.get('expression')
 
@@ -83,16 +88,31 @@ def _create_schedule_rule(template, rule_name, resource, region=None,
         rule_meta['provider'] = provider
 
     rule = {
-        rule_name: rule_meta
+        resource_name: rule_meta
     }
     template.add_aws_cloudwatch_event_rule(meta=rule)
 
 
-def _create_api_call_rule(template, rule_name, resource, region=None,
+def _create_api_call_rule(template, rule_name, resource, resource_name,
                           provider=None):
     operations = resource.get('operations')
     aws_service = resource.get('aws_service')
-    pattern = event_pattern(aws_service, operations)
+    custom_pattern = resource.get('custom_pattern')
+    if custom_pattern:
+        pattern = custom_pattern
+    elif aws_service:
+        pattern = {
+            'detail-type': [
+                'AWS API Call via CloudTrail'
+            ],
+            'detail': {
+                'eventSource': [
+                    '{0}.amazonaws.com'.format(aws_service)
+                ]
+            }
+        }
+        if operations:
+            pattern['detail']['eventName'] = operations
 
     rule_meta = {
         "name": rule_name,
@@ -103,7 +123,7 @@ def _create_api_call_rule(template, rule_name, resource, region=None,
         rule_meta['provider'] = provider
 
     rule = {
-        rule_name: rule_meta
+        resource_name: rule_meta
     }
     template.add_aws_cloudwatch_event_rule(meta=rule)
 

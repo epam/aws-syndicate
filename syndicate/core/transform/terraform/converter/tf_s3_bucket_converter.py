@@ -43,8 +43,8 @@ def s3_bucket(bucket_name, acl, policy, cors_rules=None, lifecycle_rules=None):
                     'allowed_headers': rule['AllowedHeaders'],
                     'allowed_methods': rule['AllowedMethods'],
                     'allowed_origins': rule['AllowedOrigins'],
-                    'expose_headers': rule['ExposeHeaders'],
-                    'max_age_seconds': rule['MaxAgeSeconds']
+                    'expose_headers': rule['ExposedHeaders'],
+                    'max_age_seconds': rule['MaxAge']
                 }
             )
     if cors:
@@ -54,13 +54,15 @@ def s3_bucket(bucket_name, acl, policy, cors_rules=None, lifecycle_rules=None):
     if lifecycle_rules:
         for rule in lifecycle_rules:
             transitions = []
-            for transition in rule['Transitions']:
-                transitions.append(
-                    {
-                        'days': int(transition['Days']),
-                        'storage_class': transition['StorageClass']
-                    }
-                )
+            transitions_list = rule.get('Transitions')
+            if transitions_list:
+                for transition in transitions_list:
+                    transitions.append(
+                        {
+                            'days': int(transition['Days']),
+                            'storage_class': transition['StorageClass']
+                        }
+                    )
             rules.append(
                 {
                     'id': rule['ID'],

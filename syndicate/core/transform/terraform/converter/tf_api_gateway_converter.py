@@ -178,7 +178,7 @@ class ApiGatewayConverter(TerraformResourceConverter):
         for path in path_arr:
             cur_resource_path = ''.join(path_arr[:path_arr.index(path) + 1])
             api_resource_name = build_terraform_resource_name(
-                cur_resource_path, 'resource')
+                cur_resource_path, 'resource').replace('_', '-')
             existing_resource = self.template.get_resource_by_name(
                 api_resource_name)
             if existing_resource:

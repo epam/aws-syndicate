@@ -34,7 +34,6 @@ class LambdaConverter(TerraformResourceConverter):
         validate_params(name, resource, REQUIRED_PARAMS)
 
         function_name = resource.get('func_name')
-        iam_role_name = resource.get('iam_role_name')
         runtime = resource.get('runtime')
         memory = resource.get('memory')
         timeout = resource.get('timeout')
@@ -45,6 +44,16 @@ class LambdaConverter(TerraformResourceConverter):
 
         s3_path = resource.get('s3_path')
         s3_bucket = self.config.deploy_target_bucket
+
+        iam_role_name = resource.get('iam_role_name')
+        iam_conn = self.resources_provider.iam().iam_conn
+        role_arn = iam_conn.check_if_role_exists(iam_role_name)
+        if not role_arn:
+            iam_role = self.template.get_resource_by_name(iam_role_name)
+            if not iam_role:
+                raise AssertionError('Role {} does not exist; '
+                                     'Lambda {} failed to be configured.'.format(
+                    iam_role_name, name))
 
         lambda_layers_arns = []
         layer_meta = resource.get('layers')
@@ -129,20 +138,15 @@ class LambdaConverter(TerraformResourceConverter):
                 if not starting_position:
                     starting_position = 'LATEST'
 
-                event_source_res_type = trigger_meta.get('resource_type')
-                trigger_name = build_terraform_resource_name(lambda_name,
-                                                             event_source_res_type)
                 func = self.CREATE_TRIGGER[trigger_type]
                 func(self, lambda_name=lambda_name,
                      trigger_meta=trigger_meta,
-                     starting_position=starting_position, role=role,
-                     trigger_name=trigger_name)
+                     starting_position=starting_position, role=role)
 
     def _create_dynamodb_trigger_from_meta(self, lambda_name,
                                            trigger_meta,
                                            starting_position,
-                                           role,
-                                           trigger_name):
+                                           role):
         validate_params(lambda_name, trigger_meta,
                         DYNAMODB_TRIGGER_REQUIRED_PARAMS)
 
@@ -157,6 +161,11 @@ class LambdaConverter(TerraformResourceConverter):
             table.update({'stream_enabled': 'true',
                           'stream_view_type': 'NEW_AND_OLD_IMAGES'})
 
+        event_source_res_type = trigger_meta.get('resource_type')
+        trigger_name = build_terraform_resource_name(lambda_name,
+                                                     event_source_res_type,
+                                                     table_name)
+
         stream_arn = build_dynamo_db_stream_arn_ref(table_name=table_name)
         event_source = dynamodb_event_source(resource_name=trigger_name,
                                              starting_position=starting_position,
@@ -167,14 +176,19 @@ class LambdaConverter(TerraformResourceConverter):
     def _create_cloud_watch_trigger_from_meta(self, lambda_name,
                                               trigger_meta,
                                               starting_position,
-                                              role,
-                                              trigger_name):
+                                              role):
         validate_params(lambda_name, trigger_meta,
                         CLOUD_WATCH_TRIGGER_REQUIRED_PARAMS)
 
         target_rule = trigger_meta.get('target_rule')
         rule_ref = build_cloud_watch_event_rule_name_ref(
             target_rule=target_rule)
+
+        event_source_res_type = trigger_meta.get('resource_type')
+        trigger_name = build_terraform_resource_name(lambda_name,
+                                                     event_source_res_type,
+                                                     target_rule)
+
         resource_ref = build_function_arn_ref(function_name=lambda_name)
         event_source = cloud_watch_trigger(resource_name=trigger_name,
                                            rule_ref=rule_ref,
@@ -184,8 +198,7 @@ class LambdaConverter(TerraformResourceConverter):
     def _create_s3_trigger_from_meta(self, lambda_name,
                                      trigger_meta,
                                      starting_position,
-                                     role,
-                                     trigger_name):
+                                     role):
         validate_params(lambda_name, trigger_meta,
                         S3_TRIGGER_REQUIRED_PARAMS)
         target_bucket = trigger_meta['target_bucket']
@@ -200,6 +213,11 @@ class LambdaConverter(TerraformResourceConverter):
             bucket_name=target_bucket)
         self.template.add_aws_lambda_permission(meta=lambda_permission)
 
+        event_source_res_type = trigger_meta.get('resource_type')
+        trigger_name = build_terraform_resource_name(lambda_name,
+                                                     event_source_res_type,
+                                                     target_bucket)
+
         bucket_notification = aws_s3_bucket_notification(
             resource_name=trigger_name,
             bucket_name=target_bucket,
@@ -211,13 +229,18 @@ class LambdaConverter(TerraformResourceConverter):
     def _create_sns_topic_trigger_from_meta(self, lambda_name,
                                             trigger_meta,
                                             starting_position,
-                                            role,
-                                            trigger_name):
+                                            role):
         validate_params(lambda_name, trigger_meta, SNS_TRIGGER_REQUIRED_PARAMS)
         topic_name = trigger_meta['target_topic']
 
         lambda_name_ref = build_function_arn_ref(function_name=lambda_name)
         topic_arn_ref = build_sns_topic_arn_ref(sns_topic=topic_name)
+
+        event_source_res_type = trigger_meta.get('resource_type')
+        trigger_name = build_terraform_resource_name(lambda_name,
+                                                     event_source_res_type,
+                                                     topic_name)
+
         topic_subscription = aws_sns_topic_subscription(
             resource_name=trigger_name,
             topic_arn_ref=topic_arn_ref,
@@ -228,8 +251,7 @@ class LambdaConverter(TerraformResourceConverter):
     def _create_kinesis_stream_trigger_from_meta(self, lambda_name,
                                                  trigger_meta,
                                                  starting_position,
-                                                 role,
-                                                 trigger_name):
+                                                 role):
         validate_params(lambda_name, trigger_meta,
                         KINESIS_TRIGGER_REQUIRED_PARAMS)
         stream_name = trigger_meta['target_stream']
@@ -275,18 +297,28 @@ class LambdaConverter(TerraformResourceConverter):
                                               role_id_ref=role_id_ref)
         self.template.add_aws_iam_role_policy(meta=iam_role_policy)
 
+        event_source_res_type = trigger_meta.get('resource_type')
+        trigger_name = build_terraform_resource_name(lambda_name,
+                                                     event_source_res_type,
+                                                     stream_name)
+
         source_mapping = kinesis_source_mapping(resource_name=trigger_name,
                                                 kinesis_stream_arn=stream_arn,
                                                 lambda_arn_ref=lambda_arn_ref)
         self.template.add_aws_lambda_event_source_mapping(meta=source_mapping)
 
     def _create_sqs_trigger_from_meta(self, lambda_name, trigger_meta,
-                                      starting_position, role, trigger_name):
+                                      starting_position, role):
         validate_params(lambda_name, trigger_meta,
                         SQS_TRIGGER_REQUIRED_PARAMS)
         target_queue = trigger_meta['target_queue']
         queue_arn_ref = build_sqs_queue_arn_ref(queue_name=target_queue)
         resource_ref = build_function_arn_ref(function_name=lambda_name)
+
+        event_source_res_type = trigger_meta.get('resource_type')
+        trigger_name = build_terraform_resource_name(lambda_name,
+                                                     event_source_res_type,
+                                                     target_queue)
         event_source = sqs_source_mapping(resource_name=trigger_name,
                                           sqs_queue_arn_ref=queue_arn_ref,
                                           function_name_ref=resource_ref)

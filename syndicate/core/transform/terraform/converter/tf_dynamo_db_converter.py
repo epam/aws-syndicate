@@ -1,6 +1,6 @@
-from syndicate.core.resources.helper import validate_params
 from syndicate.core.resources.dynamo_db_resource import DynamoDBResource, \
     DYNAMODB_TABLE_REQUIRED_PARAMS, AUTOSCALING_REQUIRED_PARAMS
+from syndicate.core.resources.helper import validate_params
 from syndicate.core.transform.terraform.converter.tf_resource_converter import \
     TerraformResourceConverter
 from syndicate.core.transform.terraform.tf_resource_name_builder import \
@@ -93,12 +93,15 @@ class DynamoDbConverter(TerraformResourceConverter):
                 metric_type = 'DynamoDBWriteCapacityUtilization' \
                     if 'Write' in dimension \
                     else 'DynamoDBReadCapacityUtilization'
+                tf_resource_name = build_terraform_resource_name(
+                    'dynamodb-test-table_read_policy', resource_name)
                 target_policy = dynamo_db_autoscaling_target_policy(
                     target_name=tf_target_resource_name,
                     target_value=target_utilization,
                     predefined_metric_type=metric_type,
                     scale_in_cooldown=scale_in_cooldown,
-                    scale_out_cooldown=scale_out_cooldown)
+                    scale_out_cooldown=scale_out_cooldown,
+                    tf_resource_name=tf_resource_name)
                 self.template.add_aws_appautoscaling_target(meta=target)
                 self.template.add_aws_appautoscaling_policy(meta=target_policy)
 
@@ -201,6 +204,7 @@ def dynamodb_scalable_target(tf_target_resource_name, resource_id,
 
 def dynamo_db_autoscaling_target_policy(target_value,
                                         target_name,
+                                        tf_resource_name,
                                         predefined_metric_type=None,
                                         resource_label=None,
                                         metric_name=None, namespace=None,
@@ -259,6 +263,6 @@ def dynamo_db_autoscaling_target_policy(target_value,
             'target_tracking_scaling_policy_configuration'] = target_scaling_config_dict
 
     resource = {
-        "dynamodb-test-table_read_policy": resource
+        tf_resource_name: resource
     }
     return resource
