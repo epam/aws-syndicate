@@ -55,11 +55,11 @@ def s3_bucket(bucket_name, acl, policy, cors_rules=None, lifecycle_rules=None):
         for rule in cors_rules:
             cors.append(
                 {
-                    'allowed_headers': rule['AllowedHeaders'],
-                    'allowed_methods': rule['AllowedMethods'],
-                    'allowed_origins': rule['AllowedOrigins'],
-                    'expose_headers': rule['ExposeHeaders'],
-                    'max_age_seconds': rule['MaxAgeSeconds']
+                    'allowed_headers': rule.get('AllowedHeaders'),
+                    'allowed_methods': rule.get('AllowedMethods'),
+                    'allowed_origins': rule.get('AllowedOrigins'),
+                    'expose_headers': rule.get('ExposeHeaders'),
+                    'max_age_seconds': rule.get('MaxAgeSeconds')
                 }
             )
     if cors:
