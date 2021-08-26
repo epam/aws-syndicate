@@ -52,10 +52,12 @@ class SQSQueueConverter(TerraformResourceConverter):
                                             resource=resource,
                                             tf_queue_name=tf_resource_name,
                                             provider=provider,
+                                            region=region,
                                             fifo_queue=fifo_queue)
 
     def create_sqs_queue_in_region(self, name, resource,
-                                   tf_queue_name, fifo_queue, provider=None):
+                                   tf_queue_name, fifo_queue, region=None,
+                                   provider=None):
         vis_timeout = resource.get('visibility_timeout')
         if vis_timeout:
             if vis_timeout < 0 or vis_timeout > 43200:

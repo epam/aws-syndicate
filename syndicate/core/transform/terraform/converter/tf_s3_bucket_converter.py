@@ -58,8 +58,8 @@ def s3_bucket(bucket_name, acl, policy, cors_rules=None, lifecycle_rules=None):
                     'allowed_headers': rule['AllowedHeaders'],
                     'allowed_methods': rule['AllowedMethods'],
                     'allowed_origins': rule['AllowedOrigins'],
-                    'expose_headers': rule['ExposedHeaders'],
-                    'max_age_seconds': rule['MaxAge']
+                    'expose_headers': rule['ExposeHeaders'],
+                    'max_age_seconds': rule['MaxAgeSeconds']
                 }
             )
     if cors:
