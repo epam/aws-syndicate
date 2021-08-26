@@ -1,3 +1,18 @@
+"""
+    Copyright 2021 EPAM Systems, Inc.
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+"""
 import json
 import uuid
 
@@ -19,17 +34,21 @@ class SNSTopicConverter(TerraformResourceConverter):
         for region in regions:
             self.template.add_provider_if_not_exists(region=region)
             provider = None
+
+            tf_resource_name = name
             if region != default_region:
                 provider_type = self.template.provider_type()
                 provider = f'{provider_type}.{region}'
+                tf_resource_name = build_terraform_resource_name(name, region)
 
             self.create_sns_topic_in_region(name=name, resource=resource,
                                             provider=provider,
+                                            tf_resource_name=tf_resource_name,
                                             region=region)
 
-    def create_sns_topic_in_region(self, name, resource, region=None,
+    def create_sns_topic_in_region(self, name, resource, tf_resource_name,
+                                   region=None,
                                    provider=None):
-        tf_resource_name = f'{name}_{region}' if region else name
         topic = sns_topic(topic_resource_name=tf_resource_name,
                           sns_topic_name=name, provider=provider)
         self.template.add_aws_sns_topic(meta=topic)

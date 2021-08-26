@@ -1,3 +1,18 @@
+"""
+    Copyright 2021 EPAM Systems, Inc.
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+"""
 import json
 
 from syndicate.core.transform.terraform.converter.tf_resource_converter import \
@@ -9,6 +24,7 @@ from syndicate.core.transform.terraform.tf_resource_reference_builder import \
     build_sqs_queue_id_ref
 
 FIFO_REGIONS = ['us-east-1', 'us-east-2', 'us-west-2', 'eu-west-1']
+FIFO_SUFFIX = '.fifo'
 
 
 class SQSQueueConverter(TerraformResourceConverter):
@@ -18,23 +34,28 @@ class SQSQueueConverter(TerraformResourceConverter):
         default_region = self.config.region
         for region in regions:
             provider = None
+            tf_resource_name = name
             if region != default_region:
                 self.template.add_provider_if_not_exists(region=region)
                 provider_type = self.template.provider_type()
                 provider = f'{provider_type}.{region}'
-            self.create_sqs_queue_in_region(name=name,
+                tf_resource_name = build_terraform_resource_name(name, region)
+
+            fifo_queue = resource.get('fifo_queue')
+            queue_name = self.build_resource_name(is_fifo=fifo_queue,
+                                                  name=name)
+            if fifo_queue and region not in FIFO_REGIONS:
+                raise AssertionError('FIFO queue is not available in {0}.'
+                                     .format(region))
+
+            self.create_sqs_queue_in_region(name=queue_name,
                                             resource=resource,
-                                            region=region,
-                                            provider=provider)
+                                            tf_queue_name=tf_resource_name,
+                                            provider=provider,
+                                            fifo_queue=fifo_queue)
 
     def create_sqs_queue_in_region(self, name, resource,
-                                   region=None, provider=None):
-        fifo_queue = resource.get('fifo_queue')
-        region_for_check = region if region else self.config.region
-        if fifo_queue and region_for_check not in FIFO_REGIONS:
-            raise AssertionError('FIFO queue is not available in {0}.'
-                                 .format(region_for_check))
-
+                                   tf_queue_name, fifo_queue, provider=None):
         vis_timeout = resource.get('visibility_timeout')
         if vis_timeout:
             if vis_timeout < 0 or vis_timeout > 43200:
@@ -86,7 +107,6 @@ class SQSQueueConverter(TerraformResourceConverter):
                     'KMS key reuse period must be '
                     'between 60 and 86400 seconds')
 
-        tf_queue_name = f'{name}_{region}' if region else name
         queue = self._sqs_queue(tf_queue_name=tf_queue_name, queue_name=name,
                                 redrive_policy=redrive_policy,
                                 delay_seconds=delay_seconds,
@@ -199,3 +219,10 @@ class SQSQueueConverter(TerraformResourceConverter):
             "maxReceiveCount": max_receive_count
         }
         return resource
+
+    @staticmethod
+    def build_resource_name(is_fifo, name):
+        resource_name = name
+        if is_fifo and not name.endswith(FIFO_SUFFIX):
+            resource_name += FIFO_SUFFIX
+        return resource_name

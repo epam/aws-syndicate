@@ -1,3 +1,18 @@
+"""
+    Copyright 2021 EPAM Systems, Inc.
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+"""
 import json
 
 from syndicate.commons.log_helper import get_logger
@@ -51,9 +66,9 @@ class LambdaConverter(TerraformResourceConverter):
         if not role_arn:
             iam_role = self.template.get_resource_by_name(iam_role_name)
             if not iam_role:
-                raise AssertionError('Role {} does not exist; '
-                                     'Lambda {} failed to be configured.'.format(
-                    iam_role_name, name))
+                raise AssertionError(f'Role {iam_role_name} does not exist; '
+                                     f'Lambda {name} failed to be configured.')
+            role_arn = build_role_arn_ref(iam_role)
 
         lambda_layers_arns = []
         layer_meta = resource.get('layers')
@@ -62,8 +77,9 @@ class LambdaConverter(TerraformResourceConverter):
                 layer = self.template.get_resource_by_name(
                     lambda_layer_name(layer_name=layer_name))
                 if not layer:
-                    raise AssertionError("Lambda layer '{}' is not present "
-                                         "in build meta.".format(layer_name))
+                    raise AssertionError(
+                        f"Lambda layer '{layer_name}' is not present "
+                        "in build meta.")
                 layer_ref = build_ref_to_lambda_layer_arn(
                     layer_name=layer_name)
                 lambda_layers_arns.append(layer_ref)
@@ -82,7 +98,7 @@ class LambdaConverter(TerraformResourceConverter):
         aws_lambda = template_for_lambda(lambda_name=name,
                                          function_name=name,
                                          runtime=runtime,
-                                         role_name=iam_role_name,
+                                         role_arn=role_arn,
                                          handler=function_name,
                                          memory=memory,
                                          timeout=timeout,
@@ -504,7 +520,7 @@ def template_for_alias(resource_name, alias_name, function_name):
     return resource
 
 
-def template_for_lambda(lambda_name, role_name, handler, runtime,
+def template_for_lambda(lambda_name, role_arn, handler, runtime,
                         function_name, subnet_ids, security_group_ids,
                         s3_key=None,
                         s3_bucket=None,
@@ -513,11 +529,10 @@ def template_for_lambda(lambda_name, role_name, handler, runtime,
                         env_variables=None, layers=None, publish=False,
                         reserved_concurrent_executions=None,
                         tracing_mode=None, lambda_layers_arns=None):
-    role_arn_exp = build_role_arn_ref(role_name=role_name)
 
     lambda_res = {
         'function_name': function_name,
-        'role': role_arn_exp,
+        'role': role_arn,
         'runtime': runtime,
         'handler': handler,
         'publish': publish
