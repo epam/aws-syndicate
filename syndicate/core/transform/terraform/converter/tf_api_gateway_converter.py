@@ -62,7 +62,6 @@ class ApiGatewayConverter(TerraformResourceConverter):
             for http_method in API_GATEWAY_SUPPORTED_METHODS:
                 method_meta = res.get(http_method)
                 if method_meta:
-
                     tf_method_resource_name = build_terraform_resource_name(
                         resource_name, http_method)
                     method_names.append(tf_method_resource_name)
@@ -217,8 +216,8 @@ class ApiGatewayConverter(TerraformResourceConverter):
         authorizer_mappings = {}
         authorizers = resource.get('authorizers', {})
         for name, val in authorizers.items():
-            lambda_name = val.get('lambda_name')
-            lambda_arn = build_function_invoke_arn_ref(lambda_name)
+            lambda_arn = self.define_function_arn(meta=val)
+
             identity_source = val.get('identity_source')
             ttl = val.get('ttl')
             auth_type = val.get('type')
@@ -236,6 +235,41 @@ class ApiGatewayConverter(TerraformResourceConverter):
             self.template.add_aws_api_gateway_authorizer(meta=authorizer)
             authorizer_mappings.update({name: authorizer_ref})
         return authorizer_mappings
+
+    def define_function_arn(self, meta):
+        lambda_name = meta.get('lambda_name')
+
+        lambda_meta = self.template.get_resource_by_name(lambda_name)
+        if lambda_meta:
+            return build_function_invoke_arn_ref(lambda_meta)
+        lambda_service = self.resources_provider.lambda_resource().lambda_conn
+
+        function = lambda_service.get_function(lambda_name=lambda_name)
+        if not function:
+            raise AssertionError(
+                f'Specified lambda {lambda_name} does not exists')
+
+        version = meta.get('lambda_version')
+        alias = meta.get('lambda_alias')
+        if version or alias:
+            return self.build_lambda_arn_with_alias(function, alias)
+        else:
+            return function['Configuration']['FunctionArn']
+
+    def build_lambda_arn_with_alias(self, response, alias=None):
+        name = response['Configuration']['FunctionName']
+        l_arn = self.build_lambda_arn(name=name)
+        version = response['Configuration']['Version']
+        arn = '{0}:{1}'.format(l_arn, version)
+        # override version if alias exists
+        if alias:
+            arn = '{0}:{1}'.format(l_arn, alias)
+        return arn
+
+    def build_lambda_arn(self, name):
+        region = self.config.region
+        account_id = self.config.account_id
+        return f'arn:aws:lambda:{region}:{account_id}:function:{name}'
 
     def _create_lambda_integration(self, method_meta, method_name, api_name,
                                    integration_name, resource_name):
