@@ -289,6 +289,8 @@ class ApiGatewayConverter(TerraformResourceConverter):
 
         int_type = 'AWS_PROXY' if enable_proxy else 'AWS'
         lambda_arn = self.define_function_arn(meta=method_meta)
+        uri = ('arn:aws:apigateway:{0}:lambda:path/2015-03-31/functions/{1}'
+               '/invocations').format(self.config.region, lambda_arn)
 
         passthrough_behavior = passthrough_behavior if passthrough_behavior else 'WHEN_NO_MATCH'
         integration = create_api_gateway_integration(
@@ -299,7 +301,7 @@ class ApiGatewayConverter(TerraformResourceConverter):
             integration_type=int_type,
             request_template=integration_request_template,
             integration_method='POST',
-            uri=lambda_arn,
+            uri=uri,
             passthrough_behavior=passthrough_behavior,
             cache_key_parameters=cache_key_parameters)
         self.template.add_aws_api_gateway_integration(
