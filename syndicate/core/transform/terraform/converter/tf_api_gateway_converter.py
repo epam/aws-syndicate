@@ -218,6 +218,9 @@ class ApiGatewayConverter(TerraformResourceConverter):
         for name, val in authorizers.items():
             lambda_arn = self.define_function_arn(meta=val)
 
+            uri = 'arn:aws:apigateway:{0}:lambda:path/2015-03-31/' \
+                  'functions/{1}/invocations'.format(self.config.region,
+                                                     lambda_arn)
             identity_source = val.get('identity_source')
             ttl = val.get('ttl')
             auth_type = val.get('type')
@@ -227,7 +230,7 @@ class ApiGatewayConverter(TerraformResourceConverter):
                 authorizer_name=authorizer_name)
             authorizer = api_gateway_authorizer(
                 authorizer_name=authorizer_name,
-                authorizer_uri=lambda_arn,
+                authorizer_uri=uri,
                 rest_api_name=api_name,
                 ttl=ttl,
                 identity_source=identity_source,
