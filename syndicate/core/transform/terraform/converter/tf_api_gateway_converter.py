@@ -276,7 +276,6 @@ class ApiGatewayConverter(TerraformResourceConverter):
         enable_proxy = method_meta.get('enable_proxy')
         passthrough_behavior = method_meta.get(
             'integration_passthrough_behavior')
-        lambda_name = method_meta['lambda_name']
         integration_request_template = method_meta.get(
             'integration_request_body_template')
 
@@ -286,8 +285,8 @@ class ApiGatewayConverter(TerraformResourceConverter):
             'cache_key_parameters') if cache_configuration else None
 
         int_type = 'AWS_PROXY' if enable_proxy else 'AWS'
-        lambda_arn = build_function_invoke_arn_ref(
-            lambda_name)
+        lambda_arn = self.define_function_arn(meta=method_meta)
+
         passthrough_behavior = passthrough_behavior if passthrough_behavior else 'WHEN_NO_MATCH'
         integration = create_api_gateway_integration(
             integration_name=integration_name,
