@@ -331,13 +331,13 @@ def dict_keys_to_upper_camel_case(d: dict):
 def _inner_dict_keys_to_camel_case(d: dict, case_formatter):
     new_d = {}
     for key, value in d.items():
-        if isinstance(value, (str, int)):
+        if isinstance(value, (str, int, float)):
             new_d[case_formatter(key)] = value
 
         if isinstance(value, list):
             new_list = []
             for index, item in enumerate(value):
-                if isinstance(item, (str, int)):
+                if isinstance(item, (str, int, float)):
                     new_list.append(item)
                 if isinstance(item, dict):
                     new_list.append(dict_keys_to_camel_case(item))

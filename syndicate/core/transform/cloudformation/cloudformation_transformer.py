@@ -20,6 +20,8 @@ from syndicate.core.transform.build_meta_transformer import \
 from .converter.cf_api_gateway_converter import CfApiGatewayConverter
 from .converter.cf_batch_compenv_converter import \
     CfBatchComputeEnvironmentConverter
+from .converter.cf_batch_job_defeinition import CfBatchJobDefinitionConverter
+from .converter.cf_batch_job_queue_converter import CfBatchJobQueueConverter
 from .converter.cf_cloudwatch_alarm_converter import CfCloudWatchAlarmConverter
 from .converter.cf_cloudwatch_rule_converter import CfCloudWatchRuleConverter
 from .converter.cf_cognito_converter import CfCognitoConverter
@@ -121,10 +123,16 @@ class CloudFormationTransformer(BuildMetaTransformer):
             converter_type=CfBatchComputeEnvironmentConverter)
 
     def _transform_batch_jobqueue(self, name, resource):
-        raise NotImplementedError()
+        self.convert_resources(
+            name=name,
+            resource=resource,
+            converter_type=CfBatchJobQueueConverter)
 
     def _transform_batch_jobdef(self, name, resource):
-        raise NotImplementedError()
+        self.convert_resources(
+            name=name,
+            resource=resource,
+            converter_type=CfBatchJobDefinitionConverter)
 
     def convert_resources(self, name, resource, converter_type):
         converter = converter_type(

@@ -18,7 +18,8 @@ from troposphere import Ref, iam
 from syndicate.connection.iam_connection import build_trusted_relationships
 from .cf_resource_converter import CfResourceConverter
 from ..cf_transform_helper import (to_logic_name, iam_role_logic_name, is_arn,
-                                   iam_managed_policy_logic_name)
+                                   iam_managed_policy_logic_name,
+                                   iam_instance_profile_logic_name)
 
 
 class CfIamRoleConverter(CfResourceConverter):
@@ -62,7 +63,7 @@ class CfIamRoleConverter(CfResourceConverter):
         return trusted_relationships
 
     def _convert_instance_profile(self, role_name):
-        logic_name = to_logic_name('IAMInstanceProfile', role_name)
+        logic_name = iam_instance_profile_logic_name(role_name)
         instance_profile = iam.InstanceProfile(logic_name)
         instance_profile.InstanceProfileName = role_name
         instance_profile.Roles = [Ref(iam_role_logic_name(role_name))]

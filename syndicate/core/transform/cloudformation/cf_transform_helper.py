@@ -41,6 +41,10 @@ def iam_role_logic_name(role_name):
     return to_logic_name('IAMRole', role_name)
 
 
+def iam_instance_profile_logic_name(role_name):
+    return to_logic_name('IAMInstanceProfile', role_name)
+
+
 def lambda_layer_logic_name(layer_name):
     return to_logic_name('LambdaLayerVersion', layer_name)
 
@@ -83,3 +87,7 @@ def cloudwatch_rule_logic_name(rule_name):
 
 def kinesis_stream_logic_name(stream_name):
     return to_logic_name('KinesisStream', stream_name)
+
+
+def batch_compute_env_logic_name(compute_env_name):
+    return to_logic_name('BatchComputeEnvironment', compute_env_name)
