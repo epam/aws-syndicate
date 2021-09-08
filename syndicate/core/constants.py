@@ -35,6 +35,8 @@ EC2_INSTANCE_TYPE = 'ec2_instance'
 BATCH_COMPENV_TYPE = 'batch_compenv'
 BATCH_JOBQUEUE_TYPE = 'batch_jobqueue'
 BATCH_JOBDEF_TYPE = 'batch_jobdef'
+DOCUMENTDB_CLUSTER_TYPE = 'documentdb_cluster'
+DOCUMENTDB_INSTANCE_TYPE = 'documentdb_instance'
 
 S3_PATH_NAME = 's3_path'
 

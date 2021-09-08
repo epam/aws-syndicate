@@ -22,6 +22,10 @@ from syndicate.core.resources.cognito_identity_resource import (
     CognitoIdentityResource)
 from syndicate.core.resources.cognito_user_pool_resource import (
     CognitoUserPoolResource)
+from syndicate.core.resources.docdb_cluster_resource import \
+    DocumentDBClusterResource
+from syndicate.core.resources.docdb_instance_resource import \
+    DocumentDBInstanceResource
 from syndicate.core.resources.dynamo_db_resource import DynamoDBResource
 from syndicate.core.resources.ebs_resource import EbsResource
 from syndicate.core.resources.ec2_resource import Ec2Resource
@@ -80,6 +84,7 @@ class ResourceProvider:
         _batch_compenv_resource = None
         _batch_jobqueue_resource = None
         _batch_jobdef_resource = None
+        _documentdb_resource = None
 
         def __init__(self, config, credentials) -> None:
             self.credentials = credentials
@@ -261,3 +266,22 @@ class ResourceProvider:
                     iam_conn=self._conn_provider.iam()
                 )
             return self._batch_jobdef_resource
+
+        def documentdb_cluster(self):
+            if not self._documentdb_resource:
+                self._documentdb_resource = DocumentDBClusterResource(
+                    docdb_conn=self._conn_provider.documentdb(),
+                    region=self.config.region,
+                    account_id=self.config.account_id
+                )
+            return self._documentdb_resource
+
+        def documentdb_instance(self):
+            if not self._documentdb_resource:
+                self._documentdb_resource = DocumentDBInstanceResource(
+                    docdb_conn=self._conn_provider.documentdb(),
+                    region=self.config.region,
+                    account_id=self.config.account_id
+                )
+            return self._documentdb_resource
+
