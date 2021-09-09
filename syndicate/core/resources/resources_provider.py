@@ -84,7 +84,8 @@ class ResourceProvider:
         _batch_compenv_resource = None
         _batch_jobqueue_resource = None
         _batch_jobdef_resource = None
-        _documentdb_resource = None
+        _documentdb_cluster_resource = None
+        _documentdb_instance_resource = None
 
         def __init__(self, config, credentials) -> None:
             self.credentials = credentials
@@ -268,20 +269,20 @@ class ResourceProvider:
             return self._batch_jobdef_resource
 
         def documentdb_cluster(self):
-            if not self._documentdb_resource:
-                self._documentdb_resource = DocumentDBClusterResource(
+            if not self._documentdb_cluster_resource:
+                self._documentdb_cluster_resource = DocumentDBClusterResource(
                     docdb_conn=self._conn_provider.documentdb(),
                     region=self.config.region,
                     account_id=self.config.account_id
                 )
-            return self._documentdb_resource
+            return self._documentdb_cluster_resource
 
         def documentdb_instance(self):
-            if not self._documentdb_resource:
-                self._documentdb_resource = DocumentDBInstanceResource(
-                    docdb_conn=self._conn_provider.documentdb(),
-                    region=self.config.region,
-                    account_id=self.config.account_id
-                )
-            return self._documentdb_resource
-
+            if not self._documentdb_instance_resource:
+                self._documentdb_instance_resource = \
+                    DocumentDBInstanceResource(
+                        docdb_conn=self._conn_provider.documentdb(),
+                        region=self.config.region,
+                        account_id=self.config.account_id
+                    )
+            return self._documentdb_instance_resource

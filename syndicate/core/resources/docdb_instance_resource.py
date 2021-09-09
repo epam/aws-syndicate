@@ -16,8 +16,7 @@
 from botocore.exceptions import ClientError
 
 from syndicate.commons.log_helper import get_logger
-from syndicate.core.helper import (
-    unpack_kwargs, dict_keys_to_capitalized_camel_case)
+from syndicate.core.helper import unpack_kwargs
 from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import build_description_obj
 
@@ -43,7 +42,9 @@ class DocumentDBInstanceResource(BaseResource):
     def describe_documentdb_instance(self, identifier, meta):
         if not identifier:
             return
-        response = self.connection.describe_db_instance(identifier)
+        response = self.connection.describe_db_instances(identifier)
+        if not response:
+            return
         arn = f'arn:aws:rds:{self.region}:{self.account_id}:' \
               f'db/{identifier}'
         return {
@@ -52,80 +53,35 @@ class DocumentDBInstanceResource(BaseResource):
 
     @unpack_kwargs
     def _create_db_instance_from_meta(self, name, meta):
-        pool_id = self.connection.describe_db_instances(name)
-        if pool_id:
+        instance = self.connection.describe_db_instances(name)
+        if instance:
             _LOG.warn(f'\'{name}\' instance exists.')
-            return self.describe_documentdb_instance(identifier=name, meta=meta)
+            return self.describe_documentdb_instance(identifier=name,
+                                                     meta=meta)
 
         _LOG.info(f'Creating documentDB instance {name}')
         cluster_identifier = meta.get('cluster_identifier', None)
         instance_class = meta.get('instance_class', None)
-        availability_zones = meta.get('availability_zones', None)
-        if availability_zones and not isinstance(
-                availability_zones, list):
-            _LOG.warn(f'Incorrect type for availability_zones: '
-                      f'{availability_zones}')
-            availability_zones = None
+        availability_zone = meta.get('availability_zone', None)
         instance = self.connection.create_db_instance(
-            instance_identifier=name, availability_zones=availability_zones,
+            instance_identifier=name, availability_zone=availability_zone,
             instance_class=instance_class,
             cluster_identifier=cluster_identifier)
 
         _LOG.info(f'Created documentDB instance {instance}')
         return self.describe_documentdb_instance(identifier=name, meta=meta)
 
-    def remove_cognito_user_pools(self, args):
-        self.create_pool(self._remove_cognito_user_pools, args)
+    def remove_db_instance(self, args):
+        self.create_pool(self._remove_db_instance, args)
 
     @unpack_kwargs
-    def _remove_cognito_user_pools(self, arn, config):
-        pool_id = config['description']['UserPool']['Id']
+    def _remove_db_instance(self, arn, config):
+        instance = config['description']['DBInstance']['DBInstanceIdentifier']
         try:
-            self.connection.remove_user_pool(pool_id)
-            _LOG.info('Cognito user pool %s was removed', pool_id)
+            self.connection.delete_db_instance(instance)
+            _LOG.info(f'DocumentDB instance \'{instance}\' was removed')
         except ClientError as e:
             if e.response['Error']['Code'] == 'ResourceNotFoundException':
-                _LOG.warn('Cognito user pool %s is not found', id)
+                _LOG.warn(f'DocumentDB instance \'{instance}\' is not found')
             else:
                 raise e
-
-    def get_user_pool_id(self, name):
-        """
-        Returns user pools ID by its name
-
-        :param name: user pools name
-        :return: user pools ID
-        """
-        return self.connection.if_pool_exists_by_name(user_pool_name=name)
-
-    def cognito_resource_identifier(self, name, output=None):
-        if output:
-            # cognito currently is not located in different regions
-            # process only first object
-            pool_output = list(output.items())[0][1]
-            # find id from the output
-            return pool_output['description']['UserPool']['Id']
-        return self.connection.if_pool_exists_by_name(name)
-
-    def add_custom_attributes(self, user_pool_id, attributes):
-        custom_attributes = []
-        for attr in attributes:
-            attr['attribute_data_type'] = attr.pop('type')
-            custom_attributes.append(dict_keys_to_capitalized_camel_case(attr))
-        self.connection.add_custom_attributes(user_pool_id, custom_attributes)
-
-    @staticmethod
-    def __validate_policies(policies):
-        if not policies.get('minimum_length'):
-            policies['minimum_length'] = 6
-        if not policies.get('require_uppercase'):
-            policies['require_uppercase'] = True
-        if not policies.get('require_symbols'):
-            policies['require_symbols'] = True
-        if not policies.get('require_lowercase'):
-            policies['require_lowercase'] = True
-        if not policies.get('require_numbers'):
-            policies['require_numbers'] = True
-
-        return {'PasswordPolicy': dict_keys_to_capitalized_camel_case(
-            policies)}

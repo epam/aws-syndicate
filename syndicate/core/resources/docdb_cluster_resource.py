@@ -44,6 +44,8 @@ class DocumentDBClusterResource(BaseResource):
         if not identifier:
             return
         response = self.connection.describe_db_clusters(identifier)
+        if not response:
+            return
         arn = f'arn:aws:rds:{self.region}:{self.account_id}:' \
               f'cluster/{identifier}'
         return {
@@ -83,7 +85,7 @@ class DocumentDBClusterResource(BaseResource):
                 f'The password cannot contain forward slash (/), double quote '
                 f'(") or the "at" symbol (@): {master_password}')
         cluster = self.connection.create_db_cluster(
-            cluster_identifier=name, availability_zones=availability_zones,
+            identifier=name, availability_zones=availability_zones,
             vpc_security_group_ids=vpc_security_group_ids, port=port,
             master_password=master_password, master_username=master_username)
         _LOG.info(f'Created documentDB cluster {cluster}')

@@ -14,6 +14,7 @@
     limitations under the License.
 """
 from boto3 import client
+from botocore.exceptions import ClientError
 
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import apply_methods_decorator, retry
@@ -117,9 +118,15 @@ class DocumentDBConnection(object):
         params = {
             'DBClusterIdentifier': identifier
         }
-
-        response = self.client.describe_db_clusters(**params)
-        return response['DBCluster'].get('DBClusterIdentifier')
+        try:
+            response = self.client.describe_db_clusters(**params)
+        except ClientError as e:
+            if e.response['Error']['Code'] == 'DBClusterNotFoundFault':
+                _LOG.warn(f'DocumentDB cluster \'{identifier}\' is not found')
+                return None
+            else:
+                raise e
+        return response['DBClusters'][0].get('DBClusterIdentifier')
 
     def describe_db_instances(self, instance_identifier):
         """
@@ -128,7 +135,14 @@ class DocumentDBConnection(object):
         params = {
             'DBInstanceIdentifier': instance_identifier
         }
-
-        response = self.client.describe_db_instances(**params)
-        return response['DBInstance'].get('DBInstanceIdentifier')
+        try:
+            response = self.client.describe_db_instances(**params)
+        except ClientError as e:
+            if e.response['Error']['Code'] == 'DBInstanceNotFound':
+                _LOG.warn(f'DocumentDB instance \'{instance_identifier}\' is '
+                          f'not found')
+                return None
+            else:
+                raise e
+        return response['DBInstances'][0].get('DBInstanceIdentifier')
 
