@@ -77,10 +77,12 @@ def process_default_view():
         event_time = last_event.get('time_start')
         duration = last_event.get('duration_sec')
         data = [['', 'Bundle name: ', last_event.get('bundle_name')],
-                ['', 'Deploy name: ', last_event.get('deploy_name')],
                 ['', 'Initiated by: ', last_event.get('initiator')],
                 ['', 'Started at: ', format_time(event_time)],
                 ['', 'Duration (sec): ', "{:.3f}".format(duration)]]
+        if last_event.get('deploy_name'):
+            data.insert(1,
+                        ['', 'Deploy name: ', last_event.get('deploy_name')])
         result.append(tabulate_data(data))
     lambdas = PROJECT_STATE.lambdas
     result.append(LINE_SEP + 'Project resources:')
