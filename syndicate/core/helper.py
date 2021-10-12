@@ -36,6 +36,7 @@ from syndicate.core.constants import (ARTIFACTS_FOLDER, BUILD_META_FILE_NAME,
                                       DEFAULT_SEP)
 from syndicate.core.project_state.project_state import MODIFICATION_LOCK
 from syndicate.core.project_state.sync_processor import sync_project_state
+from syndicate.connection.s3_connection import S3Connection
 
 _LOG = get_logger('syndicate.core.helper')
 USER_LOG = get_user_logger()
@@ -389,3 +390,11 @@ class OrderedGroup(click.Group):
 
     def list_commands(self, ctx):
         return self.commands
+
+
+def check_bundle_bucket_name(ctx, param, value):
+    try:
+        S3Connection.validate_bucket_name(value)
+        return value
+    except ValueError as e:
+        raise BadParameter(e.__str__())
