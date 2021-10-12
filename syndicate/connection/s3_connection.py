@@ -440,8 +440,8 @@ class S3Connection(object):
     @staticmethod
     def validate_bucket_name(bucket_name: str):
         """Checks whether the given bucket name is compliant. The function was built based on the same one from
-        aws-sdk-java. It may look not 'python zen' like, but it works check pretty fast. If the given name isn't valid,
-        ValueError is raised.
+        aws-sdk-java. It may look not like 'python zen', but it's expected to work pretty fast.
+        If the given name isn't valid, ValueError is raised.
 
         :type bucket_name: str
         :param bucket_name: the name to check
