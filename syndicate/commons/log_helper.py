@@ -19,6 +19,7 @@ import getpass
 import os
 from logging import DEBUG, Formatter, INFO, getLogger
 
+SDCT_HOME_ENV_NAME = 'SDCT_HOME'
 LOG_FOLDER_NAME = 'logs'
 LOG_FILE_NAME = 'syndicate.log'
 LOG_NAME = 'syndicate'
@@ -30,12 +31,16 @@ LOG_FORMAT_FOR_FILE = ('%(asctime)s [%(levelname)s] USER:{} %(filename)s:'
 
 
 def get_project_root_path() -> str:
-    """Returns project root path. The file is expected to be always right in this directory
+    """Returns project root path. The file is expected to be always right in this directory.
+    If env variable is specified, the value will be retrieved from it, so be careful cause in case env var is misspecified,
+    a folder with logs will appear not in the root folder.
     :rtype: str
     :returns: a path to the main aws-syndicate folder (root)
     """
-    root_path = str(Path(__file__).parent.parent.parent)
-    return root_path
+    sdct_home = os.getenv(SDCT_HOME_ENV_NAME)
+    if not sdct_home:
+        sdct_home = str(Path(__file__).parent.parent.parent)
+    return sdct_home
 
 
 def get_project_log_file_path() -> str:
