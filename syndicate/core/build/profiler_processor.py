@@ -5,6 +5,7 @@ from syndicate.commons.log_helper import get_logger
 from syndicate.core import ResourceProvider
 from syndicate.core.build.bundle_processor import load_deploy_output
 from syndicate.core.helper import exit_on_exception
+from syndicate.core.constants import DATE_FORMAT
 from datetime import datetime, timedelta
 
 MIN_STATISTIC_VALUE = 'Minimum'
@@ -134,9 +135,9 @@ def validate_time_range(from_date, to_date):
         from_date = datetime.utcnow() - timedelta(hours=1)
         to_date = datetime.utcnow()
     else:
-        from_date = datetime.strptime(from_date, "%Y-%m-%dT%H:%M:%SZ")
+        from_date = datetime.strptime(from_date, DATE_FORMAT)
         from_date = datetime.utcfromtimestamp(datetime.timestamp(from_date))
-        to_date = datetime.strptime(to_date, "%Y-%m-%dT%H:%M:%SZ")
+        to_date = datetime.strptime(to_date, DATE_FORMAT)
         to_date = datetime.utcfromtimestamp(datetime.timestamp(to_date))
     time_range = to_date - from_date
     if time_range <= timedelta(seconds=0):
