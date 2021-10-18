@@ -13,6 +13,9 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+import ipaddress
+from string import whitespace
+
 from syndicate.commons.log_helper import get_logger
 from syndicate.core import ClientError
 from syndicate.core.helper import unpack_kwargs
@@ -21,6 +24,80 @@ from syndicate.core.resources.helper import build_description_obj, chunks
 
 _LOG = get_logger('syndicate.core.resources.s3_resource')
 
+
+def validate_bucket_name(bucket_name: str):
+    """Checks whether the given bucket name is compliant. The function was
+    built based on the same one from aws-sdk-java.
+    It's expected to work pretty fast.
+    If the given name isn't valid, ValueError with an appropriate message
+    is raised.
+
+    :type bucket_name: str
+    :param bucket_name: the name to check
+    """
+    bucket_name = bucket_name.strip()
+
+    _LOG.info(f"Starting validating bucket name '{bucket_name}'")
+    try:
+        if not 3 <= len(bucket_name) <= 63:
+            raise ValueError(f"Bucket name '{bucket_name}' length is "
+                             f"{len(bucket_name)}, but must be between "
+                             f"3 and 63")
+
+        is_ip = False
+        try:
+            ipaddress.ip_address(bucket_name)
+            is_ip = True
+        except ValueError:
+            _LOG.info(f"Bucket name '{bucket_name}' isn't like ip address "
+                      f"and has a valid length")
+        if is_ip:
+            raise ValueError(f"Bucket name '{bucket_name}' cannot be "
+                             f"ip address-like")
+
+        previous = '\0'
+
+        for char in bucket_name:
+            ascii = ord(char)
+            if char.isupper():
+                raise ValueError(f"Bucket name '{bucket_name}' "
+                                 f"cannot contain uppercase letters")
+            if char in whitespace:
+                raise ValueError(f"Bucket name '{bucket_name}' "
+                                 f"cannot contain whitespaces")
+            if char == '.':
+                if previous == '\0':
+                    raise ValueError(f"Bucket name '{bucket_name}' "
+                                     f"cannot start with '.'")
+                if previous == '.':
+                    raise ValueError(f"Bucket name '{bucket_name}' "
+                                     f"cannot contain '..'")
+                if previous == '-':
+                    raise ValueError(f"Bucket name '{bucket_name}' "
+                                     f"cannot contain a dash before a dot")
+            elif char == '-':
+                if previous == '.':
+                    raise ValueError(f"Bucket name '{bucket_name}' "
+                                     f"cannot contain a dot before a dash")
+                if previous == '\0':
+                    raise ValueError(f"Bucket name '{bucket_name}' "
+                                     f"cannot start with '-'")
+            elif ascii < ord('0') or ord('9') < ascii < ord(
+                    'a') or ascii > ord(
+                    'z'):
+                raise ValueError(
+                    f"Bucket name '{bucket_name}' cannot contain '{char}'")
+
+            previous = char
+
+        if previous == '-' or previous == '.':
+            raise ValueError(
+                f"Bucket name '{bucket_name}' cannot end with '.' or '-'")
+    except ValueError as e:
+        _LOG.info(e.__str__())
+        raise e
+
+    _LOG.info(f"Finishing validating bucket '{bucket_name}'")
 
 class S3Resource(BaseResource):
 
@@ -108,3 +185,4 @@ class S3Resource(BaseResource):
                 _LOG.warn('S3 bucket {0} is not found'.format(bucket_name))
             else:
                 raise e
+

@@ -13,14 +13,11 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-import ipaddress
 from json import dumps
-from string import whitespace
 
 from boto3 import resource
 from botocore.client import Config
 from botocore.exceptions import ClientError
-
 
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import apply_methods_decorator, retry
@@ -436,81 +433,3 @@ class S3Connection(object):
     def is_versioning_enabled(self, bucket_name):
         return self.client.get_bucket_versioning(
             Bucket=bucket_name) == 'Enabled'
-
-    @staticmethod
-    def validate_bucket_name(bucket_name: str):
-        """Checks whether the given bucket name is compliant. The function was built based on the same one from
-        aws-sdk-java. It may look not like 'python zen', but it's expected to work pretty fast.
-        If the given name isn't valid, ValueError is raised.
-
-        :type bucket_name: str
-        :param bucket_name: the name to check
-        """
-
-        _LOG.info(f"Starting validating bucket name '{bucket_name}'")
-
-        bucket_name = bucket_name.strip()
-
-        if not 3 <= len(bucket_name) <= 63:
-            mes = f"Bucket name '{bucket_name}' length is {len(bucket_name)}, but must be between 3 and 63"
-            _LOG.warning(mes)
-            raise ValueError(mes)
-
-        is_ip = False
-        try:
-            ipaddress.ip_address(bucket_name)
-            is_ip = True
-        except ValueError:
-            _LOG.info(f"Bucket name '{bucket_name}' isn't like ip address and has a valid length")
-        if is_ip:
-            mes = f"Bucket name '{bucket_name}' cannot be ip address-like"
-            _LOG.warning(mes)
-            raise ValueError(mes)
-
-        previous = '\0'
-
-        for char in bucket_name:
-            ascii = ord(char)
-            if char.isupper():
-                mes = f"Bucket name '{bucket_name}' cannot contain uppercase letters"
-                _LOG.warning(mes)
-                raise ValueError(mes)
-            if char in whitespace:
-                mes = f"Bucket name '{bucket_name}' cannot contain whitespaces"
-                _LOG.warning(mes)
-                raise ValueError(mes)
-            if char == '.':
-                if previous == '\0':
-                    mes = f"Bucket name '{bucket_name}' cannot start with '.'"
-                    _LOG.warning(mes)
-                    raise ValueError(mes)
-                if previous == '.':
-                    mes = f"Bucket name '{bucket_name}' cannot contain '..'"
-                    _LOG.warning(mes)
-                    raise ValueError(mes)
-                if previous == '-':
-                    mes = f"Bucket name '{bucket_name}' cannot contain a dash before a dot"
-                    _LOG.warning(mes)
-                    raise ValueError(mes)
-            elif char == '-':
-                if previous == '.':
-                    mes = f"Bucket name '{bucket_name}' cannot contain a dot before a dash"
-                    _LOG.warning(mes)
-                    raise ValueError(mes)
-                if previous == '\0':
-                    mes = f"Bucket name '{bucket_name}' cannot start with '-'"
-                    _LOG.warning(mes)
-                    raise ValueError(mes)
-            elif ascii < ord('0') or ord('9') < ascii < ord('a') or ascii > ord('z'):
-                mes = f"Bucket name '{bucket_name}' cannot contain '{char}'"
-                _LOG.warning(mes)
-                raise ValueError(mes)
-
-            previous = char
-
-        if previous == '-' or previous == '.':
-            mes = f"Bucket name '{bucket_name}' cannot end with '.' or '-'"
-            _LOG.warning(mes)
-            raise ValueError(mes)
-
-        _LOG.info(f"Finishing validating bucket '{bucket_name}'")
