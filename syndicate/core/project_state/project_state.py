@@ -143,13 +143,11 @@ class ProjectState:
 
     @property
     def latest_deployed_bundle_name(self):
-        return self._latest_operation_bundle_name(operation_name='deploy',
-                                                  attribute='bundle_name')
+        return self.latest_deploy.get('bundle_name')
 
     @property
     def latest_deployed_deploy_name(self):
-        return self._latest_operation_bundle_name(operation_name='deploy',
-                                                  attribute='deploy_name')
+        return self.latest_deploy.get('deploy_name')
 
     def _latest_operation_bundle_name(self, operation_name, attribute):
         events = self.events
