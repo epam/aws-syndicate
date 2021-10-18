@@ -264,8 +264,9 @@ def update(bundle_name, deploy_name, replace_output,
         update_only_resources=update_only_resources,
         replace_output=replace_output)
     if success:
-        return 'Update of resources has been successfully completed'
-    return 'Something went wrong during resources update'
+        click.echo('Update of resources has been successfully completed')
+    else:
+        click.echo('Something went wrong during resources update')
 
 
 @syndicate.command(name='clean')
