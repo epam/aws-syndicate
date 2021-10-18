@@ -55,7 +55,7 @@ file_handler.setFormatter(formatter)
 console_handler = logging.StreamHandler()
 console_handler.setFormatter(formatter)
 
-user_logger = getLogger("-".join(['user', LOG_NAME]))
+user_logger = getLogger(f'user-{LOG_NAME}')
 user_logger.addHandler(console_handler)
 user_logger.addHandler(file_handler)
 
