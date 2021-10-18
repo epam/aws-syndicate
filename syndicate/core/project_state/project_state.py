@@ -21,6 +21,7 @@ from datetime import datetime
 import yaml
 
 from syndicate.core.groups import RUNTIME_JAVA, RUNTIME_NODEJS, RUNTIME_PYTHON
+from syndicate.core.constants import DATE_FORMAT_ISO_8601
 
 CAPITAL_LETTER_REGEX = '[A-Z][^A-Z]*'
 
@@ -240,7 +241,7 @@ class ProjectState:
         locks = self.locks
         lock = locks.get(lock_name)
         timestamp = datetime.fromtimestamp(time.time()) \
-            .strftime('%Y-%m-%dT%H:%M:%SZ')
+            .strftime(DATE_FORMAT_ISO_8601)
         modified_lock = {LOCK_LOCKED: locked,
                          LOCK_LAST_MODIFICATION_DATE: timestamp,
                          LOCK_INITIATOR: getpass.getuser()}
