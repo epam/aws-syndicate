@@ -24,7 +24,7 @@ from syndicate.core.project_state.project_state import (OPERATION_LOCK_MAPPINGS,
                                                         LOCK_LAST_MODIFICATION_DATE,
                                                         LOCK_LOCKED)
 from syndicate.core.project_state.sync_processor import sync_project_state
-from syndicate.core.constants import DATE_FORMAT
+from syndicate.core.constants import DATE_FORMAT_ISO_8601
 
 LOCKS = {
     MODIFICATION_LOCK: 'modification',
@@ -171,5 +171,5 @@ def indent(line):
 
 
 def format_time(time_string):
-    time = datetime.strptime(time_string, DATE_FORMAT)
+    time = datetime.strptime(time_string, DATE_FORMAT_ISO_8601)
     return time.strftime('%Y-%m-%d %H:%M:%S')

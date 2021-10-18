@@ -33,7 +33,7 @@ from tqdm import tqdm
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.conf.processor import path_resolver
 from syndicate.core.constants import (ARTIFACTS_FOLDER, BUILD_META_FILE_NAME,
-                                      DEFAULT_SEP, DATE_FORMAT)
+                                      DEFAULT_SEP, DATE_FORMAT_ISO_8601)
 from syndicate.core.project_state.project_state import MODIFICATION_LOCK
 from syndicate.core.project_state.sync_processor import sync_project_state
 
@@ -285,9 +285,9 @@ def timeit(action_name=None):
                 username = getpass.getuser()
                 duration = round(te - ts, 3)
                 start_date_formatted = datetime.fromtimestamp(ts) \
-                    .strftime(DATE_FORMAT)
+                    .strftime(DATE_FORMAT_ISO_8601)
                 end_date_formatted = datetime.fromtimestamp(te) \
-                    .strftime(DATE_FORMAT)
+                    .strftime(DATE_FORMAT_ISO_8601)
 
                 bundle_name = kwargs.get('bundle_name')
                 deploy_name = kwargs.get('deploy_name')
