@@ -29,6 +29,7 @@ STATE_LOCKS = 'locks'
 STATE_LAMBDAS = 'lambdas'
 STATE_BUILD_PROJECT_MAPPING = 'build_projects_mapping'
 STATE_LOG_EVENTS = 'events'
+STATE_LATEST_DEPLOY = 'latest_deploy'
 LOCK_LOCKED = 'locked'
 LOCK_LAST_MODIFICATION_DATE = 'last_modification_date'
 LOCK_INITIATOR = 'initiator'
@@ -118,6 +119,19 @@ class ProjectState:
         self._dict.update({STATE_LOG_EVENTS: events})
 
     @property
+    def latest_deploy(self):
+        latest_deploy = self._dict.get(STATE_LATEST_DEPLOY)
+        if not latest_deploy:
+            latest_deploy = {}
+            self._dict.update({STATE_LATEST_DEPLOY: latest_deploy})
+        return latest_deploy
+
+    @latest_deploy.setter
+    def latest_deploy(self, latest_deploy):
+        self._dict[STATE_LATEST_DEPLOY] = latest_deploy
+
+
+    @property
     def latest_built_bundle_name(self):
         return self._latest_operation_bundle_name(operation_name='build',
                                                   attribute='bundle_name')
@@ -201,9 +215,18 @@ class ProjectState:
         return self._dict.get(STATE_BUILD_PROJECT_MAPPING)
 
     def log_execution_event(self, **kwargs):
+        operation = kwargs.get('operation')
+        if operation == 'deploy':
+            self.log_latest_deploy(**kwargs)
         kwargs = {key: value for key, value in kwargs.items() if value}
         self.events.append(kwargs)
         self.__save_events()
+
+    def log_latest_deploy(self, **kwargs):
+        kwargs = {key: value for key, value in kwargs.items() if value}
+        del kwargs['operation']
+        self.latest_deploy = kwargs
+        self.save()
 
     def add_execution_events(self, events):
         all_events = self.events
