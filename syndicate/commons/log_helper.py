@@ -35,7 +35,7 @@ def get_project_log_file_path() -> str:
     """
     sdct_home = os.getenv(SDCT_HOME_ENV_NAME)
     if not sdct_home:
-        logs_path = os.path.join(os.getcwd(), LOG_FOLDER_NAME)
+        logs_path = os.getcwd()
     else:
         logs_path = os.path.join(sdct_home, LOG_FOLDER_NAME)
     os.makedirs(logs_path, exist_ok=True)
