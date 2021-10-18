@@ -14,7 +14,6 @@
     limitations under the License.
 """
 import logging
-from pathlib import Path
 import getpass
 import os
 from logging import DEBUG, Formatter, INFO, getLogger
@@ -29,26 +28,16 @@ LOG_FORMAT_FOR_FILE = ('%(asctime)s [%(levelname)s] USER:{} %(filename)s:'
                        '%(lineno)d:%(funcName)s LOG: %(message)s'
                        .format(USER_NAME))
 
-
-def get_project_root_path() -> str:
-    """Returns project root path. The file is expected to be always right in this directory.
-    If env variable is specified, the value will be retrieved from it, so be careful cause in case env var is misspecified,
-    a folder with logs will appear not in the root folder.
-    :rtype: str
-    :returns: a path to the main aws-syndicate folder (root)
-    """
-    sdct_home = os.getenv(SDCT_HOME_ENV_NAME)
-    if not sdct_home:
-        sdct_home = str(Path(__file__).parent.parent.parent)
-    return sdct_home
-
-
 def get_project_log_file_path() -> str:
-    """Returns the path to the main logs file according to the project root path
+    """Returns the path to the file where logs will be saved.
     :rtype: str
     :returns: a path to the main log file
     """
-    logs_path = os.path.join(get_project_root_path(), LOG_FOLDER_NAME)
+    sdct_home = os.getenv(SDCT_HOME_ENV_NAME)
+    if not sdct_home:
+        logs_path = os.path.join(os.getcwd(), LOG_FOLDER_NAME)
+    else:
+        logs_path = os.path.join(sdct_home, LOG_FOLDER_NAME)
     os.makedirs(logs_path, exist_ok=True)
 
     log_file_path = os.path.join(logs_path, LOG_FILE_NAME)

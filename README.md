@@ -156,9 +156,10 @@ Just copy the last line of commands output and execute the command.
 The commands sets the environment variable SDCT_CONF required by aws-syndicate 
 to operate.
 
-You may also provide the environment variable SDCT_HOME with Syndicate root folder path.
-Currently this variable influences only the logs path, so if you do, the logs will be saved exactly
-in the folder you've set. If you don't, Syndicate will seek for the root folder by itself.
+You may also provide the environment variable SDCT_HOME. Currently this variable
+influences only the logs path, so if you do, the logs will be saved exactly in 
+the folder you've set. Otherwise the logs will be save to the current working 
+directory.
 
     export SDCT_HOME=$path_to_aws_syndicate_home
 
