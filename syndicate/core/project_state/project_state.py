@@ -48,7 +48,8 @@ BUILD_MAPPINGS = {
 OPERATION_LOCK_MAPPINGS = {
     'deploy': MODIFICATION_LOCK
 }
-
+KEEP_EVENTS_DAYS = 30
+LEAVE_LATEST_EVENTS = 20
 
 class ProjectState:
 
@@ -259,8 +260,20 @@ class ProjectState:
             return yaml.safe_load(state_file.read())
 
     def __save_events(self):
-        if len(self.events) > 20:
-            self.events = self.events[:20]
         self.events.sort(key=lambda event: event.get('time_start'),
                          reverse=True)
+        current_time = datetime.fromtimestamp(time.time())
+        index_out_days = None
+        for i, event in enumerate(self.events):
+            if (current_time -
+                datetime.strptime(event.get('time_start'),
+                                  DATE_FORMAT_ISO_8601)).days > KEEP_EVENTS_DAYS:
+                index_out_days = i
+                break
+
+        if index_out_days:
+            if index_out_days >= LEAVE_LATEST_EVENTS:
+                self.events = self.events[:index_out_days]
+            else:
+                self.events = self.events[:LEAVE_LATEST_EVENTS]
         self.save()
