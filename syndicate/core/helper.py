@@ -389,3 +389,12 @@ class OrderedGroup(click.Group):
 
     def list_commands(self, ctx):
         return self.commands
+
+
+def check_bundle_bucket_name(ctx, param, value):
+    try:
+        from syndicate.core.resources.s3_resource import validate_bucket_name
+        validate_bucket_name(value)
+        return value
+    except ValueError as e:
+        raise BadParameter(e.__str__())

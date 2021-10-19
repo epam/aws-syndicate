@@ -22,7 +22,8 @@ from syndicate.core.generators.lambda_function import (
     generate_lambda_function)
 from syndicate.core.generators.project import (generate_project_structure,
                                                PROJECT_PROCESSORS)
-from syndicate.core.helper import (check_required_param, timeit, OrderedGroup)
+from syndicate.core.helper import (check_required_param, timeit, OrderedGroup,
+                                   check_bundle_bucket_name)
 
 GENERATE_GROUP_NAME = 'generate'
 
@@ -96,7 +97,8 @@ def lambda_function(ctx, name, runtime, project_path):
               required=True)
 @click.option('--bundle_bucket_name',
               help='* Name of the bucket that is used for uploading artifacts.'
-                   ' It will be created if specified.', required=True)
+                   ' It will be created if specified.', required=True,
+              callback=check_bundle_bucket_name)
 @click.option('--access_key',
               help='AWS access key id that is used to deploy the application.')
 @click.option('--secret_key',
