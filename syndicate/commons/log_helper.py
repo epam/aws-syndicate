@@ -16,6 +16,7 @@
 import logging
 import getpass
 import os
+import sys
 from pathlib import Path
 from logging import DEBUG, Formatter, INFO, getLogger
 from datetime import date
@@ -40,7 +41,11 @@ def get_project_log_file_path() -> str:
         logs_path = os.path.join(sdct_conf, LOG_FOLDER_NAME)
     else:
         logs_path = os.path.join(Path.home(), LOG_USER_HOME_FOLDER_NAME)
-    os.makedirs(logs_path, exist_ok=True)
+
+    try:
+        os.makedirs(logs_path, exist_ok=True)
+    except OSError as e:
+        print(f'Error while creating logs path: {e}', file=sys.stderr)
 
     today = date.today()
     log_file_path = os.path.join(logs_path, today.strftime(LOG_FILE_NAME))
