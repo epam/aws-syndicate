@@ -153,10 +153,10 @@ class ProjectState:
 
     def _latest_operation_bundle_name(self, operation_name, attribute):
         events = self.events
-        build_events = [event for event in events if
-                        event.get('operation') == operation_name]
-        if build_events:
-            return build_events[0].get(attribute)
+        event = next((event for event in events if
+                      event.get('operation') == operation_name), None)
+        if event:
+            return event.get(attribute)
 
     @property
     def latest_modification(self):
