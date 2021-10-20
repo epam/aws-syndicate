@@ -160,18 +160,23 @@ def resolve_aliases(params_to_resolve):
         @wraps(func)
         def wrapper(*args, **kwargs):
             resolved = {}
+            _LOG.info(f"Parameters to resolve: {params_to_resolve}")
             for param_name in params_to_resolve:
                 param = kwargs.get(param_name)
                 if param:
                     if not isinstance(param, str):
-                        raise TypeError(f"Cannot resolve aliases for parameter "
-                                        f"of type '{type(param).__name__}'. "
-                                        f"String is expected.")
+                        message = f"Cannot resolve aliases for parameter of " \
+                                  f"type '{type(param).__name__}'. " \
+                                  f"String is expected."
+                        _LOG.error(message)
+                        raise TypeError(message)
                     resolved[param_name] = resolve_aliases_for_string(param)
                 else:
                     _LOG.warning(f"Parameter '{param_name}' wasn't given to "
                                  f"the decorated function in **kwargs")
+            _LOG.info(f"Resolved parameters: {resolved}")
             kwargs.update(resolved)
+
             return func(*args, **kwargs)
 
         return wrapper
