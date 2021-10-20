@@ -14,6 +14,7 @@
     limitations under the License.
 """
 from syndicate.core.build.validator.instance_types import INSTANCE_TYPES
+from syndicate.core.helper import resolve_aliases
 
 COMPENV_STATES = ('ENABLED', 'DISABLED')
 COMPENV_TYPES = ('UNMANAGED', 'MANAGED')
@@ -307,6 +308,7 @@ def _validate_compute_resources(compute_resources):
             )
 
 
+@resolve_aliases(params_to_resolve=['field_value', ])
 def _validate_options_field(field_name, field_value, field_options, prefix='compute_resources', required=True,
                             **kwargs):
     """
