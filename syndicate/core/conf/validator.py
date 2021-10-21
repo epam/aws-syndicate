@@ -183,8 +183,9 @@ class ConfigValidator:
         if str_error:
             return [str_error]
 
-    def _validate_resources_prefix_suffix(self, key, value):
-        str_error = self._assert_value_is_str(key=key,
+    @staticmethod
+    def _validate_resources_prefix_suffix(key, value):
+        str_error = ConfigValidator._assert_value_is_str(key=key,
                                               value=value)
         if str_error:
             return [str_error]
