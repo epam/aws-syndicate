@@ -23,7 +23,8 @@ from syndicate.core.generators.lambda_function import (
 from syndicate.core.generators.project import (generate_project_structure,
                                                PROJECT_PROCESSORS)
 from syndicate.core.helper import (check_required_param, timeit, OrderedGroup,
-                                   check_bundle_bucket_name)
+                                   check_bundle_bucket_name,
+                                   check_prefix_suffix_length)
 
 GENERATE_GROUP_NAME = 'generate'
 
@@ -110,11 +111,13 @@ def lambda_function(ctx, name, runtime, project_path):
 @click.option('--prefix',
               help='Prefix that is added to project names while deployment '
                    'by pattern: {prefix}resource_name{suffix}. '
-                   'Must be less than or equal to 5.')
+                   'Must be less than or equal to 5.',
+              callback=check_prefix_suffix_length)
 @click.option('--suffix',
               help='Suffix that is added to project names while deployment '
                    'by pattern: {prefix}resource_name{suffix}. '
-                   'Must be less than or equal to 5.')
+                   'Must be less than or equal to 5.',
+              callback=check_prefix_suffix_length)
 @timeit()
 def config(name, config_path, project_path, region, access_key,
            secret_key, bundle_bucket_name, prefix, suffix):

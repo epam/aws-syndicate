@@ -398,3 +398,11 @@ def check_bundle_bucket_name(ctx, param, value):
         return value
     except ValueError as e:
         raise BadParameter(e.__str__())
+
+
+def check_prefix_suffix_length(ctx, param, value):
+    value = value.lower().strip()
+    if len(value) > 5:
+        raise BadParameter(f'The length must be less or equal '
+                           f'to 5 characters')
+    return value
