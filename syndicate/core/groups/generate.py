@@ -109,10 +109,12 @@ def lambda_function(ctx, name, runtime, project_path):
               help='Path to project folder. Default value: working dir')
 @click.option('--prefix',
               help='Prefix that is added to project names while deployment '
-                   'by pattern: {prefix}resource_name{suffix}')
+                   'by pattern: {prefix}resource_name{suffix}. '
+                   'Must be less than or equal to 5.')
 @click.option('--suffix',
               help='Suffix that is added to project names while deployment '
-                   'by pattern: {prefix}resource_name{suffix}')
+                   'by pattern: {prefix}resource_name{suffix}. '
+                   'Must be less than or equal to 5.')
 @timeit()
 def config(name, config_path, project_path, region, access_key,
            secret_key, bundle_bucket_name, prefix, suffix):
