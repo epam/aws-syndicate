@@ -194,6 +194,13 @@ class ConfigValidator:
                 f'The length of {key} must be less or equal to 5 character']
 
     @staticmethod
+    def validate_prefix_suffix(key, value):
+        result = ConfigValidator._validate_resources_prefix_suffix(key, value)
+        if result:
+            return result[0]
+
+
+    @staticmethod
     def _assert_value_is_str(key, value):
         if type(value) is not str:
             return f'{key} must be type of string'
