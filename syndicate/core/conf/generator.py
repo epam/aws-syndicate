@@ -43,15 +43,12 @@ def generate_configuration_files(name, config_path, region,
                                  access_key, secret_key,
                                  bundle_bucket_name, prefix, suffix,
                                  project_path=None):
-    if not access_key or not secret_key:
-        _USER_LOG.warn("Access_key or secret_key weren't passed. "
-                  "Attempting to load them")
+    if not access_key and not secret_key:
+        _USER_LOG.warn("Access_key and secret_key weren't passed. "
+                       "Attempting to load them")
         credentials = Session().get_credentials()
         if not credentials:
             raise AssertionError("No credentials could be found")
-        current_credentials = credentials.get_frozen_credentials()
-        access_key = current_credentials.access_key
-        secret_key = current_credentials.secret_key
 
     try:
         sts = STSConnection(region=region,
