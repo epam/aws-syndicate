@@ -41,9 +41,9 @@ WARMUP_LOCK = 'warm_up_lock'
 PROJECT_STATE_FILE = '.syndicate'
 
 BUILD_MAPPINGS = {
-    RUNTIME_JAVA: '/jsrc/main/java',
-    RUNTIME_PYTHON: '/src',
-    RUNTIME_NODEJS: '/app'
+    RUNTIME_JAVA: 'jsrc/main/java',
+    RUNTIME_PYTHON: 'src',
+    RUNTIME_NODEJS: 'app'
 }
 
 OPERATION_LOCK_MAPPINGS = {
@@ -287,16 +287,22 @@ class ProjectState:
         """
         from syndicate.core.generators.lambda_function import FOLDER_LAMBDAS
         project_path = config.project_path
-        build_projects_mapping = config.build_projects_mapping
         project_name = Path(project_path).name
         project_state = ProjectState.generate(project_path=project_path,
                                               project_name=project_name)
-        for runtime, src_paths in build_projects_mapping.items():
-            project_state.add_project_build_mapping(runtime)
-            src_path = src_paths[0]  # FIXME
-            lambdas_path = os.path.join(project_path, src_path, FOLDER_LAMBDAS)
-            for lambda_ in os.listdir(lambdas_path):
-                project_state.add_lambda(lambda_, runtime)
+
+        build_projects_mapping = config.build_projects_mapping
+        if build_projects_mapping:
+            pass
+        else:
+            for runtime, source_path in BUILD_MAPPINGS.items():
+                lambda_path = Path(project_path, source_path, FOLDER_LAMBDAS)
+                if os.path.exists(lambda_path):
+                    lambdas = [lambda_dir for lambda_dir in
+                               os.listdir(lambda_path) if os.path.isdir(
+                               os.path.join(lambda_path, lambda_dir))]
+                    project_state.add_project_build_mapping(runtime)
+                    [project_state.add_lambda(lambda_, runtime) for lambda_ in lambdas]
         project_state.save()
 
         return project_state
