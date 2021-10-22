@@ -293,17 +293,28 @@ class ProjectState:
 
         build_projects_mapping = config.build_projects_mapping
         if build_projects_mapping:
-            pass
-        
+            for runtime, source_paths in build_projects_mapping.items():
+                project_state.add_project_build_mapping(runtime)
+                source_path = source_paths[0]  # FIXME
+                lambdas_path = Path(project_path, source_path, FOLDER_LAMBDAS)
+                if os.path.exists(lambdas_path):
+                    project_state._add_lambdas_from_path(lambdas_path, runtime)
         else:
             for runtime, source_path in BUILD_MAPPINGS.items():
                 lambdas_path = Path(project_path, source_path, FOLDER_LAMBDAS)
                 if os.path.exists(lambdas_path):
-                    lambdas = [lambda_dir for lambda_dir in
-                               os.listdir(lambdas_path) if os.path.isdir(
-                               os.path.join(lambdas_path, lambda_dir))]
                     project_state.add_project_build_mapping(runtime)
-                    [project_state.add_lambda(lambda_, runtime) for lambda_ in lambdas]
+                    project_state._add_lambdas_from_path(lambdas_path, runtime)
+
         project_state.save()
 
         return project_state
+
+    def _add_lambdas_from_path(self, lambdas_path, runtime):
+        """Adds to project state all the lambdas from given dir.
+        :type lambdas_dir: list
+        """
+        lambdas = [lambda_dir for lambda_dir in
+                   os.listdir(lambdas_path) if os.path.isdir(
+                os.path.join(lambdas_path, lambda_dir))]
+        [self.add_lambda(lambda_, runtime) for lambda_ in lambdas]
