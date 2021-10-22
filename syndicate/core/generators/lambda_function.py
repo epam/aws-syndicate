@@ -109,7 +109,7 @@ def generate_lambda_function(project_path, runtime,
     if not processor:
         raise RuntimeError(f'Wrong project runtime {runtime}')
 
-    lambdas_path = os.path.join(src_path, 'lambdas')
+    lambdas_path = os.path.join(src_path, FOLDER_LAMBDAS)
 
     processor(project_path=project_path, lambda_names=lambda_names,
               lambdas_path=lambdas_path, project_state=project_state)
