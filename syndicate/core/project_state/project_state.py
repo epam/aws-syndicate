@@ -217,20 +217,20 @@ class ProjectState:
     def log_execution_event(self, **kwargs):
         operation = kwargs.get('operation')
         if operation == 'deploy':
-            self.__log_latest_deploy(**kwargs)
+            self._set_latest_deploy_info(**kwargs)
         if operation == 'clean':
-            self.__delete_latest_deploy()
+            self._delete_latest_deploy_info()
 
         kwargs = {key: value for key, value in kwargs.items() if value}
         self.events.append(kwargs)
         self.__save_events()
 
-    def __log_latest_deploy(self, **kwargs):
+    def _set_latest_deploy_info(self, **kwargs):
         kwargs = {key: value for key, value in kwargs.items() if value}
         del kwargs['operation']
         self.latest_deploy = kwargs
 
-    def __delete_latest_deploy(self):
+    def _delete_latest_deploy_info(self):
         self.latest_deploy = {}
 
     def add_execution_events(self, events):
