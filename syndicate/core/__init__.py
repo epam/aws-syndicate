@@ -105,7 +105,8 @@ def initialize_connection():
 def initialize_project_state():
     global PROJECT_STATE
     if not ProjectState.check_if_project_state_exists(CONFIG.project_path):
-        USER_LOG.warn("Config is set and generated but project state does not exist, seems that you've come from the previous version")
+        USER_LOG.warn("Config is set and generated but project state does not "
+                      "exist, seems that you've come from the previous version.")
         PROJECT_STATE = ProjectState.build_from_structure(CONFIG)
     else:
         PROJECT_STATE = ProjectState(project_path=CONFIG.project_path)
