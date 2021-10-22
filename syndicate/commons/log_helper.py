@@ -16,11 +16,14 @@
 import logging
 import getpass
 import os
+import sys
+from pathlib import Path
 from logging import DEBUG, Formatter, INFO, getLogger
+from datetime import date
 
-SDCT_HOME_ENV_NAME = 'SDCT_HOME'
+LOG_USER_HOME_FOLDER_NAME = '.syndicate_logs'
 LOG_FOLDER_NAME = 'logs'
-LOG_FILE_NAME = 'syndicate.log'
+LOG_FILE_NAME = '%Y-%m-%d-syndicate.log'
 LOG_NAME = 'syndicate'
 LOG_LEVEL = DEBUG if os.environ.get('SDCT_DEBUG', False) else INFO
 USER_NAME = getpass.getuser()
@@ -33,14 +36,20 @@ def get_project_log_file_path() -> str:
     :rtype: str
     :returns: a path to the main log file
     """
-    sdct_home = os.getenv(SDCT_HOME_ENV_NAME)
-    if not sdct_home:
-        logs_path = os.getcwd()
+    sdct_conf = os.getenv('SDCT_CONF')
+    if sdct_conf:
+        logs_path = os.path.join(sdct_conf, LOG_FOLDER_NAME)
     else:
-        logs_path = os.path.join(sdct_home, LOG_FOLDER_NAME)
-    os.makedirs(logs_path, exist_ok=True)
+        logs_path = os.path.join(Path.home(), LOG_USER_HOME_FOLDER_NAME)
 
-    log_file_path = os.path.join(logs_path, LOG_FILE_NAME)
+    try:
+        os.makedirs(logs_path, exist_ok=True)
+    except OSError as e:
+        print(f'Error while creating logs path: {e}', file=sys.stderr)
+
+    today = date.today()
+    log_file_path = os.path.join(logs_path, today.strftime(LOG_FILE_NAME))
+
     return log_file_path
 
 
