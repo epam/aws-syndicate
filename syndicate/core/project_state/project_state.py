@@ -17,6 +17,7 @@ import getpass
 import os
 import time
 from datetime import datetime
+from pathlib import Path
 
 import yaml
 
@@ -277,3 +278,25 @@ class ProjectState:
             else:
                 self.events = self.events[:LEAVE_LATEST_EVENTS]
         self.save()
+
+    @staticmethod
+    def build_from_structure(config):
+        """Builds project state file from existing project folder in case of 
+        moving from older versions
+        :type config: syndicate.core.conf.processor.ConfigHolder
+        """
+        from syndicate.core.generators.lambda_function import FOLDER_LAMBDAS
+        project_path = config.project_path
+        build_projects_mapping = config.build_projects_mapping
+        project_name = Path(project_path).name
+        project_state = ProjectState.generate(project_path=project_path,
+                                              project_name=project_name)
+        for runtime, src_paths in build_projects_mapping.items():
+            project_state.add_project_build_mapping(runtime)
+            src_path = src_paths[0]  # FIXME
+            lambdas_path = os.path.join(project_path, src_path, FOLDER_LAMBDAS)
+            for lambda_ in os.listdir(lambdas_path):
+                project_state.add_lambda(lambda_, runtime)
+        project_state.save()
+
+        return project_state
