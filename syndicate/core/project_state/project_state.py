@@ -135,12 +135,12 @@ class ProjectState:
 
     @property
     def latest_built_bundle_name(self):
-        return self._latest_operation_bundle_name(operation_name='build',
+        return self._get_attribute_from_latest_operation(operation_name='build',
                                                   attribute='bundle_name')
 
     @property
     def latest_built_deploy_name(self):
-        return self._latest_operation_bundle_name(operation_name='build',
+        return self._get_attribute_from_latest_operation(operation_name='build',
                                                   attribute='deploy_name')
 
     @property
@@ -151,7 +151,7 @@ class ProjectState:
     def latest_deployed_deploy_name(self):
         return self.latest_deploy.get('deploy_name')
 
-    def _latest_operation_bundle_name(self, operation_name, attribute):
+    def _get_attribute_from_latest_operation(self, operation_name, attribute):
         events = self.events
         event = next((event for event in events if
                       event.get('operation') == operation_name), None)
