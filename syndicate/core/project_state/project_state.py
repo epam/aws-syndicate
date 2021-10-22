@@ -294,13 +294,14 @@ class ProjectState:
         build_projects_mapping = config.build_projects_mapping
         if build_projects_mapping:
             pass
+        
         else:
             for runtime, source_path in BUILD_MAPPINGS.items():
-                lambda_path = Path(project_path, source_path, FOLDER_LAMBDAS)
-                if os.path.exists(lambda_path):
+                lambdas_path = Path(project_path, source_path, FOLDER_LAMBDAS)
+                if os.path.exists(lambdas_path):
                     lambdas = [lambda_dir for lambda_dir in
-                               os.listdir(lambda_path) if os.path.isdir(
-                               os.path.join(lambda_path, lambda_dir))]
+                               os.listdir(lambdas_path) if os.path.isdir(
+                               os.path.join(lambdas_path, lambda_dir))]
                     project_state.add_project_build_mapping(runtime)
                     [project_state.add_lambda(lambda_, runtime) for lambda_ in lambdas]
         project_state.save()
