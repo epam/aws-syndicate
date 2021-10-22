@@ -32,6 +32,7 @@ from tqdm import tqdm
 
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.conf.processor import path_resolver
+from syndicate.core.conf.validator import ConfigValidator
 from syndicate.core.constants import (ARTIFACTS_FOLDER, BUILD_META_FILE_NAME,
                                       DEFAULT_SEP, DATE_FORMAT_ISO_8601)
 from syndicate.core.project_state.project_state import MODIFICATION_LOCK
@@ -398,3 +399,11 @@ def check_bundle_bucket_name(ctx, param, value):
         return value
     except ValueError as e:
         raise BadParameter(e.__str__())
+
+
+def check_prefix_suffix_length(ctx, param, value):
+    value = value.lower().strip()
+    result = ConfigValidator.validate_prefix_suffix(param.name, value)
+    if result:
+        raise BadParameter(result)
+    return value
