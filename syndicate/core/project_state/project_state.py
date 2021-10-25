@@ -15,7 +15,9 @@
 """
 import getpass
 import os
+import sys
 import time
+import shutil
 from datetime import datetime
 from pathlib import Path
 
@@ -295,10 +297,23 @@ class ProjectState:
         if build_projects_mapping:
             for runtime, source_paths in build_projects_mapping.items():
                 project_state.add_project_build_mapping(runtime)
-                source_path = source_paths[0]  # FIXME
-                lambdas_path = Path(project_path, source_path, FOLDER_LAMBDAS)
-                if os.path.exists(lambdas_path):
-                    project_state._add_lambdas_from_path(lambdas_path, runtime)
+
+                for source_path in source_paths:
+                    lambdas_path = Path(project_path, source_path,
+                                        FOLDER_LAMBDAS)
+                    if os.path.exists(lambdas_path):
+                        project_state._add_lambdas_from_path(lambdas_path,
+                                                             runtime)
+                        try:
+                            shutil.copytree(lambdas_path,
+                                            os.path.join(project_path,
+                                                         BUILD_MAPPINGS[runtime],
+                                                         FOLDER_LAMBDAS),
+                                            dirs_exist_ok=True)
+                        except OSError as e:
+                            print(f"Errors occured while copying lambdas: {e}",
+                                  file=sys.stderr)
+
         else:
             for runtime, source_path in BUILD_MAPPINGS.items():
                 lambdas_path = Path(project_path, source_path, FOLDER_LAMBDAS)
