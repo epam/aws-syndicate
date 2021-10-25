@@ -136,12 +136,12 @@ class ProjectState:
 
     @property
     def latest_built_bundle_name(self):
-        return self._latest_operation_bundle_name(operation_name='build',
+        return self._get_attribute_from_latest_operation(operation_name='build',
                                                   attribute='bundle_name')
 
     @property
     def latest_built_deploy_name(self):
-        return self._latest_operation_bundle_name(operation_name='build',
+        return self._get_attribute_from_latest_operation(operation_name='build',
                                                   attribute='deploy_name')
 
     @property
@@ -152,7 +152,7 @@ class ProjectState:
     def latest_deployed_deploy_name(self):
         return self.latest_deploy.get('deploy_name')
 
-    def _latest_operation_bundle_name(self, operation_name, attribute):
+    def _get_attribute_from_latest_operation(self, operation_name, attribute):
         events = self.events
         event = next((event for event in events if
                       event.get('operation') == operation_name), None)
@@ -218,20 +218,20 @@ class ProjectState:
     def log_execution_event(self, **kwargs):
         operation = kwargs.get('operation')
         if operation == 'deploy':
-            self.__log_latest_deploy(**kwargs)
+            self._set_latest_deploy_info(**kwargs)
         if operation == 'clean':
-            self.__delete_latest_deploy()
+            self._delete_latest_deploy_info()
 
         kwargs = {key: value for key, value in kwargs.items() if value}
         self.events.append(kwargs)
         self.__save_events()
 
-    def __log_latest_deploy(self, **kwargs):
+    def _set_latest_deploy_info(self, **kwargs):
         kwargs = {key: value for key, value in kwargs.items() if value}
         del kwargs['operation']
         self.latest_deploy = kwargs
 
-    def __delete_latest_deploy(self):
+    def _delete_latest_deploy_info(self):
         self.latest_deploy = {}
 
     def add_execution_events(self, events):
