@@ -191,7 +191,8 @@ def __lambda_name_to_class_name(lambda_name):
 
 def _generate_java_lambdas(**kwargs):
     project_path = kwargs.get(PROJECT_PATH_PARAM)
-    project_name = kwargs.get(PROJECT_NAME_PARAM)
+    project_state = kwargs.get(PROJECT_STATE_PARAM)
+    project_name = project_state.name
     lambda_names = kwargs.get(LAMBDA_NAMES_PARAM, [])
 
     unified_lambda_name = _get_parts_split_by_chars(to_split=project_name,
