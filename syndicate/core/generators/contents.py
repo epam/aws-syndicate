@@ -23,8 +23,8 @@ POLICY_LAMBDA_BASIC_EXECUTION = "lambda-basic-execution"
 
 LAMBDA_ROLE_NAME_PATTERN = '{0}-role'  # 0 - lambda_name
 
-SRC_MAIN_JAVA = '/src/main/java'
-FILE_POM = '/pom.xml'
+SRC_MAIN_JAVA = 'jsrc/main/java'
+FILE_POM = 'pom.xml'
 CANCEL_MESSAGE = 'Creating of {} has been canceled.'
 
 JAVA_LAMBDA_HANDLER_CLASS = """package {java_package_name};

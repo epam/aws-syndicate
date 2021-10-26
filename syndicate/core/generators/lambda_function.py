@@ -106,11 +106,13 @@ def generate_lambda_function(project_path, runtime,
     common_module_generator(src_path=src_path)
     project_state.add_project_build_mapping(runtime=runtime)
 
+
     processor = LAMBDAS_PROCESSORS.get(runtime)
     if not processor:
         raise RuntimeError(f'Wrong project runtime {runtime}')
 
     lambdas_path = os.path.join(src_path, FOLDER_LAMBDAS)
+
     processor(project_path=project_path, lambda_names=lambda_names,
               lambdas_path=lambdas_path, project_state=project_state)
     project_state.save()
@@ -195,26 +197,27 @@ def _generate_java_lambdas(**kwargs):
     project_name = project_state.name
     lambda_names = kwargs.get(LAMBDA_NAMES_PARAM, [])
 
-    unified_lambda_name = _get_parts_split_by_chars(to_split=project_name,
+    unified_package_name = _get_parts_split_by_chars(to_split=project_name,
                                                     chars=['-', '_'])
-    java_package_name = unified_lambda_name.replace(' ', '')
+    java_package_name = unified_package_name.replace(' ', '')
     java_package_name = f'com.{java_package_name}'
     java_package_as_path = java_package_name.replace('.', '/')
 
-    pom_file_path = os.path.join(project_path, project_name, FILE_POM)
+    pom_file_path = os.path.join(project_path, FILE_POM)
     pom_xml_content = _read_content_from_file(pom_file_path)
     pom_xml_content = pom_xml_content.replace(
         '<!--packages to scan-->',
         f'<package>{java_package_name}</package>')
     _write_content_to_file(pom_file_path, pom_xml_content)
 
-    full_package_path = os.path.join(project_path, project_name,
+    full_package_path = Path(project_path,
                                      SRC_MAIN_JAVA, java_package_as_path)
     for lambda_name in lambda_names:
         if not os.path.exists(full_package_path):
             _mkdir(full_package_path, exist_ok=True)
 
-        lambda_class_name = unified_lambda_name.title()
+        lambda_class_name = _get_parts_split_by_chars(to_split=lambda_name,
+                                                      chars=['-', '_']).title()
         lambda_class_name = lambda_class_name.replace(' ', '')
         java_handler_content = JAVA_LAMBDA_HANDLER_CLASS.replace(
             '{java_package_name}',
@@ -234,7 +237,7 @@ def _generate_java_lambdas(**kwargs):
             lambda_role_name
         )
         java_handler_file_name = os.path.join(
-            project_path, project_name, SRC_MAIN_JAVA, java_package_as_path,
+            project_path, SRC_MAIN_JAVA, java_package_as_path,
             f'{lambda_class_name}.java')
         _write_content_to_file(
             java_handler_file_name,
@@ -243,7 +246,7 @@ def _generate_java_lambdas(**kwargs):
 
         # add role to deployment_resource.json
 
-        dep_res_path = os.path.join(project_path, project_name,
+        dep_res_path = os.path.join(project_path,
                                     FILE_DEPLOYMENT_RESOURCES)
         deployment_resources = json.loads(_read_content_from_file(
             dep_res_path
@@ -253,6 +256,7 @@ def _generate_java_lambdas(**kwargs):
         _write_content_to_file(dep_res_path,
                                json.dumps(deployment_resources, indent=2))
 
+        project_state.add_lambda(lambda_name=lambda_name, runtime=RUNTIME_JAVA)
         _LOG.info(f'Lambda {lambda_name} created')
 
 

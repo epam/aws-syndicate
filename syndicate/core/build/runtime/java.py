@@ -27,10 +27,10 @@ def assemble_java_mvn_lambdas(project_path, bundles_dir):
     src_path = build_path(CONFIG.project_path, project_path)
     _LOG.info(
         'Going to process java mvn project by path: {0}'.format(src_path))
-    execute_command_by_path(command='mvn clean install', path=src_path)
+    execute_command_by_path(command='mvn clean install', path=CONFIG.project_path)
 
     # copy java artifacts to the target folder
-    for root, dirs, files in os.walk(src_path):
+    for root, dirs, files in os.walk(CONFIG.project_path):
         for file in files:
             if file.endswith(".jar") or file.endswith(".war") \
                     or file.endswith(".zip"):

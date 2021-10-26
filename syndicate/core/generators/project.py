@@ -15,7 +15,7 @@
 """
 
 import os
-
+from pathlib import Path
 import yaml
 
 from syndicate.commons.log_helper import get_logger
@@ -90,7 +90,7 @@ def _generate_java_project_hierarchy(project_name, full_project_path):
     pom_content = JAVA_ROOT_POM_TEMPLATE.replace('{project_name}',
                                                  project_name)
     _write_content_to_file(file=pom_path, content=pom_content)
-    _mkdir(full_project_path + SRC_MAIN_JAVA)
+    _mkdir(Path(full_project_path, SRC_MAIN_JAVA))
 
 
 def _generate_nodejs_project_hierarchy(full_project_path, project_name=None):
