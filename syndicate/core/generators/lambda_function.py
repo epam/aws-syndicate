@@ -15,9 +15,11 @@
 """
 import json
 import os
+from pathlib import Path
 
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core import ProjectState
+from syndicate.core.project_state.project_state import BUILD_MAPPINGS
 from syndicate.core.generators import (_touch,
                                        _mkdir, _write_content_to_file,
                                        FILE_LAMBDA_HANDLER_PYTHON,
@@ -94,23 +96,21 @@ def generate_lambda_function(project_path, runtime,
             project_path=project_path):
         USER_LOG.info(f'Seems that the path {project_path} is not a project')
         return
-
     project_state = ProjectState(project_path=project_path)
-    src_path = os.path.join(project_path, 'src')
-    if not project_state.lambdas:
-        common_module_generator = COMMON_MODULE_PROCESSORS.get(runtime)
-        if not common_module_generator:
-            raise AssertionError(f'The runtime {runtime} is not currently '
-                                 f'supported to bootstrap the project')
-        common_module_generator(src_path=src_path)
-        project_state.add_project_build_mapping(runtime=runtime)
+    src_path = os.path.join(project_path, BUILD_MAPPINGS[runtime])
+
+    common_module_generator = COMMON_MODULE_PROCESSORS.get(runtime)
+    if not common_module_generator:
+        raise AssertionError(f'The runtime {runtime} is not currently '
+                             f'supported to bootstrap the project')
+    common_module_generator(src_path=src_path)
+    project_state.add_project_build_mapping(runtime=runtime)
 
     processor = LAMBDAS_PROCESSORS.get(runtime)
     if not processor:
         raise RuntimeError(f'Wrong project runtime {runtime}')
 
-    lambdas_path = os.path.join(src_path, 'lambdas')
-
+    lambdas_path = os.path.join(src_path, FOLDER_LAMBDAS)
     processor(project_path=project_path, lambda_names=lambda_names,
               lambdas_path=lambdas_path, project_state=project_state)
     project_state.save()
@@ -266,6 +266,7 @@ def _get_parts_split_by_chars(chars, to_split):
 def _generate_nodejs_lambdas(**kwargs):
     lambdas_path = kwargs.get(LAMBDAS_PATH_PARAM)
     lambda_names = kwargs.get(LAMBDA_NAMES_PARAM, [])
+    project_state = kwargs.get(PROJECT_STATE_PARAM)
 
     if not os.path.exists(lambdas_path):
         _mkdir(lambdas_path, exist_ok=True)
@@ -282,7 +283,7 @@ def _generate_nodejs_lambdas(**kwargs):
             continue
 
         for file in NODEJS_LAMBDA_FILES:
-            _touch(lambda_folder + file)
+            _touch(Path(lambda_folder, file))
 
         # fill index.js
         _write_content_to_file(
@@ -313,6 +314,7 @@ def _generate_nodejs_lambdas(**kwargs):
             os.path.join(FOLDER_LAMBDAS, lambda_name))
         _write_content_to_file(os.path.join(lambda_folder, FILE_LAMBDA_CONFIG),
                                lambda_def)
+        project_state.add_lambda(lambda_name=lambda_name, runtime=RUNTIME_NODEJS)
         _LOG.info(f'Lambda {lambda_name} created')
 
 

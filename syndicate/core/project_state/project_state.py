@@ -40,9 +40,9 @@ WARMUP_LOCK = 'warm_up_lock'
 PROJECT_STATE_FILE = '.syndicate'
 
 BUILD_MAPPINGS = {
-    RUNTIME_JAVA: '/jsrc/main/java',
-    RUNTIME_PYTHON: '/src',
-    RUNTIME_NODEJS: '/app'
+    RUNTIME_JAVA: 'jsrc/main/java',
+    RUNTIME_PYTHON: 'src',
+    RUNTIME_NODEJS: 'app'
 }
 
 OPERATION_LOCK_MAPPINGS = {
