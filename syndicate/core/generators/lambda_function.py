@@ -25,6 +25,7 @@ from syndicate.core.generators import (_touch,
                                        FILE_LAMBDA_HANDLER_PYTHON,
                                        FILE_LAMBDA_HANDLER_NODEJS,
                                        _read_content_from_file)
+from syndicate.core.generators.project import _generate_java_project_hierarchy
 from syndicate.core.generators.contents import (
     NODEJS_LAMBDA_HANDLER_TEMPLATE,
     _generate_python_node_lambda_config,
@@ -196,6 +197,9 @@ def _generate_java_lambdas(**kwargs):
     project_state = kwargs.get(PROJECT_STATE_PARAM)
     project_name = project_state.name
     lambda_names = kwargs.get(LAMBDA_NAMES_PARAM, [])
+
+    _generate_java_project_hierarchy(project_name=project_name,
+                                     full_project_path=project_path)
 
     unified_package_name = _get_parts_split_by_chars(to_split=project_name,
                                                     chars=['-', '_'])

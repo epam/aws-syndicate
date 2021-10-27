@@ -65,7 +65,11 @@ JAVA_ROOT_POM_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
 
     <properties>
         <maven-shade-plugin.version>3.2.0</maven-shade-plugin.version>
-        <deployment-configuration-annotations.version>1.5.8</deployment-configuration-annotations.version>
+        <deployment-configuration-annotations.version>1.5.11</deployment-configuration-annotations.version>
+        <maven.compiler.source>1.8</maven.compiler.source>
+        <maven.compiler.target>1.8</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <src.dir>jsrc/main/java</src.dir>
     </properties>
 
     <dependencies>
@@ -84,6 +88,7 @@ JAVA_ROOT_POM_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
     </dependencies>
 
     <build>
+        <sourceDirectory>${src.dir}</sourceDirectory>
         <plugins>
             <plugin>
                 <groupId>net.sf.aws-syndicate</groupId>
