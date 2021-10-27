@@ -89,6 +89,7 @@ def generate_configuration_files(name, config_path, region,
         if not os.path.exists(project_path):
             raise AssertionError(
                 f'Provided project path {project_path} does not exists')
+        project_path = os.path.abspath(project_path)
 
     config_content = {
         ACCOUNT_ID_CFG: account_id,
