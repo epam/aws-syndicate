@@ -408,3 +408,14 @@ def check_prefix_suffix_length(ctx, param, value):
         if result:
             raise BadParameter(result)
         return value
+
+def resolve_project_path(ctx, param, value):
+    from syndicate.core import CONFIG
+    if not value:
+        USER_LOG.info(f"Parameter: '{param.name}' wasn't specified. "
+                      f"Getting automatically")
+        value = CONFIG.project_path \
+            if CONFIG and CONFIG.project_path else os.getcwd()
+        USER_LOG.info(f"Path: '{value}' was assigned to the "
+                      f"parameter: '{param.name}'")
+    return value
