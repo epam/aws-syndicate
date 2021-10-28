@@ -422,7 +422,7 @@ def _generate_package_nodejs_lambda(lambda_name):
         "name": lambda_name,
         "version": "1.0.0",
         "description": "",
-        "main": FILE_LAMBDA_HANDLER_NODEJS[1:],
+        "main": FILE_LAMBDA_HANDLER_NODEJS,
         "scripts": {},
         "author": "",
         "license": "ISC",
