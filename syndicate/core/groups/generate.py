@@ -53,8 +53,8 @@ def project(ctx, name, path):
 
     proj_path = os.getcwd() if not path else path
     if not os.access(proj_path, os.X_OK | os.W_OK):
-        return ('Incorrect permissions for the provided path {}'.format(
-            proj_path))
+        click.echo(f"Incorrect permissions for the provided path '{proj_path}'")
+        return
     click.echo('Project path: {}'.format(proj_path))
     generate_project_structure(project_name=name,
                                project_path=proj_path)
@@ -79,9 +79,8 @@ def lambda_function(ctx, name, runtime, project_path):
     Generates required environment for lambda function
     """
     if not os.access(project_path, os.X_OK | os.W_OK):
-        return ('Incorrect permissions for the provided path {}'.format(
-            project_path))
-
+        click.echo("Incorrect permissions for the provided path '{project_path}'")
+        return
     click.echo(f'Lambda names: {name}')
     click.echo(f'Runtime: {runtime}')
     click.echo(f'Project path: {project_path}')
