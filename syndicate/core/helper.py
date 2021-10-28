@@ -190,7 +190,12 @@ def resolve_default_bundle_name(command_name):
 
 def resolve_default_deploy_name(command_name):
     from syndicate.core import PROJECT_STATE
-    return PROJECT_STATE.default_deploy_name
+    if command_name == 'clean':
+        deploy_name = PROJECT_STATE.latest_deployed_deploy_name
+    else:
+        deploy_name = PROJECT_STATE.default_deploy_name
+
+    return deploy_name
 
 
 param_resolver_map = {
