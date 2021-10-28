@@ -13,6 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+import re
 import getpass
 import os
 import sys
@@ -286,14 +287,15 @@ class ProjectState:
         moving from older versions
         :type config: syndicate.core.conf.processor.ConfigHolder
         """
-        from syndicate.core.generators.lambda_function import FOLDER_LAMBDAS
+        from syndicate.core.generators.lambda_function import FOLDER_LAMBDAS, \
+            _generate_java_package_name
         project_path = config.project_path
         project_name = Path(project_path).name
         project_state = ProjectState.generate(project_path=project_path,
                                               project_name=project_name)
 
         build_projects_mapping = config.build_projects_mapping
-        if build_projects_mapping:
+        if build_projects_mapping: # NOT FINISHED YET, MAY WORK WRONGLY
             for runtime, source_paths in build_projects_mapping.items():
                 project_state.add_project_build_mapping(runtime)
 
@@ -315,7 +317,12 @@ class ProjectState:
 
         else:
             for runtime, source_path in BUILD_MAPPINGS.items():
-                lambdas_path = Path(project_path, source_path, FOLDER_LAMBDAS)
+                if runtime == RUNTIME_JAVA:
+                    java_package_name = _generate_java_package_name(project_name)
+                    java_package_as_path = java_package_name.replace('.', '/')
+                    lambdas_path = Path(project_path, source_path, java_package_as_path)
+                else:
+                    lambdas_path = Path(project_path, source_path, FOLDER_LAMBDAS)
                 if os.path.exists(lambdas_path):
                     project_state.add_project_build_mapping(runtime)
                     project_state._add_lambdas_from_path(lambdas_path, runtime)
@@ -328,7 +335,26 @@ class ProjectState:
         """Adds to project state all the lambdas from given dir.
         :type lambdas_dir: list
         """
-        lambdas = [lambda_dir for lambda_dir in
-                   os.listdir(lambdas_path) if os.path.isdir(
-                os.path.join(lambdas_path, lambda_dir))]
-        [self.add_lambda(lambda_, runtime) for lambda_ in lambdas]
+        if runtime == RUNTIME_JAVA:
+            lambda_name_in_java_file_regex = 'lambdaName\s*=\s*"(\w+)"'
+
+            for lambda_file in os.listdir(lambdas_path):
+                file_path = os.path.join(lambdas_path, lambda_file)
+                if not os.path.isfile(file_path):
+                    continue
+                with open(file_path, 'r') as file:
+                    result = re.search(lambda_name_in_java_file_regex,
+                                       file.read())
+                    if result:
+                        lambda_name = result.group(1)
+                        self.add_lambda(lambda_name, runtime)
+                    else:
+                        print("Couldn't retrieve lambda name from the java "
+                              "lambda by path: {}".format(file_path),
+                              file=sys.stderr)
+
+        else:
+            lambdas = [lambda_dir for lambda_dir in
+                       os.listdir(lambdas_path) if os.path.isdir(
+                    os.path.join(lambdas_path, lambda_dir))]
+            [self.add_lambda(lambda_name, runtime) for lambda_name in lambdas]
