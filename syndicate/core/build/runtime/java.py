@@ -25,16 +25,20 @@ _LOG = get_logger('java_runtime_assembler')
 def assemble_java_mvn_lambdas(project_path, bundles_dir):
     from syndicate.core import CONFIG
     src_path = build_path(CONFIG.project_path, project_path)
+    _LOG.info(f'Java package is situated by path: {src_path}') # jsrc/main/java
     _LOG.info(
-        'Going to process java mvn project by path: {0}'.format(src_path))
-    execute_command_by_path(command='mvn clean install', path=src_path)
+        f'Going to process java mvn project by path: {CONFIG.project_path}')
+    execute_command_by_path(command='mvn clean install', path=CONFIG.project_path)
 
     # copy java artifacts to the target folder
-    for root, dirs, files in os.walk(src_path):
+    for root, dirs, files in os.walk(CONFIG.project_path):
         for file in files:
             if file.endswith(".jar") or file.endswith(".war") \
                     or file.endswith(".zip"):
-                shutil.copyfile(build_path(root, file),
-                                build_path(bundles_dir, file))
+                try:
+                    shutil.copyfile(build_path(root, file),
+                                    build_path(bundles_dir, file))
+                except shutil.SameFileError as e:
+                    _LOG.warn(f"Copying wasn't conducted: {e}")
 
     _LOG.info('Java mvn project was processed successfully')

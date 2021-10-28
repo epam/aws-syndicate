@@ -24,7 +24,8 @@ from syndicate.core.generators.project import (generate_project_structure,
                                                PROJECT_PROCESSORS)
 from syndicate.core.helper import (check_required_param, timeit, OrderedGroup,
                                    check_bundle_bucket_name,
-                                   check_prefix_suffix_length)
+                                   check_prefix_suffix_length,
+                                   resolve_project_path)
 
 GENERATE_GROUP_NAME = 'generate'
 PROJECT_PATH_HELP = 'Path to project folder. ' \
@@ -52,8 +53,8 @@ def project(ctx, name, path):
 
     proj_path = os.getcwd() if not path else path
     if not os.access(proj_path, os.X_OK | os.W_OK):
-        return ('Incorrect permissions for the provided path {}'.format(
-            proj_path))
+        click.echo(f"Incorrect permissions for the provided path '{proj_path}'")
+        return
     click.echo('Project path: {}'.format(proj_path))
     generate_project_structure(project_name=name,
                                project_path=proj_path)
@@ -67,22 +68,23 @@ def project(ctx, name, path):
               help='* Lambda runtime',
               type=click.Choice(PROJECT_PROCESSORS))
 @click.option('--project_path', nargs=1,
-              help=PROJECT_PATH_HELP)
+              help="Path to the project folder. Default value: the one "
+                   "from the current config if it exists. "
+                   "Otherwise - the current working directory",
+              callback=resolve_project_path)
 @click.pass_context
 @timeit()
 def lambda_function(ctx, name, runtime, project_path):
     """
     Generates required environment for lambda function
     """
-    proj_path = os.getcwd() if not project_path else project_path
-    if not os.access(proj_path, os.X_OK | os.W_OK):
-        return ('Incorrect permissions for the provided path {}'.format(
-            proj_path))
-
+    if not os.access(project_path, os.X_OK | os.W_OK):
+        click.echo("Incorrect permissions for the provided path '{project_path}'")
+        return
     click.echo(f'Lambda names: {name}')
     click.echo(f'Runtime: {runtime}')
-    click.echo(f'Project path: {proj_path}')
-    generate_lambda_function(project_path=proj_path,
+    click.echo(f'Project path: {project_path}')
+    generate_lambda_function(project_path=project_path,
                              runtime=runtime,
                              lambda_names=name)
 

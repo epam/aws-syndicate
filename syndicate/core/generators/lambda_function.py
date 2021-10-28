@@ -15,14 +15,17 @@
 """
 import json
 import os
+from pathlib import Path
 
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core import ProjectState
+from syndicate.core.project_state.project_state import BUILD_MAPPINGS
 from syndicate.core.generators import (_touch,
                                        _mkdir, _write_content_to_file,
                                        FILE_LAMBDA_HANDLER_PYTHON,
                                        FILE_LAMBDA_HANDLER_NODEJS,
                                        _read_content_from_file)
+from syndicate.core.generators.project import _generate_java_project_hierarchy
 from syndicate.core.generators.contents import (
     NODEJS_LAMBDA_HANDLER_TEMPLATE,
     _generate_python_node_lambda_config,
@@ -94,16 +97,16 @@ def generate_lambda_function(project_path, runtime,
             project_path=project_path):
         USER_LOG.info(f'Seems that the path {project_path} is not a project')
         return
-
     project_state = ProjectState(project_path=project_path)
-    src_path = os.path.join(project_path, 'src')
-    if not project_state.lambdas:
-        common_module_generator = COMMON_MODULE_PROCESSORS.get(runtime)
-        if not common_module_generator:
-            raise AssertionError(f'The runtime {runtime} is not currently '
-                                 f'supported to bootstrap the project')
-        common_module_generator(src_path=src_path)
-        project_state.add_project_build_mapping(runtime=runtime)
+    src_path = os.path.join(project_path, BUILD_MAPPINGS[runtime])
+
+    common_module_generator = COMMON_MODULE_PROCESSORS.get(runtime)
+    if not common_module_generator:
+        raise AssertionError(f'The runtime {runtime} is not currently '
+                             f'supported to bootstrap the project')
+    common_module_generator(src_path=src_path)
+    project_state.add_project_build_mapping(runtime=runtime)
+
 
     processor = LAMBDAS_PROCESSORS.get(runtime)
     if not processor:
@@ -191,29 +194,34 @@ def __lambda_name_to_class_name(lambda_name):
 
 def _generate_java_lambdas(**kwargs):
     project_path = kwargs.get(PROJECT_PATH_PARAM)
-    project_name = kwargs.get(PROJECT_NAME_PARAM)
+    project_state = kwargs.get(PROJECT_STATE_PARAM)
+    project_name = project_state.name
     lambda_names = kwargs.get(LAMBDA_NAMES_PARAM, [])
 
-    unified_lambda_name = _get_parts_split_by_chars(to_split=project_name,
+    _generate_java_project_hierarchy(project_name=project_name,
+                                     full_project_path=project_path)
+
+    unified_package_name = _get_parts_split_by_chars(to_split=project_name,
                                                     chars=['-', '_'])
-    java_package_name = unified_lambda_name.replace(' ', '')
+    java_package_name = unified_package_name.replace(' ', '')
     java_package_name = f'com.{java_package_name}'
     java_package_as_path = java_package_name.replace('.', '/')
 
-    pom_file_path = os.path.join(project_path, project_name, FILE_POM)
+    pom_file_path = os.path.join(project_path, FILE_POM)
     pom_xml_content = _read_content_from_file(pom_file_path)
     pom_xml_content = pom_xml_content.replace(
         '<!--packages to scan-->',
         f'<package>{java_package_name}</package>')
     _write_content_to_file(pom_file_path, pom_xml_content)
 
-    full_package_path = os.path.join(project_path, project_name,
+    full_package_path = Path(project_path,
                                      SRC_MAIN_JAVA, java_package_as_path)
     for lambda_name in lambda_names:
         if not os.path.exists(full_package_path):
             _mkdir(full_package_path, exist_ok=True)
 
-        lambda_class_name = unified_lambda_name.title()
+        lambda_class_name = _get_parts_split_by_chars(to_split=lambda_name,
+                                                      chars=['-', '_']).title()
         lambda_class_name = lambda_class_name.replace(' ', '')
         java_handler_content = JAVA_LAMBDA_HANDLER_CLASS.replace(
             '{java_package_name}',
@@ -233,7 +241,7 @@ def _generate_java_lambdas(**kwargs):
             lambda_role_name
         )
         java_handler_file_name = os.path.join(
-            project_path, project_name, SRC_MAIN_JAVA, java_package_as_path,
+            project_path, SRC_MAIN_JAVA, java_package_as_path,
             f'{lambda_class_name}.java')
         _write_content_to_file(
             java_handler_file_name,
@@ -242,7 +250,7 @@ def _generate_java_lambdas(**kwargs):
 
         # add role to deployment_resource.json
 
-        dep_res_path = os.path.join(project_path, project_name,
+        dep_res_path = os.path.join(project_path,
                                     FILE_DEPLOYMENT_RESOURCES)
         deployment_resources = json.loads(_read_content_from_file(
             dep_res_path
@@ -252,6 +260,7 @@ def _generate_java_lambdas(**kwargs):
         _write_content_to_file(dep_res_path,
                                json.dumps(deployment_resources, indent=2))
 
+        project_state.add_lambda(lambda_name=lambda_name, runtime=RUNTIME_JAVA)
         _LOG.info(f'Lambda {lambda_name} created')
 
 
@@ -265,6 +274,7 @@ def _get_parts_split_by_chars(chars, to_split):
 def _generate_nodejs_lambdas(**kwargs):
     lambdas_path = kwargs.get(LAMBDAS_PATH_PARAM)
     lambda_names = kwargs.get(LAMBDA_NAMES_PARAM, [])
+    project_state = kwargs.get(PROJECT_STATE_PARAM)
 
     if not os.path.exists(lambdas_path):
         _mkdir(lambdas_path, exist_ok=True)
@@ -281,7 +291,7 @@ def _generate_nodejs_lambdas(**kwargs):
             continue
 
         for file in NODEJS_LAMBDA_FILES:
-            _touch(lambda_folder + file)
+            _touch(Path(lambda_folder, file))
 
         # fill index.js
         _write_content_to_file(
@@ -312,6 +322,7 @@ def _generate_nodejs_lambdas(**kwargs):
             os.path.join(FOLDER_LAMBDAS, lambda_name))
         _write_content_to_file(os.path.join(lambda_folder, FILE_LAMBDA_CONFIG),
                                lambda_def)
+        project_state.add_lambda(lambda_name=lambda_name, runtime=RUNTIME_NODEJS)
         _LOG.info(f'Lambda {lambda_name} created')
 
 

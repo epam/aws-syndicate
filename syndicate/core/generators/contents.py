@@ -23,8 +23,8 @@ POLICY_LAMBDA_BASIC_EXECUTION = "lambda-basic-execution"
 
 LAMBDA_ROLE_NAME_PATTERN = '{0}-role'  # 0 - lambda_name
 
-SRC_MAIN_JAVA = '/src/main/java'
-FILE_POM = '/pom.xml'
+SRC_MAIN_JAVA = 'jsrc/main/java'
+FILE_POM = 'pom.xml'
 CANCEL_MESSAGE = 'Creating of {} has been canceled.'
 
 JAVA_LAMBDA_HANDLER_CLASS = """package {java_package_name};
@@ -65,7 +65,11 @@ JAVA_ROOT_POM_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
 
     <properties>
         <maven-shade-plugin.version>3.2.0</maven-shade-plugin.version>
-        <deployment-configuration-annotations.version>1.5.8</deployment-configuration-annotations.version>
+        <deployment-configuration-annotations.version>1.5.11</deployment-configuration-annotations.version>
+        <maven.compiler.source>1.8</maven.compiler.source>
+        <maven.compiler.target>1.8</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <src.dir>jsrc/main/java</src.dir>
     </properties>
 
     <dependencies>
@@ -84,6 +88,7 @@ JAVA_ROOT_POM_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
     </dependencies>
 
     <build>
+        <sourceDirectory>${src.dir}</sourceDirectory>
         <plugins>
             <plugin>
                 <groupId>net.sf.aws-syndicate</groupId>
@@ -417,7 +422,7 @@ def _generate_package_nodejs_lambda(lambda_name):
         "name": lambda_name,
         "version": "1.0.0",
         "description": "",
-        "main": FILE_LAMBDA_HANDLER_NODEJS[1:],
+        "main": FILE_LAMBDA_HANDLER_NODEJS,
         "scripts": {},
         "author": "",
         "license": "ISC",

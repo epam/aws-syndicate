@@ -190,7 +190,12 @@ def resolve_default_bundle_name(command_name):
 
 def resolve_default_deploy_name(command_name):
     from syndicate.core import PROJECT_STATE
-    return PROJECT_STATE.default_deploy_name
+    if command_name == 'clean':
+        deploy_name = PROJECT_STATE.latest_deployed_deploy_name
+    else:
+        deploy_name = PROJECT_STATE.default_deploy_name
+
+    return deploy_name
 
 
 param_resolver_map = {
@@ -408,3 +413,14 @@ def check_prefix_suffix_length(ctx, param, value):
         if result:
             raise BadParameter(result)
         return value
+
+def resolve_project_path(ctx, param, value):
+    from syndicate.core import CONFIG
+    if not value:
+        USER_LOG.info(f"Parameter: '{param.name}' wasn't specified. "
+                      f"Getting automatically")
+        value = CONFIG.project_path \
+            if CONFIG and CONFIG.project_path else os.getcwd()
+        USER_LOG.info(f"Path: '{value}' was assigned to the "
+                      f"parameter: '{param.name}'")
+    return value

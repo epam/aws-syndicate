@@ -39,8 +39,9 @@ RESOURCES_SUFFIX_CFG = 'resources_suffix'
 RESOURCES_PREFIX_CFG = 'resources_prefix'
 
 PYTHON_BUILD_TOOL_NAME = 'python'
-NODE_BUILD_TOOL_NAME = 'node'
-MVN_BUILD_TOOL_NAME = 'mvn'
+NODE_BUILD_TOOL_NAME = 'nodejs'
+MVN_BUILD_TOOL_NAME = 'java'
+
 ALLOWED_BUILD_TOOLS = [PYTHON_BUILD_TOOL_NAME,
                        MVN_BUILD_TOOL_NAME,
                        NODE_BUILD_TOOL_NAME]
