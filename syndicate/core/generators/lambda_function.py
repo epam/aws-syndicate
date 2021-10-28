@@ -201,10 +201,7 @@ def _generate_java_lambdas(**kwargs):
     _generate_java_project_hierarchy(project_name=project_name,
                                      full_project_path=project_path)
 
-    unified_package_name = _get_parts_split_by_chars(to_split=project_name,
-                                                    chars=['-', '_'])
-    java_package_name = unified_package_name.replace(' ', '')
-    java_package_name = f'com.{java_package_name}'
+    java_package_name = _generate_java_package_name(project_name)
     java_package_as_path = java_package_name.replace('.', '/')
 
     pom_file_path = os.path.join(project_path, FILE_POM)
@@ -263,6 +260,12 @@ def _generate_java_lambdas(**kwargs):
         project_state.add_lambda(lambda_name=lambda_name, runtime=RUNTIME_JAVA)
         _LOG.info(f'Lambda {lambda_name} created')
 
+def _generate_java_package_name(project_name):
+    unified_package_name = _get_parts_split_by_chars(to_split=project_name,
+                                                     chars=['-', '_'])
+    java_package_name = unified_package_name.replace(' ', '')
+    java_package_name = f'com.{java_package_name}'
+    return java_package_name
 
 def _get_parts_split_by_chars(chars, to_split):
     result = to_split
