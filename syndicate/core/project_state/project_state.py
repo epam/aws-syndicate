@@ -216,7 +216,7 @@ class ProjectState:
 
     def log_execution_event(self, **kwargs):
         operation = kwargs.get('operation')
-        if operation == 'deploy':
+        if operation == 'deploy' or operation == 'update':
             self._set_latest_deploy_info(**kwargs)
         if operation == 'clean':
             self._delete_latest_deploy_info()
@@ -227,7 +227,6 @@ class ProjectState:
 
     def _set_latest_deploy_info(self, **kwargs):
         kwargs = {key: value for key, value in kwargs.items() if value}
-        del kwargs['operation']
         self.latest_deploy = kwargs
 
     def _delete_latest_deploy_info(self):
