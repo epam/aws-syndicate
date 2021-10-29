@@ -151,7 +151,6 @@ def resolve_aliases_for_string(string_value):
     except ValueError:
         return input_string
 
-
 def check_required_param(ctx, param, value):
     if not value:
         raise BadParameter('Parameter is required')
