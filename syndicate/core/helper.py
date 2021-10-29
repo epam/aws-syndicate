@@ -151,39 +151,6 @@ def resolve_aliases_for_string(string_value):
     except ValueError:
         return input_string
 
-def resolve_aliases(params_to_resolve):
-    """ Decorator to resolve aliases for specific parameters before they got
-    into decorated function.
-
-    :type params_to_resolve: list
-    """
-    def decorator(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            resolved = {}
-            _LOG.info(f"Parameters to resolve: {params_to_resolve}")
-            for param_name in params_to_resolve:
-                param = kwargs.get(param_name)
-                if param:
-                    if not isinstance(param, str):
-                        message = f"Cannot resolve aliases for parameter of " \
-                                  f"type '{type(param).__name__}'. " \
-                                  f"String is expected."
-                        _LOG.error(message)
-                        raise TypeError(message)
-                    resolved[param_name] = resolve_aliases_for_string(param)
-                else:
-                    _LOG.warning(f"Parameter '{param_name}' wasn't given to "
-                                 f"the decorated function in **kwargs")
-            _LOG.info(f"Resolved parameters: {resolved}")
-            kwargs.update(resolved)
-
-            return func(*args, **kwargs)
-
-        return wrapper
-    return decorator
-
-
 def check_required_param(ctx, param, value):
     if not value:
         raise BadParameter('Parameter is required')

@@ -14,7 +14,6 @@
     limitations under the License.
 """
 from syndicate.core.build.validator.instance_types import INSTANCE_TYPES
-from syndicate.core.helper import resolve_aliases
 
 COMPENV_STATES = ('ENABLED', 'DISABLED')
 COMPENV_TYPES = ('UNMANAGED', 'MANAGED')
