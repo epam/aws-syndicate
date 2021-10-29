@@ -23,9 +23,12 @@ from syndicate.core.generators.lambda_function import (
 from syndicate.core.generators.project import (generate_project_structure,
                                                PROJECT_PROCESSORS)
 from syndicate.core.helper import (check_required_param, timeit, OrderedGroup,
-                                   check_bundle_bucket_name)
+                                   check_bundle_bucket_name,
+                                   check_prefix_suffix_length)
 
 GENERATE_GROUP_NAME = 'generate'
+PROJECT_PATH_HELP = 'Path to project folder. ' \
+                    'Default value: current working directory'
 
 
 @click.group(name=GENERATE_GROUP_NAME, cls=OrderedGroup, chain=True)
@@ -37,7 +40,7 @@ def generate():
 @click.option('--name', nargs=1, callback=check_required_param,
               help='* The project name')
 @click.option('--path', nargs=1,
-              help='The path where project structure will be created')
+              help=PROJECT_PATH_HELP)
 @click.pass_context
 @timeit()
 def project(ctx, name, path):
@@ -64,8 +67,7 @@ def project(ctx, name, path):
               help='* Lambda runtime',
               type=click.Choice(PROJECT_PROCESSORS))
 @click.option('--project_path', nargs=1,
-              help='The path of the project to add lambda '
-                   'in case it differs from $CWD')
+              help=PROJECT_PATH_HELP)
 @click.pass_context
 @timeit()
 def lambda_function(ctx, name, runtime, project_path):
@@ -106,13 +108,17 @@ def lambda_function(ctx, name, runtime, project_path):
 @click.option('--config_path',
               help='Path to store generated configuration file')
 @click.option('--project_path',
-              help='Path to project folder. Default value: working dir')
+              help=PROJECT_PATH_HELP)
 @click.option('--prefix',
               help='Prefix that is added to project names while deployment '
-                   'by pattern: {prefix}resource_name{suffix}')
+                   'by pattern: {prefix}resource_name{suffix}. '
+                   'Must be less than or equal to 5.',
+              callback=check_prefix_suffix_length)
 @click.option('--suffix',
               help='Suffix that is added to project names while deployment '
-                   'by pattern: {prefix}resource_name{suffix}')
+                   'by pattern: {prefix}resource_name{suffix}. '
+                   'Must be less than or equal to 5.',
+              callback=check_prefix_suffix_length)
 @timeit()
 def config(name, config_path, project_path, region, access_key,
            secret_key, bundle_bucket_name, prefix, suffix):

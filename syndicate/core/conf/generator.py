@@ -18,6 +18,7 @@ import sys
 
 import yaml
 from botocore.exceptions import ClientError
+from boto3.session import Session
 
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.connection.sts_connection import STSConnection
@@ -42,6 +43,13 @@ def generate_configuration_files(name, config_path, region,
                                  access_key, secret_key,
                                  bundle_bucket_name, prefix, suffix,
                                  project_path=None):
+    if not access_key and not secret_key:
+        _USER_LOG.warn("Access_key and secret_key weren't passed. "
+                       "Attempting to load them")
+        credentials = Session().get_credentials()
+        if not credentials:
+            raise AssertionError("No credentials could be found")
+
     try:
         sts = STSConnection(region=region,
                             aws_access_key_id=access_key,
