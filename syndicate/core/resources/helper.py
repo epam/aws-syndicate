@@ -85,8 +85,17 @@ def chunks(l, n):
         yield l[i:i + n]
 
 
-def resolve_dynamic_identifier(name, value, dict):
-    return json.loads(json.dumps(dict).replace(name, value))
+def resolve_dynamic_identifier(to_replace, dict):
+    """
+    Replaces keys from 'to_replace' with values from it inside json built
+    from 'dict'
+    :type to_replace: dict
+    :type dict: dict
+    """
+    raw_json = json.dumps(dict)
+    for name, value in to_replace.items():
+        raw_json = raw_json.replace(name, value)
+    return json.loads(raw_json)
 
 
 def build_description_obj(response, name, meta):

@@ -184,7 +184,7 @@ class IamResource(BaseResource):
     def apply_trusted_to_role(self, name, value, apply_config):
         trusted = apply_config['trusted_relationships']
         role_name = apply_config['dependency_name']
-        resolved_trusted = resolve_dynamic_identifier(name, value, trusted)
+        resolved_trusted = resolve_dynamic_identifier({name: value}, trusted)
         self.iam_conn.update_assume_role_policy_document(
             role_name=role_name,
             document=prettify_json(resolved_trusted))
@@ -192,7 +192,7 @@ class IamResource(BaseResource):
     def apply_policy_content(self, name, value, apply_config):
         policy_content = apply_config['policy_content']
         policy_name = apply_config['dependency_name']
-        resolved_policy_content = resolve_dynamic_identifier(name, value,
+        resolved_policy_content = resolve_dynamic_identifier({name: value},
                                                              policy_content)
         policy_arn = 'arn:aws:iam::{0}:policy/{1}'.format(self.account_id,
                                                           policy_name)

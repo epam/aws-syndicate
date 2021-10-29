@@ -308,7 +308,6 @@ def _validate_compute_resources(compute_resources):
             )
 
 
-@resolve_aliases(params_to_resolve=['field_value', ])
 def _validate_options_field(field_name, field_value, field_options, prefix='compute_resources', required=True,
                             **kwargs):
     """

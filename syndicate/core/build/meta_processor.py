@@ -378,12 +378,9 @@ def resolve_meta(overall_meta):
     from syndicate.core import CONFIG
     iam_suffix = _resolve_iam_suffix(iam_suffix=CONFIG.iam_suffix)
     if CONFIG.aliases:
-        aliases = CONFIG.aliases
-        for key, value in aliases.items():
-            name = '${' + key + '}'
-            overall_meta = resolve_dynamic_identifier(name, str(value),
-                                                      overall_meta)
-            _LOG.debug('Resolved meta was created')
+        aliases = {'${' + key + '}': str(value) for key, value in CONFIG.aliases.items()}
+        overall_meta = resolve_dynamic_identifier(aliases, overall_meta)
+        _LOG.debug('Resolved meta was created')
     _LOG.debug(prettify_json(overall_meta))
     # get dict with resolved prefix and suffix in meta resources
     # key: current_name, value: resolved_name
