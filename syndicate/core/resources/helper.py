@@ -85,14 +85,14 @@ def chunks(l, n):
         yield l[i:i + n]
 
 
-def resolve_dynamic_identifier(to_replace, dict):
+def resolve_dynamic_identifier(to_replace, resource_meta):
     """
     Replaces keys from 'to_replace' with values from it inside json built
-    from 'dict'
+    from 'resource_meta'
     :type to_replace: dict
-    :type dict: dict
+    :type resource_meta: dict
     """
-    raw_json = json.dumps(dict)
+    raw_json = json.dumps(resource_meta)
     for name, value in to_replace.items():
         raw_json = raw_json.replace(name, value)
     return json.loads(raw_json)
