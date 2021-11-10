@@ -38,13 +38,13 @@ PROJECTS_MAPPING_CFG = 'build_projects_mapping'
 RESOURCES_SUFFIX_CFG = 'resources_suffix'
 RESOURCES_PREFIX_CFG = 'resources_prefix'
 
-PYTHON_BUILD_TOOL_NAME = 'python'
-NODE_BUILD_TOOL_NAME = 'nodejs'
-MVN_BUILD_TOOL_NAME = 'java'
+PYTHON_LANGUAGE_NAME = 'python'
+NODEJS_LANGUAGE_NAME = 'nodejs'
+JAVA_LANGUAGE_NAME = 'java'
 
-ALLOWED_BUILD_TOOLS = [PYTHON_BUILD_TOOL_NAME,
-                       MVN_BUILD_TOOL_NAME,
-                       NODE_BUILD_TOOL_NAME]
+ALLOWED_RUNTIME_LANGUAGES = [PYTHON_LANGUAGE_NAME,
+                             JAVA_LANGUAGE_NAME,
+                             NODEJS_LANGUAGE_NAME]
 
 REQUIRED_PARAM_ERROR = 'The required key {} is missing'
 
@@ -157,7 +157,7 @@ class ConfigValidator:
             return errors
         project_path = self._config_dict.get(PROJECT_PATH_CFG)
         for key in value.keys():
-            if key not in ALLOWED_BUILD_TOOLS:
+            if key not in ALLOWED_RUNTIME_LANGUAGES:
                 errors.append(f'{key} is not supported to be built')
                 continue
             for build_key, paths in value.items():

@@ -215,7 +215,7 @@ def _generate_java_lambdas(**kwargs):
     _write_content_to_file(pom_file_path, pom_xml_content)
 
     full_package_path = Path(project_path,
-                                     SRC_MAIN_JAVA, java_package_as_path)
+                             SRC_MAIN_JAVA, java_package_as_path)
     for lambda_name in lambda_names:
         if not os.path.exists(full_package_path):
             _mkdir(full_package_path, exist_ok=True)
@@ -223,23 +223,14 @@ def _generate_java_lambdas(**kwargs):
         lambda_class_name = _get_parts_split_by_chars(to_split=lambda_name,
                                                       chars=['-', '_']).title()
         lambda_class_name = lambda_class_name.replace(' ', '')
-        java_handler_content = JAVA_LAMBDA_HANDLER_CLASS.replace(
-            '{java_package_name}',
-            java_package_name
-        )
-        java_handler_content = java_handler_content.replace(
-            '{lambda_name}',
-            lambda_name
-        )
-        java_handler_content = java_handler_content.replace(
-            '{lambda_class_name}',
-            lambda_class_name
-        )
         lambda_role_name = LAMBDA_ROLE_NAME_PATTERN.format(lambda_name)
-        java_handler_content = java_handler_content.replace(
-            '{lambda_role_name}',
-            lambda_role_name
-        )
+        java_handler_content = \
+            (JAVA_LAMBDA_HANDLER_CLASS
+             .replace('{java_package_name}', java_package_name)
+             .replace('{lambda_name}', lambda_name)
+             .replace('{lambda_class_name}', lambda_class_name)
+             .replace('{lambda_role_name}', lambda_role_name))
+
         java_handler_file_name = os.path.join(
             project_path, SRC_MAIN_JAVA, java_package_as_path,
             f'{lambda_class_name}.java')

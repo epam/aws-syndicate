@@ -42,9 +42,9 @@ from syndicate.core.build.warmup_processor import (process_deploy_resources,
                                                    warm_upper,
                                                    process_existing_api_gw_id,
                                                    process_inputted_api_gw_id)
-from syndicate.core.conf.validator import (MVN_BUILD_TOOL_NAME,
-                                           PYTHON_BUILD_TOOL_NAME,
-                                           NODE_BUILD_TOOL_NAME)
+from syndicate.core.conf.validator import (JAVA_LANGUAGE_NAME,
+                                           PYTHON_LANGUAGE_NAME,
+                                           NODEJS_LANGUAGE_NAME)
 from syndicate.core.decorators import check_deploy_name_for_duplicates
 from syndicate.core.groups.generate import generate, GENERATE_GROUP_NAME
 from syndicate.core.helper import (check_required_param,
@@ -491,10 +491,10 @@ def assemble_node(bundle_name, project_path):
     click.echo('NodeJS artifacts were prepared successfully.')
 
 
-COMMAND_TO_BUILD_MAPPING = {
-    MVN_BUILD_TOOL_NAME: assemble_java_mvn,
-    PYTHON_BUILD_TOOL_NAME: assemble_python,
-    NODE_BUILD_TOOL_NAME: assemble_node
+RUNTIME_LANG_TO_BUILD_MAPPING = {
+    JAVA_LANGUAGE_NAME: assemble_java_mvn,
+    PYTHON_LANGUAGE_NAME: assemble_python,
+    NODEJS_LANGUAGE_NAME: assemble_node
 }
 
 
@@ -515,7 +515,7 @@ def assemble(ctx, bundle_name):
     build_mapping_dict = PROJECT_STATE.load_project_build_mapping()
     if build_mapping_dict:
         for key, value in build_mapping_dict.items():
-            func = COMMAND_TO_BUILD_MAPPING.get(key)
+            func = RUNTIME_LANG_TO_BUILD_MAPPING.get(key)
             if func:
                 ctx.invoke(func, bundle_name=bundle_name,
                            project_path=value)
