@@ -116,7 +116,7 @@ def test(suite, test_folder_name):
 
     workdir = os.getcwd()
 
-    os.chdir(test_folder)
+    os.chdir(os.path.join(test_folder, '..'))
     command = test_lib_command_mapping.get(suite)
     result = subprocess.run(command.split())
 
