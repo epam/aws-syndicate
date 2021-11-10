@@ -405,7 +405,7 @@ def _generate_nodejs_node_lambda_config(lambda_name, lambda_relative_path):
         'func_name': 'index.handler',
         'resource_type': 'lambda',
         'iam_role_name': LAMBDA_ROLE_NAME_PATTERN.format(lambda_name),
-        'runtime': 'nodejs10.x',
+        'runtime': 'nodejs14.x',
         'memory': 128,
         'timeout': 100,
         'lambda_path': lambda_relative_path,

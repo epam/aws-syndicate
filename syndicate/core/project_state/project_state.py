@@ -51,6 +51,7 @@ OPERATION_LOCK_MAPPINGS = {
 KEEP_EVENTS_DAYS = 30
 LEAVE_LATEST_EVENTS = 20
 
+
 class ProjectState:
 
     def __init__(self, project_path):
@@ -86,6 +87,8 @@ class ProjectState:
             parts.extend(self.name.split('_'))
         if not parts:
             parts = re.findall(CAPITAL_LETTER_REGEX, self.name)
+        if not parts:
+            parts = [self.name]
         return '-'.join([_.lower() for _ in parts])
 
     @name.setter
@@ -112,8 +115,7 @@ class ProjectState:
         events = self._dict.get(STATE_LOG_EVENTS)
         if not events:
             events = []
-            self._dict.update({STATE_LOG_EVENTS:
-                                   events})
+            self._dict.update({STATE_LOG_EVENTS: events})
         return events
 
     @events.setter
@@ -132,16 +134,17 @@ class ProjectState:
     def latest_deploy(self, latest_deploy):
         self._dict[STATE_LATEST_DEPLOY] = latest_deploy
 
-
     @property
     def latest_built_bundle_name(self):
-        return self._get_attribute_from_latest_operation(operation_name='build',
-                                                  attribute='bundle_name')
+        return self._get_attribute_from_latest_operation(
+            operation_name='build',
+            attribute='bundle_name')
 
     @property
     def latest_built_deploy_name(self):
-        return self._get_attribute_from_latest_operation(operation_name='build',
-                                                  attribute='deploy_name')
+        return self._get_attribute_from_latest_operation(
+            operation_name='build',
+            attribute='deploy_name')
 
     @property
     def latest_deployed_bundle_name(self):

@@ -202,7 +202,7 @@ def _generate_java_lambdas(**kwargs):
                                      full_project_path=project_path)
 
     unified_package_name = _get_parts_split_by_chars(to_split=project_name,
-                                                    chars=['-', '_'])
+                                                     chars=['-', '_'])
     java_package_name = unified_package_name.replace(' ', '')
     java_package_name = f'com.{java_package_name}'
     java_package_as_path = java_package_name.replace('.', '/')
