@@ -76,16 +76,20 @@ def generate_configuration_files(name, config_path, region,
                 f'directory for configs {config_path}')
             sys.exit(1)
 
+    config_folder_path = os.path.join(config_path, f'.syndicate-config-{name}')
+    _mkdir(path=config_folder_path)
+
     if not project_path:
-        _USER_LOG.warn(f'The {PROJECT_PATH_CFG} property is not specified. '
+        _USER_LOG.warn(f'The "{PROJECT_PATH_CFG}" property is not specified. '
                        f'The working directory will be used as a project path. '
-                       f'To change the path, edit the {LEGACY_CONFIG_FILE_NAME} '
-                       f'by path {config_path}')
+                       f'To change the path, edit the {CONFIG_FILE_NAME} '
+                       f'by path {config_folder_path}')
         project_path = os.getcwd()
     else:
         if not os.path.exists(project_path):
             raise AssertionError(
                 f'Provided project path {project_path} does not exists')
+        project_path = os.path.abspath(project_path)
 
     config_content = {
         ACCOUNT_ID_CFG: account_id,
@@ -100,9 +104,6 @@ def generate_configuration_files(name, config_path, region,
     config_content = {key: value for key, value in config_content.items()
                       if value}
 
-    config_folder_path = os.path.join(config_path, f'.syndicate-config-{name}')
-    _mkdir(path=config_folder_path)
-
     config_file_path = os.path.join(config_folder_path, CONFIG_FILE_NAME)
     with open(config_file_path, 'w') as config_file:
         yaml.dump(config_content, config_file)
@@ -116,7 +117,9 @@ def generate_configuration_files(name, config_path, region,
 
     _USER_LOG.info(
         'Syndicate initialization has been completed. '
-        f'Set SDCT_CONF:\nexport SDCT_CONF={config_folder_path}')
+        f'Set SDCT_CONF:{os.linesep}'
+        f'Unix: export SDCT_CONF={config_folder_path}{os.linesep}'
+        f'Windows: setx SDCT_CONF {config_folder_path}')
 
 
 def generate_build_project_mapping(mapping_item, build_type):
