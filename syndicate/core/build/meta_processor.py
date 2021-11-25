@@ -142,6 +142,18 @@ def _check_duplicated_resources(initial_meta_dict, additional_item_name,
             if init_deploy_stage:
                 additional_item['deploy_stage'] = init_deploy_stage
 
+            init_compression = initial_item.get("minimum_compression_size")
+            if init_compression:
+                additional_comp_size = \
+                    additional_item.get('minimum_compression_size')
+                if additional_comp_size:
+                    _LOG.warn(f"Found 'minimum_compression_size': "
+                              f"{init_compression} inside root "
+                              f"deployment_resources. The value "
+                              f"'{additional_comp_size}' from: "
+                              f"{additional_item} will be overwritten")
+                additional_item['minimum_compression_size'] = init_compression
+
             additional_item = _merge_api_gw_list_typed_configurations(
                 initial_item,
                 additional_item,
