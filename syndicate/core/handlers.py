@@ -398,6 +398,9 @@ def warmup(bundle_name, deploy_name, api_gw_id, stage_name, lambda_auth,
         paths_to_be_triggered, resource_path_warmup_key_mapping = \
             process_existing_api_gw_id(stage_name=stage_name, echo=click.echo)
 
+    if not paths_to_be_triggered or not resource_path_warmup_key_mapping:
+        click.echo('No resources to warm up')
+        return
     resource_method_mapping, resource_warmup_key_mapping = \
         process_api_gw_resources(paths_to_be_triggered=paths_to_be_triggered,
                                  resource_path_warmup_key_mapping=
