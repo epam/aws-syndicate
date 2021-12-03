@@ -19,33 +19,6 @@ class TestApiGateway(TestBuildingMeta):
         self.sub_d_r = deepcopy(self.main_d_r)
 
 
-class TestApiGatewayDuplicatedResources(TestApiGateway):
-    def setUp(self) -> None:
-        super().setUp()
-        self.path = '/signup'
-        self.resources = {
-            self.path: {
-                "enable_cors": True,
-                "GET": {}
-            }
-        }
-        self.main_d_r[self.resource_name]['resources'] = \
-            self.resources
-        self.sub_d_r[self.resource_name]['resources'] = \
-            self.resources
-
-    def test_duplicated_resources(self):
-        self.write_main_and_sub_deployment_resources(self.main_d_r,
-                                                     self.sub_d_r)
-
-        with self.assertRaises(AssertionError) as context:
-            self.dispatch(resources_meta={})
-        self.assertEqual(str(context.exception),
-                         "API '{0}' has duplicated resource '{1}'! Please, "
-                         "change name of one resource or remove one.".format(
-                             self.resource_name, self.path))
-
-
 class TestApiGateWayClusterCacheConfiguration(TestApiGateway):
     def setUp(self) -> None:
         super().setUp()
@@ -212,7 +185,8 @@ class TestApiGatewayJoinDependencies(TestApiGateway):
         ]
         self.main_d_r[self.resource_name]['dependencies'] = \
             self.dependencies_main
-        self.sub_d_r[self.resource_name]['dependencies'] = self.dependencies_sub
+        self.sub_d_r[self.resource_name][
+            'dependencies'] = self.dependencies_sub
 
     def test_join_dependencies(self):
         self.write_main_and_sub_deployment_resources(self.main_d_r,
@@ -223,6 +197,61 @@ class TestApiGatewayJoinDependencies(TestApiGateway):
         self.assertIn(self.dependency_main, dependencies)
         self.assertIn(self.dependency_sub, dependencies)
         self.assertIn(self.common_dependency, dependencies)
+
+
+class TestApiGatewayJoinResources(TestApiGateway):
+    def setUp(self) -> None:
+        super().setUp()
+        self.main_path, self.sub_path = '/main', '/sub'
+        self.main_resource = {
+            "enable_cors": True,
+            "POST": {}
+        }
+        self.sub_resource = {
+            "enable_cors": False,
+            "DELETE": {}
+        }
+        self.main_d_r[self.resource_name]['resources'] = {
+            self.main_path: self.main_resource,
+        }
+        self.sub_d_r[self.resource_name]['resources'] = {
+            self.sub_path: self.sub_resource,
+        }
+
+    def test_duplicated_resources(self):
+        common_path = '/common'
+        self.common_resource = {
+            common_path: {
+                "enable_cors": False,
+                "GET": {}
+            }
+        }
+        self.main_d_r[self.resource_name]['resources'].update(
+            self.common_resource
+        )
+        self.sub_d_r[self.resource_name]['resources'].update(
+            self.common_resource
+        )
+        self.write_main_and_sub_deployment_resources(self.main_d_r,
+                                                     self.sub_d_r)
+
+        with self.assertRaises(AssertionError) as context:
+            self.dispatch(resources_meta={})
+        self.assertEqual(str(context.exception),
+                         "API '{0}' has duplicated resource '{1}'! Please, "
+                         "change name of one resource or remove one.".format(
+                             self.resource_name, common_path))
+
+    def test_join_resources(self):
+        self.write_main_and_sub_deployment_resources(self.main_d_r,
+                                                     self.sub_d_r)
+        resources_meta = {}
+        self.dispatch(resources_meta)
+        resources = resources_meta[self.resource_name]['resources']
+        self.assertIn(self.main_path, resources)
+        self.assertIn(self.sub_path, resources)
+        self.assertEqual(resources[self.main_path], self.main_resource)
+        self.assertEqual(resources[self.sub_path], self.sub_resource)
 
 
 class TestApiGatewayCompressionSize(TestApiGateway):
