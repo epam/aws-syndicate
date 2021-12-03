@@ -7,32 +7,59 @@ from syndicate.core.constants import RESOURCES_FILE_NAME
 from tests.test_building_meta import TestBuildingMeta
 
 
-class TestApiGatewayCompressionSize(TestBuildingMeta):
+class TestApiGateway(TestBuildingMeta):
     def setUp(self) -> None:
         super().setUp()
+        self.resource_name = 'test_api'
         self.main_d_r = {
-            "test_api": {
-                "resource_name": "test_api",
+            self.resource_name: {
                 "dependencies": [],
                 "resource_type": "api_gateway",
                 "deploy_stage": "test",
                 "authorizers": {},
-                "resources": {},
-                "minimum_compression_size": 400
+                "resources": {}
             }
         }
         self.sub_d_r = {
-            "test_api": {
-                "resource_name": "test_api",
+            self.resource_name: {
                 "dependencies": [],
                 "resource_type": "api_gateway",
                 "deploy_stage": "test",
                 "authorizers": {},
-                "resources": {},
-                "minimum_compression_size": 300
+                "resources": {}
             }
         }
 
+class TestApiGatewayDuplicatedResources(TestApiGateway):
+    def setUp(self) -> None:
+        super().setUp()
+        self.resources = {
+            '/signup': {
+                "enable_cors": True,
+                "GET": {}
+            }
+        }
+        self.main_d_r[self.resource_name]['resources'] = self.resources
+        self.sub_d_r[self.resource_name]['resources'] = self.resources
+
+    def test_duplicated_resources(self):
+        self.write_json_to_tmp(RESOURCES_FILE_NAME, self.main_d_r)
+        self.write_json_to_tmp(Path('sub_path', RESOURCES_FILE_NAME),
+                               self.sub_d_r)
+
+        with self.assertRaises(AssertionError) as context:
+            self.dispatch(resources_meta={})
+        self.assertEqual(str(context.exception),
+                         "API '{0}' has duplicated resource '{1}'! Please, "
+                         "change name of one resource or remove one.".format(
+                             self.resource_name, '/signup')
+                         )
+
+class TestApiGatewayCompressionSize(TestApiGateway):
+    def setUp(self) -> None:
+        super().setUp()
+        self.main_d_r[self.resource_name]['minimum_compression_size'] = 400
+        self.sub_d_r[self.resource_name]['minimum_compression_size'] = 300
     def test_resolving_compression_size_main(self):
         # compression size must be taken
         # rightly from MAIN deployment_resouces.json
@@ -109,4 +136,3 @@ class TestEqualResourcesFound(TestBuildingMeta):
                              self.resouce_name,
                              self.resouce_1[self.resouce_name],
                              self.resouce_2[self.resouce_name]))
-
