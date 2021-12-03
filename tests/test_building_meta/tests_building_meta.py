@@ -11,7 +11,6 @@ class TestApiGateway(TestBuildingMeta):
             self.resource_name: {
                 "dependencies": [],
                 "resource_type": "api_gateway",
-                "deploy_stage": "test",
                 "authorizers": {},
                 "resources": {}
             }
@@ -254,6 +253,44 @@ class TestApiGatewayJoinResources(TestApiGateway):
         self.assertEqual(resources[self.sub_path], self.sub_resource)
 
 
+class TestApiGatewayDeployStage(TestApiGateway):
+    def setUp(self) -> None:
+        super().setUp()
+        self.main_d_r[self.resource_name]['deploy_stage'] = "main_stage"
+        self.sub_d_r[self.resource_name]['deploy_stage'] = "sub_stage"
+
+    def test_resolving_deploy_stage_main(self):
+        # compression size must be taken
+        # rightly from MAIN deployment_resouces.json
+        self.write_main_and_sub_deployment_resources(self.main_d_r,
+                                                     self.sub_d_r)
+        resources_meta = {}
+        self.dispatch(resources_meta)
+        self.assertEqual(
+            resources_meta[self.resource_name]['deploy_stage'], 'main_stage')
+
+    def test_resolving_deploy_stage_main_does_not_exist(self):
+        self.main_d_r[self.resource_name].pop('deploy_stage')
+
+        self.write_main_and_sub_deployment_resources(self.main_d_r,
+                                                     self.sub_d_r)
+
+        resource_meta = {}
+        self.dispatch(resource_meta)
+        self.assertEqual(
+            resource_meta[self.resource_name]['deploy_stage'], "sub_stage")
+
+    def test_resolving_deploy_stage_does_not_exist(self):
+        self.main_d_r[self.resource_name].pop('deploy_stage')
+        self.sub_d_r[self.resource_name].pop('deploy_stage')
+
+        self.write_main_and_sub_deployment_resources(self.main_d_r,
+                                                     self.sub_d_r)
+        resource_meta = {}
+        self.dispatch(resource_meta)
+        self.assertNotIn('deploy_stage', resource_meta[self.resource_name])
+
+
 class TestApiGatewayCompressionSize(TestApiGateway):
     def setUp(self) -> None:
         super().setUp()
@@ -268,7 +305,7 @@ class TestApiGatewayCompressionSize(TestApiGateway):
         resources_meta = {}
         self.dispatch(resources_meta)
         self.assertEqual(
-            resources_meta['test_api']['minimum_compression_size'], 400)
+            resources_meta[self.resource_name]['minimum_compression_size'], 400)
 
     def test_resolving_compression_size_main_does_not_exist(self):
         self.main_d_r[self.resource_name].pop('minimum_compression_size')
@@ -279,7 +316,7 @@ class TestApiGatewayCompressionSize(TestApiGateway):
         resource_meta = {}
         self.dispatch(resource_meta)
         self.assertEqual(
-            resource_meta['test_api']['minimum_compression_size'], 300)
+            resource_meta[self.resource_name]['minimum_compression_size'], 300)
 
     def test_resolving_compression_size_does_not_exist(self):
         self.main_d_r[self.resource_name].pop('minimum_compression_size')
@@ -290,7 +327,7 @@ class TestApiGatewayCompressionSize(TestApiGateway):
         resource_meta = {}
         self.dispatch(resource_meta)
         self.assertNotIn('minimum_compression_size',
-                         resource_meta['test_api'])
+                         resource_meta[self.resource_name])
 
 
 class TestEqualResourcesFound(TestBuildingMeta):
