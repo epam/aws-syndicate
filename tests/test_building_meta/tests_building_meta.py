@@ -6,7 +6,7 @@ from syndicate.core.constants import RESOURCES_FILE_NAME
 from tests.test_building_meta import TestBuildingMeta
 
 
-class TestCompressionSize(TestBuildingMeta):
+class TestApiGatewayCompressionSize(TestBuildingMeta):
     def setUp(self) -> None:
         super().setUp()
         self.main_d_r = {
@@ -31,19 +31,38 @@ class TestCompressionSize(TestBuildingMeta):
                 "minimum_compression_size": 300
             }
         }
-        with open(Path(self.TMP_FOLDER, RESOURCES_FILE_NAME), 'w') as file:
-            json.dump(self.main_d_r, file)
 
-
-        self.sub_path = Path(self.TMP_FOLDER, 'sub_path')
-        os.makedirs(self.sub_path, exist_ok=True)
-        with open(Path(self.sub_path, RESOURCES_FILE_NAME), 'w') as file:
-            json.dump(self.sub_d_r, file)
-
-    def test_resolving_compression_size(self):
+    def test_resolving_compression_size_main(self):
         # compression size must be taken
         # rightly from MAIN deployment_resouces.json
+        self.write_json_to_tmp(RESOURCES_FILE_NAME, self.main_d_r)
+        self.write_json_to_tmp(Path('sub_path', RESOURCES_FILE_NAME),
+                               self.sub_d_r)
         resources_meta = {}
         self.dispatch(resources_meta)
         self.assertEqual(
             resources_meta['test_api']['minimum_compression_size'], 400)
+
+    def test_resolving_compression_size_main_does_not_exist(self):
+        self.main_d_r["test_api"].pop('minimum_compression_size')
+
+        self.write_json_to_tmp(RESOURCES_FILE_NAME, self.main_d_r)
+        self.write_json_to_tmp(Path('sub_path', RESOURCES_FILE_NAME),
+                               self.sub_d_r)
+
+        resource_meta = {}
+        self.dispatch(resource_meta)
+        self.assertEqual(
+            resource_meta['test_api']['minimum_compression_size'], 300)
+
+    def test_resolving_compression_size_does_not_exist(self):
+        self.main_d_r['test_api'].pop('minimum_compression_size')
+        self.sub_d_r['test_api'].pop('minimum_compression_size')
+
+        self.write_json_to_tmp(RESOURCES_FILE_NAME, self.main_d_r)
+        self.write_json_to_tmp(Path('sub_path', RESOURCES_FILE_NAME),
+                               self.sub_d_r)
+        resource_meta = {}
+        self.dispatch(resource_meta)
+        self.assertNotIn('minimum_compression_size',
+                         resource_meta['test_api'])
