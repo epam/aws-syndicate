@@ -6,7 +6,7 @@ from syndicate.core.constants import RESOURCES_FILE_NAME
 from tests.test_building_meta import TestBuildingMeta
 
 
-class TestCompressionSize(TestBuildingMeta):
+class TestApiGatewayCompressionSize(TestBuildingMeta):
     def setUp(self) -> None:
         super().setUp()
         self.main_d_r = {
@@ -62,9 +62,7 @@ class TestCompressionSize(TestBuildingMeta):
         self.write_json_to_tmp(RESOURCES_FILE_NAME, self.main_d_r)
         self.write_json_to_tmp(Path('sub_path', RESOURCES_FILE_NAME),
                                self.sub_d_r)
-        
         resource_meta = {}
         self.dispatch(resource_meta)
         self.assertNotIn('minimum_compression_size',
                          resource_meta['test_api'])
-

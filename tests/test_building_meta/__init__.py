@@ -9,15 +9,19 @@ from syndicate.core.build.meta_processor import _look_for_configs
 
 
 class TestBuildingMeta(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.testing_sub_dir = 'syndicate_tests'
+        cls.TMP_FOLDER = Path(tempfile.gettempdir(), cls.testing_sub_dir)
+        os.makedirs(cls.TMP_FOLDER, exist_ok=True)
+
     def setUp(self) -> None:
         self.bundle_name = 'bundle_name'
-        self.testing_sub_dir = 'syndicate_tests'
-        self.TMP_FOLDER = Path(tempfile.gettempdir(), self.testing_sub_dir)
-        os.makedirs(self.TMP_FOLDER, exist_ok=True)
 
-    def tearDown(self) -> None:
+    @classmethod
+    def tearDownClass(cls) -> None:
         try:
-            shutil.rmtree(self.TMP_FOLDER)
+            shutil.rmtree(cls.TMP_FOLDER)
         except OSError:
             pass
 
