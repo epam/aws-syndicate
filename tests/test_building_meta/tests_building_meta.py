@@ -68,6 +68,28 @@ class TestApiGateWayClusterCacheConfiguration(TestApiGateway):
                          "configuration.".format(
                              self.resource_name))
 
+    def test_resolving_cluster_cache_configuration_main(self):
+        self.main_d_r[self.resource_name].pop('cluster_cache_configuration')
+        self.write_main_and_sub_deployment_resources(self.main_d_r,
+                                                     self.sub_d_r)
+        resources_meta = {}
+        self.dispatch(resources_meta)
+        self.assertEqual(
+            resources_meta[self.resource_name]['cluster_cache_configuration'],
+            self.cluster_cache_configuration
+        )
+
+    def test_resolving_cluster_cache_configuration_sub(self):
+        self.sub_d_r[self.resource_name].pop('cluster_cache_configuration')
+        self.write_main_and_sub_deployment_resources(self.main_d_r,
+                                                     self.sub_d_r)
+        resources_meta = {}
+        self.dispatch(resources_meta)
+        self.assertEqual(
+            resources_meta[self.resource_name]['cluster_cache_configuration'],
+            self.cluster_cache_configuration
+        )
+
 
 class TestApiGatewayCompressionSize(TestApiGateway):
     def setUp(self) -> None:
