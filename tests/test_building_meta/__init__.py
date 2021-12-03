@@ -1,5 +1,6 @@
 import os
 import shutil
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -24,3 +25,9 @@ class TestBuildingMeta(unittest.TestCase):
         for path, _, nested_items in os.walk(self.TMP_FOLDER):
             _look_for_configs(nested_items, resources_meta, path,
                               self.bundle_name)
+
+    def write_json_to_tmp(self, filename, data: dict):
+        path = Path(self.TMP_FOLDER, filename)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, 'w') as file:
+            json.dump(data, file)
