@@ -187,6 +187,44 @@ class TestApiGatewayApiMethodIntegrationResponse(TestApiGateway):
         )
 
 
+class TestApiGatewayJoinDependencies(TestApiGateway):
+    def setUp(self) -> None:
+        super().setUp()
+        self.common_dependency = {
+            "resource_name": "test_bucket",
+            "resource_type": "s3_bucket"
+        }
+        self.dependency_main = {
+            "resource_name": "test_table_main",
+            "resource_type": "dynamodb_table"
+        }
+        self.dependency_sub = {
+            "resource_name": "test_table_sub",
+            "resource_type": "dynamodb_table"
+        }
+        self.dependencies_main = [
+            self.common_dependency,
+            self.dependency_main
+        ]
+        self.dependencies_sub = [
+            self.common_dependency,
+            self.dependency_sub
+        ]
+        self.main_d_r[self.resource_name]['dependencies'] = \
+            self.dependencies_main
+        self.sub_d_r[self.resource_name]['dependencies'] = self.dependencies_sub
+
+    def test_join_dependencies(self):
+        self.write_main_and_sub_deployment_resources(self.main_d_r,
+                                                     self.sub_d_r)
+        resources_meta = {}
+        self.dispatch(resources_meta)
+        dependencies = resources_meta[self.resource_name]['dependencies']
+        self.assertIn(self.dependency_main, dependencies)
+        self.assertIn(self.dependency_sub, dependencies)
+        self.assertIn(self.common_dependency, dependencies)
+
+
 class TestApiGatewayCompressionSize(TestApiGateway):
     def setUp(self) -> None:
         super().setUp()
