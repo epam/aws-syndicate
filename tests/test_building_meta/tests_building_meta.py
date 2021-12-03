@@ -43,7 +43,7 @@ class TestCompressionSize(TestBuildingMeta):
         self.assertEqual(
             resources_meta['test_api']['minimum_compression_size'], 400)
 
-    def test_resolvin_compression_size_main_does_not_exist(self):
+    def test_resolving_compression_size_main_does_not_exist(self):
         self.main_d_r["test_api"].pop('minimum_compression_size')
 
         self.write_json_to_tmp(RESOURCES_FILE_NAME, self.main_d_r)
@@ -55,4 +55,16 @@ class TestCompressionSize(TestBuildingMeta):
         self.assertEqual(
             resource_meta['test_api']['minimum_compression_size'], 300)
 
+    def test_resolving_compression_size_does_not_exist(self):
+        self.main_d_r['test_api'].pop('minimum_compression_size')
+        self.sub_d_r['test_api'].pop('minimum_compression_size')
+
+        self.write_json_to_tmp(RESOURCES_FILE_NAME, self.main_d_r)
+        self.write_json_to_tmp(Path('sub_path', RESOURCES_FILE_NAME),
+                               self.sub_d_r)
+        
+        resource_meta = {}
+        self.dispatch(resource_meta)
+        self.assertNotIn('minimum_compression_size',
+                         resource_meta['test_api'])
 
