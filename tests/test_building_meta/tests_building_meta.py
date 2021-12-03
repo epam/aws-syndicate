@@ -22,8 +22,9 @@ class TestApiGateway(TestBuildingMeta):
 class TestApiGatewayDuplicatedResources(TestApiGateway):
     def setUp(self) -> None:
         super().setUp()
+        self.path = '/signup'
         self.resources = {
-            '/signup': {
+            self.path: {
                 "enable_cors": True,
                 "GET": {}
             }
@@ -42,7 +43,30 @@ class TestApiGatewayDuplicatedResources(TestApiGateway):
         self.assertEqual(str(context.exception),
                          "API '{0}' has duplicated resource '{1}'! Please, "
                          "change name of one resource or remove one.".format(
-                             self.resource_name, '/signup'))
+                             self.resource_name, self.path))
+
+
+class TestApiGateWayClusterCacheConfiguration(TestApiGateway):
+    def setUp(self) -> None:
+        super().setUp()
+        self.cluster_cache_configuration = {
+            'key': 'value'
+        }
+        self.main_d_r[self.resource_name]['cluster_cache_configuration'] = \
+            self.cluster_cache_configuration
+        self.sub_d_r[self.resource_name]['cluster_cache_configuration'] = \
+            self.cluster_cache_configuration
+
+    def test_duplicated_cluster_configuration(self):
+        self.write_main_and_sub_deployment_resources(self.main_d_r,
+                                                     self.sub_d_r)
+        with self.assertRaises(AssertionError) as context:
+            self.dispatch(resources_meta={})
+        self.assertEqual(str(context.exception),
+                         "API '{0}' has duplicated cluster cache "
+                         "configurations. Please, remove one cluster cache "
+                         "configuration.".format(
+                             self.resource_name))
 
 
 class TestApiGatewayCompressionSize(TestApiGateway):
