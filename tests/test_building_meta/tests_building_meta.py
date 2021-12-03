@@ -114,7 +114,7 @@ class TestApiGatewayApiMethodResources(TestApiGateway):
                          "api method responses configuration.".format(
                              self.resource_name))
 
-    def test_resolving_duplicated_api_method_resources_main(self):
+    def test_resolving_api_method_resources_main(self):
         self.main_d_r[self.resource_name].pop('api_method_responses')
         self.write_main_and_sub_deployment_resources(self.main_d_r,
                                                      self.sub_d_r)
@@ -125,7 +125,7 @@ class TestApiGatewayApiMethodResources(TestApiGateway):
             self.api_method_responses
         )
 
-    def test_resolving_duplicated_api_method_resources_sub(self):
+    def test_resolving_api_method_resources_sub(self):
         self.sub_d_r[self.resource_name].pop('api_method_responses')
         self.write_main_and_sub_deployment_resources(self.main_d_r,
                                                      self.sub_d_r)
@@ -135,7 +135,57 @@ class TestApiGatewayApiMethodResources(TestApiGateway):
             resources_meta[self.resource_name]['api_method_responses'],
             self.api_method_responses
         )
-    
+
+
+class TestApiGatewayApiMethodIntegrationResponse(TestApiGateway):
+    def setUp(self) -> None:
+        super().setUp()
+        self.api_method_integration_responses = {
+            'key': 'value'
+        }
+        self.main_d_r[self.resource_name]['api_method_integration_responses'] = \
+            self.api_method_integration_responses
+        self.sub_d_r[self.resource_name]['api_method_integration_responses'] = \
+            self.api_method_integration_responses
+
+    def test_duplicated_api_method_integration_responses(self):
+        self.write_main_and_sub_deployment_resources(self.main_d_r,
+                                                     self.sub_d_r)
+
+        with self.assertRaises(AssertionError) as context:
+            self.dispatch(resources_meta={})
+        self.assertEqual(str(context.exception),
+                         "API '{0}' has duplicated api method integration "
+                         "responses configurations. Please, remove one "
+                         "api method integration responses "
+                         "configuration.".format(self.resource_name))
+
+    def test_resolving_api_method_integration_responses_main(self):
+        self.main_d_r[self.resource_name].pop(
+            'api_method_integration_responses')
+        self.write_main_and_sub_deployment_resources(self.main_d_r,
+                                                     self.sub_d_r)
+        resources_meta = {}
+        self.dispatch(resources_meta)
+        self.assertEqual(
+            resources_meta[self.resource_name][
+                'api_method_integration_responses'],
+            self.api_method_integration_responses
+        )
+
+    def test_resolving_api_method_integration_responses_sub(self):
+        self.sub_d_r[self.resource_name].pop(
+            'api_method_integration_responses')
+        self.write_main_and_sub_deployment_resources(self.main_d_r,
+                                                     self.sub_d_r)
+        resources_meta = {}
+        self.dispatch(resources_meta)
+        self.assertEqual(
+            resources_meta[self.resource_name][
+                'api_method_integration_responses'],
+            self.api_method_integration_responses
+        )
+
 
 class TestApiGatewayCompressionSize(TestApiGateway):
     def setUp(self) -> None:
