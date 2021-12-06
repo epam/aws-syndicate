@@ -330,6 +330,45 @@ class TestApiGatewayCompressionSize(TestApiGateway):
                          resource_meta[self.resource_name])
 
 
+class TestApiGatewayMergeListTypedConfiguration(TestApiGateway):
+    def setUp(self) -> None:
+        super().setUp()
+        self.binary_media_types_main = ['bt_main_1', 'bt_main_2']
+        self.binary_media_types_sub = ['bt_sub_1', 'bt_sub_2']
+        self.apply_changes_main = ['main_change_1', 'main_change_2']
+        self.apply_changes_sub = ['sub_change_1', 'sub_change_2']
+
+    def test_merge_binary_media_types(self):
+        self.main_d_r[self.resource_name]['binary_media_types'] = \
+            self.binary_media_types_main
+        self.sub_d_r[self.resource_name]['binary_media_types'] = \
+            self.binary_media_types_sub
+        self.write_main_and_sub_deployment_resources(self.main_d_r,
+                                                     self.sub_d_r)
+        resources_meta = {}
+        self.dispatch(resources_meta)
+        self.assertIn('binary_media_types', resources_meta[self.resource_name])
+        self.assertEqual(resources_meta[self.resource_name].get(
+            'binary_media_types'),
+            self.binary_media_types_main + self.binary_media_types_sub
+        )
+
+    def test_merge_apply_changes(self):
+        self.main_d_r[self.resource_name]['apply_changes'] = \
+            self.apply_changes_main
+        self.sub_d_r[self.resource_name]['apply_changes'] = \
+            self.apply_changes_sub
+        self.write_main_and_sub_deployment_resources(self.main_d_r,
+                                                     self.sub_d_r)
+        resources_meta = {}
+        self.dispatch(resources_meta)
+        self.assertIn('apply_changes', resources_meta[self.resource_name])
+        self.assertEqual(resources_meta[self.resource_name].get(
+            'apply_changes'),
+            self.apply_changes_main + self.apply_changes_sub
+        )
+
+
 class TestEqualResourcesFound(TestBuildingMeta):
     """It applies to all the resouces types except API_GATEWAY"""
 
