@@ -499,3 +499,102 @@ class TestBuildingLambdaResource(TestBuildingMeta):
         self.assertIn(S3_PATH_NAME, resources_meta['second'])
         self.assertEqual(f"{self.bundle_name}/{self.package_name}",
                          resources_meta['second'][S3_PATH_NAME])
+
+
+class TestBuildingMetaSuccess(TestBuildingMeta):
+    def setUp(self) -> None:
+        super().setUp()
+        self.main_d_r = {
+            "test_table": {
+                "resource_type": 'dynamodb_table',
+                "hash_key_name": "id",
+                "hash_key_type": "S",
+                "read_capacity": 1,
+                "write_capacity": 1,
+            },
+
+            'test_gateway': {
+                "dependencies": [
+                    {
+                        "resource_name": "test_table",
+                        "resource_type": "dynamodb_table"
+                    }
+                ],
+                "resource_type": "api_gateway",
+                "authorizers": {},
+                "resources": {
+                    "/test-1": {
+                        "enable_cors": True,
+                        "GET": {}
+                    }
+                }
+            }
+        }
+        self.sub_d_r = {
+            'test_bucket': {
+                "resource_type": "s3_bucket",
+                "cors": []
+            },
+            'test_gateway': {
+                "dependencies": [
+                    {
+                        "resource_type": "s3_bucket",
+                        "resource_name": 'test_bucket'
+                    }
+                ],
+                "resource_type": "api_gateway",
+                "authorizers": {},
+                "resources": {
+                    "/test-2": {
+                        "enable_cors": True,
+                        "POST": {}
+                    }
+                }
+            }
+        }
+
+    def test_building_meta_success(self):
+        self.write_main_and_sub_deployment_resources(self.main_d_r,
+                                                     self.sub_d_r)
+        resources_meta = {}
+        self.dispatch(resources_meta)
+        expected_result = {
+            "test_table": {
+                "resource_type": "dynamodb_table",
+                "hash_key_name": "id",
+                "hash_key_type": "S",
+                "read_capacity": 1,
+                "write_capacity": 1
+            },
+            "test_gateway": {
+                "dependencies": [
+                    {
+                        "resource_type": "s3_bucket",
+                        "resource_name": "test_bucket"
+                    },
+                    {
+                        "resource_name": "test_table",
+                        "resource_type": "dynamodb_table"
+                    }
+                ],
+                "resource_type": "api_gateway",
+                "authorizers": {},
+                "resources": {
+                    "/test-2": {
+                        "enable_cors": True,
+                        "POST": {}
+                    },
+                    "/test-1": {
+                        "enable_cors": True,
+                        "GET": {}
+                    }
+                },
+                "binary_media_types": [],
+                "apply_changes": []
+            },
+            "test_bucket": {
+                "resource_type": "s3_bucket",
+                "cors": []
+            }
+        }
+        self.assertEqual(resources_meta, expected_result)
