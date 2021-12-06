@@ -308,7 +308,8 @@ class TestApiGatewayCompressionSize(TestApiGateway):
         resources_meta = {}
         self.dispatch(resources_meta)
         self.assertEqual(
-            resources_meta[self.resource_name]['minimum_compression_size'], 400)
+            resources_meta[self.resource_name]['minimum_compression_size'],
+            400)
 
     def test_resolving_compression_size_main_does_not_exist(self):
         self.main_d_r[self.resource_name].pop('minimum_compression_size')
@@ -424,6 +425,29 @@ class TestBuildingLambdaResource(TestBuildingMeta):
                 "resource_type": "iam_role",
             }
         }
+        # java lambda deployment_resources
+        self.package_name = 'test_package-1.0.0.jar'
+        self.sub_d_r = {
+            "second": {
+                "name": "second",
+                "lambda_path": "",
+                "version": "1.0.0",
+                "func_name": "com.testproject.Second",
+                "deployment_package": self.package_name,
+                "resource_type": "lambda",
+                "runtime": "java8",
+                "iam_role_name": "second-role",
+                "memory": 1024,
+                "timeout": 300,
+                "subnet_ids": [],
+                "security_group_ids": [],
+                "dependencies": [],
+                "event_sources": [],
+                "env_variables": {},
+                "publish_version": True,
+                "alias": "${lambdas_alias_name}"
+            }
+        }
         self.lambda_name = 'test_lambda'
         self.lambda_config = {
             "version": "2.0",
@@ -466,3 +490,12 @@ class TestBuildingLambdaResource(TestBuildingMeta):
         self.assertIn(S3_PATH_NAME, resources_meta[self.lambda_name])
         self.assertEqual(f"{self.bundle_name}/{self.lambda_name}-2.0.zip",
                          resources_meta[self.lambda_name][S3_PATH_NAME])
+
+    def test_population_s3_path_java_lambda(self):
+        self.write_main_and_sub_deployment_resources(self.main_d_r,
+                                                     self.sub_d_r)
+        resources_meta = {}
+        self.dispatch(resources_meta)
+        self.assertIn(S3_PATH_NAME, resources_meta['second'])
+        self.assertEqual(f"{self.bundle_name}/{self.package_name}",
+                         resources_meta['second'][S3_PATH_NAME])
