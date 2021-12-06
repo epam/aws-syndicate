@@ -1,5 +1,8 @@
 from copy import deepcopy
+from pathlib import Path
 
+from syndicate.core.constants import (LAMBDA_CONFIG_FILE_NAME,
+                                      RESOURCES_FILE_NAME, S3_PATH_NAME)
 from tests.test_building_meta import TestBuildingMeta
 
 
@@ -408,3 +411,58 @@ class TestEqualResourcesFound(TestBuildingMeta):
                              self.resources_name,
                              self.main_d_r[self.resources_name],
                              self.sub_d_r[self.resources_name]))
+
+
+class TestBuildingLambdaResource(TestBuildingMeta):
+    def setUp(self) -> None:
+        super().setUp()
+        self.main_d_r = {
+            "test_role": {
+                "predefined_policies": [],
+                "principal_service": "lambda",
+                "custom_policies": [],
+                "resource_type": "iam_role",
+            }
+        }
+        self.lambda_name = 'test_lambda'
+        self.lambda_config = {
+            "version": "2.0",
+            "name": self.lambda_name,
+            "func_name": "handler.lambda_handler",
+            "resource_type": "lambda",
+            "iam_role_name": "test_role",
+            "runtime": "python3.7",
+            "memory": 128,
+            "timeout": 100,
+            "lambda_path": "",
+            "dependencies": [],
+            "event_sources": [],
+            "env_variables": {},
+            "publish_version": True,
+            "alias": "${lambdas_alias_name}"
+        }
+
+    def test_resolving_lambda_name(self):
+        self.write_json_to_tmp(Path('sub_dir', LAMBDA_CONFIG_FILE_NAME),
+                               self.lambda_config)
+        self.write_json_to_tmp(RESOURCES_FILE_NAME, self.main_d_r)
+
+        resources_meta = {}
+        self.dispatch(resources_meta)
+        self.assertIn(self.lambda_name, resources_meta)
+        resources_meta[self.lambda_name].pop(S3_PATH_NAME)
+
+        self.assertEqual(resources_meta[self.lambda_name], self.lambda_config)
+        self.assertIn('test_role', resources_meta)
+        self.assertEqual(resources_meta['test_role'],
+                         self.main_d_r['test_role'])
+
+    def test_populating_s3_path_python_lambda(self):
+        self.write_json_to_tmp(Path('sub_dir', LAMBDA_CONFIG_FILE_NAME),
+                               self.lambda_config)
+        self.write_json_to_tmp(RESOURCES_FILE_NAME, self.main_d_r)
+        resources_meta = {}
+        self.dispatch(resources_meta)
+        self.assertIn(S3_PATH_NAME, resources_meta[self.lambda_name])
+        self.assertEqual(f"{self.bundle_name}/{self.lambda_name}-2.0.zip",
+                         resources_meta[self.lambda_name][S3_PATH_NAME])
