@@ -414,6 +414,41 @@ class TestEqualResourcesFound(TestBuildingMeta):
                              self.sub_d_r[self.resources_name]))
 
 
+class WrongResourceType(TestBuildingMeta):
+    def setUp(self) -> None:
+        super().setUp()
+        self.resource_name = 'resource_without_type'
+        self.main_d_r = {
+            self.resource_name: {
+                "dependencies": [],
+                "authorizers": {},
+            }
+        }
+
+    def test_resource_type_not_found(self):
+        self.write_json_to_tmp(RESOURCES_FILE_NAME, self.main_d_r)
+
+        with self.assertRaises(AssertionError) as context:
+            self.dispatch(resources_meta={})
+        self.assertEqual(str(context.exception),
+                         "There is not 'resource_type' in {0}".format(
+                             self.resource_name))
+
+    def test_resource_type_not_in_available_resource_list(self):
+        not_available_type = 'not_available'
+        self.main_d_r[self.resource_name]['resource_type'] = not_available_type
+        self.write_json_to_tmp(RESOURCES_FILE_NAME, self.main_d_r)
+
+        with self.assertRaises(KeyError) as context:
+            self.dispatch(resources_meta={})
+        self.assertEqual(context.exception.args[0],
+                         "You specified new resource type in configuration"
+                         " file {0}, but it doesn't have creation function."
+                         " Please, add new creation function or change "
+                         "resource name with existing one.".format(
+                             not_available_type))
+
+
 class TestBuildingLambdaResource(TestBuildingMeta):
     def setUp(self) -> None:
         super().setUp()
