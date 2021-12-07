@@ -251,7 +251,9 @@ class LambdaConnection(object):
         :type func_name: str
         """
 
-        policies = self.client.get_policy(FunctionName=func_name)
+        policies = self.get_policy(lambda_name=func_name)
+        if not policies:
+            return
         policies = json.loads(policies['Policy'])
         policies_meta = policies['Statement']
 
@@ -348,7 +350,7 @@ class LambdaConnection(object):
             return self.client.get_policy(**params)
         except ClientError as e:
             if 'ResourceNotFoundException' in str(e):
-                pass  # valid exception
+                return  # valid exception
             else:
                 raise e
 
