@@ -80,8 +80,13 @@ def lambda_function(ctx, name, runtime, project_path):
     """
     Generates required environment for lambda function
     """
-    if not os.access(project_path, os.X_OK | os.W_OK):
-        click.echo("Incorrect permissions for the provided path '{project_path}'")
+    if not os.access(project_path, os.F_OK):
+        click.echo(f"The provided path {project_path} doesn't exist")
+        return
+    elif not os.access(project_path, os.W_OK) or not os.access(project_path,
+                                                               os.X_OK):
+        click.echo(f"Incorrect permissions for the provided path "
+                   f"'{project_path}'")
         return
     click.echo(f'Lambda names: {name}')
     click.echo(f'Runtime: {runtime}')
@@ -138,3 +143,31 @@ def config(name, config_path, project_path, region, access_key,
                                  bundle_bucket_name=bundle_bucket_name,
                                  prefix=prefix,
                                  suffix=suffix)
+
+
+@generate.command(name='dynamodb_table')
+@click.option('--name', required=True, type=str, help="DynamoDB table name")
+@click.option('--hash_key_name', required=True, type=str,
+              help="DynamoDB table hash key")
+@click.option('--hash_key_type', required=True,
+              type=click.Choice(['S', 'N', 'B']),
+              help="DynamoDB hash key type")
+@click.option('--project_path', nargs=1,
+              help="Path to the project folder. Default value: the one "
+                   "from the current config if it exists. "
+                   "Otherwise - the current working directory",
+              callback=resolve_project_path)
+@timeit()
+def dynamodb_table(name, hash_key_name, hash_key_type, project_path):
+    """Generates dynamoDB deployment resources template"""
+
+    if not os.access(project_path, os.F_OK):
+        click.echo(f"The provided path {project_path} doesn't exist")
+        return
+    elif not os.access(project_path, os.W_OK) or not os.access(project_path,
+                                                               os.X_OK):
+        click.echo(f"Incorrect permissions for the provided path "
+                   f"'{project_path}'")
+        return
+
+    print(name, hash_key_name, hash_key_type, project_path)
