@@ -1,11 +1,12 @@
+import json
 import os
 import shutil
-import json
 import tempfile
 import unittest
 from pathlib import Path
 
 from syndicate.core.build.meta_processor import _look_for_configs
+from syndicate.core.constants import RESOURCES_FILE_NAME
 
 
 class TestBuildingMeta(unittest.TestCase):
@@ -35,3 +36,9 @@ class TestBuildingMeta(unittest.TestCase):
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, 'w') as file:
             json.dump(data, file)
+
+    def write_main_and_sub_deployment_resources(self, main_d_r: dict,
+                                                sub_d_r: dict):
+        self.write_json_to_tmp(RESOURCES_FILE_NAME, main_d_r)
+        self.write_json_to_tmp(Path('sub_path', RESOURCES_FILE_NAME),
+                               sub_d_r)
