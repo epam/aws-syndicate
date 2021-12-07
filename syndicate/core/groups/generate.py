@@ -28,6 +28,8 @@ from syndicate.core.helper import (check_required_param, timeit, OrderedGroup,
                                    resolve_project_path)
 
 GENERATE_GROUP_NAME = 'generate'
+GENERATE_PROJECT_COMMAND_NAME = 'project'
+GENERATE_CONFIG_COMMAND_NAME = 'config'
 PROJECT_PATH_HELP = 'Path to project folder. ' \
                     'Default value: current working directory'
 
@@ -37,7 +39,7 @@ def generate():
     """Generates project, lambda or configs"""
 
 
-@generate.command(name='project')
+@generate.command(name=GENERATE_PROJECT_COMMAND_NAME)
 @click.option('--name', nargs=1, callback=check_required_param,
               help='* The project name')
 @click.option('--path', nargs=1,
@@ -89,7 +91,7 @@ def lambda_function(ctx, name, runtime, project_path):
                              lambda_names=name)
 
 
-@generate.command(name='config')
+@generate.command(name=GENERATE_CONFIG_COMMAND_NAME)
 @click.option('--name',
               required=True,
               help='* Name of the configuration to create. '
