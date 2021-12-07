@@ -188,6 +188,15 @@ class ApiGatewayResource(BaseResource):
             binary_media_types=meta.get('binary_media_types'))
         api_id = api_item['id']
 
+        # set minimumCompressionSize if the param exists
+        minimum_compression_size = meta.get('minimum_compression_size', None)
+        if not minimum_compression_size:
+            _LOG.debug("No minimal_compression_size param - "
+                       "compression isn't enabled")
+        self.connection.update_compression_size(
+            rest_api_id=api_id,
+            compression_size=minimum_compression_size)
+
         # deploy authorizers
         authorizers = meta.get('authorizers', {})
         for key, val in authorizers.items():

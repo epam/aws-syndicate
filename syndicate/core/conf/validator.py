@@ -38,12 +38,13 @@ PROJECTS_MAPPING_CFG = 'build_projects_mapping'
 RESOURCES_SUFFIX_CFG = 'resources_suffix'
 RESOURCES_PREFIX_CFG = 'resources_prefix'
 
-PYTHON_BUILD_TOOL_NAME = 'python'
-NODE_BUILD_TOOL_NAME = 'node'
-MVN_BUILD_TOOL_NAME = 'mvn'
-ALLOWED_BUILD_TOOLS = [PYTHON_BUILD_TOOL_NAME,
-                       MVN_BUILD_TOOL_NAME,
-                       NODE_BUILD_TOOL_NAME]
+PYTHON_LANGUAGE_NAME = 'python'
+NODEJS_LANGUAGE_NAME = 'nodejs'
+JAVA_LANGUAGE_NAME = 'java'
+
+ALLOWED_RUNTIME_LANGUAGES = [PYTHON_LANGUAGE_NAME,
+                             JAVA_LANGUAGE_NAME,
+                             NODEJS_LANGUAGE_NAME]
 
 REQUIRED_PARAM_ERROR = 'The required key {} is missing'
 
@@ -156,7 +157,7 @@ class ConfigValidator:
             return errors
         project_path = self._config_dict.get(PROJECT_PATH_CFG)
         for key in value.keys():
-            if key not in ALLOWED_BUILD_TOOLS:
+            if key not in ALLOWED_RUNTIME_LANGUAGES:
                 errors.append(f'{key} is not supported to be built')
                 continue
             for build_key, paths in value.items():
@@ -183,14 +184,22 @@ class ConfigValidator:
         if str_error:
             return [str_error]
 
-    def _validate_resources_prefix_suffix(self, key, value):
-        str_error = self._assert_value_is_str(key=key,
+    @staticmethod
+    def _validate_resources_prefix_suffix(key, value):
+        str_error = ConfigValidator._assert_value_is_str(key=key,
                                               value=value)
         if str_error:
             return [str_error]
         if len(value) > 5:
             return [
                 f'The length of {key} must be less or equal to 5 character']
+
+    @staticmethod
+    def validate_prefix_suffix(key, value):
+        result = ConfigValidator._validate_resources_prefix_suffix(key, value)
+        if result:
+            return result[0]
+
 
     @staticmethod
     def _assert_value_is_str(key, value):

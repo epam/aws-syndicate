@@ -32,8 +32,9 @@ from tqdm import tqdm
 
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.conf.processor import path_resolver
+from syndicate.core.conf.validator import ConfigValidator
 from syndicate.core.constants import (ARTIFACTS_FOLDER, BUILD_META_FILE_NAME,
-                                      DEFAULT_SEP)
+                                      DEFAULT_SEP, DATE_FORMAT_ISO_8601)
 from syndicate.core.project_state.project_state import MODIFICATION_LOCK
 from syndicate.core.project_state.sync_processor import sync_project_state
 
@@ -150,7 +151,6 @@ def resolve_aliases_for_string(string_value):
     except ValueError:
         return input_string
 
-
 def check_required_param(ctx, param, value):
     if not value:
         raise BadParameter('Parameter is required')
@@ -189,7 +189,12 @@ def resolve_default_bundle_name(command_name):
 
 def resolve_default_deploy_name(command_name):
     from syndicate.core import PROJECT_STATE
-    return PROJECT_STATE.default_deploy_name
+    if command_name == 'clean':
+        deploy_name = PROJECT_STATE.latest_deployed_deploy_name
+    else:
+        deploy_name = PROJECT_STATE.default_deploy_name
+
+    return deploy_name
 
 
 param_resolver_map = {
@@ -285,9 +290,9 @@ def timeit(action_name=None):
                 username = getpass.getuser()
                 duration = round(te - ts, 3)
                 start_date_formatted = datetime.fromtimestamp(ts) \
-                    .strftime('%Y-%m-%dT%H:%M:%SZ')
+                    .strftime(DATE_FORMAT_ISO_8601)
                 end_date_formatted = datetime.fromtimestamp(te) \
-                    .strftime('%Y-%m-%dT%H:%M:%SZ')
+                    .strftime(DATE_FORMAT_ISO_8601)
 
                 bundle_name = kwargs.get('bundle_name')
                 deploy_name = kwargs.get('deploy_name')
@@ -389,3 +394,32 @@ class OrderedGroup(click.Group):
 
     def list_commands(self, ctx):
         return self.commands
+
+
+def check_bundle_bucket_name(ctx, param, value):
+    try:
+        from syndicate.core.resources.s3_resource import validate_bucket_name
+        validate_bucket_name(value)
+        return value
+    except ValueError as e:
+        raise BadParameter(e.__str__())
+
+
+def check_prefix_suffix_length(ctx, param, value):
+    if value:
+        value = value.lower().strip()
+        result = ConfigValidator.validate_prefix_suffix(param.name, value)
+        if result:
+            raise BadParameter(result)
+        return value
+
+def resolve_project_path(ctx, param, value):
+    from syndicate.core import CONFIG
+    if not value:
+        USER_LOG.info(f"Parameter: '{param.name}' wasn't specified. "
+                      f"Getting automatically")
+        value = CONFIG.project_path \
+            if CONFIG and CONFIG.project_path else os.getcwd()
+        USER_LOG.info(f"Path: '{value}' was assigned to the "
+                      f"parameter: '{param.name}'")
+    return value
