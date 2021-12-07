@@ -179,3 +179,5 @@ def dynamodb_table(name, hash_key_name, hash_key_type, project_path):
         project_path=project_path
     )
     generator.write_deployment_resource()
+    click.echo(f"Table '{name}' with its meta was successfully added to "
+               f"deployment resources")

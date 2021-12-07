@@ -1,11 +1,6 @@
-from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.generators.deployment_resources.base_generator import \
     BaseDeploymentResourceGenerator
 from syndicate.core.constants import DYNAMO_TABLE_TYPE
-
-_LOG = get_logger(
-    'syndicate.core.generators.deployment_resources.dynamodb_table')
-USER_LOG = get_user_logger()
 
 
 class DynamoDBGenerator(BaseDeploymentResourceGenerator):
