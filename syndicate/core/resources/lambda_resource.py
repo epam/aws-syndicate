@@ -708,7 +708,6 @@ class LambdaResource(BaseResource):
     def _remove_lambda(self, arn, config):
         lambda_name = config['resource_name']
         try:
-            self.lambda_conn.remove_invocation_permission(lambda_name)
             self.lambda_conn.delete_lambda(lambda_name)
             self.lambda_conn.remove_trigger(lambda_name)
             group_names = self.cw_logs_conn.get_log_group_names()
