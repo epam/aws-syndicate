@@ -26,8 +26,8 @@ from syndicate.core.helper import (check_required_param, timeit, OrderedGroup,
                                    check_bundle_bucket_name,
                                    check_prefix_suffix_length,
                                    resolve_project_path)
-from syndicate.core.generators.deployment_resources.dynamodb_generator \
-        import DynamoDBGenerator
+from syndicate.core.generators.deployment_resources import (S3Generator,
+                                                            DynamoDBGenerator)
 
 GENERATE_GROUP_NAME = 'generate'
 GENERATE_PROJECT_COMMAND_NAME = 'project'
@@ -181,3 +181,31 @@ def dynamodb_table(name, hash_key_name, hash_key_type, project_path):
     generator.write_deployment_resource()
     click.echo(f"Table '{name}' with its meta was successfully added to "
                f"deployment resources")
+
+
+@generate.command(name='s3_bucket')
+@click.option('--name', required=True, type=str, help="S3 bucket name",
+              callback=check_bundle_bucket_name)
+@click.option('--project_path', nargs=1,
+              help="Path to the project folder. Default value: the one "
+                   "from the current config if it exists. "
+                   "Otherwise - the current working directory",
+              callback=resolve_project_path)
+@timeit()
+def s3_bucket(name, project_path):
+    """Generates s3 bucket deployment resources template"""
+
+    # this code is repeated, I know, that's temporal
+    if not os.access(project_path, os.F_OK):
+        click.echo(f"The provided path {project_path} doesn't exist")
+        return
+    elif not os.access(project_path, os.W_OK) or not os.access(project_path,
+                                                               os.X_OK):
+        click.echo(f"Incorrect permissions for the provided path "
+                   f"'{project_path}'")
+        return
+    generator = S3Generator(
+        resource_name=name,
+        project_path=project_path
+    )
+    generator.write_deployment_resource()
