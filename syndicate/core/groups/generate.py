@@ -26,6 +26,8 @@ from syndicate.core.helper import (check_required_param, timeit, OrderedGroup,
                                    check_bundle_bucket_name,
                                    check_prefix_suffix_length,
                                    resolve_project_path)
+from syndicate.core.generators.deployment_resources.dynamodb_generator \
+        import DynamoDBGenerator
 
 GENERATE_GROUP_NAME = 'generate'
 GENERATE_PROJECT_COMMAND_NAME = 'project'
@@ -170,4 +172,10 @@ def dynamodb_table(name, hash_key_name, hash_key_type, project_path):
                    f"'{project_path}'")
         return
 
-    print(name, hash_key_name, hash_key_type, project_path)
+    generator = DynamoDBGenerator(
+        resource_name=name,
+        hash_key_name=hash_key_name,
+        hash_key_type=hash_key_type,
+        project_path=project_path
+    )
+    generator.write_deployment_resource()
