@@ -3,6 +3,7 @@ import os
 import click
 from syndicate.core.generators.deployment_resources import (S3Generator,
                                                             DynamoDBGenerator)
+from syndicate.core.generators.lambda_function import PROJECT_PATH_PARAM
 from syndicate.core.helper import OrderedGroup
 from syndicate.core.helper import check_bundle_bucket_name
 from syndicate.core.helper import resolve_project_path, timeit
@@ -27,7 +28,7 @@ def meta(ctx, project_path):
                    f"'{project_path}'")
         return
     ctx.ensure_object(dict)
-    ctx.obj['project_path'] = project_path
+    ctx.obj[PROJECT_PATH_PARAM] = project_path
 
 
 @meta.command(name='dynamodb_table')
@@ -46,7 +47,7 @@ def dynamodb_table(ctx, name, hash_key_name, hash_key_type):
         resource_name=name,
         hash_key_name=hash_key_name,
         hash_key_type=hash_key_type,
-        project_path=ctx.obj['project_path']
+        project_path=ctx.obj[PROJECT_PATH_PARAM]
     )
     if generator.write_deployment_resource():
         click.echo(f"Table '{name}' was added successfully!")
