@@ -4,7 +4,7 @@ import click
 from syndicate.core.generators.deployment_resources import (S3Generator,
                                                             DynamoDBGenerator)
 from syndicate.core.generators.lambda_function import PROJECT_PATH_PARAM
-from syndicate.core.helper import OrderedGroup
+from syndicate.core.helper import OrderedGroup, OptionRequiredIf
 from syndicate.core.helper import check_bundle_bucket_name
 from syndicate.core.helper import resolve_project_path, timeit
 
@@ -39,6 +39,12 @@ def meta(ctx, project_path):
 @click.option('--hash_key_type', required=True,
               type=click.Choice(['S', 'N', 'B']),
               help="DynamoDB hash key type")
+@click.option('--sort_key_name', type=str,
+              help="DynamoDB sort key. If not specified, the table will have "
+                   "only a hash key")
+@click.option('--sort_key_type', type=click.Choice(['S', 'N', 'B']),
+              cls=OptionRequiredIf, required_if='sort_key_name',
+              help="Required if sort key name is specified")
 @click.pass_context
 @timeit()
 def dynamodb_table(ctx, **kwargs):

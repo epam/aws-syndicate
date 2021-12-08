@@ -396,6 +396,24 @@ class OrderedGroup(click.Group):
         return self.commands
 
 
+class OptionRequiredIf(click.Option):
+    def __init__(self, *args, **kwargs):
+        self.required_if = kwargs.pop('required_if')
+        if not self.required_if:
+            raise AssertionError("'required_if' param must be specified")
+        super().__init__(*args, **kwargs)
+
+    def handle_parse_result(self, ctx, opts, args):
+        is_current_present: bool = self.name in opts
+        is_required_present: bool = self.required_if in opts
+        if is_current_present ^ is_required_present:
+            raise click.UsageError(f"options: '{self.name}' and "
+                                   f"'{self.required_if}' "
+                                   f"must be specified together")
+        else:
+            return super().handle_parse_result(ctx, opts, args)
+
+
 def check_bundle_bucket_name(ctx, param, value):
     try:
         from syndicate.core.resources.s3_resource import validate_bucket_name
