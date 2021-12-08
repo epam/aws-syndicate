@@ -94,8 +94,9 @@ def syndicate():
                                            case_sensitive=False),
               default='unittest')
 @click.option('--test_folder_name', nargs=1, default='tests')
+@click.option('--errors_allowed', is_flag=True)
 @timeit()
-def test(suite, test_folder_name):
+def test(suite, test_folder_name, errors_allowed):
     """Discovers and runs tests inside python project configuration path."""
     click.echo('Running tests...')
     import subprocess
@@ -109,21 +110,24 @@ def test(suite, test_folder_name):
         return
 
     test_lib_command_mapping = {
-        'unittest': 'python -m unittest -v',
+        'unittest': f'{sys.executable} -m unittest discover {test_folder} -v',
         'pytest': 'pytest --no-header -v',
         'nose': 'nosetests --verbose'
     }
 
     workdir = os.getcwd()
 
-    os.chdir(os.path.join(test_folder, '..'))
+    if test_folder != os.path.join(project_path, 'tests'):
+        os.chdir(test_folder)
     command = test_lib_command_mapping.get(suite)
     result = subprocess.run(command.split())
 
     os.chdir(workdir)
-    if result.returncode != 0:
-        click.echo('Some tests failed. Exiting.')
-        sys.exit(1)
+    if not errors_allowed:
+        if result.returncode != 0:
+            click.echo('Some tests failed. Exiting.')
+            sys.exit(1)
+    click.echo('Tests passed.')
 
 
 @syndicate.command(name='build')
@@ -133,9 +137,11 @@ def test(suite, test_folder_name):
                    'Default value: $ProjectName_%Y-%m-%dT%H:%M:%SZ')
 @click.option('--force_upload', is_flag=True, default=False,
               help='Flag to override existing bundle with the same name')
+@click.option('--errors_allowed', is_flag=True, default=False,
+              help='Flag to continue bundle building if some tests fail')
 @click.pass_context
 @timeit(action_name='build')
-def build(ctx, bundle_name, force_upload):
+def build(ctx, bundle_name, force_upload, errors_allowed):
     """
     Builds bundle of an application
     """
@@ -144,7 +150,7 @@ def build(ctx, bundle_name, force_upload):
                    'in deploy bucket. Please use another bundle '
                    'name or delete the bundle'.format(bundle_name))
         return
-    ctx.invoke(test)
+    ctx.invoke(test, errors_allowed=errors_allowed)
     ctx.invoke(assemble, bundle_name=bundle_name)
     ctx.invoke(package_meta, bundle_name=bundle_name)
     ctx.invoke(upload, bundle_name=bundle_name, force=force_upload)
