@@ -7,6 +7,7 @@ from syndicate.core.generators.lambda_function import PROJECT_PATH_PARAM
 from syndicate.core.helper import OrderedGroup, OptionRequiredIf
 from syndicate.core.helper import check_bundle_bucket_name
 from syndicate.core.helper import resolve_project_path, timeit
+from syndicate.core.helper import check_valid_region
 
 GENERATE_META_GROUP_NAME = 'meta'
 
@@ -66,6 +67,14 @@ def dynamodb_table(ctx, **kwargs):
 @meta.command(name='s3_bucket')
 @click.option('-n', '--resource_name', required=True, type=str,
               help="S3 bucket name", callback=check_bundle_bucket_name)
+@click.option('--location', type=str, callback=check_valid_region,
+              help="The region where the bucket is created, the default value"
+                   "is the region set in syndicate config")
+@click.option('--acl', type=click.Choice(['private', 'public-read',
+                                          'public-read-write',
+                                          'authenticated-read']),
+              help="The channel ACL to be applied to the bucket. If not "
+                   "specified, sets the default value to 'private'")
 @click.pass_context
 @timeit()
 def s3_bucket(ctx, **kwargs):

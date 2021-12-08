@@ -32,7 +32,7 @@ from tqdm import tqdm
 
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.conf.processor import path_resolver
-from syndicate.core.conf.validator import ConfigValidator
+from syndicate.core.conf.validator import ConfigValidator, ALL_REGIONS
 from syndicate.core.constants import (ARTIFACTS_FOLDER, BUILD_META_FILE_NAME,
                                       DEFAULT_SEP, DATE_FORMAT_ISO_8601)
 from syndicate.core.project_state.project_state import MODIFICATION_LOCK
@@ -440,4 +440,13 @@ def resolve_project_path(ctx, param, value):
             if CONFIG and CONFIG.project_path else os.getcwd()
         USER_LOG.info(f"Path: '{value}' was assigned to the "
                       f"parameter: '{param.name}'")
+    return value
+
+def check_valid_region(ctx, param, value):
+    if value:
+        _LOG.info(f"Checking whether {value} is a valid region...")
+        if value not in ALL_REGIONS:
+            _LOG.error(f"Invalid region {value} was given")
+            raise BadParameter(f"'{value}' is not a valid region, "
+                               f"try one of these: {ALL_REGIONS}")
     return value
