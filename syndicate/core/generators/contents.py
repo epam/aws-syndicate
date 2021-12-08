@@ -281,7 +281,7 @@ class AbstractLambda:
     def lambda_handler(self, event, context):
         try:
             _LOG.debug(f'Request: {event}')
-            if event.get('warm-up'):
+            if event.get('warm_up'):
                 return
             errors = self.validate_request(event=event)
             if errors:

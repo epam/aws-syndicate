@@ -16,7 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `profiler` command that allows to display application Lambda metrics
 - Fixed an issue in `clean` command, associated with API Gateway skipping removing Lambda trigger permissions
 - Add ANY, PATCH to supported methods in API Gateway
+- Fixed an issue in `clean` command, associated with removing resources if they specified as excluded
 - Changed logs format. All the logs are saved up to the path from SDCT_CONF variable if it exists. Otherwise the logs are saved to user's home directory.
+
 
 ## [0.9.6] - 2021-04-29
 ### Changed
