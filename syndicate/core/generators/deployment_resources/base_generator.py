@@ -28,16 +28,6 @@ class BaseDeploymentResourceGenerator:
                       f"'{type(self).__name__}' must be specified"
             _LOG.error(message)
             raise AssertionError(message)
-        if not self.REQUIRED_RAPAMS:
-            message = f"REQUIRED_RAPAMS variable inside class " \
-                      f"'{type(self).__name__}' must be specified"
-            _LOG.error(message)
-            raise AssertionError(message)
-        if not self.NOT_REQUIRED_DEFAULTS:
-            message = f"NOT_REQUIRED_DEFAULTS variable inside class " \
-                      f"'{type(self).__name__}' must be specified"
-            _LOG.error(message)
-            raise AssertionError(message)
 
     def generate_deployment_resource(self) -> dict:
         """Generates resource meta for current object and returns it"""
