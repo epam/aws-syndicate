@@ -19,12 +19,14 @@ import os
 import shutil
 import threading
 from concurrent.futures.thread import ThreadPoolExecutor
+from pathlib import Path
 
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.build.helper import build_py_package_name, zip_dir
 from syndicate.core.constants import (LAMBDA_CONFIG_FILE_NAME,
                                       NODE_REQ_FILE_NAME)
-from syndicate.core.helper import build_path, unpack_kwargs, execute_command
+from syndicate.core.helper import (build_path, unpack_kwargs,
+                                   execute_command_by_path)
 from syndicate.core.resources.helper import validate_params
 
 _LOG = get_logger('nodejs_runtime_assembler')
@@ -32,8 +34,7 @@ _LOG = get_logger('nodejs_runtime_assembler')
 
 def assemble_node_lambdas(project_path, bundles_dir):
     from syndicate.core import CONFIG
-    project_abs_path = build_path(CONFIG.project_path, project_path)
-
+    project_abs_path = Path(CONFIG.project_path, project_path)
     _LOG.info('Going to package lambdas starting by path {0}'.format(
         project_abs_path))
     executor = ThreadPoolExecutor(max_workers=5)
@@ -70,11 +71,11 @@ def _build_node_artifact(item, root, target_folder):
         os.makedirs(artifact_path)
     _LOG.debug('Folders are created')
     # getting file content
-    req_path = build_path(root, NODE_REQ_FILE_NAME)
+    req_path = Path(root, NODE_REQ_FILE_NAME)
     try:
         if os.path.exists(req_path):
             command = 'npm install --prefix {0}'.format(root)
-            execute_command(command=command)
+            execute_command_by_path(command=command, path=root)
             _LOG.debug('3-rd party dependencies were installed successfully')
 
         package_name = build_py_package_name(lambda_name, lambda_version)

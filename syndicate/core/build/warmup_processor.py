@@ -200,7 +200,7 @@ def process_deploy_resources(bundle_name, deploy_name):
 
     if not output:
         _LOG.warning('No resources to warmup, exiting')
-        return
+        return None, None
 
     paths_to_be_triggered = {}
     resource_path_warmup_key_mapping = {}

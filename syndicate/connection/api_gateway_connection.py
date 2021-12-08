@@ -634,3 +634,18 @@ class ApiGatewayConnection(object):
     def get_authorizer(self, rest_api_id, authorizer_id):
         return self.client.get_authorizer(restApiId=rest_api_id,
                                           authorizerId=authorizer_id)
+
+    def update_compression_size(self, rest_api_id, compression_size=None):
+        """Enables api compression and sets minimum compression size equal
+        to given param. If the param wasn't given, will be disabled"""
+        patchOperation = {
+            'op': 'replace',
+            'path': '/minimumCompressionSize',
+        }
+        if compression_size:
+            patchOperation['value'] = str(compression_size)
+            _LOG.debug(f'Setting compression size to "{compression_size}"')
+        params = dict(restApiId=rest_api_id)
+        params['patchOperations'] = [patchOperation, ]
+        _LOG.debug(f'Updating rest api with params: "{params}"')
+        return self.client.update_rest_api(**params)
