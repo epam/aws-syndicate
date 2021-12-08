@@ -178,9 +178,8 @@ def dynamodb_table(name, hash_key_name, hash_key_type, project_path):
         hash_key_type=hash_key_type,
         project_path=project_path
     )
-    generator.write_deployment_resource()
-    click.echo(f"Table '{name}' with its meta was successfully added to "
-               f"deployment resources")
+    if generator.write_deployment_resource():
+        click.echo(f"Table '{name}' was added successfully!")
 
 
 @generate.command(name='s3_bucket')
@@ -208,4 +207,5 @@ def s3_bucket(name, project_path):
         resource_name=name,
         project_path=project_path
     )
-    generator.write_deployment_resource()
+    if generator.write_deployment_resource():
+        click.echo(f"S3 bucket {name} was added successfully!")
