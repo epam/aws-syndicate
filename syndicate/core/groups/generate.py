@@ -14,20 +14,18 @@
     limitations under the License.
 """
 import os
-import pathlib
-import click
 
+import click
 from syndicate.core.conf.generator import generate_configuration_files
 from syndicate.core.generators.lambda_function import (
     generate_lambda_function)
 from syndicate.core.generators.project import (generate_project_structure,
                                                PROJECT_PROCESSORS)
+from syndicate.core.groups.meta import meta
 from syndicate.core.helper import (check_required_param, timeit, OrderedGroup,
                                    check_bundle_bucket_name,
                                    check_prefix_suffix_length,
                                    resolve_project_path)
-from syndicate.core.generators.deployment_resources import (S3Generator,
-                                                            DynamoDBGenerator)
 
 GENERATE_GROUP_NAME = 'generate'
 GENERATE_PROJECT_COMMAND_NAME = 'project'
@@ -36,7 +34,7 @@ PROJECT_PATH_HELP = 'Path to project folder. ' \
                     'Default value: current working directory'
 
 
-@click.group(name=GENERATE_GROUP_NAME, cls=OrderedGroup, chain=True)
+@click.group(name=GENERATE_GROUP_NAME, cls=OrderedGroup)
 def generate():
     """Generates project, lambda or configs"""
 
@@ -46,9 +44,8 @@ def generate():
               help='* The project name')
 @click.option('--path', nargs=1,
               help=PROJECT_PATH_HELP)
-@click.pass_context
 @timeit()
-def project(ctx, name, path):
+def project(name, path):
     """
     Generates project with all the necessary components and in a right
     folders/files hierarchy to start developing in a min.
@@ -76,9 +73,8 @@ def project(ctx, name, path):
                    "from the current config if it exists. "
                    "Otherwise - the current working directory",
               callback=resolve_project_path)
-@click.pass_context
 @timeit()
-def lambda_function(ctx, name, runtime, project_path):
+def lambda_function(name, runtime, project_path):
     """
     Generates required environment for lambda function
     """
@@ -147,65 +143,4 @@ def config(name, config_path, project_path, region, access_key,
                                  suffix=suffix)
 
 
-@generate.command(name='dynamodb_table')
-@click.option('--name', required=True, type=str, help="DynamoDB table name")
-@click.option('--hash_key_name', required=True, type=str,
-              help="DynamoDB table hash key")
-@click.option('--hash_key_type', required=True,
-              type=click.Choice(['S', 'N', 'B']),
-              help="DynamoDB hash key type")
-@click.option('--project_path', nargs=1,
-              help="Path to the project folder. Default value: the one "
-                   "from the current config if it exists. "
-                   "Otherwise - the current working directory",
-              callback=resolve_project_path)
-@timeit()
-def dynamodb_table(name, hash_key_name, hash_key_type, project_path):
-    """Generates dynamoDB deployment resources template"""
-
-    if not os.access(project_path, os.F_OK):
-        click.echo(f"The provided path {project_path} doesn't exist")
-        return
-    elif not os.access(project_path, os.W_OK) or not os.access(project_path,
-                                                               os.X_OK):
-        click.echo(f"Incorrect permissions for the provided path "
-                   f"'{project_path}'")
-        return
-
-    generator = DynamoDBGenerator(
-        resource_name=name,
-        hash_key_name=hash_key_name,
-        hash_key_type=hash_key_type,
-        project_path=project_path
-    )
-    if generator.write_deployment_resource():
-        click.echo(f"Table '{name}' was added successfully!")
-
-
-@generate.command(name='s3_bucket')
-@click.option('--name', required=True, type=str, help="S3 bucket name",
-              callback=check_bundle_bucket_name)
-@click.option('--project_path', nargs=1,
-              help="Path to the project folder. Default value: the one "
-                   "from the current config if it exists. "
-                   "Otherwise - the current working directory",
-              callback=resolve_project_path)
-@timeit()
-def s3_bucket(name, project_path):
-    """Generates s3 bucket deployment resources template"""
-
-    # this code is repeated, I know, that's temporal
-    if not os.access(project_path, os.F_OK):
-        click.echo(f"The provided path {project_path} doesn't exist")
-        return
-    elif not os.access(project_path, os.W_OK) or not os.access(project_path,
-                                                               os.X_OK):
-        click.echo(f"Incorrect permissions for the provided path "
-                   f"'{project_path}'")
-        return
-    generator = S3Generator(
-        resource_name=name,
-        project_path=project_path
-    )
-    if generator.write_deployment_resource():
-        click.echo(f"S3 bucket {name} was added successfully!")
+generate.add_command(meta)
