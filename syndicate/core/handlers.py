@@ -277,16 +277,26 @@ def update(bundle_name, deploy_name, replace_output,
 
 @syndicate.command(name='clean')
 @timeit(action_name='clean')
-@click.option('--deploy_name', nargs=1, callback=resolve_default_value)
-@click.option('--bundle_name', nargs=1, callback=resolve_default_value)
-@click.option('--clean_only_types', multiple=True)
-@click.option('--clean_only_resources', multiple=True)
-@click.option('--clean_only_resources_path', nargs=1, type=str)
-@click.option('--clean_externals', nargs=1, is_flag=True, default=False)
-@click.option('--excluded_resources', multiple=True)
-@click.option('--excluded_resources_path', nargs=1, type=str)
-@click.option('--excluded_types', multiple=True)
-@click.option('--rollback', is_flag=True)
+@click.option('--deploy_name', nargs=1, callback=resolve_default_value,
+              help='Name of the deploy.')
+@click.option('--bundle_name', nargs=1, callback=resolve_default_value,
+              help='Name of the bundle.')
+@click.option('--clean_only_types', multiple=True,
+              help='If specified only provided types will be cleaned')
+@click.option('--clean_only_resources', multiple=True,
+              help='If specified only provided resources will be cleaned')
+@click.option('--clean_only_resources_path', nargs=1, type=str,
+              help='If specified only resources path will be cleaned')
+@click.option('--clean_externals', nargs=1, is_flag=True, default=False,
+              help='If specified only external resources will be cleaned')
+@click.option('--excluded_resources', multiple=True,
+              help='If specified provided resources will be excluded')
+@click.option('--excluded_resources_path', nargs=1, type=str,
+              help='If specified provided resource path will be excluded')
+@click.option('--excluded_types', multiple=True,
+              help='If specified provided types will be excluded')
+@click.option('--rollback', is_flag=True,
+              help='Remove failed deploy resources')
 def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
           clean_only_resources_path, clean_externals, excluded_resources,
           excluded_resources_path, excluded_types, rollback):
