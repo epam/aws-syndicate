@@ -32,7 +32,8 @@ def meta(ctx, project_path):
 
 
 @meta.command(name='dynamodb_table')
-@click.option('--name', required=True, type=str, help="DynamoDB table name")
+@click.option('-n', '--resource_name', required=True, type=str,
+              help="DynamoDB table name")
 @click.option('--hash_key_name', required=True, type=str,
               help="DynamoDB table hash key")
 @click.option('--hash_key_type', required=True,
@@ -40,29 +41,24 @@ def meta(ctx, project_path):
               help="DynamoDB hash key type")
 @click.pass_context
 @timeit()
-def dynamodb_table(ctx, name, hash_key_name, hash_key_type):
+def dynamodb_table(ctx, **kwargs):
     """Generates dynamoDB deployment resources template"""
-
-    generator = DynamoDBGenerator(
-        resource_name=name,
-        hash_key_name=hash_key_name,
-        hash_key_type=hash_key_type,
-        project_path=ctx.obj[PROJECT_PATH_PARAM]
-    )
+    kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
+    generator = DynamoDBGenerator(**kwargs)
     if generator.write_deployment_resource():
-        click.echo(f"Table '{name}' was added successfully!")
+        click.echo(f"Table '{kwargs['resource_name']}' was "
+                   f"added successfully!")
 
 
 @meta.command(name='s3_bucket')
-@click.option('--name', required=True, type=str, help="S3 bucket name",
-              callback=check_bundle_bucket_name)
+@click.option('-n', '--resource_name', required=True, type=str,
+              help="S3 bucket name", callback=check_bundle_bucket_name)
 @click.pass_context
 @timeit()
-def s3_bucket(ctx, name):
+def s3_bucket(ctx, **kwargs):
     """Generates s3 bucket deployment resources template"""
-    generator = S3Generator(
-        resource_name=name,
-        project_path=ctx.obj['project_path']
-    )
+    kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
+    generator = S3Generator(**kwargs)
     if generator.write_deployment_resource():
-        click.echo(f"S3 bucket {name} was added successfully!")
+        click.echo(f"S3 bucket {kwargs['resource_name']} was "
+                   f"added successfully!")

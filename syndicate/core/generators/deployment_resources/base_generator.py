@@ -82,7 +82,7 @@ class BaseDeploymentResourceGenerator:
                                            RESOURCES_FILE_NAME)),
                                   recursive=True)
         for file in dep_res_files:
-            _LOG.info(f'Looking for duplicates iside {file}')
+            _LOG.info(f'Looking for duplicates inside {file}')
             data = json.loads(_read_content_from_file(file))
             if self.resource_name in data:
                 if not self.RESOURCE_TYPE == data[self.resource_name][
