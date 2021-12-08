@@ -14,14 +14,27 @@ USER_LOG = get_user_logger()
 
 
 class BaseDeploymentResourceGenerator:
-    RESOURCE_TYPE = None
+    RESOURCE_TYPE: str = None
+    REQUIRED_RAPAMS: list = []
+    NOT_REQUIRED_DEFAULTS: dict = {}
 
     def __init__(self, **kwargs):
-        self.project_path = kwargs.get('project_path')
-        self.resource_name = kwargs.get('resource_name')
+        self._dict = dict(kwargs)
+        self.project_path = self._dict.pop('project_path')
+        self.resource_name = self._dict.pop('resource_name')
 
         if not self.RESOURCE_TYPE:
             message = f"RESOURCE_TYPE variable inside class " \
+                      f"'{type(self).__name__}' must be specified"
+            _LOG.error(message)
+            raise AssertionError(message)
+        if not self.REQUIRED_RAPAMS:
+            message = f"REQUIRED_RAPAMS variable inside class " \
+                      f"'{type(self).__name__}' must be specified"
+            _LOG.error(message)
+            raise AssertionError(message)
+        if not self.NOT_REQUIRED_DEFAULTS:
+            message = f"NOT_REQUIRED_DEFAULTS variable inside class " \
                       f"'{type(self).__name__}' must be specified"
             _LOG.error(message)
             raise AssertionError(message)
@@ -35,12 +48,42 @@ class BaseDeploymentResourceGenerator:
         }
 
     def _generate_resource_configuration(self) -> dict:
-        """Return the dict with just resource configuration"""
+        """Return a dict with just resource configuration"""
         _LOG.info("Generating configuration for "
                   f"{self.RESOURCE_TYPE} '{self.resource_name}'")
-        return {
-            "resource_type": self.RESOURCE_TYPE
+        result = {
+            "resource_type": self.RESOURCE_TYPE,
         }
+        result.update(self._resolve_required_configuration())
+        result.update(self._resolve_not_required_configuration())
+        return result
+
+    def _resolve_required_configuration(self) -> dict:
+        """Returns a dict with just required params values"""
+        result = {name: self._dict.get(name) for name in self.REQUIRED_RAPAMS}
+        _LOG.info(f"Resolved required params for {self.RESOURCE_TYPE} "
+                  f"'{self.resource_name}': {result}")
+        return result
+
+    def _resolve_not_required_configuration(self) -> dict:
+        """Return a dict with not required params and sets default values if
+        another one wasn't given"""
+        _LOG.info(f"Resolving not required params for {self.RESOURCE_TYPE} "
+                  f"'{self.resource_name}'")
+        result = {}
+        for param_name, default_value in self.NOT_REQUIRED_DEFAULTS.items():
+            given_value = self._dict.get(param_name)
+            if not given_value:
+                if default_value:
+                    _LOG.info(f"Setting default value '{default_value}' for "
+                              f"param '{param_name}'")
+                    result[param_name] = default_value
+            else:
+                _LOG.info(f"Setting given value '{given_value}' for "
+                          f"param '{param_name}'")
+                result[param_name] = given_value
+        return result
+
 
     def write_deployment_resource(self) -> bool:
         """Writes generated meta to root deployment_resources. If resource

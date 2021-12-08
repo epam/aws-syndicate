@@ -5,17 +5,10 @@ from syndicate.core.constants import DYNAMO_TABLE_TYPE
 
 class DynamoDBGenerator(BaseDeploymentResourceGenerator):
     RESOURCE_TYPE = DYNAMO_TABLE_TYPE
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.hash_key_name = kwargs.get('hash_key_name')
-        self.hash_key_type = kwargs.get('hash_key_type')
-
-    def _generate_resource_configuration(self) -> dict:
-        configuration = super()._generate_resource_configuration()
-
-        configuration.update({
-            'hash_key_name': self.hash_key_name,
-            'hash_key_type': self.hash_key_type
-        })
-        return configuration
+    REQUIRED_RAPAMS = ['hash_key_name', 'hash_key_type']
+    NOT_REQUIRED_DEFAULTS = {
+        'sort_key_name': None,
+        'sort_key_type': None,
+        'read_capacity': 1,
+        'write_capacity': 1,
+    }

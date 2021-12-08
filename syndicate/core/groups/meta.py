@@ -45,6 +45,13 @@ def meta(ctx, project_path):
 @click.option('--sort_key_type', type=click.Choice(['S', 'N', 'B']),
               cls=OptionRequiredIf, required_if='sort_key_name',
               help="Required if sort key name is specified")
+@click.option('--read_capacity', type=int,
+              help="The maximum number of strongly consistent reads that can"
+                   "be performed per second. If not specified, sets the "
+                   "default value to 1")
+@click.option('--write_capacity', type=int,
+              help="The maximum number of writing processes consumed per"
+                   "second. If not specified, sets the default value to 1")
 @click.pass_context
 @timeit()
 def dynamodb_table(ctx, **kwargs):
