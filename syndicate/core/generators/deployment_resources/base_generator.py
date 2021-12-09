@@ -64,9 +64,15 @@ class BaseDeploymentResourceGenerator:
         for param_name, default_value in self.NOT_REQUIRED_DEFAULTS.items():
             given_value = self._dict.get(param_name)
             if not given_value:
-                if default_value:
-                    _LOG.info(f"Setting default value '{default_value}' for "
-                              f"param '{param_name}'")
+                if isinstance(default_value, type):
+                    to_assign = default_value()
+                    _LOG.info(f"Setting default value - the object "
+                              f"'{to_assign}' of the class '{default_value}' "
+                              f"for param '{param_name}'")
+                    result[param_name] = default_value()
+                elif default_value:
+                    _LOG.info(f"Setting default value '{default_value}' "
+                              f"for param '{param_name}'")
                     result[param_name] = default_value
             else:
                 _LOG.info(f"Setting given value '{given_value}' for "
