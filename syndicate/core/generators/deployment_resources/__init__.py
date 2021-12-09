@@ -19,3 +19,5 @@ from syndicate.core.generators.deployment_resources.s3_generator \
         import S3Generator
 from syndicate.core.generators.deployment_resources.api_gateway_generator \
         import ApiGatewayGenerator
+from syndicate.core.generators.deployment_resources.iam_policy_generator \
+        import IAMPolicyGenerator

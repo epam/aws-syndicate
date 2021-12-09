@@ -1,8 +1,9 @@
 import os
+import json
 
 import click
 from syndicate.core.generators.deployment_resources import \
-    (S3Generator, DynamoDBGenerator, ApiGatewayGenerator)
+    (S3Generator, DynamoDBGenerator, ApiGatewayGenerator, IAMPolicyGenerator)
 from syndicate.core.generators.lambda_function import PROJECT_PATH_PARAM
 from syndicate.core.helper import OrderedGroup, OptionRequiredIf
 from syndicate.core.helper import check_bundle_bucket_name
@@ -82,7 +83,7 @@ def s3_bucket(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = S3Generator(**kwargs)
     if generator.write_deployment_resource():
-        click.echo(f"S3 bucket {kwargs['resource_name']} was "
+        click.echo(f"S3 bucket '{kwargs['resource_name']}' was "
                    f"added successfully!")
 
 @meta.command(name='api_gateway')
@@ -101,5 +102,27 @@ def api_gateway(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = ApiGatewayGenerator(**kwargs)
     if generator.write_deployment_resource():
-        click.echo(f"Api gateway {kwargs['resource_name']} was "
+        click.echo(f"Api gateway '{kwargs['resource_name']}' was "
+                   f"added successfully")
+
+@meta.command(name='iam_policy')
+@click.option('-n', '--resource_name', required=True, type=str,
+              help='IAM policy name')
+@click.option('--policy_content', help='The path to JSON file with IAM policy '
+                                       'content. If not specified, template '
+                                       'value will be set',
+              type=click.File(mode='r'))
+@click.pass_context
+@timeit()
+def iam_policy(ctx, **kwargs):
+    """Generates IAM policy deployment resources template"""
+    kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
+    if kwargs['policy_content']:
+        try:
+            kwargs['policy_content'] = json.load(kwargs['policy_content'])
+        except json.decoder.JSONDecodeError as e:
+            raise click.BadParameter(str(e), param_hint='policy_content')
+    generator = IAMPolicyGenerator(**kwargs)
+    if generator.write_deployment_resource():
+        click.echo(f"Iam policy '{kwargs['resource_name']}' was "
                    f"added successfully")
