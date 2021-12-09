@@ -1,8 +1,8 @@
 import os
 
 import click
-from syndicate.core.generators.deployment_resources import (S3Generator,
-                                                            DynamoDBGenerator)
+from syndicate.core.generators.deployment_resources import \
+    (S3Generator, DynamoDBGenerator, ApiGatewayGenerator)
 from syndicate.core.generators.lambda_function import PROJECT_PATH_PARAM
 from syndicate.core.helper import OrderedGroup, OptionRequiredIf
 from syndicate.core.helper import check_bundle_bucket_name
@@ -84,3 +84,22 @@ def s3_bucket(ctx, **kwargs):
     if generator.write_deployment_resource():
         click.echo(f"S3 bucket {kwargs['resource_name']} was "
                    f"added successfully!")
+
+@meta.command(name='api_gateway')
+@click.option('-n', '--resource_name', required=True, type=str,
+              help="Api gateway name")
+@click.option('--deploy_stage', required=True, type=str,
+              help="The stage to deploy the API")
+@click.option('--minimum_compression_size',
+              type=click.IntRange(min=0, max=10*1024*1024),
+              help="Compression size for api gateway. If not specified, "
+                   "compression will be disabled")
+@click.pass_context
+@timeit()
+def api_gateway(ctx, **kwargs):
+    """Generates api gateway deployment resources template"""
+    kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
+    generator = ApiGatewayGenerator(**kwargs)
+    if generator.write_deployment_resource():
+        click.echo(f"Api gateway {kwargs['resource_name']} was "
+                   f"added successfully")

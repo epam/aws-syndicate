@@ -17,3 +17,5 @@ from syndicate.core.generators.deployment_resources.dynamodb_generator \
         import DynamoDBGenerator
 from syndicate.core.generators.deployment_resources.s3_generator \
         import S3Generator
+from syndicate.core.generators.deployment_resources.api_gateway_generator \
+        import ApiGatewayGenerator
