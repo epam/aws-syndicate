@@ -21,3 +21,5 @@ from syndicate.core.generators.deployment_resources.api_gateway_generator \
         import ApiGatewayGenerator
 from syndicate.core.generators.deployment_resources.iam_policy_generator \
         import IAMPolicyGenerator
+from syndicate.core.generators.deployment_resources.iam_role_generator \
+        import IAMRoleGenerator

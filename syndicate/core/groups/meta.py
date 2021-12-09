@@ -3,7 +3,8 @@ import json
 
 import click
 from syndicate.core.generators.deployment_resources import \
-    (S3Generator, DynamoDBGenerator, ApiGatewayGenerator, IAMPolicyGenerator)
+    (S3Generator, DynamoDBGenerator, ApiGatewayGenerator, IAMPolicyGenerator,
+     IAMRoleGenerator)
 from syndicate.core.generators.lambda_function import PROJECT_PATH_PARAM
 from syndicate.core.helper import OrderedGroup, OptionRequiredIf
 from syndicate.core.helper import check_bundle_bucket_name
@@ -125,4 +126,28 @@ def iam_policy(ctx, **kwargs):
     generator = IAMPolicyGenerator(**kwargs)
     if generator.write_deployment_resource():
         click.echo(f"Iam policy '{kwargs['resource_name']}' was "
+                   f"added successfully")
+
+@meta.command(name='iam_role')
+@click.option('-n', '--resource_name', required=True, type=str,
+              help="IAM role name")
+@click.option('--principal_service', required=True, type=str,
+              help="The service which will use the role")
+@click.option("--predefined_policies", type=str, multiple=True,
+              help="Managed IAM policies list")
+@click.option("--custom_policies", type=str, multiple=True,
+              help="Customer AWS policies names")
+@click.option("--allowed_accounts", type=str, multiple=True,
+              help="The list of accounts, which can assume the role")
+@click.option("--external_id", type=str, help="External ID in role")
+@click.option("--instance_profile", type=bool,
+              help="If true, instance profile with role name is created")
+@click.pass_context
+@timeit()
+def iam_role(ctx, **kwargs):
+    """Generates IAM role deployment resources template"""
+    kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
+    generator = IAMRoleGenerator(**kwargs)
+    if generator.write_deployment_resource():
+        click.echo(f"Iam role '{kwargs['resource_name']}' was "
                    f"added successfully")

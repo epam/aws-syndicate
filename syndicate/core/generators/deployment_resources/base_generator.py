@@ -121,9 +121,7 @@ class BaseDeploymentResourceGenerator:
         If a duplicate is found, returns the path to file with it. If the
         duplicate and the current generator are API_GATEWAYs, the file
         will be skipped because two API_GATEWAY resources can be merged"""
-        dep_res_files = glob.glob(str(Path(self.project_path, "**",
-                                           RESOURCES_FILE_NAME)),
-                                  recursive=True)
+        dep_res_files = self._get_deployment_resources_files()
         for file in dep_res_files:
             _LOG.info(f'Looking for duplicates inside {file}')
             data = json.loads(_read_content_from_file(file))
@@ -133,3 +131,12 @@ class BaseDeploymentResourceGenerator:
                     _LOG.warning(f"Duplicate '{data[self.resource_name]}' "
                                  f"inside {file} was found. Returning...")
                     return file
+
+    def _get_deployment_resources_files(self) -> list:
+        """Returns the list of paths to each deployment_resources.json file"""
+        _LOG.info(f"Recursively getting all the deployment_resources.json with"
+                  " root '{self.project_path}'")
+        dep_res_files = glob.glob(str(Path(self.project_path, "**",
+                                           RESOURCES_FILE_NAME)),
+                                  recursive=True)
+        return dep_res_files
