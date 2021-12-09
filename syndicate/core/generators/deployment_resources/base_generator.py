@@ -14,6 +14,10 @@ USER_LOG = get_user_logger()
 
 
 class BaseDeploymentResourceGenerator:
+    """The params below are required to be specified in each heir.
+    'REQUIRED' and 'NOT_REQUIRED' mean to be required or not required for user
+    input. But it doesn't necessarily mean that they are required or not
+    required for 'syndicate deploy' comamnd"""
     RESOURCE_TYPE: str = None
     REQUIRED_RAPAMS: list = []
     NOT_REQUIRED_DEFAULTS: dict = {}

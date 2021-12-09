@@ -446,7 +446,7 @@ def check_valid_region(ctx, param, value):
     if value:
         _LOG.info(f"Checking whether {value} is a valid region...")
         if value not in ALL_REGIONS:
-            _LOG.error(f"Invalid region {value} was given")
+            _LOG.error(f"Invalid region '{value}' was given")
             raise BadParameter(f"'{value}' is not a valid region, "
                                f"try one of these: {ALL_REGIONS}")
     return value
