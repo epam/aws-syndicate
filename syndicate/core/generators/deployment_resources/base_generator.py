@@ -126,7 +126,7 @@ class BaseDeploymentResourceGenerator(BaseConfigurationGenerator):
         result.update(self.generate_whole_configuration())
         return result
 
-    def write_deployment_resource(self) -> bool:
+    def write_deployment_resource(self):
         """Writes generated meta to root deployment_resources. If resource
         with the name {self.resource_name} already exists, it'll ask a
         user whether overwrite it or not. If 'yes', resource meta will
@@ -143,7 +143,6 @@ class BaseDeploymentResourceGenerator(BaseConfigurationGenerator):
                 resources_file = duplicated_file
             else:
                 USER_LOG.warning(f"Skipping resource '{self.resource_name}'")
-                return False
 
         deployment_resources = json.loads(_read_content_from_file(
             resources_file
@@ -154,7 +153,6 @@ class BaseDeploymentResourceGenerator(BaseConfigurationGenerator):
                       f"to the file '{resources_file}'")
         _write_content_to_file(resources_file,
                                json.dumps(deployment_resources, indent=2))
-        return True
 
     def _find_file_with_duplicate(self):
         """Looks for self.resouce_name inside each deployment_resource.json.

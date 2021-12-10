@@ -23,10 +23,8 @@ class IAMRoleGenerator(BaseDeploymentResourceGenerator):
     }
 
     def _resolve_not_required_configuration(self) -> dict:
-        try:
-            self.validate_custom_policies_existence()
-        except ValueError as e:
-            raise click.BadParameter(str(e), param_hint='custom_policies')
+        self.validate_custom_policies_existence()
+
         if self._dict['principal_service'] == 'ec2' and \
                 not self._dict['instance_profile']:
             USER_LOG.info("Setting 'instance_profile' value to 'True' because "

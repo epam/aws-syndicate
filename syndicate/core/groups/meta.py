@@ -12,6 +12,7 @@ from syndicate.core.helper import ValidRegionParamType
 GENERATE_META_GROUP_NAME = 'meta'
 dynamodb_type_param = click.Choice(['S', 'N', 'B'])
 
+
 @click.group(name=GENERATE_META_GROUP_NAME, cls=OrderedGroup)
 @click.option('--project_path', nargs=1,
               help="Path to the project folder. Default value: the one "
@@ -60,9 +61,12 @@ def dynamodb(ctx, **kwargs):
     """Generates dynamoDB deployment resources template"""
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = DynamoDBGenerator(**kwargs)
-    if generator.write_deployment_resource():
-        click.echo(f"Table '{kwargs['resource_name']}' was "
-                   f"added successfully!")
+    try:
+        generator.write_deployment_resource()
+    except ValueError as e:
+        raise click.BadParameter(e)
+    click.echo(f"Table '{kwargs['resource_name']}' was added successfully!")
+
 
 @meta.command(name='dynamodb_global_index')
 @click.option('-n', '--table_name', required=True, type=str,
@@ -87,9 +91,9 @@ def dynamodb_global_index(ctx, **kwargs):
     generator = DynamoDBGlobalIndexGenerator(**kwargs)
     try:
         generator.add_global_index_to_table()
-        click.echo(f"Global index '{kwargs['name']}' was added successfully")
     except ValueError as e:
         raise click.BadParameter(e)
+    click.echo(f"Global index '{kwargs['name']}' was added successfully")
 
 
 @meta.command(name='s3_bucket')
@@ -109,9 +113,13 @@ def s3_bucket(ctx, **kwargs):
     """Generates s3 bucket deployment resources template"""
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = S3Generator(**kwargs)
-    if generator.write_deployment_resource():
-        click.echo(f"S3 bucket '{kwargs['resource_name']}' was "
-                   f"added successfully!")
+    try:
+        generator.write_deployment_resource()
+    except ValueError as e:
+        raise click.BadParameter(e)
+    click.echo(f"S3 bucket '{kwargs['resource_name']}' was "
+               f"added successfully!")
+
 
 @meta.command(name='api_gateway')
 @click.option('-n', '--resource_name', required=True, type=str,
@@ -128,9 +136,13 @@ def api_gateway(ctx, **kwargs):
     """Generates api gateway deployment resources template"""
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = ApiGatewayGenerator(**kwargs)
-    if generator.write_deployment_resource():
-        click.echo(f"Api gateway '{kwargs['resource_name']}' was "
-                   f"added successfully")
+    try:
+        generator.write_deployment_resource()
+    except ValueError as e:
+        raise click.BadParameter(e)
+    click.echo(f"Api gateway '{kwargs['resource_name']}' was "
+               f"added successfully")
+
 
 @meta.command(name='iam_policy')
 @click.option('-n', '--resource_name', required=True, type=str,
@@ -150,9 +162,13 @@ def iam_policy(ctx, **kwargs):
         except json.decoder.JSONDecodeError as e:
             raise click.BadParameter(str(e), param_hint='policy_content')
     generator = IAMPolicyGenerator(**kwargs)
-    if generator.write_deployment_resource():
-        click.echo(f"Iam policy '{kwargs['resource_name']}' was "
-                   f"added successfully")
+    try:
+        generator.write_deployment_resource()
+    except ValueError as e:
+        raise click.BadParameter(e)
+    click.echo(f"Iam policy '{kwargs['resource_name']}' was "
+               f"added successfully")
+
 
 @meta.command(name='iam_role')
 @click.option('-n', '--resource_name', required=True, type=str,
@@ -174,9 +190,12 @@ def iam_role(ctx, **kwargs):
     """Generates IAM role deployment resources template"""
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = IAMRoleGenerator(**kwargs)
-    if generator.write_deployment_resource():
-        click.echo(f"Iam role '{kwargs['resource_name']}' was "
-                   f"added successfully")
+    try:
+        generator.write_deployment_resource()
+    except ValueError as e:
+        raise click.BadParameter(e)
+    click.echo(f"Iam role '{kwargs['resource_name']}' was "
+               f"added successfully")
 
 @meta.command(name='kinesis_stream')
 @click.option('-n', '--resource_name', type=str, required=True,
@@ -189,9 +208,13 @@ def kinesis_stream(ctx, **kwargs):
     """Generates kinesis stream deployment resources template"""
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = KinesisStreamGenerator(**kwargs)
-    if generator.write_deployment_resource():
-        click.echo(f"Kinesis stream '{kwargs['resource_name']}' was"
-                   f"added successfully")
+    try:
+        generator.write_deployment_resource()
+    except ValueError as e:
+        raise click.BadParameter(e)
+    click.echo(f"Kinesis stream '{kwargs['resource_name']}' was"
+               f"added successfully")
+
 
 @meta.command(name='sns_topic')
 @click.option('-n', '--resource_name', type=str, required=True,
@@ -204,6 +227,9 @@ def sns_topic(ctx, **kwargs):
     """Generates sns topic deployment resource template"""
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = SNSTopicGenerator(**kwargs)
-    if generator.write_deployment_resource():
-        click.echo(f"SNS topic '{kwargs['resource_name']}' was "
-                   f"added successfully")
+    try:
+        generator.write_deployment_resource()
+    except ValueError as e:
+        raise click.BadParameter(e)
+    click.echo(f"SNS topic '{kwargs['resource_name']}' was "
+               f"added successfully")
