@@ -85,6 +85,8 @@ class BaseConfigurationGenerator:
         return resources
 
     def _get_resource_meta_path(self, resource_name, resource_type):
+        """Returns the path to deployment resouces file, where the resouces
+        with given name and type is declared"""
         available_resources = self._find_resources_by_type(resource_type)
         _LOG.info(f"Looking for {resource_type} '{resource_name}' in meta...")
         for path, resources in available_resources.items():
@@ -93,6 +95,10 @@ class BaseConfigurationGenerator:
                 return path
         _LOG.warning(f"Not found {resource_type} '{resource_name}' in meta")
         return None
+
+    def write(self):
+        """The main method to write resouces"""
+        raise NotImplementedError()
 
 
 class BaseDeploymentResourceGenerator(BaseConfigurationGenerator):
@@ -126,7 +132,7 @@ class BaseDeploymentResourceGenerator(BaseConfigurationGenerator):
         result.update(self.generate_whole_configuration())
         return result
 
-    def write_deployment_resource(self):
+    def write(self):
         """Writes generated meta to root deployment_resources. If resource
         with the name {self.resource_name} already exists, it'll ask a
         user whether overwrite it or not. If 'yes', resource meta will

@@ -62,7 +62,7 @@ def dynamodb(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = DynamoDBGenerator(**kwargs)
     try:
-        generator.write_deployment_resource()
+        generator.write()
     except ValueError as e:
         raise click.BadParameter(e)
     click.echo(f"Table '{kwargs['resource_name']}' was added successfully!")
@@ -90,7 +90,7 @@ def dynamodb_global_index(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = DynamoDBGlobalIndexGenerator(**kwargs)
     try:
-        generator.add_global_index_to_table()
+        generator.write()
     except ValueError as e:
         raise click.BadParameter(e)
     click.echo(f"Global index '{kwargs['name']}' was added successfully")
@@ -114,7 +114,7 @@ def s3_bucket(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = S3Generator(**kwargs)
     try:
-        generator.write_deployment_resource()
+        generator.write()
     except ValueError as e:
         raise click.BadParameter(e)
     click.echo(f"S3 bucket '{kwargs['resource_name']}' was "
@@ -137,7 +137,7 @@ def api_gateway(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = ApiGatewayGenerator(**kwargs)
     try:
-        generator.write_deployment_resource()
+        generator.write()
     except ValueError as e:
         raise click.BadParameter(e)
     click.echo(f"Api gateway '{kwargs['resource_name']}' was "
@@ -163,7 +163,7 @@ def iam_policy(ctx, **kwargs):
             raise click.BadParameter(str(e), param_hint='policy_content')
     generator = IAMPolicyGenerator(**kwargs)
     try:
-        generator.write_deployment_resource()
+        generator.write()
     except ValueError as e:
         raise click.BadParameter(e)
     click.echo(f"Iam policy '{kwargs['resource_name']}' was "
@@ -191,7 +191,7 @@ def iam_role(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = IAMRoleGenerator(**kwargs)
     try:
-        generator.write_deployment_resource()
+        generator.write()
     except ValueError as e:
         raise click.BadParameter(e)
     click.echo(f"Iam role '{kwargs['resource_name']}' was "
@@ -209,7 +209,7 @@ def kinesis_stream(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = KinesisStreamGenerator(**kwargs)
     try:
-        generator.write_deployment_resource()
+        generator.write()
     except ValueError as e:
         raise click.BadParameter(e)
     click.echo(f"Kinesis stream '{kwargs['resource_name']}' was"
@@ -228,7 +228,7 @@ def sns_topic(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = SNSTopicGenerator(**kwargs)
     try:
-        generator.write_deployment_resource()
+        generator.write()
     except ValueError as e:
         raise click.BadParameter(e)
     click.echo(f"SNS topic '{kwargs['resource_name']}' was "
