@@ -135,7 +135,7 @@ class BaseDeploymentResourceGenerator:
     def _get_deployment_resources_files(self) -> list:
         """Returns the list of paths to each deployment_resources.json file"""
         _LOG.info(f"Recursively getting all the deployment_resources.json with"
-                  " root '{self.project_path}'")
+                  f" root '{self.project_path}'")
         dep_res_files = glob.glob(str(Path(self.project_path, "**",
                                            RESOURCES_FILE_NAME)),
                                   recursive=True)
