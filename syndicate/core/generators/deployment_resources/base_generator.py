@@ -23,6 +23,7 @@ class BaseConfigurationGenerator:
 
     def __init__(self, **kwargs):
         self._dict = dict(kwargs)
+        self.project_path = self._dict.pop('project_path')
 
     def _resolve_required_configuration(self) -> dict:
         """Returns a dict with just required params values"""
@@ -60,13 +61,45 @@ class BaseConfigurationGenerator:
         result.update(self._resolve_not_required_configuration())
         return result
 
+    def _get_deployment_resources_files(self) -> list:
+        """Returns the list of paths to each deployment_resources.json file"""
+        _LOG.info(f"Recursively getting all the deployment_resources.json with"
+                  f" root '{self.project_path}'")
+        dep_res_files = glob.glob(str(Path(self.project_path, "**",
+                                           RESOURCES_FILE_NAME)),
+                                  recursive=True)
+        return dep_res_files
+
+    def _find_resources_by_type(self, resources_type) -> dict:
+        """Returns the dict, where key is a path to deployment_resources file
+        and value is a set of entities' names with given resource_type"""
+        dep_res_files = self._get_deployment_resources_files()
+        resources = {}
+        _LOG.info(f"Looking for resource '{resources_type}' in meta")
+        for file in dep_res_files:
+            data = json.loads(_read_content_from_file(file))
+            resources[file] = set(filter(
+                lambda name: data[name]['resource_type'] == resources_type,
+                data))
+        _LOG.info(f"Found '{resources}' inside with type '{resources_type}'")
+        return resources
+
+    def _get_resource_meta_path(self, resource_name, resource_type):
+        available_resources = self._find_resources_by_type(resource_type)
+        _LOG.info(f"Looking for {resource_type} '{resource_name}' in meta...")
+        for path, resources in available_resources.items():
+            if resource_name in resources:
+                _LOG.info(f"Found '{resource_name}' in meta from '{path}'")
+                return path
+        _LOG.warning(f"Not found {resource_type} '{resource_name}' in meta")
+        return None
+
 
 class BaseDeploymentResourceGenerator(BaseConfigurationGenerator):
     RESOURCE_TYPE: str = None
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.project_path = self._dict.pop('project_path')
         self.resource_name = self._dict.pop('resource_name')
 
         if not self.RESOURCE_TYPE:
@@ -138,26 +171,3 @@ class BaseDeploymentResourceGenerator(BaseConfigurationGenerator):
                     _LOG.warning(f"Duplicate '{data[self.resource_name]}' "
                                  f"inside {file} was found. Returning...")
                     return file
-
-    def _find_resources_by_type(self, resources_type) -> set:
-        """Return all the found resources names with given resource type"""
-        dep_res_files = self._get_deployment_resources_files()
-        resources = set()
-        _LOG.info(f"Looking for resource '{resources_type}' in meta")
-        for file in dep_res_files:
-            data = json.loads(_read_content_from_file(file))
-            resources.update(filter(
-                lambda name: data[name]['resource_type'] == resources_type,
-                data))
-        _LOG.info(f"Found '{resources}' inside with type '{resources_type}'")
-        return resources
-
-
-    def _get_deployment_resources_files(self) -> list:
-        """Returns the list of paths to each deployment_resources.json file"""
-        _LOG.info(f"Recursively getting all the deployment_resources.json with"
-                  f" root '{self.project_path}'")
-        dep_res_files = glob.glob(str(Path(self.project_path, "**",
-                                           RESOURCES_FILE_NAME)),
-                                  recursive=True)
-        return dep_res_files

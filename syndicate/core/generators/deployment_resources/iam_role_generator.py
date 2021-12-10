@@ -38,7 +38,12 @@ class IAMRoleGenerator(BaseDeploymentResourceGenerator):
     def validate_custom_policies_existence(self):
         custom_policies = set(self._dict.get('custom_policies', []))
         _LOG.info(f"Validating existence of these policies: {custom_policies}")
-        available_policies = self._find_resources_by_type(IAM_POLICY)
+        available_policies_dict = self._find_resources_by_type(IAM_POLICY)
+
+        available_policies = set()
+        for value in available_policies_dict.values():
+            available_policies.update(value)
+
         custom_policies = custom_policies - available_policies
         if custom_policies:
             message = f"Custom policies: {custom_policies} was not found " \
