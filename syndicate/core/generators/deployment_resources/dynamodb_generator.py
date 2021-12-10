@@ -1,6 +1,15 @@
-from syndicate.core.generators.deployment_resources.base_generator import \
-    BaseDeploymentResourceGenerator
+import click
+import json
+from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.constants import DYNAMO_TABLE_TYPE
+from syndicate.core.generators.deployment_resources.base_generator import \
+    BaseDeploymentResourceGenerator, BaseConfigurationGenerator
+from syndicate.core.generators import (_read_content_from_file,
+                                       _write_content_to_file)
+
+_LOG = get_logger(
+    'syndicate.core.generators.deployment_resources.iam_role_generator')
+USER_LOG = get_user_logger()
 
 
 class DynamoDBGenerator(BaseDeploymentResourceGenerator):
@@ -14,3 +23,31 @@ class DynamoDBGenerator(BaseDeploymentResourceGenerator):
         'global_indexes': list,
         'autoscaling': list
     }
+
+
+class DynamoDBGlobalIndexGenerator(BaseConfigurationGenerator):
+    REQUIRED_RAPAMS = ['name', 'index_key_name', 'index_key_type']
+    NOT_REQUIRED_DEFAULTS = {
+        'index_sort_key_name': None,
+        'index_sort_key_type': None
+    }
+    def __init__(self, **kwargs):
+        self.table_name = kwargs.pop('table_name')
+        super().__init__(**kwargs)
+
+    def add_global_index_to_table(self):
+        path_with_table = self._get_resource_meta_path(self.table_name,
+                                                       DYNAMO_TABLE_TYPE)
+        if not path_with_table:
+            message = f"Table '{self.table_name}' was not found"
+            _LOG.error(message)
+            raise ValueError(message)
+        USER_LOG.info(f"Adding global index to table '{self.table_name}'...")
+        deployment_resources = json.loads(_read_content_from_file(
+            path_with_table
+        ))
+        deployment_resources[self.table_name]['global_indexes'].append(
+            self.generate_whole_configuration()
+        )
+        _write_content_to_file(path_with_table,
+                               json.dumps(deployment_resources, indent=2))

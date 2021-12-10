@@ -10,6 +10,7 @@ from syndicate.core.helper import resolve_project_path, timeit
 from syndicate.core.helper import ValidRegionParamType
 
 GENERATE_META_GROUP_NAME = 'meta'
+dynamodb_type_param = click.Choice(['S', 'N', 'B'])
 
 @click.group(name=GENERATE_META_GROUP_NAME, cls=OrderedGroup)
 @click.option('--project_path', nargs=1,
@@ -43,7 +44,7 @@ def meta(ctx, project_path):
 @click.option('--sort_key_name', type=str,
               help="DynamoDB sort key. If not specified, the table will have "
                    "only a hash key")
-@click.option('--sort_key_type', type=click.Choice(['S', 'N', 'B']),
+@click.option('--sort_key_type', type=dynamodb_type_param,
               cls=OptionRequiredIf, required_if='sort_key_name',
               help="Required if sort key name is specified")
 @click.option('--read_capacity', type=int,
@@ -62,6 +63,33 @@ def dynamodb(ctx, **kwargs):
     if generator.write_deployment_resource():
         click.echo(f"Table '{kwargs['resource_name']}' was "
                    f"added successfully!")
+
+@meta.command(name='dynamodb_global_index')
+@click.option('-n', '--table_name', required=True, type=str,
+              help="DynamoDB table name to add index to")
+@click.option('--name', required=True, type=str,
+              help="Index name")
+@click.option('--index_key_name', required=True, type=str,
+              help="Index hash key")
+@click.option('--index_key_type', required=True,
+              type=dynamodb_type_param,
+              help='Hash key index type')
+@click.option('--index_sort_key_name', type=str,
+              help='Index sort key')
+@click.option('--index_sort_key_type', type=dynamodb_type_param,
+              cls=OptionRequiredIf, required_if='sort_key_name',
+              help="Sort key type")
+@click.pass_context
+@timeit()
+def dynamodb_global_index(ctx, **kwargs):
+    """Adds dynamodb global index to existing dynamodb table"""
+    kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
+    generator = DynamoDBGlobalIndexGenerator(**kwargs)
+    try:
+        generator.add_global_index_to_table()
+        click.echo(f"Global index '{kwargs['name']}' was added successfully")
+    except ValueError as e:
+        raise click.BadParameter(e)
 
 
 @meta.command(name='s3_bucket')
