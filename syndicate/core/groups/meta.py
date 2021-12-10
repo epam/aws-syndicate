@@ -4,7 +4,7 @@ import json
 import click
 from syndicate.core.generators.deployment_resources import \
     (S3Generator, DynamoDBGenerator, ApiGatewayGenerator, IAMPolicyGenerator,
-     IAMRoleGenerator)
+     IAMRoleGenerator, KinesisStreamGenerator)
 from syndicate.core.generators.lambda_function import PROJECT_PATH_PARAM
 from syndicate.core.helper import OrderedGroup, OptionRequiredIf
 from syndicate.core.helper import check_bundle_bucket_name
@@ -150,4 +150,19 @@ def iam_role(ctx, **kwargs):
     generator = IAMRoleGenerator(**kwargs)
     if generator.write_deployment_resource():
         click.echo(f"Iam role '{kwargs['resource_name']}' was "
+                   f"added successfully")
+
+@meta.command(name='kinesis_stream')
+@click.option('-n', '--resource_name', type=str, required=True,
+              help="Kinesis stream name")
+@click.option('--shard_count', type=int, required=True,
+              help="Number of shards that the stream uses")
+@click.pass_context
+@timeit()
+def kinesis_stream(ctx, **kwargs):
+    """Generates kinesis stream deployment resources template"""
+    kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
+    generator = KinesisStreamGenerator(**kwargs)
+    if generator.write_deployment_resource():
+        click.echo(f"Kinesis stream '{kwargs['resource_name']}' was"
                    f"added successfully")

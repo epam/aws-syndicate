@@ -23,3 +23,5 @@ from syndicate.core.generators.deployment_resources.iam_policy_generator \
         import IAMPolicyGenerator
 from syndicate.core.generators.deployment_resources.iam_role_generator \
         import IAMRoleGenerator
+from syndicate.core.generators.deployment_resources.kinesis_stream_generator \
+        import KinesisStreamGenerator
