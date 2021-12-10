@@ -233,3 +233,20 @@ def sns_topic(ctx, **kwargs):
         raise click.BadParameter(e)
     click.echo(f"SNS topic '{kwargs['resource_name']}' was "
                f"added successfully")
+
+
+@meta.command(name='step_function')
+@click.option('-n', '--resource_name', type=str, required=True,
+              help="Step function activity name")
+@click.pass_context
+@timeit()
+def step_function_activity(ctx, **kwargs):
+    """Generates step function activity deployment resource template"""
+    kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
+    generator = StepFunctionActivityGenerator(**kwargs)
+    try:
+        generator.write()
+    except ValueError as e:
+        raise click.BadParameter(e)
+    click.echo(f"Step function activity '{kwargs['resource_name']}' was"
+               f"added successfully")
