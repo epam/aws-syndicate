@@ -1,10 +1,10 @@
-import json
 from syndicate.core.generators.deployment_resources.base_generator import \
     BaseDeploymentResourceGenerator
-from syndicate.core.constants import IAM_ROLE, IAM_POLICY
-from syndicate.core.generators import _read_content_from_file
-from syndicate.commons.log_helper import get_logger, get_user_logger
 import click
+from syndicate.commons.log_helper import get_logger, get_user_logger
+from syndicate.core.constants import IAM_ROLE, IAM_POLICY
+from syndicate.core.generators.deployment_resources.base_generator import \
+    BaseDeploymentResourceGenerator
 
 _LOG = get_logger(
     'syndicate.core.generators.deployment_resources.iam_role_generator')
@@ -36,14 +36,10 @@ class IAMRoleGenerator(BaseDeploymentResourceGenerator):
 
 
     def validate_custom_policies_existence(self):
-        dep_res_files = self._get_deployment_resources_files()
         custom_policies = set(self._dict.get('custom_policies', []))
         _LOG.info(f"Validating existence of these policies: {custom_policies}")
-        for file in dep_res_files:
-            data = json.loads(_read_content_from_file(file))
-            available_policies = set(filter(
-                lambda name: data[name]['resource_type'] == IAM_POLICY, data))
-            custom_policies = custom_policies - available_policies
+        available_policies = self._find_resources_by_type(IAM_POLICY)
+        custom_policies = custom_policies - available_policies
         if custom_policies:
             message = f"Custom policies: {custom_policies} was not found " \
                       f"in deployment resources"

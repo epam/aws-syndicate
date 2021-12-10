@@ -132,6 +132,20 @@ class BaseDeploymentResourceGenerator:
                                  f"inside {file} was found. Returning...")
                     return file
 
+    def _find_resources_by_type(self, resources_type) -> set:
+        """Return all the found resources names with given resource type"""
+        dep_res_files = self._get_deployment_resources_files()
+        resources = set()
+        _LOG.info(f"Looking for resource '{resources_type}' in meta")
+        for file in dep_res_files:
+            data = json.loads(_read_content_from_file(file))
+            resources.update(filter(
+                lambda name: data[name]['resource_type'] == resources_type,
+                data))
+        _LOG.info(f"Found '{resources}' inside with type '{resources_type}'")
+        return resources
+
+
     def _get_deployment_resources_files(self) -> list:
         """Returns the list of paths to each deployment_resources.json file"""
         _LOG.info(f"Recursively getting all the deployment_resources.json with"
