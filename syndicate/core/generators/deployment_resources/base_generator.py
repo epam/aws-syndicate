@@ -13,17 +13,59 @@ _LOG = get_logger(
 USER_LOG = get_user_logger()
 
 
-class BaseDeploymentResourceGenerator:
+class BaseConfigurationGenerator:
     """The params below are required to be specified in each heir.
     'REQUIRED' and 'NOT_REQUIRED' mean to be required or not required for user
     input. But it doesn't necessarily mean that they are required or not
     required for 'syndicate deploy' comamnd"""
-    RESOURCE_TYPE: str = None
     REQUIRED_RAPAMS: list = []
     NOT_REQUIRED_DEFAULTS: dict = {}
 
     def __init__(self, **kwargs):
         self._dict = dict(kwargs)
+
+    def _resolve_required_configuration(self) -> dict:
+        """Returns a dict with just required params values"""
+        result = {name: self._dict.get(name) for name in self.REQUIRED_RAPAMS}
+        _LOG.info(f"Resolved required params: {result}")
+        return result
+
+    def _resolve_not_required_configuration(self) -> dict:
+        """Return a dict with not required params and sets default values if
+        another one wasn't given"""
+        _LOG.info(f"Resolving not required params...")
+        result = {}
+        for param_name, default_value in self.NOT_REQUIRED_DEFAULTS.items():
+            given_value = self._dict.get(param_name)
+            if not given_value:
+                if isinstance(default_value, type):
+                    to_assign = default_value()
+                    _LOG.info(f"Setting default value - the object "
+                              f"'{to_assign}' of the class '{default_value}' "
+                              f"for param '{param_name}'")
+                    result[param_name] = default_value()
+                elif default_value:
+                    _LOG.info(f"Setting default value '{default_value}' "
+                              f"for param '{param_name}'")
+                    result[param_name] = default_value
+            else:
+                _LOG.info(f"Setting given value '{given_value}' for "
+                          f"param '{param_name}'")
+                result[param_name] = given_value
+        return result
+
+    def generate_whole_configuration(self):
+        """Generates the whole configuration for the entity"""
+        result = self._resolve_required_configuration()
+        result.update(self._resolve_not_required_configuration())
+        return result
+
+
+class BaseDeploymentResourceGenerator(BaseConfigurationGenerator):
+    RESOURCE_TYPE: str = None
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         self.project_path = self._dict.pop('project_path')
         self.resource_name = self._dict.pop('resource_name')
 
@@ -48,42 +90,8 @@ class BaseDeploymentResourceGenerator:
         result = {
             "resource_type": self.RESOURCE_TYPE,
         }
-        result.update(self._resolve_required_configuration())
-        result.update(self._resolve_not_required_configuration())
+        result.update(self.generate_whole_configuration())
         return result
-
-    def _resolve_required_configuration(self) -> dict:
-        """Returns a dict with just required params values"""
-        result = {name: self._dict.get(name) for name in self.REQUIRED_RAPAMS}
-        _LOG.info(f"Resolved required params for {self.RESOURCE_TYPE} "
-                  f"'{self.resource_name}': {result}")
-        return result
-
-    def _resolve_not_required_configuration(self) -> dict:
-        """Return a dict with not required params and sets default values if
-        another one wasn't given"""
-        _LOG.info(f"Resolving not required params for {self.RESOURCE_TYPE} "
-                  f"'{self.resource_name}'")
-        result = {}
-        for param_name, default_value in self.NOT_REQUIRED_DEFAULTS.items():
-            given_value = self._dict.get(param_name)
-            if not given_value:
-                if isinstance(default_value, type):
-                    to_assign = default_value()
-                    _LOG.info(f"Setting default value - the object "
-                              f"'{to_assign}' of the class '{default_value}' "
-                              f"for param '{param_name}'")
-                    result[param_name] = default_value()
-                elif default_value:
-                    _LOG.info(f"Setting default value '{default_value}' "
-                              f"for param '{param_name}'")
-                    result[param_name] = default_value
-            else:
-                _LOG.info(f"Setting given value '{given_value}' for "
-                          f"param '{param_name}'")
-                result[param_name] = given_value
-        return result
-
 
     def write_deployment_resource(self) -> bool:
         """Writes generated meta to root deployment_resources. If resource
@@ -114,7 +122,6 @@ class BaseDeploymentResourceGenerator:
         _write_content_to_file(resources_file,
                                json.dumps(deployment_resources, indent=2))
         return True
-
 
     def _find_file_with_duplicate(self):
         """Looks for self.resouce_name inside each deployment_resource.json.
