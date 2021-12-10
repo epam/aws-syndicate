@@ -414,6 +414,33 @@ class OptionRequiredIf(click.Option):
             return super().handle_parse_result(ctx, opts, args)
 
 
+class ValidRegionParamType(click.types.StringParamType):
+    ALL_VALUE = 'ALL'
+    name = 'region'
+
+    def __init__(self, allowed_all=False):
+        self.allowed_all=allowed_all
+
+    def convert(self, value, param, ctx):
+        value = super().convert(value, param, ctx)
+        if self.allowed_all and value == self.ALL_VALUE:
+            _LOG.info("The value is 'ALL' and 'allowed_all=True', returning..")
+            return value.lower()
+        _LOG.info(f"Checking whether {value} is a valid region...")
+        if value not in ALL_REGIONS:
+            _LOG.error(f"Invalid region '{value}' was given")
+            self.fail(f"Value '{value}' is not a valid region. Try one of "
+                      f"these: {ALL_REGIONS}", param, ctx)
+        _LOG.info(f"Value '{value}' is a valid region, returning..")
+        return value
+
+    def get_metavar(self, param):
+        shorten_regions = [ALL_REGIONS[0], "...", ALL_REGIONS[-1]]
+        if self.allowed_all:
+            shorten_regions.insert(0, self.ALL_VALUE)
+        return f"[{'|'.join(shorten_regions)}]"
+
+
 def check_bundle_bucket_name(ctx, param, value):
     try:
         from syndicate.core.resources.s3_resource import validate_bucket_name
@@ -440,13 +467,4 @@ def resolve_project_path(ctx, param, value):
             if CONFIG and CONFIG.project_path else os.getcwd()
         USER_LOG.info(f"Path: '{value}' was assigned to the "
                       f"parameter: '{param.name}'")
-    return value
-
-def check_valid_region(ctx, param, value):
-    if value:
-        _LOG.info(f"Checking whether {value} is a valid region...")
-        if value not in ALL_REGIONS:
-            _LOG.error(f"Invalid region '{value}' was given")
-            raise BadParameter(f"'{value}' is not a valid region, "
-                               f"try one of these: {ALL_REGIONS}")
     return value
