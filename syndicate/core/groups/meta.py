@@ -34,7 +34,7 @@ def meta(ctx, project_path):
     ctx.obj[PROJECT_PATH_PARAM] = project_path
 
 
-@meta.command(name='dynamodb_table')
+@meta.command(name='dynamodb')
 @click.option('-n', '--resource_name', required=True, type=str,
               help="DynamoDB table name")
 @click.option('--hash_key_name', required=True, type=str,
@@ -57,7 +57,7 @@ def meta(ctx, project_path):
                    "second. If not specified, sets the default value to 1")
 @click.pass_context
 @timeit()
-def dynamodb_table(ctx, **kwargs):
+def dynamodb(ctx, **kwargs):
     """Generates dynamoDB deployment resources template"""
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = DynamoDBGenerator(**kwargs)
