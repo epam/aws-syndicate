@@ -423,7 +423,7 @@ class ValidRegionParamType(click.types.StringParamType):
 
     def convert(self, value, param, ctx):
         value = super().convert(value, param, ctx)
-        if self.allowed_all and value == self.ALL_VALUE:
+        if self.allowed_all and value.upper() == self.ALL_VALUE:
             _LOG.info("The value is 'ALL' and 'allowed_all=True', returning..")
             return value.lower()
         _LOG.info(f"Checking whether {value} is a valid region...")

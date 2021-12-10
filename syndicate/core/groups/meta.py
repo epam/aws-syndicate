@@ -2,9 +2,7 @@ import os
 import json
 
 import click
-from syndicate.core.generators.deployment_resources import \
-    (S3Generator, DynamoDBGenerator, ApiGatewayGenerator, IAMPolicyGenerator,
-     IAMRoleGenerator, KinesisStreamGenerator)
+from syndicate.core.generators.deployment_resources import *
 from syndicate.core.generators.lambda_function import PROJECT_PATH_PARAM
 from syndicate.core.helper import OrderedGroup, OptionRequiredIf
 from syndicate.core.helper import check_bundle_bucket_name
@@ -165,4 +163,19 @@ def kinesis_stream(ctx, **kwargs):
     generator = KinesisStreamGenerator(**kwargs)
     if generator.write_deployment_resource():
         click.echo(f"Kinesis stream '{kwargs['resource_name']}' was"
+                   f"added successfully")
+
+@meta.command(name='sns_topic')
+@click.option('-n', '--resource_name', type=str, required=True,
+              help="SNS topic name")
+@click.option('--region', type=ValidRegionParamType(allowed_all=True),
+              required=True, help="Where the topic should be deployed")
+@click.pass_context
+@timeit()
+def sns_topic(ctx, **kwargs):
+    """Generates sns topic deployment resource template"""
+    kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
+    generator = SNSTopicGenerator(**kwargs)
+    if generator.write_deployment_resource():
+        click.echo(f"SNS topic '{kwargs['resource_name']}' was "
                    f"added successfully")
