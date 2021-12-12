@@ -154,50 +154,13 @@ class IAMConnection(object):
                 "Version": "2012-10-17",
                 "Statement": []
             }
-            if allowed_account:
-                if isinstance(allowed_account, str):
-                    principal = get_account_role_arn(allowed_account)
-                elif isinstance(allowed_account, list):
-                    principal = []
-                    for each in allowed_account:
-                        principal.append(get_account_role_arn(each))
-                else:
-                    raise TypeError(
-                        'Can not create role. allowed_account must be list or '
-                        'str. Actual type: {0}'.format(type(allowed_account)))
-                trusted_accounts = {
-                    "Sid": "",
-                    "Effect": "Allow",
-                    "Principal": {
-                        "AWS": principal
-                    },
-                    "Action": "sts:AssumeRole"
-                }
-                if external_id:
-                    trusted_accounts['Condition'] = {
-                        "StringEquals": {
-                            "sts:ExternalId": external_id
-                        }
-                    }
-                trusted_relationships['Statement'].append(trusted_accounts)
+        if allowed_account:
+            trusted_accounts = IAMConnection._set_allowed_account(
+                allowed_account, external_id, 'create')
+            trusted_relationships['Statement'].append(trusted_accounts)
         if allowed_service:
-            if isinstance(allowed_service, str):
-                principal = "{0}.amazonaws.com".format(allowed_service)
-            elif isinstance(allowed_service, list):
-                principal = []
-                for each in allowed_service:
-                    principal.append("{0}.amazonaws.com".format(each))
-            else:
-                raise TypeError(
-                    'Can not create role. allowed_service must be list or '
-                    'str. Actual type: {0}'.format(type(allowed_service)))
-            trusted_services = {
-                "Effect": "Allow",
-                "Principal": {
-                    "Service": principal
-                },
-                "Action": "sts:AssumeRole"
-            }
+            trusted_services = IAMConnection._set_allowed_service(
+                allowed_service, 'create')
             trusted_relationships['Statement'].append(trusted_services)
         if isinstance(trusted_relationships, dict):
             trusted_relationships = dumps(trusted_relationships)
@@ -464,3 +427,94 @@ class IAMConnection(object):
             token = response.get('Marker')
             policies.extend(response.get('PolicyNames'))
         return policies
+
+    def update_custom_role(self, role, role_name, allowed_account=None,
+                           allowed_service=None, trusted_relationships=None,
+                           external_id=None):
+        updated_role = role['AssumeRolePolicyDocument']
+        if trusted_relationships:
+            trusted_relationships = {
+                "Version": "2012-10-17",
+                "Statement": updated_role.get('Statement', [])
+            }
+        else:
+            trusted_relationships = {
+                "Version": "2012-10-17",
+                "Statement": []
+            }
+        statement = trusted_relationships['Statement']
+        if allowed_account:
+            trusted_accounts = IAMConnection._set_allowed_account(
+                allowed_account, external_id, 'update')
+            statement.append(trusted_accounts)
+        if allowed_service:
+            trusted_services = IAMConnection._set_allowed_service(
+                allowed_service, 'update')
+            statement.append(trusted_services)
+        if isinstance(trusted_relationships, dict):
+            trusted_relationships = dumps(trusted_relationships)
+            statement = updated_role.get('Statement', [])
+            statement.append(trusted_relationships)
+            unique = []
+            for s in statement:
+                if s not in unique:
+                    unique.append(s)
+        try:
+            role = self.client.update_assume_role_policy(
+                RoleName=role_name,
+                PolicyDocument=trusted_relationships)
+            return role['ResponseMetadata']
+        except ClientError as e:
+            if e.response['Error']['Code'] == 'NoSuchEntityException':
+                raise AssertionError(f'Can not update role \'{role_name}\': '
+                                     f'role does not exist.')
+            raise e
+
+    @staticmethod
+    def _set_allowed_account(allowed_account, external_id, action):
+        if isinstance(allowed_account, str):
+            principal = get_account_role_arn(allowed_account)
+        elif isinstance(allowed_account, list):
+            principal = []
+            for each in allowed_account:
+                principal.append(get_account_role_arn(each))
+        else:
+            raise TypeError(
+                f'Can not {action} role. \'allowed_account\' must be list '
+                f'or string. Actual type: {type(allowed_account)}')
+        trusted_accounts = {
+            "Sid": "",
+            "Effect": "Allow",
+            "Principal": {
+                "AWS": principal
+            },
+            "Action": "sts:AssumeRole"
+        }
+        if external_id:
+            trusted_accounts['Condition'] = {
+                "StringEquals": {
+                    "sts:ExternalId": external_id
+                }
+            }
+        return trusted_accounts
+
+    @staticmethod
+    def _set_allowed_service(allowed_service, action):
+        if isinstance(allowed_service, str):
+            principal = "{0}.amazonaws.com".format(allowed_service)
+        elif isinstance(allowed_service, list):
+            principal = []
+            for each in allowed_service:
+                principal.append("{0}.amazonaws.com".format(each))
+        else:
+            raise TypeError(
+                f'Can not {action} role. \'allowed_service\' must be list '
+                f'or string. Actual type: {type(allowed_service)}')
+        trusted_services = {
+            "Effect": "Allow",
+            "Principal": {
+                "Service": principal
+            },
+            "Action": "sts:AssumeRole"
+        }
+        return trusted_services
