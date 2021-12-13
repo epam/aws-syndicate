@@ -518,3 +518,32 @@ class IAMConnection(object):
             "Action": "sts:AssumeRole"
         }
         return trusted_services
+
+    def update_custom_policy_content(self, name, arn, content):
+        policy_resource = self.resource.Policy(arn)
+        policy_json = policy_resource.default_version.document
+        statement = content.get('Statement')
+        if not statement:
+            _LOG.warn(f'Policy \'{name}\' has no or empty \'Statement\' '
+                      f'field.')
+            statement = []
+        policy_json['Statement'] = statement
+        version = content.get('Version')
+        if not statement:
+            _LOG.warn(f'Policy \'{name}\' has no or empty \'Version\' '
+                      f'field.')
+            version = '2012-10-17'
+        policy_json['Version'] = version
+        policy = self.get_policy(arn=arn)
+        policy_version = self.client.get_policy_version(
+            PolicyArn=arn, VersionId=policy['DefaultVersionId']
+        )['PolicyVersion']
+        if content == policy_version['Document']:
+            _LOG.warn(f'No need to update policy \'{name}\': the new and the '
+                      f'old contents are identical.')
+            return
+        self.create_policy_version(policy_arn=arn,
+                                   policy_document=dumps(policy_json),
+                                   set_as_default=True)
+        self.remove_policy_version(policy_arn=arn,
+                                   version_id=policy_version['VersionId'])

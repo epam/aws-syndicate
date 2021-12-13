@@ -74,9 +74,8 @@ class IamResource(BaseResource):
                 role_name)
             if instance_profiles:
                 for each in instance_profiles:
-                    self.iam_conn.remove_role_from_instance_profile(role_name,
-                                                                    each[
-                                                                        'InstanceProfileName'])
+                    self.iam_conn.remove_role_from_instance_profile(
+                        role_name, each['InstanceProfileName'])
             self.iam_conn.remove_role(role_name)
             _LOG.info('IAM role %s was removed.', role_name)
         except ClientError as e:
@@ -202,14 +201,13 @@ class IamResource(BaseResource):
             set_as_default=True)
 
     def update_iam_role(self, args):
-        return self.create_pool(self._update_iam_role, args)
+        return self.create_pool(self._update_role_from_meta, args)
 
     def update_iam_policy(self, args):
-        return self.create_pool(self._update_iam_policy, args)
+        return self.create_pool(self._update_policy_from_meta, args)
 
-    @exit_on_exception
     @unpack_kwargs
-    def _update_iam_role(self, name, meta, context):
+    def _update_role_from_meta(self, name, meta, context):
         _LOG.info(f'Updating iam role: {name}')
 
         existing_role = self.iam_conn.get_role(name)
@@ -273,7 +271,16 @@ class IamResource(BaseResource):
         _LOG.info(f'Updated IAM role {name}.')
         return self.describe_role(name=name, meta=meta)
 
-    @exit_on_exception
     @unpack_kwargs
-    def _update_iam_policy(self, name, meta, context):
-        pass
+    def _update_policy_from_meta(self, name, meta, context):
+        arn = self._build_policy_arn(name)
+        response = self.iam_conn.get_policy(arn)
+        if not response:
+            _LOG.warn(f'{name} policy does not exist.')
+            raise AssertionError(f'{name} policy does not exist.')
+        policy_content = meta['policy_content']
+        self.iam_conn.update_custom_policy_content(name=name,
+                                                   arn=arn,
+                                                   content=policy_content)
+        _LOG.info(f'Updated IAM policy {name}')
+        return self.describe_policy(name=name, meta=meta)
