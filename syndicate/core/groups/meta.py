@@ -78,7 +78,7 @@ def dynamodb(ctx, **kwargs):
 @click.option('--index_sort_key_name', type=str,
               help='Index sort key')
 @click.option('--index_sort_key_type', type=dynamodb_type_param,
-              cls=OptionRequiredIf, required_if='sort_key_name',
+              cls=OptionRequiredIf, required_if='index_sort_key_name',
               help="Sort key type")
 @click.pass_context
 @timeit()
