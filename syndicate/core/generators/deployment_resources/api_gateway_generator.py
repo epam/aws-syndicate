@@ -35,26 +35,34 @@ class ApiGatewayResourceGenerator(BaseConfigurationGenerator):
 
     def write(self):
         """Adds resource to API gateway"""
-        path_with_api = self._get_resource_meta_path(self.api_gateway_name,
-                                                     API_GATEWAY_TYPE)
-        if not path_with_api:
+        paths_with_api = self._get_resource_meta_paths(self.api_gateway_name,
+                                                       API_GATEWAY_TYPE)
+
+        if not paths_with_api:
             message = f"Api gateway '{self.api_gateway_name}' was not found"
             _LOG.error(message)
             raise ValueError(message)
         USER_LOG.info(f"Adding resource '{self.resource_path}' to api "
                       f"'{self.api_gateway_name}'...")
 
-        deployment_resources = json.loads(_read_content_from_file(
-            path_with_api
-        ))
-        if self.resource_path in \
-                deployment_resources[self.api_gateway_name]['resources']:
-            message = f"Resource '{self.resource_path}' " \
-                      f"was found in api gateway '{self.api_gateway_name}'"
-            _LOG.warning(f"Found duplicate while generating meta. {message}")
-            if not click.confirm(f"{message} Overwrite?"):
-                USER_LOG.warning(f"Skipping resource '{self.resource_path}'")
-                return
+        deployment_resources = None
+        path_with_api = None
+        for path in reversed(paths_with_api):
+            deployment_resources = json.loads(_read_content_from_file(path))
+            path_with_api = path
+            if self.resource_path in \
+                    deployment_resources[self.api_gateway_name]['resources']:
+                message = f"Resource '{self.resource_path}' was found in " \
+                          f"api gateway '{self.api_gateway_name}' in file " \
+                          f"'{path}'"
+                _LOG.warning(f"Found duplicate while generating meta. "
+                             f"{message}")
+                if click.confirm(f"{message} Overwrite?"):
+                    break
+                else:
+                    USER_LOG.warning(
+                        f"Skipping resource '{self.resource_path}'")
+                    return
 
         USER_LOG.warning(
             f"Overwriting API gateway resource '{self.resource_path}'")

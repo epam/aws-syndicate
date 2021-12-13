@@ -84,17 +84,21 @@ class BaseConfigurationGenerator:
         _LOG.info(f"Found '{resources}' inside with type '{resources_type}'")
         return resources
 
-    def _get_resource_meta_path(self, resource_name, resource_type):
-        """Returns the path to deployment resouces file, where the resouces
-        with given name and type is declared"""
+    def _get_resource_meta_paths(self, resource_name, resource_type):
+        """Returns the list of paths to deployment resouces file, where the
+        resouces with given name and type is declared. (In case of api gw you
+        possibly may have two declarations of the same api in different files
+        """
         available_resources = self._find_resources_by_type(resource_type)
+        paths = []
         _LOG.info(f"Looking for {resource_type} '{resource_name}' in meta...")
         for path, resources in available_resources.items():
             if resource_name in resources:
                 _LOG.info(f"Found '{resource_name}' in meta from '{path}'")
-                return path
-        _LOG.warning(f"Not found {resource_type} '{resource_name}' in meta")
-        return None
+                paths.append(path)
+        _LOG.info(f"Found {resource_type} '{resource_name}' in "
+                  f"these files: '{paths}'")
+        return paths
 
     def write(self):
         """The main method to write resouces"""
