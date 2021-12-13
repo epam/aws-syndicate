@@ -167,16 +167,12 @@ class BaseDeploymentResourceGenerator(BaseConfigurationGenerator):
 
     def _find_file_with_duplicate(self):
         """Looks for self.resouce_name inside each deployment_resource.json.
-        If a duplicate is found, returns the path to file with it. If the
-        duplicate and the current generator are API_GATEWAYs, the file
-        will be skipped because two API_GATEWAY resources can be merged"""
-        dep_res_files = self._get_deployment_resources_files()
-        for file in dep_res_files:
-            _LOG.info(f'Looking for duplicates inside {file}')
-            data = json.loads(_read_content_from_file(file))
-            if self.resource_name in data:
-                if not self.RESOURCE_TYPE == data[self.resource_name][
-                    'resource_type'] == API_GATEWAY_TYPE:
-                    _LOG.warning(f"Duplicate '{data[self.resource_name]}' "
-                                 f"inside {file} was found. Returning...")
-                    return file
+        If a duplicate is found, returns the path to file with it."""
+        paths = self._get_resource_meta_paths(self.resource_name,
+                                              self.RESOURCE_TYPE)
+        if paths:
+            _LOG.warning(f"Duplicated {self.RESOURCE_TYPE} with name "
+                         f"'{self.resource_name}' was found in: {paths}")
+            return paths[0]
+        _LOG.info(f"No duplicated {self.RESOURCE_TYPE} with "
+                  f"name '{self.resource_name}' was found")
