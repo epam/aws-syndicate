@@ -60,9 +60,9 @@ class ApiGatewayResourceGenerator(BaseConfigurationGenerator):
                 if click.confirm(f"{message} Overwrite?"):
                     break
                 else:
-                    USER_LOG.warning(
-                        f"Skipping resource '{self.resource_path}'")
-                    return
+                    USER_LOG.warning(f"Skipping resource "
+                                     f"'{self.resource_path}'")
+                    raise RuntimeError
 
         USER_LOG.warning(
             f"Overwriting API gateway resource '{self.resource_path}'")

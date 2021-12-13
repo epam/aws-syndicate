@@ -153,6 +153,7 @@ class BaseDeploymentResourceGenerator(BaseConfigurationGenerator):
                 resources_file = duplicated_file
             else:
                 USER_LOG.warning(f"Skipping resource '{self.resource_name}'")
+                raise RuntimeError
 
         deployment_resources = json.loads(_read_content_from_file(
             resources_file

@@ -61,10 +61,7 @@ def dynamodb(ctx, **kwargs):
     """Generates dynamoDB deployment resources template"""
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = DynamoDBGenerator(**kwargs)
-    try:
-        generator.write()
-    except ValueError as e:
-        raise click.BadParameter(e)
+    _generate(generator)
     click.echo(f"Table '{kwargs['resource_name']}' was added successfully!")
 
 
@@ -89,10 +86,7 @@ def dynamodb_global_index(ctx, **kwargs):
     """Adds dynamodb global index to existing dynamodb table"""
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = DynamoDBGlobalIndexGenerator(**kwargs)
-    try:
-        generator.write()
-    except ValueError as e:
-        raise click.BadParameter(e)
+    _generate(generator)
     click.echo(f"Global index '{kwargs['name']}' was added successfully")
 
 
@@ -113,10 +107,7 @@ def s3_bucket(ctx, **kwargs):
     """Generates s3 bucket deployment resources template"""
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = S3Generator(**kwargs)
-    try:
-        generator.write()
-    except ValueError as e:
-        raise click.BadParameter(e)
+    _generate(generator)
     click.echo(f"S3 bucket '{kwargs['resource_name']}' was "
                f"added successfully!")
 
@@ -136,10 +127,7 @@ def api_gateway(ctx, **kwargs):
     """Generates api gateway deployment resources template"""
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = ApiGatewayGenerator(**kwargs)
-    try:
-        generator.write()
-    except ValueError as e:
-        raise click.BadParameter(e)
+    _generate(generator)
     click.echo(f"Api gateway '{kwargs['resource_name']}' was "
                f"added successfully")
 
@@ -157,10 +145,7 @@ def api_gateway_resource(ctx, **kwargs):
     """Adds resource to existing api_gateway"""
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = ApiGatewayResourceGenerator(**kwargs)
-    try:
-        generator.write()
-    except ValueError as e:
-        raise click.BadParameter(e)
+    _generate(generator)
     click.echo(f"Resource '{kwargs['path']}' was added to API gateway "
                f"'{kwargs['api_name']}' successfully")
 
@@ -183,10 +168,7 @@ def iam_policy(ctx, **kwargs):
         except json.decoder.JSONDecodeError as e:
             raise click.BadParameter(str(e), param_hint='policy_content')
     generator = IAMPolicyGenerator(**kwargs)
-    try:
-        generator.write()
-    except ValueError as e:
-        raise click.BadParameter(e)
+    _generate(generator)
     click.echo(f"Iam policy '{kwargs['resource_name']}' was "
                f"added successfully")
 
@@ -211,10 +193,7 @@ def iam_role(ctx, **kwargs):
     """Generates IAM role deployment resources template"""
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = IAMRoleGenerator(**kwargs)
-    try:
-        generator.write()
-    except ValueError as e:
-        raise click.BadParameter(e)
+    _generate(generator)
     click.echo(f"Iam role '{kwargs['resource_name']}' was "
                f"added successfully")
 
@@ -229,10 +208,7 @@ def kinesis_stream(ctx, **kwargs):
     """Generates kinesis stream deployment resources template"""
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = KinesisStreamGenerator(**kwargs)
-    try:
-        generator.write()
-    except ValueError as e:
-        raise click.BadParameter(e)
+    _generate(generator)
     click.echo(f"Kinesis stream '{kwargs['resource_name']}' was"
                f"added successfully")
 
@@ -248,10 +224,7 @@ def sns_topic(ctx, **kwargs):
     """Generates sns topic deployment resource template"""
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = SNSTopicGenerator(**kwargs)
-    try:
-        generator.write()
-    except ValueError as e:
-        raise click.BadParameter(e)
+    _generate(generator)
     click.echo(f"SNS topic '{kwargs['resource_name']}' was "
                f"added successfully")
 
@@ -265,9 +238,16 @@ def step_function_activity(ctx, **kwargs):
     """Generates step function activity deployment resource template"""
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = StepFunctionActivityGenerator(**kwargs)
+    _generate(generator)
+    click.echo(f"Step function activity '{kwargs['resource_name']}' was"
+               f"added successfully")
+
+
+def _generate(generator: BaseConfigurationGenerator):
+    """Just some common actions for this module are gathered in here"""
     try:
         generator.write()
     except ValueError as e:
         raise click.BadParameter(e)
-    click.echo(f"Step function activity '{kwargs['resource_name']}' was"
-               f"added successfully")
+    except RuntimeError as e:
+        raise click.Abort(e)

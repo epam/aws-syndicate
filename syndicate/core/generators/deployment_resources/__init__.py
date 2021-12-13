@@ -29,3 +29,5 @@ from syndicate.core.generators.deployment_resources.sns_topic_generator \
         import SNSTopicGenerator
 from syndicate.core.generators.deployment_resources.\
         step_function_activity_generator import StepFunctionActivityGenerator
+from syndicate.core.generators.deployment_resources.base_generator import \
+        BaseConfigurationGenerator
