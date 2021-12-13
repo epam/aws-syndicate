@@ -137,8 +137,9 @@ def api_gateway(ctx, **kwargs):
               help="Api gateway name to add index to")
 @click.option('--path', required=True, type=click.Path(readable=False),
               help="Resource path to create")
-@click.option('--enable_cors', type=bool, help="Enables CORS on the resource"
-                                               "method")
+@click.option('--enable_cors', type=bool,
+              help="Enables CORS on the resourcemethod. If not specified, sets"
+                   "the default value to False")
 @click.pass_context
 @timeit()
 def api_gateway_resource(ctx, **kwargs):
@@ -159,10 +160,33 @@ def api_gateway_resource(ctx, **kwargs):
               type=click.Choice(['POST', 'GET', 'DELETE', 'PUT', 'HEAD',
                                  'PATCH', 'ANY']),
               help="Resource method to add")
+@click.option('--integration_type', type=str,
+              help="The resource which the method is connected to: "
+                   "[lambda|mock|http|mock]. If not specified, sets the default"
+                   "value to 'mock'")
+@click.option('--lambda_name', type=str, help="Lambda name. Required if "
+                                              "integration type is lambda")
+@click.option('--lambda_region', type=ValidRegionParamType(),
+              help="The region where the lambda is located. If not specified, "
+                   "sets the default value from syndicate config")
+@click.option('--authorization_type',
+              type=click.Choice(["AWS_IAM", "CUSTOM", "COGNITO_USER_POOLS"]),
+              help="The method's authorization type. If not specified, sets "
+                   "the default value to 'NONE'")
+@click.option('--api_key_required', type=bool,
+              help="Specifies whether the method requires a valid API key. "
+                   "If not specified, the default value is set to False")
 @click.pass_context
 @timeit()
 def api_gateway_resource_method(ctx, **kwargs):
     """Adds a method to existing api gateway resource"""
+
+    if kwargs.get('integration_type') == 'lambda' \
+            and not kwargs.get('lambda_name'):
+        raise click.MissingParameter(
+            "Lambda name is required if the integration type is 'lambda'",
+            param_type='option', param_hint='lambda_name')
+
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = ApiGatewayResourceMethodGenerator(**kwargs)
     _generate(generator)

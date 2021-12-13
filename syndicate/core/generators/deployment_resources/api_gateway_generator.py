@@ -90,6 +90,15 @@ class ApiGatewayResourceGenerator(ApiGatewayConfigurationGenerator):
 class ApiGatewayResourceMethodGenerator(ApiGatewayConfigurationGenerator):
     NOT_REQUIRED_DEFAULTS = {
         'authorization_type': "NONE",
+        'integration_type': 'mock',
+        'lambda_name': None,
+        'lamdba_region': None,
+        'api_key_required': bool,
+        'method_request_parameters': dict,
+        'integration_request_body_template': dict,
+        'responses': list,
+        'integration_responses': list,
+        'default_error_pattern': True,
     }
 
     def __init__(self, **kwargs):
@@ -136,3 +145,22 @@ class ApiGatewayResourceMethodGenerator(ApiGatewayConfigurationGenerator):
             self.generate_whole_configuration()
         _write_content_to_file(path_with_api,
                                json.dumps(deployment_resources, indent=2))
+
+    def _resolve_not_required_configuration(self):
+        if self._dict.get('integration_type') == 'lambda':
+            self.validate_integration_lambda_existence()
+        else:
+            if 'lamdba_name' in self._dict:
+                self._dict.pop('lambda_name')
+        return super()._resolve_not_required_configuration()
+
+    def validate_integration_lambda_existence(self):
+        from syndicate.core import PROJECT_STATE
+        lambda_name = self._dict.get('lambda_name')
+        _LOG.info(f"Validating existence of lambda: {lambda_name}")
+
+        if not lambda_name in PROJECT_STATE.lambdas:
+            message = f"Lambda '{lambda_name}' wasn't found"
+            _LOG.error(f"Validation error: {message}")
+            raise ValueError(message)
+        _LOG.info(f"Validation successfully finished, lambda exists")
