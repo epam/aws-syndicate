@@ -18,7 +18,8 @@ from syndicate.core.generators.deployment_resources.dynamodb_generator \
 from syndicate.core.generators.deployment_resources.s3_generator \
         import S3Generator
 from syndicate.core.generators.deployment_resources.api_gateway_generator \
-        import ApiGatewayGenerator, ApiGatewayResourceGenerator
+        import ApiGatewayGenerator, ApiGatewayResourceGenerator, \
+        ApiGatewayResourceMethodGenerator
 from syndicate.core.generators.deployment_resources.iam_policy_generator \
         import IAMPolicyGenerator
 from syndicate.core.generators.deployment_resources.iam_role_generator \
