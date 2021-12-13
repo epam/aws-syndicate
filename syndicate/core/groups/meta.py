@@ -144,6 +144,27 @@ def api_gateway(ctx, **kwargs):
                f"added successfully")
 
 
+@meta.command(name='api_gateway_resource')
+@click.option('-n', '--api_name', required=True, type=str,
+              help="Api gateway name to add index to")
+@click.option('--path', required=True, type=click.Path(readable=False),
+              help="Resource path to create")
+@click.option('--enable_cors', type=bool, help="Enables CORS on the resource"
+                                               "method")
+@click.pass_context
+@timeit()
+def api_gateway_resource(ctx, **kwargs):
+    """Adds resource to existing api_gateway"""
+    kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
+    generator = ApiGatewayResourceGenerator(**kwargs)
+    try:
+        generator.write()
+    except ValueError as e:
+        raise click.BadParameter(e)
+    click.echo(f"Resource '{kwargs['path']}' was added to API gateway "
+               f"'{kwargs['api_name']}' successfully")
+
+
 @meta.command(name='iam_policy')
 @click.option('-n', '--resource_name', required=True, type=str,
               help='IAM policy name')

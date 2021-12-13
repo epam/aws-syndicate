@@ -8,7 +8,7 @@ from syndicate.core.generators import (_read_content_from_file,
                                        _write_content_to_file)
 
 _LOG = get_logger(
-    'syndicate.core.generators.deployment_resources.iam_role_generator')
+    'syndicate.core.generators.deployment_resources.dynamodb_generator')
 USER_LOG = get_user_logger()
 
 
