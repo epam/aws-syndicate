@@ -31,12 +31,13 @@ class BaseConfigurationGenerator:
         _LOG.info(f"Resolved required params: {result}")
         return result
 
-    def _resolve_not_required_configuration(self) -> dict:
+    def _resolve_not_required_configuration(self, defaults_dict=None) -> dict:
         """Return a dict with not required params and sets default values if
         another one wasn't given"""
+        defaults_dict = defaults_dict or self.NOT_REQUIRED_DEFAULTS
         _LOG.info(f"Resolving not required params...")
         result = {}
-        for param_name, default_value in self.NOT_REQUIRED_DEFAULTS.items():
+        for param_name, default_value in defaults_dict.items():
             given_value = self._dict.get(param_name)
             if not given_value:
                 if isinstance(default_value, type):
@@ -45,6 +46,10 @@ class BaseConfigurationGenerator:
                               f"'{to_assign}' of the class '{default_value}' "
                               f"for param '{param_name}'")
                     result[param_name] = default_value()
+                elif isinstance(default_value, dict):
+                    result[param_name] = \
+                        self._resolve_not_required_configuration(
+                            defaults_dict=default_value)
                 elif default_value:
                     _LOG.info(f"Setting default value '{default_value}' "
                               f"for param '{param_name}'")
