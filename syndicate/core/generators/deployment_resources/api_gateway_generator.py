@@ -15,8 +15,8 @@ USER_LOG = get_user_logger()
 
 class ApiGatewayGenerator(BaseDeploymentResourceGenerator):
     RESOURCE_TYPE = API_GATEWAY_TYPE
-    REQUIRED_RAPAMS = ['deploy_stage', ]
-    NOT_REQUIRED_DEFAULTS = {
+    CONFIGURATION = {
+        'deploy_stage': None,
         'dependencies': list,
         'resources': dict,
         'minimum_compression_size': None
@@ -42,7 +42,7 @@ class ApiGatewayConfigurationGenerator(BaseConfigurationGenerator):
 
 
 class ApiGatewayResourceGenerator(ApiGatewayConfigurationGenerator):
-    NOT_REQUIRED_DEFAULTS = {
+    CONFIGURATION = {
         'enable_cors': bool
     }
 
@@ -82,13 +82,13 @@ class ApiGatewayResourceGenerator(ApiGatewayConfigurationGenerator):
         USER_LOG.info(f"Adding resource '{self.resource_path}' to api "
                       f"'{self.api_gateway_name}'...")
         deployment_resources[self.api_gateway_name]['resources'][
-            self.resource_path] = self.generate_whole_configuration()
+            self.resource_path] = self._resolve_configuration()
         _write_content_to_file(path_with_api,
                                json.dumps(deployment_resources, indent=2))
 
 
 class ApiGatewayResourceMethodGenerator(ApiGatewayConfigurationGenerator):
-    NOT_REQUIRED_DEFAULTS = {
+    CONFIGURATION = {
         'authorization_type': "NONE",
         'integration_type': 'mock',
         'lambda_name': None,
@@ -142,17 +142,17 @@ class ApiGatewayResourceMethodGenerator(ApiGatewayConfigurationGenerator):
 
         deployment_resources[self.api_gateway_name]['resources'][
             self.resource_path][self.method] = \
-            self.generate_whole_configuration()
+            self._resolve_configuration()
         _write_content_to_file(path_with_api,
                                json.dumps(deployment_resources, indent=2))
 
-    def _resolve_not_required_configuration(self):
+    def _resolve_configuration(self, defaults_dict=None):
         if self._dict.get('integration_type') == 'lambda':
             self.validate_integration_lambda_existence()
         else:
             if 'lamdba_name' in self._dict:
                 self._dict.pop('lambda_name')
-        return super()._resolve_not_required_configuration()
+        return super()._resolve_configuration()
 
     def validate_integration_lambda_existence(self):
         from syndicate.core import PROJECT_STATE

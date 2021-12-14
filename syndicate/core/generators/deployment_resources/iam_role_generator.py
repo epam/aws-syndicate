@@ -13,8 +13,8 @@ USER_LOG = get_user_logger()
 
 class IAMRoleGenerator(BaseDeploymentResourceGenerator):
     RESOURCE_TYPE = IAM_ROLE
-    REQUIRED_RAPAMS = ['principal_service', ]
-    NOT_REQUIRED_DEFAULTS = {
+    CONFIGURATION = {
+        "principal_service": None,
         "predefined_policies": list,
         "custom_policies": list,
         "allowed_accounts": list,
@@ -22,7 +22,7 @@ class IAMRoleGenerator(BaseDeploymentResourceGenerator):
         "instance_profile": bool
     }
 
-    def _resolve_not_required_configuration(self) -> dict:
+    def _resolve_configuration(self, defaults_dict=None) -> dict:
         self.validate_custom_policies_existence()
 
         if self._dict['principal_service'] == 'ec2' and \
@@ -30,7 +30,7 @@ class IAMRoleGenerator(BaseDeploymentResourceGenerator):
             USER_LOG.info("Setting 'instance_profile' value to 'True' because "
                           "it wasn't specified and principal service is 'ec2'")
             self._dict['instance_profile'] = True
-        return super()._resolve_not_required_configuration()
+        return super()._resolve_configuration()
 
 
     def validate_custom_policies_existence(self):

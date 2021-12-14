@@ -18,23 +18,16 @@ class BaseConfigurationGenerator:
     'REQUIRED' and 'NOT_REQUIRED' mean to be required or not required for user
     input. But it doesn't necessarily mean that they are required or not
     required for 'syndicate deploy' comamnd"""
-    REQUIRED_RAPAMS: list = []
-    NOT_REQUIRED_DEFAULTS: dict = {}
+    CONFIGURATION: dict = {}
 
     def __init__(self, **kwargs):
         self._dict = dict(kwargs)
         self.project_path = self._dict.pop('project_path')
 
-    def _resolve_required_configuration(self) -> dict:
-        """Returns a dict with just required params values"""
-        result = {name: self._dict.get(name) for name in self.REQUIRED_RAPAMS}
-        _LOG.info(f"Resolved required params: {result}")
-        return result
-
-    def _resolve_not_required_configuration(self, defaults_dict=None) -> dict:
+    def _resolve_configuration(self, defaults_dict=None) -> dict:
         """Return a dict with not required params and sets default values if
         another one wasn't given"""
-        defaults_dict = defaults_dict or self.NOT_REQUIRED_DEFAULTS
+        defaults_dict = defaults_dict or self.CONFIGURATION
         _LOG.info(f"Resolving not required params...")
         result = {}
         for param_name, default_value in defaults_dict.items():
@@ -48,7 +41,7 @@ class BaseConfigurationGenerator:
                     result[param_name] = default_value()
                 elif isinstance(default_value, dict):
                     result[param_name] = \
-                        self._resolve_not_required_configuration(
+                        self._resolve_configuration(
                             defaults_dict=default_value)
                 elif default_value:
                     _LOG.info(f"Setting default value '{default_value}' "
@@ -58,12 +51,6 @@ class BaseConfigurationGenerator:
                 _LOG.info(f"Setting given value '{given_value}' for "
                           f"param '{param_name}'")
                 result[param_name] = given_value
-        return result
-
-    def generate_whole_configuration(self):
-        """Generates the whole configuration for the entity"""
-        result = self._resolve_required_configuration()
-        result.update(self._resolve_not_required_configuration())
         return result
 
     def _get_deployment_resources_files(self) -> list:
@@ -138,7 +125,7 @@ class BaseDeploymentResourceGenerator(BaseConfigurationGenerator):
         result = {
             "resource_type": self.RESOURCE_TYPE,
         }
-        result.update(self.generate_whole_configuration())
+        result.update(self._resolve_configuration())
         return result
 
     def write(self):

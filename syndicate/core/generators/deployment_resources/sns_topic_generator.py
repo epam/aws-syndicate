@@ -5,7 +5,7 @@ from syndicate.core.constants import SNS_TOPIC_TYPE
 
 class SNSTopicGenerator(BaseDeploymentResourceGenerator):
     RESOURCE_TYPE = SNS_TOPIC_TYPE
-    REQUIRED_RAPAMS = ['region']
-    NOT_REQUIRED_DEFAULTS = {
+    CONFIGURATION = {
+        'region': None,
         "event_sources": list
     }

@@ -5,12 +5,12 @@ from syndicate.core.constants import IAM_POLICY
 
 class IAMPolicyGenerator(BaseDeploymentResourceGenerator):
     RESOURCE_TYPE = IAM_POLICY
-    NOT_REQUIRED_DEFAULTS = {
+    CONFIGURATION = {
         "policy_content": dict
     }
 
-    def _resolve_not_required_configuration(self) -> dict:
-        result = super()._resolve_not_required_configuration()
+    def _resolve_configuration(self, defaults_dict=None) -> dict:
+        result = super()._resolve_configuration()
         if not result['policy_content']:
             example_resource = {
                 "Version": "2012-10-17",

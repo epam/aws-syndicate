@@ -14,8 +14,9 @@ USER_LOG = get_user_logger()
 
 class DynamoDBGenerator(BaseDeploymentResourceGenerator):
     RESOURCE_TYPE = DYNAMO_TABLE_TYPE
-    REQUIRED_RAPAMS = ['hash_key_name', 'hash_key_type']
-    NOT_REQUIRED_DEFAULTS = {
+    CONFIGURATION = {
+        'hash_key_name': None,
+        'hash_key_type': None,
         'sort_key_name': None,
         'sort_key_type': None,
         'read_capacity': 1,
@@ -26,8 +27,10 @@ class DynamoDBGenerator(BaseDeploymentResourceGenerator):
 
 
 class DynamoDBGlobalIndexGenerator(BaseConfigurationGenerator):
-    REQUIRED_RAPAMS = ['name', 'index_key_name', 'index_key_type']
-    NOT_REQUIRED_DEFAULTS = {
+    CONFIGURATION = {
+        'name': None,
+        'index_key_name': None,
+        'index_key_type': None,
         'index_sort_key_name': None,
         'index_sort_key_type': None
     }
@@ -49,15 +52,15 @@ class DynamoDBGlobalIndexGenerator(BaseConfigurationGenerator):
             path_with_table
         ))
         deployment_resources[self.table_name]['global_indexes'].append(
-            self.generate_whole_configuration()
+            self._resolve_configuration()
         )
         _write_content_to_file(path_with_table,
                                json.dumps(deployment_resources, indent=2))
 
 
 class DynamoDBAutoscalingGenerator(BaseConfigurationGenerator):
-    REQUIRED_RAPAMS = ['resource_name']
-    NOT_REQUIRED_DEFAULTS = {
+    CONFIGURATION = {
+        'resource_name': None,
         'role_name': 'AWSServiceRoleForApplicationAutoScaling_DynamoDBTable',
         'min_capacity': 1,
         'max_capacity': 10,
@@ -89,7 +92,7 @@ class DynamoDBAutoscalingGenerator(BaseConfigurationGenerator):
             path_with_table
         ))
         deployment_resources[self.table_name]['autoscaling'].append(
-            self.generate_whole_configuration()
+            self._resolve_configuration()
         )
         _write_content_to_file(path_with_table,
                                json.dumps(deployment_resources, indent=2))
