@@ -33,3 +33,5 @@ from syndicate.core.generators.deployment_resources.\
         step_function_activity_generator import StepFunctionActivityGenerator
 from syndicate.core.generators.deployment_resources.base_generator import \
         BaseConfigurationGenerator
+from syndicate.core.generators.deployment_resources.ec2_instance_generator \
+        import EC2InstanceGenerator

@@ -325,6 +325,42 @@ def step_function_activity(ctx, **kwargs):
                f"added successfully")
 
 
+@meta.command(name='ec2_instance')
+@click.option('-n', '--resource_name', type=str, required=True,
+              help="Instance name")
+@click.option('--key_name', type=str, required=True,
+             help="SHH key to access the instance")
+@click.option('--image_id', type=str, required=True,
+             help="Image id to create the instance from")
+@click.option('--instance_type', type=str,
+             help="Instance type")
+@click.option('--disable_api_termination', type=bool,
+              help="Api termination protection")
+@click.option('--security_group_ids', type=str, multiple=True,
+              help="Security group ids")
+@click.option('--security_group_names', type=str, multiple=True,
+              help="Security group ids")  # ???
+@click.option('--availability_zone', type=str,
+              help="Instance availability zone")
+@click.option('--subnet_id', type=str, cls=OptionRequiredIf,
+              required_if="availability_zone",
+              help="Subnet ID (required if availability zone is set)")
+@click.option('--userdata_file', type=str,
+              help="File path to userdata (file relative pathname from the"
+                   "directory which is set up in the env variable 'SDCT_CONF'")
+@click.option('--iam_role', type=str,
+              help="Instance IAM role")
+@click.pass_context
+@timeit()
+def ec2_instance(ctx, **kwargs):
+    """Generates ec2 instance deployment resource template"""
+    kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
+    generator = EC2InstanceGenerator(**kwargs)
+    _generate(generator)
+    click.echo(f"EC2 instance '{kwargs['resource_name']}' was added"
+               f"successfully")
+
+
 def _generate(generator: BaseConfigurationGenerator):
     """Just some common actions for this module are gathered in here"""
     try:
