@@ -56,13 +56,16 @@ class DynamoDBGlobalIndexGenerator(BaseConfigurationGenerator):
 
 
 class DynamoDBAutoscalingGenerator(BaseConfigurationGenerator):
-    REQUIRED_RAPAMS = ['resource_name', 'role_name']
+    REQUIRED_RAPAMS = ['resource_name']
     NOT_REQUIRED_DEFAULTS = {
+        'role_name': 'AWSServiceRoleForApplicationAutoScaling_DynamoDBTable',
         'min_capacity': 1,
         'max_capacity': 10,
         'config': {
+            "policy_name": None,
             "target_utilization": 70,
-            "policy_name": "default_not_existing_policy_name"
+            "scale_in_cooldown": 60,  # seconds
+            "scale_out_cooldown": 60
         },
         'dimension': "dynamodb:table:ReadCapacityUnits",
     }

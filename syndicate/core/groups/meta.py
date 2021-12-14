@@ -93,22 +93,30 @@ def dynamodb_global_index(ctx, **kwargs):
 @meta.command(name='dynamodb_autoscaling')
 @click.option('-n', '--table_name', type=str, required=True,
               help="DynamoDB table name to add autoscaling to")
-@click.option('--role_name', type=str, required=True,
-              help="The name of the role, which performs autoscaling")
 @click.option('--policy_name', type=str, required=True,
               help="Autoscaling policy name")
 @click.option('--min_capacity', type=click.IntRange(min=1),
               help="Minimum capacity level. If not specified, sets the default"
-                   "value to 1")
+                   " value to 1")
 @click.option('--max_capacity', type=click.IntRange(min=1),
               help="Maximum capacity level. If not specified, sets the default"
-                   "value to 10")
+                   " value to 10")
 @click.option('--target_utilization', type=click.IntRange(min=20, max=90),
               help="Target utilization in autoscaling. If not specified, sets "
                    "the default value to 70 %")
+@click.option('--scale_in_cooldown', type=click.IntRange(min=0),
+              help="Scaling policy value of in cooldown in seconds. Is not "
+                   "specified, sets the default value to 60")
+@click.option('--scale_out_cooldown', type=click.IntRange(min=0),
+              help="Scaling policy value of out cooldown in seconds. Is not "
+                   "specified, sets the default value to 60")
 @click.option('--dimension', type=str,
               help="Autoscaling dimension. If not specified, sets the default"
                    "the default value to 'dynamodb:table:ReadCapacityUnits'")
+@click.option('--role_name', type=str,
+              help="The name of the role, which performs autoscaling. If not "
+                   "specified, sets the value to default service linked role: "
+                   "'AWSServiceRoleForApplicationAutoScaling_DynamoDBTable'")
 @click.pass_context
 @timeit()
 def dynamodb_autoscaling(ctx, **kwargs):
