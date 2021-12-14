@@ -14,7 +14,8 @@
     limitations under the License.
 """
 from syndicate.core.generators.deployment_resources.dynamodb_generator \
-        import DynamoDBGenerator, DynamoDBGlobalIndexGenerator
+        import DynamoDBGenerator, DynamoDBGlobalIndexGenerator, \
+        DynamoDBAutoscalingGenerator
 from syndicate.core.generators.deployment_resources.s3_generator \
         import S3Generator
 from syndicate.core.generators.deployment_resources.api_gateway_generator \

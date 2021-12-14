@@ -53,3 +53,40 @@ class DynamoDBGlobalIndexGenerator(BaseConfigurationGenerator):
         )
         _write_content_to_file(path_with_table,
                                json.dumps(deployment_resources, indent=2))
+
+
+class DynamoDBAutoscalingGenerator(BaseConfigurationGenerator):
+    REQUIRED_RAPAMS = ['resource_name', 'role_name']
+    NOT_REQUIRED_DEFAULTS = {
+        'min_capacity': 1,
+        'max_capacity': 10,
+        'config': {
+            "target_utilization": 70,
+            "policy_name": "default_not_existing_policy_name"
+        },
+        'dimension': "dynamodb:table:ReadCapacityUnits",
+    }
+
+    def __init__(self, **kwargs):
+        self.table_name = kwargs.pop('table_name')
+        kwargs['resource_name'] = self.table_name
+        super().__init__(**kwargs)
+
+    def write(self):
+        """Adds autoscaling to dynamodb"""
+        paths_with_table = self._get_resource_meta_paths(self.table_name,
+                                                         DYNAMO_TABLE_TYPE)
+        if not paths_with_table:
+            message = f"Table '{self.table_name}' was not found"
+            _LOG.error(message)
+            raise ValueError(message)
+        path_with_table = paths_with_table[0]
+        USER_LOG.info(f"Adding autoscaling to table '{self.table_name}'...")
+        deployment_resources = json.loads(_read_content_from_file(
+            path_with_table
+        ))
+        deployment_resources[self.table_name]['autoscaling'].append(
+            self.generate_whole_configuration()
+        )
+        _write_content_to_file(path_with_table,
+                               json.dumps(deployment_resources, indent=2))
