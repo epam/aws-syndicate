@@ -466,8 +466,8 @@ class IAMConnection(object):
             return role['ResponseMetadata']
         except ClientError as e:
             if e.response['Error']['Code'] == 'NoSuchEntityException':
-                raise AssertionError(f'Can not update role \'{role_name}\': '
-                                     f'role does not exist.')
+                _LOG.warn(f'Can not update role \'{role_name}\': role does '
+                          f'not exist.')
             raise e
 
     @staticmethod
@@ -547,3 +547,63 @@ class IAMConnection(object):
                                    set_as_default=True)
         self.remove_policy_version(policy_arn=arn,
                                    version_id=policy_version['VersionId'])
+
+    def create_group(self, name):
+        return self.client.create_group(GroupName=name)
+
+    def get_group(self, name):
+        groups = []
+        try:
+            response = self.client.get_group(GroupName=name)
+        except ClientError as e:
+            if e.response['Error']['Code'] == 'NoSuchEntityException':
+                _LOG.warn(f'Group {name} is not found')
+                return []
+            raise e
+        token = response.get('Marker')
+        group_item = response.get('Group')
+        group_item.update({'Users': response.get('Users')})
+        groups.extend(group_item)
+        while token:
+            response = self.client.get_group(GroupName=name, Marker=token)
+            token = response.get('Marker')
+            group_item = response.get('Group')
+            group_item.update({'Users': response.get('Users')})
+            groups.extend(group_item)
+        return groups
+
+    def add_user_to_group(self, group_name, username):
+        try:
+            response = self.client.add_user_to_group(GroupName=group_name,
+                                                     UserName=username)
+            return response
+        except ClientError as e:
+            if e.response['Error']['Code'] == 'NoSuchEntityException':
+                _LOG.warn(f'Group {group_name} or username {username} is not '
+                          f'found')
+                return []
+            raise e
+
+    def remove_user_from_group(self, group_name, username):
+        try:
+            response = self.client.remove_user_from_group(GroupName=group_name,
+                                                          UserName=username)
+            return response
+        except ClientError as e:
+            if e.response['Error']['Code'] == 'NoSuchEntityException':
+                _LOG.warn(f'Group {group_name} or username {username} is not '
+                          f'found')
+            raise e
+
+    def attach_group_policy(self, group_name, arn):
+        try:
+            response = self.client.attach_group_policy(GroupName=group_name,
+                                                       PolicyArn=arn)
+            return response
+        except ClientError as e:
+            if e.response['Error']['Code'] == 'NoSuchEntityException':
+                _LOG.warn(f'Group {group_name} is not found')
+            elif e.response['Error']['Code'] == 'LimitExceededException':
+                _LOG.warn(f'Can not attach more than 10 rules to group '
+                          f'{group_name}')
+            raise e

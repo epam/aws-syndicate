@@ -224,14 +224,16 @@ class IamResource(BaseResource):
         trust_rltn = meta.get('trusted_relationships')
         if principal_service and '{region}' in principal_service:
             principal_service = principal_service.format(region=self.region)
-        self.iam_conn.update_custom_role(
+        response = self.iam_conn.update_custom_role(
             role_name=name,
             allowed_account=list(allowed_accounts),
             allowed_service=principal_service,
             external_id=external_id,
             trusted_relationships=trust_rltn,
             role=existing_role)
-
+        if not response:
+            raise AssertionError(f'Can not update role \'{name}\': '
+                                 f'role does not exist.')
         if instance_profile:
             profiles = self.iam_conn.get_instance_profiles_for_role(
                 role_name=name)
