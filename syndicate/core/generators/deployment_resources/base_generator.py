@@ -14,10 +14,15 @@ USER_LOG = get_user_logger()
 
 
 class BaseConfigurationGenerator:
-    """The params below are required to be specified in each heir.
-    'REQUIRED' and 'NOT_REQUIRED' mean to be required or not required for user
-    input. But it doesn't necessarily mean that they are required or not
-    required for 'syndicate deploy' comamnd"""
+    """Contains params and their values for the current entity:
+    - if the value of param is None, the param will be set only if it's
+      given. If it isn't given, will be omitted;
+    - if the value of param is set, will be used as default in case user
+      doesn't put it;
+    - if the value is type (dict, list, bool), the value will the the object
+      of the type;
+    - if the value is a dict, it will be handled and resolved resursively.
+    """
     CONFIGURATION: dict = {}
 
     def __init__(self, **kwargs):
@@ -25,8 +30,8 @@ class BaseConfigurationGenerator:
         self.project_path = self._dict.pop('project_path')
 
     def _resolve_configuration(self, defaults_dict=None) -> dict:
-        """Return a dict with not required params and sets default values if
-        another one wasn't given"""
+        """Returns a dict with resolved params for current entity based on
+        given params"""
         defaults_dict = defaults_dict or self.CONFIGURATION
         _LOG.info(f"Resolving not required params...")
         result = {}
