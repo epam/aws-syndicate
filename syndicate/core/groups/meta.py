@@ -416,6 +416,28 @@ def sqs_queue(ctx, **kwargs):
                f"successfully")
 
 
+@meta.command(name="sns_application")
+@click.option('-n', '--resource_name', type=str, required=True,
+              help="The name of the sns application")
+@click.option('--platform', required=True,
+              type=click.Choice(['GCM', 'ADM', 'APNS', 'APNS_SANDBOX']),
+              help="SNS application platform")
+@click.option('--region', type=ValidRegionParamType(),
+              help="The region where the application is deployed. Default "
+                   "value is the one from syndicate config")
+@click.option('--attributes', type=(str, str), multiple=True,
+              help="SNS application attributes")
+@click.pass_context
+@timeit()
+def sns_application(ctx, **kwargs):
+    """Generates sns application deployment resources template"""
+    kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
+    generator = SNSApplicationGenerator(**kwargs)
+    _generate(generator)
+    click.echo(f"SNS application '{kwargs['resource_name']}' was added "
+               f"successfully")
+
+
 def _generate(generator: BaseConfigurationGenerator):
     """Just some common actions for this module are gathered in here"""
     try:

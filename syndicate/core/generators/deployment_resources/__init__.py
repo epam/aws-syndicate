@@ -37,3 +37,5 @@ from syndicate.core.generators.deployment_resources.ec2_instance_generator \
         import EC2InstanceGenerator
 from syndicate.core.generators.deployment_resources.sqs_queue_generator \
         import SQSQueueGenerator
+from syndicate.core.generators.deployment_resources.sns_application_generator \
+        import SNSApplicationGenerator
