@@ -361,6 +361,43 @@ def ec2_instance(ctx, **kwargs):
                f"successfully")
 
 
+@meta.command(name='sqs_queue')
+@click.option('-n', '--resource_name', type=str, required=True,
+              help="SQS queue name")
+@click.option('--region', type=ValidRegionParamType(),
+              help="The region where the queue is deployed. Default value is "
+                   "the one from syndicate config")
+@click.option('--fifo_queue', type=bool,
+              help="If True, the queue is FIFO. Default value is False")
+@click.option('--visibility_timeout', type=click.IntRange(min=0, max=43200),
+              help="The visibility timeout for the queue. Default value is 30")
+@click.option('--delay_seconds', type=click.IntRange(min=0, max=900),
+              help="The length of time in seconds for which the delivery "
+                   "of all the messages in the queue is delayed. Default "
+                   "value is 0")
+@click.option('--maximum_message_size',
+              type=click.IntRange(min=1024, max=262144),
+              help="The limit of how many bytes a message can contain before "
+                   "Amazon SQS rejects it. Default value is 1024")
+@click.option('--message_retention_period', type=click.IntRange(min=60,
+                                                                max=1209600),
+              help="The length of time in seconds for which Amazon SQS "
+                   "retains a message. Default value is 60")
+@click.option('--receive_message_wait_time_seconds',
+              type=click.IntRange(min=0, max=20),
+              help="The length of time in seconds for which a 'ReceiveMessage'"
+                   " action waits for a message to arrive")
+@click.pass_context
+@timeit()
+def sqs_queue(ctx, **kwargs):
+    """Generates sqs queue deployment deployment resource template"""
+    kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
+    generator = SQSQueueGenerator(**kwargs)
+    _generate(generator)
+    click.echo(f"SQS queue '{kwargs['resource_name']}' was added "
+               f"successfully")
+
+
 def _generate(generator: BaseConfigurationGenerator):
     """Just some common actions for this module are gathered in here"""
     try:
