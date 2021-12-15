@@ -191,7 +191,12 @@ class ProcessorFacade:
             LAMBDA_TYPE:
                 self.resources_provider.lambda_resource().update_lambda,
             LAMBDA_LAYER_TYPE:
-                self.resources_provider.lambda_resource().update_lambda_layer
+                self.resources_provider.lambda_resource().update_lambda_layer,
+            BATCH_JOBDEF_TYPE:
+                self.resources_provider.batch_jobdef().update_job_definition,
+            BATCH_COMPENV_TYPE:
+                self.resources_provider.batch_compenv()
+                    .update_compute_environment
         }
 
     def resource_configuration_processor(self):

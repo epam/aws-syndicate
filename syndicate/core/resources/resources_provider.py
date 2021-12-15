@@ -243,7 +243,9 @@ class ResourceProvider:
             if not self._batch_compenv_resource:
                 self._batch_compenv_resource = BatchComputeEnvironmentResource(
                     batch_conn=self._conn_provider.batch(),
-                    iam_conn=self._conn_provider.iam()
+                    iam_conn=self._conn_provider.iam(),
+                    region=self.config.region,
+                    account_id=self.config.account_id
                 )
             return self._batch_compenv_resource
 
