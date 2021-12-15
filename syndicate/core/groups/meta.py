@@ -395,6 +395,16 @@ def ec2_instance(ctx, **kwargs):
                    "queue before being moved to the dead-letter queue. "
                    "Required if 'dead_letter_target_arn' is specified",
               cls=OptionRequiredIf, required_if='dead_letter_target_arn')
+@click.option('--kms_master_key_id', type=str,
+              help="The id of an AWS-managed customer master key (CMK) for "
+                   "Amazon SQS or a custom CMK")
+@click.option('--kms_data_key_reuse_period_seconds',
+              type=click.IntRange(min=60, max=86400),
+              help="The length of time in seconds for which Amazon SQS can "
+                   "reuse a data key to encrypt or decrypt messages before "
+                   "calling AWS KMS again")
+@click.option('--content_based_deduplication', type=bool,
+              help="Enables content-based deduplication")
 @click.pass_context
 @timeit()
 def sqs_queue(ctx, **kwargs):
