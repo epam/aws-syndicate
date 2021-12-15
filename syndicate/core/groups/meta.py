@@ -335,7 +335,7 @@ def step_function_activity(ctx, **kwargs):
 @click.option('--instance_type', type=str,
              help="Instance type")
 @click.option('--disable_api_termination', type=bool,
-              help="Api termination protection")
+              help="Api termination protection. Default value is True")
 @click.option('--security_group_ids', type=str, multiple=True,
               help="Security group ids")
 @click.option('--security_group_names', type=str, multiple=True,

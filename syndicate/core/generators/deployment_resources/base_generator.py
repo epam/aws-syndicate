@@ -37,7 +37,7 @@ class BaseConfigurationGenerator:
         result = {}
         for param_name, default_value in defaults_dict.items():
             given_value = self._dict.get(param_name)
-            if not given_value:
+            if given_value == None:
                 if isinstance(default_value, type):
                     to_assign = default_value()
                     _LOG.info(f"Setting default value - the object "
@@ -48,7 +48,7 @@ class BaseConfigurationGenerator:
                     result[param_name] = \
                         self._resolve_configuration(
                             defaults_dict=default_value)
-                elif default_value:
+                elif default_value != None:
                     _LOG.info(f"Setting default value '{default_value}' "
                               f"for param '{param_name}'")
                     result[param_name] = default_value

@@ -12,7 +12,7 @@ class EC2InstanceGenerator(BaseDeploymentResourceGenerator):
         'availability_zone': None,
         'subnet_id': None,
         'userdata_file': None,
-        'disableApiTermination': bool,
+        'disableApiTermination': True,
         'iam_role': None,
         'security_group_names': list,
         'security_group_ids': list,
