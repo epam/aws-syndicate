@@ -22,3 +22,9 @@ class SQSQueueGenerator(BaseDeploymentResourceGenerator):
         "kms_data_key_reuse_period_seconds": None,
         "content_based_deduplication": False
     }
+
+    def __init__(self, **kwargs):
+        if 'dead_letter_target_arn' in kwargs:
+            kwargs['deadLetterTargetArn'] = kwargs.pop('dead_letter_target_arn')
+            kwargs['maxReceiveCount'] = kwargs.pop('max_receive_count')
+        super().__init__(**kwargs)

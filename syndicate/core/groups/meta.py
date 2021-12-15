@@ -387,6 +387,14 @@ def ec2_instance(ctx, **kwargs):
               type=click.IntRange(min=0, max=20),
               help="The length of time in seconds for which a 'ReceiveMessage'"
                    " action waits for a message to arrive")
+@click.option('--dead_letter_target_arn', type=str,
+              help="Arn of a dead-letter queue Amazon SQS moves messages "
+                   "after the value of maxReceiveCount is exceeded")
+@click.option('--max_receive_count', type=click.IntRange(min=1, max=1000),
+              help="The number of times a message is delivered to the source "
+                   "queue before being moved to the dead-letter queue. "
+                   "Required if 'dead_letter_target_arn' is specified",
+              cls=OptionRequiredIf, required_if='dead_letter_target_arn')
 @click.pass_context
 @timeit()
 def sqs_queue(ctx, **kwargs):
