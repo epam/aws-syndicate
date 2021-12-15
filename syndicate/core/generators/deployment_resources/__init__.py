@@ -16,7 +16,7 @@
 from syndicate.core.generators.deployment_resources.dynamodb_generator \
         import DynamoDBGenerator, DynamoDBGlobalIndexGenerator, \
         DynamoDBAutoscalingGenerator
-from syndicate.core.generators.deployment_resources.s3_generator \
+from syndicate.core.generators.deployment_resources.s3_bucket_generator \
         import S3Generator
 from syndicate.core.generators.deployment_resources.api_gateway_generator \
         import ApiGatewayGenerator, ApiGatewayResourceGenerator, \

@@ -9,5 +9,5 @@ class S3Generator(BaseDeploymentResourceGenerator):
         'acl': 'private',
         'location': None,
         'cors': list,
-        'policy': None
+        'policy': dict
     }
