@@ -438,6 +438,32 @@ def sns_application(ctx, **kwargs):
                f"successfully")
 
 
+@meta.command(name="cognito_user_pool")
+@click.option('-n', '--resource_name', type=str, required=True,
+              help="Cognito user pool name")
+# @click.option('--region', type=ValidRegionParamType(), required=True,
+#               help="The region where the user pool is created")
+# @click.option('--auto_verified_attributes',
+#               type=click.Choice(['phone_number', 'email']),
+#               help="The attributes to be auto-verified. "
+#                    "Default value is email")
+# @click.option('--username_attributes',
+#               type=click.Choice(['phone_number', 'email']),
+#               help="Specifies whether email addresses or phone numbers can "
+#                    "be specified as usernames when a user signs up. Default "
+#                    "value is email")
+@click.option('--custom_attributes', type=(str, str), multiple=True,
+              help="A list of custom attributes: (name type)")
+@click.pass_context
+@timeit()
+def cognito_user_pool(ctx, **kwargs):
+    """Generates cognito user pool deployment resource template"""
+    kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
+    generator = CognitoUserPoolGenerator(**kwargs)
+    _generate(generator)
+    click.echo(f"Cognito user pool '{kwargs['resource_name']}' was added "
+               f"successfully")
+
 def _generate(generator: BaseConfigurationGenerator):
     """Just some common actions for this module are gathered in here"""
     try:

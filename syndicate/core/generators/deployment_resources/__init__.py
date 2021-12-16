@@ -39,3 +39,5 @@ from syndicate.core.generators.deployment_resources.sqs_queue_generator \
         import SQSQueueGenerator
 from syndicate.core.generators.deployment_resources.sns_application_generator \
         import SNSApplicationGenerator
+from syndicate.core.generators.deployment_resources.\
+        cognito_user_pool_generator import CognitoUserPoolGenerator
