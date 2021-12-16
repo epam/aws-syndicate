@@ -71,14 +71,9 @@ following AWS services:
 
 2) Installed package manager [PIP 9.0](https://pypi.org/project/pip/ "PIP 9.0")
    or higher version;
-3)
+3) Installed [virtualenv](https://virtualenv.pypa.io/en/latest/installation.html "virtualenv");
 
-Installed [virtualenv](https://virtualenv.pypa.io/en/latest/installation.html "virtualenv")
-;
-
-4)
-
-Installed [Apache Maven 3.3.9](https://maven.apache.org/download.cgi "Apache Maven 3.3.9")
+4) Installed [Apache Maven 3.3.9](https://maven.apache.org/download.cgi "Apache Maven 3.3.9")
 or higher version.
 
 _*
@@ -127,25 +122,25 @@ install [Apache Maven 3.3.9](https://maven.apache.org/download.cgi "Apache Maven
 It's time to configure aws-syndicate. Execute `syndicate generate config`
 command and provide all the required parameters. Command example:
 
-    syndicate init 
-    --project_path $project_path 
+    syndicate generate config
+    --name $config_name
+    --project_path $project_path
+    --config_path $path_to_store_config
     --region $region_name 
-    --account_id $account_id 
     --access_key $access_key 
     --secret_key $secret_key
     --bundle_bucket_name $bundle_bucket_name 
-    --python_build_mapping $relative_path_to_python_proj
-    --java_build_mapping $relative_path_to_java_proj 
-    --nodejs_build_mapping $relative_path_to_nodejs_proj
     --prefix $prefix 
     --suffix $suffix 
-    --config_path $path_to_store_config
 
+*Note:* you may not specify `--access_key` and `--secret_key` params. It this case syndicate
+will try to find your credentials by the path `~/.aws`.
 All the provided information is validated. After the configuration files will be
 generated the command will return the following message:
 
     Syndicate initialization has been completed. Set SDCT_CONF:
-    export SDCT_CONF=$path_to_store_config
+    Unix: export SDCT_CONF=$path_to_store_config/.syndicate-config-$config_name
+    Windows: setx SDCT_CONF $path_to_store_config/.syndicate-config-$config_name
 
 Just copy the last line of commands output and execute the command. The commands
 sets the environment variable SDCT_CONF required by aws-syndicate to operate.
@@ -153,7 +148,9 @@ sets the environment variable SDCT_CONF required by aws-syndicate to operate.
 > Pay attention that the default syndicate_aliases.yaml file has been generated.
 > Your application may require additional aliases to be deployed - please add them to the file.
 
+<!---
 For more details please execute `syndicate init --help`
+-->
 
 Deployment
 ------------
@@ -172,7 +169,7 @@ Create an S3 bucket for aws-syndicate artifacts:
 
 Next, build aws-syndicate bundle with artifacts to be deployed:
 
-    $ syndicate build_bundle --bundle_name demo-deploy
+    $ syndicate build --bundle_name demo-deploy
 
 Then, deploy AWS resources:
 
