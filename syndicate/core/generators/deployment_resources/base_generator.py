@@ -37,7 +37,7 @@ class BaseConfigurationGenerator:
         result = {}
         for param_name, default_value in defaults_dict.items():
             given_value = self._dict.get(param_name)
-            if given_value == None or given_value == ():  # nulls by click
+            if given_value == None or given_value == ():  # click's nulls
                 if isinstance(default_value, type):
                     to_assign = default_value()
                     _LOG.info(f"Setting default value - the object "
@@ -55,7 +55,10 @@ class BaseConfigurationGenerator:
             else:
                 _LOG.info(f"Setting given value '{given_value}' for "
                           f"param '{param_name}'")
-                result[param_name] = given_value
+                if isinstance(given_value, tuple):
+                    result[param_name] = list(given_value)
+                else:
+                    result[param_name] = given_value
         return result
 
     def _get_deployment_resources_files(self) -> list:
