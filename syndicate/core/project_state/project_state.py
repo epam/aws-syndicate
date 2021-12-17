@@ -51,11 +51,15 @@ OPERATION_LOCK_MAPPINGS = {
 KEEP_EVENTS_DAYS = 30
 LEAVE_LATEST_EVENTS = 20
 
+CONFIRMATION_ANSWERS = ['y', 'yes']
+CURRENT_FOLDER = ['.', './', '.\\']
+
 
 class ProjectState:
 
-    def __init__(self, project_path):
+    def __init__(self, project_path, project_mapping=None):
         self.project_path = project_path
+        self.project_mapping = project_mapping
         self.state_path = os.path.join(project_path, PROJECT_STATE_FILE)
         self._dict = self.__load_project_state_file()
 
@@ -256,8 +260,29 @@ class ProjectState:
 
     def __load_project_state_file(self):
         if not ProjectState.check_if_project_state_exists(self.project_path):
-            raise AssertionError(
-                f'There is no .syndicate file in {self.project_path}')
+            answer = input(f'There is no .syndicate file in '
+                           f'{self.project_path}. Do you want to create it '
+                           f'automatically? [y/n]: ')
+            if answer.lower() in CONFIRMATION_ANSWERS:
+                project_name = input('Enter project name: ')
+                self.generate(project_path=self.project_path,
+                              project_name=project_name)
+
+                with open(self.state_path) as state_file:
+                    content = yaml.safe_load(state_file.read())
+
+                with open(self.state_path, 'a') as state_file:
+                    build_project_mappings = {}
+                    for runtime in self.project_mapping.keys():
+                        build_mapping = BUILD_MAPPINGS.get(runtime)
+                        build_project_mappings.update({runtime: build_mapping})
+                    yaml.safe_dump({
+                        STATE_BUILD_PROJECT_MAPPING: build_project_mappings
+                    }, state_file)
+            else:
+                raise AssertionError(
+                    f'There is no .syndicate file in {self.project_path}. '
+                    f'Please create it.')
         with open(self.state_path) as state_file:
             return yaml.safe_load(state_file.read())
 

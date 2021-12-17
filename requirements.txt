@@ -6,3 +6,4 @@ tqdm==4.19.5
 colorama==0.4.1
 requests==2.25.1
 tabulate==0.8.9
+PyYAML~=5.4

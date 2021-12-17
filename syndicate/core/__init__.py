@@ -103,4 +103,5 @@ def initialize_connection():
 
 def initialize_project_state():
     global PROJECT_STATE
-    PROJECT_STATE = ProjectState(project_path=CONFIG.project_path)
+    PROJECT_STATE = ProjectState(project_path=CONFIG.project_path,
+                                 project_mapping=CONFIG.build_projects_mapping)
