@@ -14,8 +14,12 @@ class CognitoUserPoolGenerator(BaseDeploymentResourceGenerator):
             "require_lowercase": True,
             "require_numbers": True,
         },
-        #"auto_verified_attributes": list,
-        #"username_attributes": list,
+        "auto_verified_attributes": list,
+        "sms_configuration": {
+            "sns_caller_arn": None,
+            "external_id": None
+        },
+        "username_attributes": list,
         "custom_attributes": list,
         "client": dict
     }

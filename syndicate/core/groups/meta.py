@@ -443,21 +443,33 @@ def sns_application(ctx, **kwargs):
               help="Cognito user pool name")
 # @click.option('--region', type=ValidRegionParamType(), required=True,
 #               help="The region where the user pool is created")
-# @click.option('--auto_verified_attributes',
-#               type=click.Choice(['phone_number', 'email']),
-#               help="The attributes to be auto-verified. "
-#                    "Default value is email")
-# @click.option('--username_attributes',
-#               type=click.Choice(['phone_number', 'email']),
-#               help="Specifies whether email addresses or phone numbers can "
-#                    "be specified as usernames when a user signs up. Default "
-#                    "value is email")
+@click.option('--auto_verified_attributes',
+              type=click.Choice(['phone_number', 'email']),
+              help="The attributes to be auto-verified. "
+                   "Default value is email", multiple=True)
+@click.option('--sns_caller_arn', type=str,
+              help="The arn of the IAM role in your account which Cognito will "
+                   "use to send SMS messages. Required if 'phone_number' in "
+                   "'auto_verified_attributes' is specified")
+@click.option('--username_attributes',
+              type=click.Choice(['phone_number', 'email']),
+              help="Specifies whether email addresses or phone numbers can "
+                   "be specified as usernames when a user signs up. Default "
+                   "value is email", multiple=True)
 @click.option('--custom_attributes', type=(str, str), multiple=True,
               help="A list of custom attributes: (name type)")
 @click.pass_context
 @timeit()
 def cognito_user_pool(ctx, **kwargs):
     """Generates cognito user pool deployment resource template"""
+    if 'phone_number' in kwargs['auto_verified_attributes'] \
+            and not kwargs.get('sns_caller_arn'):
+        raise click.MissingParameter("Sns caller IAM role arn is required when"
+                                     " 'phone_number' is specified in "
+                                     "'auto_verified_attributes'",
+                                     param_type='option',
+                                     param_hint='sns_caller_arn')
+
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = CognitoUserPoolGenerator(**kwargs)
     _generate(generator)
