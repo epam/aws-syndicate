@@ -38,13 +38,16 @@ class CognitoIdentityProviderConnection(object):
         _LOG.debug('Opened new Cognito identity connection.')
 
     def create_user_pool(self, pool_name, auto_verified_attributes=None,
-                         username_attributes=None, policies=None):
+                         sms_configuration=None, username_attributes=None,
+                         policies=None):
         """
         Crete Cognito user pool and get user pool id.
         """
         params = dict(PoolName=pool_name)
         if auto_verified_attributes:
             params['AutoVerifiedAttributes'] = auto_verified_attributes
+        if sms_configuration:
+            params['SmsConfiguration'] = sms_configuration
         if username_attributes:
             params['UsernameAttributes'] = username_attributes
         if policies:

@@ -19,7 +19,8 @@ from syndicate.commons.log_helper import get_logger
 from syndicate.core.helper import (
     unpack_kwargs, dict_keys_to_capitalized_camel_case)
 from syndicate.core.resources.base_resource import BaseResource
-from syndicate.core.resources.helper import build_description_obj
+from syndicate.core.resources.helper import build_description_obj, \
+    assert_required_params
 
 _LOG = get_logger('syndicate.core.resources.cognito_user_pool_resource')
 
@@ -76,6 +77,20 @@ class CognitoUserPoolResource(BaseResource):
             auto_verified_attributes = self.__validate_available_values(
                 auto_verified_attributes, ['email', 'phone_number']
             )
+
+        sms_configuration = meta.get('sms_configuration', {})
+        if not isinstance(sms_configuration, dict):
+            _LOG.warn('Incorrect value for auto_verified_attributes: %s, '
+                      'it must be a dict',
+                      sms_configuration)
+            sms_configuration = {}
+        if 'phone_number' in auto_verified_attributes:
+            _LOG.warn(f"'phone_number' is inside {auto_verified_attributes}. "
+                      f"Hence 'sns_caller_arn' must be in {sms_configuration}")
+            assert_required_params(['sns_caller_arn'], sms_configuration)
+        sms_configuration = dict_keys_to_capitalized_camel_case(
+            sms_configuration)
+
         username_attributes = meta.get('username_attributes', [])
         if not isinstance(username_attributes, list):
             _LOG.warn('Incorrect value for username_attributes: %s, '
@@ -92,6 +107,7 @@ class CognitoUserPoolResource(BaseResource):
 
         pool_id = self.connection.create_user_pool(
             pool_name=name, auto_verified_attributes=auto_verified_attributes,
+            sms_configuration=sms_configuration,
             username_attributes=username_attributes, policies=policies)
 
         custom_attributes = meta.get('custom_attributes')
