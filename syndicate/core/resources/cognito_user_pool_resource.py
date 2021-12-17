@@ -66,16 +66,26 @@ class CognitoUserPoolResource(BaseResource):
                                            pool_id=pool_id)
 
         _LOG.info('Creating user pool %s', name)
-        auto_verified_attributes = meta.get('auto_verified_attributes', None)
-        if auto_verified_attributes not in ('phone_number', 'email', None):
-            _LOG.warn('Incorrect value for auto_verified_attributes: %s',
+        auto_verified_attributes = meta.get('auto_verified_attributes', [])
+        if not isinstance(auto_verified_attributes, list):
+            _LOG.warn('Incorrect value for auto_verified_attributes: %s, '
+                      'it must be a list',
                       auto_verified_attributes)
-            auto_verified_attributes = None
-        username_attributes = meta.get('username_attributes', None)
-        if username_attributes not in ('phone_number', 'email', None):
-            _LOG.warn('Incorrect value for username_attributes: %s',
+            auto_verified_attributes = []
+        else:
+            auto_verified_attributes = self.__validate_available_values(
+                auto_verified_attributes, ['email', 'phone_number']
+            )
+        username_attributes = meta.get('username_attributes', [])
+        if not isinstance(username_attributes, list):
+            _LOG.warn('Incorrect value for username_attributes: %s, '
+                      'it must be a list',
                       username_attributes)
-            username_attributes = None
+            username_attributes = []
+        else:
+            username_attributes = self.__validate_available_values(
+                username_attributes, ['email', 'phone_number']
+            )
         policies = meta.get('password_policy')
         if policies:
             policies = self.__validate_policies(policies)
@@ -149,3 +159,12 @@ class CognitoUserPoolResource(BaseResource):
 
         return {'PasswordPolicy': dict_keys_to_capitalized_camel_case(
             policies)}
+
+    @staticmethod
+    def __validate_available_values(iterable: list, available: list):
+        if not set(iterable).issubset(set(available)):
+            _LOG.warn(f'Incorrect values in given iteramble: {iterable}. '
+                      f'Must be a subset of these: {available}')
+            return []
+        else:
+            return iterable
