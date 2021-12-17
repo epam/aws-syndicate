@@ -41,3 +41,5 @@ from syndicate.core.generators.deployment_resources.sns_application_generator \
         import SNSApplicationGenerator
 from syndicate.core.generators.deployment_resources.\
         cognito_user_pool_generator import CognitoUserPoolGenerator
+from syndicate.core.generators.deployment_resources.\
+        batch_compenv_generator import BatchCompenvGenerator

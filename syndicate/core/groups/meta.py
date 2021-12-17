@@ -476,6 +476,68 @@ def cognito_user_pool(ctx, **kwargs):
     click.echo(f"Cognito user pool '{kwargs['resource_name']}' was added "
                f"successfully")
 
+
+@meta.command(name='batch_compenv')
+@click.option('-n', '--resource_name', type=str, required=True,
+              help="Batch compute environment name")
+@click.option('--compute_environment_type',
+              type=click.Choice(['MANAGED', 'UNMANAGED']),
+              help="The type of compute environment. "
+                   "Default value is 'MANAGED'")
+@click.option('--allocation_strategy',
+              type=click.Choice(['BEST_FIT', 'BEST_FIT_PROGRESSIVE',
+                                 'SPOT_CAPACITY_OPTIMIZED']),
+              help="The allocation strategy to use for the compute resource "
+                   "if not enough instances of the best fitting instance type "
+                   "can be allocated")
+@click.option('--state', type=click.Choice(['ENABLED', 'DISABLED']),
+              help="The state of compute environment")
+@click.option('--service_role', type=str,
+              help="The full Amazon Resource Name (ARN) of the IAM role that "
+                   "allows Batch to make calls to other Amazon Web Services "
+                   "services on your behalf. If not specified, role "
+                   "'AWSBatchServiceRole' will be taken if it exists, if "
+                   "doesn't it'll be created")
+@click.option('--type',
+              type=click.Choice(['EC2', 'SPOT', 'FARGATE', 'FARGATE_SPOT']),
+              help="The type of compute environment. Default value is EC2")
+@click.option('--minv_cpus', type=click.IntRange(min=0),
+              help='The minimum number of Amazon EC2 vCPUs that an environment '
+                   'should maintain. Default value is 0')
+@click.option('--maxv_cpus', type=click.IntRange(min=1),
+              help="The maximum number of Amazon EC2 vCPUs that a compute "
+                   "environment can reach. Default value is 8")
+@click.option('--desiredv_cpus', type=int,
+              help="The desired number of Amazon EC2 vCPUS in the compute "
+                   "environment. Default value is 1")
+@click.option('--instance_types', type=str, multiple=True,
+              help="The instances types that can be launched. Default value is "
+                   "'optimal'")
+@click.option('--security_group_ids', type=str, multiple=True, required=True,
+              help="The Amazon EC2 security groups associated with instances "
+                   "launched in the compute environment.")
+@click.option('--subnets', type=str, multiple=True, required=True,
+              help="The VPC subnets where the compute resources are launched")
+@click.option('--instance_role', type=str,
+              help="The Amazon ECS instance profile applied to Amazon EC2 "
+                   "instances in a compute environment.")
+@click.pass_context
+@timeit()
+def batch_compenv(ctx, **kwargs):
+    """Generates batch compenv deployment resources template"""
+    if kwargs.get('type') != 'FARGATE':
+        if not kwargs.get('instance_role'):
+            raise click.MissingParameter("'instance_role' is required if "
+                                         "batch compenv type ISN'T 'FARGATE'",
+                                         param_type='option',
+                                         param_hint='instance_role')
+    kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
+    generator = BatchCompenvGenerator(**kwargs)
+    _generate(generator)
+    click.echo(f"Batch compute environment '{kwargs['resource_name']}' was "
+               f"added successfully")
+
+
 def _generate(generator: BaseConfigurationGenerator):
     """Just some common actions for this module are gathered in here"""
     try:
