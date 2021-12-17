@@ -20,7 +20,7 @@ from syndicate.core.helper import (
     unpack_kwargs, dict_keys_to_capitalized_camel_case)
 from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import build_description_obj, \
-    assert_required_params
+    assert_required_params, assert_possible_values
 
 _LOG = get_logger('syndicate.core.resources.cognito_user_pool_resource')
 
@@ -73,10 +73,8 @@ class CognitoUserPoolResource(BaseResource):
                       'it must be a list',
                       auto_verified_attributes)
             auto_verified_attributes = []
-        else:
-            auto_verified_attributes = self.__validate_available_values(
-                auto_verified_attributes, ['email', 'phone_number']
-            )
+        assert_possible_values(auto_verified_attributes,
+                                ['email', 'phone_number'])
 
         sms_configuration = meta.get('sms_configuration', {})
         if not isinstance(sms_configuration, dict):
@@ -97,10 +95,8 @@ class CognitoUserPoolResource(BaseResource):
                       'it must be a list',
                       username_attributes)
             username_attributes = []
-        else:
-            username_attributes = self.__validate_available_values(
-                username_attributes, ['email', 'phone_number']
-            )
+        assert_possible_values(username_attributes, ['email', 'phone_number'])
+
         policies = meta.get('password_policy')
         if policies:
             policies = self.__validate_policies(policies)
@@ -176,11 +172,4 @@ class CognitoUserPoolResource(BaseResource):
         return {'PasswordPolicy': dict_keys_to_capitalized_camel_case(
             policies)}
 
-    @staticmethod
-    def __validate_available_values(iterable: list, available: list):
-        if not set(iterable).issubset(set(available)):
-            _LOG.warn(f'Incorrect values in given iteramble: {iterable}. '
-                      f'Must be a subset of these: {available}')
-            return []
-        else:
-            return iterable
+
