@@ -64,6 +64,7 @@ from syndicate.core.project_state.status_processor import project_state_status
 from syndicate.core.project_state.sync_processor import sync_project_state
 
 INIT_COMMAND_NAME = 'init'
+SYNDICATE_PACKAGE_NAME = 'aws-syndicate'
 commands_without_config = (
     INIT_COMMAND_NAME,
     GENERATE_PROJECT_COMMAND_NAME,
@@ -76,7 +77,8 @@ def _not_require_config(all_params):
 
 
 @click.group(name='syndicate')
-@click.version_option()
+@click.version_option(package_name=SYNDICATE_PACKAGE_NAME,
+                      prog_name=SYNDICATE_PACKAGE_NAME)
 def syndicate():
     if CONF_PATH:
         click.echo('Configuration used: ' + CONF_PATH)
@@ -256,7 +258,8 @@ def update(bundle_name, deploy_name, replace_output,
     if update_only_types:
         click.echo('Types to update: {}'.format(list(update_only_types)))
     if update_only_resources:
-        click.echo('Resources to update: {}'.format(list(update_only_resources)))
+        click.echo(
+            'Resources to update: {}'.format(list(update_only_resources)))
     if update_only_resources_path:
         click.echo('Path to list of resources to update: {}'.format(
             update_only_resources_path))
