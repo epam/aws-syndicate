@@ -47,3 +47,5 @@ from syndicate.core.generators.deployment_resources.\
         cloudwatch_alarm_generator import CloudWatchAlarmGenerator
 from syndicate.core.generators.deployment_resources.step_function_generator \
         import StepFunctionGenerator
+from syndicate.core.generators.deployment_resources.cognito_federated_generator \
+        import CognitoFederatedPoolGenerator

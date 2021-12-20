@@ -493,6 +493,28 @@ def cognito_user_pool(ctx, **kwargs):
                f"successfully")
 
 
+@meta.command(name="cognito_federated_pool")
+@click.option('--resource_name', type=str, required=True,
+              help="Cognito federated pool name")
+@click.option('--auth_role', type=str,
+              help="IAM role for authorized users")
+@click.option('--unauth_role', type=str,
+              help="IAM role for unauthorized users")
+@click.option('--open_id_providers', type=str, multiple=True,
+              help="A list of OpenID Connect providers")
+@click.option('--provider_name', type=str,
+              help="Developer provider name")
+@click.pass_context
+@timeit()
+def cognito_federated_pool(ctx, **kwargs):
+    """Generates cognito federated pool deployment resource template"""
+    kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
+    generator = CognitoFederatedPoolGenerator(**kwargs)
+    _generate(generator)
+    click.echo(f"Cognito federated pool '{kwargs['resource_name']}' was "
+               f"added successfully")
+
+
 @meta.command(name='batch_compenv')
 @click.option('--resource_name', type=str, required=True,
               help="Batch compute environment name")
