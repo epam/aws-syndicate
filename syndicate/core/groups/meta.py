@@ -538,6 +538,51 @@ def batch_compenv(ctx, **kwargs):
                f"added successfully")
 
 
+@meta.command(name="cloudwatch_alarm")
+@click.option('--resource_name', type=str, required=True,
+              help="Cloudwatch alarm name")
+@click.option('--metric_name', type=str, required=True,
+              help="The metric's name")
+@click.option('--namespace', type=str, required=True,
+              help="The namespace for the metric associated with the alarm")
+@click.option('--period', type=click.IntRange(min=1),
+              help="The period in seconds over which the specified statistic "
+                   "is applied. Valid values are 1, 5, 10, 30 and any multiple"
+                   " of 60. Default value is 1200")
+@click.option('--evaluation_periods', type=click.IntRange(min=1),
+              help="The number of periods over which data is compared to the "
+                   "specified threshold. Default value is 1")
+@click.option('--threshold', type=float,
+              help="The value to compare with the specified statistic. "
+                   "Default value is 1.0")
+@click.option('--comparison_operator',
+              type=click.Choice(['GreaterThanOrEqualToThreshold',
+                                 'GreaterThanThreshold',
+                                 'LessThanThreshold',
+                                 'LessThanOrEqualToThreshold']),
+              help="An arithmetic operator to use when comparing the specified"
+                   " statistic and threshold. The specified statistic value is"
+                   " used as the first operand. Default value is "
+                   "'GreaterThanOrEqualToThreshold'")
+@click.option('--statistic', type=click.Choice(["SampleCount", "Average",
+                                                'Sum', 'Minimum', 'Maximum']),
+              help="The statistic for the metric associated with the alarm,"
+                   "other than percentile. For percentile statistic use "
+                   "'ExtendedStatistic'. Default value is 'SampleCount'")
+@click.option('--sns_topics', type=str, multiple=True,
+              help="The sns topics to execute when the alarm goes to an OK "
+                   "state from any other state")
+@click.pass_context
+@timeit()
+def cloudwatch_alarm(ctx, **kwargs):
+    """Generates Cloudwatch alarm deployment resources template"""
+    kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
+    generator = CloudWatchAlarmGenerator(**kwargs)
+    _generate(generator)
+    click.echo(f"Cloudwatch alarm '{kwargs['resource_name']}' was "
+               f"added successfully")
+
+
 def _generate(generator: BaseConfigurationGenerator):
     """Just some common actions for this module are gathered in here"""
     try:
