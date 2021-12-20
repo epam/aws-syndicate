@@ -41,6 +41,7 @@ LOCK_INITIATOR = 'initiator'
 MODIFICATION_LOCK = 'modification_lock'
 WARMUP_LOCK = 'warm_up_lock'
 PROJECT_STATE_FILE = '.syndicate'
+INIT_FILE = '__init__.py'
 
 BUILD_MAPPINGS = {
     RUNTIME_JAVA: 'jsrc/main/java',
@@ -336,7 +337,6 @@ class ProjectState:
 
         else:
             lambdas = [lambda_dir for lambda_dir in
-                       os.listdir(lambdas_path) if os.path.isdir(
-                    os.path.join(lambdas_path, lambda_dir))]
-            [self.add_lambda(lambda_name, runtime) for lambda_name in lambdas
-             if lambda_name != '__pychache__']
+                       os.listdir(lambdas_path) if os.path.isfile(
+                    os.path.join(lambdas_path, lambda_dir, INIT_FILE))]
+            [self.add_lambda(lambda_name, runtime) for lambda_name in lambdas]
