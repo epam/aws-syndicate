@@ -458,7 +458,7 @@ def profiler(bundle_name, deploy_name, from_date, to_date):
 
 @syndicate.command(name='assemble_java_mvn')
 @timeit()
-@click.option('--bundle_name', nargs=1, callback=create_bundle_callback)
+@click.option('--bundle_name', nargs=1, callback=generate_default_bundle_name)
 @click.option('--project_path', '-path', nargs=1,
               callback=resolve_path_callback)
 def assemble_java_mvn(bundle_name, project_path):
@@ -477,7 +477,7 @@ def assemble_java_mvn(bundle_name, project_path):
 
 @syndicate.command(name='assemble_python')
 @timeit()
-@click.option('--bundle_name', nargs=1, callback=create_bundle_callback)
+@click.option('--bundle_name', nargs=1, callback=generate_default_bundle_name)
 @click.option('--project_path', '-path', nargs=1,
               callback=resolve_path_callback)
 def assemble_python(bundle_name, project_path):
@@ -496,7 +496,7 @@ def assemble_python(bundle_name, project_path):
 
 @syndicate.command(name='assemble_node')
 @timeit()
-@click.option('--bundle_name', nargs=1, callback=create_bundle_callback)
+@click.option('--bundle_name', nargs=1, callback=generate_default_bundle_name)
 @click.option('--project_path', '-path', nargs=1,
               callback=resolve_path_callback)
 def assemble_node(bundle_name, project_path):
@@ -522,7 +522,7 @@ RUNTIME_LANG_TO_BUILD_MAPPING = {
 
 @syndicate.command(name='assemble')
 @timeit()
-@click.option('--bundle_name', nargs=1, callback=create_bundle_callback)
+@click.option('--bundle_name', nargs=1, callback=generate_default_bundle_name)
 @click.pass_context
 def assemble(ctx, bundle_name):
     """
