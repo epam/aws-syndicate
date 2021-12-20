@@ -547,7 +547,7 @@ def batch_compenv(ctx, **kwargs):
               help="The namespace for the metric associated with the alarm")
 @click.option('--period', type=click.IntRange(min=1),
               help="The period in seconds over which the specified statistic "
-                   "is applied. Valid values are 1, 5, 10, 30 and any multiple"
+                   "is applied. Valid values are 10, 30 and any multiple"
                    " of 60. Default value is 1200")
 @click.option('--evaluation_periods', type=click.IntRange(min=1),
               help="The number of periods over which data is compared to the "
