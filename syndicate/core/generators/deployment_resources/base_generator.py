@@ -192,6 +192,10 @@ class BaseDeploymentResourceGenerator(BaseConfigurationGenerator):
         elif invalid_character:
             error = f"resource name cannot contain: " \
                     f"'{invalid_character.group()}'"
+        elif any(to_validate.startswith(prefix) for prefix in '_.-'):
+            error = "resource name cannot start with any of these: '_', '.', '-'"
+        elif any(to_validate.endswith(suffix) for suffix in '_.-'):
+            error = "resource name cannot end with any of these: '_', '.', '-'"
         if error:
             _LOG.error(f"Resource name validation error: {error}")
             raise click.BadParameter(error, param_hint="resource_name")
