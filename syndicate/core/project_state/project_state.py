@@ -338,4 +338,5 @@ class ProjectState:
             lambdas = [lambda_dir for lambda_dir in
                        os.listdir(lambdas_path) if os.path.isdir(
                     os.path.join(lambdas_path, lambda_dir))]
-            [self.add_lambda(lambda_name, runtime) for lambda_name in lambdas]
+            [self.add_lambda(lambda_name, runtime) for lambda_name in lambdas
+             if lambda_name != '__pychache__']
