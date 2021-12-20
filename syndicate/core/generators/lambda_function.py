@@ -107,7 +107,6 @@ def generate_lambda_function(project_path, runtime,
     common_module_generator(src_path=src_path)
     project_state.add_project_build_mapping(runtime=runtime)
 
-
     processor = LAMBDAS_PROCESSORS.get(runtime)
     if not processor:
         raise RuntimeError(f'Wrong project runtime {runtime}')
@@ -142,8 +141,8 @@ def _generate_python_lambdas(**kwargs):
 
         answer = _mkdir(
             path=lambda_folder,
-            fault_message=f'\nLambda {lambda_name} already exists.\nOverride the '
-                          'Lambda function? [y/n]: ')
+            fault_message=f'\nLambda {lambda_name} already exists.\nOverride '
+                          f'the Lambda function? [y/n]: ')
         if not answer:
             _LOG.info(CANCEL_MESSAGE.format(lambda_name))
             continue
@@ -201,10 +200,7 @@ def _generate_java_lambdas(**kwargs):
     _generate_java_project_hierarchy(project_name=project_name,
                                      full_project_path=project_path)
 
-    unified_package_name = _get_parts_split_by_chars(to_split=project_name,
-                                                     chars=['-', '_'])
-    java_package_name = unified_package_name.replace(' ', '')
-    java_package_name = f'com.{java_package_name}'
+    java_package_name = _generate_java_package_name(project_name)
     java_package_as_path = java_package_name.replace('.', '/')
 
     pom_file_path = os.path.join(project_path, FILE_POM)
@@ -214,8 +210,7 @@ def _generate_java_lambdas(**kwargs):
         f'<package>{java_package_name}</package>')
     _write_content_to_file(pom_file_path, pom_xml_content)
 
-    full_package_path = Path(project_path,
-                             SRC_MAIN_JAVA, java_package_as_path)
+    full_package_path = Path(project_path, SRC_MAIN_JAVA, java_package_as_path)
     for lambda_name in lambda_names:
         if not os.path.exists(full_package_path):
             _mkdir(full_package_path, exist_ok=True)
@@ -253,6 +248,14 @@ def _generate_java_lambdas(**kwargs):
 
         project_state.add_lambda(lambda_name=lambda_name, runtime=RUNTIME_JAVA)
         _LOG.info(f'Lambda {lambda_name} created')
+
+
+def _generate_java_package_name(project_name):
+    unified_package_name = _get_parts_split_by_chars(to_split=project_name,
+                                                     chars=['-', '_'])
+    java_package_name = unified_package_name.replace(' ', '')
+    java_package_name = f'com.{java_package_name}'
+    return java_package_name
 
 
 def _get_parts_split_by_chars(chars, to_split):
