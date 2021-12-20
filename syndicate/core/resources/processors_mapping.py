@@ -218,7 +218,7 @@ class ProcessorFacade:
                 self.resources_provider.batch_jobdef().update_job_definition,
             BATCH_COMPENV_TYPE:
                 self.resources_provider.batch_compenv()
-                    .update_compute_environment
+                    .update_compute_environment,
         }
 
     def resource_configuration_processor(self):
