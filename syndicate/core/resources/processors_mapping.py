@@ -209,7 +209,11 @@ class ProcessorFacade:
             LAMBDA_TYPE:
                 self.resources_provider.lambda_resource().update_lambda,
             LAMBDA_LAYER_TYPE:
-                self.resources_provider.lambda_resource().update_lambda_layer
+                self.resources_provider.lambda_resource().update_lambda_layer,
+            IAM_ROLE:
+                self.resources_provider.iam().update_iam_role,
+            IAM_POLICY:
+                self.resources_provider.iam().update_iam_policy,
         }
 
     def resource_configuration_processor(self):
