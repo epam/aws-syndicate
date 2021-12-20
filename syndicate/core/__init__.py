@@ -32,6 +32,8 @@ SESSION_TOKEN = 'aws_session_token'
 SECRET_KEY = 'aws_secret_access_key'
 ACCESS_KEY = 'aws_access_key_id'
 
+CONFIRMATION_ANSWERS = ['y', 'yes']
+
 
 def exception_handler(exception_type, exception, traceback):
     print(exception)
@@ -106,7 +108,14 @@ def initialize_project_state():
     global PROJECT_STATE
     if not ProjectState.check_if_project_state_exists(CONFIG.project_path):
         USER_LOG.warn("Config is set and generated but project state does not "
-                      "exist, seems that you've come from the previous version.")
-        PROJECT_STATE = ProjectState.build_from_structure(CONFIG)
+                      "exist, seems that you've come from the previous "
+                      "version.")
+        answer = input(f'There is no .syndicate file in {CONFIG.project_path}.'
+                       f' Do you want to create it automatically? [y/n]: ')
+        if answer.lower() in CONFIRMATION_ANSWERS:
+            PROJECT_STATE = ProjectState.build_from_structure(CONFIG)
+        else:
+            raise AssertionError(f'There is no .syndicate file in '
+                                 f'{CONFIG.project_path}. Please create it.')
     else:
         PROJECT_STATE = ProjectState(project_path=CONFIG.project_path)

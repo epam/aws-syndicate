@@ -18,7 +18,6 @@ import getpass
 import os
 import sys
 import time
-import shutil
 from datetime import datetime
 from pathlib import Path
 
@@ -54,6 +53,7 @@ OPERATION_LOCK_MAPPINGS = {
 }
 KEEP_EVENTS_DAYS = 30
 LEAVE_LATEST_EVENTS = 20
+
 
 class ProjectState:
 
@@ -136,16 +136,17 @@ class ProjectState:
     def latest_deploy(self, latest_deploy):
         self._dict[STATE_LATEST_DEPLOY] = latest_deploy
 
-
     @property
     def latest_built_bundle_name(self):
-        return self._get_attribute_from_latest_operation(operation_name='build',
-                                                  attribute='bundle_name')
+        return self._get_attribute_from_latest_operation(
+            operation_name='build',
+            attribute='bundle_name')
 
     @property
     def latest_built_deploy_name(self):
-        return self._get_attribute_from_latest_operation(operation_name='build',
-                                                  attribute='deploy_name')
+        return self._get_attribute_from_latest_operation(
+            operation_name='build',
+            attribute='deploy_name')
 
     @property
     def latest_deployed_bundle_name(self):
@@ -294,38 +295,17 @@ class ProjectState:
         project_state = ProjectState.generate(project_path=project_path,
                                               project_name=project_name)
 
-        build_projects_mapping = config.build_projects_mapping
-        if build_projects_mapping: # NOT FINISHED YET, MAY WORK WRONGLY
-            for runtime, source_paths in build_projects_mapping.items():
+        for runtime, source_path in BUILD_MAPPINGS.items():
+            if runtime == RUNTIME_JAVA:
+                java_package_name = _generate_java_package_name(project_name)
+                java_package_as_path = java_package_name.replace('.', '/')
+                lambdas_path = Path(project_path, source_path,
+                                    java_package_as_path)
+            else:
+                lambdas_path = Path(project_path, source_path, FOLDER_LAMBDAS)
+            if os.path.exists(lambdas_path):
                 project_state.add_project_build_mapping(runtime)
-
-                for source_path in source_paths:
-                    lambdas_path = Path(project_path, source_path,
-                                        FOLDER_LAMBDAS)
-                    if os.path.exists(lambdas_path):
-                        project_state._add_lambdas_from_path(lambdas_path,
-                                                             runtime)
-                        try:
-                            shutil.copytree(lambdas_path,
-                                            os.path.join(project_path,
-                                                         BUILD_MAPPINGS[runtime],
-                                                         FOLDER_LAMBDAS),
-                                            dirs_exist_ok=True)
-                        except OSError as e:
-                            print(f"Errors occured while copying lambdas: {e}",
-                                  file=sys.stderr)
-
-        else:
-            for runtime, source_path in BUILD_MAPPINGS.items():
-                if runtime == RUNTIME_JAVA:
-                    java_package_name = _generate_java_package_name(project_name)
-                    java_package_as_path = java_package_name.replace('.', '/')
-                    lambdas_path = Path(project_path, source_path, java_package_as_path)
-                else:
-                    lambdas_path = Path(project_path, source_path, FOLDER_LAMBDAS)
-                if os.path.exists(lambdas_path):
-                    project_state.add_project_build_mapping(runtime)
-                    project_state._add_lambdas_from_path(lambdas_path, runtime)
+                project_state._add_lambdas_from_path(lambdas_path, runtime)
 
         project_state.save()
 
