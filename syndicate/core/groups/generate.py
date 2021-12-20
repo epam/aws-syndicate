@@ -93,7 +93,7 @@ def lambda_function(ctx, name, runtime, project_path):
 @click.option('--name',
               required=True,
               help='* Name of the configuration to create. '
-                   'Generated config will be create in folder '
+                   'Generated config will be created in folder '
                    '.syndicate-config-{name}. May contain name '
                    'of the environment.')
 @click.option('--region',

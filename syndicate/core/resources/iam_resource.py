@@ -17,7 +17,8 @@ from botocore.exceptions import ClientError
 
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import retry
-from syndicate.core.helper import prettify_json, unpack_kwargs
+from syndicate.core.helper import prettify_json, unpack_kwargs, \
+    exit_on_exception
 from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import (build_description_obj,
                                              resolve_dynamic_identifier)
@@ -73,9 +74,8 @@ class IamResource(BaseResource):
                 role_name)
             if instance_profiles:
                 for each in instance_profiles:
-                    self.iam_conn.remove_role_from_instance_profile(role_name,
-                                                                    each[
-                                                                        'InstanceProfileName'])
+                    self.iam_conn.remove_role_from_instance_profile(
+                        role_name, each['InstanceProfileName'])
             self.iam_conn.remove_role(role_name)
             _LOG.info('IAM role %s was removed.', role_name)
         except ClientError as e:
@@ -156,7 +156,7 @@ class IamResource(BaseResource):
                 self.iam_conn.create_instance_profile(name)
             except ClientError as e:
                 if 'EntityAlreadyExists' in str(e):
-                    _LOG.warn('Instance profile %s exists', name)
+                    _LOG.warn(f'Instance profile {name} exists')
                 else:
                     raise e
             self.iam_conn.add_role_to_instance_profile(name, name)
@@ -168,8 +168,8 @@ class IamResource(BaseResource):
                     raise AssertionError(f'Can not get policy arn: {policy}')
                 self.iam_conn.attach_policy(name, arn)
         else:
-            raise AssertionError('There are no policies for role: %s.', name)
-        _LOG.info('Created IAM role %s.', name)
+            raise AssertionError(f'There are no policies for role: {name}.')
+        _LOG.info(f'Created IAM role {name}.')
         return self.describe_role(name=name, meta=meta, response=response)
 
     def describe_role(self, name, meta, response=None):
@@ -184,7 +184,7 @@ class IamResource(BaseResource):
     def apply_trusted_to_role(self, name, value, apply_config):
         trusted = apply_config['trusted_relationships']
         role_name = apply_config['dependency_name']
-        resolved_trusted = resolve_dynamic_identifier(name, value, trusted)
+        resolved_trusted = resolve_dynamic_identifier({name: value}, trusted)
         self.iam_conn.update_assume_role_policy_document(
             role_name=role_name,
             document=prettify_json(resolved_trusted))
@@ -192,11 +192,97 @@ class IamResource(BaseResource):
     def apply_policy_content(self, name, value, apply_config):
         policy_content = apply_config['policy_content']
         policy_name = apply_config['dependency_name']
-        resolved_policy_content = resolve_dynamic_identifier(name, value,
+        resolved_policy_content = resolve_dynamic_identifier({name: value},
                                                              policy_content)
-        policy_arn = 'arn:aws:iam::{0}:policy/{1}'.format(self.account_id,
-                                                          policy_name)
+        policy_arn = f'arn:aws:iam::{self.account_id}:policy/{policy_name}'
         self.iam_conn.create_policy_version(
             policy_arn=policy_arn,
             policy_document=prettify_json(resolved_policy_content),
             set_as_default=True)
+
+    def update_iam_role(self, args):
+        return self.create_pool(self._update_role_from_meta, args)
+
+    def update_iam_policy(self, args):
+        return self.create_pool(self._update_policy_from_meta, args)
+
+    @unpack_kwargs
+    def _update_role_from_meta(self, name, meta, context):
+        _LOG.info(f'Updating iam role: {name}')
+
+        existing_role = self.iam_conn.get_role(name)
+        if not existing_role:
+            _LOG.warn(f'IAM role {name} does not exist.')
+            raise AssertionError(f'{name} role does not exist.')
+        custom_policies = meta.get('custom_policies', [])
+        predefined_policies = meta.get('predefined_policies', [])
+        policies = set(custom_policies + predefined_policies)
+        allowed_accounts = meta.get('allowed_accounts', [])
+        principal_service = meta.get('principal_service')
+        instance_profile = meta.get('instance_profile')
+        external_id = meta.get('external_id')
+        trust_rltn = meta.get('trusted_relationships')
+        if principal_service and '{region}' in principal_service:
+            principal_service = principal_service.format(region=self.region)
+        response = self.iam_conn.update_custom_role(
+            role_name=name,
+            allowed_account=list(allowed_accounts),
+            allowed_service=principal_service,
+            external_id=external_id,
+            trusted_relationships=trust_rltn,
+            role=existing_role)
+        if not response:
+            raise AssertionError(f'Can not update role \'{name}\': '
+                                 f'role does not exist.')
+        if instance_profile:
+            profiles = self.iam_conn.get_instance_profiles_for_role(
+                role_name=name)
+            if not profiles:
+                try:
+                    self.iam_conn.create_instance_profile(name)
+                except ClientError as e:
+                    if 'EntityAlreadyExists' in str(e):
+                        _LOG.warn(f'Instance profile {name} exists')
+                    else:
+                        raise e
+                self.iam_conn.add_role_to_instance_profile(name, name)
+        else:
+            profiles = self.iam_conn.get_instance_profiles_for_role(
+                role_name=name)
+            if profiles:
+                try:
+                    self.iam_conn.remove_instance_profile(name)
+                except ClientError as e:
+                    if 'NoSuchEntityException' in str(e):
+                        _LOG.warn(f'Instance profile {name} does not exist.')
+                    else:
+                        raise e
+
+        # attach policies
+        existing_policies = self.iam_conn.get_role_attached_policies(
+            role_name=name)
+        for existing_policy in existing_policies:
+            self.iam_conn.detach_policy(role_name=name,
+                                        policy_arn=existing_policy.arn)
+        if policies:
+            for policy in policies:
+                arn = self.iam_conn.get_policy_arn(policy)
+                if not arn:
+                    raise AssertionError(f'Can not get policy arn: {policy}')
+                self.iam_conn.attach_policy(name, arn)
+        _LOG.info(f'Updated IAM role {name}.')
+        return self.describe_role(name=name, meta=meta)
+
+    @unpack_kwargs
+    def _update_policy_from_meta(self, name, meta, context):
+        arn = self._build_policy_arn(name)
+        response = self.iam_conn.get_policy(arn)
+        if not response:
+            _LOG.warn(f'{name} policy does not exist.')
+            raise AssertionError(f'{name} policy does not exist.')
+        policy_content = meta['policy_content']
+        self.iam_conn.update_custom_policy_content(name=name,
+                                                   arn=arn,
+                                                   content=policy_content)
+        _LOG.info(f'Updated IAM policy {name}')
+        return self.describe_policy(name=name, meta=meta)

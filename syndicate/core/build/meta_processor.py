@@ -142,6 +142,18 @@ def _check_duplicated_resources(initial_meta_dict, additional_item_name,
             if init_deploy_stage:
                 additional_item['deploy_stage'] = init_deploy_stage
 
+            init_compression = initial_item.get("minimum_compression_size")
+            if init_compression:
+                additional_comp_size = \
+                    additional_item.get('minimum_compression_size')
+                if additional_comp_size:
+                    _LOG.warn(f"Found 'minimum_compression_size': "
+                              f"{init_compression} inside root "
+                              f"deployment_resources. The value "
+                              f"'{additional_comp_size}' from: "
+                              f"{additional_item} will be overwritten")
+                additional_item['minimum_compression_size'] = init_compression
+
             additional_item = _merge_api_gw_list_typed_configurations(
                 initial_item,
                 additional_item,
@@ -244,12 +256,16 @@ def _populate_s3_path(meta, bundle_name):
 
 
 RUNTIME_PATH_RESOLVER = {
-    'python2.7': _populate_s3_path_python_node,
+    'python3.6': _populate_s3_path_python_node,
     'python3.7': _populate_s3_path_python_node,
     'python3.8': _populate_s3_path_python_node,
+    'python3.9': _populate_s3_path_python_node,
     'java8': _populate_s3_path_java,
+    'java8.al2': _populate_s3_path_java,
+    'java11': _populate_s3_path_java,
     'nodejs10.x': _populate_s3_path_python_node,
-    'nodejs8.10': _populate_s3_path_python_node
+    'nodejs14.x': _populate_s3_path_python_node,
+    'nodejs12.x': _populate_s3_path_python_node
 }
 
 S3_PATH_MAPPING = {
@@ -328,10 +344,11 @@ def create_resource_json(project_path, bundle_name):
 
         _look_for_configs(nested_items, resources_meta, path, bundle_name)
 
+    meta_for_validation = _resolve_aliases(resources_meta)
     # check if all dependencies were described
     common_validator = VALIDATOR_BY_TYPE_MAPPING[ALL_TYPES]
-    for name, meta in resources_meta.items():
-        common_validator(resource_meta=meta, all_meta=resources_meta)
+    for name, meta in meta_for_validation.items():
+        common_validator(resource_meta=meta, all_meta=meta_for_validation)
 
         resource_type = meta['resource_type']
         type_validator = VALIDATOR_BY_TYPE_MAPPING.get(resource_type)
@@ -377,13 +394,8 @@ def create_meta(project_path, bundle_name):
 def resolve_meta(overall_meta):
     from syndicate.core import CONFIG
     iam_suffix = _resolve_iam_suffix(iam_suffix=CONFIG.iam_suffix)
-    if CONFIG.aliases:
-        aliases = CONFIG.aliases
-        for key, value in aliases.items():
-            name = '${' + key + '}'
-            overall_meta = resolve_dynamic_identifier(name, str(value),
-                                                      overall_meta)
-            _LOG.debug('Resolved meta was created')
+    overall_meta = _resolve_aliases(overall_meta)
+    _LOG.debug('Resolved meta was created')
     _LOG.debug(prettify_json(overall_meta))
     # get dict with resolved prefix and suffix in meta resources
     # key: current_name, value: resolved_name
@@ -407,6 +419,16 @@ def resolve_meta(overall_meta):
         _resolve_names_in_meta(overall_meta, current_name, resolved_name)
     return overall_meta
 
+def _resolve_aliases(overall_meta):
+    """
+    :type overall_meta: dict
+    """
+    from syndicate.core import CONFIG
+    if CONFIG.aliases:
+        aliases = {'${' + key + '}': str(value) for key, value in
+                   CONFIG.aliases.items()}
+        overall_meta = resolve_dynamic_identifier(aliases, overall_meta)
+    return overall_meta
 
 def resolve_resource_name(resource_name, prefix=None, suffix=None):
     return _resolve_suffix_name(

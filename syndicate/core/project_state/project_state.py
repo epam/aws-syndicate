@@ -90,6 +90,8 @@ class ProjectState:
             parts.extend(self.name.split('_'))
         if not parts:
             parts = re.findall(CAPITAL_LETTER_REGEX, self.name)
+        if not parts:
+            parts = [self.name]
         return '-'.join([_.lower() for _ in parts])
 
     @name.setter
@@ -116,8 +118,7 @@ class ProjectState:
         events = self._dict.get(STATE_LOG_EVENTS)
         if not events:
             events = []
-            self._dict.update({STATE_LOG_EVENTS:
-                                   events})
+            self._dict.update({STATE_LOG_EVENTS: events})
         return events
 
     @events.setter

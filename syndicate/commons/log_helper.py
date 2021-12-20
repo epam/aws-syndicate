@@ -25,11 +25,14 @@ LOG_USER_HOME_FOLDER_NAME = '.syndicate_logs'
 LOG_FOLDER_NAME = 'logs'
 LOG_FILE_NAME = '%Y-%m-%d-syndicate.log'
 LOG_NAME = 'syndicate'
-LOG_LEVEL = DEBUG if os.environ.get('SDCT_DEBUG', False) else INFO
+LOG_LEVEL = (DEBUG
+             if os.environ.get('SDCT_DEBUG', '').lower() == 'true'
+             else INFO)
 USER_NAME = getpass.getuser()
 LOG_FORMAT_FOR_FILE = ('%(asctime)s [%(levelname)s] USER:{} %(filename)s:'
                        '%(lineno)d:%(funcName)s LOG: %(message)s'
                        .format(USER_NAME))
+
 
 def get_project_log_file_path() -> str:
     """Returns the path to the file where logs will be saved.
@@ -102,7 +105,6 @@ def get_user_logger(level=LOG_LEVEL):
                     INFO = 20
                     DEBUG = 10
                     NOTSET = 0
-    :type log_name: str
     :type level: int
     """
     module_logger = user_logger.getChild('child')

@@ -25,7 +25,8 @@ from syndicate.commons.log_helper import get_logger
 from syndicate.core.build.helper import build_py_package_name, zip_dir
 from syndicate.core.constants import (LAMBDA_CONFIG_FILE_NAME,
                                       NODE_REQ_FILE_NAME)
-from syndicate.core.helper import build_path, unpack_kwargs, execute_command_by_path
+from syndicate.core.helper import (build_path, unpack_kwargs,
+                                   execute_command_by_path)
 from syndicate.core.resources.helper import validate_params
 
 _LOG = get_logger('nodejs_runtime_assembler')
