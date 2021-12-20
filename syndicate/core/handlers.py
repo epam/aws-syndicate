@@ -18,6 +18,8 @@ import os
 import sys
 
 import click
+from tabulate import tabulate
+
 from syndicate.core import CONF_PATH, initialize_connection, \
     initialize_project_state
 from syndicate.core.build.artifact_processor import (RUNTIME_NODEJS,
@@ -40,9 +42,9 @@ from syndicate.core.build.warmup_processor import (process_deploy_resources,
                                                    warm_upper,
                                                    process_existing_api_gw_id,
                                                    process_inputted_api_gw_id)
-from syndicate.core.conf.validator import (MVN_BUILD_TOOL_NAME,
-                                           PYTHON_BUILD_TOOL_NAME,
-                                           NODE_BUILD_TOOL_NAME)
+from syndicate.core.conf.validator import (JAVA_LANGUAGE_NAME,
+                                           PYTHON_LANGUAGE_NAME,
+                                           NODEJS_LANGUAGE_NAME)
 from syndicate.core.decorators import check_deploy_name_for_duplicates
 from syndicate.core.groups.generate import generate, GENERATE_GROUP_NAME
 from syndicate.core.helper import (check_required_param,
@@ -58,7 +60,6 @@ from syndicate.core.project_state.project_state import (MODIFICATION_LOCK,
                                                         WARMUP_LOCK)
 from syndicate.core.project_state.status_processor import project_state_status
 from syndicate.core.project_state.sync_processor import sync_project_state
-from tabulate import tabulate
 
 INIT_COMMAND_NAME = 'init'
 commands_without_config = (
@@ -75,7 +76,7 @@ def _not_require_config(all_params):
 @click.version_option()
 def syndicate():
     if CONF_PATH:
-        click.echo('Used configuration from the next path: ' + CONF_PATH)
+        click.echo('Configuration used: ' + CONF_PATH)
         initialize_connection()
         initialize_project_state()
     elif _not_require_config(sys.argv):
@@ -93,8 +94,9 @@ def syndicate():
                                            case_sensitive=False),
               default='unittest')
 @click.option('--test_folder_name', nargs=1, default='tests')
+@click.option('--errors_allowed', is_flag=True)
 @timeit()
-def test(suite, test_folder_name):
+def test(suite, test_folder_name, errors_allowed):
     """Discovers and runs tests inside python project configuration path."""
     click.echo('Running tests...')
     import subprocess
@@ -108,21 +110,24 @@ def test(suite, test_folder_name):
         return
 
     test_lib_command_mapping = {
-        'unittest': 'python -m unittest -v',
+        'unittest': f'{sys.executable} -m unittest discover {test_folder} -v',
         'pytest': 'pytest --no-header -v',
         'nose': 'nosetests --verbose'
     }
 
     workdir = os.getcwd()
 
-    os.chdir(test_folder)
+    if test_folder != os.path.join(project_path, 'tests'):
+        os.chdir(test_folder)
     command = test_lib_command_mapping.get(suite)
     result = subprocess.run(command.split())
 
     os.chdir(workdir)
-    if result.returncode != 0:
-        click.echo('Some tests failed. Exiting.')
-        sys.exit(1)
+    if not errors_allowed:
+        if result.returncode != 0:
+            click.echo('Some tests failed. Exiting.')
+            sys.exit(1)
+    click.echo('Tests passed.')
 
 
 @syndicate.command(name='build')
@@ -132,9 +137,11 @@ def test(suite, test_folder_name):
                    'Default value: $ProjectName_%Y-%m-%dT%H:%M:%SZ')
 @click.option('--force_upload', is_flag=True, default=False,
               help='Flag to override existing bundle with the same name')
+@click.option('--errors_allowed', is_flag=True, default=False,
+              help='Flag to continue bundle building if some tests fail')
 @click.pass_context
 @timeit(action_name='build')
-def build(ctx, bundle_name, force_upload):
+def build(ctx, bundle_name, force_upload, errors_allowed):
     """
     Builds bundle of an application
     """
@@ -143,7 +150,7 @@ def build(ctx, bundle_name, force_upload):
                    'in deploy bucket. Please use another bundle '
                    'name or delete the bundle'.format(bundle_name))
         return
-    ctx.invoke(test)
+    ctx.invoke(test, errors_allowed=errors_allowed)
     ctx.invoke(assemble, bundle_name=bundle_name)
     ctx.invoke(package_meta, bundle_name=bundle_name)
     ctx.invoke(upload, bundle_name=bundle_name, force=force_upload)
@@ -246,7 +253,7 @@ def update(bundle_name, deploy_name, replace_output,
     if update_only_types:
         click.echo('Types to update: {}'.format(list(update_only_types)))
     if update_only_resources:
-        click.echo('Resources to update: {}'.format(list(update_only_types)))
+        click.echo('Resources to update: {}'.format(list(update_only_resources)))
     if update_only_resources_path:
         click.echo('Path to list of resources to update: {}'.format(
             update_only_resources_path))
@@ -263,8 +270,9 @@ def update(bundle_name, deploy_name, replace_output,
         update_only_resources=update_only_resources,
         replace_output=replace_output)
     if success:
-        return 'Update of resources has been successfully completed'
-    return 'Something went wrong during resources update'
+        click.echo('Update of resources has been successfully completed')
+    else:
+        click.echo('Something went wrong during resources update')
 
 
 @syndicate.command(name='clean')
@@ -396,11 +404,9 @@ def warmup(bundle_name, deploy_name, api_gw_id, stage_name, lambda_auth,
         paths_to_be_triggered, resource_path_warmup_key_mapping = \
             process_existing_api_gw_id(stage_name=stage_name, echo=click.echo)
 
-    if not (paths_to_be_triggered or resource_path_warmup_key_mapping):
-        click.echo('Cannot warmup lambda functions because API Gateway'
-                   ' resources not found')
+    if not paths_to_be_triggered or not resource_path_warmup_key_mapping:
+        click.echo('No resources to warm up')
         return
-
     resource_method_mapping, resource_warmup_key_mapping = \
         process_api_gw_resources(paths_to_be_triggered=paths_to_be_triggered,
                                  resource_path_warmup_key_mapping=
@@ -494,10 +500,10 @@ def assemble_node(bundle_name, project_path):
     click.echo('NodeJS artifacts were prepared successfully.')
 
 
-COMMAND_TO_BUILD_MAPPING = {
-    MVN_BUILD_TOOL_NAME: assemble_java_mvn,
-    PYTHON_BUILD_TOOL_NAME: assemble_python,
-    NODE_BUILD_TOOL_NAME: assemble_node
+RUNTIME_LANG_TO_BUILD_MAPPING = {
+    JAVA_LANGUAGE_NAME: assemble_java_mvn,
+    PYTHON_LANGUAGE_NAME: assemble_python,
+    NODEJS_LANGUAGE_NAME: assemble_node
 }
 
 
@@ -518,7 +524,7 @@ def assemble(ctx, bundle_name):
     build_mapping_dict = PROJECT_STATE.load_project_build_mapping()
     if build_mapping_dict:
         for key, value in build_mapping_dict.items():
-            func = COMMAND_TO_BUILD_MAPPING.get(key)
+            func = RUNTIME_LANG_TO_BUILD_MAPPING.get(key)
             if func:
                 ctx.invoke(func, bundle_name=bundle_name,
                            project_path=value)

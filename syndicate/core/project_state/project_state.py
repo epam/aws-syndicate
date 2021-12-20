@@ -21,6 +21,7 @@ from datetime import datetime
 import yaml
 
 from syndicate.core.groups import RUNTIME_JAVA, RUNTIME_NODEJS, RUNTIME_PYTHON
+from syndicate.core.constants import DATE_FORMAT_ISO_8601
 
 CAPITAL_LETTER_REGEX = '[A-Z][^A-Z]*'
 
@@ -29,6 +30,7 @@ STATE_LOCKS = 'locks'
 STATE_LAMBDAS = 'lambdas'
 STATE_BUILD_PROJECT_MAPPING = 'build_projects_mapping'
 STATE_LOG_EVENTS = 'events'
+STATE_LATEST_DEPLOY = 'latest_deploy'
 LOCK_LOCKED = 'locked'
 LOCK_LAST_MODIFICATION_DATE = 'last_modification_date'
 LOCK_INITIATOR = 'initiator'
@@ -38,14 +40,16 @@ WARMUP_LOCK = 'warm_up_lock'
 PROJECT_STATE_FILE = '.syndicate'
 
 BUILD_MAPPINGS = {
-    RUNTIME_JAVA: '/jsrc/main/java',
-    RUNTIME_PYTHON: '/src',
-    RUNTIME_NODEJS: '/app'
+    RUNTIME_JAVA: 'jsrc/main/java',
+    RUNTIME_PYTHON: 'src',
+    RUNTIME_NODEJS: 'app'
 }
 
 OPERATION_LOCK_MAPPINGS = {
     'deploy': MODIFICATION_LOCK
 }
+KEEP_EVENTS_DAYS = 30
+LEAVE_LATEST_EVENTS = 20
 
 
 class ProjectState:
@@ -83,6 +87,8 @@ class ProjectState:
             parts.extend(self.name.split('_'))
         if not parts:
             parts = re.findall(CAPITAL_LETTER_REGEX, self.name)
+        if not parts:
+            parts = [self.name]
         return '-'.join([_.lower() for _ in parts])
 
     @name.setter
@@ -109,8 +115,7 @@ class ProjectState:
         events = self._dict.get(STATE_LOG_EVENTS)
         if not events:
             events = []
-            self._dict.update({STATE_LOG_EVENTS:
-                                   events})
+            self._dict.update({STATE_LOG_EVENTS: events})
         return events
 
     @events.setter
@@ -118,31 +123,43 @@ class ProjectState:
         self._dict.update({STATE_LOG_EVENTS: events})
 
     @property
+    def latest_deploy(self):
+        latest_deploy = self._dict.get(STATE_LATEST_DEPLOY)
+        if not latest_deploy:
+            latest_deploy = {}
+            self._dict.update({STATE_LATEST_DEPLOY: latest_deploy})
+        return latest_deploy
+
+    @latest_deploy.setter
+    def latest_deploy(self, latest_deploy):
+        self._dict[STATE_LATEST_DEPLOY] = latest_deploy
+
+    @property
     def latest_built_bundle_name(self):
-        return self._latest_operation_bundle_name(operation_name='build',
-                                                  attribute='bundle_name')
+        return self._get_attribute_from_latest_operation(
+            operation_name='build',
+            attribute='bundle_name')
 
     @property
     def latest_built_deploy_name(self):
-        return self._latest_operation_bundle_name(operation_name='build',
-                                                  attribute='deploy_name')
+        return self._get_attribute_from_latest_operation(
+            operation_name='build',
+            attribute='deploy_name')
 
     @property
     def latest_deployed_bundle_name(self):
-        return self._latest_operation_bundle_name(operation_name='deploy',
-                                                  attribute='bundle_name')
+        return self.latest_deploy.get('bundle_name')
 
     @property
     def latest_deployed_deploy_name(self):
-        return self._latest_operation_bundle_name(operation_name='deploy',
-                                                  attribute='deploy_name')
+        return self.latest_deploy.get('deploy_name')
 
-    def _latest_operation_bundle_name(self, operation_name, attribute):
+    def _get_attribute_from_latest_operation(self, operation_name, attribute):
         events = self.events
-        build_events = [event for event in events if
-                        event.get('operation') == operation_name]
-        if build_events:
-            return build_events[0].get(attribute)
+        event = next((event for event in events if
+                      event.get('operation') == operation_name), None)
+        if event:
+            return event.get(attribute)
 
     @property
     def latest_modification(self):
@@ -201,9 +218,22 @@ class ProjectState:
         return self._dict.get(STATE_BUILD_PROJECT_MAPPING)
 
     def log_execution_event(self, **kwargs):
+        operation = kwargs.get('operation')
+        if operation == 'deploy' or operation == 'update':
+            self._set_latest_deploy_info(**kwargs)
+        if operation == 'clean':
+            self._delete_latest_deploy_info()
+
         kwargs = {key: value for key, value in kwargs.items() if value}
         self.events.append(kwargs)
         self.__save_events()
+
+    def _set_latest_deploy_info(self, **kwargs):
+        kwargs = {key: value for key, value in kwargs.items() if value}
+        self.latest_deploy = kwargs
+
+    def _delete_latest_deploy_info(self):
+        self.latest_deploy = {}
 
     def add_execution_events(self, events):
         all_events = self.events
@@ -214,7 +244,7 @@ class ProjectState:
         locks = self.locks
         lock = locks.get(lock_name)
         timestamp = datetime.fromtimestamp(time.time()) \
-            .strftime('%Y-%m-%dT%H:%M:%SZ')
+            .strftime(DATE_FORMAT_ISO_8601)
         modified_lock = {LOCK_LOCKED: locked,
                          LOCK_LAST_MODIFICATION_DATE: timestamp,
                          LOCK_INITIATOR: getpass.getuser()}
@@ -232,8 +262,20 @@ class ProjectState:
             return yaml.safe_load(state_file.read())
 
     def __save_events(self):
-        if len(self.events) > 20:
-            self.events = self.events[:20]
         self.events.sort(key=lambda event: event.get('time_start'),
                          reverse=True)
+        current_time = datetime.fromtimestamp(time.time())
+        index_out_days = None
+        for i, event in enumerate(self.events):
+            if (current_time -
+                datetime.strptime(event.get('time_start'),
+                                  DATE_FORMAT_ISO_8601)).days > KEEP_EVENTS_DAYS:
+                index_out_days = i
+                break
+
+        if index_out_days:
+            if index_out_days >= LEAVE_LATEST_EVENTS:
+                self.events = self.events[:index_out_days]
+            else:
+                self.events = self.events[:LEAVE_LATEST_EVENTS]
         self.save()

@@ -20,7 +20,7 @@ from syndicate.commons.log_helper import get_logger
 _LOG = get_logger('syndicate.core.generators')
 
 FILE_LAMBDA_HANDLER_PYTHON = 'handler.py'
-FILE_LAMBDA_HANDLER_NODEJS = '/index.js'
+FILE_LAMBDA_HANDLER_NODEJS = 'index.js'
 
 
 def _touch(path):
