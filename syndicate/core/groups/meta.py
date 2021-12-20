@@ -35,7 +35,7 @@ def meta(ctx, project_path):
 
 
 @meta.command(name='dynamodb')
-@click.option('-n', '--resource_name', required=True, type=str,
+@click.option('--resource_name', required=True, type=str,
               help="DynamoDB table name")
 @click.option('--hash_key_name', required=True, type=str,
               help="DynamoDB table hash key")
@@ -66,7 +66,7 @@ def dynamodb(ctx, **kwargs):
 
 
 @meta.command(name='dynamodb_global_index')
-@click.option('-n', '--table_name', required=True, type=str,
+@click.option('--table_name', required=True, type=str,
               help="DynamoDB table name to add index to")
 @click.option('--name', required=True, type=str,
               help="Index name")
@@ -91,7 +91,7 @@ def dynamodb_global_index(ctx, **kwargs):
 
 
 @meta.command(name='dynamodb_autoscaling')
-@click.option('-n', '--table_name', type=str, required=True,
+@click.option('--table_name', type=str, required=True,
               help="DynamoDB table name to add autoscaling to")
 @click.option('--policy_name', type=str, required=True,
               help="Autoscaling policy name")
@@ -129,7 +129,7 @@ def dynamodb_autoscaling(ctx, **kwargs):
 
 
 @meta.command(name='s3_bucket')
-@click.option('-n', '--resource_name', required=True, type=str,
+@click.option('--resource_name', required=True, type=str,
               help="S3 bucket name", callback=check_bundle_bucket_name)
 @click.option('--location', type=ValidRegionParamType(),
               help="The region where the bucket is created, the default value "
@@ -151,7 +151,7 @@ def s3_bucket(ctx, **kwargs):
 
 
 @meta.command(name='api_gateway')
-@click.option('-n', '--resource_name', required=True, type=str,
+@click.option('--resource_name', required=True, type=str,
               help="Api gateway name")
 @click.option('--deploy_stage', required=True, type=str,
               help="The stage to deploy the API")
@@ -171,7 +171,7 @@ def api_gateway(ctx, **kwargs):
 
 
 @meta.command(name='api_gateway_resource')
-@click.option('-n', '--api_name', required=True, type=str,
+@click.option('--api_name', required=True, type=str,
               help="Api gateway name to add index to")
 @click.option('--path', required=True, type=click.Path(readable=False),
               help="Resource path to create")
@@ -190,7 +190,7 @@ def api_gateway_resource(ctx, **kwargs):
 
 
 @meta.command(name='api_gateway_resource_method')
-@click.option('-n', '--api_name', required=True, type=str,
+@click.option('--api_name', required=True, type=str,
               help="Api gateway name to add index to")
 @click.option('--path', required=True, type=click.Path(readable=False),
               help="Resource path to create")
@@ -233,7 +233,7 @@ def api_gateway_resource_method(ctx, **kwargs):
 
 
 @meta.command(name='iam_policy')
-@click.option('-n', '--resource_name', required=True, type=str,
+@click.option('--resource_name', required=True, type=str,
               help='IAM policy name')
 @click.option('--policy_content', help='The path to JSON file with IAM policy '
                                        'content. If not specified, template '
@@ -256,7 +256,7 @@ def iam_policy(ctx, **kwargs):
 
 
 @meta.command(name='iam_role')
-@click.option('-n', '--resource_name', required=True, type=str,
+@click.option('--resource_name', required=True, type=str,
               help="IAM role name")
 @click.option('--principal_service', required=True, type=str,
               help="The service which will use the role")
@@ -280,7 +280,7 @@ def iam_role(ctx, **kwargs):
                f"added successfully")
 
 @meta.command(name='kinesis_stream')
-@click.option('-n', '--resource_name', type=str, required=True,
+@click.option('--resource_name', type=str, required=True,
               help="Kinesis stream name")
 @click.option('--shard_count', type=int, required=True,
               help="Number of shards that the stream uses")
@@ -296,7 +296,7 @@ def kinesis_stream(ctx, **kwargs):
 
 
 @meta.command(name='sns_topic')
-@click.option('-n', '--resource_name', type=str, required=True,
+@click.option('--resource_name', type=str, required=True,
               help="SNS topic name")
 @click.option('--region', type=ValidRegionParamType(allowed_all=True),
               required=True, help="Where the topic should be deployed")
@@ -312,7 +312,7 @@ def sns_topic(ctx, **kwargs):
 
 
 @meta.command(name='step_function')
-@click.option('-n', '--resource_name', type=str, required=True,
+@click.option('--resource_name', type=str, required=True,
               help="Step function activity name")
 @click.pass_context
 @timeit()
@@ -326,7 +326,7 @@ def step_function_activity(ctx, **kwargs):
 
 
 @meta.command(name='ec2_instance')
-@click.option('-n', '--resource_name', type=str, required=True,
+@click.option('--resource_name', type=str, required=True,
               help="Instance name")
 @click.option('--key_name', type=str, required=True,
              help="SHH key to access the instance")
@@ -362,7 +362,7 @@ def ec2_instance(ctx, **kwargs):
 
 
 @meta.command(name='sqs_queue')
-@click.option('-n', '--resource_name', type=str, required=True,
+@click.option('--resource_name', type=str, required=True,
               help="SQS queue name")
 @click.option('--region', type=ValidRegionParamType(),
               help="The region where the queue is deployed. Default value is "
@@ -417,7 +417,7 @@ def sqs_queue(ctx, **kwargs):
 
 
 @meta.command(name="sns_application")
-@click.option('-n', '--resource_name', type=str, required=True,
+@click.option('--resource_name', type=str, required=True,
               help="The name of the sns application")
 @click.option('--platform', required=True,
               type=click.Choice(['GCM', 'ADM', 'APNS', 'APNS_SANDBOX']),
@@ -439,7 +439,7 @@ def sns_application(ctx, **kwargs):
 
 
 @meta.command(name="cognito_user_pool")
-@click.option('-n', '--resource_name', type=str, required=True,
+@click.option('--resource_name', type=str, required=True,
               help="Cognito user pool name")
 # @click.option('--region', type=ValidRegionParamType(), required=True,
 #               help="The region where the user pool is created")
@@ -478,7 +478,7 @@ def cognito_user_pool(ctx, **kwargs):
 
 
 @meta.command(name='batch_compenv')
-@click.option('-n', '--resource_name', type=str, required=True,
+@click.option('--resource_name', type=str, required=True,
               help="Batch compute environment name")
 @click.option('--compute_environment_type',
               type=click.Choice(['MANAGED', 'UNMANAGED']),
