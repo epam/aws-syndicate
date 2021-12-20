@@ -45,3 +45,5 @@ from syndicate.core.generators.deployment_resources.\
         batch_compenv_generator import BatchCompenvGenerator
 from syndicate.core.generators.deployment_resources.\
         cloudwatch_alarm_generator import CloudWatchAlarmGenerator
+from syndicate.core.generators.deployment_resources.step_function_generator \
+        import StepFunctionGenerator

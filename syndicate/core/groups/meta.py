@@ -313,6 +313,22 @@ def sns_topic(ctx, **kwargs):
 
 @meta.command(name='step_function')
 @click.option('--resource_name', type=str, required=True,
+              help="Step function name")
+@click.option('--iam_role', type=str, required=True,
+              help="IAM role to use for this state machine")
+@click.pass_context
+@timeit()
+def step_function(ctx, **kwargs):
+    """Generate step function deployment resource template"""
+    kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
+    generator = StepFunctionGenerator(**kwargs)
+    _generate(generator)
+    click.echo(f"Step function '{kwargs['resource_name']}' was "
+               f"added successfully")
+
+
+@meta.command(name='step_function_activity')
+@click.option('--resource_name', type=str, required=True,
               help="Step function activity name")
 @click.pass_context
 @timeit()
@@ -321,7 +337,7 @@ def step_function_activity(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = StepFunctionActivityGenerator(**kwargs)
     _generate(generator)
-    click.echo(f"Step function activity '{kwargs['resource_name']}' was"
+    click.echo(f"Step function activity '{kwargs['resource_name']}' was "
                f"added successfully")
 
 
