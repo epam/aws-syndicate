@@ -154,50 +154,13 @@ class IAMConnection(object):
                 "Version": "2012-10-17",
                 "Statement": []
             }
-            if allowed_account:
-                if isinstance(allowed_account, str):
-                    principal = get_account_role_arn(allowed_account)
-                elif isinstance(allowed_account, list):
-                    principal = []
-                    for each in allowed_account:
-                        principal.append(get_account_role_arn(each))
-                else:
-                    raise TypeError(
-                        'Can not create role. allowed_account must be list or '
-                        'str. Actual type: {0}'.format(type(allowed_account)))
-                trusted_accounts = {
-                    "Sid": "",
-                    "Effect": "Allow",
-                    "Principal": {
-                        "AWS": principal
-                    },
-                    "Action": "sts:AssumeRole"
-                }
-                if external_id:
-                    trusted_accounts['Condition'] = {
-                        "StringEquals": {
-                            "sts:ExternalId": external_id
-                        }
-                    }
-                trusted_relationships['Statement'].append(trusted_accounts)
+        if allowed_account:
+            trusted_accounts = IAMConnection._set_allowed_account(
+                allowed_account, external_id, 'create')
+            trusted_relationships['Statement'].append(trusted_accounts)
         if allowed_service:
-            if isinstance(allowed_service, str):
-                principal = "{0}.amazonaws.com".format(allowed_service)
-            elif isinstance(allowed_service, list):
-                principal = []
-                for each in allowed_service:
-                    principal.append("{0}.amazonaws.com".format(each))
-            else:
-                raise TypeError(
-                    'Can not create role. allowed_service must be list or '
-                    'str. Actual type: {0}'.format(type(allowed_service)))
-            trusted_services = {
-                "Effect": "Allow",
-                "Principal": {
-                    "Service": principal
-                },
-                "Action": "sts:AssumeRole"
-            }
+            trusted_services = IAMConnection._set_allowed_service(
+                allowed_service, 'create')
             trusted_relationships['Statement'].append(trusted_services)
         if isinstance(trusted_relationships, dict):
             trusted_relationships = dumps(trusted_relationships)
@@ -464,3 +427,183 @@ class IAMConnection(object):
             token = response.get('Marker')
             policies.extend(response.get('PolicyNames'))
         return policies
+
+    def update_custom_role(self, role, role_name, allowed_account=None,
+                           allowed_service=None, trusted_relationships=None,
+                           external_id=None):
+        updated_role = role['AssumeRolePolicyDocument']
+        if trusted_relationships:
+            trusted_relationships = {
+                "Version": "2012-10-17",
+                "Statement": updated_role.get('Statement', [])
+            }
+        else:
+            trusted_relationships = {
+                "Version": "2012-10-17",
+                "Statement": []
+            }
+        statement = trusted_relationships['Statement']
+        if allowed_account:
+            trusted_accounts = IAMConnection._set_allowed_account(
+                allowed_account, external_id, 'update')
+            statement.append(trusted_accounts)
+        if allowed_service:
+            trusted_services = IAMConnection._set_allowed_service(
+                allowed_service, 'update')
+            statement.append(trusted_services)
+        if isinstance(trusted_relationships, dict):
+            trusted_relationships = dumps(trusted_relationships)
+            statement = updated_role.get('Statement', [])
+            statement.append(trusted_relationships)
+            unique = []
+            for s in statement:
+                if s not in unique:
+                    unique.append(s)
+        try:
+            role = self.client.update_assume_role_policy(
+                RoleName=role_name,
+                PolicyDocument=trusted_relationships)
+            return role['ResponseMetadata']
+        except ClientError as e:
+            if e.response['Error']['Code'] == 'NoSuchEntityException':
+                _LOG.warn(f'Can not update role \'{role_name}\': role does '
+                          f'not exist.')
+            raise e
+
+    @staticmethod
+    def _set_allowed_account(allowed_account, external_id, action):
+        if isinstance(allowed_account, str):
+            principal = get_account_role_arn(allowed_account)
+        elif isinstance(allowed_account, list):
+            principal = []
+            for each in allowed_account:
+                principal.append(get_account_role_arn(each))
+        else:
+            raise TypeError(
+                f'Can not {action} role. \'allowed_account\' must be list '
+                f'or string. Actual type: {type(allowed_account)}')
+        trusted_accounts = {
+            "Sid": "",
+            "Effect": "Allow",
+            "Principal": {
+                "AWS": principal
+            },
+            "Action": "sts:AssumeRole"
+        }
+        if external_id:
+            trusted_accounts['Condition'] = {
+                "StringEquals": {
+                    "sts:ExternalId": external_id
+                }
+            }
+        return trusted_accounts
+
+    @staticmethod
+    def _set_allowed_service(allowed_service, action):
+        if isinstance(allowed_service, str):
+            principal = "{0}.amazonaws.com".format(allowed_service)
+        elif isinstance(allowed_service, list):
+            principal = []
+            for each in allowed_service:
+                principal.append("{0}.amazonaws.com".format(each))
+        else:
+            raise TypeError(
+                f'Can not {action} role. \'allowed_service\' must be list '
+                f'or string. Actual type: {type(allowed_service)}')
+        trusted_services = {
+            "Effect": "Allow",
+            "Principal": {
+                "Service": principal
+            },
+            "Action": "sts:AssumeRole"
+        }
+        return trusted_services
+
+    def update_custom_policy_content(self, name, arn, content):
+        policy_resource = self.resource.Policy(arn)
+        policy_json = policy_resource.default_version.document
+        statement = content.get('Statement')
+        if not statement:
+            _LOG.warn(f'Policy \'{name}\' has no or empty \'Statement\' '
+                      f'field.')
+            statement = []
+        policy_json['Statement'] = statement
+        version = content.get('Version')
+        if not statement:
+            _LOG.warn(f'Policy \'{name}\' has no or empty \'Version\' '
+                      f'field.')
+            version = '2012-10-17'
+        policy_json['Version'] = version
+        policy = self.get_policy(arn=arn)
+        policy_version = self.client.get_policy_version(
+            PolicyArn=arn, VersionId=policy['DefaultVersionId']
+        )['PolicyVersion']
+        if content == policy_version['Document']:
+            _LOG.warn(f'No need to update policy \'{name}\': the new and the '
+                      f'old contents are identical.')
+            return
+        self.create_policy_version(policy_arn=arn,
+                                   policy_document=dumps(policy_json),
+                                   set_as_default=True)
+        self.remove_policy_version(policy_arn=arn,
+                                   version_id=policy_version['VersionId'])
+
+    def create_group(self, name):
+        return self.client.create_group(GroupName=name)
+
+    def get_group(self, name):
+        groups = []
+        try:
+            response = self.client.get_group(GroupName=name)
+        except ClientError as e:
+            if e.response['Error']['Code'] == 'NoSuchEntityException':
+                _LOG.warn(f'Group {name} is not found')
+                return []
+            raise e
+        token = response.get('Marker')
+        group_item = response.get('Group')
+        group_item.update({'Users': response.get('Users')})
+        groups.extend(group_item)
+        while token:
+            response = self.client.get_group(GroupName=name, Marker=token)
+            token = response.get('Marker')
+            group_item = response.get('Group')
+            group_item.update({'Users': response.get('Users')})
+            groups.extend(group_item)
+        return groups
+
+    def add_user_to_group(self, group_name, username):
+        try:
+            response = self.client.add_user_to_group(GroupName=group_name,
+                                                     UserName=username)
+            return response
+        except ClientError as e:
+            if e.response['Error']['Code'] == 'NoSuchEntityException':
+                _LOG.warn(f'Group {group_name} or username {username} is not '
+                          f'found')
+                return []
+            raise e
+
+    def remove_user_from_group(self, group_name, username):
+        try:
+            response = self.client.remove_user_from_group(GroupName=group_name,
+                                                          UserName=username)
+            return response
+        except ClientError as e:
+            if e.response['Error']['Code'] == 'NoSuchEntityException':
+                _LOG.warn(f'Group {group_name} or username {username} is not '
+                          f'found')
+            raise e
+
+    def attach_group_policy(self, group_name, arn):
+        try:
+            response = self.client.attach_group_policy(GroupName=group_name,
+                                                       PolicyArn=arn)
+            return response
+        except ClientError as e:
+            if e.response['Error']['Code'] == 'NoSuchEntityException':
+                _LOG.warn(f'Group {group_name} is not found')
+            elif e.response['Error']['Code'] == 'LimitExceededException':
+                _LOG.warn(f'Can not attach more than 10 rules to group '
+                          f'{group_name}')
+            raise e

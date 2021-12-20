@@ -27,6 +27,7 @@ from syndicate.connection.cognito_identity_connection import (
     CognitoIdentityConnection)
 from syndicate.connection.cognito_identity_provider_connection import \
     CognitoIdentityProviderConnection
+from syndicate.connection.documentdb_connection import DocumentDBConnection
 from syndicate.connection.dynamo_connection import DynamoConnection
 from syndicate.connection.ec2_connection import EC2Connection
 from syndicate.connection.elastic_beanstalk_connection import (
@@ -181,3 +182,10 @@ class ConnectionProvider(object):
         if region:
             credentials['region'] = region
         return BatchConnection(**credentials)
+
+    @lru_cache(maxsize=None)
+    def documentdb(self, region=None):
+        credentials = self.credentials.copy()
+        if region:
+            credentials['region'] = region
+        return DocumentDBConnection(**credentials)
