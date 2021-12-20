@@ -1,10 +1,11 @@
 import glob
 import json
+import re
 from pathlib import Path
 
 import click
 from syndicate.commons.log_helper import get_logger, get_user_logger
-from syndicate.core.constants import RESOURCES_FILE_NAME, API_GATEWAY_TYPE
+from syndicate.core.constants import RESOURCES_FILE_NAME
 from syndicate.core.generators import (_read_content_from_file,
                                        _write_content_to_file)
 
@@ -110,7 +111,8 @@ class BaseDeploymentResourceGenerator(BaseConfigurationGenerator):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.resource_name = self._dict.pop('resource_name')
+        self.resource_name = self._dict.pop('resource_name').strip()
+        self._validate_resource_name()
 
         if not self.RESOURCE_TYPE:
             message = f"RESOURCE_TYPE variable inside class " \
@@ -149,7 +151,8 @@ class BaseDeploymentResourceGenerator(BaseConfigurationGenerator):
                       f"was found in file '{duplicated_file}'."
             _LOG.warning(f"Found duplicate while generating meta. {message}")
             if click.confirm(f"{message} Overwrite?"):
-                USER_LOG.warning(f"Overwriting resource '{self.resource_name}'")
+                USER_LOG.warning(
+                    f"Overwriting resource '{self.resource_name}'")
                 resources_file = duplicated_file
             else:
                 USER_LOG.warning(f"Skipping resource '{self.resource_name}'")
@@ -176,3 +179,20 @@ class BaseDeploymentResourceGenerator(BaseConfigurationGenerator):
             return paths[0]
         _LOG.info(f"No duplicated {self.RESOURCE_TYPE} with "
                   f"name '{self.resource_name}' was found")
+
+    def _validate_resource_name(self):
+        """Validates self.resource_name"""
+        to_validate: str = self.resource_name
+        _LOG.info(f"Validating resource name: '{to_validate}'")
+        error = None
+
+        invalid_character = re.search("[^a-zA-Z0-9._-]", to_validate)
+        if not 3 <= len(to_validate) <= 64:
+            error = "resource name length must be between 3 and 64 characters"
+        elif invalid_character:
+            error = f"resource name cannot contain: " \
+                    f"'{invalid_character.group()}'"
+        if error:
+            _LOG.error(f"Resource name validation error: {error}")
+            raise click.BadParameter(error, param_hint="resource_name")
+        _LOG.info(f"Resource name: '{to_validate}' passed the validation")
