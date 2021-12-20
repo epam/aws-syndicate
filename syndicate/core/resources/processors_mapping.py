@@ -27,7 +27,9 @@ from syndicate.core.constants import (API_GATEWAY_TYPE, CLOUD_WATCH_ALARM_TYPE,
                                       BATCH_COMPENV_TYPE, BATCH_JOBQUEUE_TYPE,
                                       BATCH_JOBDEF_TYPE,
                                       COGNITO_USER_POOL_TYPE,
-                                      COGNITO_FEDERATED_POOL_TYPE)
+                                      COGNITO_FEDERATED_POOL_TYPE,
+                                      DOCUMENTDB_CLUSTER_TYPE,
+                                      DOCUMENTDB_INSTANCE_TYPE)
 
 
 class ProcessorFacade:
@@ -83,7 +85,12 @@ class ProcessorFacade:
             BATCH_JOBQUEUE_TYPE:
                 self.resources_provider.batch_jobqueue().create_job_queue,
             BATCH_JOBDEF_TYPE:
-                self.resources_provider.batch_jobdef().register_job_definition
+                self.resources_provider.batch_jobdef().register_job_definition,
+            DOCUMENTDB_CLUSTER_TYPE:
+                self.resources_provider.documentdb_cluster().create_db_cluster,
+            DOCUMENTDB_INSTANCE_TYPE:
+                self.resources_provider.documentdb_instance()
+                    .create_db_instance
         }
 
     def describe_handlers(self):
@@ -131,7 +138,13 @@ class ProcessorFacade:
             BATCH_JOBQUEUE_TYPE:
                 self.resources_provider.batch_jobqueue().describe_job_queue,
             BATCH_JOBDEF_TYPE:
-                self.resources_provider.batch_jobdef().describe_job_definition
+                self.resources_provider.batch_jobdef().describe_job_definition,
+            DOCUMENTDB_CLUSTER_TYPE:
+                self.resources_provider.documentdb_cluster()
+                    .describe_documentdb_cluster,
+            DOCUMENTDB_INSTANCE_TYPE:
+                self.resources_provider.documentdb_instance()
+                    .describe_documentdb_instance
         }
 
     def remove_handlers(self):
@@ -184,6 +197,11 @@ class ProcessorFacade:
             BATCH_JOBDEF_TYPE:
                 self.resources_provider.batch_jobdef()
                     .deregister_job_definition,
+            DOCUMENTDB_CLUSTER_TYPE:
+                self.resources_provider.documentdb_cluster().remove_db_cluster,
+            DOCUMENTDB_INSTANCE_TYPE:
+                self.resources_provider.documentdb_instance()
+                    .remove_db_instance
         }
 
     def update_handlers(self):
@@ -197,6 +215,10 @@ class ProcessorFacade:
             BATCH_COMPENV_TYPE:
                 self.resources_provider.batch_compenv()
                     .update_compute_environment
+            IAM_ROLE:
+                self.resources_provider.iam().update_iam_role,
+            IAM_POLICY:
+                self.resources_provider.iam().update_iam_policy
         }
 
     def resource_configuration_processor(self):
