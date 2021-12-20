@@ -621,6 +621,31 @@ def cloudwatch_alarm(ctx, **kwargs):
                f"added successfully")
 
 
+@meta.command(name="cloudwatch_event_rule")
+@click.option('--resource_name', type=str, required=True,
+              help="Cloudwatch event rule type")
+@click.option('--rule_type', help="Rule type", required=True,
+              type=click.Choice(['schedule', 'ec2', 'api_call']))
+@click.option('--expression', type=str,
+              help="Rule expression (cron schedule). Valuable only if "
+                   "rule_type is 'schedule'")
+@click.option('--aws_service', type=str,
+              help="The name of AWS service which the rule listens to. "
+                   "Required only if rule_type is 'api_call'")
+@click.option('--region', type=ValidRegionParamType(allowed_all=True),
+              help="The region where the rule is deployed. Default value is "
+                   "the one from syndicate config")
+@click.pass_context
+@timeit()
+def cloudwatch_event_rule(ctx, **kwargs):
+    """Generates Cloudwatch event rule deployment resources template"""
+    kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
+    generator = CloudwatchEventRuleGenerator(**kwargs)
+    _generate(generator)
+    click.echo(f"Cloudwatch event rule '{kwargs['resource_name']}' was "
+               f"added successfully")
+
+
 def _generate(generator: BaseConfigurationGenerator):
     """Just some common actions for this module are gathered in here"""
     try:

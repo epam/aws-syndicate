@@ -49,3 +49,5 @@ from syndicate.core.generators.deployment_resources.step_function_generator \
         import StepFunctionGenerator
 from syndicate.core.generators.deployment_resources.cognito_federated_generator \
         import CognitoFederatedPoolGenerator
+from syndicate.core.generators.deployment_resources.\
+        cloudwatch_event_rule_generator import CloudwatchEventRuleGenerator
