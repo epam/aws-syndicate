@@ -674,6 +674,30 @@ def documentdb_cluster(ctx, **kwargs):
                f"added successfully")
 
 
+@meta.command(name="documentdb_instance")
+@click.option('--resource_name', type=str, required=True,
+              help="DocumentDB instance name")
+@click.option('--cluster_identifier', type=str, required=True,
+              help="The identifier of the cluster that the instance will "
+                   "belong to")
+@click.option('--instance_class', type=str,
+              help="The compute and memory capacity of the instance. Default "
+                   "value is 'db.r5.large'")
+@click.option('--availability_zone', type=str,
+              help="The Amazon EC2 Availability Zone that the instance is "
+                   "created in. If not specified a random zone it the "
+                   "endpoint's region is set.")
+@click.pass_context
+@timeit()
+def documentdb_instance(ctx, **kwargs):
+    """Generates documentdb instance deployment resources template"""
+    kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
+    generator = DocumentDBInstanceGenerator(**kwargs)
+    _generate(generator)
+    click.echo(f"DocumentDB instance '{kwargs['resource_name']}' was "
+               f"added successfully")
+
+
 def _generate(generator: BaseConfigurationGenerator):
     """Just some common actions for this module are gathered in here"""
     try:

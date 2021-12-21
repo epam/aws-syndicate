@@ -53,3 +53,5 @@ from syndicate.core.generators.deployment_resources.\
         cloudwatch_event_rule_generator import CloudwatchEventRuleGenerator
 from syndicate.core.generators.deployment_resources.docdb_cluster_generator \
         import DocumentDBClusterGenerator
+from syndicate.core.generators.deployment_resources.docdb_instance_generator \
+        import DocumentDBInstanceGenerator
