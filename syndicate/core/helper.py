@@ -176,11 +176,11 @@ def generate_default_bundle_name(ctx, param, value):
     result_project_name = re.sub(pattern, '', project_name)
     date = datetime.now().strftime("%y%m%d.%H%M%S")
     bundle_name = f'{result_project_name}_{date}'
-    if len(bundle_name) > 60:
+    if len(bundle_name) > 63:
         USER_LOG.warn(f'Bundle name \'{bundle_name}\' is too long. Trim it to '
-                      f'the last 60 characters. Please rename project to '
+                      f'the last 63 characters. Please rename project to '
                       f'shorter name to avoid this warning.')
-        return bundle_name[-60:]
+        return bundle_name[-63:]
     return bundle_name
 
 
