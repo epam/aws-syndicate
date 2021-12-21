@@ -76,7 +76,7 @@ class DocumentDBInstanceResource(BaseResource):
 
     @unpack_kwargs
     def _remove_db_instance(self, arn, config):
-        instance = config['description']['DBInstance']['DBInstanceIdentifier']
+        instance = config['description']
         try:
             self.connection.delete_db_instance(instance)
             _LOG.info(f'DocumentDB instance \'{instance}\' was removed')

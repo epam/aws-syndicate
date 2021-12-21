@@ -87,8 +87,8 @@ class DocumentDBConnection(object):
             DBInstanceIdentifier=instance_identifier)
         return response['DBInstance'].get('DBInstanceIdentifier')
 
-    def delete_db_cluster(self, cluster_identifier, skip_final_snapshot=False,
-                          final_db_snapshot_identifier=False):
+    def delete_db_cluster(self, cluster_identifier, skip_final_snapshot=True,
+                          final_db_snapshot_identifier=None):
         """
         Deletes a previously provisioned cluster (all automated backups for
         that cluster are deleted and can't be recovered).
@@ -106,8 +106,9 @@ class DocumentDBConnection(object):
         params = {
             'DBClusterIdentifier': cluster_identifier,
             'SkipFinalSnapshot': skip_final_snapshot,
-            'FinalDBSnapshotIdentifier': final_db_snapshot_identifier
         }
+        if final_db_snapshot_identifier:
+            params['FinalDBSnapshotIdentifier'] = final_db_snapshot_identifier
         response = self.client.delete_db_cluster(**params)
         return response['DBCluster'].get('DBClusterIdentifier')
 
