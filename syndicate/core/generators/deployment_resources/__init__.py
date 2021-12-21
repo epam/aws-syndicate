@@ -51,3 +51,5 @@ from syndicate.core.generators.deployment_resources.cognito_federated_generator 
         import CognitoFederatedPoolGenerator
 from syndicate.core.generators.deployment_resources.\
         cloudwatch_event_rule_generator import CloudwatchEventRuleGenerator
+from syndicate.core.generators.deployment_resources.docdb_cluster_generator \
+        import DocumentDBClusterGenerator

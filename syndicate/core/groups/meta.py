@@ -623,8 +623,8 @@ def cloudwatch_alarm(ctx, **kwargs):
 
 @meta.command(name="cloudwatch_event_rule")
 @click.option('--resource_name', type=str, required=True,
-              help="Cloudwatch event rule type")
-@click.option('--rule_type', help="Rule type", required=True,
+              help="Cloudwatch event rule name")
+@click.option('--rule_type', required=True, help="Cloudwatch event rule type",
               type=click.Choice(['schedule', 'ec2', 'api_call']))
 @click.option('--expression', type=str,
               help="Rule expression (cron schedule). Valuable only if "
@@ -643,6 +643,34 @@ def cloudwatch_event_rule(ctx, **kwargs):
     generator = CloudwatchEventRuleGenerator(**kwargs)
     _generate(generator)
     click.echo(f"Cloudwatch event rule '{kwargs['resource_name']}' was "
+               f"added successfully")
+
+
+@meta.command(name="documentdb_cluster")
+@click.option('--resource_name', type=str, required=True,
+              help="DocumentDB cluster name")
+@click.option('--master_username', type=str, required=True,
+              help="DocumentDB login ID for the master user")
+@click.option('--master_password', type=str, required=True,
+              help="The password for master user")
+@click.option('--port', type=int,
+              help="The port number on which the instances in the cluster "
+                   "accept connections. Default value is 27017")
+@click.option('--vpc_security_group_ids', type=str, multiple=True,
+              help="A list of EC2 VPC security groups to associate with this "
+                   "cluster. Is not specified, default security group is used")
+@click.option('--availability_zones', type=str, multiple=True,
+              help="A list of Amazon EC2 Availability Zones that instances in "
+                   "the cluster can be created in. "
+                   "If not specified default is used")
+@click.pass_context
+@timeit()
+def documentdb_cluster(ctx, **kwargs):
+    """Generates documentdb cluster deployment resources template"""
+    kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
+    generator = DocumentDBClusterGenerator(**kwargs)
+    _generate(generator)
+    click.echo(f"DocumentDB cluster '{kwargs['resource_name']}' was "
                f"added successfully")
 
 
