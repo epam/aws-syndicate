@@ -706,3 +706,5 @@ def _generate(generator: BaseConfigurationGenerator):
         raise click.BadParameter(e)
     except RuntimeError as e:
         raise click.Abort(e)
+    except Exception as e:
+        raise Exception(f"An unexpected error occured: {e}")
