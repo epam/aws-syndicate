@@ -96,7 +96,7 @@ class DocumentDBClusterResource(BaseResource):
 
     @unpack_kwargs
     def _remove_db_cluster(self, arn, config):
-        cluster = config['description']['DBCluster']['DBClusterIdentifier']
+        cluster = config['description']
         try:
             self.connection.delete_db_cluster(cluster)
             _LOG.info(f'DocumentDB cluster \'{cluster}\' was removed')
