@@ -18,6 +18,7 @@ import concurrent.futures
 import getpass
 import json
 import os
+import re
 import subprocess
 import sys
 from datetime import datetime, timedelta
@@ -151,6 +152,7 @@ def resolve_aliases_for_string(string_value):
     except ValueError:
         return input_string
 
+
 def check_required_param(ctx, param, value):
     if not value:
         raise BadParameter('Parameter is required')
@@ -167,10 +169,19 @@ def generate_default_bundle_name(ctx, param, value):
     if value:
         return value
     from syndicate.core import CONFIG
+    # regex to replace all special characters except dash, underscore and dot
+    pattern = re.compile('[^0-9a-zA-Z.\-_]')
     project_path = CONFIG.project_path
     project_name = project_path.split("/")[-1]
+    result_project_name = re.sub(pattern, '', project_name)
     date = datetime.now().strftime("%y%m%d.%H%M%S")
-    return f'{project_name}_{date}'
+    bundle_name = f'{result_project_name}_{date}'
+    if len(bundle_name) > 60:
+        USER_LOG.warn(f'Bundle name \'{bundle_name}\' is too long. Trim it to '
+                      f'the last 60 characters. Please rename project to '
+                      f'shorter name to avoid this warning.')
+        return bundle_name[-60:]
+    return bundle_name
 
 
 def resolve_default_bundle_name(command_name):
