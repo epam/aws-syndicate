@@ -5,6 +5,7 @@ import click
 
 DEFAULT_CRON_EXPRESSION = 'rate(1 hour)'
 
+
 class CloudwatchEventRuleGenerator(BaseDeploymentResourceGenerator):
     RESOURCE_TYPE = CLOUD_WATCH_RULE_TYPE
     CONFIGURATION = {
@@ -21,10 +22,11 @@ class CloudwatchEventRuleGenerator(BaseDeploymentResourceGenerator):
             self.CONFIGURATION['instance_states'] = list
         elif rule_type == 'api_call':
             if not kwargs.get('aws_service'):
-                raise click.MissingParameter("'aws_service' option is required "
-                                             "if if rule_type is 'api_call'",
-                                             param_type='option',
-                                             param_hint='aws_service')
+                raise click.MissingParameter(
+                    "'aws_service' option is required "
+                    "if if rule_type is 'api_call'",
+                    param_type='option',
+                    param_hint='aws_service')
             self.CONFIGURATION['aws_service'] = None
             self.CONFIGURATION['operations'] = list
         super().__init__(**kwargs)

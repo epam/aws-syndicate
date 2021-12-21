@@ -156,7 +156,7 @@ def s3_bucket(ctx, **kwargs):
 @click.option('--deploy_stage', required=True, type=str,
               help="The stage to deploy the API")
 @click.option('--minimum_compression_size',
-              type=click.IntRange(min=0, max=10*1024*1024),
+              type=click.IntRange(min=0, max=10 * 1024 * 1024),
               help="Compression size for api gateway. If not specified, "
                    "compression will be disabled")
 @click.pass_context
@@ -279,6 +279,7 @@ def iam_role(ctx, **kwargs):
     click.echo(f"Iam role '{kwargs['resource_name']}' was "
                f"added successfully")
 
+
 @meta.command(name='kinesis_stream')
 @click.option('--resource_name', type=str, required=True,
               help="Kinesis stream name")
@@ -345,11 +346,11 @@ def step_function_activity(ctx, **kwargs):
 @click.option('--resource_name', type=str, required=True,
               help="Instance name")
 @click.option('--key_name', type=str, required=True,
-             help="SHH key to access the instance")
+              help="SHH key to access the instance")
 @click.option('--image_id', type=str, required=True,
-             help="Image id to create the instance from")
+              help="Image id to create the instance from")
 @click.option('--instance_type', type=str,
-             help="Instance type")
+              help="Instance type")
 @click.option('--disable_api_termination', type=bool,
               help="Api termination protection. Default value is True")
 @click.option('--security_group_ids', type=str, multiple=True,

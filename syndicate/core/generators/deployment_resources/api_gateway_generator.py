@@ -25,6 +25,7 @@ class ApiGatewayGenerator(BaseDeploymentResourceGenerator):
 
 class ApiGatewayConfigurationGenerator(BaseConfigurationGenerator):
     """Contains common method for resource and method generators"""
+
     def __init__(self, **kwargs):
         self.api_gateway_name = kwargs.pop('api_name')
         super().__init__(**kwargs)

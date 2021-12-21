@@ -14,46 +14,46 @@
     limitations under the License.
 """
 from syndicate.core.generators.deployment_resources.dynamodb_generator \
-        import DynamoDBGenerator, DynamoDBGlobalIndexGenerator, \
-        DynamoDBAutoscalingGenerator
+    import DynamoDBGenerator, DynamoDBGlobalIndexGenerator, \
+    DynamoDBAutoscalingGenerator
 from syndicate.core.generators.deployment_resources.s3_bucket_generator \
-        import S3Generator
+    import S3Generator
 from syndicate.core.generators.deployment_resources.api_gateway_generator \
-        import ApiGatewayGenerator, ApiGatewayResourceGenerator, \
-        ApiGatewayResourceMethodGenerator
+    import ApiGatewayGenerator, ApiGatewayResourceGenerator, \
+    ApiGatewayResourceMethodGenerator
 from syndicate.core.generators.deployment_resources.iam_policy_generator \
-        import IAMPolicyGenerator
+    import IAMPolicyGenerator
 from syndicate.core.generators.deployment_resources.iam_role_generator \
-        import IAMRoleGenerator
+    import IAMRoleGenerator
 from syndicate.core.generators.deployment_resources.kinesis_stream_generator \
-        import KinesisStreamGenerator
+    import KinesisStreamGenerator
 from syndicate.core.generators.deployment_resources.sns_topic_generator \
-        import SNSTopicGenerator
-from syndicate.core.generators.deployment_resources.\
-        step_function_activity_generator import StepFunctionActivityGenerator
+    import SNSTopicGenerator
+from syndicate.core.generators.deployment_resources. \
+    step_function_activity_generator import StepFunctionActivityGenerator
 from syndicate.core.generators.deployment_resources.base_generator import \
-        BaseConfigurationGenerator
+    BaseConfigurationGenerator
 from syndicate.core.generators.deployment_resources.ec2_instance_generator \
-        import EC2InstanceGenerator
+    import EC2InstanceGenerator
 from syndicate.core.generators.deployment_resources.sqs_queue_generator \
-        import SQSQueueGenerator
+    import SQSQueueGenerator
 from syndicate.core.generators.deployment_resources.sns_application_generator \
-        import SNSApplicationGenerator
-from syndicate.core.generators.deployment_resources.\
-        cognito_user_pool_generator import CognitoUserPoolGenerator
-from syndicate.core.generators.deployment_resources.\
-        batch_compenv_generator import BatchCompenvGenerator
+    import SNSApplicationGenerator
+from syndicate.core.generators.deployment_resources. \
+    cognito_user_pool_generator import CognitoUserPoolGenerator
+from syndicate.core.generators.deployment_resources. \
+    batch_compenv_generator import BatchCompenvGenerator
 from syndicate.core.generators.deployment_resources.batch_jobqueue_generator \
-        import BatchJobqueueGenerator
-from syndicate.core.generators.deployment_resources.\
-        cloudwatch_alarm_generator import CloudWatchAlarmGenerator
+    import BatchJobqueueGenerator
+from syndicate.core.generators.deployment_resources. \
+    cloudwatch_alarm_generator import CloudWatchAlarmGenerator
 from syndicate.core.generators.deployment_resources.step_function_generator \
-        import StepFunctionGenerator
+    import StepFunctionGenerator
 from syndicate.core.generators.deployment_resources.cognito_federated_generator \
-        import CognitoFederatedPoolGenerator
-from syndicate.core.generators.deployment_resources.\
-        cloudwatch_event_rule_generator import CloudwatchEventRuleGenerator
+    import CognitoFederatedPoolGenerator
+from syndicate.core.generators.deployment_resources. \
+    cloudwatch_event_rule_generator import CloudwatchEventRuleGenerator
 from syndicate.core.generators.deployment_resources.docdb_cluster_generator \
-        import DocumentDBClusterGenerator
+    import DocumentDBClusterGenerator
 from syndicate.core.generators.deployment_resources.docdb_instance_generator \
-        import DocumentDBInstanceGenerator
+    import DocumentDBInstanceGenerator

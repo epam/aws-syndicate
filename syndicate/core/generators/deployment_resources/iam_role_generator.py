@@ -32,7 +32,6 @@ class IAMRoleGenerator(BaseDeploymentResourceGenerator):
             self._dict['instance_profile'] = True
         return super()._resolve_configuration()
 
-
     def validate_custom_policies_existence(self):
         custom_policies = set(self._dict.get('custom_policies', []))
         _LOG.info(f"Validating existence of these policies: {custom_policies}")

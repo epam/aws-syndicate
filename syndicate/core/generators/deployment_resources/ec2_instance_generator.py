@@ -20,5 +20,6 @@ class EC2InstanceGenerator(BaseDeploymentResourceGenerator):
 
     def __init__(self, **kwargs):
         if 'disable_api_termination' in kwargs:
-            kwargs['disableApiTermination'] = kwargs.pop('disable_api_termination')
+            kwargs['disableApiTermination'] = kwargs.pop(
+                'disable_api_termination')
         super().__init__(**kwargs)

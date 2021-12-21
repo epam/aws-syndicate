@@ -25,6 +25,7 @@ class SQSQueueGenerator(BaseDeploymentResourceGenerator):
 
     def __init__(self, **kwargs):
         if 'dead_letter_target_arn' in kwargs:
-            kwargs['deadLetterTargetArn'] = kwargs.pop('dead_letter_target_arn')
+            kwargs['deadLetterTargetArn'] = kwargs.pop(
+                'dead_letter_target_arn')
             kwargs['maxReceiveCount'] = kwargs.pop('max_receive_count')
         super().__init__(**kwargs)

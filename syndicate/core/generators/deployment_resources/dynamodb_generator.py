@@ -34,6 +34,7 @@ class DynamoDBGlobalIndexGenerator(BaseConfigurationGenerator):
         'index_sort_key_name': None,
         'index_sort_key_type': None
     }
+
     def __init__(self, **kwargs):
         self.table_name = kwargs.pop('table_name')
         super().__init__(**kwargs)
@@ -41,7 +42,7 @@ class DynamoDBGlobalIndexGenerator(BaseConfigurationGenerator):
     def write(self):
         """Adds global index to dynamodb"""
         paths_with_table = self._get_resource_meta_paths(self.table_name,
-                                                        DYNAMO_TABLE_TYPE)
+                                                         DYNAMO_TABLE_TYPE)
         if not paths_with_table:
             message = f"Table '{self.table_name}' was not found"
             _LOG.error(message)
