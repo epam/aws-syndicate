@@ -43,6 +43,8 @@ from syndicate.core.generators.deployment_resources.\
         cognito_user_pool_generator import CognitoUserPoolGenerator
 from syndicate.core.generators.deployment_resources.\
         batch_compenv_generator import BatchCompenvGenerator
+from syndicate.core.generators.deployment_resources.batch_jobqueue_generator \
+        import BatchJobqueueGenerator
 from syndicate.core.generators.deployment_resources.\
         cloudwatch_alarm_generator import CloudWatchAlarmGenerator
 from syndicate.core.generators.deployment_resources.step_function_generator \

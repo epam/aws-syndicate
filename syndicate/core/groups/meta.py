@@ -576,6 +576,27 @@ def batch_compenv(ctx, **kwargs):
                f"added successfully")
 
 
+@meta.command(name="batch_jobqueue")
+@click.option('--resource_name', type=str, required=True,
+              help="Batch job queue name")
+@click.option('--state', type=click.Choice(["ENABLED", "DISABLED"]),
+              help="The state of the job queue. Default value is 'ENABLED'")
+@click.option('--priority', type=int, help="The priority of the job queue. "
+                                           "Default value is 1")
+@click.option('--compute_environment_order', type=(int, str), multiple=True,
+              help="The set of compute environments mapped to a job queue and "
+                   "their order relative to each other. (order, compute_env)")
+@click.pass_context
+@timeit()
+def batch_jobqueue(ctx, **kwargs):
+    """Generates batch job queue deployment resources template"""
+    kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
+    generator = BatchJobqueueGenerator(**kwargs)
+    _generate(generator)
+    click.echo(f"Batch job queue '{kwargs['resource_name']}' was "
+               f"added successfully")
+
+
 @meta.command(name="cloudwatch_alarm")
 @click.option('--resource_name', type=str, required=True,
               help="Cloudwatch alarm name")
