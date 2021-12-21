@@ -30,6 +30,7 @@ class CognitoUserPoolGenerator(BaseDeploymentResourceGenerator):
 
     def _generate_resource_configuration(self) -> dict:
         result = super()._generate_resource_configuration()
-        for name, type in self.custom_attributes:
-            result['custom_attributes'].append({'name': name, 'type': type})
+        for name, attr_type in self.custom_attributes:
+            result['custom_attributes'].append({'name': name,
+                                                'type': attr_type})
         return result
