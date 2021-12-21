@@ -161,10 +161,17 @@ class ConfigValidator:
                 errors.append(f'{key} is not supported to be built')
                 continue
             for build_key, paths in value.items():
-                for path in paths:
-                    if not os.path.exists(os.path.join(project_path, path)):
-                        errors.append(f'The path in {key}:{build_key} project '
-                                      f'mapping does not exists: {path}')
+                if not paths:
+                    errors.append(f'The path in {build_key} project '
+                                  f'mapping not specified')
+
+                else:
+                    for path in paths:
+                        if not os.path.exists(os.path.join(
+                                project_path, path)):
+                            errors.append(
+                                f'The path in {key}:{build_key} project '
+                                f'mapping does not exists: {path}')
         return errors
 
     def _validate_aws_access_key(self, key, value):
@@ -186,8 +193,7 @@ class ConfigValidator:
 
     @staticmethod
     def _validate_resources_prefix_suffix(key, value):
-        str_error = ConfigValidator._assert_value_is_str(key=key,
-                                              value=value)
+        str_error = ConfigValidator._assert_value_is_str(key=key, value=value)
         if str_error:
             return [str_error]
         if len(value) > 5:
@@ -199,7 +205,6 @@ class ConfigValidator:
         result = ConfigValidator._validate_resources_prefix_suffix(key, value)
         if result:
             return result[0]
-
 
     @staticmethod
     def _assert_value_is_str(key, value):
