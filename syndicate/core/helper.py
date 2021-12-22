@@ -486,3 +486,33 @@ def resolve_project_path(ctx, param, value):
         USER_LOG.info(f"Path: '{value}' was assigned to the "
                       f"parameter: '{param.name}'")
     return value
+
+
+def check_lambda_name(value):
+    """Validates lambda's name"""
+    _LOG.info(f"Validating lambda name: '{value}'")
+    invalid_character = re.search('[^0-9a-zA-Z\-]', value)
+    error = None
+    if not 3 <= len(value) <= 63:
+        error = f'lambda name \'{value}\' length must be between 3 and 63 characters'
+    elif invalid_character:
+        error = f'lambda name \'{value}\' contains invalid characters: ' \
+                f'{invalid_character.group()}'
+    elif value.startswith('-'):
+        error = f"lambda name '{value}' cannot start with '-'"
+    elif value.endswith('-'):
+        error = f"lambda name '{value}' cannot end with '-'"
+    if error:
+        _LOG.error(f"Lambda name validation error: {error}")
+        raise ValueError(error)
+    _LOG.info(f"Lambda name: '{value}' passed the validation")
+
+
+def check_lambdas_names(ctx, param, value):
+    """Applies lambda name validator for each lambda's name"""
+    for lambda_name in value:
+        try:
+            check_lambda_name(lambda_name)
+        except ValueError as e:
+            raise click.BadParameter(e.__str__(), ctx, param)
+    return value
