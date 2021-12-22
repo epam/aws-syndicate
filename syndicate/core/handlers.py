@@ -46,7 +46,9 @@ from syndicate.core.conf.validator import (JAVA_LANGUAGE_NAME,
                                            PYTHON_LANGUAGE_NAME,
                                            NODEJS_LANGUAGE_NAME)
 from syndicate.core.decorators import check_deploy_name_for_duplicates
-from syndicate.core.groups.generate import generate, GENERATE_GROUP_NAME
+from syndicate.core.groups.generate import (generate,
+                                            GENERATE_PROJECT_COMMAND_NAME,
+                                            GENERATE_CONFIG_COMMAND_NAME)
 from syndicate.core.helper import (check_required_param,
                                    create_bundle_callback,
                                    handle_futures_progress_bar,
@@ -62,9 +64,11 @@ from syndicate.core.project_state.status_processor import project_state_status
 from syndicate.core.project_state.sync_processor import sync_project_state
 
 INIT_COMMAND_NAME = 'init'
+SYNDICATE_PACKAGE_NAME = 'aws-syndicate'
 commands_without_config = (
     INIT_COMMAND_NAME,
-    GENERATE_GROUP_NAME
+    GENERATE_PROJECT_COMMAND_NAME,
+    GENERATE_CONFIG_COMMAND_NAME
 )
 
 
@@ -73,7 +77,8 @@ def _not_require_config(all_params):
 
 
 @click.group(name='syndicate')
-@click.version_option()
+@click.version_option(package_name=SYNDICATE_PACKAGE_NAME,
+                      prog_name=SYNDICATE_PACKAGE_NAME)
 def syndicate():
     if CONF_PATH:
         click.echo('Configuration used: ' + CONF_PATH)
@@ -253,7 +258,8 @@ def update(bundle_name, deploy_name, replace_output,
     if update_only_types:
         click.echo('Types to update: {}'.format(list(update_only_types)))
     if update_only_resources:
-        click.echo('Resources to update: {}'.format(list(update_only_resources)))
+        click.echo(
+            'Resources to update: {}'.format(list(update_only_resources)))
     if update_only_resources_path:
         click.echo('Path to list of resources to update: {}'.format(
             update_only_resources_path))
@@ -455,7 +461,7 @@ def profiler(bundle_name, deploy_name, from_date, to_date):
 
 @syndicate.command(name='assemble_java_mvn')
 @timeit()
-@click.option('--bundle_name', nargs=1, callback=create_bundle_callback)
+@click.option('--bundle_name', nargs=1, callback=generate_default_bundle_name)
 @click.option('--project_path', '-path', nargs=1,
               callback=resolve_path_callback)
 def assemble_java_mvn(bundle_name, project_path):
@@ -474,7 +480,7 @@ def assemble_java_mvn(bundle_name, project_path):
 
 @syndicate.command(name='assemble_python')
 @timeit()
-@click.option('--bundle_name', nargs=1, callback=create_bundle_callback)
+@click.option('--bundle_name', nargs=1, callback=generate_default_bundle_name)
 @click.option('--project_path', '-path', nargs=1,
               callback=resolve_path_callback)
 def assemble_python(bundle_name, project_path):
@@ -493,7 +499,7 @@ def assemble_python(bundle_name, project_path):
 
 @syndicate.command(name='assemble_node')
 @timeit()
-@click.option('--bundle_name', nargs=1, callback=create_bundle_callback)
+@click.option('--bundle_name', nargs=1, callback=generate_default_bundle_name)
 @click.option('--project_path', '-path', nargs=1,
               callback=resolve_path_callback)
 def assemble_node(bundle_name, project_path):
@@ -519,7 +525,7 @@ RUNTIME_LANG_TO_BUILD_MAPPING = {
 
 @syndicate.command(name='assemble')
 @timeit()
-@click.option('--bundle_name', nargs=1, callback=create_bundle_callback)
+@click.option('--bundle_name', nargs=1, callback=generate_default_bundle_name)
 @click.pass_context
 def assemble(ctx, bundle_name):
     """

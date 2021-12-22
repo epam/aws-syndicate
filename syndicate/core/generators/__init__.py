@@ -39,7 +39,7 @@ def _mkdir(path, exist_ok=False, fault_message=None):
     except FileExistsError as e:
         if fault_message:
             answer = input(fault_message)
-            return _re_survey(answer, path)
+            return _re_survey(answer.lower(), path)
         else:
             _LOG.error(e)
     except OSError:
@@ -48,15 +48,13 @@ def _mkdir(path, exist_ok=False, fault_message=None):
 
 
 def _re_survey(answer, project_path):
-    while answer not in ('y', 'n'):
-        answer = input('Please enter [y/n] value: ')
-
+    while True:
         if answer == 'y':
             os.makedirs(project_path, exist_ok=True)
             return True
         elif answer == 'n':
             return False
-    return True
+        answer = input('Please enter [y/n] value: ').lower()
 
 
 def _write_content_to_file(file, content):

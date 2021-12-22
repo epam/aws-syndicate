@@ -18,6 +18,7 @@ import concurrent.futures
 import getpass
 import json
 import os
+import re
 import subprocess
 import sys
 from datetime import datetime, timedelta
@@ -32,7 +33,7 @@ from tqdm import tqdm
 
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.conf.processor import path_resolver
-from syndicate.core.conf.validator import ConfigValidator
+from syndicate.core.conf.validator import ConfigValidator, ALL_REGIONS
 from syndicate.core.constants import (ARTIFACTS_FOLDER, BUILD_META_FILE_NAME,
                                       DEFAULT_SEP, DATE_FORMAT_ISO_8601)
 from syndicate.core.project_state.project_state import MODIFICATION_LOCK
@@ -151,6 +152,7 @@ def resolve_aliases_for_string(string_value):
     except ValueError:
         return input_string
 
+
 def check_required_param(ctx, param, value):
     if not value:
         raise BadParameter('Parameter is required')
@@ -167,10 +169,19 @@ def generate_default_bundle_name(ctx, param, value):
     if value:
         return value
     from syndicate.core import CONFIG
+    # regex to replace all special characters except dash, underscore and dot
+    pattern = re.compile('[^0-9a-zA-Z.\-_]')
     project_path = CONFIG.project_path
     project_name = project_path.split("/")[-1]
+    result_project_name = re.sub(pattern, '', project_name)
     date = datetime.now().strftime("%y%m%d.%H%M%S")
-    return f'{project_name}_{date}'
+    bundle_name = f'{result_project_name}_{date}'
+    if len(bundle_name) > 63:
+        USER_LOG.warn(f'Bundle name \'{bundle_name}\' is too long. Trim it to '
+                      f'the last 63 characters. Please rename project to '
+                      f'shorter name to avoid this warning.')
+        return bundle_name[-63:]
+    return bundle_name
 
 
 def resolve_default_bundle_name(command_name):
@@ -270,7 +281,14 @@ def sync_lock(lock_type):
                 sync_project_state()
             else:
                 raise AssertionError(f'The project {lock_type} is locked.')
-            func(*args, **kwargs)
+            try:
+                func(*args, **kwargs)
+            except Exception as e:
+                _LOG.exception("Error occurred: %s", str(e))
+                from syndicate.core import PROJECT_STATE
+                PROJECT_STATE.release_lock(lock_type)
+                sync_project_state()
+                sys.exit(1)
             PROJECT_STATE.release_lock(lock_type)
             sync_project_state()
         return wrapper
@@ -396,6 +414,51 @@ class OrderedGroup(click.Group):
         return self.commands
 
 
+class OptionRequiredIf(click.Option):
+    def __init__(self, *args, **kwargs):
+        self.required_if = kwargs.pop('required_if')
+        if not self.required_if:
+            raise AssertionError("'required_if' param must be specified")
+        super().__init__(*args, **kwargs)
+
+    def handle_parse_result(self, ctx, opts, args):
+        is_current_present: bool = self.name in opts
+        is_required_present: bool = self.required_if in opts
+        if is_current_present ^ is_required_present:
+            raise click.UsageError(f"options: '{self.name}' and "
+                                   f"'{self.required_if}' "
+                                   f"must be specified together")
+        else:
+            return super().handle_parse_result(ctx, opts, args)
+
+
+class ValidRegionParamType(click.types.StringParamType):
+    ALL_VALUE = 'ALL'
+    name = 'region'
+
+    def __init__(self, allowed_all=False):
+        self.allowed_all=allowed_all
+
+    def convert(self, value, param, ctx):
+        value = super().convert(value, param, ctx)
+        if self.allowed_all and value.upper() == self.ALL_VALUE:
+            _LOG.info("The value is 'ALL' and 'allowed_all=True', returning..")
+            return value.lower()
+        _LOG.info(f"Checking whether {value} is a valid region...")
+        if value not in ALL_REGIONS:
+            _LOG.error(f"Invalid region '{value}' was given")
+            self.fail(f"Value '{value}' is not a valid region. Try one of "
+                      f"these: {ALL_REGIONS}", param, ctx)
+        _LOG.info(f"Value '{value}' is a valid region, returning..")
+        return value
+
+    def get_metavar(self, param):
+        shorten_regions = [ALL_REGIONS[0], "...", ALL_REGIONS[-1]]
+        if self.allowed_all:
+            shorten_regions.insert(0, self.ALL_VALUE)
+        return f"[{'|'.join(shorten_regions)}]"
+
+
 def check_bundle_bucket_name(ctx, param, value):
     try:
         from syndicate.core.resources.s3_resource import validate_bucket_name
@@ -422,4 +485,34 @@ def resolve_project_path(ctx, param, value):
             if CONFIG and CONFIG.project_path else os.getcwd()
         USER_LOG.info(f"Path: '{value}' was assigned to the "
                       f"parameter: '{param.name}'")
+    return value
+
+
+def check_lambda_name(value):
+    """Validates lambda's name"""
+    _LOG.info(f"Validating lambda name: '{value}'")
+    invalid_character = re.search('[^0-9a-zA-Z\-]', value)
+    error = None
+    if not 3 <= len(value) <= 63:
+        error = f'lambda name \'{value}\' length must be between 3 and 63 characters'
+    elif invalid_character:
+        error = f'lambda name \'{value}\' contains invalid characters: ' \
+                f'{invalid_character.group()}'
+    elif value.startswith('-'):
+        error = f"lambda name '{value}' cannot start with '-'"
+    elif value.endswith('-'):
+        error = f"lambda name '{value}' cannot end with '-'"
+    if error:
+        _LOG.error(f"Lambda name validation error: {error}")
+        raise ValueError(error)
+    _LOG.info(f"Lambda name: '{value}' passed the validation")
+
+
+def check_lambdas_names(ctx, param, value):
+    """Applies lambda name validator for each lambda's name"""
+    for lambda_name in value:
+        try:
+            check_lambda_name(lambda_name)
+        except ValueError as e:
+            raise click.BadParameter(e.__str__(), ctx, param)
     return value
