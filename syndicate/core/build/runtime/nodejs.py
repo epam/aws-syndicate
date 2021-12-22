@@ -74,7 +74,7 @@ def _build_node_artifact(item, root, target_folder):
     req_path = Path(root, NODE_REQ_FILE_NAME)
     try:
         if os.path.exists(req_path):
-            command = 'npm install --prefix {0}'.format(root)
+            command = 'npm install'
             execute_command_by_path(command=command, path=root)
             _LOG.debug('3-rd party dependencies were installed successfully')
 
