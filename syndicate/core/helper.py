@@ -33,7 +33,7 @@ from tqdm import tqdm
 
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.conf.processor import path_resolver
-from syndicate.core.conf.validator import ConfigValidator
+from syndicate.core.conf.validator import ConfigValidator, ALL_REGIONS
 from syndicate.core.constants import (ARTIFACTS_FOLDER, BUILD_META_FILE_NAME,
                                       DEFAULT_SEP, DATE_FORMAT_ISO_8601)
 from syndicate.core.project_state.project_state import MODIFICATION_LOCK
@@ -412,6 +412,51 @@ class OrderedGroup(click.Group):
 
     def list_commands(self, ctx):
         return self.commands
+
+
+class OptionRequiredIf(click.Option):
+    def __init__(self, *args, **kwargs):
+        self.required_if = kwargs.pop('required_if')
+        if not self.required_if:
+            raise AssertionError("'required_if' param must be specified")
+        super().__init__(*args, **kwargs)
+
+    def handle_parse_result(self, ctx, opts, args):
+        is_current_present: bool = self.name in opts
+        is_required_present: bool = self.required_if in opts
+        if is_current_present ^ is_required_present:
+            raise click.UsageError(f"options: '{self.name}' and "
+                                   f"'{self.required_if}' "
+                                   f"must be specified together")
+        else:
+            return super().handle_parse_result(ctx, opts, args)
+
+
+class ValidRegionParamType(click.types.StringParamType):
+    ALL_VALUE = 'ALL'
+    name = 'region'
+
+    def __init__(self, allowed_all=False):
+        self.allowed_all=allowed_all
+
+    def convert(self, value, param, ctx):
+        value = super().convert(value, param, ctx)
+        if self.allowed_all and value.upper() == self.ALL_VALUE:
+            _LOG.info("The value is 'ALL' and 'allowed_all=True', returning..")
+            return value.lower()
+        _LOG.info(f"Checking whether {value} is a valid region...")
+        if value not in ALL_REGIONS:
+            _LOG.error(f"Invalid region '{value}' was given")
+            self.fail(f"Value '{value}' is not a valid region. Try one of "
+                      f"these: {ALL_REGIONS}", param, ctx)
+        _LOG.info(f"Value '{value}' is a valid region, returning..")
+        return value
+
+    def get_metavar(self, param):
+        shorten_regions = [ALL_REGIONS[0], "...", ALL_REGIONS[-1]]
+        if self.allowed_all:
+            shorten_regions.insert(0, self.ALL_VALUE)
+        return f"[{'|'.join(shorten_regions)}]"
 
 
 def check_bundle_bucket_name(ctx, param, value):

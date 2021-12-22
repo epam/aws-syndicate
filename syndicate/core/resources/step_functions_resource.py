@@ -162,7 +162,6 @@ class StepFunctionResource(BaseResource):
             arn: build_description_obj(response, name, meta)
         }
 
-    @staticmethod
     def _build_sm_arn(self, name, region):
         return f'arn:aws:states:{region}:{self.account_id}:stateMachine:{name}'
 

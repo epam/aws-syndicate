@@ -46,7 +46,9 @@ from syndicate.core.conf.validator import (JAVA_LANGUAGE_NAME,
                                            PYTHON_LANGUAGE_NAME,
                                            NODEJS_LANGUAGE_NAME)
 from syndicate.core.decorators import check_deploy_name_for_duplicates
-from syndicate.core.groups.generate import generate, GENERATE_GROUP_NAME
+from syndicate.core.groups.generate import (generate,
+                                            GENERATE_PROJECT_COMMAND_NAME,
+                                            GENERATE_CONFIG_COMMAND_NAME)
 from syndicate.core.helper import (check_required_param,
                                    create_bundle_callback,
                                    handle_futures_progress_bar,
@@ -65,7 +67,8 @@ INIT_COMMAND_NAME = 'init'
 SYNDICATE_PACKAGE_NAME = 'aws-syndicate'
 commands_without_config = (
     INIT_COMMAND_NAME,
-    GENERATE_GROUP_NAME
+    GENERATE_PROJECT_COMMAND_NAME,
+    GENERATE_CONFIG_COMMAND_NAME
 )
 
 

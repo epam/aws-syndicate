@@ -14,37 +14,38 @@
     limitations under the License.
 """
 import os
-import pathlib
-import click
 
+import click
 from syndicate.core.conf.generator import generate_configuration_files
 from syndicate.core.generators.lambda_function import (
     generate_lambda_function)
 from syndicate.core.generators.project import (generate_project_structure,
                                                PROJECT_PROCESSORS)
+from syndicate.core.groups.meta import meta
 from syndicate.core.helper import (check_required_param, timeit, OrderedGroup,
                                    check_bundle_bucket_name,
                                    check_prefix_suffix_length,
                                    resolve_project_path)
 
 GENERATE_GROUP_NAME = 'generate'
+GENERATE_PROJECT_COMMAND_NAME = 'project'
+GENERATE_CONFIG_COMMAND_NAME = 'config'
 PROJECT_PATH_HELP = 'Path to project folder. ' \
                     'Default value: current working directory'
 
 
-@click.group(name=GENERATE_GROUP_NAME, cls=OrderedGroup, chain=True)
+@click.group(name=GENERATE_GROUP_NAME, cls=OrderedGroup)
 def generate():
     """Generates project, lambda or configs"""
 
 
-@generate.command(name='project')
+@generate.command(name=GENERATE_PROJECT_COMMAND_NAME)
 @click.option('--name', nargs=1, callback=check_required_param,
               help='* The project name')
 @click.option('--path', nargs=1,
               help=PROJECT_PATH_HELP)
-@click.pass_context
 @timeit()
-def project(ctx, name, path):
+def project(name, path):
     """
     Generates project with all the necessary components and in a right
     folders/files hierarchy to start developing in a min.
@@ -72,14 +73,18 @@ def project(ctx, name, path):
                    "from the current config if it exists. "
                    "Otherwise - the current working directory",
               callback=resolve_project_path)
-@click.pass_context
 @timeit()
-def lambda_function(ctx, name, runtime, project_path):
+def lambda_function(name, runtime, project_path):
     """
     Generates required environment for lambda function
     """
-    if not os.access(project_path, os.X_OK | os.W_OK):
-        click.echo("Incorrect permissions for the provided path '{project_path}'")
+    if not os.access(project_path, os.F_OK):
+        click.echo(f"The provided path {project_path} doesn't exist")
+        return
+    elif not os.access(project_path, os.W_OK) or not os.access(project_path,
+                                                               os.X_OK):
+        click.echo(f"Incorrect permissions for the provided path "
+                   f"'{project_path}'")
         return
     click.echo(f'Lambda names: {name}')
     click.echo(f'Runtime: {runtime}')
@@ -89,7 +94,7 @@ def lambda_function(ctx, name, runtime, project_path):
                              lambda_names=name)
 
 
-@generate.command(name='config')
+@generate.command(name=GENERATE_CONFIG_COMMAND_NAME)
 @click.option('--name',
               required=True,
               help='* Name of the configuration to create. '
@@ -136,3 +141,6 @@ def config(name, config_path, project_path, region, access_key,
                                  bundle_bucket_name=bundle_bucket_name,
                                  prefix=prefix,
                                  suffix=suffix)
+
+
+generate.add_command(meta)
