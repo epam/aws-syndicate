@@ -198,12 +198,12 @@ def process_deploy_resources(bundle_name, deploy_name):
     output = {key: value for key, value in output.items() if
               value['resource_meta'].get('resource_type') == 'api_gateway'}
 
-    if not output:
-        _LOG.warning('No resources to warmup, exiting')
-        return None, None
-
     paths_to_be_triggered = {}
     resource_path_warmup_key_mapping = {}
+    if not output:
+        _LOG.warning('No resources to warmup, exiting')
+        return paths_to_be_triggered, resource_path_warmup_key_mapping
+
     for resource_arn, meta in output.items():
         rest_api_id = resource_arn.split('/')[-1]
         stage_name = meta.get('resource_meta', {}).get('deploy_stage')

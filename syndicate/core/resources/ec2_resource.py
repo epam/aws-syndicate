@@ -160,11 +160,12 @@ class Ec2Resource(BaseResource):
         return self.describe_ec2(name, meta, response)
 
     def remove_ec2_instances(self, args):
-        self.create_pool(self.remove_instance_list, chunks(args, 1000))
+        for param_chunk in chunks(args, 1000):
+            self.remove_instance_list(param_chunk)
 
-    def remove_instance_list(self, *instance_list):
+    def remove_instance_list(self, instance_list):
         instance_ids = [x['config']['description']['InstanceId'] for x in
-                        instance_list[0]]
+                        instance_list]
         existing_instances_list = []
         for instance_id in instance_ids:
             try:

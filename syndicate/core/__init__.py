@@ -17,7 +17,7 @@ import os
 
 from botocore.exceptions import ClientError
 
-from syndicate.commons.log_helper import get_logger
+from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.connection import ConnectionProvider
 from syndicate.connection.sts_connection import STSConnection
 from syndicate.core.conf.processor import ConfigHolder
@@ -26,10 +26,13 @@ from syndicate.core.resources.processors_mapping import ProcessorFacade
 from syndicate.core.resources.resources_provider import ResourceProvider
 
 _LOG = get_logger('deployment.__init__')
+USER_LOG = get_user_logger()
 
 SESSION_TOKEN = 'aws_session_token'
 SECRET_KEY = 'aws_secret_access_key'
 ACCESS_KEY = 'aws_access_key_id'
+
+CONFIRMATION_ANSWERS = ['y', 'yes']
 
 
 def exception_handler(exception_type, exception, traceback):
@@ -103,4 +106,16 @@ def initialize_connection():
 
 def initialize_project_state():
     global PROJECT_STATE
-    PROJECT_STATE = ProjectState(project_path=CONFIG.project_path)
+    if not ProjectState.check_if_project_state_exists(CONFIG.project_path):
+        USER_LOG.warn("Config is set and generated but project state does not "
+                      "exist, seems that you've come from the previous "
+                      "version.")
+        answer = input(f'There is no .syndicate file in {CONFIG.project_path}.'
+                       f' Do you want to create it automatically? [y/n]: ')
+        if answer.lower() in CONFIRMATION_ANSWERS:
+            PROJECT_STATE = ProjectState.build_from_structure(CONFIG)
+        else:
+            raise AssertionError(f'There is no .syndicate file in '
+                                 f'{CONFIG.project_path}. Please create it.')
+    else:
+        PROJECT_STATE = ProjectState(project_path=CONFIG.project_path)

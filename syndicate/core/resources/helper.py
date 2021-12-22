@@ -124,6 +124,14 @@ def assert_required_params(required_params_names, all_params):
         raise AssertionError(f'Missing required parameters: {missing}')
 
 
+def assert_possible_values(iterable: list, possible: list):
+    if not set(iterable).issubset(set(possible)):
+        message = f'Incorrect values in given iteramble: {iterable}. ' \
+                  f'Must be a subset of these: {possible}'
+        _LOG.error(message)
+        raise AssertionError(message)
+
+
 def filter_dict_by_shape(d, shape):
     new_d = {}
     for attribute, value in shape.items():
