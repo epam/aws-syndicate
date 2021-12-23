@@ -20,8 +20,7 @@ import os
 import shutil
 import subprocess
 import sys
-import threading
-from concurrent.futures import ALL_COMPLETED
+from concurrent.futures import FIRST_EXCEPTION
 from concurrent.futures.thread import ThreadPoolExecutor
 from pathlib import Path
 
@@ -47,22 +46,29 @@ def assemble_python_lambdas(project_path, bundles_dir):
         project_abs_path = CONFIG.project_path
     _LOG.info('Going to process python project by path: {0}'.format(
         project_abs_path))
-    executor = ThreadPoolExecutor(max_workers=5)
-    futures = []
-    for root, sub_dirs, files in os.walk(project_abs_path):
-        for item in files:
-            if item.endswith(LAMBDA_CONFIG_FILE_NAME):
-                _LOG.info('Going to build artifact in: {0}'.format(root))
-                arg = {
-                    'root': str(Path(root)),
-                    'config_file': str(Path(root, item)),
-                    'target_folder': bundles_dir,
-                    'project_path': project_path,
-                }
-                #_build_python_artifact(arg)
-                futures.append(executor.submit(_build_python_artifact, arg))
-    concurrent.futures.wait(futures, return_when=ALL_COMPLETED)
-    executor.shutdown()
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        futures = []
+        for root, sub_dirs, files in os.walk(project_abs_path):
+            for item in files:
+                if item.endswith(LAMBDA_CONFIG_FILE_NAME):
+                    _LOG.info('Going to build artifact in: {0}'.format(root))
+                    arg = {
+                        'root': str(Path(root)),
+                        'config_file': str(Path(root, item)),
+                        'target_folder': bundles_dir,
+                        'project_path': project_path,
+                    }
+                    futures.append(executor.submit(_build_python_artifact, arg))
+        result = concurrent.futures.wait(futures, return_when=FIRST_EXCEPTION)
+    # supposedly either all the thread are finished successfully or one raised
+    # an exception and other were canceled by this moment
+    for future in result.done:
+        exception = future.exception()
+        if exception:
+            print(f'\033[91m' + str(exception), file=sys.stderr)
+            print('Likely, the solution is to assemble a bundle again',
+                  file=sys.stderr)
+            sys.exit(1)
     _LOG.info('Python project was processed successfully')
 
 
@@ -82,11 +88,15 @@ def _build_python_artifact(root, config_file, target_folder, project_path):
         _LOG.info('Going to install 3-rd party dependencies')
         try:
             subprocess.run(f"{sys.executable} -m pip install -r "
-                           f"{str(requirements_path)} -t "
+                           f"{requirements_path} -t "
                            f"{artifact_path}".split(),
                            stderr=subprocess.PIPE, check=True)
         except subprocess.CalledProcessError as e:
-            _LOG.error(f'An error occured: \'{e.stderr}\'')
+            message = f'An error: \n"{e.stderr.decode()}"\noccured while ' \
+                      f'installing requirements: "{str(requirements_path)}" ' \
+                      f'for package "{artifact_path}"'
+            _LOG.error(message)
+            raise RuntimeError(message)
         _LOG.info('3-rd party dependencies were installed successfully')
 
     local_requirements_path = Path(root, LOCAL_REQ_FILE_NAME)
@@ -104,8 +114,7 @@ def _build_python_artifact(root, config_file, target_folder, project_path):
     _LOG.info(f'Package \'{package_name}\' was successfully created')
 
     try:
-        with threading.Lock():
-            shutil.rmtree(artifact_path)
+        shutil.rmtree(artifact_path)
     except Exception as e:
         _LOG.warn(f'An error {e} occured while removing artifacts '
                   f'{artifact_path}')
