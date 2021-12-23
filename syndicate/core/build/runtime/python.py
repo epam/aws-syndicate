@@ -20,6 +20,7 @@ import os
 import shutil
 import subprocess
 import sys
+import threading
 from concurrent.futures import ALL_COMPLETED
 from concurrent.futures.thread import ThreadPoolExecutor
 from pathlib import Path
@@ -29,7 +30,7 @@ from syndicate.core.build.helper import build_py_package_name, zip_dir
 from syndicate.core.conf.processor import path_resolver
 from syndicate.core.constants import (LAMBDA_CONFIG_FILE_NAME, DEFAULT_SEP,
                                       REQ_FILE_NAME, LOCAL_REQ_FILE_NAME)
-from syndicate.core.helper import (build_path, unpack_kwargs, prettify_json)
+from syndicate.core.helper import (build_path, unpack_kwargs)
 from syndicate.core.resources.helper import validate_params
 
 _LOG = get_logger('python_runtime_assembler')
@@ -103,7 +104,8 @@ def _build_python_artifact(root, config_file, target_folder, project_path):
     _LOG.info(f'Package \'{package_name}\' was successfully created')
 
     try:
-        shutil.rmtree(artifact_path)
+        with threading.Lock():
+            shutil.rmtree(artifact_path)
     except Exception as e:
         _LOG.warn(f'An error {e} occured while removing artifacts '
                   f'{artifact_path}')
