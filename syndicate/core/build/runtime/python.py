@@ -46,7 +46,7 @@ def assemble_python_lambdas(project_path, bundles_dir):
         project_abs_path = CONFIG.project_path
     _LOG.info('Going to process python project by path: {0}'.format(
         project_abs_path))
-    with ThreadPoolExecutor(max_workers=5) as executor:
+    with ThreadPoolExecutor(max_workers=2) as executor:
         futures = []
         for root, sub_dirs, files in os.walk(project_abs_path):
             for item in files:
@@ -60,8 +60,6 @@ def assemble_python_lambdas(project_path, bundles_dir):
                     }
                     futures.append(executor.submit(_build_python_artifact, arg))
         result = concurrent.futures.wait(futures, return_when=FIRST_EXCEPTION)
-    # supposedly either all the thread are finished successfully or one raised
-    # an exception and other were canceled by this moment
     for future in result.done:
         exception = future.exception()
         if exception:
@@ -113,11 +111,16 @@ def _build_python_artifact(root, config_file, target_folder, project_path):
     zip_dir(str(artifact_path), str(Path(target_folder, package_name)))
     _LOG.info(f'Package \'{package_name}\' was successfully created')
 
-    try:
-        shutil.rmtree(artifact_path)
-    except Exception as e:
-        _LOG.warn(f'An error {e} occured while removing artifacts '
-                  f'{artifact_path}')
+    removed = False
+    while not removed:
+        _LOG.info(f'Trying to remove "{artifact_path}"')
+        try:
+            shutil.rmtree(artifact_path)
+            removed = True
+        except Exception as e:
+            _LOG.warn(f'An error "{e}" occured while '
+                      f'removing artifacts "{artifact_path}"')
+    _LOG.info(f'"{artifact_path}" was removed successfully')
 
 
 def _install_local_req(artifact_path, local_req_path, project_path):
