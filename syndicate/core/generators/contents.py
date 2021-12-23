@@ -180,7 +180,7 @@ NODEJS_LAMBDA_HANDLER_TEMPLATE = """exports.handler = async (event) => {
 """
 
 GITIGNORE_CONTENT = """.syndicate
-sdct.log
+logs/
 """
 
 CHANGELOG_TEMPLATE = """# Changelog

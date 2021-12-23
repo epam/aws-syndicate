@@ -23,7 +23,6 @@ from boto3.session import Session
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.connection.sts_connection import STSConnection
 from syndicate.core.conf.processor import (PROJECT_PATH_CFG,
-                                           LEGACY_CONFIG_FILE_NAME,
                                            CONFIG_FILE_NAME,
                                            ALIASES_FILE_NAME,
                                            ACCOUNT_ID_CFG, REGION_CFG,
@@ -81,8 +80,8 @@ def generate_configuration_files(name, config_path, region,
 
     if not project_path:
         _USER_LOG.warn(f'The "{PROJECT_PATH_CFG}" property is not specified. '
-                       f'The working directory will be used as a project path. '
-                       f'To change the path, edit the {CONFIG_FILE_NAME} '
+                       f'The working directory will be used as a project path.'
+                       f' To change the path, edit the {CONFIG_FILE_NAME} '
                        f'by path {config_folder_path}')
         project_path = os.getcwd()
     else:

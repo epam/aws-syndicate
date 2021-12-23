@@ -95,7 +95,9 @@ def syndicate():
 @click.option('--suite', type=click.Choice(['unittest', 'pytest', 'nose'],
                                            case_sensitive=False),
               default='unittest')
-@click.option('--test_folder_name', nargs=1, default='tests')
+@click.option('--test_folder_name', nargs=1, default='tests',
+              help='Directory in the project that contains tests to run. '
+                   'Default folder: tests')
 @click.option('--errors_allowed', is_flag=True)
 @timeit()
 def test(suite, test_folder_name, errors_allowed):
@@ -577,8 +579,11 @@ def create_deploy_target_bucket():
 
 
 @syndicate.command(name='upload')
-@click.option('--bundle_name', nargs=1, callback=verify_meta_bundle_callback)
-@click.option('--force', is_flag=True)
+@click.option('--bundle_name', nargs=1, callback=verify_meta_bundle_callback,
+              help='Bundle name to which the build artifacts are gathered and '
+                   'later used for the deployment')
+@click.option('--force', is_flag=True, help='Flag to override existing bundle '
+                                            'with the same name as provided')
 @timeit(action_name='upload')
 def upload(bundle_name, force=False):
     """
