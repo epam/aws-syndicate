@@ -200,8 +200,8 @@ def api_gateway_resource(ctx, **kwargs):
               help="Resource method to add")
 @click.option('--integration_type', type=str,
               help="The resource which the method is connected to: "
-                   "[lambda|mock|http|mock]. If not specified, sets the default"
-                   "value to 'mock'")
+                   "[lambda|service|http|mock]. If not specified, sets the "
+                   "default value to 'mock'")
 @click.option('--lambda_name', type=str, help="Lambda name. Required if "
                                               "integration type is lambda")
 @click.option('--lambda_region', type=ValidRegionParamType(),
