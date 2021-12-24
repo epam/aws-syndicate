@@ -53,11 +53,10 @@ from syndicate.core.helper import (check_required_param,
                                    create_bundle_callback,
                                    handle_futures_progress_bar,
                                    resolve_path_callback, timeit,
-                                   verify_bundle_callback,
-                                   verify_meta_bundle_callback,
+                                   verify_bundle_callback, sync_lock,
                                    resolve_default_value,
                                    generate_default_bundle_name,
-                                   sync_lock)
+                                   resolve_and_verify_bundle_callback)
 from syndicate.core.project_state.project_state import (MODIFICATION_LOCK,
                                                         WARMUP_LOCK)
 from syndicate.core.project_state.status_processor import project_state_status
@@ -582,7 +581,8 @@ def create_deploy_target_bucket():
 
 
 @syndicate.command(name='upload')
-@click.option('--bundle_name', nargs=1, callback=verify_meta_bundle_callback,
+@click.option('--bundle_name', nargs=1,
+              callback=resolve_and_verify_bundle_callback,
               help='Bundle name to which the build artifacts are gathered and '
                    'later used for the deployment')
 @click.option('--force', is_flag=True, help='Flag to override existing bundle '

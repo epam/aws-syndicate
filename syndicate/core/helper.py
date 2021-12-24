@@ -256,6 +256,18 @@ def verify_meta_bundle_callback(ctx, param, value):
     return value
 
 
+def resolve_and_verify_bundle_callback(ctx, param, value):
+    if not value:
+        _LOG.debug(f'{param.name} is not specified, latest build will be used')
+        value = resolve_default_value(ctx, param, value)
+        if not value:
+            raise AssertionError(
+                'No valid bundles found for the given project. Please, '
+                'invoke \'syndicate build\' command to create a bundle.'
+            )
+    return verify_meta_bundle_callback(ctx, param, value)
+
+
 def write_content_to_file(file_path, file_name, obj):
     file_name = os.path.join(file_path, file_name)
     if os.path.exists(file_name):
@@ -291,7 +303,9 @@ def sync_lock(lock_type):
                 sys.exit(1)
             PROJECT_STATE.release_lock(lock_type)
             sync_project_state()
+
         return wrapper
+
     return real_wrapper
 
 
@@ -437,7 +451,7 @@ class ValidRegionParamType(click.types.StringParamType):
     name = 'region'
 
     def __init__(self, allowed_all=False):
-        self.allowed_all=allowed_all
+        self.allowed_all = allowed_all
 
     def convert(self, value, param, ctx):
         value = super().convert(value, param, ctx)
@@ -475,6 +489,7 @@ def check_prefix_suffix_length(ctx, param, value):
         if result:
             raise BadParameter(result)
         return value
+
 
 def resolve_project_path(ctx, param, value):
     from syndicate.core import CONFIG
