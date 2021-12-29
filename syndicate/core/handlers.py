@@ -112,16 +112,14 @@ def test(suite, test_folder_name, errors_allowed):
         click.echo(f'Tests not found, \'{test_folder_name}\' folder is missing'
                    f' in \'{project_path}\'.')
         return
-
     test_lib_command_mapping = {
         'unittest': f'{sys.executable} -m unittest discover {test_folder} -v',
         'pytest': 'pytest --no-header -v',
         'nose': 'nosetests --verbose'
     }
 
-
     command = test_lib_command_mapping.get(suite)
-    result = subprocess.run(command.split(), shell=True, cwd=project_path)
+    result = subprocess.run(command.split(), cwd=project_path)
 
     if not errors_allowed:
         if result.returncode != 0:
