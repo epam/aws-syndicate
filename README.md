@@ -273,13 +273,14 @@ For more details please execute `syndicate generate lambda --help`
 
 Deployment
 ------------
-The demo application consists of the following infrastructure:
-* 2 IAM roles
-* 3 IAM policies
-* 1 DynamoDB table
-* 1 S3 bucket
-* 2 lambdas
-* 1 API Gateway
+If you are just getting familiar with the functionality, you can use one of the pre-prepared examples that contain a
+minimum set of AWS resources and lambdas.
+
+The aws-syndicate/examples folder contains structure examples for different runtimes.
+Go to any example you like best and set the environment variable SDCT_CONF=path_to_the_selected_example.
+Add your account details to sdct.conf/syndicate.yml file - account id, secret access key, access key and bucket name for deployment.
+To sdct_aliases.conf/syndicate_aliases.yml add your account id, region name (eu-central-1, us-west-1, etc.) and other
+values in the example that start with a `$` sign.
 
 Create an S3 bucket for aws-syndicate artifacts:
 
