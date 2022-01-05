@@ -170,7 +170,10 @@ Command example:
     --suffix $suffix 
     --config_path $path_to_store_config
     
-All the provided information is validated. 
+All the provided information is validated.
+*Note:* you may not specify `--access_key` and `--secret_key` params. It this case Syndicate
+will try to find your credentials by the path `~/.aws`.
+
 After the configuration files will be generated the command will return the following message:
 
     Syndicate initialization has been completed. Set SDCT_CONF:
@@ -201,6 +204,7 @@ All the provided information is validated.
 Different environments will be created for different runtimes:
 * for python
 
+```
     .
     ├── $project_path
     │   └── src
@@ -227,9 +231,11 @@ Different environments will be created for different runtimes:
     │           ├── __init__.py
     │           └── ...
     └── ...
+```
 
 * for Java
 
+```
     .
     ├── $project_path
     │   └── jsrc
@@ -240,9 +246,11 @@ Different environments will be created for different runtimes:
     │                       ├── $lambda_name_1.java
     │                       └── $lambda_name_2.java
     └── ...
+```
 
 * for NodeJS
 
+```
     .
     ├── $project_path
     │   └── app
@@ -260,7 +268,7 @@ Different environments will be created for different runtimes:
     │               ├── package.json
     │               └── package-lock.json
     └── ...
-
+```
 For more details please execute `syndicate generate lambda --help`
 
 Deployment
@@ -279,7 +287,7 @@ Create an S3 bucket for aws-syndicate artifacts:
 
 Next, build aws-syndicate bundle with artifacts to be deployed:
 
-    $ syndicate build_bundle --bundle_name demo-deploy
+    $ syndicate build --bundle_name demo-deploy
 
 Then, deploy AWS resources:
 
@@ -289,13 +297,13 @@ We have done it!
 
 The demo serverless application is ready to be used.
 
-If you need to update AWS resources:
+If you need to update AWS resources from the latest built bundle:
 
-    $ syndicate update --bundle_name demo-deploy --deploy_name sdct-example
+    $ syndicate update
 
 If you need to clean AWS resources:
 
-    $ syndicate clean --bundle_name demo-deploy --deploy_name sdct-example
+    $ syndicate clean
 
 Documentation
 ------------
