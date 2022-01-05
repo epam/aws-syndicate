@@ -171,6 +171,7 @@ Command example:
     --config_path $path_to_store_config
     
 All the provided information is validated.
+
 *Note:* you may not specify `--access_key` and `--secret_key` params. It this case Syndicate
 will try to find your credentials by the path `~/.aws`.
 
@@ -202,7 +203,7 @@ Command example:
 
 All the provided information is validated.
 Different environments will be created for different runtimes:
-* for python
+* for Python
 
 ```
     .
@@ -277,10 +278,11 @@ If you are just getting familiar with the functionality, you can use one of the 
 minimum set of AWS resources and lambdas.
 
 The aws-syndicate/examples folder contains structure examples for different runtimes.
-Go to any example you like best and set the environment variable SDCT_CONF=path_to_the_selected_example.
-Add your account details to sdct.conf/syndicate.yml file - account id, secret access key, access key and bucket name for deployment.
-To sdct_aliases.conf/syndicate_aliases.yml add your account id, region name (eu-central-1, us-west-1, etc.) and other
-values in the example that start with a `$` sign.
+Go to any example you like best and set the environment variable `SDCT_CONF=$path_to_the_selected_example`.
+
+Add your account details to `sdct.conf`/`syndicate.yml` file - account id, secret access key, access key and bucket name for deployment.
+To `sdct_aliases.conf`/`syndicate_aliases.yml` add your account id, region name (eu-central-1, us-west-1, etc.) and other
+values in the file that start with a `$` sign.
 
 Create an S3 bucket for aws-syndicate artifacts:
 
@@ -294,9 +296,7 @@ Then, deploy AWS resources:
 
     $ syndicate deploy --bundle_name demo-deploy --deploy_name sdct-example
 
-We have done it!
-
-The demo serverless application is ready to be used.
+We have done it! The demo serverless application is ready to be used.
 
 If you need to update AWS resources from the latest built bundle:
 
