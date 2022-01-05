@@ -145,6 +145,10 @@ class BaseDeploymentResourceGenerator(BaseConfigurationGenerator):
         be written to the file, where the duplicate was found"""
 
         resources_file = Path(self.project_path, RESOURCES_FILE_NAME)
+        if not resources_file.exists():
+            USER_LOG.warning('Root "deployment_resources.json" wasn\'t found. '
+                             'Creating the one...')
+            _write_content_to_file(resources_file, json.dumps({}))
         duplicated_file = self._find_file_with_duplicate()
         if duplicated_file:
             message = f"Resource with name '{self.resource_name}' " \
