@@ -10,7 +10,7 @@ from tests.integration_tests.all_syndicate_flow.flow import SyndicateFlow
 from tests.integration_tests.tests_syndicate_build.fixtures_for_files import \
     BOTO3_INIT, BOTO3_SESSION, BOTO3_DYNAMODB_CONDITIONS
 
-PATH_TO_ROOT = pathlib.Path().absolute().parent.parent.parent
+PATH_TO_ROOT = pathlib.Path(__file__).absolute().parent.parent.parent.parent
 
 PATH_TO_SYNDICATE_PROJ = os.path.join(PATH_TO_ROOT, "dir_for_proj")
 SDCT_CONF = os.path.join(PATH_TO_SYNDICATE_PROJ, ".syndicate-config-config")
@@ -73,9 +73,14 @@ class TestBuild(TestCase):
 
         create_file_boto3()
 
+        my_env = {'PYTHONPATH': PATH_TO_ROOT}
+
         self.envvars = environ.copy()
         self.envvars.update({
             "SDCT_CONF": SDCT_CONF})
+
+        self.envvars.update(my_env)
+
         self.command = "syndicate build".split()
 
     def tearDown(self) -> None:

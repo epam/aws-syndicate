@@ -9,7 +9,7 @@ from tests.integration_tests.all_syndicate_flow.flow import \
     delete_syndicate_files, SyndicateFlow
 
 PATH_TO_CONFIG = ".syndicate-config-config"
-PATH_TO_ROOT = pathlib.Path().absolute().parent.parent.parent
+PATH_TO_ROOT = pathlib.Path(__file__).absolute().parent.parent.parent.parent
 
 
 class TestGenerateProject(TestCase):

@@ -9,7 +9,7 @@ from tests.integration_tests.all_syndicate_flow.flow import \
     delete_syndicate_files
 
 PATH_TO_CONFIG = "/.syndicate-config-config"
-PATH_TO_TESTS = pathlib.Path().absolute().parent
+PATH_TO_ROOT = pathlib.Path(__file__).absolute().parent.parent.parent.parent
 
 
 class TestGenerateProject(TestCase):
@@ -22,23 +22,18 @@ class TestGenerateProject(TestCase):
 
     def setUp(self) -> None:
         super().setUp()
-        self.envvars = environ.copy()
-        self.path = os.path.join(PATH_TO_TESTS, "project_path_for_tests")
+
         self.project_name = "testing"
-        self.path_where_should_be_config = os.path.join(self.path,
-                                                        self.project_name)
+        self.path = os.path.join(PATH_TO_ROOT, self.project_name)
+
+        self.envvars = environ.copy()
+
         self.command = self.generate_command(
             f"syndicate generate project --name {self.project_name} --path"
-            f" {self.path}")
+            f" {PATH_TO_ROOT}")
 
     def tearDown(self) -> None:
-        if not len(os.listdir(self.path)) == 0:
-            """If directory is not empty"""
-            delete_syndicate_files(self.path)
-            """Creates directory for tests file for future"""
-            os.mkdir(self.path)
-            with open(os.path.join(self.path, "__init__.py"), "w") as file:
-                file.write("")
+        delete_syndicate_files(self.path)
 
     def testing_generate_project_empty(self):
         """
@@ -50,17 +45,19 @@ class TestGenerateProject(TestCase):
                               stdout=subprocess.PIPE,
                               stdin=subprocess.PIPE,
                               stderr=subprocess.STDOUT) as proc:
-            print("Output when run testing_generate_project_empty - ",
-                  proc.stdout.read())
-            proc.stdout.close()
+            res = proc.stdout.read().decode()
+            print(res)
 
-            files = self.get_all_from(self.path_where_should_be_config)
+            self.assertIn(f"Project name: {self.project_name}\nProject path: "
+                          f"{PATH_TO_ROOT}\n", str(res))
 
-            required_files = ['.gitignore', 'CHANGELOG.md',
-                              'deployment_resources.json', '.syndicate',
-                              'README.md']
-            for file in files:
-                self.assertIn(file, required_files)
+        files = self.get_all_from(self.path)
+
+        required_files = ['.gitignore', 'CHANGELOG.md',
+                          'deployment_resources.json', '.syndicate',
+                          'README.md']
+        for file in files:
+            self.assertIn(file, required_files)
 
     def test_generate_config_non_empty_not_changed(self):
         """
@@ -70,8 +67,7 @@ class TestGenerateProject(TestCase):
         """
         param_to_overwrite = b"n"
 
-        path_to_file = os.path.join(self.path_where_should_be_config,
-                                    'deployment_resources.json')
+        path_to_file = os.path.join(self.path, 'deployment_resources.json')
 
         with subprocess.Popen(self.command, env=self.envvars):
             pass
@@ -102,8 +98,7 @@ class TestGenerateProject(TestCase):
         """
         param_to_overwrite = b"y"
 
-        path_to_file = os.path.join(self.path_where_should_be_config,
-                                    'deployment_resources.json')
+        path_to_file = os.path.join(self.path, 'deployment_resources.json')
 
         with subprocess.Popen(self.command, env=self.envvars):
             pass

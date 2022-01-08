@@ -6,10 +6,9 @@ import sys
 from pathlib import Path
 
 from tests.integration_tests.tests_create_deploy_target_bucket \
-    .fixtures_for_files import \
-    SDCT_CONFIG
+    .fixtures_for_files import SDCT_CONFIG
 
-PATH_TO_ROOT = pathlib.Path().absolute().parent.parent.parent
+PATH_TO_ROOT = pathlib.Path(__file__).absolute().parent.parent.parent.parent
 
 
 class SyndicateFlow:
@@ -17,6 +16,8 @@ class SyndicateFlow:
     def __init__(self, path_to_proj_dir,
                  name_bucket_for_tests, project_name,
                  lambda_name="lambda_for_tests", runtime_lambda="python"):
+        print(f'Config files for SyndicateFlow will be created in '
+              f'{path_to_proj_dir}')
         self.sdct_conf_dir = os.path.join(path_to_proj_dir,
                                           ".syndicate-config-config")
         self.path_to_proj_dir = path_to_proj_dir
@@ -46,6 +47,7 @@ class SyndicateFlow:
             _input = input("y/n\n")
             if _input.lower() == "n" or _input.lower() == "no":
                 sys.exit()
+
         with open(os.path.join(self.sdct_conf_dir, "sdct.conf"),
                   'w') as file:
             path_to_proj = f"project_path={self.path_to_proj_dir}"
@@ -54,6 +56,7 @@ class SyndicateFlow:
             content += f"\n{path_to_proj}\n{bucket}"
             file.write(content)
             print("success creating sdct.conf")
+
         with open(os.path.join(self.path_to_proj_dir, ".syndicate"),
                   'w') as file:
             file.write(content_for_syndicate)
