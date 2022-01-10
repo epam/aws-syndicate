@@ -26,6 +26,7 @@ from syndicate.core.generators import (_touch,
                                        FILE_LAMBDA_HANDLER_NODEJS,
                                        _read_content_from_file)
 from syndicate.core.generators.project import _generate_java_project_hierarchy
+from syndicate.core.generators.tests import _generate_python_tests
 from syndicate.core.generators.contents import (
     NODEJS_LAMBDA_HANDLER_TEMPLATE,
     _generate_python_node_lambda_config,
@@ -115,6 +116,10 @@ def generate_lambda_function(project_path, runtime,
 
     processor(project_path=project_path, lambda_names=lambda_names,
               lambdas_path=lambdas_path, project_state=project_state)
+
+    tests_generator = TESTS_MODULE_PROCESSORS.get(runtime)
+    [tests_generator(project_path, name) for name in lambda_names]
+
     project_state.save()
     if len(lambda_names) == 1:
         USER_LOG.info(f'Lambda {lambda_names[0]} has been successfully '
@@ -362,4 +367,10 @@ COMMON_MODULE_PROCESSORS = {
     RUNTIME_JAVA: _common_java_module,
     RUNTIME_NODEJS: _common_nodejs_module,
     RUNTIME_PYTHON: _common_python_module
+}
+
+TESTS_MODULE_PROCESSORS = {
+    RUNTIME_JAVA: lambda project_path, lambda_name: None,
+    RUNTIME_NODEJS: lambda project_path, lambda_name: None,
+    RUNTIME_PYTHON: _generate_python_tests,
 }

@@ -108,27 +108,20 @@ def test(suite, test_folder_name, errors_allowed):
     import subprocess
     from syndicate.core import CONFIG
     project_path = CONFIG.project_path
-
     test_folder = os.path.join(project_path, test_folder_name)
     if not os.path.exists(test_folder):
         click.echo(f'Tests not found, \'{test_folder_name}\' folder is missing'
                    f' in \'{project_path}\'.')
         return
-
     test_lib_command_mapping = {
         'unittest': f'{sys.executable} -m unittest discover {test_folder} -v',
         'pytest': 'pytest --no-header -v',
         'nose': 'nosetests --verbose'
     }
 
-    workdir = os.getcwd()
-
-    if test_folder != os.path.join(project_path, 'tests'):
-        os.chdir(test_folder)
     command = test_lib_command_mapping.get(suite)
-    result = subprocess.run(command.split())
+    result = subprocess.run(command.split(), cwd=project_path)
 
-    os.chdir(workdir)
     if not errors_allowed:
         if result.returncode != 0:
             click.echo('Some tests failed. Exiting.')
