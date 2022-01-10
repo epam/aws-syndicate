@@ -12,7 +12,7 @@ PATH_TO_CONFIG = ".syndicate-config-config"
 PATH_TO_ROOT = pathlib.Path(__file__).absolute().parent.parent.parent.parent
 
 
-class TestGenerateProject(TestCase):
+class TestGenerateLambda(TestCase):
     """
     Testing flow of creating files and configs using subprocess module
     Must be set upped next:
@@ -142,7 +142,7 @@ name: some_name_for_java_lambda""")
 
     def test_generate_lambda_with_invalid_permissions(self):
 
-        invalid_path = "C://"
+        invalid_path = "Cccc://"
 
         command = f"syndicate generate lambda " \
                   f"--name {self.name_of_lambda} " \

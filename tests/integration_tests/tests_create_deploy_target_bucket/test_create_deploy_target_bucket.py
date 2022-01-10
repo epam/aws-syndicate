@@ -50,6 +50,13 @@ def delete_files(folder):
 
 
 class TestGenerateProject(TestCase):
+    """
+    Testing flow of creating files and configs using subprocess module
+    Must be set upped next:
+    1. venv
+    2. Installed syndicate (pip install -e .)
+    3. Set up credentials (with any level of access)
+    """
 
     def setUp(self) -> None:
         """Method creates file boto3.py to mock some calls to AWS"""

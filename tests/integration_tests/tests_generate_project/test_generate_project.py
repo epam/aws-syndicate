@@ -48,8 +48,8 @@ class TestGenerateProject(TestCase):
             res = proc.stdout.read().decode()
             print(res)
 
-            self.assertIn(f"Project name: {self.project_name}\nProject path: "
-                          f"{PATH_TO_ROOT}\n", str(res))
+            self.assertIn(f"Project name: {self.project_name}", str(res))
+            self.assertIn(f"Project path: {PATH_TO_ROOT}", str(res))
 
         files = self.get_all_from(self.path)
 

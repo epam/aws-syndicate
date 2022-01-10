@@ -12,23 +12,23 @@ PATH_TO_CONFIG = ".syndicate-config-config"
 PATH_TO_ROOT = pathlib.Path(__file__).absolute().parent.parent.parent.parent
 
 
-class TestGenerateProject(TestCase):
+class TestGenerateConfig(TestCase):
     """
     Testing flow of creating files and configs using subprocess module
     Must be set upped next:
     1. venv
     2. Installed syndicate (pip install -e .)
+    3. Set up credentials (with any level of access)
     """
 
     def setUp(self) -> None:
         super().setUp()
         self.envvars = environ.copy()
+
         self.path = os.path.join(PATH_TO_ROOT, "dir_for_project")
         self.project_name = "testing"
         self.path_where_should_be_config = os.path.join(self.path,
                                                         PATH_TO_CONFIG)
-        self.command = f"syndicate generate project --name " \
-                       f"{self.project_name} --path {self.path}".split()
         self.name_bucket_for_tests = "name-bucket-for-tests"
 
         self.sf = SyndicateFlow(path_to_proj_dir=self.path,
@@ -39,7 +39,7 @@ class TestGenerateProject(TestCase):
         self.command = f"syndicate generate config --name config " \
                        f"--region eu-central-1 " \
                        f"--bundle_bucket_name {self.name_bucket_for_tests} " \
-                       f"--project_path {self.path}".split()
+                       f"--project_path {self.path} ".split()
 
     def tearDown(self) -> None:
         if not len(os.listdir(self.path)) == 0:
@@ -77,6 +77,7 @@ class TestGenerateProject(TestCase):
                               stdin=subprocess.PIPE,
                               stderr=subprocess.STDOUT) as proc:
             res = (proc.stdout.read().decode())
+            print(res)
 
         self.assertIn(
             "Invalid value for '--bundle_bucket_name': Bucket name contains "
