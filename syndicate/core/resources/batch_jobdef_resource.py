@@ -30,7 +30,9 @@ class BatchJobDefinitionResource(BaseResource):
         return self.create_pool(self._register_job_definition_from_meta, args)
 
     def describe_job_definition(self, name, meta):
-        response = self.batch_conn.describe_job_definition(job_definition=name)
+        response = self.batch_conn.describe_job_definition(job_definition=name,
+                                                           max_results=1,
+                                                           status='ACTIVE')
         try:
             arn = response['jobDefinitions'][-1]['jobDefinitionArn']
             return {arn: build_description_obj(response, name, meta)}
@@ -73,5 +75,24 @@ class BatchJobDefinitionResource(BaseResource):
         self.batch_conn.deregister_job_definition(job_def_name)
         _LOG.info('Batch Job Definition %s was removed.', job_def_name)
 
+    @unpack_kwargs
+    def _update_job_definition_from_meta(self, name, meta, context):
+        """Updates batch job definition. If a user updates job definition,
+        the previous active revision should be deregistered """
+        response = self.batch_conn.describe_job_definition(job_definition=name,
+                                                           max_results=1,
+                                                           status='ACTIVE')
+        previous_revision = response['jobDefinitions'][-1]['revision']
+
+        self.batch_conn.client.deregister_job_definition(
+            jobDefinition=f'{name}:{previous_revision}')
+        BatchJobDefinitionResource._register_job_definition_from_meta(
+            {
+                'self': self,
+                'name': name,
+                'meta': meta
+            }
+        )
+
     def update_job_definition(self, args):
-        self.create_pool(self._register_job_definition_from_meta, args)
+        self.create_pool(self._update_job_definition_from_meta, args)
