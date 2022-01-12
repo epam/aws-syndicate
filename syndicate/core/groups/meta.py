@@ -577,6 +577,29 @@ def batch_compenv(ctx, **kwargs):
                f"added successfully")
 
 
+@meta.command(name='batch_jobdef')
+@click.option('--resource_name', type=str, required=True,
+              help='Batch job definition name')
+@click.option('--job_definition_type', required=True,
+              type=click.Choice(['container', 'multinode']),
+              help='The type of job definition')
+@click.option('--image', type=str,
+              help='The image used to start a container. '
+                   'Default value is \'alpine\'')
+@click.option('--job_role_arn', type=str,
+              help='The ARN of the IAM role that the container can assume for '
+                   'AWS permissions.')
+@click.pass_context
+@timeit()
+def batch_jobdef(ctx, **kwargs):
+    """Generates batch job definition deployment resources template"""
+    kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
+    generator = BatchJobdefGenerator(**kwargs)
+    _generate(generator)
+    click.echo(f'Batch job definition \'{kwargs["resource_name"]}\' was '
+               f'added successfully')
+
+
 @meta.command(name="batch_jobqueue")
 @click.option('--resource_name', type=str, required=True,
               help="Batch job queue name")
