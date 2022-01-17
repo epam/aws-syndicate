@@ -23,8 +23,8 @@ POLICY_LAMBDA_BASIC_EXECUTION = "lambda-basic-execution"
 
 LAMBDA_ROLE_NAME_PATTERN = '{0}-role'  # 0 - lambda_name
 
-SRC_MAIN_JAVA = '/src/main/java'
-FILE_POM = '/pom.xml'
+SRC_MAIN_JAVA = 'jsrc/main/java'
+FILE_POM = 'pom.xml'
 CANCEL_MESSAGE = 'Creating of {} has been canceled.'
 
 JAVA_LAMBDA_HANDLER_CLASS = """package {java_package_name};
@@ -65,7 +65,11 @@ JAVA_ROOT_POM_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
 
     <properties>
         <maven-shade-plugin.version>3.2.0</maven-shade-plugin.version>
-        <deployment-configuration-annotations.version>1.5.8</deployment-configuration-annotations.version>
+        <deployment-configuration-annotations.version>1.5.11</deployment-configuration-annotations.version>
+        <maven.compiler.source>1.8</maven.compiler.source>
+        <maven.compiler.target>1.8</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <src.dir>jsrc/main/java</src.dir>
     </properties>
 
     <dependencies>
@@ -84,6 +88,7 @@ JAVA_ROOT_POM_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
     </dependencies>
 
     <build>
+        <sourceDirectory>${src.dir}</sourceDirectory>
         <plugins>
             <plugin>
                 <groupId>net.sf.aws-syndicate</groupId>
@@ -175,7 +180,7 @@ NODEJS_LAMBDA_HANDLER_TEMPLATE = """exports.handler = async (event) => {
 """
 
 GITIGNORE_CONTENT = """.syndicate
-sdct.log
+logs/
 """
 
 CHANGELOG_TEMPLATE = """# Changelog
@@ -276,7 +281,7 @@ class AbstractLambda:
     def lambda_handler(self, event, context):
         try:
             _LOG.debug(f'Request: {event}')
-            if event.get('warm-up'):
+            if event.get('warm_up'):
                 return
             errors = self.validate_request(event=event)
             if errors:
@@ -369,6 +374,82 @@ def get_logger(log_name, level=log_level):
     return module_logger
 """
 
+PYTHON_TESTS_INIT_CONTENT = \
+"""import sys
+from pathlib import Path
+
+SOURCE_FOLDER = 'src'
+
+
+class ImportFromSourceContext:
+    \"\"\"Context object to import lambdas and packages. It's necessary because
+    root path is not the path to the syndicate project but the path where
+    lambdas are accumulated - SOURCE_FOLDER \"\"\"
+
+    def __init__(self, source_folder=SOURCE_FOLDER):
+        self.source_folder = source_folder
+        self.assert_source_path_exists()
+
+    @property
+    def project_path(self) -> Path:
+        return Path(__file__).parent.parent
+
+    @property
+    def source_path(self) -> Path:
+        return Path(self.project_path, self.source_folder)
+
+    def assert_source_path_exists(self):
+        source_path = self.source_path
+        if not source_path.exists():
+            print(f'Source path "{source_path}" does not exist.',
+                  file=sys.stderr)
+            sys.exit(1)
+
+    def _add_source_to_path(self):
+        source_path = str(self.source_path)
+        if source_path not in sys.path:
+            sys.path.append(source_path)
+
+    def _remove_source_from_path(self):
+        source_path = str(self.source_path)
+        if source_path in sys.path:
+            sys.path.remove(source_path)
+
+    def __enter__(self):
+        self._add_source_to_path()
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self._remove_source_from_path()
+
+"""
+
+PYTHON_TESTS_INIT_LAMBDA_TEMPLATE = \
+"""import unittest
+import importlib
+from tests import ImportFromSourceContext
+
+with ImportFromSourceContext():
+    LAMBDA_HANDLER = importlib.import_module('lambdas.{lambda_name}.handler')
+
+
+class {camel_lambda_name}LambdaTestCase(unittest.TestCase):
+    \"\"\"Common setups for this lambda\"\"\"
+
+    def setUp(self) -> None:
+        self.HANDLER = LAMBDA_HANDLER.{camel_lambda_name}()
+
+"""
+
+PYTHON_TESTS_BASIC_TEST_CASE_TEMPLATE = \
+"""from tests.{test_lambda_folder} import {camel_lambda_name}LambdaTestCase
+
+
+class TestSuccess({camel_lambda_name}LambdaTestCase):
+
+    def test_success(self):
+        self.assertEqual(self.HANDLER.handle_request(dict(), dict()), 200)
+
+"""
 
 def _stringify(dict_content):
     return json.dumps(dict_content, indent=2)
@@ -400,7 +481,7 @@ def _generate_nodejs_node_lambda_config(lambda_name, lambda_relative_path):
         'func_name': 'index.handler',
         'resource_type': 'lambda',
         'iam_role_name': LAMBDA_ROLE_NAME_PATTERN.format(lambda_name),
-        'runtime': 'nodejs10.x',
+        'runtime': 'nodejs14.x',
         'memory': 128,
         'timeout': 100,
         'lambda_path': lambda_relative_path,
@@ -417,7 +498,7 @@ def _generate_package_nodejs_lambda(lambda_name):
         "name": lambda_name,
         "version": "1.0.0",
         "description": "",
-        "main": FILE_LAMBDA_HANDLER_NODEJS[1:],
+        "main": FILE_LAMBDA_HANDLER_NODEJS,
         "scripts": {},
         "author": "",
         "license": "ISC",

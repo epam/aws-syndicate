@@ -15,7 +15,7 @@
 """
 
 from syndicate.core.constants import (API_GATEWAY_TYPE, CLOUD_WATCH_ALARM_TYPE,
-                                      CLOUD_WATCH_RULE_TYPE, COGNITO_TYPE,
+                                      CLOUD_WATCH_RULE_TYPE,
                                       DYNAMO_TABLE_TYPE, EBS_TYPE,
                                       EC2_INSTANCE_TYPE, IAM_POLICY,
                                       IAM_ROLE, KINESIS_STREAM_TYPE,
@@ -25,7 +25,11 @@ from syndicate.core.constants import (API_GATEWAY_TYPE, CLOUD_WATCH_ALARM_TYPE,
                                       SQS_QUEUE_TYPE, STATE_ACTIVITY_TYPE,
                                       STEP_FUNCTION_TYPE, LAMBDA_LAYER_TYPE,
                                       BATCH_COMPENV_TYPE, BATCH_JOBQUEUE_TYPE,
-                                      BATCH_JOBDEF_TYPE)
+                                      BATCH_JOBDEF_TYPE,
+                                      COGNITO_USER_POOL_TYPE,
+                                      COGNITO_FEDERATED_POOL_TYPE,
+                                      DOCUMENTDB_CLUSTER_TYPE,
+                                      DOCUMENTDB_INSTANCE_TYPE)
 
 
 class ProcessorFacade:
@@ -51,8 +55,12 @@ class ProcessorFacade:
                 self.resources_provider.s3().create_s3_bucket,
             API_GATEWAY_TYPE:
                 self.resources_provider.api_gw().create_api_gateway,
-            COGNITO_TYPE:
-                self.resources_provider.cognito().create_cognito_identity_pool,
+            COGNITO_USER_POOL_TYPE:
+                self.resources_provider.cognito_user_pool()
+                    .create_cognito_user_pool,
+            COGNITO_FEDERATED_POOL_TYPE:
+                self.resources_provider.cognito_identity()
+                    .create_cognito_identity_pool,
             SNS_TOPIC_TYPE:
                 self.resources_provider.sns().create_sns_topic,
             SNS_PLATFORM_APPLICATION_TYPE:
@@ -72,11 +80,17 @@ class ProcessorFacade:
             EC2_INSTANCE_TYPE:
                 self.resources_provider.ec2().create_ec2,
             BATCH_COMPENV_TYPE:
-                self.resources_provider.batch_compenv().create_compute_environment,
+                self.resources_provider.batch_compenv()
+                    .create_compute_environment,
             BATCH_JOBQUEUE_TYPE:
                 self.resources_provider.batch_jobqueue().create_job_queue,
             BATCH_JOBDEF_TYPE:
-                self.resources_provider.batch_jobdef().register_job_definition
+                self.resources_provider.batch_jobdef().register_job_definition,
+            DOCUMENTDB_CLUSTER_TYPE:
+                self.resources_provider.documentdb_cluster().create_db_cluster,
+            DOCUMENTDB_INSTANCE_TYPE:
+                self.resources_provider.documentdb_instance()
+                    .create_db_instance
         }
 
     def describe_handlers(self):
@@ -95,12 +109,16 @@ class ProcessorFacade:
                 self.resources_provider.s3().describe_bucket,
             API_GATEWAY_TYPE:
                 self.resources_provider.api_gw().describe_api_resources,
-            COGNITO_TYPE:
-                self.resources_provider.cognito().describe_cognito_pool,
+            COGNITO_USER_POOL_TYPE:
+                self.resources_provider.cognito_user_pool()
+                    .describe_user_pool,
+            COGNITO_FEDERATED_POOL_TYPE:
+                self.resources_provider.cognito_identity().describe_cognito_pool,
             SNS_TOPIC_TYPE:
                 self.resources_provider.sns().describe_sns_from_meta,
             SNS_PLATFORM_APPLICATION_TYPE:
-                self.resources_provider.sns().describe_sns_application_from_meta,
+                self.resources_provider.sns()
+                    .describe_sns_application_from_meta,
             SQS_QUEUE_TYPE:
                 self.resources_provider.sqs().describe_queue_from_meta,
             CLOUD_WATCH_ALARM_TYPE:
@@ -108,17 +126,25 @@ class ProcessorFacade:
             EBS_TYPE:
                 self.resources_provider.ebs().describe_ebs,
             STEP_FUNCTION_TYPE:
-                self.resources_provider.step_functions().describe_step_function,
+                self.resources_provider.step_functions()
+                    .describe_step_function,
             STATE_ACTIVITY_TYPE:
                 self.resources_provider.step_functions().describe_activity,
             KINESIS_STREAM_TYPE:
                 self.resources_provider.kinesis().describe_kinesis_stream,
             BATCH_COMPENV_TYPE:
-                self.resources_provider.batch_compenv().describe_compute_environment,
+                self.resources_provider.batch_compenv()
+                    .describe_compute_environment,
             BATCH_JOBQUEUE_TYPE:
                 self.resources_provider.batch_jobqueue().describe_job_queue,
             BATCH_JOBDEF_TYPE:
-                self.resources_provider.batch_jobdef().describe_job_definition
+                self.resources_provider.batch_jobdef().describe_job_definition,
+            DOCUMENTDB_CLUSTER_TYPE:
+                self.resources_provider.documentdb_cluster()
+                    .describe_documentdb_cluster,
+            DOCUMENTDB_INSTANCE_TYPE:
+                self.resources_provider.documentdb_instance()
+                    .describe_documentdb_instance
         }
 
     def remove_handlers(self):
@@ -129,8 +155,12 @@ class ProcessorFacade:
                 self.resources_provider.api_gw().remove_api_gateways,
             CLOUD_WATCH_RULE_TYPE:
                 self.resources_provider.cw().remove_cloud_watch_rules,
-            COGNITO_TYPE:
-                self.resources_provider.cognito().remove_cognito_identity_pools,
+            COGNITO_USER_POOL_TYPE:
+                self.resources_provider.cognito_user_pool()
+                    .remove_cognito_user_pools,
+            COGNITO_FEDERATED_POOL_TYPE:
+                self.resources_provider.cognito_identity()
+                    .remove_cognito_identity_pools,
             DYNAMO_TABLE_TYPE:
                 self.resources_provider.dynamodb().remove_dynamodb_tables,
             EBS_TYPE:
@@ -160,19 +190,35 @@ class ProcessorFacade:
             STATE_ACTIVITY_TYPE:
                 self.resources_provider.step_functions().remove_activities,
             BATCH_COMPENV_TYPE:
-                self.resources_provider.batch_compenv().remove_compute_environment,
+                self.resources_provider.batch_compenv()
+                    .remove_compute_environment,
             BATCH_JOBQUEUE_TYPE:
                 self.resources_provider.batch_jobqueue().remove_job_queue,
             BATCH_JOBDEF_TYPE:
-                self.resources_provider.batch_jobdef().deregister_job_definition,
+                self.resources_provider.batch_jobdef()
+                    .deregister_job_definition,
+            DOCUMENTDB_CLUSTER_TYPE:
+                self.resources_provider.documentdb_cluster().remove_db_cluster,
+            DOCUMENTDB_INSTANCE_TYPE:
+                self.resources_provider.documentdb_instance()
+                    .remove_db_instance
         }
 
     def update_handlers(self):
         return {
+            IAM_ROLE:
+                self.resources_provider.iam().update_iam_role,
+            IAM_POLICY:
+                self.resources_provider.iam().update_iam_policy,
             LAMBDA_TYPE:
                 self.resources_provider.lambda_resource().update_lambda,
             LAMBDA_LAYER_TYPE:
-                self.resources_provider.lambda_resource().update_lambda_layer
+                self.resources_provider.lambda_resource().update_lambda_layer,
+            BATCH_JOBDEF_TYPE:
+                self.resources_provider.batch_jobdef().update_job_definition,
+            BATCH_COMPENV_TYPE:
+                self.resources_provider.batch_compenv()
+                    .update_compute_environment,
         }
 
     def resource_configuration_processor(self):
@@ -185,8 +231,12 @@ class ProcessorFacade:
         return {
             API_GATEWAY_TYPE:
                 self.resources_provider.api_gw().api_resource_identifier,
-            COGNITO_TYPE:
-                self.resources_provider.cognito().cognito_resource_identifier
+            COGNITO_USER_POOL_TYPE:
+                self.resources_provider.cognito_user_pool()
+                    .cognito_resource_identifier,
+            COGNITO_FEDERATED_POOL_TYPE:
+                self.resources_provider.cognito_identity()
+                    .cognito_resource_identifier
         }
 
     def mapping_applier(self):

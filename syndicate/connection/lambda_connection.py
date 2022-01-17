@@ -13,6 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+import json
 import uuid
 
 from boto3 import client
@@ -49,7 +50,7 @@ class LambdaConnection(object):
         _LOG.debug('Opened new Lambda connection.')
 
     def create_lambda(self, lambda_name, func_name,
-                      role, s3_bucket, s3_key, runtime='python2.7', memory=128,
+                      role, s3_bucket, s3_key, runtime='python3.7', memory=128,
                       timeout=300, vpc_sub_nets=None, vpc_security_group=None,
                       env_vars=None, dl_target_arn=None, tracing_mode=None,
                       publish_version=False, layers=None):
@@ -244,6 +245,27 @@ class LambdaConnection(object):
         """
         self.client.delete_event_source_mapping(UUID=uuid)
 
+    def remove_invocation_permission(self, func_name):
+        """
+        Removes permission for API Gateway to be able invoke lambda.
+        :type func_name: str
+        """
+
+        policies = self.get_policy(lambda_name=func_name)
+        if not policies:
+            return
+        policies = json.loads(policies['Policy'])
+        policies_meta = policies['Statement']
+
+        invocation_permission_sid_list = []
+        for policy in policies_meta:
+            if policy['Action'] == 'lambda:InvokeFunction':
+                invocation_permission_sid_list.append(policy['Sid'])
+
+        for sid in invocation_permission_sid_list:
+            self.client.remove_permission(FunctionName=func_name,
+                                          StatementId=sid)
+
     def add_invocation_permission(self, name, principal, source_arn=None,
                                   statement_id=None):
         """ Add permission for something to be able invoke lambda.
@@ -328,7 +350,7 @@ class LambdaConnection(object):
             return self.client.get_policy(**params)
         except ClientError as e:
             if 'ResourceNotFoundException' in str(e):
-                pass  # valid exception
+                return  # valid exception
             else:
                 raise e
 

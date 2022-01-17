@@ -18,30 +18,38 @@ import sys
 
 import yaml
 from botocore.exceptions import ClientError
+from boto3.session import Session
 
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.connection.sts_connection import STSConnection
 from syndicate.core.conf.processor import (PROJECT_PATH_CFG,
-                                           LEGACY_CONFIG_FILE_NAME,
                                            CONFIG_FILE_NAME,
                                            ALIASES_FILE_NAME,
                                            ACCOUNT_ID_CFG, REGION_CFG,
                                            DEPLOY_TARGET_BUCKET_CFG,
                                            AWS_ACCESS_KEY_ID_CFG,
                                            AWS_SECRET_ACCESS_KEY_CFG,
+                                           AWS_SESSION_TOKEN_CFG,
                                            RESOURCES_PREFIX_CFG,
                                            RESOURCES_SUFFIX_CFG)
 from syndicate.core.conf.validator import (LAMBDAS_ALIASES_NAME_CFG)
 from syndicate.core.generators import _mkdir
 
 _LOG = get_logger('config_generator')
-_USER_LOG = get_user_logger('config_generator')
+_USER_LOG = get_user_logger()
 
 
 def generate_configuration_files(name, config_path, region,
-                                 access_key, secret_key,
+                                 access_key, secret_key, session_token,
                                  bundle_bucket_name, prefix, suffix,
                                  project_path=None):
+    if not access_key and not secret_key:
+        _USER_LOG.warn("Access_key and secret_key weren't passed. "
+                       "Attempting to load them")
+        credentials = Session().get_credentials()
+        if not credentials:
+            raise AssertionError("No credentials could be found")
+
     try:
         sts = STSConnection(region=region,
                             aws_access_key_id=access_key,
@@ -68,16 +76,20 @@ def generate_configuration_files(name, config_path, region,
                 f'directory for configs {config_path}')
             sys.exit(1)
 
+    config_folder_path = os.path.join(config_path, f'.syndicate-config-{name}')
+    _mkdir(path=config_folder_path)
+
     if not project_path:
-        _USER_LOG.warn(f'The {PROJECT_PATH_CFG} property is not specified. '
-                       f'The working directory will be used as a project path. '
-                       f'To change the path, edit the {LEGACY_CONFIG_FILE_NAME} '
-                       f'by path {config_path}')
+        _USER_LOG.warn(f'The "{PROJECT_PATH_CFG}" property is not specified. '
+                       f'The working directory will be used as a project path.'
+                       f' To change the path, edit the {CONFIG_FILE_NAME} '
+                       f'by path {config_folder_path}')
         project_path = os.getcwd()
     else:
         if not os.path.exists(project_path):
             raise AssertionError(
                 f'Provided project path {project_path} does not exists')
+        project_path = os.path.abspath(project_path)
 
     config_content = {
         ACCOUNT_ID_CFG: account_id,
@@ -85,15 +97,13 @@ def generate_configuration_files(name, config_path, region,
         DEPLOY_TARGET_BUCKET_CFG: bundle_bucket_name,
         AWS_ACCESS_KEY_ID_CFG: access_key,
         AWS_SECRET_ACCESS_KEY_CFG: secret_key,
+        AWS_SESSION_TOKEN_CFG: session_token,
         PROJECT_PATH_CFG: project_path,
         RESOURCES_PREFIX_CFG: prefix,
         RESOURCES_SUFFIX_CFG: suffix
     }
     config_content = {key: value for key, value in config_content.items()
                       if value}
-
-    config_folder_path = os.path.join(config_path, f'.syndicate-config-{name}')
-    _mkdir(path=config_folder_path)
 
     config_file_path = os.path.join(config_folder_path, CONFIG_FILE_NAME)
     with open(config_file_path, 'w') as config_file:
@@ -108,7 +118,9 @@ def generate_configuration_files(name, config_path, region,
 
     _USER_LOG.info(
         'Syndicate initialization has been completed. '
-        f'Set SDCT_CONF:\nexport SDCT_CONF={config_folder_path}')
+        f'Set SDCT_CONF:{os.linesep}'
+        f'Unix: export SDCT_CONF={config_folder_path}{os.linesep}'
+        f'Windows: setx SDCT_CONF {config_folder_path}')
 
 
 def generate_build_project_mapping(mapping_item, build_type):

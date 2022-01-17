@@ -28,16 +28,20 @@ API_REQUIRED_PARAMS = ['resources', 'deploy_stage']
 _LOG = get_logger('syndicate.core.resources.api_gateway_resource')
 
 SUPPORTED_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS',
-                     'HEAD']
+                     'HEAD', 'ANY']
 _CORS_HEADER_NAME = 'Access-Control-Allow-Origin'
 _CORS_HEADER_VALUE = "'*'"
+_COGNITO_AUTHORIZER_TYPE = 'COGNITO_USER_POOLS'
+_CUSTOM_AUTHORIZER_TYPE = 'CUSTOM'
 
 
 class ApiGatewayResource(BaseResource):
 
-    def __init__(self, apigw_conn, lambda_res, account_id, region) -> None:
+    def __init__(self, apigw_conn, lambda_res, cognito_res, account_id,
+                 region) -> None:
         self.connection = apigw_conn
         self.lambda_res = lambda_res
+        self.cognito_res = cognito_res
         self.account_id = account_id
         self.region = region
 
@@ -185,29 +189,48 @@ class ApiGatewayResource(BaseResource):
             binary_media_types=meta.get('binary_media_types'))
         api_id = api_item['id']
 
+        # set minimumCompressionSize if the param exists
+        minimum_compression_size = meta.get('minimum_compression_size', None)
+        if not minimum_compression_size:
+            _LOG.debug("No minimal_compression_size param - "
+                       "compression isn't enabled")
+        self.connection.update_compression_size(
+            rest_api_id=api_id,
+            compression_size=minimum_compression_size)
+
         # deploy authorizers
         authorizers = meta.get('authorizers', {})
         for key, val in authorizers.items():
-            lambda_version = val.get('lambda_version')
-            lambda_name = val.get('lambda_name')
-            lambda_alias = val.get('lambda_alias')
-            lambda_arn = self.lambda_res. \
-                resolve_lambda_arn_by_version_and_alias(lambda_name,
-                                                        lambda_version,
-                                                        lambda_alias)
-            uri = 'arn:aws:apigateway:{0}:lambda:path/2015-03-31/' \
-                  'functions/{1}/invocations'.format(self.region, lambda_arn)
+            uri = None
+            provider_arns = []
+            if val.get('type') == _COGNITO_AUTHORIZER_TYPE:
+                for pool in val.get('user_pools'):
+                    user_pool_id = self.cognito_res.get_user_pool_id(pool)
+                    provider_arns.append(
+                        f'arn:aws:cognito-idp:{self.region}:{self.account_id}:'
+                        f'userpool/{user_pool_id}')
+            else:
+                lambda_version = val.get('lambda_version')
+                lambda_name = val.get('lambda_name')
+                lambda_alias = val.get('lambda_alias')
+                lambda_arn = self.lambda_res. \
+                    resolve_lambda_arn_by_version_and_alias(lambda_name,
+                                                            lambda_version,
+                                                            lambda_alias)
+                uri = f'arn:aws:apigateway:{self.region}:lambda:path/' \
+                      f'2015-03-31/functions/{lambda_arn}/invocations'
+                self.lambda_res.add_invocation_permission(
+                    statement_id=api_id,
+                    name=lambda_arn,
+                    principal='apigateway.amazonaws.com')
+
             self.connection.create_authorizer(api_id=api_id, name=key,
                                               type=val['type'],
                                               authorizer_uri=uri,
                                               identity_source=val.get(
                                                   'identity_source'),
-                                              ttl=val.get('ttl'))
-
-            self.lambda_res.add_invocation_permission(
-                statement_id=api_id,
-                name=lambda_arn,
-                principal='apigateway.amazonaws.com')
+                                              ttl=val.get('ttl'),
+                                              provider_arns=provider_arns)
         if api_resources:
             api_resp = meta.get('api_method_responses')
             api_integration_resp = meta.get('api_method_integration_responses')
@@ -412,7 +435,12 @@ class ApiGatewayResource(BaseResource):
                 raise AssertionError(
                     'Authorizer {0} does not exist'.format(authorization_type))
             method_meta['authorizer_id'] = authorizer_id
-            authorization_type = 'CUSTOM'
+            authorizer = self.connection.get_authorizer(
+                api_id, authorizer_id).get('type')
+            if authorizer == _COGNITO_AUTHORIZER_TYPE:
+                authorization_type = _COGNITO_AUTHORIZER_TYPE
+            else:
+                authorization_type = _CUSTOM_AUTHORIZER_TYPE
 
         self.connection.create_method(
             api_id, resource_id, method,
@@ -543,6 +571,19 @@ class ApiGatewayResource(BaseResource):
                                                            _CORS_HEADER_NAME,
                                                            _CORS_HEADER_VALUE)
 
+    @staticmethod
+    def _get_lambdas_invoked_by_api_gw(resources_meta):
+        affected_lambdas = []
+
+        for resource, meta in resources_meta.items():
+            for method, description in meta.items():
+                if method in SUPPORTED_METHODS:
+                    lambda_name = description.get('lambda_name')
+                    if lambda_name and lambda_name not in affected_lambdas:
+                        affected_lambdas.append(lambda_name)
+
+        return affected_lambdas
+
     def remove_api_gateways(self, args):
         for arg in args:
             self._remove_api_gateway(**arg)
@@ -553,7 +594,7 @@ class ApiGatewayResource(BaseResource):
         api_id = config['description']['id']
         try:
             self.connection.remove_api(api_id)
-            _LOG.info('API Gateway %s was removed.', api_id)
+            _LOG.info(f'API Gateway {api_id} was removed.')
         except ClientError as e:
             if e.response['Error']['Code'] == 'NotFoundException':
                 _LOG.warn('API Gateway %s is not found', api_id)

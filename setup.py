@@ -21,14 +21,13 @@ SYNDICATE_DESCRIPTION = ('AWS-syndicate is an Amazon Web Services deployment '
                          'easily deploy serverless applications using '
                          'resource descriptions.')
 
-
 this_directory = path.abspath(path.dirname(__file__))
 with open(path.join(this_directory, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
 setup(
     name='aws-syndicate',
-    version='0.9.7',
+    version='1.0.0',
     packages=find_packages(),
     include_package_data=True,
     install_requires=[
@@ -39,6 +38,9 @@ setup(
         'tqdm==4.19.5',
         'colorama==0.4.1',
         'pyyaml==5.4',
+        'requests-aws-sign==0.1.6',
+        'requests==2.25.1',
+        'tabulate==0.8.9',
         'troposphere==2.7.1'
     ],
     entry_points='''

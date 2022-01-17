@@ -33,17 +33,19 @@ LAMBDAS_ALIASES_NAME_CFG = 'lambdas_alias_name'
 
 AWS_ACCESS_KEY_ID_CFG = 'aws_access_key_id'
 AWS_SECRET_ACCESS_KEY_CFG = 'aws_secret_access_key'
+AWS_SESSION_TOKEN_CFG = 'aws_session_token'
 DEPLOY_TARGET_BUCKET_CFG = 'deploy_target_bucket'
 PROJECTS_MAPPING_CFG = 'build_projects_mapping'
 RESOURCES_SUFFIX_CFG = 'resources_suffix'
 RESOURCES_PREFIX_CFG = 'resources_prefix'
 
-PYTHON_BUILD_TOOL_NAME = 'python'
-NODE_BUILD_TOOL_NAME = 'node'
-MVN_BUILD_TOOL_NAME = 'mvn'
-ALLOWED_BUILD_TOOLS = [PYTHON_BUILD_TOOL_NAME,
-                       MVN_BUILD_TOOL_NAME,
-                       NODE_BUILD_TOOL_NAME]
+PYTHON_LANGUAGE_NAME = 'python'
+NODEJS_LANGUAGE_NAME = 'nodejs'
+JAVA_LANGUAGE_NAME = 'java'
+
+ALLOWED_RUNTIME_LANGUAGES = [PYTHON_LANGUAGE_NAME,
+                             JAVA_LANGUAGE_NAME,
+                             NODEJS_LANGUAGE_NAME]
 
 REQUIRED_PARAM_ERROR = 'The required key {} is missing'
 
@@ -74,6 +76,9 @@ class ConfigValidator:
             AWS_SECRET_ACCESS_KEY_CFG: {
                 REQUIRED: False,
                 VALIDATOR: self._validate_aws_secret_access_key},
+            AWS_SESSION_TOKEN_CFG: {
+                REQUIRED: False,
+                VALIDATOR: self._validate_aws_session_token},
             RESOURCES_PREFIX_CFG: {
                 REQUIRED: False,
                 VALIDATOR: self._validate_resources_prefix_suffix},
@@ -156,14 +161,21 @@ class ConfigValidator:
             return errors
         project_path = self._config_dict.get(PROJECT_PATH_CFG)
         for key in value.keys():
-            if key not in ALLOWED_BUILD_TOOLS:
+            if key not in ALLOWED_RUNTIME_LANGUAGES:
                 errors.append(f'{key} is not supported to be built')
                 continue
             for build_key, paths in value.items():
-                for path in paths:
-                    if not os.path.exists(os.path.join(project_path, path)):
-                        errors.append(f'The path in {key}:{build_key} project '
-                                      f'mapping does not exists: {path}')
+                if not paths:
+                    errors.append(f'The path in {build_key} project '
+                                  f'mapping not specified')
+
+                else:
+                    for path in paths:
+                        if not os.path.exists(os.path.join(
+                                project_path, path)):
+                            errors.append(
+                                f'The path in {key}:{build_key} project '
+                                f'mapping does not exists: {path}')
         return errors
 
     def _validate_aws_access_key(self, key, value):
@@ -183,14 +195,26 @@ class ConfigValidator:
         if str_error:
             return [str_error]
 
-    def _validate_resources_prefix_suffix(self, key, value):
+    def _validate_aws_session_token(self, key, value):
         str_error = self._assert_value_is_str(key=key,
                                               value=value)
+        if str_error:
+            return [str_error]
+
+    @staticmethod
+    def _validate_resources_prefix_suffix(key, value):
+        str_error = ConfigValidator._assert_value_is_str(key=key, value=value)
         if str_error:
             return [str_error]
         if len(value) > 5:
             return [
                 f'The length of {key} must be less or equal to 5 character']
+
+    @staticmethod
+    def validate_prefix_suffix(key, value):
+        result = ConfigValidator._validate_resources_prefix_suffix(key, value)
+        if result:
+            return result[0]
 
     @staticmethod
     def _assert_value_is_str(key, value):

@@ -13,6 +13,10 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+import ipaddress
+import string
+import re
+
 from syndicate.commons.log_helper import get_logger
 from syndicate.core import ClientError
 from syndicate.core.helper import unpack_kwargs
@@ -20,6 +24,45 @@ from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import build_description_obj, chunks
 
 _LOG = get_logger('syndicate.core.resources.s3_resource')
+
+def validate_bucket_name(bucket_name: str):
+    """Checks whether the given bucket name is valid.
+    If the given name isn't valid, ValueError with an appropriate message
+    is raised.
+    :type bucket_name: str
+    :param bucket_name: the name to check
+    """
+    bucket_name = bucket_name.strip()
+    _LOG.info(f"Starting validating bucket name '{bucket_name}'")
+    error = None
+    if not bucket_name or not 3 <= len(bucket_name) <= 63:
+        error = 'Bucket name must be between 3 and 63 characters long'
+    else:
+        invalid_characters = re.search('[^a-z0-9.-]', bucket_name)
+        if invalid_characters:
+            character = invalid_characters.group()
+            if character in string.ascii_uppercase:
+                error = 'Bucket name must not contain uppercase characters'
+            else:
+                error = f'Bucket name contains invalid characters: {character}'
+        elif any(bucket_name.startswith(symbol) for symbol in '.-'):
+            error = 'Bucket name must start with a lowercase letter or number'
+        elif any(bucket_name.endswith(symbol) for symbol in '.-'):
+            error = 'Bucket name must not end with dash or period'
+        elif '..' in bucket_name:
+            error = 'Bucket name must not contain two adjacent periods'
+        elif '.-' in bucket_name or '-.' in bucket_name:
+            error = 'Bucket name must not contain dash next to period'
+        else:
+            try:
+                ipaddress.ip_address(bucket_name)
+                error = 'Bucket name must not resemble an IP address'
+            except ValueError:
+                pass
+    if error:
+        _LOG.warning(error)
+        raise ValueError(error)
+    _LOG.info(f"Finished validating bucket name '{bucket_name}'")
 
 
 class S3Resource(BaseResource):
@@ -112,3 +155,4 @@ class S3Resource(BaseResource):
                 _LOG.warn('S3 bucket {0} is not found'.format(bucket_name))
             else:
                 raise e
+

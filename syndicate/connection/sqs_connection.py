@@ -82,9 +82,7 @@ class SqsConnection(object):
                 'ReceiveMessageWaitTimeSeconds'] = str(
                 receive_message_wait_time_seconds)
         if redrive_policy:
-            if isinstance(redrive_policy, dict):
-                redrive_policy = json.dumps(redrive_policy)
-            attributes['RedrivePolicy'] = redrive_policy
+            attributes['RedrivePolicy'] = json.dumps(redrive_policy)
         if visibility_timeout:
             if visibility_timeout < 0 or visibility_timeout > 43200:
                 raise AssertionError(

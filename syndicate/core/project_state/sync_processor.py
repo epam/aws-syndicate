@@ -19,7 +19,7 @@ from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.project_state.project_state import PROJECT_STATE_FILE
 
 _LOG = get_logger('sync-processor')
-USER_LOG = get_user_logger('sync-processor')
+USER_LOG = get_user_logger()
 
 
 def sync_project_state():
@@ -55,4 +55,4 @@ def sync_project_state():
                       content_type='application/x-yaml')
         _LOG.debug('Push successful')
         _LOG.debug('Remote .syndicate file pulled')
-    USER_LOG.info('Project state file has been successfully synced')
+    _LOG.info('Project state file has been successfully synced')
