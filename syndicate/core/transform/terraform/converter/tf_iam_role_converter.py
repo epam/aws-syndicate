@@ -17,7 +17,7 @@ import json
 
 from syndicate.core.transform.terraform.tf_resource_reference_builder import \
     build_policy_arn_ref
-from syndicate.connection.iam_connection import build_trusted_relationships
+from syndicate.connection.iam_connection import IAMConnection
 from syndicate.core.transform.terraform.converter.tf_resource_converter import \
     TerraformResourceConverter
 
@@ -28,16 +28,22 @@ class IamRoleConverter(TerraformResourceConverter):
         allowed_accounts = resource.get('allowed_accounts', [])
         principal_service = resource.get('principal_service')
         external_id = resource.get('external_id')
-        trust_rltn = resource.get('trusted_relationships')
+        trusted_relationships = resource.get('trusted_relationships')
 
         policy_arns = self._prepare_policy_arns(resource=resource)
 
-        assume_role_policy = build_trusted_relationships(
-            trusted_relationships=trust_rltn, external_id=external_id,
-            allowed_service=principal_service,
-            allowed_account=allowed_accounts)
+        if not trusted_relationships:
+            trusted_relationships = IAMConnection.empty_trusted_relationships()
+        if allowed_accounts:
+            trusted_accounts = IAMConnection.set_allowed_account(
+                allowed_accounts, external_id, 'create')
+            trusted_relationships['Statement'].append(trusted_accounts)
+        if principal_service:
+            trusted_services = IAMConnection.set_allowed_service(
+                principal_service, 'create')
+            trusted_relationships['Statement'].append(trusted_services)
 
-        policy_json = json.dumps(assume_role_policy)
+        policy_json = json.dumps(trusted_relationships)
         resource_template = iam_role(role_name=name,
                                      policy_arns=policy_arns,
                                      assume_role_policy=policy_json)

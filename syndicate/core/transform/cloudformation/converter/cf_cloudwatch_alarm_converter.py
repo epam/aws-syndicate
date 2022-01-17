@@ -19,7 +19,7 @@ from syndicate.core.resources.cloud_watch_alarm_resource import \
     CLOUDWATCH_ALARM_REQUIRED_PARAMS
 from syndicate.core.resources.helper import validate_params
 from .cf_resource_converter import CfResourceConverter
-from ..cf_transform_helper import to_logic_name, sns_topic_logic_name
+from ..cf_transform_utils import to_logic_name, sns_topic_logic_name
 
 
 class CfCloudWatchAlarmConverter(CfResourceConverter):

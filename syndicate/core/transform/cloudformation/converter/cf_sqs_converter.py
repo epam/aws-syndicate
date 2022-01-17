@@ -17,7 +17,7 @@ from troposphere import sqs, GetAtt
 
 from syndicate.core.resources.sqs_resource import FIFO_REGIONS, SqsResource
 from .cf_resource_converter import CfResourceConverter
-from ..cf_transform_helper import to_logic_name, sqs_queue_logic_name
+from ..cf_transform_utils import to_logic_name, sqs_queue_logic_name
 
 
 class CfSqsConverter(CfResourceConverter):

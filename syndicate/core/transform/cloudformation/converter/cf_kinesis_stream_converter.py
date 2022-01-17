@@ -17,7 +17,7 @@ from troposphere import kinesis
 
 from syndicate.connection.kinesis_connection import validate_shard_count
 from .cf_resource_converter import CfResourceConverter
-from ..cf_transform_helper import kinesis_stream_logic_name
+from ..cf_transform_utils import kinesis_stream_logic_name
 
 
 class CfKinesisStreamConverter(CfResourceConverter):

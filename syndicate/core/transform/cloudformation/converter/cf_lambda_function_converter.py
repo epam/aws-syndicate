@@ -34,7 +34,7 @@ from .cf_iam_role_converter import CfIamRoleConverter
 from .cf_resource_converter import CfResourceConverter
 from .cf_s3_converter import CfS3Converter
 from .cf_sns_converter import CfSnsConverter
-from ..cf_transform_helper import \
+from ..cf_transform_utils import \
     (to_logic_name, lambda_publish_version_logic_name,
      lambda_alias_logic_name, lambda_function_logic_name,
      iam_role_logic_name, dynamodb_table_logic_name,
@@ -42,8 +42,7 @@ from ..cf_transform_helper import \
      s3_bucket_logic_name, sns_topic_logic_name,
      kinesis_stream_logic_name, lambda_layer_logic_name)
 
-_LOG = get_logger('syndicate.core.transform.cloudformation'
-                  '.converter.cf_lambda_function_converter')
+_LOG = get_logger('cf_lambda_function_converter')
 
 
 class CfLambdaFunctionConverter(CfResourceConverter):

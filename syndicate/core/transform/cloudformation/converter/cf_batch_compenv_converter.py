@@ -22,12 +22,11 @@ from syndicate.core.resources.batch_compenv_resource import \
      DEFAULT_SERVICE_ROLE)
 from .cf_iam_role_converter import CfIamRoleConverter
 from .cf_resource_converter import CfResourceConverter
-from ..cf_transform_helper import (iam_role_logic_name,
-                                   iam_instance_profile_logic_name,
-                                   batch_compute_env_logic_name)
+from ..cf_transform_utils import (iam_role_logic_name,
+                                  iam_instance_profile_logic_name,
+                                  batch_compute_env_logic_name)
 
-_LOG = get_logger('syndicate.core.transform.cloudformation'
-                  '.converter.cf_batch_compenv_converter')
+_LOG = get_logger('cf_batch_compenv_converter')
 
 
 class CfBatchComputeEnvironmentConverter(CfResourceConverter):

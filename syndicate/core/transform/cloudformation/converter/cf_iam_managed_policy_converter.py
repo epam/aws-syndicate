@@ -16,7 +16,7 @@
 from troposphere import iam
 
 from .cf_resource_converter import CfResourceConverter
-from ..cf_transform_helper import iam_managed_policy_logic_name
+from ..cf_transform_utils import iam_managed_policy_logic_name
 
 
 class CfIamManagedPolicyConverter(CfResourceConverter):

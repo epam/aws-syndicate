@@ -475,4 +475,4 @@ class TerraformTemplate(object):
             if resources_meta:
                 self.resources.append({res_type: resources_meta})
         return json.dumps({PROVIDER_KEY: {self.provider: self.providers},
-                           RESOURCE_KEY: self.resources})
+                           RESOURCE_KEY: self.resources}, indent=2)

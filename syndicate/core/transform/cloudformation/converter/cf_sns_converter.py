@@ -22,8 +22,8 @@ from syndicate.core.resources.sns_resource import \
     SNS_CLOUDWATCH_TRIGGER_REQUIRED_PARAMS
 from .cf_cloudwatch_rule_converter import attach_rule_target
 from .cf_resource_converter import CfResourceConverter
-from ..cf_transform_helper import (to_logic_name, sns_topic_logic_name,
-                                   cloudwatch_rule_logic_name)
+from ..cf_transform_utils import (to_logic_name, sns_topic_logic_name,
+                                  cloudwatch_rule_logic_name)
 
 
 class CfSnsConverter(CfResourceConverter):

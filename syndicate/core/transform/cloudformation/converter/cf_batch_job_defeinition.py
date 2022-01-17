@@ -17,7 +17,7 @@ from troposphere import batch
 
 from syndicate.core.helper import dict_keys_to_upper_camel_case
 from .cf_resource_converter import CfResourceConverter
-from ..cf_transform_helper import to_logic_name, iam_role_logic_name
+from ..cf_transform_utils import to_logic_name, iam_role_logic_name
 
 
 class CfBatchJobDefinitionConverter(CfResourceConverter):

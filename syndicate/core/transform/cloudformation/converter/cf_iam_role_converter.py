@@ -15,11 +15,11 @@
 """
 from troposphere import Ref, iam
 
-from syndicate.connection.iam_connection import build_trusted_relationships
+from syndicate.connection.iam_connection import IAMConnection
 from .cf_resource_converter import CfResourceConverter
-from ..cf_transform_helper import (to_logic_name, iam_role_logic_name, is_arn,
-                                   iam_managed_policy_logic_name,
-                                   iam_instance_profile_logic_name)
+from ..cf_transform_utils import (to_logic_name, iam_role_logic_name, is_arn,
+                                  iam_managed_policy_logic_name,
+                                  iam_instance_profile_logic_name)
 
 
 class CfIamRoleConverter(CfResourceConverter):
@@ -54,12 +54,17 @@ class CfIamRoleConverter(CfResourceConverter):
         allowed_accounts = meta.get('allowed_accounts', [])
         principal_service = meta.get('principal_service')
         external_id = meta.get('external_id')
-        trust_rltn = meta.get('trusted_relationships')
-        trusted_relationships = build_trusted_relationships(
-            allowed_account=list(allowed_accounts),
-            allowed_service=principal_service,
-            external_id=external_id,
-            trusted_relationships=trust_rltn)
+        trusted_relationships = meta.get('trusted_relationships')
+        if not trusted_relationships:
+            trusted_relationships = IAMConnection.empty_trusted_relationships()
+        if allowed_accounts:
+            trusted_accounts = IAMConnection.set_allowed_account(
+                allowed_accounts, external_id, 'create')
+            trusted_relationships['Statement'].append(trusted_accounts)
+        if principal_service:
+            trusted_services = IAMConnection.set_allowed_service(
+                principal_service, 'create')
+            trusted_relationships['Statement'].append(trusted_services)
         return trusted_relationships
 
     def _convert_instance_profile(self, role_name):

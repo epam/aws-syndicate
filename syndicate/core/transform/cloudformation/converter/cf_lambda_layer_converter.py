@@ -20,7 +20,7 @@ from syndicate.core.resources.helper import validate_params
 from syndicate.core.resources.lambda_resource import \
     LAMBDA_LAYER_REQUIRED_PARAMS
 from .cf_resource_converter import CfResourceConverter
-from ..cf_transform_helper import lambda_layer_logic_name
+from ..cf_transform_utils import lambda_layer_logic_name
 
 
 class CfLambdaLayerConverter(CfResourceConverter):

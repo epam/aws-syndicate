@@ -14,7 +14,7 @@
     limitations under the License.
 """
 
-from troposphere import apigateway, awslambda, GetAtt, Ref, Join
+from troposphere import apigateway, GetAtt, Ref, Join
 
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection import ApiGatewayConnection
@@ -31,14 +31,13 @@ from syndicate.core.resources.api_gateway_resource import (ApiGatewayResource,
 from syndicate.core.resources.helper import validate_params
 from .cf_lambda_function_converter import CfLambdaFunctionConverter
 from .cf_resource_converter import CfResourceConverter
-from ..cf_transform_helper import (to_logic_name,
-                                   lambda_publish_version_logic_name,
-                                   lambda_alias_logic_name,
-                                   lambda_function_logic_name,
-                                   api_gateway_method_logic_name)
+from ..cf_transform_utils import (to_logic_name,
+                                  lambda_publish_version_logic_name,
+                                  lambda_alias_logic_name,
+                                  lambda_function_logic_name,
+                                  api_gateway_method_logic_name)
 
-_LOG = get_logger('syndicate.core.transform.cloudformation.'
-                  'converter.cf_api_gateway_converter')
+_LOG = get_logger('cf_api_gateway_converter')
 
 
 class CfApiGatewayConverter(CfResourceConverter):
@@ -86,8 +85,12 @@ class CfApiGatewayConverter(CfResourceConverter):
             self._convert_request_validator(method_meta, method_res, rest_api)
 
             integration_type = method_meta.get('integration_type')
-            integration = self._convert_method_integration(integration_type, method, method_meta, path,
-                                                           rest_api)
+            integration = self._convert_method_integration(
+                integration_type=integration_type,
+                method=method,
+                method_meta=method_meta,
+                path=path,
+                rest_api=rest_api)
 
             method_res.ApiKeyRequired = bool(method_meta.get('api_key_required'))
             method_res.AuthorizationType = authorization_type
@@ -139,20 +142,18 @@ class CfApiGatewayConverter(CfResourceConverter):
         return rest_api
 
     def _convert_method_integration(self, integration_type, method, method_meta, path, rest_api):
-        integration = None
-        if integration_type:
-            if integration_type == 'lambda':
-                integration = self._lambda_method_integration(method, method_meta, path, rest_api)
-            elif integration_type == 'service':
-                integration = self._service_method_integration(method, method_meta, path)
-            elif integration_type == 'mock':
-                integration = self._mock_method_integration(method, method_meta, path)
-            elif integration_type == 'http':
-                integration = self._http_method_integration(method, method_meta, path)
-            else:
-                raise AssertionError(
-                    '{} integration type does not exist.'.format(integration_type))
-        return integration
+        integration_builders = {
+            'lambda': self._lambda_method_integration,
+            'service': self._service_method_integration,
+            'mock': self._mock_method_integration,
+            'http': self._http_method_integration
+        }
+        if integration_type not in integration_builders:
+            raise AssertionError(
+                '{} integration type does not exist.'.format(integration_type))
+
+        integration_builder = integration_builders[integration_type]
+        return integration_builder(method, method_meta, path, rest_api)
 
     def _lambda_method_integration(self, method, method_meta, path, rest_api):
         lambda_name = method_meta.get('lambda_name')
@@ -188,13 +189,16 @@ class CfApiGatewayConverter(CfResourceConverter):
         self.template.add_resource(permission)
         return integration
 
-    def _service_method_integration(self, method, method_meta, path):
+    def _service_method_integration(self, method, method_meta, path, rest_api):
         uri = method_meta.get('uri')
         role = method_meta.get('role')
         passthrough_behavior = method_meta.get('integration_passthrough_behavior')
         body_template = method_meta.get('integration_request_body_template')
         request_parameters = method_meta.get('integration_request_parameters')
         integration_method = method_meta.get('integration_method')
+        if not integration_method:
+            raise ValueError('integration_method is not provided for the '
+                             f'{method} {path} method of the integration type "service"')
         credentials = ApiGatewayConnection.get_service_integration_credentials(
             self.config.account_id, role)
         integration = apigateway.Integration()
@@ -207,7 +211,7 @@ class CfApiGatewayConverter(CfResourceConverter):
         integration.Uri = 'arn:aws:apigateway:{0}'.format(uri)
         return integration
 
-    def _mock_method_integration(self, method, method_meta, path):
+    def _mock_method_integration(self, method, method_meta, path, rest_api):
         integration = apigateway.Integration()
         passthrough_behavior = method_meta.get('integration_passthrough_behavior')
         body_template = method_meta.get('integration_request_body_template')
@@ -216,7 +220,7 @@ class CfApiGatewayConverter(CfResourceConverter):
         integration.Type = 'MOCK'
         return integration
 
-    def _http_method_integration(self, method, method_meta, path):
+    def _http_method_integration(self, method, method_meta, path, rest_api):
         enable_proxy = method_meta.get('enable_proxy')
         integration_method = method_meta.get('integration_method')
         passthrough_behavior = method_meta.get('integration_passthrough_behavior')
@@ -464,6 +468,7 @@ class CfApiGatewayConverter(CfResourceConverter):
                 function_ref += ':' + lambda_version
             raise AssertionError("Lambda function '{}' is not present "
                                  "in build meta.".format(function_ref))
+            # Or lookup existing lambda function in AWS?
             # lambda_service = self.resources_provider.lambda_resource()
             # function_arn = \
             #     lambda_service.resolve_lambda_arn_by_version_and_alias(

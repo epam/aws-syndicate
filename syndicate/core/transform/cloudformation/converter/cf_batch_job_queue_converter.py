@@ -17,7 +17,7 @@ from troposphere import batch
 
 from syndicate.core.resources.batch_jobqueue_resource import DEFAULT_STATE
 from .cf_resource_converter import CfResourceConverter
-from ..cf_transform_helper import to_logic_name, batch_compute_env_logic_name
+from ..cf_transform_utils import to_logic_name, batch_compute_env_logic_name
 
 
 class CfBatchJobQueueConverter(CfResourceConverter):

@@ -21,7 +21,7 @@ from syndicate.core.build.meta_processor import resolve_meta
 from syndicate.core.constants import \
     (IAM_POLICY, IAM_ROLE, LAMBDA_TYPE, DYNAMO_TABLE_TYPE, S3_BUCKET_TYPE,
      CLOUD_WATCH_RULE_TYPE, SQS_QUEUE_TYPE, API_GATEWAY_TYPE, SNS_TOPIC_TYPE,
-     CLOUD_WATCH_ALARM_TYPE, KINESIS_STREAM_TYPE, COGNITO_TYPE,
+     CLOUD_WATCH_ALARM_TYPE, KINESIS_STREAM_TYPE, COGNITO_FEDERATED_POOL_TYPE,
      SNS_PLATFORM_APPLICATION_TYPE, BATCH_COMPENV_TYPE, BATCH_JOBQUEUE_TYPE,
      BATCH_JOBDEF_TYPE, LAMBDA_LAYER_TYPE)
 
@@ -46,9 +46,8 @@ class BuildMetaTransformer(object):
             SNS_TOPIC_TYPE: self._transform_sns_topic,
             SNS_PLATFORM_APPLICATION_TYPE: self._transform_sns_application,
             CLOUD_WATCH_ALARM_TYPE: self._transform_cloudwatch_alarm,
-            # DYNAMO_DB_STREAM_TYPE: self._transform_dynamodb_stream,
             KINESIS_STREAM_TYPE: self._transform_kinesis_stream,
-            COGNITO_TYPE: self._transform_cognito,
+            COGNITO_FEDERATED_POOL_TYPE: self._transform_cognito,
             BATCH_COMPENV_TYPE: self._transform_batch_compenv,
             BATCH_JOBQUEUE_TYPE: self._transform_batch_jobqueue,
             BATCH_JOBDEF_TYPE: self._transform_batch_jobdef

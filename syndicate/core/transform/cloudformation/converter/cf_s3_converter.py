@@ -16,7 +16,7 @@
 from troposphere import s3
 
 from .cf_resource_converter import CfResourceConverter
-from ..cf_transform_helper import to_logic_name, s3_bucket_logic_name
+from ..cf_transform_utils import to_logic_name, s3_bucket_logic_name
 
 CANNED_ACL_PARAMS_MAPPING = {
     'private': s3.Private,

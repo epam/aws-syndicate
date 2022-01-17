@@ -68,7 +68,7 @@ class LambdaConverter(TerraformResourceConverter):
             if not iam_role:
                 raise AssertionError(f'Role {iam_role_name} does not exist; '
                                      f'Lambda {name} failed to be configured.')
-            role_arn = build_role_arn_ref(iam_role)
+            role_arn = build_role_arn_ref(iam_role_name)
 
         lambda_layers_arns = []
         layer_meta = resource.get('layers')
