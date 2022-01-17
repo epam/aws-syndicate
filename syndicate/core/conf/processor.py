@@ -24,7 +24,8 @@ from syndicate.core.conf.validator import \
     (PROJECT_PATH_CFG, REGION_CFG, DEPLOY_TARGET_BUCKET_CFG,
      ACCOUNT_ID_CFG, PROJECTS_MAPPING_CFG, AWS_ACCESS_KEY_ID_CFG,
      RESOURCES_PREFIX_CFG, RESOURCES_SUFFIX_CFG, AWS_SECRET_ACCESS_KEY_CFG,
-     ALL_REGIONS, ALLOWED_RUNTIME_LANGUAGES, ConfigValidator)
+     ALL_REGIONS, ALLOWED_RUNTIME_LANGUAGES, ConfigValidator,
+     AWS_SESSION_TOKEN_CFG)
 from syndicate.core.constants import (DEFAULT_SEP, IAM_POLICY, IAM_ROLE,
                                       S3_BUCKET_TYPE)
 
@@ -48,7 +49,7 @@ REQUIRED_PARAMETERS = {
 }
 
 ALL_CONFIG_PARAMETERS = [
-    AWS_ACCESS_KEY_ID_CFG, AWS_SECRET_ACCESS_KEY_CFG,
+    AWS_ACCESS_KEY_ID_CFG, AWS_SECRET_ACCESS_KEY_CFG, AWS_SESSION_TOKEN_CFG,
     RESOURCES_PREFIX_CFG, RESOURCES_SUFFIX_CFG
 ]
 ALL_CONFIG_PARAMETERS.extend(REQUIRED_PARAMETERS.keys())
@@ -212,6 +213,10 @@ class ConfigHolder:
     @property
     def aws_secret_access_key(self):
         return self._resolve_variable(AWS_SECRET_ACCESS_KEY_CFG)
+
+    @property
+    def aws_session_token(self):
+        return self._resolve_variable(AWS_SESSION_TOKEN_CFG)
 
     @property
     def region(self):

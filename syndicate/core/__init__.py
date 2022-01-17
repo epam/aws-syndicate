@@ -91,6 +91,8 @@ def initialize_connection():
             _LOG.debug('Credentials access')
             CREDENTIALS[ACCESS_KEY] = CONFIG.aws_access_key_id
             CREDENTIALS[SECRET_KEY] = CONFIG.aws_secret_access_key
+            if CONFIG.aws_session_token:
+                CREDENTIALS[SESSION_TOKEN] = CONFIG.aws_session_token
         CONN = ConnectionProvider(CREDENTIALS)
         RESOURCES_PROVIDER = ResourceProvider(config=CONFIG,
                                               credentials=CREDENTIALS,

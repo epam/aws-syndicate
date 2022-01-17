@@ -165,6 +165,7 @@ Command example:
     --bundle_bucket_name $s3_bucket_name
     --access_key $access_key 
     --secret_key $secret_key
+    --session_token $aws_session_token
     --project_path $relative_path_to_project
     --prefix $prefix 
     --suffix $suffix 
@@ -174,6 +175,10 @@ All the provided information is validated.
 
 *Note:* you may not specify `--access_key` and `--secret_key` params. It this case Syndicate
 will try to find your credentials by the path `~/.aws`.
+
+*Note:* You can deploy your application with Syndicate using temporary credentials
+obtained with `aws sts get-session-token` cli command. In such cases, `session_token` parameter
+should be used to pass session token into the Syndicate config.
 
 After the configuration files will be generated the command will return the following message:
 

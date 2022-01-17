@@ -113,6 +113,8 @@ def lambda_function(name, runtime, project_path):
               help='AWS access key id that is used to deploy the application.')
 @click.option('--secret_key',
               help='AWS secret key that is used to deploy the application.')
+@click.option('--session_token',
+              help='AWS session token that is used to deploy the application.')
 @click.option('--config_path',
               help='Path to store generated configuration file')
 @click.option('--project_path',
@@ -129,7 +131,7 @@ def lambda_function(name, runtime, project_path):
               callback=check_prefix_suffix_length)
 @timeit()
 def config(name, config_path, project_path, region, access_key,
-           secret_key, bundle_bucket_name, prefix, suffix):
+           secret_key, session_token, bundle_bucket_name, prefix, suffix):
     """
     Creates Syndicate configuration files
     """
@@ -139,6 +141,7 @@ def config(name, config_path, project_path, region, access_key,
                                  region=region,
                                  access_key=access_key,
                                  secret_key=secret_key,
+                                 session_token=session_token,
                                  bundle_bucket_name=bundle_bucket_name,
                                  prefix=prefix,
                                  suffix=suffix)

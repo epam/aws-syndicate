@@ -33,6 +33,7 @@ LAMBDAS_ALIASES_NAME_CFG = 'lambdas_alias_name'
 
 AWS_ACCESS_KEY_ID_CFG = 'aws_access_key_id'
 AWS_SECRET_ACCESS_KEY_CFG = 'aws_secret_access_key'
+AWS_SESSION_TOKEN_CFG = 'aws_session_token'
 DEPLOY_TARGET_BUCKET_CFG = 'deploy_target_bucket'
 PROJECTS_MAPPING_CFG = 'build_projects_mapping'
 RESOURCES_SUFFIX_CFG = 'resources_suffix'
@@ -75,6 +76,9 @@ class ConfigValidator:
             AWS_SECRET_ACCESS_KEY_CFG: {
                 REQUIRED: False,
                 VALIDATOR: self._validate_aws_secret_access_key},
+            AWS_SESSION_TOKEN_CFG: {
+                REQUIRED: False,
+                VALIDATOR: self._validate_aws_session_token},
             RESOURCES_PREFIX_CFG: {
                 REQUIRED: False,
                 VALIDATOR: self._validate_resources_prefix_suffix},
@@ -186,6 +190,12 @@ class ConfigValidator:
 
     def _validate_aws_secret_access_key(self, key, value):
         # the only constraint found
+        str_error = self._assert_value_is_str(key=key,
+                                              value=value)
+        if str_error:
+            return [str_error]
+
+    def _validate_aws_session_token(self, key, value):
         str_error = self._assert_value_is_str(key=key,
                                               value=value)
         if str_error:
