@@ -300,6 +300,10 @@ class IamResource(BaseResource):
         if permissions_boundary:
             self._attach_permissions_boundary_to_role(permissions_boundary,
                                                       name)
+        else:
+            _LOG.warn(f'Permissions boundary is not specified in meta. '
+                      f'Updating role \'{name}\', removing boundary policy')
+            self.iam_conn.delete_role_permissions_boundary(role_name=name)
         return self.describe_role(name=name, meta=meta)
 
     @unpack_kwargs
