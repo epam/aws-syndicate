@@ -143,6 +143,7 @@ class IamResource(BaseResource):
         instance_profile = meta.get('instance_profile')
         external_id = meta.get('external_id')
         trust_rltn = meta.get('trusted_relationships')
+        permissions_boundary = meta.get('permission_boundary')
         if principal_service and '{region}' in principal_service:
             principal_service = principal_service.format(region=self.region)
         response = self.iam_conn.create_custom_role(
@@ -169,6 +170,26 @@ class IamResource(BaseResource):
                 self.iam_conn.attach_policy(name, arn)
         else:
             raise AssertionError(f'There are no policies for role: {name}.')
+
+        if not isinstance(permissions_boundary, str):
+            raise AssertionError(f'Permissions_boundary must have \'str\' type'
+                                 f'. The type of given param is: '
+                                 f'\'{type(permissions_boundary).__name__}\'')
+        if permissions_boundary:
+            if not permissions_boundary.startswith('arn:aws'):
+                _LOG.warn(f'Resolving permissions boundary arn from policy '
+                          f'name \'{permissions_boundary}\'')
+                permissions_boundary = self.iam_conn.get_policy_arn(
+                    permissions_boundary)
+                if not permissions_boundary:
+                    raise AssertionError(f'Can not get policy arn: '
+                                         f'{permissions_boundary}')
+            _LOG.info(f'Adding permissions boundary \'{permissions_boundary}\''
+                      f' to role \'{name}\'')
+            self.iam_conn.put_role_permissions_boundary(
+                role_name=name,
+                policy_arn=permissions_boundary)
+
         _LOG.info(f'Created IAM role {name}.')
         return self.describe_role(name=name, meta=meta, response=response)
 

@@ -196,6 +196,12 @@ class IAMConnection(object):
             PolicyArn=policy_arn
         )
 
+    def put_role_permissions_boundary(self, role_name, policy_arn):
+        self.client.put_role_permissions_boundary(
+            RoleName=role_name,
+            PermissionsBoundary=policy_arn
+        )
+
     def get_policy_arn(self, name, policy_scope='All'):
         """ Get policy arn from list existing. To reduce list result there is
         an ability to define policy scope.
