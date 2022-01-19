@@ -143,7 +143,7 @@ class IamResource(BaseResource):
         instance_profile = meta.get('instance_profile')
         external_id = meta.get('external_id')
         trust_rltn = meta.get('trusted_relationships')
-        permissions_boundary = meta.get('permission_boundary')
+        permissions_boundary = meta.get('permissions_boundary')
         if principal_service and '{region}' in principal_service:
             principal_service = principal_service.format(region=self.region)
         response = self.iam_conn.create_custom_role(
