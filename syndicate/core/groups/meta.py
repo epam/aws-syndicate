@@ -269,6 +269,9 @@ def iam_policy(ctx, **kwargs):
 @click.option("--external_id", type=str, help="External ID in role")
 @click.option("--instance_profile", type=bool,
               help="If true, instance profile with role name is created")
+@click.option('--permissions_boundary', type=str,
+              help="The name or the ARN of permissions boundary policy to "
+                   "attach to this role.")
 @click.pass_context
 @timeit()
 def iam_role(ctx, **kwargs):
