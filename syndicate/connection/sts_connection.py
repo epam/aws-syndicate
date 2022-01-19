@@ -51,6 +51,27 @@ class STSConnection(object):
         )
         return response['Credentials']
 
+    def get_session_token(self, duration=3600, serial_number=None,
+                          token_code=None):
+        """ Generates temporary AWS credentials
+
+        :param duration: int - duration, in seconds, that the credentials
+            should remain valid. From 900 (15 min) to 129600 (36h)
+        :param serial_number: str - The identification number of the MFA
+            device that is associated with the IAM user who is making the call
+        :param token_code: int - The value provided by the MFA device,
+            if MFA is required.
+
+        """
+        kwargs = {
+            'DurationSeconds': duration,
+            'SerialNumber': serial_number,
+            'TokenCode': token_code
+        }
+        kwargs = {k: v for k, v in kwargs.items() if v is not None}
+        response = self.client.get_session_token(**kwargs)
+        return response['Credentials']
+
     def get_caller_identity(self):
         """ Returns details about the IAM identity whose credentials are used to call the API.
         """

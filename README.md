@@ -170,15 +170,19 @@ Command example:
     --prefix $prefix 
     --suffix $suffix 
     --config_path $path_to_store_config
+    --use_temp_creds $use_temp_creds
+    --serial_number $serial_number
     
 All the provided information is validated.
 
 *Note:* you may not specify `--access_key` and `--secret_key` params. It this case Syndicate
 will try to find your credentials by the path `~/.aws`.
 
-*Note:* You can deploy your application with Syndicate using temporary credentials
-obtained with `aws sts get-session-token` cli command. In such cases, `session_token` parameter
-should be used to pass session token into the Syndicate config.
+*Note:* You can force Syndicate to generate temporary credentials and use them
+ for deployment. For such cases, set `use_temp_creds` parameter to `True` and
+ specify serial number if IAM user which will be used for deployment has a 
+ policy that requires MFA authentication. Syndicate will prompt you to enter
+ MFA code to generate new credentials, save and use them until expiration.
 
 After the configuration files will be generated the command will return the following message:
 

@@ -129,9 +129,17 @@ def lambda_function(name, runtime, project_path):
                    'by pattern: {prefix}resource_name{suffix}. '
                    'Must be less than or equal to 5.',
               callback=check_prefix_suffix_length)
+@click.option('--use_temp_creds', type=bool,
+              help='Indicates Syndicate to generate and use temporary AWS '
+                   'credentials')
+@click.option('--serial_number', type=str,
+              help='The identification number of the MFA device that is '
+                   'associated with the IAM user which will be used for '
+                   'deployment')
 @timeit()
-def config(name, config_path, project_path, region, access_key,
-           secret_key, session_token, bundle_bucket_name, prefix, suffix):
+def config(name, config_path, project_path, region, access_key, secret_key,
+           session_token, bundle_bucket_name, prefix, suffix, use_temp_creds,
+           serial_number):
     """
     Creates Syndicate configuration files
     """
@@ -144,7 +152,9 @@ def config(name, config_path, project_path, region, access_key,
                                  session_token=session_token,
                                  bundle_bucket_name=bundle_bucket_name,
                                  prefix=prefix,
-                                 suffix=suffix)
+                                 suffix=suffix,
+                                 use_temp_creds=use_temp_creds,
+                                 serial_number=serial_number)
 
 
 generate.add_command(meta)

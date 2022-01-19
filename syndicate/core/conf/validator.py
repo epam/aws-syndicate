@@ -13,6 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+import datetime
 import os
 
 MIN_BUCKET_NAME_LEN = 3
@@ -38,6 +39,13 @@ DEPLOY_TARGET_BUCKET_CFG = 'deploy_target_bucket'
 PROJECTS_MAPPING_CFG = 'build_projects_mapping'
 RESOURCES_SUFFIX_CFG = 'resources_suffix'
 RESOURCES_PREFIX_CFG = 'resources_prefix'
+
+USE_TEMP_CREDS_CFG = 'use_temp_creds'
+SERIAL_NUMBER_CFG = 'serial_number'
+TEMP_AWS_ACCESS_KEY_ID_CFG = 'temp_aws_access_key_id'
+TEMP_AWS_SECRET_ACCESS_KEY_CFG = 'temp_aws_secret_access_key'
+TEMP_AWS_SESSION_TOKEN_CFG = 'temp_aws_session_token'
+EXPIRATION_CFG = 'expiration'
 
 PYTHON_LANGUAGE_NAME = 'python'
 NODEJS_LANGUAGE_NAME = 'nodejs'
@@ -76,15 +84,39 @@ class ConfigValidator:
             AWS_SECRET_ACCESS_KEY_CFG: {
                 REQUIRED: False,
                 VALIDATOR: self._validate_aws_secret_access_key},
-            AWS_SESSION_TOKEN_CFG: {
-                REQUIRED: False,
-                VALIDATOR: self._validate_aws_session_token},
             RESOURCES_PREFIX_CFG: {
                 REQUIRED: False,
                 VALIDATOR: self._validate_resources_prefix_suffix},
             RESOURCES_SUFFIX_CFG: {
                 REQUIRED: False,
-                VALIDATOR: self._validate_resources_prefix_suffix}
+                VALIDATOR: self._validate_resources_prefix_suffix},
+            USE_TEMP_CREDS_CFG: {
+                REQUIRED: False,
+                VALIDATOR: self._validate_use_temp_creds
+            },
+            SERIAL_NUMBER_CFG: {
+                REQUIRED: False,
+                VALIDATOR: self._validate_serial_number
+            },
+            TEMP_AWS_SECRET_ACCESS_KEY_CFG: {
+                REQUIRED: False,
+                VALIDATOR: self._validate_aws_access_key
+            },
+            TEMP_AWS_ACCESS_KEY_ID_CFG: {
+                REQUIRED: False,
+                VALIDATOR: self._validate_aws_secret_access_key
+            },
+            TEMP_AWS_SESSION_TOKEN_CFG: {
+                REQUIRED: False,
+                VALIDATOR: self._validate_aws_session_token
+            },
+            EXPIRATION_CFG: {
+                REQUIRED: False,
+                VALIDATOR: self._validate_expiration
+            },
+            AWS_SESSION_TOKEN_CFG: {
+                REQUIRED: False,
+                VALIDATOR: self._validate_aws_session_token},
         }
 
     def validate(self):
@@ -201,6 +233,25 @@ class ConfigValidator:
         if str_error:
             return [str_error]
 
+    def _validate_use_temp_creds(self, key, value):
+        bool_error = self._assert_value_is_bool(
+            key=key, value=value
+        )
+        if bool_error:
+            return [bool_error]
+
+    def _validate_serial_number(self, key, value):
+        str_error = self._assert_value_is_str(key=key,
+                                              value=value)
+        if str_error:
+            return [str_error]
+
+    @staticmethod
+    def _validate_expiration(key, value):
+        if not isinstance(value, datetime.datetime):
+            return [f'\'{key}\' must be a valid ISO 8601 format string']
+        return []
+
     @staticmethod
     def _validate_resources_prefix_suffix(key, value):
         str_error = ConfigValidator._assert_value_is_str(key=key, value=value)
@@ -220,3 +271,8 @@ class ConfigValidator:
     def _assert_value_is_str(key, value):
         if type(value) is not str:
             return f'{key} must be type of string'
+
+    @staticmethod
+    def _assert_value_is_bool(key, value):
+        if type(value) is not bool:
+            return f'{key} must be type of bool'
