@@ -16,6 +16,8 @@
 import json
 import os
 
+import click
+
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.build.helper import resolve_bundle_directory
 from syndicate.core.constants import BUILD_META_FILE_NAME
@@ -45,7 +47,7 @@ def generate_build_meta(bundle_name, dsl_list, output_directory):
 
         transformer_type = TRANSFORM_PROCESSORS.get(dsl)
         if not transformer_type:
-            _LOG.warning(f'There is no transformer for such dsl: {dsl}')
+            click.echo(f'There is no transformer for the dsl: {dsl}')
             continue
 
         transformer = transformer_type()
@@ -62,5 +64,4 @@ def generate_build_meta(bundle_name, dsl_list, output_directory):
                 output_directory, transformer.output_file_name())
         with open(output_path, 'w') as output_file:
             output_file.write(transformed_build_meta)
-
-    return None
+        click.echo(f"The '{bundle_name}' bundle is transformed into {dsl} dsl.")

@@ -244,7 +244,7 @@ class ApiGatewayConverter(TerraformResourceConverter):
 
         lambda_meta = self.template.get_resource_by_name(lambda_name)
         if lambda_meta:
-            return build_function_invoke_arn_ref(lambda_meta)
+            return build_function_invoke_arn_ref(lambda_name)
         lambda_service = self.resources_provider.lambda_resource().lambda_conn
 
         function = lambda_service.get_function(lambda_name=lambda_name)

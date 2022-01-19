@@ -158,22 +158,26 @@ def build(ctx, bundle_name, force_upload, errors_allowed):
 
 
 @syndicate.command(name='transform')
-@click.option('--name',
+@click.option('--bundle_name',
               callback=resolve_default_value,
               help='Name of the bundle to transform. '
                    'Default value: name of the latest built bundle')
 @click.option('--dsl', type=click.Choice(['CloudFormation', 'Terraform'],
                                          case_sensitive=False),
               callback=param_to_lower,
-              help='???')  # TODO
-@click.option('--output_dir', help='???')
+              multiple=True, required=True,
+              help='Type of the IaC provider')
+@click.option('--output_dir',
+              help='The directory where a transformed template will be saved')
 @timeit()
-def transform(name, dsl, output_dir):
-    generate_build_meta(bundle_name=name,
-                        dsl_list=[dsl],
+def transform(bundle_name, dsl, output_dir):
+    """
+    Transforms the meta-description of a bundle to a template
+    compatible with the specified IaC provider
+    """
+    generate_build_meta(bundle_name=bundle_name,
+                        dsl_list=dsl,
                         output_directory=output_dir)
-    click.echo("The '{0}' bundle is transformed into {1} dsl."
-               .format(name, dsl))
 
 
 @syndicate.command(name='deploy')
