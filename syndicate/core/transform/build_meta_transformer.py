@@ -13,7 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-from abc import abstractmethod
+from abc import abstractmethod, ABC
 from functools import cmp_to_key
 
 from syndicate.core.build.deployment_processor import compare_deploy_resources
@@ -26,7 +26,7 @@ from syndicate.core.constants import \
      BATCH_JOBDEF_TYPE, LAMBDA_LAYER_TYPE)
 
 
-class BuildMetaTransformer(object):
+class BuildMetaTransformer(ABC):
 
     def __init__(self):
         from syndicate.core import CONFIG, RESOURCES_PROVIDER

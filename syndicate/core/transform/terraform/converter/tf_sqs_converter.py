@@ -98,6 +98,8 @@ class SQSQueueConverter(TerraformResourceConverter):
         redrive_policy = resource.get('redrive_policy')
         policy = resource.get('policy')
         if policy:
+            if not policy.get('Version'):
+                policy['Version'] = '2008-10-17'
             policy = json.dumps(policy)
 
         kms_master_key_id = resource.get('kms_master_key_id')

@@ -197,6 +197,7 @@ class LambdaConverter(TerraformResourceConverter):
                         CLOUD_WATCH_TRIGGER_REQUIRED_PARAMS)
 
         target_rule = trigger_meta.get('target_rule')
+        target_rule = f'{target_rule}_{self.config.region}'
         rule_ref = build_cloud_watch_event_rule_name_ref(
             target_rule=target_rule)
 
