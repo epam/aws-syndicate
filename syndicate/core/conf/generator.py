@@ -29,10 +29,11 @@ from syndicate.core.conf.processor import (PROJECT_PATH_CFG,
                                            DEPLOY_TARGET_BUCKET_CFG,
                                            AWS_ACCESS_KEY_ID_CFG,
                                            AWS_SECRET_ACCESS_KEY_CFG,
-                                           AWS_SESSION_TOKEN_CFG,
                                            RESOURCES_PREFIX_CFG,
                                            RESOURCES_SUFFIX_CFG)
-from syndicate.core.conf.validator import (LAMBDAS_ALIASES_NAME_CFG)
+from syndicate.core.conf.validator import (LAMBDAS_ALIASES_NAME_CFG,
+                                           USE_TEMP_CREDS_CFG,
+                                           SERIAL_NUMBER_CFG)
 from syndicate.core.generators import _mkdir
 
 _LOG = get_logger('config_generator')
@@ -42,7 +43,8 @@ _USER_LOG = get_user_logger()
 def generate_configuration_files(name, config_path, region,
                                  access_key, secret_key, session_token,
                                  bundle_bucket_name, prefix, suffix,
-                                 project_path=None):
+                                 project_path=None, use_temp_creds=None,
+                                 serial_number=None):
     if not access_key and not secret_key:
         _USER_LOG.warn("Access_key and secret_key weren't passed. "
                        "Attempting to load them")
@@ -97,10 +99,11 @@ def generate_configuration_files(name, config_path, region,
         DEPLOY_TARGET_BUCKET_CFG: bundle_bucket_name,
         AWS_ACCESS_KEY_ID_CFG: access_key,
         AWS_SECRET_ACCESS_KEY_CFG: secret_key,
-        AWS_SESSION_TOKEN_CFG: session_token,
         PROJECT_PATH_CFG: project_path,
         RESOURCES_PREFIX_CFG: prefix,
-        RESOURCES_SUFFIX_CFG: suffix
+        RESOURCES_SUFFIX_CFG: suffix,
+        USE_TEMP_CREDS_CFG: use_temp_creds,
+        SERIAL_NUMBER_CFG: serial_number
     }
     config_content = {key: value for key, value in config_content.items()
                       if value}
