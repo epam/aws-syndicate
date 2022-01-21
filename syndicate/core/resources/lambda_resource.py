@@ -27,6 +27,16 @@ from syndicate.core.resources.helper import (build_description_obj,
                                              validate_params,
                                              assert_required_params)
 
+LAMBDA_LAYER_REQUIRED_PARAMS = ['runtimes', 'deployment_package']
+
+DYNAMODB_TRIGGER_REQUIRED_PARAMS = ['target_table', 'batch_size']
+CLOUD_WATCH_TRIGGER_REQUIRED_PARAMS = ['target_rule']
+S3_TRIGGER_REQUIRED_PARAMS = ['target_bucket', 's3_events']
+SQS_TRIGGER_REQUIRED_PARAMS = ['target_queue', 'batch_size']
+SNS_TRIGGER_REQUIRED_PARAMS = ['target_topic']
+KINESIS_TRIGGER_REQUIRED_PARAMS = ['target_stream', 'batch_size',
+                                   'starting_position']
+
 PROVISIONED_CONCURRENCY = 'provisioned_concurrency'
 
 _LOG = get_logger('syndicate.core.resources.lambda_resource')
@@ -36,6 +46,13 @@ LAMBDA_CONCUR_QUALIFIER_ALIAS = 'ALIAS'
 LAMBDA_CONCUR_QUALIFIER_VERSION = 'VERSION'
 _LAMBDA_PROV_CONCURRENCY_QUALIFIERS = [LAMBDA_CONCUR_QUALIFIER_ALIAS,
                                        LAMBDA_CONCUR_QUALIFIER_VERSION]
+
+DYNAMO_DB_TRIGGER = 'dynamodb_trigger'
+CLOUD_WATCH_RULE_TRIGGER = 'cloudwatch_rule_trigger'
+S3_TRIGGER = 's3_trigger'
+SNS_TOPIC_TRIGGER = 'sns_topic_trigger'
+KINESIS_TRIGGER = 'kinesis_trigger'
+SQS_TRIGGER = 'sqs_trigger'
 
 
 class LambdaResource(BaseResource):
@@ -178,17 +195,29 @@ class LambdaResource(BaseResource):
         con_exec = meta.get(LAMBDA_MAX_CONCURRENCY)
         if con_exec:
             _LOG.debug('Going to set up concurrency executions')
-            unresolved_exec = self.lambda_conn.get_unresolved_concurrent_executions()
-            if con_exec <= unresolved_exec:
+            if self.check_concurrency_availability(con_exec):
                 self.lambda_conn.put_function_concurrency(
                     function_name=name,
                     concurrent_executions=con_exec)
                 _LOG.info(
-                    f'Concurrency limit for lambda {name} is set to {con_exec}')
-            else:
-                _LOG.warn(
-                    f'Account does not have such unresolved executions.'
-                    f' Current un - {unresolved_exec}')
+                    f'Concurrency limit for lambda {name} '
+                    f'is set to {con_exec}')
+
+    def check_concurrency_availability(self, requested_concurrency):
+        if not (isinstance(requested_concurrency, int)
+                and requested_concurrency >= 0):
+            _LOG.warn('The number of reserved concurrent executions '
+                      'must be a non-negative integer.')
+            return False
+        unresolved_exec = \
+            self.lambda_conn.get_unresolved_concurrent_executions()
+        if requested_concurrency <= unresolved_exec:
+            return True
+        else:
+            _LOG.warn(
+                f'Account does not have such unresolved executions.'
+                f' Current un - {unresolved_exec}')
+            return False
 
     @unpack_kwargs
     @retry
@@ -218,16 +247,9 @@ class LambdaResource(BaseResource):
                                  'Lambda {} failed to be configured.'.format(
                 role_name, name))
 
-        dl_type = meta.get('dl_resource_type')
-        if dl_type:
-            dl_type = dl_type.lower()
-        dl_name = meta.get('dl_resource_name')
-
-        dl_target_arn = 'arn:aws:{0}:{1}:{2}:{3}'.format(
-            dl_type,
-            self.region,
-            self.account_id,
-            dl_name) if dl_type and dl_name else None
+        dl_target_arn = self.get_dl_target_arn(meta=meta,
+                                               region=self.region,
+                                               account_id=self.account_id)
 
         publish_version = meta.get('publish_version', False)
         lambda_layers_arns = []
@@ -300,6 +322,19 @@ class LambdaResource(BaseResource):
             meta=meta,
             lambda_def=lambda_def)
         return self.describe_lambda(name, meta, lambda_def)
+
+    @staticmethod
+    def get_dl_target_arn(meta, region, account_id):
+        dl_type = meta.get('dl_resource_type')
+        if dl_type:
+            dl_type = dl_type.lower()
+        dl_name = meta.get('dl_resource_name')
+        dl_target_arn = 'arn:aws:{0}:{1}:{2}:{3}'.format(
+            dl_type,
+            region,
+            account_id,
+            dl_name) if dl_type and dl_name else None
+        return dl_target_arn
 
     @exit_on_exception
     @unpack_kwargs
@@ -459,17 +494,10 @@ class LambdaResource(BaseResource):
             lambda_def = self.lambda_conn.get_function(
                 lambda_name=function_name)
         qualifier = concurrency.get('qualifier')
-        if not qualifier:
-            raise AssertionError('Parameter `qualifier` is required for '
-                                 'concurrency configuration but it is absent')
-        if qualifier not in _LAMBDA_PROV_CONCURRENCY_QUALIFIERS:
-            raise AssertionError(f'Parameter `qualifier` must be one of '
-                                 f'{_LAMBDA_PROV_CONCURRENCY_QUALIFIERS}, but it is equal '
-                                 f'to ${qualifier}')
-
-        resolved_qualified = self._resolve_requested_qualifier(lambda_def,
-                                                               meta,
-                                                               qualifier)
+        resolved_qualifier = self._resolve_requested_qualifier(
+            lambda_def=lambda_def,
+            meta=meta,
+            qualifier=qualifier)
 
         requested_provisioned_level = concurrency.get('value')
         if not requested_provisioned_level:
@@ -491,18 +519,25 @@ class LambdaResource(BaseResource):
 
         self.lambda_conn.configure_provisioned_concurrency(
             name=function_name,
-            qualifier=resolved_qualified,
+            qualifier=resolved_qualifier,
             concurrent_executions=requested_provisioned_level)
         _LOG.info(f'Provisioned concurrency has been configured for lambda '
                   f'{function_name} of type {qualifier}, '
                   f'value {requested_provisioned_level}')
 
     def _resolve_requested_qualifier(self, lambda_def, meta, qualifier):
+        if not qualifier:
+            raise AssertionError('Parameter `qualifier` is required for '
+                                 'concurrency configuration but it is absent')
+        if qualifier not in _LAMBDA_PROV_CONCURRENCY_QUALIFIERS:
+            raise AssertionError(f'Parameter `qualifier` must be one of '
+                                 f'{_LAMBDA_PROV_CONCURRENCY_QUALIFIERS}, but it is equal '
+                                 f'to ${qualifier}')
         lambda_def['Alias'] = meta.get('alias')
         resolve_qualifier_req = lambda_def
-        resolved_qualified = self._LAMBDA_QUALIFIER_RESOLVER[qualifier](
+        resolved_qualifier = self._LAMBDA_QUALIFIER_RESOLVER[qualifier](
             self, resolve_qualifier_req)
-        return resolved_qualified
+        return resolved_qualifier
 
     @staticmethod
     def _resolve_configured_existing_qualifier(existing_config):
@@ -536,8 +571,8 @@ class LambdaResource(BaseResource):
     def _create_dynamodb_trigger_from_meta(self, lambda_name, lambda_arn,
                                            role_name,
                                            trigger_meta):
-        required_parameters = ['target_table', 'batch_size']
-        validate_params(lambda_name, trigger_meta, required_parameters)
+        validate_params(lambda_name, trigger_meta,
+                        DYNAMODB_TRIGGER_REQUIRED_PARAMS)
         table_name = trigger_meta['target_table']
 
         if not self.dynamodb_conn.is_stream_enabled(table_name):
@@ -555,8 +590,7 @@ class LambdaResource(BaseResource):
     @retry
     def _create_sqs_trigger_from_meta(self, lambda_name, lambda_arn, role_name,
                                       trigger_meta):
-        required_parameters = ['target_queue', 'batch_size']
-        validate_params(lambda_name, trigger_meta, required_parameters)
+        validate_params(lambda_name, trigger_meta, SQS_TRIGGER_REQUIRED_PARAMS)
         target_queue = trigger_meta['target_queue']
 
         if not self.sqs_conn.get_queue_url(target_queue, self.account_id):
@@ -576,8 +610,8 @@ class LambdaResource(BaseResource):
     def _create_cloud_watch_trigger_from_meta(self, lambda_name, lambda_arn,
                                               role_name,
                                               trigger_meta):
-        required_parameters = ['target_rule']
-        validate_params(lambda_name, trigger_meta, required_parameters)
+        validate_params(lambda_name, trigger_meta,
+                        CLOUD_WATCH_TRIGGER_REQUIRED_PARAMS)
         rule_name = trigger_meta['target_rule']
 
         rule_arn = self.cw_events_conn.get_rule_arn(rule_name)
@@ -591,8 +625,7 @@ class LambdaResource(BaseResource):
     @retry
     def _create_s3_trigger_from_meta(self, lambda_name, lambda_arn, role_name,
                                      trigger_meta):
-        required_parameters = ['target_bucket', 's3_events']
-        validate_params(lambda_name, trigger_meta, required_parameters)
+        validate_params(lambda_name, trigger_meta, S3_TRIGGER_REQUIRED_PARAMS)
         target_bucket = trigger_meta['target_bucket']
 
         if not self.s3_conn.is_bucket_exists(target_bucket):
@@ -617,8 +650,7 @@ class LambdaResource(BaseResource):
     def _create_sns_topic_trigger_from_meta(self, lambda_name, lambda_arn,
                                             role_name,
                                             trigger_meta):
-        required_params = ['target_topic']
-        validate_params(lambda_name, trigger_meta, required_params)
+        validate_params(lambda_name, trigger_meta, SNS_TRIGGER_REQUIRED_PARAMS)
         topic_name = trigger_meta['target_topic']
 
         region = trigger_meta.get('region')
@@ -631,15 +663,14 @@ class LambdaResource(BaseResource):
     @retry
     def _create_kinesis_stream_trigger_from_meta(self, lambda_name, lambda_arn,
                                                  role_name, trigger_meta):
-        required_parameters = ['target_stream', 'batch_size',
-                               'starting_position']
-        validate_params(lambda_name, trigger_meta, required_parameters)
+        validate_params(lambda_name, trigger_meta,
+                        KINESIS_TRIGGER_REQUIRED_PARAMS)
 
         stream_name = trigger_meta['target_stream']
 
-        stream = self.kinesis_conn.get_stream(stream_name)
-        stream_arn = stream['StreamDescription']['StreamARN']
-        stream_status = stream['StreamDescription']['StreamStatus']
+        stream_description = self.kinesis_conn.get_stream(stream_name)
+        stream_arn = stream_description['StreamARN']
+        stream_status = stream_description['StreamStatus']
         # additional waiting for stream
         if stream_status != 'ACTIVE':
             _LOG.debug('Kinesis stream %s is not in active state,'
@@ -692,12 +723,12 @@ class LambdaResource(BaseResource):
                                           trigger_meta['starting_position'])
 
     CREATE_TRIGGER = {
-        'dynamodb_trigger': _create_dynamodb_trigger_from_meta,
-        'cloudwatch_rule_trigger': _create_cloud_watch_trigger_from_meta,
-        's3_trigger': _create_s3_trigger_from_meta,
-        'sns_topic_trigger': _create_sns_topic_trigger_from_meta,
-        'kinesis_trigger': _create_kinesis_stream_trigger_from_meta,
-        'sqs_trigger': _create_sqs_trigger_from_meta
+        DYNAMO_DB_TRIGGER: _create_dynamodb_trigger_from_meta,
+        CLOUD_WATCH_RULE_TRIGGER: _create_cloud_watch_trigger_from_meta,
+        S3_TRIGGER: _create_s3_trigger_from_meta,
+        SNS_TOPIC_TRIGGER: _create_sns_topic_trigger_from_meta,
+        KINESIS_TRIGGER: _create_kinesis_stream_trigger_from_meta,
+        SQS_TRIGGER: _create_sqs_trigger_from_meta
     }
 
     def remove_lambdas(self, args):
@@ -732,9 +763,7 @@ class LambdaResource(BaseResource):
         :param context: because of usage in 'update' flow
         :return:
         """
-        req_params = ['runtimes', 'deployment_package']
-
-        validate_params(name, meta, req_params)
+        validate_params(name, meta, LAMBDA_LAYER_REQUIRED_PARAMS)
 
         key = meta[S3_PATH_NAME]
         file_name = key.split('/')[-1]

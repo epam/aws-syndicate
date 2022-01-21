@@ -40,7 +40,8 @@ setup(
         'pyyaml==5.4',
         'requests-aws-sign==0.1.6',
         'requests==2.25.1',
-        'tabulate==0.8.9'
+        'tabulate==0.8.9',
+        'troposphere==2.7.1'
     ],
     entry_points='''
         [console_scripts]

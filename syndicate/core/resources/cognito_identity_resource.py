@@ -81,8 +81,7 @@ class CognitoIdentityResource(BaseResource):
             open_id_connect_provider_arns=open_id_arns)
         auth_role = meta.get('auth_role')
         unauth_role = meta.get('unauth_role')
-        if auth_role or unauth_role:
-            self.connection.set_role(pool_id, auth_role, unauth_role)
+        self.connection.set_role(pool_id, auth_role, unauth_role)
         _LOG.info('Created cognito identity pool %s', pool_id)
         return self.describe_cognito_pool(name=name, meta=meta,
                                           pool_id=pool_id)

@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Provided ability to add information about created lambda to `.syndicate` file
 - Added `test` command that allows to run tests inside your python project
 - Added `profiler` command that allows to display application Lambda metrics
+- Added `transform` command that creates a CloudFormation or Terraform template based on the `build_meta` of your project
 - Fixed an issue in `clean` command, associated with API Gateway skipping removing Lambda trigger permissions
 - Add ANY, PATCH to supported methods in API Gateway
 - Fixed an issue in `clean` command, associated with removing resources if they specified as excluded

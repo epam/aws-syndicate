@@ -23,6 +23,8 @@ from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import (build_description_obj,
                                              validate_params)
 
+API_REQUIRED_PARAMS = ['resources', 'deploy_stage']
+
 _LOG = get_logger('syndicate.core.resources.api_gateway_resource')
 
 SUPPORTED_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS',
@@ -178,8 +180,7 @@ class ApiGatewayResource(BaseResource):
         :type name: str
         :type meta: dict
         """
-        required_parameters = ['resources', 'deploy_stage']
-        validate_params(name, meta, required_parameters)
+        validate_params(name, meta, API_REQUIRED_PARAMS)
 
         api_resources = meta['resources']
 
@@ -251,8 +252,12 @@ class ApiGatewayResource(BaseResource):
         self.__deploy_api_gateway(api_id, meta, api_resources)
         return self.describe_api_resources(api_id=api_id, meta=meta, name=name)
 
+    @staticmethod
+    def get_deploy_stage_name(stage_name=None):
+        return stage_name if stage_name else 'prod'
+
     def __deploy_api_gateway(self, api_id, meta, api_resources):
-        deploy_stage = meta['deploy_stage']
+        deploy_stage = self.get_deploy_stage_name(meta.get('deploy_stage'))
         cache_cluster_configuration = meta.get('cluster_cache_configuration')
         root_cache_enabled = cache_cluster_configuration.get(
             'cache_enabled') if cache_cluster_configuration else None
@@ -415,22 +420,11 @@ class ApiGatewayResource(BaseResource):
                                      enable_cors=False, api_resp=None,
                                      api_integration_resp=None):
         # init responses for method
-        method_responses = method_meta.get("responses")
-        if method_responses:
-            resp = method_responses
-        elif api_resp:
-            resp = api_resp
-        else:
-            resp = []
+        resp = self.init_method_responses(api_resp, method_meta)
 
         # init integration responses for method
-        integration_method_responses = method_meta.get("integration_responses")
-        if integration_method_responses:
-            integr_resp = integration_method_responses
-        elif api_resp:
-            integr_resp = api_integration_resp
-        else:
-            integr_resp = []
+        integr_resp = self.init_integration_method_responses(
+            api_integration_resp, method_meta)
 
         # resolve authorizer if needed
         authorization_type = method_meta.get('authorization_type')
@@ -544,79 +538,28 @@ class ApiGatewayResource(BaseResource):
             self.connection.create_integration_response(
                 api_id, resource_id, method, enable_cors=enable_cors)
 
-    def _check_existing_methods(self, api_id, resource_id, resource_path,
-                                resource_meta,
-                                enable_cors, authorizers_mapping,
-                                api_resp=None,
-                                api_integration_resp=None):
-        """ Check if all specified methods exist and create some if not.
-    
-        :type api_id: str
-        :type resource_id: str
-        :type resource_meta: dict
-        :type enable_cors: bool or None
-        :type:
-        """
-        for method in resource_meta:
-            if method == 'enable_cors':
-                continue
-            if self.connection.get_method(api_id, resource_id, method):
-                _LOG.info('Method %s exists.', method)
-                continue
-            else:
-                _LOG.info('Creating method %s for resource %s...',
-                          method, resource_id)
-                self._create_method_from_metadata(
-                    api_id=api_id,
-                    resource_id=resource_id,
-                    resource_path=resource_path,
-                    method=method,
-                    method_meta=resource_meta[method],
-                    authorizers_mapping=authorizers_mapping,
-                    api_resp=api_resp,
-                    api_integration_resp=api_integration_resp,
-                    enable_cors=enable_cors)
-            if enable_cors and not self.connection.get_method(api_id,
-                                                              resource_id,
-                                                              'OPTIONS'):
-                _LOG.info('Enabling CORS for resource %s...', resource_id)
-                self.connection.enable_cors_for_resource(api_id, resource_id)
+    @staticmethod
+    def init_method_responses(api_resp, method_meta):
+        method_responses = method_meta.get("responses")
+        if method_responses:
+            resp = method_responses
+        elif api_resp:
+            resp = api_resp
+        else:
+            resp = []
+        return resp
 
-        @unpack_kwargs
-        def _create_resource_from_metadata(self, api_id, resource_path,
-                                           resource_meta,
-                                           authorizers_mapping):
-            self.connection.create_resource(api_id, resource_path)
-            _LOG.info('Resource %s created.', resource_path)
-            resource_id = self.connection.get_resource_id(api_id,
-                                                          resource_path)
-            enable_cors = resource_meta.get('enable_cors')
-            for method in resource_meta:
-                try:
-                    if method == 'enable_cors' or method not in SUPPORTED_METHODS:
-                        continue
-
-                    method_meta = resource_meta[method]
-                    _LOG.info('Creating method %s for resource %s...',
-                              method, resource_path)
-                    self._create_method_from_metadata(
-                        api_id=api_id,
-                        resource_id=resource_id,
-                        resource_path=resource_path,
-                        method=method,
-                        method_meta=method_meta,
-                        enable_cors=enable_cors,
-                        authorizers_mapping=authorizers_mapping)
-                except Exception as e:
-                    _LOG.error('Resource: {0}, method {1}.'
-                               .format(resource_path, method), exc_info=True)
-                    raise e
-                _LOG.info('Method %s for resource %s created.', method,
-                          resource_path)
-            # create enable cors only after all methods in resource created
-            if enable_cors:
-                self.connection.enable_cors_for_resource(api_id, resource_id)
-                _LOG.info('CORS enabled for resource %s', resource_path)
+    @staticmethod
+    def init_integration_method_responses(api_integration_resp,
+                                          method_meta):
+        integration_method_responses = method_meta.get("integration_responses")
+        if integration_method_responses:
+            integration_resp = integration_method_responses
+        elif api_integration_resp:
+            integration_resp = api_integration_resp
+        else:
+            integration_resp = []
+        return integration_resp
 
     def _customize_gateway_responses(self, api_id):
         responses = self.connection.get_gateway_responses(api_id)
