@@ -113,7 +113,9 @@ def generate_configuration_files(name, config_path, region,
         yaml.dump(config_content, config_file)
 
     aliases_content = {
-        LAMBDAS_ALIASES_NAME_CFG: 'prod'
+        ACCOUNT_ID_CFG: account_id,
+        REGION_CFG: region,
+        LAMBDAS_ALIASES_NAME_CFG: 'prod',
     }
     aliases_file_path = os.path.join(config_folder_path, ALIASES_FILE_NAME)
     with open(aliases_file_path, 'w') as aliases_file:
