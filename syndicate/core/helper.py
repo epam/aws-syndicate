@@ -159,13 +159,6 @@ def check_required_param(ctx, param, value):
     return value
 
 
-def param_to_lower(ctx, param, value):
-    if isinstance(value, tuple):
-        return tuple([a_value.lower() for a_value in value])
-    if isinstance(value, str):
-        return value.lower()
-
-
 def resolve_path_callback(ctx, param, value):
     if not value:
         raise BadParameter('Parameter is required')
@@ -377,37 +370,23 @@ def string_to_camel_case(s: str):
     return str(res)
 
 
-def string_to_upper_camel_case(s: str):
-    temp = s.split('_')
-    res = ''.join(ele.title() for ele in temp)
-    return str(res)
-
-
 def dict_keys_to_camel_case(d: dict):
-    return _inner_dict_keys_to_camel_case(d, string_to_camel_case)
-
-
-def dict_keys_to_upper_camel_case(d: dict):
-    return _inner_dict_keys_to_camel_case(d, string_to_upper_camel_case)
-
-
-def _inner_dict_keys_to_camel_case(d: dict, case_formatter):
     new_d = {}
     for key, value in d.items():
-        if isinstance(value, (str, int, float)):
-            new_d[case_formatter(key)] = value
+        if isinstance(value, (str, int)):
+            new_d[string_to_camel_case(key)] = value
 
         if isinstance(value, list):
             new_list = []
             for index, item in enumerate(value):
-                if isinstance(item, (str, int, float)):
+                if isinstance(item, (str, int)):
                     new_list.append(item)
                 if isinstance(item, dict):
                     new_list.append(dict_keys_to_camel_case(item))
-            new_d[case_formatter(key)] = new_list
+            new_d[string_to_camel_case(key)] = new_list
 
         if isinstance(value, dict):
-            new_d[case_formatter(key)] = dict_keys_to_camel_case(value)
+            new_d[string_to_camel_case(key)] = dict_keys_to_camel_case(value)
 
     return new_d
 

@@ -78,22 +78,17 @@ class CognitoIdentityConnection(object):
         :type authenticated_role_name: str
         :type unauthenticated_role_name: str
         """
-        if not (authenticated_role_name or unauthenticated_role_name):
-            return
         iam_conn = IAMConnection(None, self.aws_access_key_id,
                                  self.aws_secret_access_key,
                                  self.aws_session_token)
-        params = dict(IdentityPoolId=identity_pool_id, Roles={})
-        if authenticated_role_name:
-            auth_role_arn = iam_conn.check_if_role_exists(
-                authenticated_role_name)
-            if auth_role_arn:
-                params['Roles']['authenticated'] = auth_role_arn
+        auth_role_arn = iam_conn.check_if_role_exists(authenticated_role_name)
+        params = dict(IdentityPoolId=identity_pool_id, Roles={
+            'authenticated': auth_role_arn
+        })
         if unauthenticated_role_name:
             unauth_role_arn = iam_conn.check_if_role_exists(
                 unauthenticated_role_name)
-            if unauth_role_arn:
-                params['Roles']['unauthenticated'] = unauth_role_arn
+            params['Roles']['unauthenticated'] = unauth_role_arn
         self.client.set_identity_pool_roles(**params)
 
     def list_existing_pools(self):

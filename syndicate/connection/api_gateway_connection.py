@@ -19,17 +19,6 @@ from botocore.exceptions import ClientError
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import apply_methods_decorator, retry
 
-RESPONSE_PARAM_ALLOW_ORIGIN = \
-    "method.response.header.Access-Control-Allow-Origin"
-RESPONSE_PARAM_ALLOW_METHODS = \
-    "method.response.header.Access-Control-Allow-Methods"
-RESPONSE_PARAM_ALLOW_HEADERS = \
-    "method.response.header.Access-Control-Allow-Headers"
-
-REQ_VALIDATOR_PARAM_VALIDATE_PARAMS = 'validateRequestParameters'
-REQ_VALIDATOR_PARAM_VALIDATE_BODY = 'validateRequestBody'
-REQ_VALIDATOR_PARAM_NAME = 'name'
-
 _LOG = get_logger('syndicate.connection.api_gateway_connection')
 
 
@@ -248,29 +237,20 @@ class ApiGatewayConnection(object):
         (validate_request_body, validate_request_parameters or both)
         :return: str, identifier of created RequestValidator.
         """
-        request_validator_params = self.get_request_validator_params(request_validator)
-
-        request_validator_id = self.client.create_request_validator(
-            restApiId=api_id, **request_validator_params)['id']
-        return request_validator_id
-
-    @staticmethod
-    def get_request_validator_params(request_validator):
         try:
             validator_name = request_validator.pop('name')
         except KeyError:  # not critical error
             validator_name = None
+
         request_validator_params = {}
 
         if ('validate_request_body', True) in request_validator.items():
-            request_validator_params.update(
-                {REQ_VALIDATOR_PARAM_VALIDATE_BODY: True,
-                 REQ_VALIDATOR_PARAM_NAME: 'Validate body'})
+            request_validator_params.update({'validateRequestBody': True,
+                                             'name': 'Validate body'})
         if ('validate_request_parameters', True) in request_validator.items():
-            request_validator_params.update(
-                {REQ_VALIDATOR_PARAM_VALIDATE_PARAMS: True,
-                 REQ_VALIDATOR_PARAM_NAME: 'Validate query string '
-                                           'parameters and headers'})
+            request_validator_params.update({'validateRequestParameters': True,
+                                             'name': 'Validate query string '
+                                                     'parameters and headers'})
 
         # Need an additional check for validator name.
         # If the user wants to validate both the body and the parameters,
@@ -279,14 +259,15 @@ class ApiGatewayConnection(object):
         SETTED_PARAMETERS = 3
 
         if len(request_validator_params) == SETTED_PARAMETERS:
-            request_validator_params.update(
-                {REQ_VALIDATOR_PARAM_NAME: 'Validate body, query '
-                                           'string parameters, '
-                                           'and headers'})
+            request_validator_params.update({'name': 'Validate body, query '
+                                                     'string parameters, '
+                                                     'and headers'})
         if validator_name:
-            request_validator_params.update(
-                {REQ_VALIDATOR_PARAM_NAME: validator_name})
-        return request_validator_params
+            request_validator_params.update({'name': validator_name})
+
+        request_validator_id = self.client.create_request_validator(
+            restApiId=api_id, **request_validator_params)['id']
+        return request_validator_id
 
     def create_integration(self, api_id, resource_id, method, int_type,
                            integration_method=None, uri=None, credentials=None,
@@ -384,7 +365,8 @@ class ApiGatewayConnection(object):
         """
         uri = 'arn:aws:apigateway:{0}'.format(action)
 
-        credentials = self.get_service_integration_credentials(acc_id, role)
+        credentials = 'arn:aws:iam::*:user/*' if role == 'caller_identity' \
+            else 'arn:aws:iam::{0}:role/{1}'.format(acc_id, role)
 
         params = dict(int_type='AWS', integration_method=integration_method,
                       method=method, passthrough_behavior='WHEN_NO_MATCH',
@@ -398,11 +380,6 @@ class ApiGatewayConnection(object):
         if request_parameters:
             params['request_parameters'] = request_parameters
         self.create_integration(**params)
-
-    @staticmethod
-    def get_service_integration_credentials(acc_id, role):
-        return 'arn:aws:iam::*:user/*' if role == 'caller_identity' \
-            else 'arn:aws:iam::{0}:role/{1}'.format(acc_id, role)
 
     def create_mock_integration(self, api_id, resource_id, method,
                                 request_templates=None,
@@ -505,6 +482,9 @@ class ApiGatewayConnection(object):
         :type api_id: str
         :type resource_id: str
         """
+        allow_headers = "method.response.header.Access-Control-Allow-Headers"
+        allow_methods = "method.response.header.Access-Control-Allow-Methods"
+        allow_origin = "method.response.header.Access-Control-Allow-Origin"
         self.create_method(api_id, resource_id, 'OPTIONS')
         self.create_integration(api_id=api_id, resource_id=resource_id,
                                 method='OPTIONS', int_type='MOCK',
@@ -514,20 +494,20 @@ class ApiGatewayConnection(object):
 
         self.create_method_response(
             api_id, resource_id, 'OPTIONS', response_parameters={
-                RESPONSE_PARAM_ALLOW_HEADERS: False,
-                RESPONSE_PARAM_ALLOW_METHODS: False,
-                RESPONSE_PARAM_ALLOW_ORIGIN: False
+                allow_headers: False,
+                allow_methods: False,
+                allow_origin: False
             })
         content_types = ("'Content-Type,X-Amz-Date,Authorization,X-Api-Key,"
                          "X-Amz-Security-Token'")
         self.create_integration_response(
             api_id, resource_id, 'OPTIONS', response_parameters={
-                RESPONSE_PARAM_ALLOW_HEADERS: content_types,
-                RESPONSE_PARAM_ALLOW_METHODS: "\'*\'",
-                RESPONSE_PARAM_ALLOW_ORIGIN: "\'*\'"
+                allow_headers: content_types,
+                allow_methods: "\'*\'",
+                allow_origin: "\'*\'"
             })
 
-    def deploy_api(self, api_id, stage_name, stage_description='',
+    def deploy_api(self, api_id, stage_name='prod', stage_description='',
                    description='', cache_cluster_enabled=False,
                    cache_cluster_size=None, variables=None):
         """

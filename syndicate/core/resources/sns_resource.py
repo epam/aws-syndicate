@@ -24,8 +24,6 @@ from syndicate.core.resources.helper import (build_description_obj,
                                              create_args_for_multi_region,
                                              validate_params)
 
-SNS_CLOUDWATCH_TRIGGER_REQUIRED_PARAMS = ['target_rule']
-
 _LOG = get_logger('core.resources.sns_resource')
 
 
@@ -34,10 +32,6 @@ class SnsResource(BaseResource):
     def __init__(self, conn_provider, region) -> None:
         self.connection_provider = conn_provider
         self.region = region
-        self.create_trigger = {
-            'cloudwatch_rule_trigger':
-                self._create_cloud_watch_trigger_from_meta
-        }
 
     def describe_sns(self, name, meta, region, arn=None):
         if not arn:
@@ -148,7 +142,7 @@ class SnsResource(BaseResource):
         if event_sources:
             for trigger_meta in event_sources:
                 trigger_type = trigger_meta['resource_type']
-                func = self.create_trigger[trigger_type]
+                func = self.CREATE_TRIGGER[trigger_type]
                 func(name, trigger_meta, region)
         _LOG.info('SNS topic %s in region %s created.', name, region)
         return self.describe_sns(name=name, meta=meta, region=region, arn=arn)
@@ -204,18 +198,21 @@ class SnsResource(BaseResource):
 
     def _create_cloud_watch_trigger_from_meta(self, topic_name, trigger_meta,
                                               region):
-        required_parameters = SNS_CLOUDWATCH_TRIGGER_REQUIRED_PARAMS
+        required_parameters = ['target_rule']
         validate_params(topic_name, trigger_meta, required_parameters)
         rule_name = trigger_meta['target_rule']
 
         topic_arn = self.connection_provider.sns(region).get_topic_arn(
             topic_name)
-        self.connection_provider.cw_events(region).add_rule_target(
-            rule_name, topic_arn)
+        self.connection.cw_events(region).add_rule_target(rule_name, topic_arn)
         self.connection_provider.sns(region).allow_service_invoke(
             topic_arn, 'events.amazonaws.com')
         _LOG.info('SNS topic %s subscribed to cloudwatch rule %s', topic_name,
                   rule_name)
+
+    CREATE_TRIGGER = {
+        'cloudwatch_rule_trigger': _create_cloud_watch_trigger_from_meta
+    }
 
     def remove_sns_topics(self, args):
         self.create_pool(self._remove_sns_topic, args)

@@ -62,7 +62,7 @@ class SqsConnection(object):
         if maximum_message_size:
             if maximum_message_size < 1024 or maximum_message_size > 262144:
                 raise AssertionError(
-                    'Maximum message size must be between 1024 and 262144 bytes')
+                    'Maximim message size must be between 1024 and 262144 bytes')
             attributes['MaximumMessageSize'] = str(maximum_message_size)
         if message_retention_period:
             if message_retention_period < 60 or message_retention_period > 1209600:
@@ -71,8 +71,6 @@ class SqsConnection(object):
             attributes['MessageRetentionPeriod'] = str(
                 message_retention_period)
         if policy:
-            if isinstance(policy, dict):
-                policy = json.dumps(policy)
             attributes['Policy'] = policy
         if receive_message_wait_time_seconds:
             if receive_message_wait_time_seconds < 0 or receive_message_wait_time_seconds > 20:

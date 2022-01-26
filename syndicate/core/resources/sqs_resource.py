@@ -29,7 +29,6 @@ AVAILABLE_REGIONS = ['us-east-2', 'us-east-1', 'us-west-1', 'us-west-2',
                      'ap-southeast-2', 'ap-northeast-1', 'ca-central-1',
                      'eu-central-1', 'eu-west-2', 'sa-east-1', 'eu-west-1']
 FIFO_REGIONS = ['us-east-1', 'us-east-2', 'us-west-2', 'eu-west-1']
-FIFO_SUFFIX = '.fifo'
 
 
 class SqsResource(BaseResource):
@@ -51,7 +50,7 @@ class SqsResource(BaseResource):
     def describe_queue_from_meta(self, name, meta):
         region = meta.get('region', self.region)
         is_fifo = meta.get('fifo_queue', False)
-        resource_name = self.build_resource_name(is_fifo, name)
+        resource_name = self._build_resource_name(is_fifo, name)
         queue_url = self.sqs_conn_builder(region).get_queue_url(
             resource_name, self.account_id)
         if not queue_url:
@@ -77,7 +76,7 @@ class SqsResource(BaseResource):
         resource_meta = config['resource_meta']
         try:
             is_fifo = resource_meta.get('fifo_queue', False)
-            resource_name = self.build_resource_name(is_fifo, queue_name)
+            resource_name = self._build_resource_name(is_fifo, queue_name)
             queue_url = self.sqs_conn_builder(region).get_queue_url(
                 resource_name,
                 self.account_id)
@@ -97,7 +96,7 @@ class SqsResource(BaseResource):
     def _create_sqs_queue_from_meta(self, name, meta):
         region = meta.get('region', self.region)
         is_fifo = meta.get('fifo_queue', False)
-        resource_name = self.build_resource_name(is_fifo, name)
+        resource_name = self._build_resource_name(is_fifo, name)
         queue_url = self.sqs_conn_builder(region).get_queue_url(resource_name,
                                                                 self.account_id)
         if queue_url:
@@ -114,8 +113,8 @@ class SqsResource(BaseResource):
         kms_master_key_id = meta.get('kms_master_key_id')
         kms_data_reuse_period = meta.get('kms_data_key_reuse_period_seconds')
         if is_fifo and region not in FIFO_REGIONS:
-            raise AssertionError('FIFO queue is not available in {0}.'
-                                 .format(region))
+            raise AssertionError('FIFO queue is not available in {0}.',
+                                 region)
         content_deduplication = meta.get('content_based_deduplication')
         params = dict(queue_name=resource_name,
                       delay_seconds=delay_sec,
@@ -136,10 +135,10 @@ class SqsResource(BaseResource):
                                    region)
 
     @staticmethod
-    def build_resource_name(is_fifo, name):
+    def _build_resource_name(is_fifo, name):
         resource_name = name
-        if is_fifo and not name.endswith(FIFO_SUFFIX):
-            resource_name += FIFO_SUFFIX
+        if is_fifo:
+            resource_name += '.fifo'
         return resource_name
 
     def _build_queue_arn(self, resource_name, region):

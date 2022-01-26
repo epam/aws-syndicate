@@ -22,9 +22,6 @@ from botocore.exceptions import ClientError
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import apply_methods_decorator, retry
 
-DEFAULT_READ_CAPACITY = 5
-DEFAULT_WRITE_CAPACITY = 5
-
 _LOG = get_logger('syndicate.connection.dynamo_connection')
 
 
@@ -111,10 +108,8 @@ class DynamoConnection(object):
         _LOG.debug('Opened new DynamoDB connection.')
 
     def create_table(self, table_name, hash_key_name, hash_key_type,
-                     sort_key_name=None, sort_key_type=None,
-                     read_throughput=DEFAULT_READ_CAPACITY,
-                     write_throughput=DEFAULT_WRITE_CAPACITY,
-                     wait=True, global_indexes=None,
+                     sort_key_name=None, sort_key_type=None, read_throughput=5,
+                     write_throughput=5, wait=True, global_indexes=None,
                      local_indexes=None):
         """ Table creation.
 

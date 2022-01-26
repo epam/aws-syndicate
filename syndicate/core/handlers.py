@@ -20,7 +20,6 @@ import sys
 import click
 from tabulate import tabulate
 
-from syndicate.core.transform.transform_processor import generate_build_meta
 from syndicate.core import CONF_PATH, initialize_connection, \
     initialize_project_state
 from syndicate.core.build.artifact_processor import (RUNTIME_NODEJS,
@@ -57,8 +56,7 @@ from syndicate.core.helper import (check_required_param,
                                    verify_bundle_callback, sync_lock,
                                    resolve_default_value,
                                    generate_default_bundle_name,
-                                   resolve_and_verify_bundle_callback,
-                                   param_to_lower)
+                                   resolve_and_verify_bundle_callback)
 from syndicate.core.project_state.project_state import (MODIFICATION_LOCK,
                                                         WARMUP_LOCK)
 from syndicate.core.project_state.status_processor import project_state_status
@@ -155,29 +153,6 @@ def build(ctx, bundle_name, force_upload, errors_allowed):
     ctx.invoke(assemble, bundle_name=bundle_name)
     ctx.invoke(package_meta, bundle_name=bundle_name)
     ctx.invoke(upload, bundle_name=bundle_name, force=force_upload)
-
-
-@syndicate.command(name='transform')
-@click.option('--bundle_name',
-              callback=resolve_default_value,
-              help='Name of the bundle to transform. '
-                   'Default value: name of the latest built bundle')
-@click.option('--dsl', type=click.Choice(['CloudFormation', 'Terraform'],
-                                         case_sensitive=False),
-              callback=param_to_lower,
-              multiple=True, required=True,
-              help='Type of the IaC provider')
-@click.option('--output_dir',
-              help='The directory where a transformed template will be saved')
-@timeit()
-def transform(bundle_name, dsl, output_dir):
-    """
-    Transforms the meta-description of a bundle to a template
-    compatible with the specified IaC provider
-    """
-    generate_build_meta(bundle_name=bundle_name,
-                        dsl_list=dsl,
-                        output_directory=output_dir)
 
 
 @syndicate.command(name='deploy')

@@ -56,23 +56,6 @@ RULE_TYPES = {
 }
 
 
-def validate_cloud_watch_rule_params(name, meta):
-    # validation depends on rule type
-    required_parameters = ['rule_type']
-    rule_type = meta.get('rule_type')
-    if rule_type:
-        if rule_type == 'schedule':
-            required_parameters.append('expression')
-    validate_params(name, meta, required_parameters)
-
-
-def get_event_bus_arn(event_bus, region):
-    target_arn = 'arn:aws:events:{0}:{1}:event-bus/default'.format(
-        region,
-        event_bus)
-    return target_arn
-
-
 class CloudWatchResource(BaseResource):
 
     def __init__(self, cw_events_conn_builder, account_id) -> None:
@@ -117,8 +100,14 @@ class CloudWatchResource(BaseResource):
 
     @unpack_kwargs
     def _create_cloud_watch_rule_from_meta(self, name, meta, region):
-        validate_cloud_watch_rule_params(name=name, meta=meta)
-        rule_type = meta['rule_type']
+        # validation depends on rule type
+        required_parameters = ['rule_type']
+        rule_type = meta.get('rule_type')
+        if rule_type:
+            if rule_type == 'schedule':
+                required_parameters.append('expression')
+        validate_params(name, meta, required_parameters)
+
         event_buses = meta.get('event_bus_accounts')
         response = self._cw_events_conn_builder(region).get_rule(name)
         if response:
@@ -144,9 +133,10 @@ class CloudWatchResource(BaseResource):
 
     def _attach_tenant_rule_targets(self, rule_name, region, event_buses):
         for event_bus in event_buses:
-            target_arn = get_event_bus_arn(event_bus=event_bus,
-                                           region=region)
-            existing_targets = self._cw_events_conn_builder(
+            target_arn = 'arn:aws:events:{0}:{1}:event-bus/default'.format(
+                region,
+                event_bus)
+            existing_targets = self.cw_events_conn(
                 region).list_targets_by_rule(
                 rule_name=rule_name)
             for target in existing_targets:
