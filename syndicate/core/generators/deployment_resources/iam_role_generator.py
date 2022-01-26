@@ -19,7 +19,8 @@ class IAMRoleGenerator(BaseDeploymentResourceGenerator):
         "custom_policies": list,
         "allowed_accounts": list,
         "external_id": None,
-        "instance_profile": bool
+        "instance_profile": bool,
+        "permissions_boundary": str
     }
 
     def _resolve_configuration(self, defaults_dict=None) -> dict:

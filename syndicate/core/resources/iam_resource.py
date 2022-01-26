@@ -143,6 +143,7 @@ class IamResource(BaseResource):
         instance_profile = meta.get('instance_profile')
         external_id = meta.get('external_id')
         trust_rltn = meta.get('trusted_relationships')
+        permissions_boundary = meta.get('permissions_boundary')
         if principal_service and '{region}' in principal_service:
             principal_service = principal_service.format(region=self.region)
         response = self.iam_conn.create_custom_role(
@@ -169,6 +170,10 @@ class IamResource(BaseResource):
                 self.iam_conn.attach_policy(name, arn)
         else:
             raise AssertionError(f'There are no policies for role: {name}.')
+
+        if permissions_boundary:
+            self._attach_permissions_boundary_to_role(permissions_boundary,
+                                                      name)
         _LOG.info(f'Created IAM role {name}.')
         return self.describe_role(name=name, meta=meta, response=response)
 
@@ -200,6 +205,26 @@ class IamResource(BaseResource):
             policy_document=prettify_json(resolved_policy_content),
             set_as_default=True)
 
+    def _attach_permissions_boundary_to_role(self, permissions_boundary,
+                                             role_name):
+        if not isinstance(permissions_boundary, str):
+            raise AssertionError(f'Permissions_boundary must have \'str\' type'
+                                 f'. The type of given param is: '
+                                 f'\'{type(permissions_boundary).__name__}\'')
+        if not permissions_boundary.startswith('arn:aws'):
+            _LOG.warn(f'Resolving permissions boundary arn from policy '
+                      f'name \'{permissions_boundary}\'')
+            permissions_boundary = self.iam_conn.get_policy_arn(
+                permissions_boundary)
+            if not permissions_boundary:
+                raise AssertionError(f'Can not get policy arn: '
+                                     f'{permissions_boundary}')
+        _LOG.info(f'Adding permissions boundary \'{permissions_boundary}\''
+                  f' to role \'{role_name}\'')
+        self.iam_conn.put_role_permissions_boundary(
+            role_name=role_name,
+            policy_arn=permissions_boundary)
+
     def update_iam_role(self, args):
         return self.create_pool(self._update_role_from_meta, args)
 
@@ -222,6 +247,7 @@ class IamResource(BaseResource):
         instance_profile = meta.get('instance_profile')
         external_id = meta.get('external_id')
         trust_rltn = meta.get('trusted_relationships')
+        permissions_boundary = meta.get('permissions_boundary')
         if principal_service and '{region}' in principal_service:
             principal_service = principal_service.format(region=self.region)
         response = self.iam_conn.update_custom_role(
@@ -271,6 +297,13 @@ class IamResource(BaseResource):
                     raise AssertionError(f'Can not get policy arn: {policy}')
                 self.iam_conn.attach_policy(name, arn)
         _LOG.info(f'Updated IAM role {name}.')
+        if permissions_boundary:
+            self._attach_permissions_boundary_to_role(permissions_boundary,
+                                                      name)
+        else:
+            _LOG.warn(f'Permissions boundary is not specified in meta. '
+                      f'Updating role \'{name}\', removing boundary policy')
+            self.iam_conn.delete_role_permissions_boundary(role_name=name)
         return self.describe_role(name=name, meta=meta)
 
     @unpack_kwargs
