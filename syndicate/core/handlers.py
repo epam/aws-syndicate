@@ -519,7 +519,8 @@ RUNTIME_LANG_TO_BUILD_MAPPING = {
 
 @syndicate.command(name='assemble')
 @timeit()
-@click.option('--bundle_name', nargs=1, callback=generate_default_bundle_name)
+@click.option('--bundle_name', callback=generate_default_bundle_name,
+              help='Bundle\'s name to build the lambdas in')
 @click.pass_context
 def assemble(ctx, bundle_name):
     """
@@ -529,7 +530,7 @@ def assemble(ctx, bundle_name):
         will be associated
     :return:
     """
-    click.echo('Building artifacts ...')
+    click.echo('Building artifacts, bundle: %s' % bundle_name)
     from syndicate.core import PROJECT_STATE
     build_mapping_dict = PROJECT_STATE.load_project_build_mapping()
     if build_mapping_dict:
@@ -546,7 +547,8 @@ def assemble(ctx, bundle_name):
 
 @syndicate.command(name='package_meta')
 @timeit()
-@click.option('--bundle_name', nargs=1, callback=verify_bundle_callback)
+@click.option('--bundle_name', required=True, callback=verify_bundle_callback,
+              help='Bundle\'s name to package the current meta in')
 def package_meta(bundle_name):
     """
     Generates metadata about the application infrastructure
@@ -574,10 +576,10 @@ def create_deploy_target_bucket():
 
 
 @syndicate.command(name='upload')
-@click.option('--bundle_name', nargs=1,
-              callback=resolve_and_verify_bundle_callback,
+@click.option('--bundle_name', callback=resolve_and_verify_bundle_callback,
               help='Bundle name to which the build artifacts are gathered and '
-                   'later used for the deployment')
+                   'later used for the deployment. NOTE: if not specified, '
+                   'the latest build will be uploaded')
 @click.option('--force', is_flag=True, help='Flag to override existing bundle '
                                             'with the same name as provided')
 @timeit(action_name='upload')
