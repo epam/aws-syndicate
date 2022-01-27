@@ -188,6 +188,15 @@ class ApiGatewayResource(BaseResource):
             binary_media_types=meta.get('binary_media_types'))
         api_id = api_item['id']
 
+        # set minimumCompressionSize if the param exists
+        minimum_compression_size = meta.get('minimum_compression_size', None)
+        if not minimum_compression_size:
+            _LOG.debug("No minimal_compression_size param - "
+                       "compression isn't enabled")
+        self.connection.update_compression_size(
+            rest_api_id=api_id,
+            compression_size=minimum_compression_size)
+
         # deploy authorizers
         authorizers = meta.get('authorizers', {})
         for key, val in authorizers.items():
@@ -639,18 +648,10 @@ class ApiGatewayResource(BaseResource):
             time.sleep(60)
 
     def _remove_api_gateway(self, arn, config):
-        resources_meta = config['resource_meta']['resources']
-        lambdas_invoked_by_api_gw = self._get_lambdas_invoked_by_api_gw(
-            resources_meta)
-
         api_id = config['description']['id']
         try:
-            for lambda_name in lambdas_invoked_by_api_gw:
-                self.lambda_res.remove_invocation_permission(
-                    func_name=lambda_name)
-
             self.connection.remove_api(api_id)
-            _LOG.info('API Gateway %s was removed.', api_id)
+            _LOG.info(f'API Gateway {api_id} was removed.')
         except ClientError as e:
             if e.response['Error']['Code'] == 'NotFoundException':
                 _LOG.warn('API Gateway %s is not found', api_id)

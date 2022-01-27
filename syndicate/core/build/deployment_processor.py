@@ -398,16 +398,19 @@ def remove_deployment_resources(deploy_name, bundle_name,
                                 clean_externals=None):
     output = new_output = load_deploy_output(bundle_name, deploy_name)
     _LOG.info('Output file was loaded successfully')
-    filters = [
-        lambda v: v['resource_name'] in clean_only_resources,
-        lambda v: v['resource_name'] not in excluded_resources,
-        lambda v: v['resource_meta']['resource_type'] in clean_only_types,
-        lambda v: v['resource_meta']['resource_type'] not in excluded_types]
 
-    for function in filters:
-        some_result = _filter_the_dict(new_output, function)
-        if some_result:
-            new_output = some_result
+    if any([clean_only_resources, excluded_resources, clean_only_types,
+            excluded_types]):
+        filters = [
+            lambda v: v['resource_name'] in clean_only_resources,
+            lambda v: v['resource_name'] not in excluded_resources,
+            lambda v: v['resource_meta']['resource_type'] in clean_only_types,
+            lambda v: v['resource_meta'][
+                          'resource_type'] not in excluded_types]
+        for function in filters:
+            some_result = _filter_the_dict(new_output, function)
+            if some_result:
+                new_output = some_result
 
     if not clean_externals:
         new_output = dict((k, v) for (k, v) in new_output.items() if

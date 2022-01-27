@@ -81,10 +81,11 @@ class CloudWatchAlarmResource(BaseResource):
         return self.describe_alarm(name, meta)
 
     def remove_alarms(self, args):
-        self.create_pool(self.remove_alarm_list, chunks(args, 100))
+        for param_chunk in chunks(args, 100):
+            self.remove_alarm_list(param_chunk)
 
-    def remove_alarm_list(self, *alarm_list):
-        alarm_names = [x['config']['resource_name'] for x in alarm_list[0]]
+    def remove_alarm_list(self, alarm_list):
+        alarm_names = [x['config']['resource_name'] for x in alarm_list]
         try:
             self.client.remove_alarms(alarm_names=alarm_names)
             _LOG.info('Alarms %s were removed.', str(alarm_names))

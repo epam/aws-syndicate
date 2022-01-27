@@ -50,7 +50,7 @@ class LambdaConnection(object):
         _LOG.debug('Opened new Lambda connection.')
 
     def create_lambda(self, lambda_name, func_name,
-                      role, s3_bucket, s3_key, runtime='python2.7', memory=128,
+                      role, s3_bucket, s3_key, runtime='python3.7', memory=128,
                       timeout=300, vpc_sub_nets=None, vpc_security_group=None,
                       env_vars=None, dl_target_arn=None, tracing_mode=None,
                       publish_version=False, layers=None):
@@ -251,7 +251,9 @@ class LambdaConnection(object):
         :type func_name: str
         """
 
-        policies = self.client.get_policy(FunctionName=func_name)
+        policies = self.get_policy(lambda_name=func_name)
+        if not policies:
+            return
         policies = json.loads(policies['Policy'])
         policies_meta = policies['Statement']
 
@@ -348,7 +350,7 @@ class LambdaConnection(object):
             return self.client.get_policy(**params)
         except ClientError as e:
             if 'ResourceNotFoundException' in str(e):
-                pass  # valid exception
+                return  # valid exception
             else:
                 raise e
 
