@@ -530,7 +530,7 @@ def assemble(ctx, bundle_name):
         will be associated
     :return:
     """
-    click.echo('Building artifacts, bundle: %s' % bundle_name)
+    click.echo(f'Building artifacts, bundle: {bundle_name}')
     from syndicate.core import PROJECT_STATE
     build_mapping_dict = PROJECT_STATE.load_project_build_mapping()
     if build_mapping_dict:
