@@ -45,6 +45,7 @@ TEMP_AWS_ACCESS_KEY_ID_CFG = 'temp_aws_access_key_id'
 TEMP_AWS_SECRET_ACCESS_KEY_CFG = 'temp_aws_secret_access_key'
 TEMP_AWS_SESSION_TOKEN_CFG = 'temp_aws_session_token'
 EXPIRATION_CFG = 'expiration'
+ACCESS_ROLE_CFG = 'access_role'
 
 PYTHON_LANGUAGE_NAME = 'python'
 NODEJS_LANGUAGE_NAME = 'nodejs'
@@ -112,6 +113,10 @@ class ConfigValidator:
             EXPIRATION_CFG: {
                 REQUIRED: False,
                 VALIDATOR: self._validate_expiration
+            },
+            ACCESS_ROLE_CFG: {
+                REQUIRED: False,
+                VALIDATOR: self._validate_access_role
             }
         }
 
@@ -237,6 +242,12 @@ class ConfigValidator:
             return [bool_error]
 
     def _validate_serial_number(self, key, value):
+        str_error = self._assert_value_is_str(key=key,
+                                              value=value)
+        if str_error:
+            return [str_error]
+
+    def _validate_access_role(self, key, value):
         str_error = self._assert_value_is_str(key=key,
                                               value=value)
         if str_error:
