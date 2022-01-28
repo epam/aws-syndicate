@@ -113,11 +113,13 @@ def initialize_connection():
             # get CREDENTIALS for N hours
 
             token_code = prompt_mfa_code() if CONFIG.serial_number else None
-            temp_credentials = sts.get_temp_credentials(CONFIG.access_role,
-                                                        CONFIG.account_id,
-                                                        CONFIG.session_duration,
-                                                        CONFIG.serial_number,
-                                                        token_code)
+            temp_credentials = sts.get_temp_credentials(
+                role_arn=CONFIG.access_role,
+                acc_id=CONFIG.account_id,
+                duration=CONFIG.session_duration,
+                serial_number=CONFIG.serial_number,
+                token_code=token_code
+            )
             _LOG.debug(f'Role {CONFIG.access_role} is assumed successfully'
                        f'for {CONFIG.session_duration} seconds')
             CREDENTIALS[ACCESS_KEY] = temp_credentials['AccessKeyId']
