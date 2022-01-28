@@ -240,6 +240,7 @@ def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
                    'while deploy')
 @click.option('--replace_output', nargs=1, is_flag=True, default=False)
 @check_deploy_name_for_duplicates
+@sync_lock(lock_type=MODIFICATION_LOCK)
 @timeit(action_name='update')
 def update(bundle_name, deploy_name, replace_output,
            update_only_resources,
@@ -276,7 +277,6 @@ def update(bundle_name, deploy_name, replace_output,
 
 
 @syndicate.command(name='clean')
-@timeit(action_name='clean')
 @click.option('--deploy_name', nargs=1, callback=resolve_default_value,
               help='Name of the deploy.')
 @click.option('--bundle_name', nargs=1, callback=resolve_default_value,
@@ -297,6 +297,8 @@ def update(bundle_name, deploy_name, replace_output,
               help='If specified provided types will be excluded')
 @click.option('--rollback', is_flag=True,
               help='Remove failed deploy resources')
+@sync_lock(lock_type=MODIFICATION_LOCK)
+@timeit(action_name='clean')
 def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
           clean_only_resources_path, clean_externals, excluded_resources,
           excluded_resources_path, excluded_types, rollback):

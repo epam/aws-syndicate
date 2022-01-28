@@ -253,6 +253,17 @@ class ProjectState:
 
     def _delete_latest_deploy_info(self):
         self.latest_deploy = {}
+        from syndicate.core import CONN, CONFIG
+        bucket_name = CONFIG.deploy_target_bucket
+        s3 = CONN.s3()
+        remote_project_state = s3.load_file_body(bucket_name=bucket_name,
+                                                 key=PROJECT_STATE_FILE)
+        remote_project_state = yaml.unsafe_load(remote_project_state)
+        remote_project_state.latest_deploy = {}
+        s3.put_object(file_obj=yaml.dump(remote_project_state),
+                      key=PROJECT_STATE_FILE,
+                      bucket=bucket_name,
+                      content_type='application/x-yaml')
 
     def add_execution_events(self, events):
         all_events = self.events
