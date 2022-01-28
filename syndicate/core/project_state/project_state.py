@@ -236,8 +236,10 @@ class ProjectState:
 
     def log_execution_event(self, **kwargs):
         operation = kwargs.get('operation')
-        if operation == 'deploy' or operation == 'update':
-            self._set_latest_deploy_info(**kwargs)
+        if operation == 'deploy':
+            params = kwargs.copy()
+            params.pop('operation')
+            self._set_latest_deploy_info(**params)
         if operation == 'clean':
             self._delete_latest_deploy_info()
 
