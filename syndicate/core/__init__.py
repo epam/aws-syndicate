@@ -102,7 +102,13 @@ def initialize_connection():
         CREDENTIALS = {
             'region': CONFIG.region
         }
-        if _ready_to_assume():
+        if _ready_to_use_provided_temp_creds():
+            _LOG.debug(f'Going to use previously generated temporary '
+                       f'credentials')
+            CREDENTIALS[ACCESS_KEY] = CONFIG.temp_aws_access_key_id
+            CREDENTIALS[SECRET_KEY] = CONFIG.temp_aws_secret_access_key
+            CREDENTIALS[SESSION_TOKEN] = CONFIG.temp_aws_session_token
+        elif _ready_to_assume():
             _LOG.debug('Starting to assume role ...')
             # get CREDENTIALS for N hours
 
@@ -126,16 +132,6 @@ def initialize_connection():
                 temp_aws_session_token=temp_credentials['SessionToken'],
                 expiration=temp_credentials['Expiration']
             )
-        elif _ready_to_use_creds():
-            _LOG.debug('Credentials access')
-            CREDENTIALS[ACCESS_KEY] = CONFIG.aws_access_key_id
-            CREDENTIALS[SECRET_KEY] = CONFIG.aws_secret_access_key
-        elif _ready_to_use_provided_temp_creds():
-            _LOG.debug(f'Going to use previously generated temporary '
-                       f'credentials')
-            CREDENTIALS[ACCESS_KEY] = CONFIG.temp_aws_access_key_id
-            CREDENTIALS[SECRET_KEY] = CONFIG.temp_aws_secret_access_key
-            CREDENTIALS[SESSION_TOKEN] = CONFIG.temp_aws_session_token
         elif _ready_to_generate_temp_creds():
             _LOG.debug(f'Going to generate new temporary credentials')
 
@@ -158,6 +154,10 @@ def initialize_connection():
                 temp_aws_session_token=temp_credentials['SessionToken'],
                 expiration=temp_credentials['Expiration']
             )
+        elif _ready_to_use_creds():
+            _LOG.debug('Credentials access')
+            CREDENTIALS[ACCESS_KEY] = CONFIG.aws_access_key_id
+            CREDENTIALS[SECRET_KEY] = CONFIG.aws_secret_access_key
         CONN = ConnectionProvider(CREDENTIALS)
         RESOURCES_PROVIDER = ResourceProvider(config=CONFIG,
                                               credentials=CREDENTIALS,
