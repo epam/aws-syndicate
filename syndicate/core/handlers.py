@@ -190,8 +190,6 @@ def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
     """
     Deploys the application infrastructure
     """
-    sync_project_state()
-    from syndicate.core import PROJECT_STATE
     if deploy_only_resources_path and os.path.exists(
             deploy_only_resources_path):
         deploy_resources_list = json.load(open(deploy_only_resources_path))
@@ -219,8 +217,6 @@ def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
                                                      replace_output)
     click.echo('Backend resources were deployed{0}.'.format(
         '' if deploy_success else ' with errors. See deploy output file'))
-    PROJECT_STATE.release_lock(MODIFICATION_LOCK)
-    sync_project_state()
 
 
 @syndicate.command(name='update')
