@@ -39,6 +39,7 @@ from syndicate.core.constants import (ARTIFACTS_FOLDER, BUILD_META_FILE_NAME,
 from syndicate.core.project_state.project_state import MODIFICATION_LOCK
 from syndicate.core.project_state.sync_processor import sync_project_state
 
+
 _LOG = get_logger('syndicate.core.helper')
 USER_LOG = get_user_logger()
 
@@ -229,27 +230,29 @@ def resolve_default_value(ctx, param, value):
 
 
 def create_bundle_callback(ctx, param, value):
-    from syndicate.core import CONFIG
-    bundle_path = os.path.join(CONFIG.project_path, ARTIFACTS_FOLDER, value)
+    from syndicate.core.build.helper import resolve_bundle_directory
+    bundle_path = resolve_bundle_directory(value)
     if not os.path.exists(bundle_path):
         os.makedirs(bundle_path)
     return value
 
 
 def verify_bundle_callback(ctx, param, value):
-    from syndicate.core import CONFIG
-    bundle_path = os.path.join(CONFIG.project_path, ARTIFACTS_FOLDER, value)
+    from syndicate.core.build.helper import resolve_bundle_directory
+    bundle_path = resolve_bundle_directory(value)
     if not os.path.exists(bundle_path):
-        raise AssertionError("Bundle name does not exist. Please, invoke "
-                             "'build_artifacts' command to create a bundle.")
+        raise click.BadParameter(
+            "Bundle name does not exist. Please, invoke "
+            "'syndicate assemble' command to create a bundle.")
     return value
 
 
 def verify_meta_bundle_callback(ctx, param, value):
-    bundle_path = build_path(CONF_PATH, ARTIFACTS_FOLDER, value)
+    from syndicate.core.build.helper import resolve_bundle_directory
+    bundle_path = resolve_bundle_directory(value)
     build_meta_path = os.path.join(bundle_path, BUILD_META_FILE_NAME)
     if not os.path.exists(build_meta_path):
-        raise AssertionError(
+        raise click.BadParameter(
             "Bundle name is incorrect. {0} does not exist. Please, invoke "
             "'package_meta' command to create a file.".format(
                 BUILD_META_FILE_NAME))
@@ -261,9 +264,9 @@ def resolve_and_verify_bundle_callback(ctx, param, value):
         _LOG.debug(f'{param.name} is not specified, latest build will be used')
         value = resolve_default_value(ctx, param, value)
         if not value:
-            raise AssertionError(
-                'No valid bundles found for the given project. Please, '
-                'invoke \'syndicate build\' command to create a bundle.'
+            raise click.BadParameter(
+                f'Couldn\'t resolve the parameter automatically. '
+                f'Try to specify it manually'
             )
     return verify_meta_bundle_callback(ctx, param, value)
 

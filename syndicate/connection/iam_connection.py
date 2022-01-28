@@ -196,6 +196,28 @@ class IAMConnection(object):
             PolicyArn=policy_arn
         )
 
+    def put_role_permissions_boundary(self, role_name, policy_arn):
+        _LOG.info(f'Attaching permissions boundary policy: \'{policy_arn}\''
+                  f' to role: \'{role_name}\'')
+        self.client.put_role_permissions_boundary(
+            RoleName=role_name,
+            PermissionsBoundary=policy_arn
+        )
+
+    def delete_role_permissions_boundary(self, role_name):
+        _LOG.info(f'Removing permissions boundary policy from \'{role_name}\'')
+        try:
+            self.client.delete_role_permissions_boundary(
+                RoleName=role_name
+            )
+        except ClientError as e:
+            if 'NoSuchEntity' in str(e):
+                _LOG.warn(f'Role \'{role_name}\' doesn\'t have permissions '
+                          f'boundary policy. Skipping...')
+            else:
+                _LOG.error(str(e))
+                raise e
+
     def get_policy_arn(self, name, policy_scope='All'):
         """ Get policy arn from list existing. To reduce list result there is
         an ability to define policy scope.
