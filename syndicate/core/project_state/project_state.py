@@ -202,6 +202,19 @@ class ProjectState:
             else:
                 other_locks.update({lock_name: lock})
 
+    def actualize_latest_deploy(self, other_project_state: 'ProjectState'):
+        local_deploy = self.latest_deploy
+        remote_deploy = other_project_state.latest_deploy
+        if local_deploy and remote_deploy:
+            local_time_start = datetime.strptime(local_deploy['time_start'],
+                                                 DATE_FORMAT_ISO_8601)
+            remote_time_start = datetime.strptime(remote_deploy['time_start'],
+                                                  DATE_FORMAT_ISO_8601)
+            if remote_time_start > local_time_start:
+                self.latest_deploy = remote_deploy
+        elif remote_deploy:
+            self.latest_deploy = remote_deploy
+
     def add_lambda(self, lambda_name, runtime):
         lambdas = self._dict.get(STATE_LAMBDAS)
         if not lambdas:
