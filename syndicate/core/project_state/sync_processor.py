@@ -44,6 +44,7 @@ def sync_project_state():
         _LOG.debug('Actualizing the project state...')
         PROJECT_STATE.actualize_locks(remote_project_state)
         PROJECT_STATE.add_execution_events(remote_project_state.events)
+        PROJECT_STATE.actualize_latest_deploy(remote_project_state)
 
         _LOG.debug('Saving a local .syndicate file.')
         PROJECT_STATE.save()
