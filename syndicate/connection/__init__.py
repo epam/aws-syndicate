@@ -40,6 +40,8 @@ from syndicate.connection.s3_connection import S3Connection
 from syndicate.connection.sns_connection import SNSConnection
 from syndicate.connection.sqs_connection import SqsConnection
 from syndicate.connection.step_functions_connection import SFConnection
+from syndicate.connection.resource_groups_tagging_api_connection import \
+    ResourceGroupsTaggingAPIConnection
 
 
 class ConnectionProvider(object):
@@ -189,3 +191,10 @@ class ConnectionProvider(object):
         if region:
             credentials['region'] = region
         return DocumentDBConnection(**credentials)
+
+    @lru_cache(maxsize=None)
+    def groups_tagging_api(self, region=None):
+        credentials = self.credentials.copy()
+        if region:
+            credentials['region'] = region
+        return ResourceGroupsTaggingAPIConnection(**credentials)

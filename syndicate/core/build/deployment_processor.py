@@ -329,6 +329,9 @@ def create_deployment_resources(deploy_name, bundle_name,
         _apply_dynamic_changes(resources, output)
         USER_LOG.info('Dynamic changes were applied successfully')
 
+        _LOG.info('Going to apply common tags')
+        _apply_tags(output)
+
     USER_LOG.info('Going to create deploy output')
     create_deploy_output(bundle_name=bundle_name,
                          deploy_name=deploy_name,
@@ -566,6 +569,22 @@ def _apply_dynamic_changes(resources, output):
                                   'for {0} type'.format(dependency_type))
             _LOG.info('Dynamic changes were applied to {0}'.format(name))
     concurrent.futures.wait(futures, timeout=None, return_when=ALL_COMPLETED)
+
+
+def _apply_tags(output: dict):
+    from syndicate.core import CONFIG, RESOURCES_PROVIDER
+    tags = CONFIG.tags
+    if not tags:
+        USER_LOG.info('No tags are specified in config. Skipping...')
+        return
+    resource = RESOURCES_PROVIDER.groups_tagging_api()
+    failed_resources = resource.tag_resources_from_output(output=output,
+                                                          tags=tags)
+    if not failed_resources:
+        USER_LOG.info('Tags were successfully applied to all the resources')
+    else:
+        USER_LOG.warn(f'Couldn\'t apply tags for resources: '
+                      f'{failed_resources.keys()}')
 
 
 def _compare_deploy_resources(first, second):
