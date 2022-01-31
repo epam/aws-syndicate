@@ -174,6 +174,7 @@ def initialize_connection():
 
 
 def initialize_project_state():
+    from syndicate.core.project_state.sync_processor import sync_project_state
     global PROJECT_STATE
     if not ProjectState.check_if_project_state_exists(CONFIG.project_path):
         USER_LOG.warn("Config is set and generated but project state does not "
@@ -188,6 +189,7 @@ def initialize_project_state():
                                  f'{CONFIG.project_path}. Please create it.')
     else:
         PROJECT_STATE = ProjectState(project_path=CONFIG.project_path)
+    sync_project_state()
 
 
 def validate_temp_credentials(aws_access_key_id, aws_secret_access_key,

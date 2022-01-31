@@ -156,6 +156,7 @@ def build(ctx, bundle_name, force_upload, errors_allowed):
 
 
 @syndicate.command(name='deploy')
+@sync_lock(lock_type=MODIFICATION_LOCK)
 @click.option('--deploy_name',
               callback=resolve_default_value,
               help='Name of the deploy. Default value: name of the project')
@@ -181,7 +182,6 @@ def build(ctx, bundle_name, force_upload, errors_allowed):
 @click.option('--replace_output', is_flag=True, default=False,
               help='Replaces the existing deploy output')
 @check_deploy_name_for_duplicates
-@sync_lock(lock_type=MODIFICATION_LOCK)
 @timeit(action_name='deploy')
 def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
            deploy_only_resources_path, excluded_resources,
@@ -220,6 +220,7 @@ def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
 
 
 @syndicate.command(name='update')
+@sync_lock(lock_type=MODIFICATION_LOCK)
 @click.option('--bundle_name',
               callback=resolve_default_value,
               help='Name of the bundle to deploy. '
@@ -236,7 +237,6 @@ def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
                    'while deploy')
 @click.option('--replace_output', nargs=1, is_flag=True, default=False)
 @check_deploy_name_for_duplicates
-@sync_lock(lock_type=MODIFICATION_LOCK)
 @timeit(action_name='update')
 def update(bundle_name, deploy_name, replace_output,
            update_only_resources,
@@ -273,6 +273,7 @@ def update(bundle_name, deploy_name, replace_output,
 
 
 @syndicate.command(name='clean')
+@sync_lock(lock_type=MODIFICATION_LOCK)
 @click.option('--deploy_name', nargs=1, callback=resolve_default_value,
               help='Name of the deploy.')
 @click.option('--bundle_name', nargs=1, callback=resolve_default_value,
@@ -293,7 +294,6 @@ def update(bundle_name, deploy_name, replace_output,
               help='If specified provided types will be excluded')
 @click.option('--rollback', is_flag=True,
               help='Remove failed deploy resources')
-@sync_lock(lock_type=MODIFICATION_LOCK)
 @timeit(action_name='clean')
 def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
           clean_only_resources_path, clean_externals, excluded_resources,
@@ -368,6 +368,7 @@ def status(category):
 
 
 @syndicate.command(name='warmup')
+@sync_lock(lock_type=WARMUP_LOCK)
 @click.option('--bundle_name', nargs=1, callback=resolve_default_value,
               help='Name of the bundle. Should be specified with deploy_name'
                    ' parameter.')
@@ -383,7 +384,6 @@ def status(category):
 @click.option('--header_name', nargs=1, help='Name of authentication header.')
 @click.option('--header_value', nargs=1, help='Name of authentication header '
                                               'value.')
-@sync_lock(lock_type=WARMUP_LOCK)
 @timeit(action_name='warmup')
 def warmup(bundle_name, deploy_name, api_gw_id, stage_name, lambda_auth,
            header_name, header_value):
