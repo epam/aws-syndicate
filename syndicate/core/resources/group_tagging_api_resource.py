@@ -53,9 +53,8 @@ class GroupsTaggingApiResource(BaseResource):
 
     def tag_resources_from_output(self, output: dict, tags: dict):
         arns = self._extract_arns(output)
-        response = self.connection.tag_resources(resources_arns=arns,
-                                                 tags=tags)
-        failed_resources = response.get('FailedResourcesMap')
+        failed_resources = self.connection.tag_resources(resources_arns=arns,
+                                                         tags=tags)
         if failed_resources:
             _LOG.warn(f'Couldn\'t tag resources: {failed_resources.keys()}')
             return failed_resources
