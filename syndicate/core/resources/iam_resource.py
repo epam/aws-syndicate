@@ -151,7 +151,8 @@ class IamResource(BaseResource):
             allowed_account=list(allowed_accounts),
             allowed_service=principal_service,
             external_id=external_id,
-            trusted_relationships=trust_rltn)
+            trusted_relationships=trust_rltn,
+            permissions_boundary=permissions_boundary)
         if instance_profile:
             try:
                 self.iam_conn.create_instance_profile(name)
@@ -171,9 +172,9 @@ class IamResource(BaseResource):
         else:
             raise AssertionError(f'There are no policies for role: {name}.')
 
-        if permissions_boundary:
-            self._attach_permissions_boundary_to_role(permissions_boundary,
-                                                      name)
+        # if permissions_boundary:
+        #     self._attach_permissions_boundary_to_role(permissions_boundary,
+        #                                               name)
         _LOG.info(f'Created IAM role {name}.')
         return self.describe_role(name=name, meta=meta, response=response)
 

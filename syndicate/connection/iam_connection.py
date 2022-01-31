@@ -138,7 +138,7 @@ class IAMConnection(object):
 
     def create_custom_role(self, role_name, allowed_account=None,
                            allowed_service=None, trusted_relationships=None,
-                           external_id=None):
+                           external_id=None, permissions_boundary=None):
         """ Create custom role with trusted relationships. You can specify
         custom policy, or set principal_account and principal_service params
         to use default.
@@ -165,10 +165,12 @@ class IAMConnection(object):
         if isinstance(trusted_relationships, dict):
             trusted_relationships = dumps(trusted_relationships)
 
+        params = dict(RoleName=role_name,
+                      AssumeRolePolicyDocument=trusted_relationships)
+        params['PermissionsBoundary'] = permissions_boundary
+
         try:
-            role = self.client.create_role(
-                RoleName=role_name,
-                AssumeRolePolicyDocument=trusted_relationships)
+            role = self.client.create_role(**params)
             return role['Role']
         except ClientError as e:
             if e.response['Error']['Code'] == 'EntityAlreadyExists':
