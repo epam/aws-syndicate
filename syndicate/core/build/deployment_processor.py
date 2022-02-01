@@ -479,6 +479,9 @@ def continue_deployment_resources(deploy_name, bundle_name,
         _apply_dynamic_changes(resources, updated_output)
         _LOG.info('Dynamic changes were applied successfully')
 
+        _LOG.info('Going to apply common tags')
+        _apply_tags(output)
+
     # remove failed output from bucket
     remove_failed_deploy_output(bundle_name, deploy_name)
     _LOG.info('Going to create deploy output')
