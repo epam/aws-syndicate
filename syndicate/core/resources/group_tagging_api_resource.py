@@ -59,7 +59,8 @@ class TagsApiResource:
         failed_resources = self.connection.tag_resources(resources_arns=arns,
                                                          tags=self.tags)
         if not failed_resources:
-            USER_LOG.info('Tags were successfully applied to all resources')
+            USER_LOG.info(f'Tags: {self.tags} were successfully applied to '
+                          f'all resources')
         else:
             USER_LOG.warn(f'Couldn\'t apply tags for resources: '
                           f'{failed_resources.keys()}')
@@ -72,7 +73,8 @@ class TagsApiResource:
         failed_resources = self.connection.untag_resources(
             resources_arns=arns, tag_keys=list(self.tags.keys()))
         if not failed_resources:
-            USER_LOG.info('Tags were successfully removed from all resources')
+            USER_LOG.info(f'Tags {list(self.tags.keys())} were successfully '
+                          f'removed from all resources')
         else:
             USER_LOG.warn(f'Couldn\'t remove tags from resources: '
                           f'{failed_resources.keys()}')
