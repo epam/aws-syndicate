@@ -167,7 +167,8 @@ class IAMConnection(object):
 
         params = dict(RoleName=role_name,
                       AssumeRolePolicyDocument=trusted_relationships)
-        params['PermissionsBoundary'] = permissions_boundary
+        if permissions_boundary:
+            params['PermissionsBoundary'] = permissions_boundary
 
         try:
             role = self.client.create_role(**params)
