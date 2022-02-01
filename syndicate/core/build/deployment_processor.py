@@ -26,7 +26,7 @@ from syndicate.core.build.bundle_processor import (create_deploy_output,
                                                    remove_deploy_output,
                                                    remove_failed_deploy_output)
 from syndicate.core.build.helper import _json_serial
-from syndicate.core.build.meta_processor import resolve_meta
+from syndicate.core.build.meta_processor import resolve_meta, populate_s3_paths
 from syndicate.core.constants import (BUILD_META_FILE_NAME,
                                       CLEAN_RESOURCE_TYPE_PRIORITY,
                                       DEPLOY_RESOURCE_TYPE_PRIORITY,
@@ -305,6 +305,8 @@ def create_deployment_resources(deploy_name, bundle_name,
 
     resources = resolve_meta(resources)
     _LOG.debug('Names were resolved')
+    resources = populate_s3_paths(resources, bundle_name)
+    _LOG.debug('Artifacts s3 paths were resolved')
     _LOG.debug(prettify_json(resources))
 
     _LOG.debug('Going to create: {0}'.format(prettify_json(resources)))
