@@ -314,7 +314,9 @@ class ConfigHolder:
 
     @property
     def tags(self):
-        return self._resolve_variable(TAGS_CFG)
+        tags = self._resolve_variable(TAGS_CFG)
+        tags = {k: str(v) for k, v in tags.items()}
+        return tags
 
     def resolve_alias(self, name):
         if self._aliases.get(name):
