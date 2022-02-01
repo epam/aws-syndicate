@@ -33,6 +33,7 @@ from syndicate.core.constants import (BUILD_META_FILE_NAME,
                                       UPDATE_RESOURCE_TYPE_PRIORITY)
 from syndicate.core.helper import exit_on_exception, prettify_json
 
+
 _LOG = get_logger('syndicate.core.build.deployment_processor')
 USER_LOG = get_user_logger()
 
@@ -575,19 +576,9 @@ def _apply_dynamic_changes(resources, output):
 
 
 def _apply_tags(output: dict):
-    from syndicate.core import CONFIG, RESOURCES_PROVIDER
-    tags = CONFIG.tags
-    if not tags:
-        USER_LOG.info('No tags are specified in config. Skipping...')
-        return
-    resource = RESOURCES_PROVIDER.groups_tagging_api()
-    failed_resources = resource.tag_resources_from_output(output=output,
-                                                          tags=tags)
-    if not failed_resources:
-        USER_LOG.info('Tags were successfully applied to all the resources')
-    else:
-        USER_LOG.warn(f'Couldn\'t apply tags for resources: '
-                      f'{failed_resources.keys()}')
+    from syndicate.core import RESOURCES_PROVIDER
+    tags_resource = RESOURCES_PROVIDER.tags_api()
+    tags_resource.apply_tags(output)
 
 
 def _compare_deploy_resources(first, second):

@@ -44,5 +44,5 @@ class ResourceGroupsTaggingAPIConnection:
     def untag_resources(self, resources_arns: list, tag_keys: list):
         params = dict(ResourceARNList=resources_arns,
                       TagKeys=tag_keys)
-        response = self.client.tag_resources(**params)
+        response = self.client.untag_resources(**params)
         return response.get('FailedResourcesMap')
