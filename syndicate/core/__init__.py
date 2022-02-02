@@ -189,8 +189,8 @@ def initialize_project_state():
                                  f'{CONFIG.project_path}. Please create it.')
     else:
         PROJECT_STATE = ProjectState(project_path=CONFIG.project_path)
-    if CONN.s3().is_bucket_exists(CONFIG.deploy_target_bucket):
-        sync_project_state()
+    #if CONN.s3().is_bucket_exists(CONFIG.deploy_target_bucket):
+        #sync_project_state()
 
 
 def validate_temp_credentials(aws_access_key_id, aws_secret_access_key,
