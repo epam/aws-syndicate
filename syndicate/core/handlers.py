@@ -49,6 +49,7 @@ from syndicate.core.decorators import check_deploy_name_for_duplicates
 from syndicate.core.groups.generate import (generate,
                                             GENERATE_PROJECT_COMMAND_NAME,
                                             GENERATE_CONFIG_COMMAND_NAME)
+from syndicate.core.groups.tags import tags
 from syndicate.core.helper import (check_required_param,
                                    create_bundle_callback,
                                    handle_futures_progress_bar,
@@ -642,3 +643,4 @@ def copy_bundle(ctx, bundle_name, src_account_id, src_bucket_region,
 
 
 syndicate.add_command(generate)
+syndicate.add_command(tags)
