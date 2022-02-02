@@ -46,7 +46,7 @@ class DocumentDBInstanceResource(BaseResource):
         if not response:
             return
         arn = f'arn:aws:rds:{self.region}:{self.account_id}:' \
-              f'db/{identifier}'
+              f'db:{identifier}'
         return {
             arn: build_description_obj(response, identifier, meta)
         }

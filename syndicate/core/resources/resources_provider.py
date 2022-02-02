@@ -43,6 +43,7 @@ from syndicate.core.resources.batch_jobqueue_resource import (
     BatchJobQueueResource)
 from syndicate.core.resources.batch_jobdef_resource import (
     BatchJobDefinitionResource)
+from syndicate.core.resources.group_tagging_api_resource import TagsApiResource
 
 
 class ResourceProvider:
@@ -86,6 +87,7 @@ class ResourceProvider:
         _batch_jobdef_resource = None
         _documentdb_cluster_resource = None
         _documentdb_instance_resource = None
+        _tags_api_resource = None
 
         def __init__(self, config, credentials) -> None:
             self.credentials = credentials
@@ -288,3 +290,10 @@ class ResourceProvider:
                         account_id=self.config.account_id
                     )
             return self._documentdb_instance_resource
+
+        def tags_api(self):
+            if not self._tags_api_resource:
+                self._tags_api_resource = TagsApiResource(
+                    connection=self._conn_provider.groups_tagging_api()
+                )
+            return self._tags_api_resource

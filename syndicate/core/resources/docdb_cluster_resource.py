@@ -47,7 +47,7 @@ class DocumentDBClusterResource(BaseResource):
         if not response:
             return
         arn = f'arn:aws:rds:{self.region}:{self.account_id}:' \
-              f'cluster/{identifier}'
+              f'cluster:{identifier}'
         return {
             arn: build_description_obj(response, identifier, meta)
         }
