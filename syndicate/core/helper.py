@@ -190,7 +190,7 @@ def resolve_default_bundle_name(command_name):
     if command_name == 'clean':
         bundle_name = PROJECT_STATE.latest_deployed_bundle_name
     else:
-        bundle_name = PROJECT_STATE.latest_built_bundle_name
+        bundle_name = PROJECT_STATE.latest_bundle_name
     if not bundle_name:
         click.echo('Property \'bundle\' is not specified and could '
                    'not be resolved due to absence of data about the '
