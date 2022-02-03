@@ -62,6 +62,13 @@ from syndicate.core.project_state.project_state import (MODIFICATION_LOCK,
                                                         WARMUP_LOCK)
 from syndicate.core.project_state.status_processor import project_state_status
 from syndicate.core.project_state.sync_processor import sync_project_state
+from syndicate.core.constants import TEST_ACTION, BUILD_ACTION, \
+    DEPLOY_ACTION, UPDATE_ACTION, CLEAN_ACTION, SYNC_ACTION, \
+    STATUS_ACTION, WARMUP_ACTION, PROFILER_ACTION, ASSEMBLE_JAVA_MVN_ACTION, \
+    ASSEMBLE_PYTHON_ACTION, ASSEMBLE_NODE_ACTION, ASSEMBLE_ACTION, \
+    PACKAGE_META_ACTION, CREATE_DEPLOY_TARGET_BUCKET_ACTION, UPLOAD_ACTION, \
+    COPY_BUNDLE_ACTION
+
 
 INIT_COMMAND_NAME = 'init'
 SYNDICATE_PACKAGE_NAME = 'aws-syndicate'
@@ -94,7 +101,7 @@ def syndicate():
         sys.exit(1)
 
 
-@syndicate.command(name='test')
+@syndicate.command(name=TEST_ACTION)
 @click.option('--suite', type=click.Choice(['unittest', 'pytest', 'nose'],
                                            case_sensitive=False),
               default='unittest')
@@ -102,7 +109,7 @@ def syndicate():
               help='Directory in the project that contains tests to run. '
                    'Default folder: tests')
 @click.option('--errors_allowed', is_flag=True)
-@timeit()
+@timeit(action_name=TEST_ACTION)
 def test(suite, test_folder_name, errors_allowed):
     """Discovers and runs tests inside python project configuration path."""
     click.echo('Running tests...')
@@ -130,7 +137,7 @@ def test(suite, test_folder_name, errors_allowed):
     click.echo('Tests passed.')
 
 
-@syndicate.command(name='build')
+@syndicate.command(name=BUILD_ACTION)
 @click.option('--bundle_name', nargs=1,
               callback=generate_default_bundle_name,
               help='Name of the bundle to build. '
@@ -140,7 +147,7 @@ def test(suite, test_folder_name, errors_allowed):
 @click.option('--errors_allowed', is_flag=True, default=False,
               help='Flag to continue bundle building if some tests fail')
 @click.pass_context
-@timeit(action_name='build')
+@timeit(action_name=BUILD_ACTION)
 def build(ctx, bundle_name, force_upload, errors_allowed):
     """
     Builds bundle of an application
@@ -156,7 +163,7 @@ def build(ctx, bundle_name, force_upload, errors_allowed):
     ctx.invoke(upload, bundle_name=bundle_name, force=force_upload)
 
 
-@syndicate.command(name='deploy')
+@syndicate.command(name=DEPLOY_ACTION)
 @sync_lock(lock_type=MODIFICATION_LOCK)
 @click.option('--deploy_name',
               callback=resolve_default_value,
@@ -183,7 +190,7 @@ def build(ctx, bundle_name, force_upload, errors_allowed):
 @click.option('--replace_output', is_flag=True, default=False,
               help='Replaces the existing deploy output')
 @check_deploy_name_for_duplicates
-@timeit(action_name='deploy')
+@timeit(action_name=DEPLOY_ACTION)
 def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
            deploy_only_resources_path, excluded_resources,
            excluded_resources_path, excluded_types, continue_deploy,
@@ -220,7 +227,7 @@ def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
         '' if deploy_success else ' with errors. See deploy output file'))
 
 
-@syndicate.command(name='update')
+@syndicate.command(name=UPDATE_ACTION)
 @sync_lock(lock_type=MODIFICATION_LOCK)
 @click.option('--bundle_name',
               callback=resolve_default_value,
@@ -238,7 +245,7 @@ def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
                    'while deploy')
 @click.option('--replace_output', nargs=1, is_flag=True, default=False)
 @check_deploy_name_for_duplicates
-@timeit(action_name='update')
+@timeit(action_name=UPDATE_ACTION)
 def update(bundle_name, deploy_name, replace_output,
            update_only_resources,
            update_only_resources_path,
@@ -273,7 +280,7 @@ def update(bundle_name, deploy_name, replace_output,
         click.echo('Something went wrong during resources update')
 
 
-@syndicate.command(name='clean')
+@syndicate.command(name=CLEAN_ACTION)
 @sync_lock(lock_type=MODIFICATION_LOCK)
 @click.option('--deploy_name', nargs=1, callback=resolve_default_value,
               help='Name of the deploy.')
@@ -295,7 +302,7 @@ def update(bundle_name, deploy_name, replace_output,
               help='If specified provided types will be excluded')
 @click.option('--rollback', is_flag=True,
               help='Remove failed deploy resources')
-@timeit(action_name='clean')
+@timeit(action_name=CLEAN_ACTION)
 def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
           clean_only_resources_path, clean_externals, excluded_resources,
           excluded_resources_path, excluded_types, rollback):
@@ -345,7 +352,7 @@ def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
     click.echo('AWS resources were removed.')
 
 
-@syndicate.command(name='sync')
+@syndicate.command(name=SYNC_ACTION)
 @timeit()
 def sync():
     """
@@ -355,7 +362,7 @@ def sync():
     return sync_project_state()
 
 
-@syndicate.command(name='status')
+@syndicate.command(name=STATUS_ACTION)
 @click.option('--events', 'category', flag_value='events',
               help='Show event logs of the project')
 @click.option('--resources', 'category', flag_value='resources',
@@ -368,7 +375,7 @@ def status(category):
     click.echo(project_state_status(category))
 
 
-@syndicate.command(name='warmup')
+@syndicate.command(name=WARMUP_ACTION)
 @sync_lock(lock_type=WARMUP_LOCK)
 @click.option('--bundle_name', nargs=1, callback=resolve_default_value,
               help='Name of the bundle. Should be specified with deploy_name'
@@ -385,7 +392,7 @@ def status(category):
 @click.option('--header_name', nargs=1, help='Name of authentication header.')
 @click.option('--header_value', nargs=1, help='Name of authentication header '
                                               'value.')
-@timeit(action_name='warmup')
+@timeit(action_name=WARMUP_ACTION)
 def warmup(bundle_name, deploy_name, api_gw_id, stage_name, lambda_auth,
            header_name, header_value):
     """
@@ -427,7 +434,7 @@ def warmup(bundle_name, deploy_name, api_gw_id, stage_name, lambda_auth,
     click.echo('Application resources have been warmed up.')
 
 
-@syndicate.command(name='profiler')
+@syndicate.command(name=PROFILER_ACTION)
 @click.option('--bundle_name', nargs=1, callback=resolve_default_value)
 @click.option('--deploy_name', nargs=1, callback=resolve_default_value)
 @click.option('--from_date', nargs=1, type=str)
@@ -452,11 +459,12 @@ def profiler(bundle_name, deploy_name, from_date, to_date):
 # =============================================================================
 
 
-@syndicate.command(name='assemble_java_mvn')
+@syndicate.command(name=ASSEMBLE_JAVA_MVN_ACTION)
 @timeit()
 @click.option('--bundle_name', nargs=1, callback=generate_default_bundle_name)
 @click.option('--project_path', '-path', nargs=1,
               callback=resolve_path_callback)
+@timeit(action_name=ASSEMBLE_JAVA_MVN_ACTION)
 def assemble_java_mvn(bundle_name, project_path):
     """
     Builds Java lambdas
@@ -471,11 +479,12 @@ def assemble_java_mvn(bundle_name, project_path):
     click.echo('Java artifacts were prepared successfully.')
 
 
-@syndicate.command(name='assemble_python')
+@syndicate.command(name=ASSEMBLE_PYTHON_ACTION)
 @timeit()
 @click.option('--bundle_name', nargs=1, callback=generate_default_bundle_name)
 @click.option('--project_path', '-path', nargs=1,
               callback=resolve_path_callback)
+@timeit(action_name=ASSEMBLE_PYTHON_ACTION)
 def assemble_python(bundle_name, project_path):
     """
     Builds Python lambdas
@@ -490,11 +499,12 @@ def assemble_python(bundle_name, project_path):
     click.echo('Python artifacts were prepared successfully.')
 
 
-@syndicate.command(name='assemble_node')
+@syndicate.command(name=ASSEMBLE_NODE_ACTION)
 @timeit()
 @click.option('--bundle_name', nargs=1, callback=generate_default_bundle_name)
 @click.option('--project_path', '-path', nargs=1,
               callback=resolve_path_callback)
+@timeit(action_name=ASSEMBLE_NODE_ACTION)
 def assemble_node(bundle_name, project_path):
     """
     Builds NodeJS lambdas
@@ -516,11 +526,11 @@ RUNTIME_LANG_TO_BUILD_MAPPING = {
 }
 
 
-@syndicate.command(name='assemble')
-@timeit()
+@syndicate.command(name=ASSEMBLE_ACTION)
 @click.option('--bundle_name', callback=generate_default_bundle_name,
               help='Bundle\'s name to build the lambdas in')
 @click.pass_context
+@timeit(action_name=ASSEMBLE_ACTION)
 def assemble(ctx, bundle_name):
     """
     Builds the application artifacts
@@ -544,10 +554,10 @@ def assemble(ctx, bundle_name):
         click.echo('Projects to be built are not found')
 
 
-@syndicate.command(name='package_meta')
-@timeit()
+@syndicate.command(name=PACKAGE_META_ACTION)
 @click.option('--bundle_name', required=True, callback=verify_bundle_callback,
               help='Bundle\'s name to package the current meta in')
+@timeit(action_name=PACKAGE_META_ACTION)
 def package_meta(bundle_name):
     """
     Generates metadata about the application infrastructure
@@ -561,7 +571,7 @@ def package_meta(bundle_name):
     click.echo('Meta was configured successfully.')
 
 
-@syndicate.command(name='create_deploy_target_bucket')
+@syndicate.command(name=CREATE_DEPLOY_TARGET_BUCKET_ACTION)
 @timeit()
 def create_deploy_target_bucket():
     """
@@ -574,14 +584,14 @@ def create_deploy_target_bucket():
     click.echo('Deploy target bucket was created successfully')
 
 
-@syndicate.command(name='upload')
+@syndicate.command(name=UPLOAD_ACTION)
 @click.option('--bundle_name', callback=resolve_and_verify_bundle_callback,
               help='Bundle name to which the build artifacts are gathered and '
                    'later used for the deployment. NOTE: if not specified, '
                    'the latest build will be uploaded')
 @click.option('--force', is_flag=True, help='Flag to override existing bundle '
                                             'with the same name as provided')
-@timeit(action_name='upload')
+@timeit(action_name=UPLOAD_ACTION)
 def upload(bundle_name, force=False):
     """
     Uploads bundle from local storage to AWS S3
@@ -600,7 +610,7 @@ def upload(bundle_name, force=False):
     click.echo('Bundle was uploaded successfully')
 
 
-@syndicate.command(name='copy_bundle')
+@syndicate.command(name=COPY_BUNDLE_ACTION)
 @click.option('--bundle_name', nargs=1, callback=create_bundle_callback)
 @click.option('--src_account_id', '-acc_id', nargs=1,
               callback=check_required_param)
