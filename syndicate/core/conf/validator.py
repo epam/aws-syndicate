@@ -260,6 +260,8 @@ class ConfigValidator:
 
     def _validate_tags(self, key, value):
         errors = []
+        if not value:
+            return errors
         if not isinstance(value, dict):
             errors.append(f'\'{key}\' param must be a dictionary but '
                           f'not a \'{type(value).__name__}\'')

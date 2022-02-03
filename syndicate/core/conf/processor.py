@@ -315,6 +315,8 @@ class ConfigHolder:
     @property
     def tags(self):
         tags = self._resolve_variable(TAGS_CFG)
+        if not tags:
+            tags = {}
         tags = {k: str(v) for k, v in tags.items()}
         return tags
 
