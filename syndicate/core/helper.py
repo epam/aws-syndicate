@@ -231,6 +231,8 @@ def resolve_default_value(ctx, param, value):
 
 def create_bundle_callback(ctx, param, value):
     from syndicate.core.build.helper import resolve_bundle_directory
+    if not value:
+        raise BadParameter('Parameter is required')
     bundle_path = resolve_bundle_directory(value)
     if not os.path.exists(bundle_path):
         os.makedirs(bundle_path)

@@ -45,7 +45,8 @@ from syndicate.core.build.warmup_processor import (process_deploy_resources,
 from syndicate.core.conf.validator import (JAVA_LANGUAGE_NAME,
                                            PYTHON_LANGUAGE_NAME,
                                            NODEJS_LANGUAGE_NAME)
-from syndicate.core.decorators import check_deploy_name_for_duplicates
+from syndicate.core.decorators import (check_deploy_name_for_duplicates,
+                                       check_deploy_bucket_exists)
 from syndicate.core.groups.generate import (generate,
                                             GENERATE_PROJECT_COMMAND_NAME,
                                             GENERATE_CONFIG_COMMAND_NAME)
@@ -147,15 +148,16 @@ def test(suite, test_folder_name, errors_allowed):
 @click.option('--errors_allowed', is_flag=True, default=False,
               help='Flag to continue bundle building if some tests fail')
 @click.pass_context
+@check_deploy_bucket_exists
 @timeit(action_name=BUILD_ACTION)
 def build(ctx, bundle_name, force_upload, errors_allowed):
     """
     Builds bundle of an application
     """
     if if_bundle_exist(bundle_name=bundle_name) and not force_upload:
-        click.echo('Bundle name \'{0}\' already exists '
-                   'in deploy bucket. Please use another bundle '
-                   'name or delete the bundle'.format(bundle_name))
+        click.echo(f'Bundle name \'{bundle_name}\' already exists '
+                   f'in deploy bucket. Please use another bundle '
+                   f'name or delete the bundle')
         return
     ctx.invoke(test, errors_allowed=errors_allowed)
     ctx.invoke(assemble, bundle_name=bundle_name)
@@ -190,6 +192,7 @@ def build(ctx, bundle_name, force_upload, errors_allowed):
 @click.option('--replace_output', is_flag=True, default=False,
               help='Replaces the existing deploy output')
 @check_deploy_name_for_duplicates
+@check_deploy_bucket_exists
 @timeit(action_name=DEPLOY_ACTION)
 def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
            deploy_only_resources_path, excluded_resources,
@@ -245,6 +248,7 @@ def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
                    'while deploy')
 @click.option('--replace_output', nargs=1, is_flag=True, default=False)
 @check_deploy_name_for_duplicates
+@check_deploy_bucket_exists
 @timeit(action_name=UPDATE_ACTION)
 def update(bundle_name, deploy_name, replace_output,
            update_only_resources,
@@ -334,13 +338,12 @@ def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
         excluded_resources = tuple(
             set(excluded_resources + tuple(excluded_resources_list)))
     if rollback:
-        remove_failed_deploy_resources(deploy_name=deploy_name,
-                                       bundle_name=bundle_name,
-                                       clean_only_resources=clean_only_resources,
-                                       clean_only_types=clean_only_types,
-                                       excluded_resources=excluded_resources,
-                                       excluded_types=excluded_types,
-                                       clean_externals=clean_externals)
+        remove_failed_deploy_resources(
+            deploy_name=deploy_name, bundle_name=bundle_name,
+            clean_only_resources=clean_only_resources,
+            clean_only_types=clean_only_types,
+            excluded_resources=excluded_resources,
+            excluded_types=excluded_types, clean_externals=clean_externals)
     else:
         remove_deployment_resources(deploy_name=deploy_name,
                                     bundle_name=bundle_name,
@@ -353,6 +356,7 @@ def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
 
 
 @syndicate.command(name=SYNC_ACTION)
+@check_deploy_bucket_exists
 @timeit()
 def sync():
     """
@@ -367,6 +371,7 @@ def sync():
               help='Show event logs of the project')
 @click.option('--resources', 'category', flag_value='resources',
               help='Show a summary of the project resources')
+@check_deploy_bucket_exists
 @timeit()
 def status(category):
     """
@@ -392,6 +397,7 @@ def status(category):
 @click.option('--header_name', nargs=1, help='Name of authentication header.')
 @click.option('--header_value', nargs=1, help='Name of authentication header '
                                               'value.')
+@check_deploy_bucket_exists
 @timeit(action_name=WARMUP_ACTION)
 def warmup(bundle_name, deploy_name, api_gw_id, stage_name, lambda_auth,
            header_name, header_value):
@@ -439,6 +445,7 @@ def warmup(bundle_name, deploy_name, api_gw_id, stage_name, lambda_auth,
 @click.option('--deploy_name', nargs=1, callback=resolve_default_value)
 @click.option('--from_date', nargs=1, type=str)
 @click.option('--to_date', nargs=1, type=str)
+@check_deploy_bucket_exists
 def profiler(bundle_name, deploy_name, from_date, to_date):
     """
     Displays application Lambda metrics
@@ -472,7 +479,7 @@ def assemble_java_mvn(bundle_name, project_path):
     :param project_path: path to project folder
     :return:
     """
-    click.echo('Command compile java project path: %s' % project_path)
+    click.echo(f'Command compile java project path: {project_path}')
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
                        runtime=RUNTIME_JAVA_8)
@@ -492,7 +499,7 @@ def assemble_python(bundle_name, project_path):
     :param project_path: path to project folder
     :return:
     """
-    click.echo('Command assemble python: project_path: %s ' % project_path)
+    click.echo(f'Command assemble python: project_path: {project_path} ')
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
                        runtime=RUNTIME_PYTHON)
@@ -512,7 +519,7 @@ def assemble_node(bundle_name, project_path):
     :param project_path: path to project folder
     :return:
     """
-    click.echo('Command assemble node: project_path: %s ' % project_path)
+    click.echo(f'Command assemble node: project_path: {project_path} ')
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
                        runtime=RUNTIME_NODEJS)
@@ -549,7 +556,7 @@ def assemble(ctx, bundle_name):
                 ctx.invoke(func, bundle_name=bundle_name,
                            project_path=value)
             else:
-                click.echo('Build tool is not supported: %s' % key)
+                click.echo(f'Build tool is not supported: {key}')
     else:
         click.echo('Projects to be built are not found')
 
@@ -565,7 +572,7 @@ def package_meta(bundle_name):
     :return:
     """
     from syndicate.core import CONFIG
-    click.echo('Package meta, bundle: %s' % bundle_name)
+    click.echo(f'Package meta, bundle: {bundle_name}')
     create_meta(project_path=CONFIG.project_path,
                 bundle_name=bundle_name)
     click.echo('Meta was configured successfully.')
@@ -579,7 +586,7 @@ def create_deploy_target_bucket():
     :return:
     """
     from syndicate.core import CONFIG
-    click.echo('Create deploy target sdk: %s' % CONFIG.deploy_target_bucket)
+    click.echo(f'Create deploy target sdk: {CONFIG.deploy_target_bucket}')
     create_bundles_bucket()
     click.echo('Deploy target bucket was created successfully')
 
@@ -591,6 +598,7 @@ def create_deploy_target_bucket():
                    'the latest build will be uploaded')
 @click.option('--force', is_flag=True, help='Flag to override existing bundle '
                                             'with the same name as provided')
+@check_deploy_bucket_exists
 @timeit(action_name=UPLOAD_ACTION)
 def upload(bundle_name, force=False):
     """
@@ -600,7 +608,7 @@ def upload(bundle_name, force=False):
         already exists in an account
     :return:
     """
-    click.echo('Upload bundle: %s' % bundle_name)
+    click.echo(f'Upload bundle: {bundle_name}')
     if force:
         click.echo('Force upload')
 
@@ -639,11 +647,11 @@ def copy_bundle(ctx, bundle_name, src_account_id, src_bucket_region,
         already exists in a target account
     :return:
     """
-    click.echo('Copy bundle: %s' % bundle_name)
-    click.echo('Bundle name: %s' % bundle_name)
-    click.echo('Source account id: %s' % src_account_id)
-    click.echo('Source bucket region: %s' % src_bucket_region)
-    click.echo('Source bucket name: %s' % src_bucket_name)
+    click.echo(f'Copy bundle: {bundle_name}')
+    click.echo(f'Bundle name: {bundle_name}')
+    click.echo(f'Source account id: {src_account_id}')
+    click.echo(f'Source bucket region: {src_bucket_region}')
+    click.echo(f'Source bucket name: {src_bucket_name}')
     futures = load_bundle(bundle_name, src_account_id, src_bucket_region,
                           src_bucket_name, role_name)
     handle_futures_progress_bar(futures)
