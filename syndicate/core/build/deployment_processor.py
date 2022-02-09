@@ -162,14 +162,14 @@ def clean_resources(output):
             args.append({'arn': arn, 'config': config})
             continue
         elif res_type != resource_type:
-            _LOG.info('Removing {0} resources ...'.format(resource_type))
+            USER_LOG.info('Removing {0} resources ...'.format(resource_type))
             func = PROCESSOR_FACADE.remove_handlers()[resource_type]
             func(args)
             del args[:]
             args.append({'arn': arn, 'config': config})
             resource_type = res_type
     if args:
-        _LOG.info('Removing {0} resources ...'.format(resource_type))
+        USER_LOG.info('Removing {0} resources ...'.format(resource_type))
         func = PROCESSOR_FACADE.remove_handlers()[resource_type]
         func(args)
 
@@ -425,7 +425,7 @@ def remove_deployment_resources(deploy_name, bundle_name,
     resources_list = list(new_output.items())
     resources_list.sort(key=cmp_to_key(_compare_clean_resources))
     _LOG.debug('Resources to delete: {0}'.format(resources_list))
-    _LOG.info('Going to clean AWS resources')
+    USER_LOG.info('Going to clean AWS resources')
     clean_resources(resources_list)
     # remove new_output from bucket
     if output == new_output:
