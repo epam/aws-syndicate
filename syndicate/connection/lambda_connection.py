@@ -413,8 +413,8 @@ class LambdaConnection(object):
                 'SubnetIds': vpc_sub_nets,
                 'SecurityGroupIds': vpc_security_group
             }
-        if env_vars:
-            params['Environment'] = {'Variables': env_vars}
+        env_vars = env_vars if env_vars else {}
+        params['Environment'] = {'Variables': env_vars}
         if runtime:
             params['Runtime'] = runtime
         if dead_letter_arn:
