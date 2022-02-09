@@ -201,10 +201,9 @@ class LambdaResource(BaseResource):
 
         key = meta[S3_PATH_NAME]
         if not self.s3_conn.is_file_exists(self.deploy_target_bucket, key):
-            raise AssertionError('Error while creating lambda: %s;'
-                                 'Deployment package %s does not exist '
-                                 'in %s bucket', name, key,
-                                 self.deploy_target_bucket)
+            raise AssertionError(f'Error while creating lambda: {name};'
+                                 f'Deployment package {key} does not exist '
+                                 f'in {self.deploy_target_bucket} bucket')
 
         lambda_def = self.lambda_conn.get_function(name)
         if lambda_def:
@@ -214,9 +213,8 @@ class LambdaResource(BaseResource):
         role_name = meta['iam_role_name']
         role_arn = self.iam_conn.check_if_role_exists(role_name)
         if not role_arn:
-            raise AssertionError('Role {} does not exist; '
-                                 'Lambda {} failed to be configured.'.format(
-                role_name, name))
+            raise AssertionError(f'Role {role_name} does not exist; '
+                                 f'Lambda {name} failed to be configured.')
 
         dl_type = meta.get('dl_resource_type')
         if dl_type:
@@ -327,27 +325,50 @@ class LambdaResource(BaseResource):
             s3_key=key,
             publish_version=publish_version)
 
-        # update lambda layers version
-        if meta.get('layers'):
-            layers = meta.get('layers')
-            updated_layers_arns = [layer_arn
-                                   for layer_arn, body in context.items()
-                                   if body.get('resource_name') in layers]
-            self.lambda_conn.update_lambda_configuration(lambda_name=name,
-                                                         layers=updated_layers_arns)
+        role = meta.get('iam_arn_role')
+        handler = meta.get('func_name')
+        env_vars = meta.get('env_variables')
+        timeout = meta.get('timeout')
+        memory_size = meta.get('memory_size')
+        vpc_sub_nets = meta.get('subnet_ids')
+        vpc_security_group = meta.get('security_group_ids')
+        runtime = meta.get('runtime')
+        layers = meta.get('layers')
 
-        # AWS sometimes returns None after function creation, needs for stability
+        dl_type = meta.get('dl_resource_type')
+        if dl_type:
+            dl_type = dl_type.lower()
+        dl_name = meta.get('dl_resource_name')
+
+        dl_target_arn = 'arn:aws:{0}:{1}:{2}:{3}'.format(
+            dl_type,
+            self.region,
+            self.account_id,
+            dl_name) if dl_type and dl_name else None
+
+        # update lambda layers version
+        if layers:
+            layers = [layer_arn for layer_arn, body in context.items()
+                      if body.get('resource_name') in layers]
+
+        self.lambda_conn.update_lambda_configuration(
+            lambda_name=name, role=role, handler=handler, env_vars=env_vars,
+            timeout=timeout, memory_size=memory_size, runtime=runtime,
+            vpc_sub_nets=vpc_sub_nets, vpc_security_group=vpc_security_group,
+            dead_letter_arn=dl_target_arn, layers=layers)
+
+        # AWS sometimes returns None after function creation, needs for
+        # stability
         time.sleep(10)
         response = self.lambda_conn.get_function(name)
-        _LOG.debug('Lambda describe result: {0}'.format(response))
+        _LOG.debug(f'Lambda describe result: {response}')
         code_sha_256 = response['Configuration']['CodeSha256']
         publish_ver_response = self.lambda_conn.publish_version(
             function_name=name,
             code_sha_256=code_sha_256)
         updated_version = publish_ver_response['Version']
         _LOG.info(
-            'Version {0} for lambda {1} published'.format(updated_version,
-                                                          name))
+            f'Version {updated_version} for lambda {name} published')
 
         alias_name = meta.get('alias')
         if alias_name:
@@ -359,18 +380,14 @@ class LambdaResource(BaseResource):
                     name=alias_name,
                     version=updated_version)
                 _LOG.info(
-                    'Alias {0} has been created for lambda {1}'.format(
-                        alias_name,
-                        name))
+                    f'Alias {alias_name} has been created for lambda {name}')
             else:
                 self.lambda_conn.update_alias(
                     function_name=name,
                     alias_name=alias_name,
                     function_version=updated_version)
                 _LOG.info(
-                    'Alias {0} has been updated for lambda {1}'.format(
-                        alias_name,
-                        name))
+                    f'Alias {alias_name} has been updated for lambda {name}')
         req_max_concurrency = meta.get(LAMBDA_MAX_CONCURRENCY)
         existing_max_concurrency = self.lambda_conn.describe_function_concurrency(
             name=name)
