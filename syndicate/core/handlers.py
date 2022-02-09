@@ -306,6 +306,7 @@ def update(bundle_name, deploy_name, replace_output,
               help='If specified provided types will be excluded')
 @click.option('--rollback', is_flag=True,
               help='Remove failed deploy resources')
+@check_deploy_bucket_exists
 @timeit(action_name=CLEAN_ACTION)
 def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
           clean_only_resources_path, clean_externals, excluded_resources,

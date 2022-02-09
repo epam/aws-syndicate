@@ -218,6 +218,7 @@ param_resolver_map = {
 def resolve_default_value(ctx, param, value):
     if value:
         return value
+    sync_project_state()
     command_name = ctx.info_name
     param_resolver = param_resolver_map.get(param.name)
     if not param_resolver:
