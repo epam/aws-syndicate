@@ -144,13 +144,12 @@ class ProjectState:
     def latest_bundle_name(self):
         """Returns bundle_name from the one of the latest operations which
         can guarantee that the bundle is ready"""
-        operations = BUILD_ACTION, PACKAGE_META_ACTION
-        for operation in operations:
-            bundle_name = self._get_attribute_from_latest_operation(
-                operation_name=operation, attribute='bundle_name'
-            )
-            if bundle_name:
-                return bundle_name
+        operations = [BUILD_ACTION, PACKAGE_META_ACTION]
+        for event in self.events:
+            if event.get('operation') in operations:
+                bundle_name = event.get('bundle_name')
+                if bundle_name:
+                    return bundle_name
 
     @property
     def latest_deployed_bundle_name(self):

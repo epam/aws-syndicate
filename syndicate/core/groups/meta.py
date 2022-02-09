@@ -295,7 +295,7 @@ def kinesis_stream(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = KinesisStreamGenerator(**kwargs)
     _generate(generator)
-    click.echo(f"Kinesis stream '{kwargs['resource_name']}' was"
+    click.echo(f"Kinesis stream '{kwargs['resource_name']}' was "
                f"added successfully")
 
 

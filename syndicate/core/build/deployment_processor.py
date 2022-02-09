@@ -33,6 +33,7 @@ from syndicate.core.constants import (BUILD_META_FILE_NAME,
                                       UPDATE_RESOURCE_TYPE_PRIORITY)
 from syndicate.core.helper import exit_on_exception, prettify_json
 
+
 _LOG = get_logger('syndicate.core.build.deployment_processor')
 USER_LOG = get_user_logger()
 
@@ -331,6 +332,9 @@ def create_deployment_resources(deploy_name, bundle_name,
         _apply_dynamic_changes(resources, output)
         USER_LOG.info('Dynamic changes were applied successfully')
 
+        _LOG.info('Going to apply common tags')
+        _apply_tags(output)
+
     USER_LOG.info('Going to create deploy output')
     create_deploy_output(bundle_name=bundle_name,
                          deploy_name=deploy_name,
@@ -478,6 +482,9 @@ def continue_deployment_resources(deploy_name, bundle_name,
         _apply_dynamic_changes(resources, updated_output)
         _LOG.info('Dynamic changes were applied successfully')
 
+        _LOG.info('Going to apply common tags')
+        _apply_tags(output)
+
     # remove failed output from bucket
     remove_failed_deploy_output(bundle_name, deploy_name)
     _LOG.info('Going to create deploy output')
@@ -568,6 +575,12 @@ def _apply_dynamic_changes(resources, output):
                                   'for {0} type'.format(dependency_type))
             _LOG.info('Dynamic changes were applied to {0}'.format(name))
     concurrent.futures.wait(futures, timeout=None, return_when=ALL_COMPLETED)
+
+
+def _apply_tags(output: dict):
+    from syndicate.core import RESOURCES_PROVIDER
+    tags_resource = RESOURCES_PROVIDER.tags_api()
+    tags_resource.apply_tags(output)
 
 
 def _compare_deploy_resources(first, second):

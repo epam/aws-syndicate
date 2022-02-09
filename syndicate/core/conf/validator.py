@@ -47,6 +47,8 @@ TEMP_AWS_SESSION_TOKEN_CFG = 'temp_aws_session_token'
 EXPIRATION_CFG = 'expiration'
 ACCESS_ROLE_CFG = 'access_role'
 
+TAGS_CFG = 'tags'
+
 PYTHON_LANGUAGE_NAME = 'python'
 NODEJS_LANGUAGE_NAME = 'nodejs'
 JAVA_LANGUAGE_NAME = 'java'
@@ -117,6 +119,10 @@ class ConfigValidator:
             ACCESS_ROLE_CFG: {
                 REQUIRED: False,
                 VALIDATOR: self._validate_access_role
+            },
+            TAGS_CFG: {
+                REQUIRED: False,
+                VALIDATOR: self._validate_tags
             }
         }
 
@@ -133,7 +139,6 @@ class ConfigValidator:
                 if not value:
                     error_messages[key] = REQUIRED_PARAM_ERROR.format(key)
                     continue
-
             validator_func = validation_rules.get(VALIDATOR)
             validation_errors = validator_func(key, value)
             if validation_errors:
@@ -252,6 +257,33 @@ class ConfigValidator:
                                               value=value)
         if str_error:
             return [str_error]
+
+    def _validate_tags(self, key, value):
+        errors = []
+        if not value:
+            return errors
+        if not isinstance(value, dict):
+            errors.append(f'\'{key}\' param must be a dictionary but '
+                          f'not a \'{type(value).__name__}\'')
+            return errors
+        if len(value) > 50:
+            errors.append(f'Each resource can have up to 50 user created tags.'
+                          f' You have specified: {len(value)}')
+        for tag_name, tag_value in value.items():
+            if tag_name.startswith('aws:'):
+                errors.append(f'\'{tag_name}\': you can\'t create, edit or '
+                              f'delete a tag that begins with the \'aws:\' '
+                              f'prefix.')
+                if not 1 <= len(tag_name) <= 128:
+                    errors.append(f'\'{tag_name}\': the tag key must be a '
+                                  f'minimum of 1 and a maximum of 128 Unicode '
+                                  f'characters')
+                if not 0 <= len(tag_value) <= 256:
+                    errors.append(f'\'{tag_value}\': the tag value must be a '
+                                  f'minimum of 0 and a maximum of 256 Unicode '
+                                  f'characters')
+        return errors
+
 
     @staticmethod
     def _validate_expiration(key, value):

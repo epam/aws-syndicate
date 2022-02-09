@@ -27,7 +27,7 @@ from syndicate.core.conf.validator import \
      ALL_REGIONS, ALLOWED_RUNTIME_LANGUAGES, ConfigValidator,
      USE_TEMP_CREDS_CFG, SERIAL_NUMBER_CFG,
      TEMP_AWS_ACCESS_KEY_ID_CFG, TEMP_AWS_SECRET_ACCESS_KEY_CFG,
-     TEMP_AWS_SESSION_TOKEN_CFG, EXPIRATION_CFG)
+     TEMP_AWS_SESSION_TOKEN_CFG, EXPIRATION_CFG, TAGS_CFG)
 from syndicate.core.constants import (DEFAULT_SEP, IAM_POLICY, IAM_ROLE,
                                       S3_BUCKET_TYPE)
 
@@ -311,6 +311,14 @@ class ConfigHolder:
     @property
     def expiration(self):
         return self._resolve_variable(EXPIRATION_CFG)
+
+    @property
+    def tags(self):
+        tags = self._resolve_variable(TAGS_CFG)
+        if not tags:
+            tags = {}
+        tags = {k: str(v) for k, v in tags.items()}
+        return tags
 
     def resolve_alias(self, name):
         if self._aliases.get(name):
