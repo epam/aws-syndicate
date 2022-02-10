@@ -33,7 +33,8 @@ from syndicate.core.conf.processor import (PROJECT_PATH_CFG,
                                            RESOURCES_SUFFIX_CFG)
 from syndicate.core.conf.validator import (LAMBDAS_ALIASES_NAME_CFG,
                                            USE_TEMP_CREDS_CFG,
-                                           SERIAL_NUMBER_CFG)
+                                           SERIAL_NUMBER_CFG,
+                                           ACCESS_ROLE_CFG)
 from syndicate.core.generators import _mkdir
 
 _LOG = get_logger('config_generator')
@@ -41,10 +42,10 @@ _USER_LOG = get_user_logger()
 
 
 def generate_configuration_files(name, config_path, region,
-                                 access_key, secret_key, session_token,
+                                 access_key, secret_key,
                                  bundle_bucket_name, prefix, suffix,
                                  project_path=None, use_temp_creds=None,
-                                 serial_number=None):
+                                 access_role=None, serial_number=None):
     if not access_key and not secret_key:
         _USER_LOG.warn("Access_key and secret_key weren't passed. "
                        "Attempting to load them")
@@ -93,6 +94,10 @@ def generate_configuration_files(name, config_path, region,
                 f'Provided project path {project_path} does not exists')
         project_path = os.path.abspath(project_path)
 
+    if use_temp_creds and access_role:
+        raise AssertionError(f'Access role mustn\'t be specified if '
+                             f'\'use_temp_creds\' parameter is equal to True')
+
     config_content = {
         ACCOUNT_ID_CFG: account_id,
         REGION_CFG: region,
@@ -103,10 +108,11 @@ def generate_configuration_files(name, config_path, region,
         RESOURCES_PREFIX_CFG: prefix,
         RESOURCES_SUFFIX_CFG: suffix,
         USE_TEMP_CREDS_CFG: use_temp_creds,
+        ACCESS_ROLE_CFG: access_role,
         SERIAL_NUMBER_CFG: serial_number
     }
     config_content = {key: value for key, value in config_content.items()
-                      if value}
+                      if value is not None}
 
     config_file_path = os.path.join(config_folder_path, CONFIG_FILE_NAME)
     with open(config_file_path, 'w') as config_file:
