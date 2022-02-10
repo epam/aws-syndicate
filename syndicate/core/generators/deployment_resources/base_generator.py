@@ -20,7 +20,7 @@ class BaseConfigurationGenerator:
       given. If it isn't given, will be omitted;
     - if the value of param is set, will be used as default in case user
       doesn't put it;
-    - if the value is type (dict, list, bool), the value will the the object
+    - if the value is type (dict, list, bool), the value will be the object
       of the type;
     - if the value is a dict, it will be handled and resolved resursively.
     """
@@ -44,7 +44,7 @@ class BaseConfigurationGenerator:
                     _LOG.info(f"Setting default value - the object "
                               f"'{to_assign}' of the class '{default_value}' "
                               f"for param '{param_name}'")
-                    result[param_name] = default_value()
+                    result[param_name] = to_assign
                 elif isinstance(default_value, dict):
                     result[param_name] = \
                         self._resolve_configuration(
@@ -145,6 +145,10 @@ class BaseDeploymentResourceGenerator(BaseConfigurationGenerator):
         be written to the file, where the duplicate was found"""
 
         resources_file = Path(self.project_path, RESOURCES_FILE_NAME)
+        if not resources_file.exists():
+            USER_LOG.warning('Root "deployment_resources.json" wasn\'t found. '
+                             'Creating the one...')
+            _write_content_to_file(resources_file, json.dumps({}))
         duplicated_file = self._find_file_with_duplicate()
         if duplicated_file:
             message = f"Resource with name '{self.resource_name}' " \

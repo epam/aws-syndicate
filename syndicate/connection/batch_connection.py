@@ -170,9 +170,14 @@ class BatchConnection(object):
 
         return self.client.register_job_definition(**params)
 
-    def describe_job_definition(self, job_definition):
-        return self.client.describe_job_definitions(
-            jobDefinitionName=job_definition)
+    def describe_job_definition(self, job_definition, max_results=None,
+                                status=None):
+        params = dict(jobDefinitionName=job_definition)
+        if max_results:
+            params['maxResults'] = max_results
+        if status:
+            params['status'] = status
+        return self.client.describe_job_definitions(**params)
 
     def deregister_job_definition(self, job_definition_name):
         revisions = self._get_job_def_revisions(

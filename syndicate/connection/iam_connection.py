@@ -138,7 +138,7 @@ class IAMConnection(object):
 
     def create_custom_role(self, role_name, allowed_account=None,
                            allowed_service=None, trusted_relationships=None,
-                           external_id=None):
+                           external_id=None, permissions_boundary=None):
         """ Create custom role with trusted relationships. You can specify
         custom policy, or set principal_account and principal_service params
         to use default.
@@ -165,10 +165,13 @@ class IAMConnection(object):
         if isinstance(trusted_relationships, dict):
             trusted_relationships = dumps(trusted_relationships)
 
+        params = dict(RoleName=role_name,
+                      AssumeRolePolicyDocument=trusted_relationships)
+        if permissions_boundary:
+            params['PermissionsBoundary'] = permissions_boundary
+
         try:
-            role = self.client.create_role(
-                RoleName=role_name,
-                AssumeRolePolicyDocument=trusted_relationships)
+            role = self.client.create_role(**params)
             return role['Role']
         except ClientError as e:
             if e.response['Error']['Code'] == 'EntityAlreadyExists':
@@ -195,6 +198,28 @@ class IAMConnection(object):
             RoleName=role_name,
             PolicyArn=policy_arn
         )
+
+    def put_role_permissions_boundary(self, role_name, policy_arn):
+        _LOG.info(f'Attaching permissions boundary policy: \'{policy_arn}\''
+                  f' to role: \'{role_name}\'')
+        self.client.put_role_permissions_boundary(
+            RoleName=role_name,
+            PermissionsBoundary=policy_arn
+        )
+
+    def delete_role_permissions_boundary(self, role_name):
+        _LOG.info(f'Removing permissions boundary policy from \'{role_name}\'')
+        try:
+            self.client.delete_role_permissions_boundary(
+                RoleName=role_name
+            )
+        except ClientError as e:
+            if 'NoSuchEntity' in str(e):
+                _LOG.warn(f'Role \'{role_name}\' doesn\'t have permissions '
+                          f'boundary policy. Skipping...')
+            else:
+                _LOG.error(str(e))
+                raise e
 
     def get_policy_arn(self, name, policy_scope='All'):
         """ Get policy arn from list existing. To reduce list result there is

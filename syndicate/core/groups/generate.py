@@ -113,6 +113,8 @@ def lambda_function(name, runtime, project_path):
               help='AWS access key id that is used to deploy the application.')
 @click.option('--secret_key',
               help='AWS secret key that is used to deploy the application.')
+@click.option('--session_token',
+              help='AWS session token that is used to deploy the application.')
 @click.option('--config_path',
               help='Path to store generated configuration file')
 @click.option('--project_path',
@@ -127,9 +129,17 @@ def lambda_function(name, runtime, project_path):
                    'by pattern: {prefix}resource_name{suffix}. '
                    'Must be less than or equal to 5.',
               callback=check_prefix_suffix_length)
+@click.option('--use_temp_creds', type=bool,
+              help='Indicates Syndicate to generate and use temporary AWS '
+                   'credentials')
+@click.option('--serial_number', type=str,
+              help='The identification number of the MFA device that is '
+                   'associated with the IAM user which will be used for '
+                   'deployment')
 @timeit()
-def config(name, config_path, project_path, region, access_key,
-           secret_key, bundle_bucket_name, prefix, suffix):
+def config(name, config_path, project_path, region, access_key, secret_key,
+           session_token, bundle_bucket_name, prefix, suffix, use_temp_creds,
+           serial_number):
     """
     Creates Syndicate configuration files
     """
@@ -139,9 +149,12 @@ def config(name, config_path, project_path, region, access_key,
                                  region=region,
                                  access_key=access_key,
                                  secret_key=secret_key,
+                                 session_token=session_token,
                                  bundle_bucket_name=bundle_bucket_name,
                                  prefix=prefix,
-                                 suffix=suffix)
+                                 suffix=suffix,
+                                 use_temp_creds=use_temp_creds,
+                                 serial_number=serial_number)
 
 
 generate.add_command(meta)

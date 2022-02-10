@@ -23,7 +23,6 @@ from boto3.session import Session
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.connection.sts_connection import STSConnection
 from syndicate.core.conf.processor import (PROJECT_PATH_CFG,
-                                           LEGACY_CONFIG_FILE_NAME,
                                            CONFIG_FILE_NAME,
                                            ALIASES_FILE_NAME,
                                            ACCOUNT_ID_CFG, REGION_CFG,
@@ -32,7 +31,9 @@ from syndicate.core.conf.processor import (PROJECT_PATH_CFG,
                                            AWS_SECRET_ACCESS_KEY_CFG,
                                            RESOURCES_PREFIX_CFG,
                                            RESOURCES_SUFFIX_CFG)
-from syndicate.core.conf.validator import (LAMBDAS_ALIASES_NAME_CFG)
+from syndicate.core.conf.validator import (LAMBDAS_ALIASES_NAME_CFG,
+                                           USE_TEMP_CREDS_CFG,
+                                           SERIAL_NUMBER_CFG)
 from syndicate.core.generators import _mkdir
 
 _LOG = get_logger('config_generator')
@@ -40,9 +41,10 @@ _USER_LOG = get_user_logger()
 
 
 def generate_configuration_files(name, config_path, region,
-                                 access_key, secret_key,
+                                 access_key, secret_key, session_token,
                                  bundle_bucket_name, prefix, suffix,
-                                 project_path=None):
+                                 project_path=None, use_temp_creds=None,
+                                 serial_number=None):
     if not access_key and not secret_key:
         _USER_LOG.warn("Access_key and secret_key weren't passed. "
                        "Attempting to load them")
@@ -81,8 +83,8 @@ def generate_configuration_files(name, config_path, region,
 
     if not project_path:
         _USER_LOG.warn(f'The "{PROJECT_PATH_CFG}" property is not specified. '
-                       f'The working directory will be used as a project path. '
-                       f'To change the path, edit the {CONFIG_FILE_NAME} '
+                       f'The working directory will be used as a project path.'
+                       f' To change the path, edit the {CONFIG_FILE_NAME} '
                        f'by path {config_folder_path}')
         project_path = os.getcwd()
     else:
@@ -99,7 +101,9 @@ def generate_configuration_files(name, config_path, region,
         AWS_SECRET_ACCESS_KEY_CFG: secret_key,
         PROJECT_PATH_CFG: project_path,
         RESOURCES_PREFIX_CFG: prefix,
-        RESOURCES_SUFFIX_CFG: suffix
+        RESOURCES_SUFFIX_CFG: suffix,
+        USE_TEMP_CREDS_CFG: use_temp_creds,
+        SERIAL_NUMBER_CFG: serial_number
     }
     config_content = {key: value for key, value in config_content.items()
                       if value}
@@ -109,7 +113,9 @@ def generate_configuration_files(name, config_path, region,
         yaml.dump(config_content, config_file)
 
     aliases_content = {
-        LAMBDAS_ALIASES_NAME_CFG: 'prod'
+        ACCOUNT_ID_CFG: account_id,
+        REGION_CFG: region,
+        LAMBDAS_ALIASES_NAME_CFG: 'prod',
     }
     aliases_file_path = os.path.join(config_folder_path, ALIASES_FILE_NAME)
     with open(aliases_file_path, 'w') as aliases_file:

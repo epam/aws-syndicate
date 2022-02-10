@@ -200,8 +200,8 @@ def api_gateway_resource(ctx, **kwargs):
               help="Resource method to add")
 @click.option('--integration_type', type=str,
               help="The resource which the method is connected to: "
-                   "[lambda|mock|http|mock]. If not specified, sets the default"
-                   "value to 'mock'")
+                   "[lambda|service|http|mock]. If not specified, sets the "
+                   "default value to 'mock'")
 @click.option('--lambda_name', type=str, help="Lambda name. Required if "
                                               "integration type is lambda")
 @click.option('--lambda_region', type=ValidRegionParamType(),
@@ -269,6 +269,9 @@ def iam_policy(ctx, **kwargs):
 @click.option("--external_id", type=str, help="External ID in role")
 @click.option("--instance_profile", type=bool,
               help="If true, instance profile with role name is created")
+@click.option('--permissions_boundary', type=str,
+              help="The name or the ARN of permissions boundary policy to "
+                   "attach to this role.")
 @click.pass_context
 @timeit()
 def iam_role(ctx, **kwargs):
@@ -292,7 +295,7 @@ def kinesis_stream(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = KinesisStreamGenerator(**kwargs)
     _generate(generator)
-    click.echo(f"Kinesis stream '{kwargs['resource_name']}' was"
+    click.echo(f"Kinesis stream '{kwargs['resource_name']}' was "
                f"added successfully")
 
 
@@ -575,6 +578,29 @@ def batch_compenv(ctx, **kwargs):
     _generate(generator)
     click.echo(f"Batch compute environment '{kwargs['resource_name']}' was "
                f"added successfully")
+
+
+@meta.command(name='batch_jobdef')
+@click.option('--resource_name', type=str, required=True,
+              help='Batch job definition name')
+@click.option('--job_definition_type', required=True,
+              type=click.Choice(['container', 'multinode']),
+              help='The type of job definition')
+@click.option('--image', type=str,
+              help='The image used to start a container. '
+                   'Default value is \'alpine\'')
+@click.option('--job_role_arn', type=str,
+              help='The ARN of the IAM role that the container can assume for '
+                   'AWS permissions.')
+@click.pass_context
+@timeit()
+def batch_jobdef(ctx, **kwargs):
+    """Generates batch job definition deployment resources template"""
+    kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
+    generator = BatchJobdefGenerator(**kwargs)
+    _generate(generator)
+    click.echo(f'Batch job definition \'{kwargs["resource_name"]}\' was '
+               f'added successfully')
 
 
 @meta.command(name="batch_jobqueue")

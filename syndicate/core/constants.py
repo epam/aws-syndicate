@@ -116,3 +116,21 @@ UPDATE_RESOURCE_TYPE_PRIORITY = {
 
 RESOURCE_LIST = list(DEPLOY_RESOURCE_TYPE_PRIORITY.keys())
 DATE_FORMAT_ISO_8601 = '%Y-%m-%dT%H:%M:%SZ'
+
+TEST_ACTION = 'test'
+BUILD_ACTION = 'build'
+DEPLOY_ACTION = 'deploy'
+UPDATE_ACTION = 'update'
+CLEAN_ACTION = 'clean'
+SYNC_ACTION = 'sync'
+STATUS_ACTION = 'status'
+WARMUP_ACTION = 'warmup'
+PROFILER_ACTION = 'profiler'
+ASSEMBLE_JAVA_MVN_ACTION = 'assemble_java_mvn'
+ASSEMBLE_PYTHON_ACTION = 'assemble_python'
+ASSEMBLE_NODE_ACTION = 'assemble_node'
+ASSEMBLE_ACTION = 'assemble'
+PACKAGE_META_ACTION = 'package_meta'
+CREATE_DEPLOY_TARGET_BUCKET_ACTION = 'create_deploy_target_bucket'
+UPLOAD_ACTION = 'upload'
+COPY_BUNDLE_ACTION = 'copy_bundle'

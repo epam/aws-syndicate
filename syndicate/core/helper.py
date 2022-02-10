@@ -39,6 +39,7 @@ from syndicate.core.constants import (ARTIFACTS_FOLDER, BUILD_META_FILE_NAME,
 from syndicate.core.project_state.project_state import MODIFICATION_LOCK
 from syndicate.core.project_state.sync_processor import sync_project_state
 
+
 _LOG = get_logger('syndicate.core.helper')
 USER_LOG = get_user_logger()
 
@@ -189,7 +190,7 @@ def resolve_default_bundle_name(command_name):
     if command_name == 'clean':
         bundle_name = PROJECT_STATE.latest_deployed_bundle_name
     else:
-        bundle_name = PROJECT_STATE.latest_built_bundle_name
+        bundle_name = PROJECT_STATE.latest_bundle_name
     if not bundle_name:
         click.echo('Property \'bundle\' is not specified and could '
                    'not be resolved due to absence of data about the '
@@ -229,31 +230,47 @@ def resolve_default_value(ctx, param, value):
 
 
 def create_bundle_callback(ctx, param, value):
-    from syndicate.core import CONFIG
-    bundle_path = os.path.join(CONFIG.project_path, ARTIFACTS_FOLDER, value)
+    from syndicate.core.build.helper import resolve_bundle_directory
+    if not value:
+        raise BadParameter('Parameter is required')
+    bundle_path = resolve_bundle_directory(value)
     if not os.path.exists(bundle_path):
         os.makedirs(bundle_path)
     return value
 
 
 def verify_bundle_callback(ctx, param, value):
-    from syndicate.core import CONFIG
-    bundle_path = os.path.join(CONFIG.project_path, ARTIFACTS_FOLDER, value)
+    from syndicate.core.build.helper import resolve_bundle_directory
+    bundle_path = resolve_bundle_directory(value)
     if not os.path.exists(bundle_path):
-        raise AssertionError("Bundle name does not exist. Please, invoke "
-                             "'build_artifacts' command to create a bundle.")
+        raise click.BadParameter(
+            "Bundle name does not exist. Please, invoke "
+            "'syndicate assemble' command to create a bundle.")
     return value
 
 
 def verify_meta_bundle_callback(ctx, param, value):
-    bundle_path = build_path(CONF_PATH, ARTIFACTS_FOLDER, value)
+    from syndicate.core.build.helper import resolve_bundle_directory
+    bundle_path = resolve_bundle_directory(value)
     build_meta_path = os.path.join(bundle_path, BUILD_META_FILE_NAME)
     if not os.path.exists(build_meta_path):
-        raise AssertionError(
+        raise click.BadParameter(
             "Bundle name is incorrect. {0} does not exist. Please, invoke "
             "'package_meta' command to create a file.".format(
                 BUILD_META_FILE_NAME))
     return value
+
+
+def resolve_and_verify_bundle_callback(ctx, param, value):
+    if not value:
+        _LOG.debug(f'{param.name} is not specified, latest build will be used')
+        value = resolve_default_value(ctx, param, value)
+        if not value:
+            raise click.BadParameter(
+                f'Couldn\'t resolve the parameter automatically. '
+                f'Try to specify it manually'
+            )
+    return verify_meta_bundle_callback(ctx, param, value)
 
 
 def write_content_to_file(file_path, file_name, obj):
@@ -291,7 +308,9 @@ def sync_lock(lock_type):
                 sys.exit(1)
             PROJECT_STATE.release_lock(lock_type)
             sync_project_state()
+
         return wrapper
+
     return real_wrapper
 
 
@@ -437,7 +456,7 @@ class ValidRegionParamType(click.types.StringParamType):
     name = 'region'
 
     def __init__(self, allowed_all=False):
-        self.allowed_all=allowed_all
+        self.allowed_all = allowed_all
 
     def convert(self, value, param, ctx):
         value = super().convert(value, param, ctx)
@@ -475,6 +494,7 @@ def check_prefix_suffix_length(ctx, param, value):
         if result:
             raise BadParameter(result)
         return value
+
 
 def resolve_project_path(ctx, param, value):
     from syndicate.core import CONFIG

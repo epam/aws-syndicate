@@ -13,9 +13,9 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-import re
 import getpass
 import os
+import re
 import sys
 import time
 from datetime import datetime
@@ -23,8 +23,10 @@ from pathlib import Path
 
 import yaml
 
-from syndicate.core.groups import RUNTIME_JAVA, RUNTIME_NODEJS, RUNTIME_PYTHON
+from syndicate.core.constants import BUILD_ACTION, \
+    DEPLOY_ACTION, UPDATE_ACTION, CLEAN_ACTION, PACKAGE_META_ACTION
 from syndicate.core.constants import DATE_FORMAT_ISO_8601
+from syndicate.core.groups import RUNTIME_JAVA, RUNTIME_NODEJS, RUNTIME_PYTHON
 
 CAPITAL_LETTER_REGEX = '[A-Z][^A-Z]*'
 
@@ -139,16 +141,15 @@ class ProjectState:
         self._dict[STATE_LATEST_DEPLOY] = latest_deploy
 
     @property
-    def latest_built_bundle_name(self):
-        return self._get_attribute_from_latest_operation(
-            operation_name='build',
-            attribute='bundle_name')
-
-    @property
-    def latest_built_deploy_name(self):
-        return self._get_attribute_from_latest_operation(
-            operation_name='build',
-            attribute='deploy_name')
+    def latest_bundle_name(self):
+        """Returns bundle_name from the one of the latest operations which
+        can guarantee that the bundle is ready"""
+        operations = [BUILD_ACTION, PACKAGE_META_ACTION]
+        for event in self.events:
+            if event.get('operation') in operations:
+                bundle_name = event.get('bundle_name')
+                if bundle_name:
+                    return bundle_name
 
     @property
     def latest_deployed_bundle_name(self):
@@ -168,7 +169,7 @@ class ProjectState:
     @property
     def latest_modification(self):
         events = self.events
-        modification_ops = ['deploy', 'update', 'clean']
+        modification_ops = [DEPLOY_ACTION, UPDATE_ACTION, CLEAN_ACTION]
         latest = next((event for event in events if
                        event.get('operation') in modification_ops), None)
         return latest
@@ -202,6 +203,19 @@ class ProjectState:
             else:
                 other_locks.update({lock_name: lock})
 
+    def actualize_latest_deploy(self, other_project_state: 'ProjectState'):
+        local_deploy = self.latest_deploy
+        remote_deploy = other_project_state.latest_deploy
+        if local_deploy and remote_deploy:
+            local_time_start = datetime.strptime(local_deploy['time_start'],
+                                                 DATE_FORMAT_ISO_8601)
+            remote_time_start = datetime.strptime(remote_deploy['time_start'],
+                                                  DATE_FORMAT_ISO_8601)
+            if remote_time_start > local_time_start:
+                self.latest_deploy = remote_deploy
+        elif remote_deploy:
+            self.latest_deploy = remote_deploy
+
     def add_lambda(self, lambda_name, runtime):
         lambdas = self._dict.get(STATE_LAMBDAS)
         if not lambdas:
@@ -223,13 +237,15 @@ class ProjectState:
 
     def log_execution_event(self, **kwargs):
         operation = kwargs.get('operation')
-        if operation == 'deploy' or operation == 'update':
-            self._set_latest_deploy_info(**kwargs)
-        if operation == 'clean':
+        if operation == DEPLOY_ACTION:
+            params = kwargs.copy()
+            params.pop('operation')
+            self._set_latest_deploy_info(**params)
+        if operation == CLEAN_ACTION:
             self._delete_latest_deploy_info()
 
         kwargs = {key: value for key, value in kwargs.items() if value}
-        self.events.append(kwargs)
+        self.events.insert(0, kwargs)
         self.__save_events()
 
     def _set_latest_deploy_info(self, **kwargs):
@@ -238,10 +254,23 @@ class ProjectState:
 
     def _delete_latest_deploy_info(self):
         self.latest_deploy = {}
+        from syndicate.core import CONN, CONFIG
+        bucket_name = CONFIG.deploy_target_bucket
+        s3 = CONN.s3()
+        remote_project_state = s3.load_file_body(bucket_name=bucket_name,
+                                                 key=PROJECT_STATE_FILE)
+        remote_project_state = yaml.unsafe_load(remote_project_state)
+        remote_project_state.latest_deploy = {}
+        s3.put_object(file_obj=yaml.dump(remote_project_state),
+                      key=PROJECT_STATE_FILE,
+                      bucket=bucket_name,
+                      content_type='application/x-yaml')
 
     def add_execution_events(self, events):
-        all_events = self.events
-        all_events.extend(x for x in events if x not in all_events)
+        for event in events:
+            if event not in self.events:
+                self.events.append(event)
+        self.events.sort(key=lambda e: e.get('time_end'), reverse=True)
         self.__save_events()
 
     def __modify_lock_state(self, lock_name, locked):
@@ -266,13 +295,11 @@ class ProjectState:
             return yaml.safe_load(state_file.read())
 
     def __save_events(self):
-        self.events.sort(key=lambda event: event.get('time_start'),
-                         reverse=True)
         current_time = datetime.fromtimestamp(time.time())
         index_out_days = None
         for i, event in enumerate(self.events):
             if (current_time -
-                datetime.strptime(event.get('time_start'),
+                datetime.strptime(event.get('time_end'),
                                   DATE_FORMAT_ISO_8601)).days > KEEP_EVENTS_DAYS:
                 index_out_days = i
                 break

@@ -24,7 +24,10 @@ from syndicate.core.conf.validator import \
     (PROJECT_PATH_CFG, REGION_CFG, DEPLOY_TARGET_BUCKET_CFG,
      ACCOUNT_ID_CFG, PROJECTS_MAPPING_CFG, AWS_ACCESS_KEY_ID_CFG,
      RESOURCES_PREFIX_CFG, RESOURCES_SUFFIX_CFG, AWS_SECRET_ACCESS_KEY_CFG,
-     ALL_REGIONS, ALLOWED_RUNTIME_LANGUAGES, ConfigValidator)
+     ALL_REGIONS, ALLOWED_RUNTIME_LANGUAGES, ConfigValidator,
+     USE_TEMP_CREDS_CFG, SERIAL_NUMBER_CFG,
+     TEMP_AWS_ACCESS_KEY_ID_CFG, TEMP_AWS_SECRET_ACCESS_KEY_CFG,
+     TEMP_AWS_SESSION_TOKEN_CFG, EXPIRATION_CFG, TAGS_CFG)
 from syndicate.core.constants import (DEFAULT_SEP, IAM_POLICY, IAM_ROLE,
                                       S3_BUCKET_TYPE)
 
@@ -49,7 +52,9 @@ REQUIRED_PARAMETERS = {
 
 ALL_CONFIG_PARAMETERS = [
     AWS_ACCESS_KEY_ID_CFG, AWS_SECRET_ACCESS_KEY_CFG,
-    RESOURCES_PREFIX_CFG, RESOURCES_SUFFIX_CFG
+    RESOURCES_PREFIX_CFG, RESOURCES_SUFFIX_CFG,
+    TEMP_AWS_ACCESS_KEY_ID_CFG, TEMP_AWS_SECRET_ACCESS_KEY_CFG,
+    TEMP_AWS_SESSION_TOKEN_CFG, EXPIRATION_CFG
 ]
 ALL_CONFIG_PARAMETERS.extend(REQUIRED_PARAMETERS.keys())
 
@@ -101,6 +106,7 @@ def _project_mapping(value):
 class ConfigHolder:
     def __init__(self, dir_path):
         con_path = os.path.join(dir_path, CONFIG_FILE_NAME)
+        self._config_path = con_path
         if os.path.isfile(con_path):
             self._init_yaml_config(dir_path=dir_path, con_path=con_path)
         else:
@@ -126,7 +132,6 @@ class ConfigHolder:
         if not os.path.isfile(con_path):
             raise AssertionError(
                 'sdct.conf does not exist inside %s folder' % dir_path)
-        self._config_path = con_path
         self._config_dict = ConfigObj(con_path,
                                       configspec=REQUIRED_PARAMETERS)
         self._validate_ini()
@@ -137,6 +142,21 @@ class ConfigHolder:
         else:
             self._aliases = ConfigObj(alias_path)
             self._aliases.update(self.default_aliases)
+
+    def set_temp_credentials_to_config(self, temp_aws_access_key_id,
+                                       temp_aws_secret_access_key,
+                                       temp_aws_session_token,
+                                       expiration):
+        content_to_update = {
+            TEMP_AWS_ACCESS_KEY_ID_CFG: temp_aws_access_key_id,
+            TEMP_AWS_SECRET_ACCESS_KEY_CFG: temp_aws_secret_access_key,
+            TEMP_AWS_SESSION_TOKEN_CFG: temp_aws_session_token,
+            EXPIRATION_CFG: expiration
+        }
+        update_yaml_file_content(
+            file_path=self._config_path,
+            content=content_to_update
+        )
 
     def _validate_ini(self):
         # building a validator
@@ -268,6 +288,38 @@ class ConfigHolder:
     def aliases(self):
         return self._aliases
 
+    @property
+    def use_temp_creds(self):
+        return bool(self._resolve_variable(USE_TEMP_CREDS_CFG))
+
+    @property
+    def serial_number(self):
+        return self._resolve_variable(SERIAL_NUMBER_CFG)
+
+    @property
+    def temp_aws_access_key_id(self):
+        return self._resolve_variable(TEMP_AWS_ACCESS_KEY_ID_CFG)
+
+    @property
+    def temp_aws_secret_access_key(self):
+        return self._resolve_variable(TEMP_AWS_SECRET_ACCESS_KEY_CFG)
+
+    @property
+    def temp_aws_session_token(self):
+        return self._resolve_variable(TEMP_AWS_SESSION_TOKEN_CFG)
+
+    @property
+    def expiration(self):
+        return self._resolve_variable(EXPIRATION_CFG)
+
+    @property
+    def tags(self):
+        tags = self._resolve_variable(TAGS_CFG)
+        if not tags:
+            tags = {}
+        tags = {k: str(v) for k, v in tags.items()}
+        return tags
+
     def resolve_alias(self, name):
         if self._aliases.get(name):
             return self._aliases[name]
@@ -282,3 +334,10 @@ def load_yaml_file_content(file_path):
         raise AssertionError(f'There is no file by path: {file_path}')
     with open(file_path, 'r') as yaml_file:
         return yaml.load(yaml_file, Loader=yaml.FullLoader)
+
+
+def update_yaml_file_content(file_path, content):
+    file_content = load_yaml_file_content(file_path=file_path)
+    file_content.update(content)
+    with open(file_path, 'w') as yaml_file:
+        yaml.dump(file_content, yaml_file, default_flow_style=False)
