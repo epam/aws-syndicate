@@ -1,7 +1,7 @@
 ## The structure of the syndicate.yml file
 
 ```yaml
-acces_role: role_name                                     #Optional. The role name. (Don't specify with the `use_temp_creds` value)
+acces_role: role_name                                     #Optional. The role's name. (Don't specify with the `use_temp_creds` value)
 account_id: account_id                                    #Required. The ID of the AWS account
 aws_access_key_id: deployment_access_key                  #Optional. AWS access key id that is used to deploy the application.
 aws_secret_access_key: deployment_secret_key              #Optional. AWS secret key that is used to deploy the application.
@@ -14,7 +14,8 @@ serial_number: arn/number_mfa                             #Optional. The identif
 tags:                                                     #Optional. The tag name of the resources
     key: value
 use_temp_creds: bool (true/false)                         #Optional. Indicates Syndicate to generate and use temporary AWS credentials.
-temp_aws_session_token: temp_deployment_session_token     #Required if tem_creds is specified. AWS session token that is used to deploy the application.
-temp_aws_access_key_id: temp_deployment_access_key        #Required if tem_creds is specified. AWS access key id that is used to deploy the application.
-temp_aws_secret_access_key: temp_deployment_secret_key    #Required if tem_creds is specified. AWS secret key that is used to deploy the application.
+temp_aws_session_token: temp_deployment_session_token     #Generated automatically if 'use_temp_creds' is 'true' or 'access_role' is set. AWS session token that is used to deploy the application.
+temp_aws_access_key_id: temp_deployment_access_key        #Generated automatically if 'use_temp_creds' is 'true' or 'access_role' is set. AWS access key id that is used to deploy the application.
+temp_aws_secret_access_key: temp_deployment_secret_key    #Generated automatically if 'use_temp_creds' is 'true' or 'access_role' is set. AWS secret key that is used to deploy the application.
+expiration: temp_creds_expiration_iso_date                #Generated automatically if 'use_temp_creds' is 'true' or 'access_role' is set. ISO datetime string - the moment when the temp creds will expire.
 ```
