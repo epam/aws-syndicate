@@ -26,7 +26,7 @@ from syndicate.core.helper import (check_required_param, timeit, OrderedGroup,
                                    check_bundle_bucket_name,
                                    check_prefix_suffix_length,
                                    resolve_project_path,
-                                   check_lambdas_names)
+                                   check_lambdas_names, DictParamType)
 
 GENERATE_GROUP_NAME = 'generate'
 GENERATE_PROJECT_COMMAND_NAME = 'project'
@@ -139,10 +139,13 @@ def lambda_function(name, runtime, project_path):
                    'associated with the IAM user which will be used for '
                    'deployment. If specified MFA token will be asked before '
                    'making actions')
+@click.option('--tags', type=DictParamType(),
+              help='Tags to add to the config. They will be added to all the '
+                   'resources during deployment')
 @timeit()
 def config(name, config_path, project_path, region, access_key, secret_key,
            bundle_bucket_name, prefix, suffix, use_temp_creds, access_role,
-           serial_number):
+           serial_number, tags):
     """
     Creates Syndicate configuration files
     """
@@ -157,7 +160,8 @@ def config(name, config_path, project_path, region, access_key, secret_key,
                                  suffix=suffix,
                                  use_temp_creds=use_temp_creds,
                                  access_role=access_role,
-                                 serial_number=serial_number)
+                                 serial_number=serial_number,
+                                 tags=tags)
 
 
 generate.add_command(meta)
