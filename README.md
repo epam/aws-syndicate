@@ -206,19 +206,22 @@ For more details please execute `syndicate generate project --help`
 Execute `syndicate generate config` command to create Syndicate configuration
 files. Command example:
 
-    syndicate generate config
-    --name $configuration_name
-    --region $region_name 
+```properties
+syndicate generate config
+    --acces_role        $acces_role_name
+    --access_key        $access_key
     --bundle_bucket_name $s3_bucket_name
-    --access_key $access_key 
-    --secret_key $secret_key
-    --session_token $aws_session_token
-    --project_path $relative_path_to_project
-    --prefix $prefix 
-    --suffix $suffix 
-    --config_path $path_to_store_config
-    --use_temp_creds $use_temp_creds
-    --serial_number $serial_number
+    --config_path       $path_to_store_config
+    --name              $configuration_name
+    --prefix            $prefix
+    --project_path      $relative_path_to_project
+    --region            $region_name
+    --secret_key        $secret_key
+    --serial_number     $serial_number
+    --session_token     $aws_session_token
+    --suffix            $suffix
+    --use_temp_creds    $use_temp_creds #Specify,if use mfa or access_role
+```
 
 All the provided information is validated.
 
