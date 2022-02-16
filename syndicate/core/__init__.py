@@ -57,8 +57,7 @@ PROJECT_STATE: ProjectState = None
 
 
 def _ready_to_assume():
-    return CONFIG.access_role and CONFIG.aws_access_key_id and \
-           CONFIG.aws_secret_access_key and not CONFIG.use_temp_creds
+    return CONFIG.access_role and not CONFIG.use_temp_creds
 
 
 def _ready_to_use_creds():
@@ -83,8 +82,7 @@ def _ready_to_use_provided_temp_creds():
 
 
 def _ready_to_generate_temp_creds():
-    return not CONFIG.access_role and CONFIG.use_temp_creds \
-           and CONFIG.aws_access_key_id and CONFIG.aws_secret_access_key
+    return not CONFIG.access_role and CONFIG.use_temp_creds
 
 
 def initialize_connection():
@@ -189,8 +187,6 @@ def initialize_project_state():
                                  f'{CONFIG.project_path}. Please create it.')
     else:
         PROJECT_STATE = ProjectState(project_path=CONFIG.project_path)
-    #if CONN.s3().is_bucket_exists(CONFIG.deploy_target_bucket):
-        #sync_project_state()
 
 
 def validate_temp_credentials(aws_access_key_id, aws_secret_access_key,
