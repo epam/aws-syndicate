@@ -175,11 +175,12 @@ def initialize_project_state():
     from syndicate.core.project_state.sync_processor import sync_project_state
     global PROJECT_STATE
     if not ProjectState.check_if_project_state_exists(CONFIG.project_path):
-        USER_LOG.warn("\n{yellow}Config is set and generated but project "
+        USER_LOG.warn("\033[93mConfig is set and generated but project "
                       "state does not exist, seems that you've come from the "
-                      "previous version. Generating project state file "
+                      "previous version.\033[0m")
+        USER_LOG.warn("\033[93mGenerating project state file "
                       "(.syndicate) from the existing structure..."
-                      "{white}".format(yellow='\033[93m', white='\033[0m'))
+                      "\033[0m")
         PROJECT_STATE = ProjectState.build_from_structure(CONFIG)
     else:
         PROJECT_STATE = ProjectState(project_path=CONFIG.project_path)
