@@ -102,13 +102,17 @@ def syndicate():
 
 
 @syndicate.command(name=TEST_ACTION)
-@click.option('--suite', type=click.Choice(['unittest', 'pytest', 'nose'],
-                                           case_sensitive=False),
-              default='unittest')
+@click.option('--suite', default='unittest',
+              type=click.Choice(['unittest', 'pytest', 'nose'],
+                                case_sensitive=False),
+              help='Supported testing frameworks. Possible options: unittest, '
+                   'pytest, nose. Default value: unittest')
 @click.option('--test_folder_name', nargs=1, default='tests',
               help='Directory in the project that contains tests to run. '
                    'Default folder: tests')
-@click.option('--errors_allowed', is_flag=True)
+@click.option('--errors_allowed', is_flag=True,
+              help='Flag to return successful response even if some tests '
+                   'fail')
 @timeit(action_name=TEST_ACTION)
 def test(suite, test_folder_name, errors_allowed):
     """Discovers and runs tests inside python project configuration path."""
@@ -245,7 +249,8 @@ def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
 @click.option('--update_only_resources_path', nargs=1,
               help='Path to file containing names of the resources to skip '
                    'while deploy')
-@click.option('--replace_output', nargs=1, is_flag=True, default=False)
+@click.option('--replace_output', nargs=1, is_flag=True, default=False,
+              help='The flag to replace the existing deploy output file')
 @check_deploy_name_for_duplicates
 @check_deploy_bucket_exists
 @timeit(action_name=UPDATE_ACTION)
@@ -286,9 +291,14 @@ def update(bundle_name, deploy_name, replace_output,
 @syndicate.command(name=CLEAN_ACTION)
 @sync_lock(lock_type=MODIFICATION_LOCK)
 @click.option('--deploy_name', nargs=1, callback=resolve_default_value,
-              help='Name of the deploy.')
+              help='Name of the deploy. This parameter allows the framework '
+                   'to decide,which exactly output file should be used. The '
+                   'resources are cleaned based on the output file which is '
+                   'created during the deployment process. If not specified, '
+                   'resolves the latest deploy name')
 @click.option('--bundle_name', nargs=1, callback=resolve_default_value,
-              help='Name of the bundle.')
+              help='Name of the bundle. If not specified, resolves the latest '
+                   'bundle name')
 @click.option('--clean_only_types', multiple=True,
               help='If specified only provided types will be cleaned')
 @click.option('--clean_only_resources', multiple=True,
@@ -304,7 +314,7 @@ def update(bundle_name, deploy_name, replace_output,
 @click.option('--excluded_types', multiple=True,
               help='If specified provided types will be excluded')
 @click.option('--rollback', is_flag=True,
-              help='Remove failed deploy resources')
+              help='Remove failed deployed resources')
 @timeit(action_name=CLEAN_ACTION)
 def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
           clean_only_resources_path, clean_externals, excluded_resources,
@@ -375,6 +385,11 @@ def sync():
 def status(category):
     """
     Shows the state of a local project state file (.syndicate).
+    Command displays the following content: project name, state, latest
+    modification, locks summary, latest event, project resources.
+
+    NOTE: The flags are incompatible and the status is displayed according to
+    the first entered flag.
     """
     click.echo(project_state_status(category))
 
@@ -382,20 +397,20 @@ def status(category):
 @syndicate.command(name=WARMUP_ACTION)
 @sync_lock(lock_type=WARMUP_LOCK)
 @click.option('--bundle_name', nargs=1, callback=resolve_default_value,
-              help='Name of the bundle. Should be specified with deploy_name'
-                   ' parameter.')
+              help='Name of the bundle. If not specified, resolves the latest '
+                   'bundle name')
 @click.option('--deploy_name', nargs=1, callback=resolve_default_value,
-              help='Name of the deploy.')
+              help='Name of the deploy. If not specified, resolves the latest '
+                   'deploy name')
 @click.option('--api_gw_id', nargs=1, multiple=True, type=str,
-              help='Provide API Gateway IDs to warmup.')
+              help='Provide API Gateway IDs to warmup')
 @click.option('--stage_name', nargs=1, multiple=True, type=str,
-              help='Name of stages of provided API Gateway IDs.')
+              help='Name of stages of provided API Gateway IDs')
 @click.option('--lambda_auth', default=False, is_flag=True,
               help='Should be specified if API Gateway Lambda Authorizer is '
                    'enabled')
 @click.option('--header_name', nargs=1, help='Name of authentication header.')
-@click.option('--header_value', nargs=1, help='Name of authentication header '
-                                              'value.')
+@click.option('--header_value', nargs=1, help='Authentication header value.')
 @check_deploy_bucket_exists
 @timeit(action_name=WARMUP_ACTION)
 def warmup(bundle_name, deploy_name, api_gw_id, stage_name, lambda_auth,
@@ -440,10 +455,17 @@ def warmup(bundle_name, deploy_name, api_gw_id, stage_name, lambda_auth,
 
 
 @syndicate.command(name=PROFILER_ACTION)
-@click.option('--bundle_name', nargs=1, callback=resolve_default_value)
-@click.option('--deploy_name', nargs=1, callback=resolve_default_value)
-@click.option('--from_date', nargs=1, type=str)
-@click.option('--to_date', nargs=1, type=str)
+@click.option('--bundle_name', nargs=1, callback=resolve_default_value,
+              help='The name of the bundle from which to select lambdas for '
+                   'collecting metrics. If not specified, resolves the latest '
+                   'bundle name')
+@click.option('--deploy_name', nargs=1, callback=resolve_default_value,
+              help='Name of the deploy. If not specified, resolves the latest '
+                   'deploy name')
+@click.option('--from_date', nargs=1, type=str,
+              help='Date from which collect lambda metrics')
+@click.option('--to_date', nargs=1, type=str,
+              help='Date until which collect lambda metrics')
 @check_deploy_bucket_exists
 def profiler(bundle_name, deploy_name, from_date, to_date):
     """
@@ -626,25 +648,26 @@ def create_deploy_target_bucket():
               help='Bundle name to which the build artifacts are gathered '
                    'and later used for the deployment. NOTE: if not '
                    'specified, the latest build will be uploaded')
-@click.option('--force', is_flag=True, help='Flag to override existing bundle '
-                                            'with the same name as provided')
+@click.option('--force_upload', is_flag=True,
+              help='Flag to override existing bundle with the same name as '
+                   'provided')
 @check_deploy_bucket_exists
 @timeit(action_name=UPLOAD_ACTION)
-def upload(bundle_name, force=False):
+def upload(bundle_name, force_upload=False):
     """
     Uploads bundle from local storage to AWS S3
 
     \f
     :param bundle_name: name of the bundle to upload
-    :param force: used if the bundle with the same name as provided
+    :param force_upload: used if the bundle with the same name as provided
         already exists in an account
     :return:
     """
     click.echo(f'Upload bundle: {bundle_name}')
-    if force:
+    if force_upload:
         click.echo('Force upload')
 
-    futures = upload_bundle_to_s3(bundle_name=bundle_name, force=force)
+    futures = upload_bundle_to_s3(bundle_name=bundle_name, force=force_upload)
     handle_futures_progress_bar(futures)
 
     click.echo('Bundle was uploaded successfully')
@@ -659,14 +682,18 @@ def upload(bundle_name, force=False):
               help='The account ID, to which the bundle is to be '
                    'uploaded')
 @click.option('--src_bucket_region', '-r', nargs=1, required=True,
-              help='The name of the region with the bucket')
-@click.option('--src_bucket_name', '-bucket_name', nargs=1, required=True,)
+              help='The name of the region of the bucket where target bundle '
+                   'is stored')
+@click.option('--src_bucket_name', '-bucket_name', nargs=1, required=True,
+              help='The name of the bucket where target bundle is stored')
 @click.option('--role_name', '-role', nargs=1, required=True,
               help='The role name from the specified account, which is '
                    'assumed. Here you have to check the trusted relationship '
                    'between the accounts. The active account must be a trusted'
                    ' one for the account which is specified in the command')
-@click.option('--force_upload', is_flag=True, default=False)
+@click.option('--force_upload', is_flag=True, default=False,
+              help='Used if the bundle with the same name as provided already '
+                   'exists in a target account')
 @timeit()
 @click.pass_context
 def copy_bundle(ctx, bundle_name, src_account_id, src_bucket_region,

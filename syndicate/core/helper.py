@@ -154,12 +154,6 @@ def resolve_aliases_for_string(string_value):
         return input_string
 
 
-def check_required_param(ctx, param, value):
-    if not value:
-        raise BadParameter('Parameter is required')
-    return value
-
-
 def resolve_path_callback(ctx, param, value):
     if not value:
         raise BadParameter('Parameter is required')

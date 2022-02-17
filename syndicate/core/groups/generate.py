@@ -22,7 +22,7 @@ from syndicate.core.generators.lambda_function import (
 from syndicate.core.generators.project import (generate_project_structure,
                                                PROJECT_PROCESSORS)
 from syndicate.core.groups.meta import meta
-from syndicate.core.helper import (check_required_param, timeit, OrderedGroup,
+from syndicate.core.helper import (timeit, OrderedGroup,
                                    check_bundle_bucket_name,
                                    check_prefix_suffix_length,
                                    resolve_project_path,
@@ -41,8 +41,7 @@ def generate():
 
 
 @generate.command(name=GENERATE_PROJECT_COMMAND_NAME)
-@click.option('--name', nargs=1, callback=check_required_param,
-              help='* The project name')
+@click.option('--name', nargs=1, required=True, help='The project name')
 @click.option('--path', nargs=1,
               help=PROJECT_PATH_HELP)
 @timeit()
@@ -51,11 +50,12 @@ def project(name, path):
     Generates project with all the necessary components and in a right
     folders/files hierarchy to start developing in a min.
     """
-    click.echo('Project name: {}'.format(name))
+    click.echo(f'Project name: {name}')
 
     proj_path = os.getcwd() if not path else path
     if not os.access(proj_path, os.X_OK | os.W_OK):
-        click.echo(f"Incorrect permissions for the provided path '{proj_path}'")
+        click.echo(
+            f"Incorrect permissions for the provided path '{proj_path}'")
         return
     click.echo('Project path: {}'.format(proj_path))
     generate_project_structure(project_name=name,
@@ -98,15 +98,15 @@ def lambda_function(name, runtime, project_path):
 @generate.command(name=GENERATE_CONFIG_COMMAND_NAME)
 @click.option('--name',
               required=True,
-              help='* Name of the configuration to create. '
+              help='Name of the configuration to create. '
                    'Generated config will be created in folder '
                    '.syndicate-config-{name}. May contain name '
                    'of the environment.')
 @click.option('--region',
-              help='* The region that is used to deploy the application',
+              help='The region that is used to deploy the application',
               required=True)
 @click.option('--bundle_bucket_name',
-              help='* Name of the bucket that is used for uploading artifacts.'
+              help='Name of the bucket that is used for uploading artifacts.'
                    ' It will be created if specified.', required=True,
               callback=check_bundle_bucket_name)
 @click.option('--access_key',
