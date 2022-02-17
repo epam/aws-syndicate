@@ -51,8 +51,7 @@ from syndicate.core.groups.generate import (generate,
                                             GENERATE_PROJECT_COMMAND_NAME,
                                             GENERATE_CONFIG_COMMAND_NAME)
 from syndicate.core.groups.tags import tags
-from syndicate.core.helper import (check_required_param,
-                                   create_bundle_callback,
+from syndicate.core.helper import (create_bundle_callback,
                                    handle_futures_progress_bar,
                                    resolve_path_callback, timeit,
                                    verify_bundle_callback, sync_lock,
@@ -142,7 +141,7 @@ def test(suite, test_folder_name, errors_allowed):
 @click.option('--bundle_name', nargs=1,
               callback=generate_default_bundle_name,
               help='Name of the bundle to build. '
-                   'Default value: $ProjectName_%Y-%m-%dT%H:%M:%SZ')
+                   'Default value: $ProjectName_%Y%m%d.%H%M%SZ')
 @click.option('--force_upload', is_flag=True, default=False,
               help='Flag to override existing bundle with the same name')
 @click.option('--errors_allowed', is_flag=True, default=False,
@@ -468,13 +467,22 @@ def profiler(bundle_name, deploy_name, from_date, to_date):
 
 @syndicate.command(name=ASSEMBLE_JAVA_MVN_ACTION)
 @timeit()
-@click.option('--bundle_name', nargs=1, callback=generate_default_bundle_name)
+@click.option('--bundle_name', nargs=1, callback=generate_default_bundle_name,
+              help='Name of the bundle, to which the build artifacts are '
+                   'gathered and later used for the deployment. '
+                   'Default value: $ProjectName_%Y%m%d.%H%M%S')
 @click.option('--project_path', '-path', nargs=1,
-              callback=resolve_path_callback)
+              callback=resolve_path_callback, required=True,
+              help='The path to the Java project. The provided path is the '
+                   'path for an mvn clean install. The artifacts are copied '
+                   'to a folder, which is be later used as the deployment '
+                   'bundle (the bundle path: bundles/${bundle_name})')
 @timeit(action_name=ASSEMBLE_JAVA_MVN_ACTION)
 def assemble_java_mvn(bundle_name, project_path):
     """
     Builds Java lambdas
+
+    \f
     :param bundle_name: name of the bundle
     :param project_path: path to project folder
     :return:
@@ -488,13 +496,23 @@ def assemble_java_mvn(bundle_name, project_path):
 
 @syndicate.command(name=ASSEMBLE_PYTHON_ACTION)
 @timeit()
-@click.option('--bundle_name', nargs=1, callback=generate_default_bundle_name)
+@click.option('--bundle_name', nargs=1, callback=generate_default_bundle_name,
+              help='Name of the bundle, to which the build artifacts are '
+                   'gathered and later used for the deployment. '
+                   'Default value: $ProjectName_%Y%m%d.%H%M%S')
 @click.option('--project_path', '-path', nargs=1,
-              callback=resolve_path_callback)
+              callback=resolve_path_callback, required=True,
+              help='The path to the Python project. The code is '
+                   'packed to a zip archive, where the external libraries are '
+                   'found, which are described in the requirements.txt file, '
+                   'and internal project dependencies according to the '
+                   'described in local_requirements.txt file')
 @timeit(action_name=ASSEMBLE_PYTHON_ACTION)
 def assemble_python(bundle_name, project_path):
     """
     Builds Python lambdas
+
+    \f
     :param bundle_name: name of the bundle
     :param project_path: path to project folder
     :return:
@@ -508,13 +526,21 @@ def assemble_python(bundle_name, project_path):
 
 @syndicate.command(name=ASSEMBLE_NODE_ACTION)
 @timeit()
-@click.option('--bundle_name', nargs=1, callback=generate_default_bundle_name)
+@click.option('--bundle_name', nargs=1, callback=generate_default_bundle_name,
+              help='Name of the bundle, to which the build artifacts are '
+                   'gathered and later used for the deployment. '
+                   'Default value: $ProjectName_%Y%m%d.%H%M%S')
 @click.option('--project_path', '-path', nargs=1,
-              callback=resolve_path_callback)
+              callback=resolve_path_callback, required=True,
+              help='The path to the NodeJS project. The code is '
+                   'packed to a zip archive, where the external libraries are '
+                   'found, which are described in the package.json file')
 @timeit(action_name=ASSEMBLE_NODE_ACTION)
 def assemble_node(bundle_name, project_path):
     """
     Builds NodeJS lambdas
+
+    \f
     :param bundle_name: name of the bundle
     :param project_path: path to project folder
     :return:
@@ -535,12 +561,15 @@ RUNTIME_LANG_TO_BUILD_MAPPING = {
 
 @syndicate.command(name=ASSEMBLE_ACTION)
 @click.option('--bundle_name', callback=generate_default_bundle_name,
-              help='Bundle\'s name to build the lambdas in')
+              help='Bundle\'s name to build the lambdas in. '
+                   'Default value: $ProjectName_%Y%m%d.%H%M%S')
 @click.pass_context
 @timeit(action_name=ASSEMBLE_ACTION)
 def assemble(ctx, bundle_name):
     """
     Builds the application artifacts
+
+    \f
     :param ctx:
     :param bundle_name: name of the bundle to which the artifacts
         will be associated
@@ -568,6 +597,8 @@ def assemble(ctx, bundle_name):
 def package_meta(bundle_name):
     """
     Generates metadata about the application infrastructure
+
+    \f
     :param bundle_name: name of the bundle to generate metadata
     :return:
     """
@@ -583,7 +614,6 @@ def package_meta(bundle_name):
 def create_deploy_target_bucket():
     """
     Creates a bucket in AWS account where all bundles will be uploaded
-    :return:
     """
     from syndicate.core import CONFIG
     click.echo(f'Create deploy target sdk: {CONFIG.deploy_target_bucket}')
@@ -593,9 +623,9 @@ def create_deploy_target_bucket():
 
 @syndicate.command(name=UPLOAD_ACTION)
 @click.option('--bundle_name', callback=resolve_and_verify_bundle_callback,
-              help='Bundle name to which the build artifacts are gathered and '
-                   'later used for the deployment. NOTE: if not specified, '
-                   'the latest build will be uploaded')
+              help='Bundle name to which the build artifacts are gathered '
+                   'and later used for the deployment. NOTE: if not '
+                   'specified, the latest build will be uploaded')
 @click.option('--force', is_flag=True, help='Flag to override existing bundle '
                                             'with the same name as provided')
 @check_deploy_bucket_exists
@@ -603,6 +633,8 @@ def create_deploy_target_bucket():
 def upload(bundle_name, force=False):
     """
     Uploads bundle from local storage to AWS S3
+
+    \f
     :param bundle_name: name of the bundle to upload
     :param force: used if the bundle with the same name as provided
         already exists in an account
@@ -619,15 +651,21 @@ def upload(bundle_name, force=False):
 
 
 @syndicate.command(name=COPY_BUNDLE_ACTION)
-@click.option('--bundle_name', nargs=1, callback=create_bundle_callback)
-@click.option('--src_account_id', '-acc_id', nargs=1,
-              callback=check_required_param)
-@click.option('--src_bucket_region', '-r', nargs=1,
-              callback=check_required_param)
-@click.option('--src_bucket_name', '-bucket_name', nargs=1,
-              callback=check_required_param)
-@click.option('--role_name', '-role', nargs=1,
-              callback=check_required_param)
+@click.option('--bundle_name', nargs=1, callback=create_bundle_callback,
+              required=True,
+              help='The bundle name, to which the build artifacts '
+                   'are gathered and later used for the deployment')
+@click.option('--src_account_id', '-acc_id', nargs=1, required=True,
+              help='The account ID, to which the bundle is to be '
+                   'uploaded')
+@click.option('--src_bucket_region', '-r', nargs=1, required=True,
+              help='The name of the region with the bucket')
+@click.option('--src_bucket_name', '-bucket_name', nargs=1, required=True,)
+@click.option('--role_name', '-role', nargs=1, required=True,
+              help='The role name from the specified account, which is '
+                   'assumed. Here you have to check the trusted relationship '
+                   'between the accounts. The active account must be a trusted'
+                   ' one for the account which is specified in the command')
 @click.option('--force_upload', is_flag=True, default=False)
 @timeit()
 @click.pass_context
@@ -635,7 +673,9 @@ def copy_bundle(ctx, bundle_name, src_account_id, src_bucket_region,
                 src_bucket_name, role_name, force_upload):
     """
     Copies the bundle from the specified account-region-bucket to
-        account-region-bucket specified in sdct.conf
+    account-region-bucket specified in syndicate.yml
+
+    \f
     :param ctx:
     :param bundle_name: name of the bundle to copy
     :param src_account_id: id of the account where target bundle is stored
