@@ -57,7 +57,7 @@ def project(name, path):
         click.echo(
             f"Incorrect permissions for the provided path '{proj_path}'")
         return
-    click.echo('Project path: {}'.format(proj_path))
+    click.echo(f'Project path: {proj_path}')
     generate_project_structure(project_name=name,
                                project_path=proj_path)
 
@@ -102,7 +102,7 @@ def lambda_function(name, runtime, project_path):
               help='Name of the configuration to create. '
                    'Generated config will be created in folder '
                    '.syndicate-config-{name}. May contain name '
-                   'of the environment.')
+                   'of the environment')
 @click.option('--region',
               help='The region that is used to deploy the application',
               required=True)
@@ -111,9 +111,11 @@ def lambda_function(name, runtime, project_path):
                    ' It will be created if specified.', required=True,
               callback=check_bundle_bucket_name)
 @click.option('--access_key',
-              help='AWS access key id that is used to deploy the application.')
+              help='AWS access key id that is used to deploy the application. '
+                   'Retrieved from session by default')
 @click.option('--secret_key',
-              help='AWS secret key that is used to deploy the application.')
+              help='AWS secret key that is used to deploy the application. '
+                   'Retrieved from session by default')
 @click.option('--config_path',
               help='Path to store generated configuration file')
 @click.option('--project_path',
@@ -121,12 +123,12 @@ def lambda_function(name, runtime, project_path):
 @click.option('--prefix',
               help='Prefix that is added to project names while deployment '
                    'by pattern: {prefix}resource_name{suffix}. '
-                   'Must be less than or equal to 5.',
+                   'Must be less than or equal to 5',
               callback=check_prefix_suffix_length)
 @click.option('--suffix',
               help='Suffix that is added to project names while deployment '
                    'by pattern: {prefix}resource_name{suffix}. '
-                   'Must be less than or equal to 5.',
+                   'Must be less than or equal to 5',
               callback=check_prefix_suffix_length)
 @click.option('--use_temp_creds', type=bool, default=False,
               help='Indicates Syndicate to generate and use temporary AWS '

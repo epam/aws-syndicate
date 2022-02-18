@@ -55,7 +55,7 @@ from syndicate.core.helper import (create_bundle_callback,
                                    handle_futures_progress_bar,
                                    resolve_path_callback, timeit,
                                    verify_bundle_callback, sync_lock,
-                                   resolve_default_value,
+                                   resolve_default_value, ValidRegionParamType,
                                    generate_default_bundle_name,
                                    resolve_and_verify_bundle_callback)
 from syndicate.core.project_state.project_state import (MODIFICATION_LOCK,
@@ -193,7 +193,7 @@ def build(ctx, bundle_name, force_upload, errors_allowed):
 @click.option('--continue_deploy', is_flag=True,
               help='Flag to continue failed deploy')
 @click.option('--replace_output', is_flag=True, default=False,
-              help='Replaces the existing deploy output')
+              help='Flag to replace the existing deploy output')
 @check_deploy_name_for_duplicates
 @check_deploy_bucket_exists
 @timeit(action_name=DEPLOY_ACTION)
@@ -464,9 +464,11 @@ def warmup(bundle_name, deploy_name, api_gw_id, stage_name, lambda_auth,
               help='Name of the deploy. If not specified, resolves the latest '
                    'deploy name')
 @click.option('--from_date', nargs=1, type=str,
-              help='Date from which collect lambda metrics')
+              help='Date from which collect lambda metrics. The date format: '
+                   '\'%Y-%m-%dT%H:%M:%SZ\'. Example: 2022-02-02T02:02:02Z')
 @click.option('--to_date', nargs=1, type=str,
-              help='Date until which collect lambda metrics')
+              help='Date until which collect lambda metrics. The date format: '
+                   '\'%Y-%m-%dT%H:%M:%SZ\'. Example: 2022-02-02T02:02:02Z')
 @check_deploy_bucket_exists
 def profiler(bundle_name, deploy_name, from_date, to_date):
     """
@@ -683,6 +685,7 @@ def upload(bundle_name, force_upload=False):
               help='The account ID, to which the bundle is to be '
                    'uploaded')
 @click.option('--src_bucket_region', '-r', nargs=1, required=True,
+              type=ValidRegionParamType(),
               help='The name of the region of the bucket where target bundle '
                    'is stored')
 @click.option('--src_bucket_name', '-bucket_name', nargs=1, required=True,
