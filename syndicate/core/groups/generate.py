@@ -26,7 +26,7 @@ from syndicate.core.helper import (timeit, OrderedGroup,
                                    check_bundle_bucket_name,
                                    check_prefix_suffix_length,
                                    resolve_project_path,
-                                   check_lambdas_names)
+                                   check_lambdas_names, DictParamType)
 
 GENERATE_GROUP_NAME = 'generate'
 GENERATE_PROJECT_COMMAND_NAME = 'project'
@@ -114,8 +114,6 @@ def lambda_function(name, runtime, project_path):
               help='AWS access key id that is used to deploy the application.')
 @click.option('--secret_key',
               help='AWS secret key that is used to deploy the application.')
-@click.option('--session_token',
-              help='AWS session token that is used to deploy the application.')
 @click.option('--config_path',
               help='Path to store generated configuration file')
 @click.option('--project_path',
@@ -130,17 +128,25 @@ def lambda_function(name, runtime, project_path):
                    'by pattern: {prefix}resource_name{suffix}. '
                    'Must be less than or equal to 5.',
               callback=check_prefix_suffix_length)
-@click.option('--use_temp_creds', type=bool,
+@click.option('--use_temp_creds', type=bool, default=False,
               help='Indicates Syndicate to generate and use temporary AWS '
                    'credentials')
+@click.option('--access_role', type=str,
+              help='Indicates Syndicate to use this role\'s temporary AWS '
+                   'credentials. Cannot be used if \'--use_temp_creds\' is '
+                   'equal to true')
 @click.option('--serial_number', type=str,
               help='The identification number of the MFA device that is '
                    'associated with the IAM user which will be used for '
-                   'deployment')
+                   'deployment. If specified MFA token will be asked before '
+                   'making actions')
+@click.option('--tags', type=DictParamType(),
+              help='Tags to add to the config. They will be added to all the '
+                   'resources during deployment')
 @timeit()
 def config(name, config_path, project_path, region, access_key, secret_key,
-           session_token, bundle_bucket_name, prefix, suffix, use_temp_creds,
-           serial_number):
+           bundle_bucket_name, prefix, suffix, use_temp_creds, access_role,
+           serial_number, tags):
     """
     Creates Syndicate configuration files
     """
@@ -150,12 +156,13 @@ def config(name, config_path, project_path, region, access_key, secret_key,
                                  region=region,
                                  access_key=access_key,
                                  secret_key=secret_key,
-                                 session_token=session_token,
                                  bundle_bucket_name=bundle_bucket_name,
                                  prefix=prefix,
                                  suffix=suffix,
                                  use_temp_creds=use_temp_creds,
-                                 serial_number=serial_number)
+                                 access_role=access_role,
+                                 serial_number=serial_number,
+                                 tags=tags)
 
 
 generate.add_command(meta)

@@ -78,7 +78,7 @@ class ConfigValidator:
                 REQUIRED: True,
                 VALIDATOR: self._validate_bundle_bucket_name},
             PROJECTS_MAPPING_CFG: {
-                REQUIRED: True,
+                REQUIRED: False,
                 VALIDATOR: self._validate_project_mapping},
             AWS_ACCESS_KEY_ID_CFG: {
                 REQUIRED: False,
@@ -128,21 +128,24 @@ class ConfigValidator:
 
     def validate(self):
         error_messages = {}
-        for key, value in self._config_dict.items():
-            validation_rules = self._fields_validators_mapping.get(key)
-            if not validation_rules:
-                raise AssertionError(
-                    f'There is no validator for the configuration field {key}')
+        impostors = set(self._config_dict.keys()) - set(
+            self._fields_validators_mapping.keys())
+        if impostors:
+            raise AssertionError(
+                f'There is no validator for the configuration fields: '
+                f'{impostors}')
 
+        for key, validation_rules in self._fields_validators_mapping.items():
+            value = self._config_dict.get(key)
             is_required = validation_rules.get(REQUIRED)
-            if is_required:
-                if not value:
-                    error_messages[key] = REQUIRED_PARAM_ERROR.format(key)
-                    continue
-            validator_func = validation_rules.get(VALIDATOR)
-            validation_errors = validator_func(key, value)
-            if validation_errors:
-                error_messages[key] = validation_errors
+            if is_required and not value:
+                error_messages[key] = REQUIRED_PARAM_ERROR.format(key)
+                continue
+            if value:
+                validator_func = validation_rules.get(VALIDATOR)
+                validation_errors = validator_func(key, value)
+                if validation_errors:
+                    error_messages[key] = validation_errors
         return error_messages
 
     def _validate_project_path(self, key, value):
