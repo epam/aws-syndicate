@@ -271,7 +271,7 @@ def iam_policy(ctx, **kwargs):
               help="If true, instance profile with role name is created")
 @click.option('--permissions_boundary', type=str,
               help="The name or the ARN of permissions boundary policy to "
-                   "attach to this role.")
+                   "attach to this role")
 @click.pass_context
 @timeit()
 def iam_role(ctx, **kwargs):
@@ -468,9 +468,9 @@ def sns_application(ctx, **kwargs):
               help="The attributes to be auto-verified. "
                    "Default value is email", multiple=True)
 @click.option('--sns_caller_arn', type=str,
-              help="The arn of the IAM role in your account which Cognito will "
-                   "use to send SMS messages. Required if 'phone_number' in "
-                   "'auto_verified_attributes' is specified")
+              help="The arn of the IAM role in your account which Cognito "
+                   "will use to send SMS messages. Required if 'phone_number' "
+                   "in 'auto_verified_attributes' is specified")
 @click.option('--username_attributes',
               type=click.Choice(['phone_number', 'email']),
               help="Specifies whether email addresses or phone numbers can "
@@ -544,8 +544,8 @@ def cognito_federated_pool(ctx, **kwargs):
               type=click.Choice(['EC2', 'SPOT', 'FARGATE', 'FARGATE_SPOT']),
               help="The type of compute environment. Default value is EC2")
 @click.option('--minv_cpus', type=click.IntRange(min=0),
-              help='The minimum number of Amazon EC2 vCPUs that an environment '
-                   'should maintain. Default value is 0')
+              help='The minimum number of Amazon EC2 vCPUs that an '
+                   'environment should maintain. Default value is 0')
 @click.option('--maxv_cpus', type=click.IntRange(min=1),
               help="The maximum number of Amazon EC2 vCPUs that a compute "
                    "environment can reach. Default value is 8")
@@ -553,16 +553,16 @@ def cognito_federated_pool(ctx, **kwargs):
               help="The desired number of Amazon EC2 vCPUS in the compute "
                    "environment. Default value is 1")
 @click.option('--instance_types', type=str, multiple=True,
-              help="The instances types that can be launched. Default value is "
-                   "'optimal'")
+              help="The instances types that can be launched. Default value "
+                   "is 'optimal'")
 @click.option('--security_group_ids', type=str, multiple=True, required=True,
               help="The Amazon EC2 security groups associated with instances "
-                   "launched in the compute environment.")
+                   "launched in the compute environment")
 @click.option('--subnets', type=str, multiple=True, required=True,
               help="The VPC subnets where the compute resources are launched")
 @click.option('--instance_role', type=str,
               help="The Amazon ECS instance profile applied to Amazon EC2 "
-                   "instances in a compute environment.")
+                   "instances in a compute environment")
 @click.pass_context
 @timeit()
 def batch_compenv(ctx, **kwargs):
@@ -591,7 +591,7 @@ def batch_compenv(ctx, **kwargs):
                    'Default value is \'alpine\'')
 @click.option('--job_role_arn', type=str,
               help='The ARN of the IAM role that the container can assume for '
-                   'AWS permissions.')
+                   'AWS permissions')
 @click.pass_context
 @timeit()
 def batch_jobdef(ctx, **kwargs):
@@ -734,7 +734,7 @@ def documentdb_cluster(ctx, **kwargs):
 @click.option('--availability_zone', type=str,
               help="The Amazon EC2 Availability Zone that the instance is "
                    "created in. If not specified a random zone it the "
-                   "endpoint's region is set.")
+                   "endpoint's region is set")
 @click.pass_context
 @timeit()
 def documentdb_instance(ctx, **kwargs):
@@ -755,4 +755,4 @@ def _generate(generator: BaseConfigurationGenerator):
     except RuntimeError as e:
         raise click.Abort(e)
     except Exception as e:
-        raise Exception(f"An unexpected error occured: {e}")
+        raise Exception(f"An unexpected error occurred: {e}")
