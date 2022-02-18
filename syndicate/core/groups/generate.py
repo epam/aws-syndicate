@@ -67,7 +67,8 @@ def project(name, path):
               required=True, callback=check_lambdas_names,
               help='(multiple) The lambda function name')
 @click.option('--runtime', required=True,
-              help='Lambda\'s runtime',
+              help='Lambda\'s runtime. If multiple lambda names are specified,'
+                   ' the runtime will be applied to all lambdas',
               type=click.Choice(PROJECT_PROCESSORS))
 @click.option('--project_path', nargs=1,
               help="Path to the project folder. Default value: the one "

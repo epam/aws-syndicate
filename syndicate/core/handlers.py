@@ -146,7 +146,7 @@ def test(suite, test_folder_name, errors_allowed):
               callback=generate_default_bundle_name,
               help='Name of the bundle to build. '
                    'Default value: $ProjectName_%Y%m%d.%H%M%SZ')
-@click.option('--force_upload', is_flag=True, default=False,
+@click.option('--force_upload', '-F', is_flag=True, default=False,
               help='Flag to override existing bundle with the same name')
 @click.option('--errors_allowed', is_flag=True, default=False,
               help='Flag to continue bundle building if some tests fail')
@@ -306,7 +306,8 @@ def update(bundle_name, deploy_name, replace_output,
 @click.option('--clean_only_resources_path', nargs=1, type=str,
               help='If specified only resources path will be cleaned')
 @click.option('--clean_externals', nargs=1, is_flag=True, default=False,
-              help='If specified only external resources will be cleaned')
+              help='Flag. If specified only external resources will be '
+                   'cleaned')
 @click.option('--excluded_resources', multiple=True,
               help='If specified provided resources will be excluded')
 @click.option('--excluded_resources_path', nargs=1, type=str,
@@ -320,7 +321,7 @@ def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
           clean_only_resources_path, clean_externals, excluded_resources,
           excluded_resources_path, excluded_types, rollback):
     """
-    Cleans the application infrastructure.
+    Cleans the application infrastructure
     """
     click.echo('Command clean')
     click.echo(f'Deploy name: {deploy_name}')
@@ -407,8 +408,8 @@ def status(category):
 @click.option('--stage_name', nargs=1, multiple=True, type=str,
               help='Name of stages of provided API Gateway IDs')
 @click.option('--lambda_auth', default=False, is_flag=True,
-              help='Should be specified if API Gateway Lambda Authorizer is '
-                   'enabled')
+              help='Flag. Should be specified if API Gateway Lambda Authorizer'
+                   ' is enabled')
 @click.option('--header_name', nargs=1, help='Name of authentication header.')
 @click.option('--header_value', nargs=1, help='Authentication header value.')
 @check_deploy_bucket_exists
@@ -416,7 +417,7 @@ def status(category):
 def warmup(bundle_name, deploy_name, api_gw_id, stage_name, lambda_auth,
            header_name, header_value):
     """
-    Warmups Lambda functions.
+    Warmups Lambda functions
     """
 
     if bundle_name and deploy_name:
@@ -648,7 +649,7 @@ def create_deploy_target_bucket():
               help='Bundle name to which the build artifacts are gathered '
                    'and later used for the deployment. NOTE: if not '
                    'specified, the latest build will be uploaded')
-@click.option('--force_upload', is_flag=True,
+@click.option('--force_upload', '-F', is_flag=True,
               help='Flag to override existing bundle with the same name as '
                    'provided')
 @check_deploy_bucket_exists
@@ -691,9 +692,9 @@ def upload(bundle_name, force_upload=False):
                    'assumed. Here you have to check the trusted relationship '
                    'between the accounts. The active account must be a trusted'
                    ' one for the account which is specified in the command')
-@click.option('--force_upload', is_flag=True, default=False,
-              help='Used if the bundle with the same name as provided already '
-                   'exists in a target account')
+@click.option('--force_upload', '-F', is_flag=True, default=False,
+              help='Flag. Used if the bundle with the same name as provided '
+                   'already exists in a target account')
 @timeit()
 @click.pass_context
 def copy_bundle(ctx, bundle_name, src_account_id, src_bucket_region,
