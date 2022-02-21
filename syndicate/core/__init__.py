@@ -165,10 +165,11 @@ def initialize_connection():
         PROCESSOR_FACADE = ProcessorFacade(
             resources_provider=RESOURCES_PROVIDER)
         _LOG.debug('aws-syndicate has been initialized')
-    except ClientError:
-        raise AssertionError('Cannot assume {0} role. '
-                             'Please verify that you have configured '
-                             'the role correctly.'.format(CONFIG.access_role))
+    except ClientError as e:
+        message = f'An unexpected error has occurred trying to ' \
+                  f'init connection: {e}'
+        _LOG.error(message)
+        raise AssertionError(message)
 
 
 def initialize_project_state():
