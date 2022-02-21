@@ -106,6 +106,15 @@ class S3Resource(BaseResource):
         cors_configuration = meta.get('cors')
         if cors_configuration:
             self.s3_conn.put_cors(bucket_name=name, rules=cors_configuration)
+        public_access_block = meta.get('public_access_block', {})
+        if not all([isinstance(param, bool) for param in
+                    public_access_block.values()]):
+            message = f'Parameters inside public_access_block should have ' \
+                      f'bool type'
+            _LOG.error(message)
+            raise AssertionError(message)
+        self.s3_conn.put_public_access_block(name,
+                                             **public_access_block)
         return self.describe_bucket(name, meta)
 
     def _delete_objects(self, bucket_name, keys):
