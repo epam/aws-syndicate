@@ -165,7 +165,7 @@ def build(ctx, bundle_name, force_upload, errors_allowed):
     ctx.invoke(test, errors_allowed=errors_allowed)
     ctx.invoke(assemble, bundle_name=bundle_name)
     ctx.invoke(package_meta, bundle_name=bundle_name)
-    ctx.invoke(upload, bundle_name=bundle_name, force=force_upload)
+    ctx.invoke(upload, bundle_name=bundle_name, force_upload=force_upload)
 
 
 @syndicate.command(name=DEPLOY_ACTION)
