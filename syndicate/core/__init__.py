@@ -14,6 +14,7 @@
     limitations under the License.
 """
 import os
+import re
 from datetime import datetime, timedelta, timezone
 
 from botocore.exceptions import ClientError
@@ -165,10 +166,11 @@ def initialize_connection():
         PROCESSOR_FACADE = ProcessorFacade(
             resources_provider=RESOURCES_PROVIDER)
         _LOG.debug('aws-syndicate has been initialized')
-    except ClientError:
-        raise AssertionError('Cannot assume {0} role. '
-                             'Please verify that you have configured '
-                             'the role correctly.'.format(CONFIG.access_role))
+    except ClientError as e:
+        message = f'An unexpected error has occurred trying to ' \
+                  f'init connection: {e}'
+        _LOG.error(message)
+        raise AssertionError(message)
 
 
 def initialize_project_state():
@@ -204,10 +206,8 @@ def prompt_mfa_code():
     mfa_code = input('Please enter your MFA code to generate '
                      'temp credentials: ')
     while 1:
-        try:
-            mfa_code = int(mfa_code)
+        if len(mfa_code) == 6 and re.match('[0-9]{6}', mfa_code):
             break
-        except (ValueError, TypeError):
-            mfa_code = input(f'Token code must be a valid integer. '
-                             f'Please try again: ')
-    return str(mfa_code)
+        mfa_code = input(f'Token code must consist of 6 numbers. '
+                         f'Try again: ')
+    return mfa_code
