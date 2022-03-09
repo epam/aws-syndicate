@@ -18,19 +18,18 @@ import glob
 import json
 import os
 import shutil
-import threading
-from concurrent.futures import ALL_COMPLETED
+import subprocess
+import sys
+from concurrent.futures import FIRST_EXCEPTION
 from concurrent.futures.thread import ThreadPoolExecutor
-from distutils import dir_util
+from pathlib import Path
 
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.build.helper import build_py_package_name, zip_dir
 from syndicate.core.conf.processor import path_resolver
-from syndicate.core.constants import (LAMBDA_CONFIG_FILE_NAME,
-                                      REQ_FILE_NAME, LOCAL_REQ_FILE_NAME,
-                                      DEFAULT_SEP)
-from syndicate.core.helper import (build_path, unpack_kwargs, execute_command,
-                                   prettify_json)
+from syndicate.core.constants import (LAMBDA_CONFIG_FILE_NAME, DEFAULT_SEP,
+                                      REQ_FILE_NAME, LOCAL_REQ_FILE_NAME)
+from syndicate.core.helper import (build_path, unpack_kwargs)
 from syndicate.core.resources.helper import validate_params
 
 _LOG = get_logger('python_runtime_assembler')
@@ -47,95 +46,94 @@ def assemble_python_lambdas(project_path, bundles_dir):
         project_abs_path = CONFIG.project_path
     _LOG.info('Going to process python project by path: {0}'.format(
         project_abs_path))
-    executor = ThreadPoolExecutor(max_workers=5)
-    futures = []
-    for root, sub_dirs, files in os.walk(project_abs_path):
-        for item in files:
-            if item.endswith(LAMBDA_CONFIG_FILE_NAME):
-                _LOG.info('Going to build artifact in: {0}'.format(root))
-                arg = {
-                    'item': item,
-                    'project_base_folder': project_base_folder,
-                    'project_path': project_path,
-                    'root': root,
-                    'target_folder': bundles_dir
-                }
-                futures.append(executor.submit(_build_python_artifact, arg))
-    concurrent.futures.wait(futures, return_when=ALL_COMPLETED)
-    executor.shutdown()
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        futures = []
+        for root, sub_dirs, files in os.walk(project_abs_path):
+            for item in files:
+                if item.endswith(LAMBDA_CONFIG_FILE_NAME):
+                    _LOG.info('Going to build artifact in: {0}'.format(root))
+                    arg = {
+                        'root': str(Path(root)),
+                        'config_file': str(Path(root, item)),
+                        'target_folder': bundles_dir,
+                        'project_path': project_path,
+                    }
+                    futures.append(executor.submit(_build_python_artifact, arg))
+        result = concurrent.futures.wait(futures, return_when=FIRST_EXCEPTION)
+    for future in result.done:
+        exception = future.exception()
+        if exception:
+            print(f'\033[91m' + str(exception), file=sys.stderr)
+            print('Likely, the solution is to assemble a bundle again',
+                  file=sys.stderr)
+            sys.exit(1)
     _LOG.info('Python project was processed successfully')
 
 
 @unpack_kwargs
-def _build_python_artifact(item, project_base_folder, project_path, root,
-                           target_folder):
-    from syndicate.core import CONFIG
-    _LOG.debug('Building artifact in {0}'.format(target_folder))
-    lambda_config_dict = json.load(open(build_path(root, item)))
-    req_params = ['lambda_path', 'name', 'version']
-    validate_params(root, lambda_config_dict, req_params)
-    lambda_path = path_resolver(lambda_config_dict['lambda_path'])
-    lambda_name = lambda_config_dict['name']
-    lambda_version = lambda_config_dict['version']
-    artifact_name = lambda_name + '-' + lambda_version
-    # create folder to store artifacts
-    artifact_path = build_path(target_folder, artifact_name)
-    _LOG.debug('Artifacts path: {0}'.format(artifact_path))
-    if not os.path.isdir(artifact_path):
-        os.makedirs(artifact_path)
-    _LOG.debug('Folders are created')
-    # install requirements.txt content
-    # getting file content
-    req_path = build_path(root, REQ_FILE_NAME)
-    if os.path.exists(req_path):
-        _LOG.debug('Going to install 3-rd party dependencies')
-        with open(req_path) as f:
-            req_list = f.readlines()
-        req_list = [path_resolver(r.strip()) for r in req_list]
-        _LOG.debug(str(req_list))
-        # install dependencies
-        for lib in req_list:
-            command = 'pip install {0} -t {1}'.format(lib, artifact_path)
-            execute_command(command=command)
-        _LOG.debug('3-rd party dependencies were installed successfully')
+def _build_python_artifact(root, config_file, target_folder, project_path):
+    _LOG.info(f'Building artifact in {target_folder}')
+    with open(config_file, 'r') as file:
+        lambda_config = json.load(file)
+    validate_params(root, lambda_config, ['lambda_path', 'name', 'version'])
+    artifact_name = f'{lambda_config["name"]}-{lambda_config["version"]}'
+    artifact_path = Path(target_folder, artifact_name)
+    _LOG.info(f'Artifacts path: {artifact_path}')
+    os.makedirs(artifact_path, exist_ok=True)
 
-    # install local requirements
-    local_req_path = build_path(root, LOCAL_REQ_FILE_NAME)
-    if os.path.exists(local_req_path):
-        _LOG.debug('Going to install local dependencies')
-        _install_local_req(artifact_path, local_req_path, project_base_folder,
-                           project_path)
-        _LOG.debug('Local dependencies were installed successfully')
-    src_path = build_path(CONFIG.project_path, project_path, lambda_path)
-    _copy_py_files(src_path, artifact_path)
-    package_name = build_py_package_name(lambda_name, lambda_version)
-    zip_dir(artifact_path, build_path(target_folder, package_name))
-    # remove unused folder
-    lock = threading.RLock()
-    lock.acquire()
-    try:
-        shutil.rmtree(artifact_path)
-    finally:
-        lock.release()
-    _LOG.info('Package {0} was created successfully'.format(package_name))
+    requirements_path = Path(root, REQ_FILE_NAME)
+    if os.path.exists(requirements_path):
+        _LOG.info('Going to install 3-rd party dependencies')
+        try:
+            subprocess.run(f"{sys.executable} -m pip install -r "
+                           f"{requirements_path} -t "
+                           f"{artifact_path}".split(),
+                           stderr=subprocess.PIPE, check=True)
+        except subprocess.CalledProcessError as e:
+            message = f'An error: \n"{e.stderr.decode()}"\noccured while ' \
+                      f'installing requirements: "{str(requirements_path)}" ' \
+                      f'for package "{artifact_path}"'
+            _LOG.error(message)
+            raise RuntimeError(message)
+        _LOG.info('3-rd party dependencies were installed successfully')
+
+    local_requirements_path = Path(root, LOCAL_REQ_FILE_NAME)
+    if os.path.exists(local_requirements_path):
+        _LOG.info('Going to install local dependencies')
+        _install_local_req(artifact_path, local_requirements_path, project_path)
+        _LOG.info('Local dependencies were installed successfully')
+
+    _LOG.info(f'Copying lambda\'s handler from {root} to {artifact_path}')
+    _copy_py_files(root, artifact_path)
+    package_name = build_py_package_name(lambda_config["name"],
+                                         lambda_config["version"])
+    _LOG.info(f'Packaging artifacts by {artifact_path} to {package_name}')
+    zip_dir(str(artifact_path), str(Path(target_folder, package_name)))
+    _LOG.info(f'Package \'{package_name}\' was successfully created')
+
+    removed = False
+    while not removed:
+        _LOG.info(f'Trying to remove "{artifact_path}"')
+        try:
+            shutil.rmtree(artifact_path)
+            removed = True
+        except Exception as e:
+            _LOG.warn(f'An error "{e}" occured while '
+                      f'removing artifacts "{artifact_path}"')
+    _LOG.info(f'"{artifact_path}" was removed successfully')
 
 
-def _install_local_req(artifact_path, local_req_path, project_base_folder,
-                       project_path):
+def _install_local_req(artifact_path, local_req_path, project_path):
     from syndicate.core import CONFIG
     with open(local_req_path) as f:
         local_req_list = f.readlines()
     local_req_list = [path_resolver(r.strip()) for r in local_req_list]
-    _LOG.info('Local dependencies: {0}'.format(prettify_json(local_req_list)))
+    _LOG.info(f'Installing local dependencies: {local_req_list}')
     # copy folders
     for lrp in local_req_list:
-        _LOG.info('Processing dependency: {0}'.format(lrp))
-        folder_path = build_path(artifact_path, lrp)
-        if not os.path.exists(folder_path):
-            os.makedirs(folder_path)
-
-        dir_util.copy_tree(build_path(CONFIG.project_path, project_path, lrp),
-                           folder_path)
+        _LOG.info(f'Processing local dependency: {lrp}')
+        shutil.copytree(Path(CONFIG.project_path, project_path, lrp),
+                        Path(artifact_path, lrp), dirs_exist_ok=True)
         _LOG.debug('Dependency was copied successfully')
 
         folders = [r for r in lrp.split(DEFAULT_SEP) if r]
@@ -145,11 +143,9 @@ def _install_local_req(artifact_path, local_req_path, project_base_folder,
         temp_path = ''
         while i < len(folders):
             temp_path += DEFAULT_SEP + folders[i]
-            src_path = build_path(CONFIG.project_path, project_path,
-                                  temp_path)
-            dst_path = build_path(artifact_path,
-                                  temp_path)
-            _copy_py_files(src_path, dst_path)
+            src_path = Path(CONFIG.project_path, project_path,temp_path)
+            dst_path = Path(artifact_path, temp_path)
+            _copy_py_files(str(src_path), str(dst_path))
             i += 1
         _LOG.debug('Python files from packages were copied successfully')
 
