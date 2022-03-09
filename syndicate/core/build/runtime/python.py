@@ -20,6 +20,7 @@ import os
 import shutil
 import subprocess
 import sys
+from typing import Union
 from concurrent.futures import FIRST_EXCEPTION
 from concurrent.futures.thread import ThreadPoolExecutor
 from pathlib import Path
@@ -73,14 +74,16 @@ def assemble_python_lambdas(project_path, bundles_dir):
 @unpack_kwargs
 def _build_python_artifact(root, config_file, target_folder, project_path):
     _LOG.info(f'Building artifact in {target_folder}')
+
+    # create folder to store artifacts
     with open(config_file, 'r') as file:
         lambda_config = json.load(file)
     validate_params(root, lambda_config, ['lambda_path', 'name', 'version'])
     artifact_name = f'{lambda_config["name"]}-{lambda_config["version"]}'
-    # create folder to store artifacts
     artifact_path = Path(target_folder, artifact_name)
     _LOG.info(f'Artifacts path: {artifact_path}')
     os.makedirs(artifact_path, exist_ok=True)
+
     # install requirements.txt content
     requirements_path = Path(root, REQ_FILE_NAME)
     if os.path.exists(requirements_path):
@@ -97,20 +100,37 @@ def _build_python_artifact(root, config_file, target_folder, project_path):
             _LOG.error(message)
             raise RuntimeError(message)
         _LOG.info('3-rd party dependencies were installed successfully')
+
     # install local requirements
     local_requirements_path = Path(root, LOCAL_REQ_FILE_NAME)
     if os.path.exists(local_requirements_path):
         _LOG.info('Going to install local dependencies')
-        _install_local_req(artifact_path, local_requirements_path, project_path)
+        _install_local_req(artifact_path, local_requirements_path,
+                           project_path)
         _LOG.info('Local dependencies were installed successfully')
 
+    # copy lambda's specific packages
+    packages_dir = artifact_path / 'lambdas' / Path(root).name
+    os.makedirs(packages_dir, exist_ok=True)
+    for package in filter(
+            is_python_package,
+            [Path(root, item) for item in os.listdir(root)]):
+        _LOG.info(f'Copying package {package} to lambda\'s artifacts packages '
+                  f'dir: {packages_dir}')
+        shutil.copytree(package, packages_dir / package.name, dirs_exist_ok=True)
+        _LOG.info('Copied successfully')
+
+    # copy lambda's handler to artifacts folder
     _LOG.info(f'Copying lambda\'s handler from {root} to {artifact_path}')
     _copy_py_files(root, artifact_path)
+
+    # making zip archive
     package_name = build_py_package_name(lambda_config["name"],
                                          lambda_config["version"])
     _LOG.info(f'Packaging artifacts by {artifact_path} to {package_name}')
     zip_dir(str(artifact_path), str(Path(target_folder, package_name)))
     _LOG.info(f'Package \'{package_name}\' was successfully created')
+
     # remove unused folder
     removed = False
     while not removed:
@@ -156,3 +176,9 @@ def _copy_py_files(search_path, destination_path):
     for py_file in files:
         if os.path.isfile(py_file):
             shutil.copy2(py_file, destination_path)
+
+
+def is_python_package(path: Union[Path, str]) -> bool:
+    """A file is considered to be a package if it's a directory containing
+    __init__.py"""
+    return os.path.isdir(path) and os.path.exists(Path(path, '__init__.py'))
