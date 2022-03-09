@@ -46,7 +46,7 @@ def assemble_python_lambdas(project_path, bundles_dir):
         project_abs_path = CONFIG.project_path
     _LOG.info('Going to process python project by path: {0}'.format(
         project_abs_path))
-    with ThreadPoolExecutor(max_workers=2) as executor:
+    with ThreadPoolExecutor(max_workers=5) as executor:
         futures = []
         for root, sub_dirs, files in os.walk(project_abs_path):
             for item in files:
@@ -77,10 +77,11 @@ def _build_python_artifact(root, config_file, target_folder, project_path):
         lambda_config = json.load(file)
     validate_params(root, lambda_config, ['lambda_path', 'name', 'version'])
     artifact_name = f'{lambda_config["name"]}-{lambda_config["version"]}'
+    # create folder to store artifacts
     artifact_path = Path(target_folder, artifact_name)
     _LOG.info(f'Artifacts path: {artifact_path}')
     os.makedirs(artifact_path, exist_ok=True)
-
+    # install requirements.txt content
     requirements_path = Path(root, REQ_FILE_NAME)
     if os.path.exists(requirements_path):
         _LOG.info('Going to install 3-rd party dependencies')
@@ -96,7 +97,7 @@ def _build_python_artifact(root, config_file, target_folder, project_path):
             _LOG.error(message)
             raise RuntimeError(message)
         _LOG.info('3-rd party dependencies were installed successfully')
-
+    # install local requirements
     local_requirements_path = Path(root, LOCAL_REQ_FILE_NAME)
     if os.path.exists(local_requirements_path):
         _LOG.info('Going to install local dependencies')
@@ -110,7 +111,7 @@ def _build_python_artifact(root, config_file, target_folder, project_path):
     _LOG.info(f'Packaging artifacts by {artifact_path} to {package_name}')
     zip_dir(str(artifact_path), str(Path(target_folder, package_name)))
     _LOG.info(f'Package \'{package_name}\' was successfully created')
-
+    # remove unused folder
     removed = False
     while not removed:
         _LOG.info(f'Trying to remove "{artifact_path}"')
