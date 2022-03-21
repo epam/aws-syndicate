@@ -179,6 +179,7 @@ def create_bundles_bucket():
         CONN.s3().create_bucket(
             bucket_name=CONFIG.deploy_target_bucket,
             location=CONFIG.region)
+        CONN.s3().put_public_access_block(CONFIG.deploy_target_bucket)
         _LOG.info('{0} bucket created successfully'.format(
             CONFIG.deploy_target_bucket))
 

@@ -51,12 +51,11 @@ from syndicate.core.groups.generate import (generate,
                                             GENERATE_PROJECT_COMMAND_NAME,
                                             GENERATE_CONFIG_COMMAND_NAME)
 from syndicate.core.groups.tags import tags
-from syndicate.core.helper import (check_required_param,
-                                   create_bundle_callback,
+from syndicate.core.helper import (create_bundle_callback,
                                    handle_futures_progress_bar,
                                    resolve_path_callback, timeit,
                                    verify_bundle_callback, sync_lock,
-                                   resolve_default_value,
+                                   resolve_default_value, ValidRegionParamType,
                                    generate_default_bundle_name,
                                    resolve_and_verify_bundle_callback)
 from syndicate.core.project_state.project_state import (MODIFICATION_LOCK,
@@ -103,13 +102,17 @@ def syndicate():
 
 
 @syndicate.command(name=TEST_ACTION)
-@click.option('--suite', type=click.Choice(['unittest', 'pytest', 'nose'],
-                                           case_sensitive=False),
-              default='unittest')
+@click.option('--suite', default='unittest',
+              type=click.Choice(['unittest', 'pytest', 'nose'],
+                                case_sensitive=False),
+              help='Supported testing frameworks. Possible options: unittest, '
+                   'pytest, nose. Default value: unittest')
 @click.option('--test_folder_name', nargs=1, default='tests',
               help='Directory in the project that contains tests to run. '
                    'Default folder: tests')
-@click.option('--errors_allowed', is_flag=True)
+@click.option('--errors_allowed', is_flag=True,
+              help='Flag to return successful response even if some tests '
+                   'fail')
 @timeit(action_name=TEST_ACTION)
 def test(suite, test_folder_name, errors_allowed):
     """Discovers and runs tests inside python project configuration path."""
@@ -139,11 +142,11 @@ def test(suite, test_folder_name, errors_allowed):
 
 
 @syndicate.command(name=BUILD_ACTION)
-@click.option('--bundle_name', nargs=1,
+@click.option('--bundle_name', '-b', nargs=1,
               callback=generate_default_bundle_name,
               help='Name of the bundle to build. '
-                   'Default value: $ProjectName_%Y-%m-%dT%H:%M:%SZ')
-@click.option('--force_upload', is_flag=True, default=False,
+                   'Default value: $ProjectName_%Y%m%d.%H%M%SZ')
+@click.option('--force_upload', '-F', is_flag=True, default=False,
               help='Flag to override existing bundle with the same name')
 @click.option('--errors_allowed', is_flag=True, default=False,
               help='Flag to continue bundle building if some tests fail')
@@ -162,35 +165,33 @@ def build(ctx, bundle_name, force_upload, errors_allowed):
     ctx.invoke(test, errors_allowed=errors_allowed)
     ctx.invoke(assemble, bundle_name=bundle_name)
     ctx.invoke(package_meta, bundle_name=bundle_name)
-    ctx.invoke(upload, bundle_name=bundle_name, force=force_upload)
+    ctx.invoke(upload, bundle_name=bundle_name, force_upload=force_upload)
 
 
 @syndicate.command(name=DEPLOY_ACTION)
 @sync_lock(lock_type=MODIFICATION_LOCK)
-@click.option('--deploy_name',
-              callback=resolve_default_value,
+@click.option('--deploy_name', '-d', callback=resolve_default_value,
               help='Name of the deploy. Default value: name of the project')
-@click.option('--bundle_name',
-              callback=resolve_default_value,
+@click.option('--bundle_name', '-b', callback=resolve_default_value,
               help='Name of the bundle to deploy. '
                    'Default value: name of the latest built bundle')
-@click.option('--deploy_only_types', multiple=True,
+@click.option('--deploy_only_types', '-types', multiple=True,
               help='Types of the resources to deploy')
-@click.option('--deploy_only_resources', multiple=True,
+@click.option('--deploy_only_resources', '-resources', multiple=True,
               help='Names of the resources to deploy')
-@click.option('--deploy_only_resources_path', nargs=1,
+@click.option('--deploy_only_resources_path', '-path', nargs=1,
               help='Path to file containing names of the resources to deploy')
-@click.option('--excluded_resources', multiple=True,
+@click.option('--excluded_resources', '-exresources', multiple=True,
               help='Names of the resources to skip while deploy.')
-@click.option('--excluded_resources_path', nargs=1,
+@click.option('--excluded_resources_path', '-expath', nargs=1,
               help='Path to file containing names of the resources to skip '
                    'while deploy')
-@click.option('--excluded_types', multiple=True,
+@click.option('--excluded_types', '-extypes', multiple=True,
               help='Types of the resources to skip while deploy')
 @click.option('--continue_deploy', is_flag=True,
               help='Flag to continue failed deploy')
 @click.option('--replace_output', is_flag=True, default=False,
-              help='Replaces the existing deploy output')
+              help='Flag to replace the existing deploy output')
 @check_deploy_name_for_duplicates
 @check_deploy_bucket_exists
 @timeit(action_name=DEPLOY_ACTION)
@@ -232,21 +233,20 @@ def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
 
 @syndicate.command(name=UPDATE_ACTION)
 @sync_lock(lock_type=MODIFICATION_LOCK)
-@click.option('--bundle_name',
-              callback=resolve_default_value,
+@click.option('--bundle_name', '-b', callback=resolve_default_value,
               help='Name of the bundle to deploy. '
                    'Default value: name of the latest built bundle')
-@click.option('--deploy_name',
-              callback=resolve_default_value,
+@click.option('--deploy_name', '-d', callback=resolve_default_value,
               help='Name of the deploy. Default value: name of the project')
-@click.option('--update_only_types', multiple=True,
+@click.option('--update_only_types', '-types', multiple=True,
               help='Types of the resources to update')
-@click.option('--update_only_resources', multiple=True,
+@click.option('--update_only_resources', '-resources', multiple=True,
               help='Names of the resources to deploy')
-@click.option('--update_only_resources_path', nargs=1,
+@click.option('--update_only_resources_path', '-path', nargs=1,
               help='Path to file containing names of the resources to skip '
                    'while deploy')
-@click.option('--replace_output', nargs=1, is_flag=True, default=False)
+@click.option('--replace_output', nargs=1, is_flag=True, default=False,
+              help='The flag to replace the existing deploy output file')
 @check_deploy_name_for_duplicates
 @check_deploy_bucket_exists
 @timeit(action_name=UPDATE_ACTION)
@@ -286,33 +286,39 @@ def update(bundle_name, deploy_name, replace_output,
 
 @syndicate.command(name=CLEAN_ACTION)
 @sync_lock(lock_type=MODIFICATION_LOCK)
-@click.option('--deploy_name', nargs=1, callback=resolve_default_value,
-              help='Name of the deploy.')
-@click.option('--bundle_name', nargs=1, callback=resolve_default_value,
-              help='Name of the bundle.')
-@click.option('--clean_only_types', multiple=True,
+@click.option('--deploy_name', '-d', nargs=1, callback=resolve_default_value,
+              help='Name of the deploy. This parameter allows the framework '
+                   'to decide,which exactly output file should be used. The '
+                   'resources are cleaned based on the output file which is '
+                   'created during the deployment process. If not specified, '
+                   'resolves the latest deploy name')
+@click.option('--bundle_name', '-b', nargs=1, callback=resolve_default_value,
+              help='Name of the bundle. If not specified, resolves the latest '
+                   'bundle name')
+@click.option('--clean_only_types', '-types', multiple=True,
               help='If specified only provided types will be cleaned')
-@click.option('--clean_only_resources', multiple=True,
+@click.option('--clean_only_resources', '-resources', multiple=True,
               help='If specified only provided resources will be cleaned')
-@click.option('--clean_only_resources_path', nargs=1, type=str,
+@click.option('--clean_only_resources_path', '-path', nargs=1, type=str,
               help='If specified only resources path will be cleaned')
 @click.option('--clean_externals', nargs=1, is_flag=True, default=False,
-              help='If specified only external resources will be cleaned')
-@click.option('--excluded_resources', multiple=True,
+              help='Flag. If specified only external resources will be '
+                   'cleaned')
+@click.option('--excluded_resources', '-exresources', multiple=True,
               help='If specified provided resources will be excluded')
-@click.option('--excluded_resources_path', nargs=1, type=str,
+@click.option('--excluded_resources_path', '-expath', nargs=1, type=str,
               help='If specified provided resource path will be excluded')
-@click.option('--excluded_types', multiple=True,
+@click.option('--excluded_types', '-extypes', multiple=True,
               help='If specified provided types will be excluded')
 @click.option('--rollback', is_flag=True,
-              help='Remove failed deploy resources')
-@check_deploy_bucket_exists
+              help='Remove failed deployed resources')
+
 @timeit(action_name=CLEAN_ACTION)
 def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
           clean_only_resources_path, clean_externals, excluded_resources,
           excluded_resources_path, excluded_types, rollback):
     """
-    Cleans the application infrastructure.
+    Cleans the application infrastructure
     """
     click.echo('Command clean')
     click.echo(f'Deploy name: {deploy_name}')
@@ -377,33 +383,40 @@ def sync():
 def status(category):
     """
     Shows the state of a local project state file (.syndicate).
+    Command displays the following content: project name, state, latest
+    modification, locks summary, latest event, project resources.
+
+    NOTE: The flags are incompatible and the status is displayed according to
+    the first entered flag.
     """
     click.echo(project_state_status(category))
 
 
 @syndicate.command(name=WARMUP_ACTION)
 @sync_lock(lock_type=WARMUP_LOCK)
-@click.option('--bundle_name', nargs=1, callback=resolve_default_value,
-              help='Name of the bundle. Should be specified with deploy_name'
-                   ' parameter.')
-@click.option('--deploy_name', nargs=1, callback=resolve_default_value,
-              help='Name of the deploy.')
-@click.option('--api_gw_id', nargs=1, multiple=True, type=str,
-              help='Provide API Gateway IDs to warmup.')
-@click.option('--stage_name', nargs=1, multiple=True, type=str,
-              help='Name of stages of provided API Gateway IDs.')
-@click.option('--lambda_auth', default=False, is_flag=True,
-              help='Should be specified if API Gateway Lambda Authorizer is '
-                   'enabled')
-@click.option('--header_name', nargs=1, help='Name of authentication header.')
-@click.option('--header_value', nargs=1, help='Name of authentication header '
-                                              'value.')
+@click.option('--bundle_name', '-b', nargs=1, callback=resolve_default_value,
+              help='Name of the bundle. If not specified, resolves the latest '
+                   'bundle name')
+@click.option('--deploy_name', '-d', nargs=1, callback=resolve_default_value,
+              help='Name of the deploy. If not specified, resolves the latest '
+                   'deploy name')
+@click.option('--api_gw_id', '-api', nargs=1, multiple=True, type=str,
+              help='Provide API Gateway IDs to warmup')
+@click.option('--stage_name', '-stage', nargs=1, multiple=True, type=str,
+              help='Name of stages of provided API Gateway IDs')
+@click.option('--lambda_auth', '-auth', default=False, is_flag=True,
+              help='Flag. Should be specified if API Gateway Lambda Authorizer'
+                   ' is enabled')
+@click.option('--header_name', '-hname', nargs=1,
+              help='Name of authentication header.')
+@click.option('--header_value', '-hvalue',
+              nargs=1, help='Authentication header value.')
 @check_deploy_bucket_exists
 @timeit(action_name=WARMUP_ACTION)
 def warmup(bundle_name, deploy_name, api_gw_id, stage_name, lambda_auth,
            header_name, header_value):
     """
-    Warmups Lambda functions.
+    Warmups Lambda functions
     """
 
     if bundle_name and deploy_name:
@@ -442,10 +455,23 @@ def warmup(bundle_name, deploy_name, api_gw_id, stage_name, lambda_auth,
 
 
 @syndicate.command(name=PROFILER_ACTION)
-@click.option('--bundle_name', nargs=1, callback=resolve_default_value)
-@click.option('--deploy_name', nargs=1, callback=resolve_default_value)
-@click.option('--from_date', nargs=1, type=str)
-@click.option('--to_date', nargs=1, type=str)
+@click.option('--bundle_name', '-b', nargs=1, callback=resolve_default_value,
+              help='The name of the bundle from which to select lambdas for '
+                   'collecting metrics. If not specified, resolves the latest '
+                   'bundle name')
+@click.option('--deploy_name', '-d', nargs=1, callback=resolve_default_value,
+              help='Name of the deploy. If not specified, resolves the latest '
+                   'deploy name')
+@click.option('--from_date', '-from', nargs=1,
+              type=click.DateTime(formats=['%Y-%m-%dT%H:%M:%SZ']),
+              help='Date from which collect lambda metrics. The '
+                   '\'--to_date\' parameter required. Example of the date '
+                   'format: 2022-02-02T02:02:02Z')
+@click.option('--to_date', '-to', nargs=1,
+              type=click.DateTime(formats=['%Y-%m-%dT%H:%M:%SZ']),
+              help='Date until which collect lambda metrics. The '
+                   '\'--from_date\' parameter required. Example of the date '
+                   'format: 2022-02-02T02:02:02Z')
 @check_deploy_bucket_exists
 def profiler(bundle_name, deploy_name, from_date, to_date):
     """
@@ -469,13 +495,23 @@ def profiler(bundle_name, deploy_name, from_date, to_date):
 
 @syndicate.command(name=ASSEMBLE_JAVA_MVN_ACTION)
 @timeit()
-@click.option('--bundle_name', nargs=1, callback=generate_default_bundle_name)
+@click.option('--bundle_name', '-b', nargs=1,
+              callback=generate_default_bundle_name,
+              help='Name of the bundle, to which the build artifacts are '
+                   'gathered and later used for the deployment. '
+                   'Default value: $ProjectName_%Y%m%d.%H%M%S')
 @click.option('--project_path', '-path', nargs=1,
-              callback=resolve_path_callback)
+              callback=resolve_path_callback, required=True,
+              help='The path to the Java project. The provided path is the '
+                   'path for an mvn clean install. The artifacts are copied '
+                   'to a folder, which is be later used as the deployment '
+                   'bundle (the bundle path: bundles/${bundle_name})')
 @timeit(action_name=ASSEMBLE_JAVA_MVN_ACTION)
 def assemble_java_mvn(bundle_name, project_path):
     """
     Builds Java lambdas
+
+    \f
     :param bundle_name: name of the bundle
     :param project_path: path to project folder
     :return:
@@ -489,13 +525,24 @@ def assemble_java_mvn(bundle_name, project_path):
 
 @syndicate.command(name=ASSEMBLE_PYTHON_ACTION)
 @timeit()
-@click.option('--bundle_name', nargs=1, callback=generate_default_bundle_name)
+@click.option('--bundle_name', '-b', nargs=1,
+              callback=generate_default_bundle_name,
+              help='Name of the bundle, to which the build artifacts are '
+                   'gathered and later used for the deployment. '
+                   'Default value: $ProjectName_%Y%m%d.%H%M%S')
 @click.option('--project_path', '-path', nargs=1,
-              callback=resolve_path_callback)
+              callback=resolve_path_callback, required=True,
+              help='The path to the Python project. The code is '
+                   'packed to a zip archive, where the external libraries are '
+                   'found, which are described in the requirements.txt file, '
+                   'and internal project dependencies according to the '
+                   'described in local_requirements.txt file')
 @timeit(action_name=ASSEMBLE_PYTHON_ACTION)
 def assemble_python(bundle_name, project_path):
     """
     Builds Python lambdas
+
+    \f
     :param bundle_name: name of the bundle
     :param project_path: path to project folder
     :return:
@@ -509,13 +556,22 @@ def assemble_python(bundle_name, project_path):
 
 @syndicate.command(name=ASSEMBLE_NODE_ACTION)
 @timeit()
-@click.option('--bundle_name', nargs=1, callback=generate_default_bundle_name)
+@click.option('--bundle_name', '-b', nargs=1,
+              callback=generate_default_bundle_name,
+              help='Name of the bundle, to which the build artifacts are '
+                   'gathered and later used for the deployment. '
+                   'Default value: $ProjectName_%Y%m%d.%H%M%S')
 @click.option('--project_path', '-path', nargs=1,
-              callback=resolve_path_callback)
+              callback=resolve_path_callback, required=True,
+              help='The path to the NodeJS project. The code is '
+                   'packed to a zip archive, where the external libraries are '
+                   'found, which are described in the package.json file')
 @timeit(action_name=ASSEMBLE_NODE_ACTION)
 def assemble_node(bundle_name, project_path):
     """
     Builds NodeJS lambdas
+
+    \f
     :param bundle_name: name of the bundle
     :param project_path: path to project folder
     :return:
@@ -535,13 +591,16 @@ RUNTIME_LANG_TO_BUILD_MAPPING = {
 
 
 @syndicate.command(name=ASSEMBLE_ACTION)
-@click.option('--bundle_name', callback=generate_default_bundle_name,
-              help='Bundle\'s name to build the lambdas in')
+@click.option('--bundle_name', '-b', callback=generate_default_bundle_name,
+              help='Bundle\'s name to build the lambdas in. '
+                   'Default value: $ProjectName_%Y%m%d.%H%M%S')
 @click.pass_context
 @timeit(action_name=ASSEMBLE_ACTION)
 def assemble(ctx, bundle_name):
     """
     Builds the application artifacts
+
+    \f
     :param ctx:
     :param bundle_name: name of the bundle to which the artifacts
         will be associated
@@ -563,12 +622,15 @@ def assemble(ctx, bundle_name):
 
 
 @syndicate.command(name=PACKAGE_META_ACTION)
-@click.option('--bundle_name', required=True, callback=verify_bundle_callback,
+@click.option('--bundle_name', '-b', required=True,
+              callback=verify_bundle_callback,
               help='Bundle\'s name to package the current meta in')
 @timeit(action_name=PACKAGE_META_ACTION)
 def package_meta(bundle_name):
     """
     Generates metadata about the application infrastructure
+
+    \f
     :param bundle_name: name of the bundle to generate metadata
     :return:
     """
@@ -584,7 +646,6 @@ def package_meta(bundle_name):
 def create_deploy_target_bucket():
     """
     Creates a bucket in AWS account where all bundles will be uploaded
-    :return:
     """
     from syndicate.core import CONFIG
     click.echo(f'Create deploy target sdk: {CONFIG.deploy_target_bucket}')
@@ -593,50 +654,67 @@ def create_deploy_target_bucket():
 
 
 @syndicate.command(name=UPLOAD_ACTION)
-@click.option('--bundle_name', callback=resolve_and_verify_bundle_callback,
-              help='Bundle name to which the build artifacts are gathered and '
-                   'later used for the deployment. NOTE: if not specified, '
-                   'the latest build will be uploaded')
-@click.option('--force', is_flag=True, help='Flag to override existing bundle '
-                                            'with the same name as provided')
+@click.option('--bundle_name', '-b',
+              callback=resolve_and_verify_bundle_callback,
+              help='Bundle name to which the build artifacts are gathered '
+                   'and later used for the deployment. NOTE: if not '
+                   'specified, the latest build will be uploaded')
+@click.option('--force_upload', '-F', is_flag=True,
+              help='Flag to override existing bundle with the same name as '
+                   'provided')
 @check_deploy_bucket_exists
 @timeit(action_name=UPLOAD_ACTION)
-def upload(bundle_name, force=False):
+def upload(bundle_name, force_upload=False):
     """
     Uploads bundle from local storage to AWS S3
+
+    \f
     :param bundle_name: name of the bundle to upload
-    :param force: used if the bundle with the same name as provided
+    :param force_upload: used if the bundle with the same name as provided
         already exists in an account
     :return:
     """
     click.echo(f'Upload bundle: {bundle_name}')
-    if force:
+    if force_upload:
         click.echo('Force upload')
 
-    futures = upload_bundle_to_s3(bundle_name=bundle_name, force=force)
+    futures = upload_bundle_to_s3(bundle_name=bundle_name, force=force_upload)
     handle_futures_progress_bar(futures)
 
     click.echo('Bundle was uploaded successfully')
 
 
 @syndicate.command(name=COPY_BUNDLE_ACTION)
-@click.option('--bundle_name', nargs=1, callback=create_bundle_callback)
-@click.option('--src_account_id', '-acc_id', nargs=1,
-              callback=check_required_param)
-@click.option('--src_bucket_region', '-r', nargs=1,
-              callback=check_required_param)
-@click.option('--src_bucket_name', '-bucket_name', nargs=1,
-              callback=check_required_param)
-@click.option('--role_name', '-role', nargs=1,
-              callback=check_required_param)
-@click.option('--force_upload', is_flag=True, default=False)
+@click.option('--bundle_name', '-b', nargs=1, callback=create_bundle_callback,
+              required=True,
+              help='The bundle name, to which the build artifacts '
+                   'are gathered and later used for the deployment')
+@click.option('--src_account_id', '-acc_id', nargs=1, required=True,
+              help='The account ID, to which the bundle is to be '
+                   'uploaded')
+@click.option('--src_bucket_region', '-r', nargs=1, required=True,
+              type=ValidRegionParamType(),
+              help='The name of the region of the bucket where target bundle '
+                   'is stored')
+@click.option('--src_bucket_name', '-bucket', nargs=1, required=True,
+              help='The name of the bucket where target bundle is stored')
+@click.option('--role_name', '-role', nargs=1, required=True,
+              help='The role name from the specified account, which is '
+                   'assumed. Here you have to check the trusted relationship '
+                   'between the accounts. The active account must be a trusted'
+                   ' one for the account which is specified in the command')
+@click.option('--force_upload', '-F', is_flag=True, default=False,
+              help='Flag. Used if the bundle with the same name as provided '
+                   'already exists in a target account')
 @timeit()
 @click.pass_context
 def copy_bundle(ctx, bundle_name, src_account_id, src_bucket_region,
                 src_bucket_name, role_name, force_upload):
     """
     Copies the bundle from the specified account-region-bucket to
-        account-region-bucket specified in sdct.conf
+    account-region-bucket specified in syndicate.yml
+
+    \f
     :param ctx:
     :param bundle_name: name of the bundle to copy
     :param src_account_id: id of the account where target bundle is stored

@@ -14,6 +14,7 @@
     limitations under the License.
 """
 import os
+import re
 from datetime import datetime, timedelta, timezone
 
 from botocore.exceptions import ClientError
@@ -57,8 +58,7 @@ PROJECT_STATE: ProjectState = None
 
 
 def _ready_to_assume():
-    return CONFIG.access_role and CONFIG.aws_access_key_id and \
-           CONFIG.aws_secret_access_key and not CONFIG.use_temp_creds
+    return CONFIG.access_role and not CONFIG.use_temp_creds
 
 
 def _ready_to_use_creds():
@@ -83,8 +83,7 @@ def _ready_to_use_provided_temp_creds():
 
 
 def _ready_to_generate_temp_creds():
-    return not CONFIG.access_role and CONFIG.use_temp_creds \
-           and CONFIG.aws_access_key_id and CONFIG.aws_secret_access_key
+    return not CONFIG.access_role and CONFIG.use_temp_creds
 
 
 def initialize_connection():
@@ -167,30 +166,26 @@ def initialize_connection():
         PROCESSOR_FACADE = ProcessorFacade(
             resources_provider=RESOURCES_PROVIDER)
         _LOG.debug('aws-syndicate has been initialized')
-    except ClientError:
-        raise AssertionError('Cannot assume {0} role. '
-                             'Please verify that you have configured '
-                             'the role correctly.'.format(CONFIG.access_role))
+    except ClientError as e:
+        message = f'An unexpected error has occurred trying to ' \
+                  f'init connection: {e}'
+        _LOG.error(message)
+        raise AssertionError(message)
 
 
 def initialize_project_state():
     from syndicate.core.project_state.sync_processor import sync_project_state
     global PROJECT_STATE
     if not ProjectState.check_if_project_state_exists(CONFIG.project_path):
-        USER_LOG.warn("Config is set and generated but project state does not "
-                      "exist, seems that you've come from the previous "
-                      "version.")
-        answer = input(f'There is no .syndicate file in {CONFIG.project_path}.'
-                       f' Do you want to create it automatically? [y/n]: ')
-        if answer.lower() in CONFIRMATION_ANSWERS:
-            PROJECT_STATE = ProjectState.build_from_structure(CONFIG)
-        else:
-            raise AssertionError(f'There is no .syndicate file in '
-                                 f'{CONFIG.project_path}. Please create it.')
+        USER_LOG.warn("\033[93mConfig is set and generated but project "
+                      "state does not exist, seems that you've come from the "
+                      "previous version.\033[0m")
+        USER_LOG.warn("\033[93mGenerating project state file "
+                      "(.syndicate) from the existing structure..."
+                      "\033[0m")
+        PROJECT_STATE = ProjectState.build_from_structure(CONFIG)
     else:
         PROJECT_STATE = ProjectState(project_path=CONFIG.project_path)
-    #if CONN.s3().is_bucket_exists(CONFIG.deploy_target_bucket):
-        #sync_project_state()
 
 
 def validate_temp_credentials(aws_access_key_id, aws_secret_access_key,
@@ -211,10 +206,8 @@ def prompt_mfa_code():
     mfa_code = input('Please enter your MFA code to generate '
                      'temp credentials: ')
     while 1:
-        try:
-            mfa_code = int(mfa_code)
+        if len(mfa_code) == 6 and re.match('[0-9]{6}', mfa_code):
             break
-        except (ValueError, TypeError):
-            mfa_code = input(f'Token code must be a valid integer. '
-                             f'Please try again: ')
-    return str(mfa_code)
+        mfa_code = input(f'Token code must consist of 6 numbers. '
+                         f'Try again: ')
+    return mfa_code
