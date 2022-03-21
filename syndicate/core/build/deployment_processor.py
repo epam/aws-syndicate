@@ -371,6 +371,9 @@ def update_deployment_resources(bundle_name, deploy_name, replace_output=False,
         resources = dict((k, v) for (k, v) in resources.items() if
                          k in update_only_resources)
 
+    resources = populate_s3_paths(resources, bundle_name)
+    _LOG.debug('Artifacts s3 paths were resolved')
+
     _LOG.debug('Going to update the following resources: {0}'.format(
         prettify_json(resources)))
     resources_list = list(resources.items())
