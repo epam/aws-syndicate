@@ -13,6 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+import json
 import time
 
 from botocore.exceptions import ClientError
@@ -163,6 +164,21 @@ class LambdaResource(BaseResource):
             principal=principal,
             source_arn=source_arn,
             statement_id=statement_id)
+
+    def get_invocation_permission(self, lambda_name, qualifier):
+        policies = self.lambda_conn.get_policy(lambda_name=lambda_name,
+                                               qualifier=qualifier)
+        if not policies:
+            _LOG.warning(f'No invocation permissions were found in '
+                         f'lambda: {lambda_name} with qualifier: {qualifier}')
+            return {}
+        return json.loads(policies['Policy'])
+
+    def remove_invocation_permissions(self, lambda_name, qualifier,
+                                      ids_to_remove=None):
+        self.lambda_conn.remove_invocation_permission(
+            func_name=lambda_name, qualifier=qualifier,
+            ids_to_remove=ids_to_remove)
 
     def build_lambda_arn_with_alias(self, response, alias=None):
         name = response['Configuration']['FunctionName']
