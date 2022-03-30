@@ -629,17 +629,18 @@ class ApiGatewayResource(BaseResource):
                                                            _CORS_HEADER_VALUE)
 
     @staticmethod
-    def _get_lambdas_invoked_by_api_gw(resources_meta):
-        affected_lambdas = []
-
+    def _get_lambdas_invoked_by_api_gw(resources_meta, retrieve_aliases=False):
+        lambdas = set()
         for resource, meta in resources_meta.items():
             for method, description in meta.items():
                 if method in SUPPORTED_METHODS:
-                    lambda_name = description.get('lambda_name')
-                    if lambda_name and lambda_name not in affected_lambdas:
-                        affected_lambdas.append(lambda_name)
-
-        return affected_lambdas
+                    lambda_ = description.get('lambda_name')
+                    if lambda_:
+                        if retrieve_aliases:
+                            lambda_ = (lambda_,
+                                       description.get('lambda_alias'))
+                        lambdas.add(lambda_)
+        return list(lambdas)
 
     def remove_api_gateways(self, args):
         for arg in args:
@@ -647,8 +648,30 @@ class ApiGatewayResource(BaseResource):
             # wait for success deletion
             time.sleep(60)
 
+    def _remove_invocation_permissions_from_lambdas(self, config):
+        api_id = config['description']['id']
+        _LOG.info(fr'Removing invocation permissions for api {api_id}')
+        lambdas_aliases = self._get_lambdas_invoked_by_api_gw(
+            config['resource_meta'].get('resources', {}),
+            retrieve_aliases=True)
+        for lambda_, alias in lambdas_aliases:
+            _LOG.info(f'Removing invocation permissions for api {api_id} '
+                      f'from lambda {lambda_} and alias {alias}')
+            statements = self.lambda_res.get_invocation_permission(
+                lambda_name=self.lambda_res.build_lambda_arn(lambda_),
+                qualifier=alias
+            ).get('Statement', [])
+            ids_to_remove = [st.get('Sid') for st in statements if
+                             api_id in st.get('Condition', {}).get(
+                                 'ArnLike', {}).get('AWS:SourceArn', '')]
+            self.lambda_res.remove_invocation_permissions(
+                lambda_name=lambda_, qualifier=alias,
+                ids_to_remove=ids_to_remove
+            )
+
     def _remove_api_gateway(self, arn, config):
         api_id = config['description']['id']
+        self._remove_invocation_permissions_from_lambdas(config)
         try:
             self.connection.remove_api(api_id)
             _LOG.info(f'API Gateway {api_id} was removed.')
