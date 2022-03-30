@@ -350,7 +350,7 @@ def update_deployment_resources(bundle_name, deploy_name, replace_output=False,
                                 update_only_types=None,
                                 update_only_resources=None):
     from syndicate.core import PROCESSOR_FACADE
-    resources = resolve_meta(load_meta_resources(bundle_name))
+    resources = load_meta_resources(bundle_name)
     _LOG.debug(prettify_json(resources))
 
     _LOG.warn(
@@ -370,7 +370,8 @@ def update_deployment_resources(bundle_name, deploy_name, replace_output=False,
     if update_only_resources:
         resources = dict((k, v) for (k, v) in resources.items() if
                          k in update_only_resources)
-
+    resources = resolve_meta(resources)
+    _LOG.debug('Names were resolved')
     resources = populate_s3_paths(resources, bundle_name)
     _LOG.debug('Artifacts s3 paths were resolved')
 
