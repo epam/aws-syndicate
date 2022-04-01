@@ -294,7 +294,9 @@ class ConfigHolder:
         var = self._resolve_variable(USE_TEMP_CREDS_CFG)
         if isinstance(var, bool):
             return var
-        return var.lower() in ("yes", "true", "t", "1")
+        elif isinstance(var, str):
+            return var.lower() in ("yes", "true", "t", "1")
+        return False
 
     @property
     def serial_number(self):
