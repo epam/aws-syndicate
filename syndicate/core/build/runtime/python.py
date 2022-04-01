@@ -117,7 +117,7 @@ def _build_python_artifact(root, config_file, target_folder, project_path):
             [Path(root, item) for item in os.listdir(root)]):
         _LOG.info(f'Copying package {package} to lambda\'s artifacts packages '
                   f'dir: {packages_dir}')
-        shutil.copytree(package, packages_dir / package.name, dirs_exist_ok=True)
+        shutil.copytree(package, packages_dir / package.name)
         _LOG.info('Copied successfully')
 
     # copy lambda's handler to artifacts folder
@@ -154,7 +154,7 @@ def _install_local_req(artifact_path, local_req_path, project_path):
     for lrp in local_req_list:
         _LOG.info(f'Processing local dependency: {lrp}')
         shutil.copytree(Path(CONFIG.project_path, project_path, lrp),
-                        Path(artifact_path, lrp), dirs_exist_ok=True)
+                        Path(artifact_path, lrp))
         _LOG.debug('Dependency was copied successfully')
 
         folders = [r for r in lrp.split(DEFAULT_SEP) if r]
