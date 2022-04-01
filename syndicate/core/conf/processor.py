@@ -343,7 +343,7 @@ def load_yaml_file_content(file_path):
 
 
 def update_file_content(file_path, content):
-    if file_path.endswith('.yaml'):
+    if file_path.endswith('.yaml') or file_path.endswith('.yml'):
         update_yaml_file_content(file_path=file_path, content=content)
     elif file_path.endswith('.conf'):
         update_ini_file_content(file_path=file_path, content=content)
