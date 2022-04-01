@@ -341,7 +341,7 @@ class LambdaResource(BaseResource):
             s3_key=key,
             publish_version=publish_version)
 
-        role = meta.get('iam_arn_role')
+        role = meta.get('iam_role_name')
         handler = meta.get('func_name')
         env_vars = meta.get('env_variables')
         timeout = meta.get('timeout')
