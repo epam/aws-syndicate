@@ -318,6 +318,7 @@ class LambdaResource(BaseResource):
     @exit_on_exception
     @unpack_kwargs
     def _update_lambda(self, name, meta, context):
+        from syndicate.core import CONFIG
         _LOG.info('Updating lambda: {0}'.format(name))
         req_params = ['runtime', 'memory', 'timeout', 'func_name']
 
@@ -341,7 +342,19 @@ class LambdaResource(BaseResource):
             s3_key=key,
             publish_version=publish_version)
 
-        role = meta.get('iam_role_name')
+        # temporary solution
+        role_name = meta['iam_role_name']
+        if not role_name.startswith(CONFIG.resources_prefix):
+            _LOG.warning('Seems that you are updating the lambda but the '
+                         'meta does not contain its execution role. Hence, in'
+                         ' lambda\'s meta role\'s prefix and suffix was not '
+                         'resolved. Adding them..')
+            role_name = f'{CONFIG.resources_prefix}{role_name}' \
+                        f'{CONFIG.resources_suffix}'
+        role_arn = self.iam_conn.check_if_role_exists(role_name)
+        if not role_arn:
+            _LOG.warning('Execution role does not exist. Keeping the old one')
+
         handler = meta.get('func_name')
         env_vars = meta.get('env_variables')
         timeout = meta.get('timeout')
@@ -368,7 +381,7 @@ class LambdaResource(BaseResource):
                       if body.get('resource_name') in layers]
 
         self.lambda_conn.update_lambda_configuration(
-            lambda_name=name, role=role, handler=handler, env_vars=env_vars,
+            lambda_name=name, role=role_arn, handler=handler, env_vars=env_vars,
             timeout=timeout, memory_size=memory_size, runtime=runtime,
             vpc_sub_nets=vpc_sub_nets, vpc_security_group=vpc_security_group,
             dead_letter_arn=dl_target_arn, layers=layers)
