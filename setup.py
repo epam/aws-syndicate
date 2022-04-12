@@ -32,8 +32,8 @@ setup(
     include_package_data=True,
     install_requires=[
         'click==8.0.1',
-        'botocore==1.15.3',
-        'boto3==1.12.3',
+        'botocore==1.24.38',
+        'boto3==1.21.22',
         'configobj==5.0.6',
         'tqdm==4.19.5',
         'colorama==0.4.1',
