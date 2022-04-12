@@ -273,8 +273,9 @@ class LambdaResource(BaseResource):
             layers=lambda_layers_arns
         )
         _LOG.debug('Lambda created %s', name)
-        # AWS sometimes returns None after function creation, needs for stability
-        time.sleep(10)
+        # AWS sometimes returns None after function creation, needs for
+        # stability
+        time.sleep(5)
 
         log_group_name = name
         retention = meta.get('logs_expiration')
@@ -289,7 +290,7 @@ class LambdaResource(BaseResource):
         version = lambda_def['Configuration']['Version']
         self._setup_function_concurrency(name=name, meta=meta)
 
-        # enabling aliases
+        # enabling aliases,
         # aliases can be enabled only and for $LATEST
         alias = meta.get('alias')
         if alias:
@@ -297,6 +298,15 @@ class LambdaResource(BaseResource):
             _LOG.debug(self.lambda_conn.create_alias(function_name=name,
                                                      name=alias,
                                                      version=version))
+        url_config = meta.get('url_config')
+        if url_config:
+            _LOG.info('Url config is found. Setting the function url')
+            self.lambda_conn.set_url_config(
+                function_name=name, auth_type=url_config.get('auth_type'),
+                qualifier=alias, cors=url_config.get('cors'),
+                principal=url_config.get('principal'),
+                source_arn=url_config.get('source_arn')
+            )
 
         arn = self.build_lambda_arn_with_alias(lambda_def, alias) \
             if publish_version or alias else \
@@ -388,7 +398,7 @@ class LambdaResource(BaseResource):
 
         # AWS sometimes returns None after function creation, needs for
         # stability
-        time.sleep(10)
+        time.sleep(5)
         response = self.lambda_conn.get_function(name)
         _LOG.debug(f'Lambda describe result: {response}')
         code_sha_256 = response['Configuration']['CodeSha256']
@@ -417,6 +427,17 @@ class LambdaResource(BaseResource):
                     function_version=updated_version)
                 _LOG.info(
                     f'Alias {alias_name} has been updated for lambda {name}')
+
+        url_config = meta.get('url_config')
+        if url_config:
+            _LOG.info('Url config is found. Setting the function url')
+            self.lambda_conn.set_url_config(
+                function_name=name, auth_type=url_config.get('auth_type'),
+                qualifier=alias_name, cors=url_config.get('cors'),
+                principal=url_config.get('principal'),
+                source_arn=url_config.get('source_arn')
+            )
+
         req_max_concurrency = meta.get(LAMBDA_MAX_CONCURRENCY)
         existing_max_concurrency = self.lambda_conn.describe_function_concurrency(
             name=name)
