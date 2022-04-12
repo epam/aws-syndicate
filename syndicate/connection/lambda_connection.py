@@ -22,6 +22,7 @@ from botocore.exceptions import ClientError
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import apply_methods_decorator, retry
 from syndicate.core.constants import NONE_AUTH_TYPE, IAM_AUTH_TYPE
+from syndicate.core.helper import dict_keys_to_capitalized_camel_case
 
 _LOG = get_logger('lambda_connection')
 
@@ -154,7 +155,7 @@ class LambdaConnection(object):
         if qualifier:
             params['Qualifier'] = qualifier
         if cors and isinstance(cors, dict):
-            params['Cors'] = cors
+            params['Cors'] = dict_keys_to_capitalized_camel_case(cors)
         if update:
             self.client.update_function_url_config(**params)
         else:
