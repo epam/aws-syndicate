@@ -25,6 +25,9 @@ class LambdaValidator:
         url_config = self._meta.get('url_config')
         if url_config:
             self._validate_url_config(url_config)
+        ephemeral_storage = self._meta.get('ephemeral_storage')
+        if ephemeral_storage:
+            self._validate_ephemeral_storage(ephemeral_storage)
 
     def _error(self, message):
         raise AssertionError(message)
@@ -48,6 +51,14 @@ class LambdaValidator:
             if impostors:
                 self._error(f'Only these parameters are allowed: '
                             f'{allowed_parameters}')
+
+    def _validate_ephemeral_storage(self, ephemeral_storage):
+        if not isinstance(ephemeral_storage, int):
+            self._error(f'Ephemeral storage size must an integer but not '
+                        f'\'{type(ephemeral_storage).__name__}\'')
+        if not (512 <= ephemeral_storage <= 10240):
+            self._error('Ephemeral storage size must be between '
+                        '512 and 10240 MB')
 
 
 def validate_lambda(name, meta):
