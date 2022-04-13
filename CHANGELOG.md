@@ -15,9 +15,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `test` command that allows to run tests inside your python project
 - Added `profiler` command that allows to display application Lambda metrics
 - Fixed an issue in `clean` command, associated with API Gateway skipping removing Lambda trigger permissions
-- Add ANY, PATCH to supported methods in API Gateway
+- Fixed an issued in `clean` command associated with removing EC2 instances
 - Fixed an issue in `clean` command, associated with removing resources if they specified as excluded
+- Add ANY, PATCH to supported methods in API Gateway
 - Changed logs format. All the logs are saved up to the path from SDCT_CONF variable if it exists. Otherwise the logs are saved to user's home directory.
+- Added validation of `bundle_bucket_name` when generating config
+- Added prefix and suffix validation when generating config. Their length must be less or equal to 5
+- Fixed bugs with no output from `update` command
+- Unified datetime format to ISO8601
+- Changed `.syndicate` events saving algorithm: 30-days old events are deleted after each updating of the file. But 20 events (or less if there aren't this many) will be kept anyway, so if some amount of events exist, it isn't possible to get them all deleted.
+- Added `latest_event` field to `.syndicate` file to keep the latest action's info such as: operation type, `bundle_name`, `deploy_name`, performing time and other
+- Fixed generating building and deploying java and nodejs lambdas. Updated `pom.xml` template according to the new version of `deployment-configuration-annotation` plugin
+- Fixed an issue when build meta is validated before resolving aliases in it
+- Added `minimum_compression_size` param to API gateway deployment_resource declaration. It enables payload compression for an API with given size;
 
 
 ## [0.9.6] - 2021-04-29
