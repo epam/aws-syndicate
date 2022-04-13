@@ -18,7 +18,7 @@ import time
 
 from botocore.exceptions import ClientError
 
-from syndicate.commons.log_helper import get_logger
+from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.connection.helper import retry
 from syndicate.core.build.meta_processor import S3_PATH_NAME
 from syndicate.core.helper import (unpack_kwargs,
@@ -31,6 +31,7 @@ from syndicate.core.resources.helper import (build_description_obj,
 PROVISIONED_CONCURRENCY = 'provisioned_concurrency'
 
 _LOG = get_logger('syndicate.core.resources.lambda_resource')
+USER_LOG = get_user_logger()
 
 LAMBDA_MAX_CONCURRENCY = 'max_concurrency'
 LAMBDA_CONCUR_QUALIFIER_ALIAS = 'ALIAS'
@@ -301,12 +302,13 @@ class LambdaResource(BaseResource):
         url_config = meta.get('url_config')
         if url_config:
             _LOG.info('Url config is found. Setting the function url')
-            self.lambda_conn.set_url_config(
+            url = self.lambda_conn.set_url_config(
                 function_name=name, auth_type=url_config.get('auth_type'),
                 qualifier=alias, cors=url_config.get('cors'),
                 principal=url_config.get('principal'),
                 source_arn=url_config.get('source_arn')
             )
+            print(f'{name}:{alias if alias else ""}: {url}')
 
         arn = self.build_lambda_arn_with_alias(lambda_def, alias) \
             if publish_version or alias else \
@@ -431,12 +433,21 @@ class LambdaResource(BaseResource):
         url_config = meta.get('url_config')
         if url_config:
             _LOG.info('Url config is found. Setting the function url')
-            self.lambda_conn.set_url_config(
+            url = self.lambda_conn.set_url_config(
                 function_name=name, auth_type=url_config.get('auth_type'),
                 qualifier=alias_name, cors=url_config.get('cors'),
                 principal=url_config.get('principal'),
                 source_arn=url_config.get('source_arn')
             )
+            print(f'{name}:{alias_name if alias_name else ""}: {url}')
+        else:
+            existing_url = self.lambda_conn.get_url_config(
+                function_name=name, qualifier=alias_name)
+            if existing_url:
+                USER_LOG.warning(
+                    f'Lambda \'{name}\' does not have url_config specified '
+                    f'during the update but has an existing url: '
+                    f'\'{existing_url["FunctionUrl"]}\'. Remove it yourself')
 
         req_max_concurrency = meta.get(LAMBDA_MAX_CONCURRENCY)
         existing_max_concurrency = self.lambda_conn.describe_function_concurrency(

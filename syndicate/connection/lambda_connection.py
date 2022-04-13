@@ -111,9 +111,9 @@ class LambdaConnection(object):
                                            qualifier=qualifier)
         if not existing_url:
             _LOG.info('Existing url config was not found. Creating...')
-            self.create_url_config(function_name=function_name,
-                                   qualifier=qualifier, auth_type=auth_type,
-                                   cors=cors)
+            function_url = self.create_url_config(
+                function_name=function_name, qualifier=qualifier,
+                auth_type=auth_type, cors=cors)['FunctionUrl']
         else:
             _LOG.info('Existing url config was found. Updating...')
             existing_type = existing_url['AuthType']
@@ -125,9 +125,9 @@ class LambdaConnection(object):
                     function_name=function_name, qualifier=qualifier,
                     statement_id=AUTH_TYPE_TO_STATEMENT_ID[existing_type]
                 )
-            self.create_url_config(function_name=function_name,
-                                   qualifier=qualifier, auth_type=auth_type,
-                                   cors=cors, update=True)
+            function_url = self.create_url_config(
+                function_name=function_name, qualifier=qualifier,
+                auth_type=auth_type, cors=cors, update=True)['FunctionUrl']
 
         if auth_type == NONE_AUTH_TYPE:
             _LOG.warning(f'Auth type is {NONE_AUTH_TYPE}. Setting '
@@ -146,6 +146,7 @@ class LambdaConnection(object):
                 source_arn=source_arn,
                 statement_id=AUTH_TYPE_TO_STATEMENT_ID[auth_type]
             )
+        return function_url
 
     def create_url_config(self, function_name: str, qualifier: str = None,
                           auth_type: str = IAM_AUTH_TYPE, cors: dict = None,
@@ -157,7 +158,7 @@ class LambdaConnection(object):
         if cors and isinstance(cors, dict):
             params['Cors'] = dict_keys_to_capitalized_camel_case(cors)
         if update:
-            self.client.update_function_url_config(**params)
+            return self.client.update_function_url_config(**params)
         else:
             return self.client.create_function_url_config(**params)
 
