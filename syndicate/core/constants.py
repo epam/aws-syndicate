@@ -134,3 +134,5 @@ PACKAGE_META_ACTION = 'package_meta'
 CREATE_DEPLOY_TARGET_BUCKET_ACTION = 'create_deploy_target_bucket'
 UPLOAD_ACTION = 'upload'
 COPY_BUNDLE_ACTION = 'copy_bundle'
+
+NONE_AUTH_TYPE, IAM_AUTH_TYPE = 'NONE', 'AWS_IAM'
