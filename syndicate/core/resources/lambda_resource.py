@@ -256,6 +256,8 @@ class LambdaResource(BaseResource):
                         'due to layer absence!'.format(layer_name, name))
                 lambda_layers_arns.append(layer_arn)
 
+        ephemeral_storage = meta.get('ephemeral_storage', 512)
+
         self.lambda_conn.create_lambda(
             lambda_name=name,
             func_name=meta['func_name'],
@@ -271,7 +273,8 @@ class LambdaResource(BaseResource):
             dl_target_arn=dl_target_arn,
             tracing_mode=meta.get('tracing_mode'),
             publish_version=publish_version,
-            layers=lambda_layers_arns
+            layers=lambda_layers_arns,
+            ephemeral_storage=ephemeral_storage
         )
         _LOG.debug('Lambda created %s', name)
         # AWS sometimes returns None after function creation, needs for
@@ -392,11 +395,14 @@ class LambdaResource(BaseResource):
             layers = [layer_arn for layer_arn, body in context.items()
                       if body.get('resource_name') in layers]
 
+        ephemeral_storage = meta.get('ephemeral_storage', 512)
+
         self.lambda_conn.update_lambda_configuration(
             lambda_name=name, role=role_arn, handler=handler, env_vars=env_vars,
             timeout=timeout, memory_size=memory_size, runtime=runtime,
             vpc_sub_nets=vpc_sub_nets, vpc_security_group=vpc_security_group,
-            dead_letter_arn=dl_target_arn, layers=layers)
+            dead_letter_arn=dl_target_arn, layers=layers,
+            ephemeral_storage=ephemeral_storage)
 
         # AWS sometimes returns None after function creation, needs for
         # stability
