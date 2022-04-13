@@ -13,6 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+import json
 import time
 
 from botocore.exceptions import ClientError
@@ -164,6 +165,21 @@ class LambdaResource(BaseResource):
             source_arn=source_arn,
             statement_id=statement_id)
 
+    def get_invocation_permission(self, lambda_name, qualifier):
+        policies = self.lambda_conn.get_policy(lambda_name=lambda_name,
+                                               qualifier=qualifier)
+        if not policies:
+            _LOG.warning(f'No invocation permissions were found in '
+                         f'lambda: {lambda_name} with qualifier: {qualifier}')
+            return {}
+        return json.loads(policies['Policy'])
+
+    def remove_invocation_permissions(self, lambda_name, qualifier,
+                                      ids_to_remove=None):
+        self.lambda_conn.remove_invocation_permission(
+            func_name=lambda_name, qualifier=qualifier,
+            ids_to_remove=ids_to_remove)
+
     def build_lambda_arn_with_alias(self, response, alias=None):
         name = response['Configuration']['FunctionName']
         l_arn = self.build_lambda_arn(name=name)
@@ -302,6 +318,7 @@ class LambdaResource(BaseResource):
     @exit_on_exception
     @unpack_kwargs
     def _update_lambda(self, name, meta, context):
+        from syndicate.core import CONFIG
         _LOG.info('Updating lambda: {0}'.format(name))
         req_params = ['runtime', 'memory', 'timeout', 'func_name']
 
@@ -325,7 +342,19 @@ class LambdaResource(BaseResource):
             s3_key=key,
             publish_version=publish_version)
 
-        role = meta.get('iam_arn_role')
+        # temporary solution
+        role_name = meta['iam_role_name']
+        if not role_name.startswith(CONFIG.resources_prefix):
+            _LOG.warning('Seems that you are updating the lambda but the '
+                         'meta does not contain its execution role. Hence, in'
+                         ' lambda\'s meta role\'s prefix and suffix was not '
+                         'resolved. Adding them..')
+            role_name = f'{CONFIG.resources_prefix}{role_name}' \
+                        f'{CONFIG.resources_suffix}'
+        role_arn = self.iam_conn.check_if_role_exists(role_name)
+        if not role_arn:
+            _LOG.warning('Execution role does not exist. Keeping the old one')
+
         handler = meta.get('func_name')
         env_vars = meta.get('env_variables')
         timeout = meta.get('timeout')
@@ -352,7 +381,7 @@ class LambdaResource(BaseResource):
                       if body.get('resource_name') in layers]
 
         self.lambda_conn.update_lambda_configuration(
-            lambda_name=name, role=role, handler=handler, env_vars=env_vars,
+            lambda_name=name, role=role_arn, handler=handler, env_vars=env_vars,
             timeout=timeout, memory_size=memory_size, runtime=runtime,
             vpc_sub_nets=vpc_sub_nets, vpc_security_group=vpc_security_group,
             dead_letter_arn=dl_target_arn, layers=layers)

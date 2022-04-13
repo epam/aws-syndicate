@@ -433,3 +433,22 @@ class S3Connection(object):
     def is_versioning_enabled(self, bucket_name):
         return self.client.get_bucket_versioning(
             Bucket=bucket_name) == 'Enabled'
+
+    def put_public_access_block(self, bucket_name: str,
+                                block_public_acls: bool = True,
+                                ignore_public_acls: bool = True,
+                                block_public_policy: bool = True,
+                                restrict_public_buckets: bool = True):
+        public_access_block_configuration = {
+            'BlockPublicAcls': block_public_acls,
+            'IgnorePublicAcls': ignore_public_acls,
+            'BlockPublicPolicy': block_public_policy,
+            'RestrictPublicBuckets': restrict_public_buckets
+        }
+        _LOG.info(f'Setting public access block for bucket: {bucket_name} '
+                  f'with params: {public_access_block_configuration}')
+        self.client.put_public_access_block(
+            Bucket=bucket_name,
+            PublicAccessBlockConfiguration=public_access_block_configuration
+        )
+        _LOG.info(f'Public access block was set')

@@ -132,6 +132,7 @@ class ConfigHolder:
         if not os.path.isfile(con_path):
             raise AssertionError(
                 'sdct.conf does not exist inside %s folder' % dir_path)
+        self._config_path = con_path
         self._config_dict = ConfigObj(con_path,
                                       configspec=REQUIRED_PARAMETERS)
         self._validate_ini()
@@ -153,7 +154,7 @@ class ConfigHolder:
             TEMP_AWS_SESSION_TOKEN_CFG: temp_aws_session_token,
             EXPIRATION_CFG: expiration
         }
-        update_yaml_file_content(
+        update_file_content(
             file_path=self._config_path,
             content=content_to_update
         )
@@ -290,7 +291,12 @@ class ConfigHolder:
 
     @property
     def use_temp_creds(self):
-        return bool(self._resolve_variable(USE_TEMP_CREDS_CFG))
+        var = self._resolve_variable(USE_TEMP_CREDS_CFG)
+        if isinstance(var, bool):
+            return var
+        elif isinstance(var, str):
+            return var.lower() in ("yes", "true", "t", "1")
+        return False
 
     @property
     def serial_number(self):
@@ -336,8 +342,21 @@ def load_yaml_file_content(file_path):
         return yaml.load(yaml_file, Loader=yaml.FullLoader)
 
 
+def update_file_content(file_path, content):
+    if file_path.endswith('.yaml') or file_path.endswith('.yml'):
+        update_yaml_file_content(file_path=file_path, content=content)
+    elif file_path.endswith('.conf'):
+        update_ini_file_content(file_path=file_path, content=content)
+
+
 def update_yaml_file_content(file_path, content):
     file_content = load_yaml_file_content(file_path=file_path)
     file_content.update(content)
     with open(file_path, 'w') as yaml_file:
         yaml.dump(file_content, yaml_file, default_flow_style=False)
+
+
+def update_ini_file_content(file_path, content):
+    config = ConfigObj(file_path, configspec=REQUIRED_PARAMETERS)
+    config.update(content)
+    config.write()

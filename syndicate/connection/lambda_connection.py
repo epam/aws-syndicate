@@ -245,26 +245,35 @@ class LambdaConnection(object):
         """
         self.client.delete_event_source_mapping(UUID=uuid)
 
-    def remove_invocation_permission(self, func_name):
-        """
-        Removes permission for API Gateway to be able invoke lambda.
+    def remove_invocation_permission(self, func_name, qualifier=None,
+                                     ids_to_remove=None):
+        """Removes permission for API Gateway to be able to invoke lambda
+        :param func_name: the name/arn of the function to remove
+        permissions from
         :type func_name: str
+        :param qualifier: alias or version of the function
+        :type qualifier: str
+        :param ids_to_remove: specific ids of permissions to remove. If not
+        specified, all the function's permissions will be removed
+        :type ids_to_remove: list
         """
+        ids_to_remove = ids_to_remove or []
+        if not ids_to_remove:
+            policies = self.get_policy(lambda_name=func_name)
+            if not policies:
+                return
+            policies = json.loads(policies['Policy'])
+            policies_meta = policies['Statement']
+            ids_to_remove = []
+            for policy in policies_meta:
+                if policy['Action'] == 'lambda:InvokeFunction':
+                    ids_to_remove.append(policy['Sid'])
 
-        policies = self.get_policy(lambda_name=func_name)
-        if not policies:
-            return
-        policies = json.loads(policies['Policy'])
-        policies_meta = policies['Statement']
-
-        invocation_permission_sid_list = []
-        for policy in policies_meta:
-            if policy['Action'] == 'lambda:InvokeFunction':
-                invocation_permission_sid_list.append(policy['Sid'])
-
-        for sid in invocation_permission_sid_list:
-            self.client.remove_permission(FunctionName=func_name,
-                                          StatementId=sid)
+        for sid in ids_to_remove:
+            params = dict(FunctionName=func_name, StatementId=sid)
+            if qualifier:
+                params['Qualifier'] = qualifier
+            self.client.remove_permission(**params)
 
     def add_invocation_permission(self, name, principal, source_arn=None,
                                   statement_id=None):

@@ -26,7 +26,7 @@ from syndicate.core.build.bundle_processor import (create_deploy_output,
                                                    remove_deploy_output,
                                                    remove_failed_deploy_output)
 from syndicate.core.build.helper import _json_serial
-from syndicate.core.build.meta_processor import resolve_meta
+from syndicate.core.build.meta_processor import resolve_meta, populate_s3_paths
 from syndicate.core.constants import (BUILD_META_FILE_NAME,
                                       CLEAN_RESOURCE_TYPE_PRIORITY,
                                       DEPLOY_RESOURCE_TYPE_PRIORITY,
@@ -162,14 +162,14 @@ def clean_resources(output):
             args.append({'arn': arn, 'config': config})
             continue
         elif res_type != resource_type:
-            _LOG.info('Removing {0} resources ...'.format(resource_type))
+            USER_LOG.info('Removing {0} resources ...'.format(resource_type))
             func = PROCESSOR_FACADE.remove_handlers()[resource_type]
             func(args)
             del args[:]
             args.append({'arn': arn, 'config': config})
             resource_type = res_type
     if args:
-        _LOG.info('Removing {0} resources ...'.format(resource_type))
+        USER_LOG.info('Removing {0} resources ...'.format(resource_type))
         func = PROCESSOR_FACADE.remove_handlers()[resource_type]
         func(args)
 
@@ -306,6 +306,8 @@ def create_deployment_resources(deploy_name, bundle_name,
 
     resources = resolve_meta(resources)
     _LOG.debug('Names were resolved')
+    resources = populate_s3_paths(resources, bundle_name)
+    _LOG.debug('Artifacts s3 paths were resolved')
     _LOG.debug(prettify_json(resources))
 
     _LOG.debug('Going to create: {0}'.format(prettify_json(resources)))
@@ -348,7 +350,7 @@ def update_deployment_resources(bundle_name, deploy_name, replace_output=False,
                                 update_only_types=None,
                                 update_only_resources=None):
     from syndicate.core import PROCESSOR_FACADE
-    resources = resolve_meta(load_meta_resources(bundle_name))
+    resources = load_meta_resources(bundle_name)
     _LOG.debug(prettify_json(resources))
 
     _LOG.warn(
@@ -368,6 +370,10 @@ def update_deployment_resources(bundle_name, deploy_name, replace_output=False,
     if update_only_resources:
         resources = dict((k, v) for (k, v) in resources.items() if
                          k in update_only_resources)
+    resources = resolve_meta(resources)
+    _LOG.debug('Names were resolved')
+    resources = populate_s3_paths(resources, bundle_name)
+    _LOG.debug('Artifacts s3 paths were resolved')
 
     _LOG.debug('Going to update the following resources: {0}'.format(
         prettify_json(resources)))
@@ -423,7 +429,7 @@ def remove_deployment_resources(deploy_name, bundle_name,
     resources_list = list(new_output.items())
     resources_list.sort(key=cmp_to_key(_compare_clean_resources))
     _LOG.debug('Resources to delete: {0}'.format(resources_list))
-    _LOG.info('Going to clean AWS resources')
+    USER_LOG.info('Going to clean AWS resources')
     clean_resources(resources_list)
     # remove new_output from bucket
     if output == new_output:

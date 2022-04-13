@@ -21,8 +21,9 @@ MAX_BUCKET_NAME_LEN = 63
 
 ALL_REGIONS = ['us-east-1', 'us-east-2', 'us-west-1', 'us-west-2', 'sa-east-1',
                'ca-central-1', 'eu-west-1', 'eu-central-1', 'eu-west-2',
-               'eu-west-3', 'ap-northeast-1', 'ap-northeast-2',
-               'ap-southeast-1', 'ap-southeast-2', 'ap-south-1', 'eu-north-1']
+               'eu-west-3', 'ap-northeast-1', 'ap-northeast-2', 'ap-east-1',
+               'ap-southeast-1', 'ap-southeast-2', 'ap-south-1', 'eu-north-1',
+               'eu-south-1', 'ap-northeast-3', 'ap-southeast-3', 'af-south-1']
 
 REQUIRED = 'required'
 VALIDATOR = 'validator'
@@ -78,7 +79,7 @@ class ConfigValidator:
                 REQUIRED: True,
                 VALIDATOR: self._validate_bundle_bucket_name},
             PROJECTS_MAPPING_CFG: {
-                REQUIRED: True,
+                REQUIRED: False,
                 VALIDATOR: self._validate_project_mapping},
             AWS_ACCESS_KEY_ID_CFG: {
                 REQUIRED: False,
@@ -128,21 +129,24 @@ class ConfigValidator:
 
     def validate(self):
         error_messages = {}
-        for key, value in self._config_dict.items():
-            validation_rules = self._fields_validators_mapping.get(key)
-            if not validation_rules:
-                raise AssertionError(
-                    f'There is no validator for the configuration field {key}')
+        impostors = set(self._config_dict.keys()) - set(
+            self._fields_validators_mapping.keys())
+        if impostors:
+            raise AssertionError(
+                f'There is no validator for the configuration fields: '
+                f'{impostors}')
 
+        for key, validation_rules in self._fields_validators_mapping.items():
+            value = self._config_dict.get(key)
             is_required = validation_rules.get(REQUIRED)
-            if is_required:
-                if not value:
-                    error_messages[key] = REQUIRED_PARAM_ERROR.format(key)
-                    continue
-            validator_func = validation_rules.get(VALIDATOR)
-            validation_errors = validator_func(key, value)
-            if validation_errors:
-                error_messages[key] = validation_errors
+            if is_required and not value:
+                error_messages[key] = REQUIRED_PARAM_ERROR.format(key)
+                continue
+            if value:
+                validator_func = validation_rules.get(VALIDATOR)
+                validation_errors = validator_func(key, value)
+                if validation_errors:
+                    error_messages[key] = validation_errors
         return error_messages
 
     def _validate_project_path(self, key, value):
@@ -161,7 +165,7 @@ class ConfigValidator:
         errors = []
         try:
             int(value)
-        except TypeError as e:
+        except TypeError:
             errors.append(f'{key} must be int, not {type(value)}')
             return errors
         if len(str(value)) != 12:
@@ -283,7 +287,6 @@ class ConfigValidator:
                                   f'minimum of 0 and a maximum of 256 Unicode '
                                   f'characters')
         return errors
-
 
     @staticmethod
     def _validate_expiration(key, value):

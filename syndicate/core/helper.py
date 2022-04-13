@@ -39,7 +39,6 @@ from syndicate.core.constants import (ARTIFACTS_FOLDER, BUILD_META_FILE_NAME,
 from syndicate.core.project_state.project_state import MODIFICATION_LOCK
 from syndicate.core.project_state.sync_processor import sync_project_state
 
-
 _LOG = get_logger('syndicate.core.helper')
 USER_LOG = get_user_logger()
 
@@ -154,12 +153,6 @@ def resolve_aliases_for_string(string_value):
         return input_string
 
 
-def check_required_param(ctx, param, value):
-    if not value:
-        raise BadParameter('Parameter is required')
-    return value
-
-
 def resolve_path_callback(ctx, param, value):
     if not value:
         raise BadParameter('Parameter is required')
@@ -218,6 +211,7 @@ param_resolver_map = {
 def resolve_default_value(ctx, param, value):
     if value:
         return value
+    sync_project_state()
     command_name = ctx.info_name
     param_resolver = param_resolver_map.get(param.name)
     if not param_resolver:
@@ -476,6 +470,29 @@ class ValidRegionParamType(click.types.StringParamType):
         if self.allowed_all:
             shorten_regions.insert(0, self.ALL_VALUE)
         return f"[{'|'.join(shorten_regions)}]"
+
+
+class DictParamType(click.types.StringParamType):
+    name = 'dict'
+    ITEMS_SEPARATOR = ','
+    KEY_VALUE_SEPARATOR = ':'
+
+    def convert(self, value, param, ctx):
+        value = super().convert(value, param, ctx)
+        _LOG.info(f'Stripping {value} from "{self.ITEMS_SEPARATOR}" a bit..')
+        value = value[1:] if value.startswith(self.ITEMS_SEPARATOR) else value
+        value = value[:-1] if value.endswith(self.ITEMS_SEPARATOR) else value
+        result = {}
+        _LOG.info(f'Converting: {value} to dict..')
+        for item in value.split(self.ITEMS_SEPARATOR):
+            k, v = item.split(self.KEY_VALUE_SEPARATOR)
+            result[k] = v
+        _LOG.info(f'Converted to such a dict: {result}')
+        return result
+
+    def get_metavar(self, param):
+        return f'KEY{self.KEY_VALUE_SEPARATOR}VALUE1' \
+               f'{self.ITEMS_SEPARATOR}KEY2{self.KEY_VALUE_SEPARATOR}VALUE2'
 
 
 def check_bundle_bucket_name(ctx, param, value):

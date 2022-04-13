@@ -237,7 +237,8 @@ generate new credentials, save and use them until expiration.
 After the configuration files will be generated the command will return the
 following message:
 
-    Syndicate initialization has been completed. Set SDCT_CONF:
+    Syndicate initialization has been completed. 
+    Set SDCT_CONF:
     Unix: export SDCT_CONF=$path_to_store_config
     Windows: setx SDCT_CONF $path_to_store_config
 
@@ -249,6 +250,8 @@ aws-syndicate to operate.
 > Your application may require additional aliases to be deployed - please add them to the file.
 
 For more details please execute `syndicate generate config --help`
+
+*Note:* You can find a detailed structure of the syndicate.yml file [here](docs/wiki_syndicate.yml.md)
 
 **Generate draft of lambda functions**
 

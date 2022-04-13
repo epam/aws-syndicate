@@ -166,7 +166,7 @@ HANDLER = LambdaName()
 
 
 def lambda_handler(event, context):
-    HANDLER.lambda_handler(event=event, context=context)
+    return HANDLER.lambda_handler(event=event, context=context)
 """
 
 NODEJS_LAMBDA_HANDLER_TEMPLATE = """exports.handler = async (event) => {
