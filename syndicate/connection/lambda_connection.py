@@ -53,7 +53,8 @@ class LambdaConnection(object):
                       role, s3_bucket, s3_key, runtime='python3.7', memory=128,
                       timeout=300, vpc_sub_nets=None, vpc_security_group=None,
                       env_vars=None, dl_target_arn=None, tracing_mode=None,
-                      publish_version=False, layers=None):
+                      publish_version=False, layers=None,
+                      ephemeral_storage=None):
         """ Create Lambda method.
 
         :type lambda_name: str
@@ -71,6 +72,8 @@ class LambdaConnection(object):
         :type env_vars: dict
         :param env_vars: {'string': 'string'}
         :type layers: list
+        :param ephemeral_storage: amount of ephemeral storage between 512 MB
+        and 10,240 MB
         :return: response
         """
         layers = [] if layers is None else layers
@@ -78,7 +81,8 @@ class LambdaConnection(object):
                       Role=role, Handler=func_name,
                       Code={'S3Bucket': s3_bucket, 'S3Key': s3_key},
                       Description=' ', Timeout=timeout, MemorySize=memory,
-                      Publish=publish_version, Layers=layers)
+                      Publish=publish_version, Layers=layers,
+                      EphemeralStorage={'Size': ephemeral_storage})
         if env_vars:
             params['Environment'] = {'Variables': env_vars}
         if vpc_sub_nets and vpc_security_group:
@@ -398,8 +402,10 @@ class LambdaConnection(object):
                                     vpc_security_group=None,
                                     env_vars=None, runtime=None,
                                     dead_letter_arn=None, kms_key_arn=None,
-                                    layers=None):
+                                    layers=None, ephemeral_storage=None):
         params = dict(FunctionName=lambda_name)
+        if ephemeral_storage:
+            params['EphemeralStorage'] = {'Size': ephemeral_storage}
         if layers:
             params['Layers'] = layers
         if role:
