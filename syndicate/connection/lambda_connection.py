@@ -159,6 +159,8 @@ class LambdaConnection(object):
                       AuthType=auth_type)
         if qualifier:
             params['Qualifier'] = qualifier
+        if not cors:
+            params['Cors'] = {}
         if cors and isinstance(cors, dict):
             params['Cors'] = dict_keys_to_capitalized_camel_case(cors)
         if update:
