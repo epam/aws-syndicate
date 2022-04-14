@@ -113,6 +113,10 @@ class LambdaConnection(object):
                   f'alias: {qualifier}')
         existing_url = self.get_url_config(function_name=function_name,
                                            qualifier=qualifier)
+        if cors:
+            # allow_origins is required for CORS
+            if not cors.get('allow_origins'):
+                cors['allow_origins'] = ['*']
         if not existing_url:
             _LOG.info('Existing url config was not found. Creating...')
             function_url = self.create_url_config(
