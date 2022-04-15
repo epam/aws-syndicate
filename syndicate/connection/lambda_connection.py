@@ -156,6 +156,12 @@ class LambdaConnection(object):
             )
         return function_url
 
+    def delete_url_config(self, function_name: str, qualifier: str = None):
+        params = dict(FunctionName=function_name)
+        if qualifier:
+            params['Qualifier'] = qualifier
+        self.client.delete_function_url_config(**params)
+
     def create_url_config(self, function_name: str, qualifier: str = None,
                           auth_type: str = IAM_AUTH_TYPE, cors: dict = None,
                           update=False):

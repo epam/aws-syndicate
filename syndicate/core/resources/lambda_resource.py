@@ -398,7 +398,8 @@ class LambdaResource(BaseResource):
         ephemeral_storage = meta.get('ephemeral_storage', 512)
 
         self.lambda_conn.update_lambda_configuration(
-            lambda_name=name, role=role_arn, handler=handler, env_vars=env_vars,
+            lambda_name=name, role=role_arn, handler=handler,
+            env_vars=env_vars,
             timeout=timeout, memory_size=memory_size, runtime=runtime,
             vpc_sub_nets=vpc_sub_nets, vpc_security_group=vpc_security_group,
             dead_letter_arn=dl_target_arn, layers=layers,
@@ -438,7 +439,7 @@ class LambdaResource(BaseResource):
 
         url_config = meta.get('url_config')
         if url_config:
-            _LOG.info('Url config is found. Setting the function url')
+            _LOG.info('URL config is found. Setting the function URL')
             url = self.lambda_conn.set_url_config(
                 function_name=name, auth_type=url_config.get('auth_type'),
                 qualifier=alias_name, cors=url_config.get('cors'),
@@ -450,14 +451,14 @@ class LambdaResource(BaseResource):
             existing_url = self.lambda_conn.get_url_config(
                 function_name=name, qualifier=alias_name)
             if existing_url:
-                USER_LOG.warning(
-                    f'Lambda \'{name}\' does not have url_config specified '
-                    f'during the update but has an existing url: '
-                    f'\'{existing_url["FunctionUrl"]}\'. Remove it yourself')
+                _LOG.info('Going to delete existing URL config that is not '
+                          'described in the lambda_config file')
+                self.lambda_conn.delete_url_config(
+                    function_name=name, qualifier=alias_name)
 
         req_max_concurrency = meta.get(LAMBDA_MAX_CONCURRENCY)
-        existing_max_concurrency = self.lambda_conn.describe_function_concurrency(
-            name=name)
+        existing_max_concurrency = self.lambda_conn.\
+            describe_function_concurrency(name=name)
         if req_max_concurrency and existing_max_concurrency:
             if existing_max_concurrency != req_max_concurrency:
                 self._set_function_concurrency(name=name, meta=meta)
@@ -472,8 +473,8 @@ class LambdaResource(BaseResource):
         return self.describe_lambda(name, meta, response)
 
     def _set_function_concurrency(self, name, meta):
-        provisioned = self.lambda_conn.describe_provisioned_concurrency_configs(
-            name=name)
+        provisioned = self.lambda_conn.\
+            describe_provisioned_concurrency_configs(name=name)
         if provisioned:
             self._delete_lambda_prov_concur_config(
                 function_name=name,
@@ -483,8 +484,8 @@ class LambdaResource(BaseResource):
     def _manage_provisioned_concurrency_configuration(self, function_name,
                                                       meta,
                                                       lambda_def=None):
-        existing_configs = self.lambda_conn.describe_provisioned_concurrency_configs(
-            name=function_name)
+        existing_configs = self.lambda_conn.\
+            describe_provisioned_concurrency_configs(name=function_name)
         concurrency = meta.get(PROVISIONED_CONCURRENCY)
 
         if not existing_configs and not concurrency:
@@ -518,8 +519,9 @@ class LambdaResource(BaseResource):
 
         if existing_configs and not concurrency:
             # to delete existing one
-            self._delete_lambda_prov_concur_config(function_name=function_name,
-                                                   existing_config=existing_configs)
+            self._delete_lambda_prov_concur_config(
+                function_name=function_name,
+                existing_config=existing_configs)
             return
 
     def _delete_lambda_prov_concur_config(self, function_name,
@@ -547,9 +549,10 @@ class LambdaResource(BaseResource):
             raise AssertionError('Parameter `qualifier` is required for '
                                  'concurrency configuration but it is absent')
         if qualifier not in _LAMBDA_PROV_CONCURRENCY_QUALIFIERS:
-            raise AssertionError(f'Parameter `qualifier` must be one of '
-                                 f'{_LAMBDA_PROV_CONCURRENCY_QUALIFIERS}, but it is equal '
-                                 f'to ${qualifier}')
+            raise AssertionError(
+                f'Parameter `qualifier` must be one of '
+                f'{_LAMBDA_PROV_CONCURRENCY_QUALIFIERS}, but it is equal '
+                f'to ${qualifier}')
 
         resolved_qualified = self._resolve_requested_qualifier(lambda_def,
                                                                meta,
@@ -563,13 +566,14 @@ class LambdaResource(BaseResource):
         max_prov_limit = self.lambda_conn.describe_function_concurrency(
             name=function_name)
         if not max_prov_limit:
-            max_prov_limit = self.lambda_conn.get_unresolved_concurrent_executions()
+            max_prov_limit = self.lambda_conn.\
+                get_unresolved_concurrent_executions()
 
         if requested_provisioned_level > max_prov_limit:
             raise AssertionError(f'Requested provisioned concurrency for '
-                                 f'lambda {function_name} must not be greater than '
-                                 f'function concurrency limit if any or account '
-                                 f'unreserved concurrency. '
+                                 f'lambda {function_name} must not be greater '
+                                 f'than function concurrency limit if any or '
+                                 f'account unreserved concurrency. '
                                  f'Max is set to {max_prov_limit}; '
                                  f'Requested: {requested_provisioned_level}')
 
@@ -644,7 +648,7 @@ class LambdaResource(BaseResource):
         target_queue = trigger_meta['target_queue']
 
         if not self.sqs_conn.get_queue_url(target_queue, self.account_id):
-            _LOG.debug('Queue %s does not exist', target_queue)
+            _LOG.debug(f'Queue {target_queue} does not exist')
             return
 
         queue_arn = 'arn:aws:sqs:{0}:{1}:{2}'.format(self.region,
@@ -669,8 +673,8 @@ class LambdaResource(BaseResource):
         self.lambda_conn.add_invocation_permission(lambda_arn,
                                                    'events.amazonaws.com',
                                                    rule_arn)
-        _LOG.info('Lambda %s subscribed to cloudwatch rule %s', lambda_name,
-                  rule_name)
+        _LOG.info(f'Lambda {lambda_name} subscribed to cloudwatch rule '
+                  f'{rule_name}')
 
     @retry
     def _create_s3_trigger_from_meta(self, lambda_name, lambda_arn, role_name,
@@ -681,8 +685,8 @@ class LambdaResource(BaseResource):
 
         if not self.s3_conn.is_bucket_exists(target_bucket):
             _LOG.error(
-                'S3 bucket {0} event source for lambda {1} was not created.'.format(
-                    target_bucket, lambda_name))
+                f'S3 bucket {target_bucket} event source for lambda '
+                f'{lambda_name} was not created.')
             return
         self.lambda_conn.add_invocation_permission(lambda_arn,
                                                    's3.amazonaws.com',
