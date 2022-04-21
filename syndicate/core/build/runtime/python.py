@@ -66,8 +66,6 @@ def assemble_python_lambdas(project_path, bundles_dir):
         exception = future.exception()
         if exception:
             print(f'\033[91m' + str(exception), file=sys.stderr)
-            print('Likely, the solution is to assemble a bundle again',
-                  file=sys.stderr)
             sys.exit(1)
     _LOG.info('Python project was processed successfully')
 
