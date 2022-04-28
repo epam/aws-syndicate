@@ -74,6 +74,7 @@ class BatchComputeEnvironmentResource(BaseResource):
 
     @unpack_kwargs
     def _create_compute_environment_from_meta(self, name, meta):
+        from syndicate.core import CONFIG
         params = meta.copy()
         params['compute_environment_name'] = name
 
@@ -98,7 +99,8 @@ class BatchComputeEnvironmentResource(BaseResource):
                 self.iam_conn.create_custom_role(
                     role_name=DEFAULT_SERVICE_ROLE,
                     allowed_account=allowed_account,
-                    allowed_service='batch'
+                    allowed_service='batch',
+                    permissions_boundary=CONFIG.iam_permissions_boundary
                 )
                 policy_arn = self.iam_conn.get_policy_arn(DEFAULT_SERVICE_ROLE)
                 self.iam_conn.attach_policy(
@@ -132,6 +134,7 @@ class BatchComputeEnvironmentResource(BaseResource):
                                 args)
 
     def _update_compute_environment_from_meta(self, meta):
+        from syndicate.core import CONFIG
         name = meta.pop('name')
         arn = f'arn:aws:batch:{self.region}:{self.account_id}:' \
               f'compute-environment/{name}'
@@ -168,7 +171,8 @@ class BatchComputeEnvironmentResource(BaseResource):
                 self.iam_conn.create_custom_role(
                     role_name=DEFAULT_SERVICE_ROLE,
                     allowed_account=allowed_account,
-                    allowed_service='batch'
+                    allowed_service='batch',
+                    permissions_boundary=CONFIG.iam_permissions_boundary
                 )
                 policy_arn = self.iam_conn.get_policy_arn(DEFAULT_SERVICE_ROLE)
                 self.iam_conn.attach_policy(
