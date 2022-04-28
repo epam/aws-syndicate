@@ -23,6 +23,7 @@ from pathlib import Path
 
 import yaml
 
+from syndicate.commons.log_helper import get_logger
 from syndicate.core.constants import BUILD_ACTION, \
     DEPLOY_ACTION, UPDATE_ACTION, CLEAN_ACTION, PACKAGE_META_ACTION
 from syndicate.core.constants import DATE_FORMAT_ISO_8601
@@ -57,13 +58,25 @@ OPERATION_LOCK_MAPPINGS = {
 KEEP_EVENTS_DAYS = 30
 LEAVE_LATEST_EVENTS = 20
 
+_LOG = get_logger('project-state')
+
 
 class ProjectState:
 
-    def __init__(self, project_path):
-        self.project_path = project_path
-        self.state_path = os.path.join(project_path, PROJECT_STATE_FILE)
-        self._dict = self.__load_project_state_file()
+    def __init__(self, project_path: str = None, dct: dict = None):
+        """In case 'dct' param is given it will be assigned to the internal
+        _dict variable instead of loading from a file. It comes handy when
+        we need to get ProjectState object without loading from file. All
+        the existing functionality remains unimpaired"""
+        if not (project_path or dct):
+            message = 'Either project_path or dct of both must be ' \
+                      'specified!'
+            _LOG.error(message)
+            raise AssertionError(message)
+        if project_path:
+            self.project_path = project_path
+            self.state_path = os.path.join(project_path, PROJECT_STATE_FILE)
+        self.dct = dct if dct else self.__load_project_state_file()
 
     @staticmethod
     def generate(project_path, project_name):
@@ -77,13 +90,53 @@ class ProjectState:
     def check_if_project_state_exists(project_path):
         return os.path.exists(os.path.join(project_path, PROJECT_STATE_FILE))
 
+    @property
+    def dct(self) -> dict:
+        return self._dict
+
+    @dct.setter
+    def dct(self, dct: dict):
+        self._dict = dct
+
+    @staticmethod
+    def get_remote() -> 'ProjectState':
+        from syndicate.core import CONN, CONFIG
+        bucket_name = CONFIG.deploy_target_bucket
+        s3 = CONN.s3()
+        remote_project_state = s3.load_file_body(bucket_name=bucket_name,
+                                                 key=PROJECT_STATE_FILE)
+        remote_project_state = yaml.unsafe_load(remote_project_state)
+        _LOG.info(f'Unsafely loaded project state file from S3 bucket. The '
+                  f'retrieved object has type: '
+                  f'{type(remote_project_state).__name__}')
+        if isinstance(remote_project_state, dict):
+            remote_project_state = ProjectState(dct=remote_project_state)
+            _LOG.info(f'Made ProjectState object from the dict loaded from S3 '
+                      f'bucket')
+        else:  # isinstance(remote_project_state, ProjectState):
+            _LOG.warning(f'Loaded project state object is already instance of '
+                         f'ProjectState. Likely .syndicate from the '
+                         f'the bucket is obsolete. Rewriting...')
+        return remote_project_state
+
+    def save_to_remote(self, project_state_to_save: 'ProjectState' = None):
+        dict_to_save = project_state_to_save.dct if \
+            project_state_to_save else self.dct
+        from syndicate.core import CONN, CONFIG
+        bucket_name = CONFIG.deploy_target_bucket
+        s3 = CONN.s3()
+        s3.put_object(file_obj=yaml.dump(dict_to_save, sort_keys=False),
+                      key=PROJECT_STATE_FILE,
+                      bucket=bucket_name,
+                      content_type='application/x-yaml')
+
     def save(self):
         with open(self.state_path, 'w') as state_file:
-            yaml.dump(self._dict, state_file, sort_keys=False)
+            yaml.dump(self.dct, state_file, sort_keys=False)
 
     @property
     def name(self):
-        return self._dict.get(STATE_NAME)
+        return self.dct.get(STATE_NAME)
 
     @property
     def default_deploy_name(self):
@@ -99,46 +152,46 @@ class ProjectState:
 
     @name.setter
     def name(self, name):
-        self._dict.update({STATE_NAME: name})
+        self.dct.update({STATE_NAME: name})
 
     @property
     def locks(self):
-        locks = self._dict.get(STATE_LOCKS)
+        locks = self.dct.get(STATE_LOCKS)
         if not locks:
             locks = dict()
-            self._dict.update({STATE_LOCKS: locks})
+            self.dct.update({STATE_LOCKS: locks})
         return locks
 
     @property
     def lambdas(self):
-        lambdas = self._dict.get(STATE_LAMBDAS)
+        lambdas = self.dct.get(STATE_LAMBDAS)
         if not lambdas:
             return dict()
         return lambdas
 
     @property
     def events(self):
-        events = self._dict.get(STATE_LOG_EVENTS)
+        events = self.dct.get(STATE_LOG_EVENTS)
         if not events:
             events = []
-            self._dict.update({STATE_LOG_EVENTS: events})
+            self.dct.update({STATE_LOG_EVENTS: events})
         return events
 
     @events.setter
     def events(self, events):
-        self._dict.update({STATE_LOG_EVENTS: events})
+        self.dct.update({STATE_LOG_EVENTS: events})
 
     @property
     def latest_deploy(self):
-        latest_deploy = self._dict.get(STATE_LATEST_DEPLOY)
+        latest_deploy = self.dct.get(STATE_LATEST_DEPLOY)
         if not latest_deploy:
             latest_deploy = {}
-            self._dict.update({STATE_LATEST_DEPLOY: latest_deploy})
+            self.dct.update({STATE_LATEST_DEPLOY: latest_deploy})
         return latest_deploy
 
     @latest_deploy.setter
     def latest_deploy(self, latest_deploy):
-        self._dict[STATE_LATEST_DEPLOY] = latest_deploy
+        self.dct[STATE_LATEST_DEPLOY] = latest_deploy
 
     @property
     def latest_bundle_name(self):
@@ -217,23 +270,23 @@ class ProjectState:
             self.latest_deploy = remote_deploy
 
     def add_lambda(self, lambda_name, runtime):
-        lambdas = self._dict.get(STATE_LAMBDAS)
+        lambdas = self.dct.get(STATE_LAMBDAS)
         if not lambdas:
             lambdas = dict()
-            self._dict.update({STATE_LAMBDAS: lambdas})
+            self.dct.update({STATE_LAMBDAS: lambdas})
         lambdas.update({lambda_name: {'runtime': runtime}})
 
     def add_project_build_mapping(self, runtime):
-        build_project_mappings = self._dict.get(STATE_BUILD_PROJECT_MAPPING)
+        build_project_mappings = self.dct.get(STATE_BUILD_PROJECT_MAPPING)
         if not build_project_mappings:
             build_project_mappings = dict()
-            self._dict.update(
+            self.dct.update(
                 {STATE_BUILD_PROJECT_MAPPING: build_project_mappings})
         build_mapping = BUILD_MAPPINGS.get(runtime)
         build_project_mappings.update({runtime: build_mapping})
 
     def load_project_build_mapping(self):
-        return self._dict.get(STATE_BUILD_PROJECT_MAPPING)
+        return self.dct.get(STATE_BUILD_PROJECT_MAPPING)
 
     def log_execution_event(self, **kwargs):
         operation = kwargs.get('operation')
@@ -254,17 +307,9 @@ class ProjectState:
 
     def _delete_latest_deploy_info(self):
         self.latest_deploy = {}
-        from syndicate.core import CONN, CONFIG
-        bucket_name = CONFIG.deploy_target_bucket
-        s3 = CONN.s3()
-        remote_project_state = s3.load_file_body(bucket_name=bucket_name,
-                                                 key=PROJECT_STATE_FILE)
-        remote_project_state = yaml.unsafe_load(remote_project_state)
+        remote_project_state = ProjectState.get_remote()
         remote_project_state.latest_deploy = {}
-        s3.put_object(file_obj=yaml.dump(remote_project_state),
-                      key=PROJECT_STATE_FILE,
-                      bucket=bucket_name,
-                      content_type='application/x-yaml')
+        self.save_to_remote(project_state_to_save=remote_project_state)
 
     def add_execution_events(self, events):
         for event in events:

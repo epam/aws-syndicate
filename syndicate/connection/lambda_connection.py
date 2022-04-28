@@ -21,8 +21,15 @@ from botocore.exceptions import ClientError
 
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import apply_methods_decorator, retry
+from syndicate.core.constants import NONE_AUTH_TYPE, IAM_AUTH_TYPE
+from syndicate.core.helper import dict_keys_to_capitalized_camel_case
 
 _LOG = get_logger('lambda_connection')
+
+AUTH_TYPE_TO_STATEMENT_ID = {
+    NONE_AUTH_TYPE: 'FunctionURLAllowPublicAccess-Syndicate',
+    IAM_AUTH_TYPE: 'FunctionURLAllowIAMAccess-Syndicate'
+}
 
 
 def _str_list_to_list(param, param_name):
@@ -53,9 +60,9 @@ class LambdaConnection(object):
                       role, s3_bucket, s3_key, runtime='python3.7', memory=128,
                       timeout=300, vpc_sub_nets=None, vpc_security_group=None,
                       env_vars=None, dl_target_arn=None, tracing_mode=None,
-                      publish_version=False, layers=None):
-        """ Create Lambda method.
-
+                      publish_version=False, layers=None,
+                      ephemeral_storage=512):
+        """ Create Lambda method
         :type lambda_name: str
         :type func_name: str
         :param func_name: name of the entry point function
@@ -71,6 +78,8 @@ class LambdaConnection(object):
         :type env_vars: dict
         :param env_vars: {'string': 'string'}
         :type layers: list
+        :param ephemeral_storage: amount of ephemeral storage between 512 MB
+        and 10,240 MB
         :return: response
         """
         layers = [] if layers is None else layers
@@ -78,7 +87,8 @@ class LambdaConnection(object):
                       Role=role, Handler=func_name,
                       Code={'S3Bucket': s3_bucket, 'S3Key': s3_key},
                       Description=' ', Timeout=timeout, MemorySize=memory,
-                      Publish=publish_version, Layers=layers)
+                      Publish=publish_version, Layers=layers,
+                      EphemeralStorage={'Size': ephemeral_storage})
         if env_vars:
             params['Environment'] = {'Variables': env_vars}
         if vpc_sub_nets and vpc_security_group:
@@ -95,6 +105,89 @@ class LambdaConnection(object):
                 'Mode': tracing_mode
             }
         return self.client.create_function(**params)
+
+    def set_url_config(self, function_name: str, qualifier: str = None,
+                       auth_type: str = IAM_AUTH_TYPE, cors: dict = None,
+                       principal: str = None, source_arn: str = None):
+        _LOG.info(f'Setting url config for lambda: {function_name} with '
+                  f'alias: {qualifier}')
+        existing_url = self.get_url_config(function_name=function_name,
+                                           qualifier=qualifier)
+        if cors:
+            # allow_origins is required for CORS
+            if not cors.get('allow_origins'):
+                cors['allow_origins'] = ['*']
+        if not existing_url:
+            _LOG.info('Existing url config was not found. Creating...')
+            function_url = self.create_url_config(
+                function_name=function_name, qualifier=qualifier,
+                auth_type=auth_type, cors=cors)['FunctionUrl']
+        else:
+            _LOG.info('Existing url config was found. Updating...')
+            existing_type = existing_url['AuthType']
+            if existing_type != auth_type or existing_type == IAM_AUTH_TYPE:
+                _LOG.warning('User has changed auth type or may have changed '
+                             'principal or source arn. '
+                             'Removing old permission')
+                self.remove_one_permission(
+                    function_name=function_name, qualifier=qualifier,
+                    statement_id=AUTH_TYPE_TO_STATEMENT_ID[existing_type]
+                )
+            function_url = self.create_url_config(
+                function_name=function_name, qualifier=qualifier,
+                auth_type=auth_type, cors=cors, update=True)['FunctionUrl']
+
+        if auth_type == NONE_AUTH_TYPE:
+            _LOG.warning(f'Auth type is {NONE_AUTH_TYPE}. Setting '
+                         f'the necessary resource-based policy')
+            self.add_invocation_permission(
+                name=function_name, principal='*', auth_type=auth_type,
+                qualifier=qualifier, exists_ok=True,
+                statement_id=AUTH_TYPE_TO_STATEMENT_ID[auth_type]
+            )
+        elif auth_type == IAM_AUTH_TYPE and principal:
+            _LOG.warning(f'Auth type is {IAM_AUTH_TYPE}. Setting '
+                         f'the necessary resource-based policy')
+            self.add_invocation_permission(
+                name=function_name, principal=principal,
+                auth_type=auth_type, qualifier=qualifier,
+                source_arn=source_arn,
+                statement_id=AUTH_TYPE_TO_STATEMENT_ID[auth_type]
+            )
+        return function_url
+
+    def delete_url_config(self, function_name: str, qualifier: str = None):
+        params = dict(FunctionName=function_name)
+        if qualifier:
+            params['Qualifier'] = qualifier
+        self.client.delete_function_url_config(**params)
+
+    def create_url_config(self, function_name: str, qualifier: str = None,
+                          auth_type: str = IAM_AUTH_TYPE, cors: dict = None,
+                          update=False):
+        params = dict(FunctionName=function_name,
+                      AuthType=auth_type)
+        if qualifier:
+            params['Qualifier'] = qualifier
+        if not cors:
+            params['Cors'] = {}
+        if cors and isinstance(cors, dict):
+            params['Cors'] = dict_keys_to_capitalized_camel_case(cors)
+        if update:
+            return self.client.update_function_url_config(**params)
+        else:
+            return self.client.create_function_url_config(**params)
+
+    def get_url_config(self, function_name: str, qualifier: str = None):
+        params = dict(FunctionName=function_name)
+        if qualifier:
+            params['Qualifier'] = qualifier
+        try:
+            return self.client.get_function_url_config(**params)
+        except ClientError as e:
+            if e.response["Error"]["Code"] == 'ResourceNotFoundException':
+                return None
+            raise e
 
     def create_alias(self, function_name, name, version,
                      description=None, routing_config=None):
@@ -270,27 +363,53 @@ class LambdaConnection(object):
                     ids_to_remove.append(policy['Sid'])
 
         for sid in ids_to_remove:
-            params = dict(FunctionName=func_name, StatementId=sid)
-            if qualifier:
-                params['Qualifier'] = qualifier
+            self.remove_one_permission(function_name=func_name,
+                                       statement_id=sid,
+                                       qualifier=qualifier)
+
+    def remove_one_permission(self, function_name, statement_id=None,
+                              qualifier=None, soft=True):
+        params = dict(FunctionName=function_name, StatementId=statement_id)
+        if qualifier:
+            params['Qualifier'] = qualifier
+        try:
             self.client.remove_permission(**params)
+        except ClientError as e:
+            if e.response["Error"]["Code"] == 'ResourceNotFoundException' \
+                    and soft:
+                return None
+            raise e
 
     def add_invocation_permission(self, name, principal, source_arn=None,
-                                  statement_id=None):
-        """ Add permission for something to be able invoke lambda.
-
+                                  statement_id=None, auth_type=None,
+                                  qualifier=None, exists_ok=False):
+        """ Add permission for something to be able to invoke lambda
         :type name: str
         :type source_arn: str
         :type principal: str
         :type statement_id: str
+        :type auth_type: str, NONE|AWS_IAM
+        :type qualifier: str
         """
+        action = 'lambda:InvokeFunctionUrl' if auth_type \
+            else 'lambda:InvokeFunction'
         if not statement_id:
             statement_id = str(uuid.uuid1())
         params = dict(FunctionName=name, StatementId=statement_id,
-                      Action='lambda:InvokeFunction', Principal=principal)
+                      Action=action, Principal=principal)
+        if auth_type:
+            params['FunctionUrlAuthType'] = auth_type
         if source_arn:
             params['SourceArn'] = source_arn
-        self.client.add_permission(**params)
+        if qualifier:
+            params['Qualifier'] = qualifier
+        try:
+            self.client.add_permission(**params)
+        except ClientError as e:
+            if e.response["Error"]["Code"] == 'ResourceConflictException' \
+                    and exists_ok:
+                return None
+            raise e
 
     def update_code_source(self, lambda_name, s3_bucket, s3_key,
                            publish_version):
@@ -398,8 +517,10 @@ class LambdaConnection(object):
                                     vpc_security_group=None,
                                     env_vars=None, runtime=None,
                                     dead_letter_arn=None, kms_key_arn=None,
-                                    layers=None):
+                                    layers=None, ephemeral_storage=None):
         params = dict(FunctionName=lambda_name)
+        if ephemeral_storage:
+            params['EphemeralStorage'] = {'Size': ephemeral_storage}
         if layers:
             params['Layers'] = layers
         if role:
