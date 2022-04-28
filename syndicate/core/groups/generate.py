@@ -145,10 +145,12 @@ def lambda_function(name, runtime, project_path):
 @click.option('--tags', type=DictParamType(),
               help='Tags to add to the config. They will be added to all the '
                    'resources during deployment')
+@click.option('--permissions_boundary', type=str,
+              help='Common permissions boundary arn to add to all the roles')
 @timeit()
 def config(name, config_path, project_path, region, access_key, secret_key,
            bundle_bucket_name, prefix, suffix, use_temp_creds, access_role,
-           serial_number, tags):
+           serial_number, tags, permissions_boundary):
     """
     Creates Syndicate configuration files
     """
@@ -164,7 +166,8 @@ def config(name, config_path, project_path, region, access_key, secret_key,
                                  use_temp_creds=use_temp_creds,
                                  access_role=access_role,
                                  serial_number=serial_number,
-                                 tags=tags)
+                                 tags=tags,
+                                 permissions_boundary=permissions_boundary)
 
 
 generate.add_command(meta)

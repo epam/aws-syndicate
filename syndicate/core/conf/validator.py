@@ -47,6 +47,7 @@ TEMP_AWS_SECRET_ACCESS_KEY_CFG = 'temp_aws_secret_access_key'
 TEMP_AWS_SESSION_TOKEN_CFG = 'temp_aws_session_token'
 EXPIRATION_CFG = 'expiration'
 ACCESS_ROLE_CFG = 'access_role'
+PERMISSIONS_BOUNDARY_CFG = 'permissions_boundary'
 
 TAGS_CFG = 'tags'
 
@@ -124,6 +125,10 @@ class ConfigValidator:
             TAGS_CFG: {
                 REQUIRED: False,
                 VALIDATOR: self._validate_tags
+            },
+            PERMISSIONS_BOUNDARY_CFG: {
+                REQUIRED: False,
+                VALIDATOR: self._validate_permissions_boundary
             }
         }
 
@@ -286,6 +291,12 @@ class ConfigValidator:
                     errors.append(f'\'{tag_value}\': the tag value must be a '
                                   f'minimum of 0 and a maximum of 256 Unicode '
                                   f'characters')
+        return errors
+
+    def _validate_permissions_boundary(self, key, value):
+        errors = []
+        if not isinstance(value, str):
+            return [f'\'{key}\' must have a string type']
         return errors
 
     @staticmethod

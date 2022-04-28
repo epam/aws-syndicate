@@ -22,6 +22,7 @@ from syndicate.core.build.helper import (build_py_package_name,
 from syndicate.core.build.validator.mapping import (VALIDATOR_BY_TYPE_MAPPING,
                                                     ALL_TYPES)
 from syndicate.core.conf.processor import GLOBAL_AWS_SERVICES
+from syndicate.core.conf.validator import PERMISSIONS_BOUNDARY_CFG
 from syndicate.core.constants import (API_GATEWAY_TYPE, ARTIFACTS_FOLDER,
                                       BUILD_META_FILE_NAME, EBS_TYPE,
                                       LAMBDA_CONFIG_FILE_NAME, LAMBDA_TYPE,
@@ -397,6 +398,8 @@ def resolve_meta(overall_meta):
     overall_meta = _resolve_aliases(overall_meta)
     _LOG.debug('Resolved meta was created')
     _LOG.debug(prettify_json(overall_meta))
+    _resolve_permissions_boundary(overall_meta)
+    _LOG.debug('Permissions boundary were resolved')
     # get dict with resolved prefix and suffix in meta resources
     # key: current_name, value: resolved_name
     resolved_names = {}
@@ -430,6 +433,16 @@ def _resolve_aliases(overall_meta):
                    CONFIG.aliases.items()}
         overall_meta = resolve_dynamic_identifier(aliases, overall_meta)
     return overall_meta
+
+
+def _resolve_permissions_boundary(overall_meta):
+    """Adds to every resource with resource_type IAM_ROLE permissions boundary
+    from the config"""
+    from syndicate.core import CONFIG
+    if CONFIG.permissions_boundary:
+        for name, meta in overall_meta.items():
+            if meta.get('resource_type') == IAM_ROLE:
+                meta[PERMISSIONS_BOUNDARY_CFG] = CONFIG.permissions_boundary
 
 
 def resolve_resource_name(resource_name, prefix=None, suffix=None):
