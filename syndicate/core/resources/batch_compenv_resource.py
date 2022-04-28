@@ -94,7 +94,7 @@ class BatchComputeEnvironmentResource(BaseResource):
             if not role:
                 _LOG.warn("Default Service Role '%s' not found and will be "
                           "created", DEFAULT_SERVICE_ROLE)
-                allowed_account = self.iam_conn.resource.CurrentUser().arn.split(':')[4]
+                allowed_account = self.account_id
                 self.iam_conn.create_custom_role(
                     role_name=DEFAULT_SERVICE_ROLE,
                     allowed_account=allowed_account,
@@ -164,7 +164,7 @@ class BatchComputeEnvironmentResource(BaseResource):
             if not role:
                 _LOG.warn(f"Default Service Role '{DEFAULT_SERVICE_ROLE}' not "
                           f"found and will be created")
-                allowed_account = self.iam_conn.resource.CurrentUser().arn.split(':')[4]
+                allowed_account = self.account_id
                 self.iam_conn.create_custom_role(
                     role_name=DEFAULT_SERVICE_ROLE,
                     allowed_account=allowed_account,
