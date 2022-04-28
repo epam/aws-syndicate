@@ -6,7 +6,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.0.0] - 2021-06-11
 ### Changed
-- required version of `click` package increased to 8.0+
 - `init` command was replaced with `generate config`
 - Interface of command was improved, `access_key` and `secret_key` params made optional
 - Removed `account_id` param and provided ability to resolve it by STS or instance profile
