@@ -32,7 +32,7 @@ from syndicate.core.conf.processor import (PROJECT_PATH_CFG,
                                            RESOURCES_PREFIX_CFG,
                                            RESOURCES_SUFFIX_CFG,
                                            TAGS_CFG,
-                                           PERMISSIONS_BOUNDARY_CFG)
+                                           IAM_PERMISSIONS_BOUNDARY_CFG)
 from syndicate.core.conf.validator import (LAMBDAS_ALIASES_NAME_CFG,
                                            USE_TEMP_CREDS_CFG,
                                            SERIAL_NUMBER_CFG,
@@ -48,7 +48,7 @@ def generate_configuration_files(name, config_path, region,
                                  bundle_bucket_name, prefix, suffix,
                                  project_path=None, use_temp_creds=None,
                                  access_role=None, serial_number=None,
-                                 tags=None, permissions_boundary=None):
+                                 tags=None, iam_permissions_boundary=None):
     if not access_key and not secret_key:
         _USER_LOG.warn("Access_key and secret_key weren't passed. "
                        "Attempting to load them")
@@ -114,7 +114,7 @@ def generate_configuration_files(name, config_path, region,
         ACCESS_ROLE_CFG: access_role,
         SERIAL_NUMBER_CFG: serial_number,
         TAGS_CFG: tags,
-        PERMISSIONS_BOUNDARY_CFG: permissions_boundary
+        IAM_PERMISSIONS_BOUNDARY_CFG: iam_permissions_boundary
     }
     config_content = {key: value for key, value in config_content.items()
                       if value is not None}

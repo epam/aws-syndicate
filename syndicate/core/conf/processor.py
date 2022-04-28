@@ -28,7 +28,7 @@ from syndicate.core.conf.validator import \
      USE_TEMP_CREDS_CFG, SERIAL_NUMBER_CFG,
      TEMP_AWS_ACCESS_KEY_ID_CFG, TEMP_AWS_SECRET_ACCESS_KEY_CFG,
      TEMP_AWS_SESSION_TOKEN_CFG, EXPIRATION_CFG, TAGS_CFG,
-     PERMISSIONS_BOUNDARY_CFG)
+     IAM_PERMISSIONS_BOUNDARY_CFG)
 from syndicate.core.constants import (DEFAULT_SEP, IAM_POLICY, IAM_ROLE,
                                       S3_BUCKET_TYPE)
 
@@ -244,8 +244,8 @@ class ConfigHolder:
         return self._resolve_variable(DEPLOY_TARGET_BUCKET_CFG)
 
     @property
-    def permissions_boundary(self):
-        return self._resolve_variable(PERMISSIONS_BOUNDARY_CFG)
+    def iam_permissions_boundary(self):
+        return self._resolve_variable(IAM_PERMISSIONS_BOUNDARY_CFG)
 
     # mapping build tool : paths to project
     @property

@@ -47,7 +47,7 @@ TEMP_AWS_SECRET_ACCESS_KEY_CFG = 'temp_aws_secret_access_key'
 TEMP_AWS_SESSION_TOKEN_CFG = 'temp_aws_session_token'
 EXPIRATION_CFG = 'expiration'
 ACCESS_ROLE_CFG = 'access_role'
-PERMISSIONS_BOUNDARY_CFG = 'permissions_boundary'
+IAM_PERMISSIONS_BOUNDARY_CFG = 'iam_permissions_boundary'
 
 TAGS_CFG = 'tags'
 
@@ -126,9 +126,9 @@ class ConfigValidator:
                 REQUIRED: False,
                 VALIDATOR: self._validate_tags
             },
-            PERMISSIONS_BOUNDARY_CFG: {
+            IAM_PERMISSIONS_BOUNDARY_CFG: {
                 REQUIRED: False,
-                VALIDATOR: self._validate_permissions_boundary
+                VALIDATOR: self._validate_iam_permissions_boundary
             }
         }
 
@@ -293,7 +293,7 @@ class ConfigValidator:
                                   f'characters')
         return errors
 
-    def _validate_permissions_boundary(self, key, value):
+    def _validate_iam_permissions_boundary(self, key, value):
         errors = []
         if not isinstance(value, str):
             return [f'\'{key}\' must have a string type']
