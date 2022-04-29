@@ -87,8 +87,7 @@ class LambdaConnection(object):
                       Role=role, Handler=func_name,
                       Code={'S3Bucket': s3_bucket, 'S3Key': s3_key},
                       Description=' ', Timeout=timeout, MemorySize=memory,
-                      Publish=publish_version, Layers=layers,
-                      EphemeralStorage={'Size': ephemeral_storage})
+                      Publish=publish_version, Layers=layers)
         if env_vars:
             params['Environment'] = {'Variables': env_vars}
         if vpc_sub_nets and vpc_security_group:
@@ -183,7 +182,7 @@ class LambdaConnection(object):
         if qualifier:
             params['Qualifier'] = qualifier
         try:
-            return self.client.get_function_url_config(**params)
+            return  # self.client.get_function_url_config(**params)
         except ClientError as e:
             if e.response["Error"]["Code"] == 'ResourceNotFoundException':
                 return None
@@ -519,8 +518,8 @@ class LambdaConnection(object):
                                     dead_letter_arn=None, kms_key_arn=None,
                                     layers=None, ephemeral_storage=None):
         params = dict(FunctionName=lambda_name)
-        if ephemeral_storage:
-            params['EphemeralStorage'] = {'Size': ephemeral_storage}
+        # if ephemeral_storage:
+        #     params['EphemeralStorage'] = {'Size': ephemeral_storage}
         if layers:
             params['Layers'] = layers
         if role:
