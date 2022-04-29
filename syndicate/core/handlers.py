@@ -84,8 +84,7 @@ def _not_require_config(all_params):
 
 
 @click.group(name='syndicate')
-@click.version_option(package_name=SYNDICATE_PACKAGE_NAME,
-                      prog_name=SYNDICATE_PACKAGE_NAME)
+@click.version_option()
 def syndicate():
     if CONF_PATH:
         click.echo('Configuration used: ' + CONF_PATH)

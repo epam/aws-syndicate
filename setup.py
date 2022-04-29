@@ -31,7 +31,7 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     install_requires=[
-        'click==8.0.1',
+        'click==7.1.2',
         'botocore==1.24.38',
         'boto3==1.21.22',
         'configobj==5.0.6',
