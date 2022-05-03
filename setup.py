@@ -31,15 +31,15 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     install_requires=[
-        'click==8.0.1',
-        'botocore==1.24.38',
-        'boto3==1.21.22',
+        'click==7.1.2',
+        'botocore>=1.24.0',
+        'boto3>=1.21.0',
         'configobj==5.0.6',
         'tqdm==4.19.5',
         'colorama==0.4.1',
         'pyyaml==5.4',
         'requests-aws-sign==0.1.6',
-        'requests==2.25.1',
+        'requests==2.27.1',
         'tabulate==0.8.9'
     ],
     entry_points='''

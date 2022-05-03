@@ -20,6 +20,7 @@ import os
 import shutil
 import subprocess
 import sys
+import platform
 from typing import Union
 from concurrent.futures import FIRST_EXCEPTION
 from concurrent.futures.thread import ThreadPoolExecutor
@@ -88,10 +89,11 @@ def _build_python_artifact(root, config_file, target_folder, project_path):
     if os.path.exists(requirements_path):
         _LOG.info('Going to install 3-rd party dependencies')
         try:
-            subprocess.run(f"{sys.executable} -m pip install -r "
-                           f"{requirements_path} -t "
-                           f"{artifact_path}".split(),
-                           stderr=subprocess.PIPE, check=True)
+            command = f"{sys.executable} -m pip install -r " \
+                      f"{requirements_path} -t {artifact_path}"
+            if platform.system() == 'Windows':
+                command += ' --no-cache-dir'
+            subprocess.run(command.split(), stderr=subprocess.PIPE, check=True)
         except subprocess.CalledProcessError as e:
             message = f'An error: \n"{e.stderr.decode()}"\noccured while ' \
                       f'installing requirements: "{str(requirements_path)}" ' \
