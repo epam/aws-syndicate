@@ -13,6 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+import time
 from botocore.exceptions import ClientError
 
 from syndicate.commons.log_helper import get_logger
@@ -181,6 +182,7 @@ class DynamoDBResource(AbstractExternalResource, BaseResource):
             global_indexes=meta.get('global_indexes'),
             local_indexes=meta.get('local_indexes'),
             wait=False)
+        time.sleep(5)
         response = self.dynamodb_conn.describe_table(name)
         if not response:
             raise AssertionError('Table with name {0} has not been created!'
