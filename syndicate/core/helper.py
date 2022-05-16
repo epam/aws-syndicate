@@ -35,7 +35,7 @@ from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.conf.processor import path_resolver
 from syndicate.core.conf.validator import ConfigValidator, ALL_REGIONS
 from syndicate.core.constants import (ARTIFACTS_FOLDER, BUILD_META_FILE_NAME,
-                                      DEFAULT_SEP, DATE_FORMAT_ISO_8601, RESOURCES_FILE_NAME)
+                                      DEFAULT_SEP, DATE_FORMAT_ISO_8601)
 from syndicate.core.project_state.project_state import MODIFICATION_LOCK
 from syndicate.core.project_state.sync_processor import sync_project_state
 
@@ -553,12 +553,3 @@ def check_lambdas_names(ctx, param, value):
         except ValueError as e:
             raise click.BadParameter(e.__str__(), ctx, param)
     return value
-
-def resolve_highest_resources_file_path(root_project_path, condition_file):
-    """
-    Returns the highest level path, which contains the provided condition-file.
-    Given that the file hasn't been found in any of the aforementioned levels, returns the provided root path.
-    """
-    return next(
-        iter(level[0] for level in os.walk(root_project_path) if condition_file in level[-1]), root_project_path
-    )

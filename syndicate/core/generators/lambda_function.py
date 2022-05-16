@@ -29,7 +29,7 @@ from syndicate.core.generators.project import _generate_java_project_hierarchy
 from syndicate.core.generators.tests import _generate_python_tests
 from syndicate.core.generators.contents import (
     NODEJS_LAMBDA_HANDLER_TEMPLATE,
-    _generate_python_node_lambda_config, _stringify,
+    _generate_python_node_lambda_config,
     _generate_lambda_role_config, _generate_nodejs_node_lambda_config,
     CANCEL_MESSAGE, _generate_package_nodejs_lambda,
     _generate_package_lock_nodejs_lambda, JAVA_LAMBDA_HANDLER_CLASS,
@@ -37,7 +37,6 @@ from syndicate.core.generators.contents import (
     ABSTRACT_LAMBDA_CONTENT, EXCEPTION_CONTENT, LOG_HELPER_CONTENT)
 from syndicate.core.groups import (RUNTIME_JAVA, RUNTIME_NODEJS,
                                    RUNTIME_PYTHON)
-from syndicate.core.helper import resolve_highest_resources_file_path
 
 _LOG = get_logger('syndicate.core.generators.lambda_function')
 USER_LOG = get_user_logger()
@@ -135,7 +134,6 @@ def _generate_python_lambdas(**kwargs):
     lambdas_path = kwargs.get(LAMBDAS_PATH_PARAM)
     lambda_names = kwargs.get(LAMBDA_NAMES_PARAM)
     project_state = kwargs.get(PROJECT_STATE_PARAM)
-    project_path = kwargs.get(PROJECT_PATH_PARAM)
 
     if not os.path.exists(lambdas_path):
         _mkdir(lambdas_path, exist_ok=True)
@@ -156,10 +154,8 @@ def _generate_python_lambdas(**kwargs):
 
         PYTHON_LAMBDA_FILES.append(
             FILE_LAMBDA_HANDLER_PYTHON)  # add lambda handler
-        # Touching every file except for the deployment_resources.json
         for file in PYTHON_LAMBDA_FILES:
-            if file is not FILE_DEPLOYMENT_RESOURCES:
-                _touch(os.path.join(lambda_folder, file))
+            _touch(os.path.join(lambda_folder, file))
 
         # fill handler.py
         lambda_class_name = __lambda_name_to_class_name(
@@ -170,21 +166,11 @@ def _generate_python_lambdas(**kwargs):
             lambda_folder, FILE_LAMBDA_HANDLER_PYTHON),
             python_lambda_handler_template)
 
-        # fill in deployment_resources.json
-        # merging role_def and the running project deployment
+        # fill deployment_resources.json
         pattern_format = LAMBDA_ROLE_NAME_PATTERN.format(lambda_name)
-        project_deployment = os.path.join(resolve_highest_resources_file_path(project_path), FILE_DEPLOYMENT_RESOURCES)
-
-        merged_deployment = {}
-
-        if not os.access(project_deployment, os.R_OK):
-            _touch(project_deployment)
-        else:
-            merged_deployment = json.loads(_read_content_from_file(project_deployment))
-
-        merged_deployment.update(_generate_lambda_role_config(pattern_format, False))
-
-        _write_content_to_file(project_deployment, _stringify(merged_deployment))
+        role_def = _generate_lambda_role_config(pattern_format)
+        _write_content_to_file(os.path.join(
+            lambda_folder, FILE_DEPLOYMENT_RESOURCES), role_def)
 
         # fill lambda_config.json
         lambda_def = _generate_python_node_lambda_config(
