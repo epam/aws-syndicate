@@ -6,8 +6,9 @@ from syndicate.core.generators.deployment_resources import *
 from syndicate.core.generators.lambda_function import PROJECT_PATH_PARAM
 from syndicate.core.helper import OrderedGroup, OptionRequiredIf
 from syndicate.core.helper import check_bundle_bucket_name
-from syndicate.core.helper import resolve_project_path, timeit
+from syndicate.core.helper import resolve_project_path, timeit, resolve_highest_resources_file_path
 from syndicate.core.helper import ValidRegionParamType
+from syndicate.core.constants import RESOURCES_FILE_NAME
 
 GENERATE_META_GROUP_NAME = 'meta'
 dynamodb_type_param = click.Choice(['S', 'N', 'B'])
@@ -31,7 +32,7 @@ def meta(ctx, project_path):
                    f"'{project_path}'")
         return
     ctx.ensure_object(dict)
-    ctx.obj[PROJECT_PATH_PARAM] = project_path
+    ctx.obj[PROJECT_PATH_PARAM] = resolve_highest_resources_file_path(project_path, RESOURCES_FILE_NAME)
 
 
 @meta.command(name='dynamodb')
