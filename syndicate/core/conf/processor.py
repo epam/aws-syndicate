@@ -106,7 +106,11 @@ def _project_mapping(value):
 
 class ConfigHolder:
     def __init__(self, dir_path):
-        con_path = os.path.join(dir_path, CONFIG_FILE_NAME)
+        con_path_yml = os.path.join(dir_path, CONFIG_FILE_NAME)
+        con_path_yaml = os.path.join(dir_path,
+                                     CONFIG_FILE_NAME.replace('yml', 'yaml'))
+        con_path = con_path_yml if \
+            os.path.exists(con_path_yml) else con_path_yaml
         self._config_path = con_path
         if os.path.isfile(con_path):
             self._init_yaml_config(dir_path=dir_path, con_path=con_path)
@@ -123,7 +127,11 @@ class ConfigHolder:
                                      f'while {con_path} parsing: {errors}')
         self._config_dict = config_content
 
-        aliases_path = os.path.join(dir_path, ALIASES_FILE_NAME)
+        aliases_path_yml = os.path.join(dir_path, ALIASES_FILE_NAME)
+        aliases_path_yaml = os.path.join(
+            dir_path, ALIASES_FILE_NAME.replace('yml', 'yaml'))
+        aliases_path = aliases_path_yml \
+            if os.path.exists(aliases_path_yml) else aliases_path_yaml
         aliases_content = load_yaml_file_content(file_path=aliases_path)
         self._aliases = aliases_content
         self._aliases.update(self.default_aliases)
