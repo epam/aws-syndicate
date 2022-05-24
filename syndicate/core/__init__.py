@@ -22,7 +22,7 @@ from botocore.exceptions import ClientError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.connection import ConnectionProvider
 from syndicate.connection.sts_connection import STSConnection
-from syndicate.core.conf.processor import ConfigHolder
+from syndicate.core.conf.processor import ConfigHolder, URIBucketView
 from syndicate.core.project_state.project_state import ProjectState
 from syndicate.core.resources.processors_mapping import ProcessorFacade
 from syndicate.core.resources.resources_provider import ResourceProvider
@@ -95,6 +95,7 @@ def initialize_connection():
     global PROCESSOR_FACADE
 
     CONFIG = ConfigHolder(CONF_PATH)
+    CONFIG.deploy_target_bucket_view = URIBucketView()
     sts = STSConnection(CONFIG.region, CONFIG.aws_access_key_id,
                         CONFIG.aws_secret_access_key)
     try:

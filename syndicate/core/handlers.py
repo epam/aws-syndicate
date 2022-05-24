@@ -646,7 +646,7 @@ def create_deploy_target_bucket():
     Creates a bucket in AWS account where all bundles will be uploaded
     """
     from syndicate.core import CONFIG
-    click.echo(f'Create deploy target sdk: {CONFIG.deploy_target_bucket}')
+    click.echo('Create deploy target sdk: %s'%CONFIG.deploy_target_bucket)
     create_bundles_bucket()
     click.echo('Deploy target bucket was created successfully')
 
