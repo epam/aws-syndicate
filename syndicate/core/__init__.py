@@ -26,6 +26,8 @@ from syndicate.core.conf.processor import ConfigHolder
 from syndicate.core.project_state.project_state import ProjectState
 from syndicate.core.resources.processors_mapping import ProcessorFacade
 from syndicate.core.resources.resources_provider import ResourceProvider
+from syndicate.core.conf.bucket_view import URIBucketView, RegexViewDigest, \
+    NAMED_S3_URI_PATTERN, S3_PATTERN_GROUP_NAMES
 
 _LOG = get_logger('deployment.__init__')
 USER_LOG = get_user_logger()
@@ -94,7 +96,14 @@ def initialize_connection():
     global RESOURCES_PROVIDER
     global PROCESSOR_FACADE
 
+    regex_digest = RegexViewDigest()
+    regex_digest.expression = NAMED_S3_URI_PATTERN
+    regex_digest.groups = S3_PATTERN_GROUP_NAMES
+    uri_bucket_view = URIBucketView()
+    uri_bucket_view.digest = regex_digest
+
     CONFIG = ConfigHolder(CONF_PATH)
+    CONFIG.deploy_target_bucket_view = uri_bucket_view
     sts = STSConnection(CONFIG.region, CONFIG.aws_access_key_id,
                         CONFIG.aws_secret_access_key)
     try:
