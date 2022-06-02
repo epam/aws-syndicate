@@ -17,6 +17,8 @@ from syndicate.commons.log_helper import get_logger
 from syndicate.core.helper import unpack_kwargs
 from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import build_description_obj
+from syndicate.core.generators.deployment_resources.batch_jobdef_generator \
+    import BatchJobdefGenerator
 
 _LOG = get_logger('syndicate.core.resources.batch_jobdef')
 
@@ -79,20 +81,27 @@ class BatchJobDefinitionResource(BaseResource):
     def _update_job_definition_from_meta(self, name, meta, context):
         """Updates batch job definition. If a user updates job definition,
         the previous active revision should be deregistered """
+        from syndicate.core import CONFIG
         response = self.batch_conn.describe_job_definition(job_definition=name,
                                                            max_results=1,
                                                            status='ACTIVE')
         previous_revision = response['jobDefinitions'][-1]['revision']
-
         self.batch_conn.client.deregister_job_definition(
             jobDefinition=f'{name}:{previous_revision}')
-        BatchJobDefinitionResource._register_job_definition_from_meta(
-            {
+        response = BatchJobDefinitionResource.\
+            _register_job_definition_from_meta({
                 'self': self,
                 'name': name,
                 'meta': meta
-            }
-        )
+            })
+        arn = next(iter(response), None)
+        if arn is not None:
+            generator = BatchJobdefGenerator(**dict(
+                project_path=CONFIG.project_path,
+                resource_name=response[arn]['resource_name'],
+                **response[arn]['resource_meta']
+            ))
+            generator.write()
 
     def update_job_definition(self, args):
         self.create_pool(self._update_job_definition_from_meta, args)

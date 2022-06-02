@@ -143,7 +143,8 @@ class BaseDeploymentResourceGenerator(BaseConfigurationGenerator):
         deployment_resources, excluding the lambdas sub-folder. If resource
         with the name {self.resource_name} already exists, it'll ask a
         user whether overwrite it or not. If 'yes', resource meta will
-        be written to the file, where the duplicate was found"""
+        be written to the file, where the duplicate was found. Given the
+        generated data matches the existing resource data - aborts the action"""
 
         resources_file = next(
             iter(path for path in Path(self.project_path).rglob(
@@ -171,12 +172,20 @@ class BaseDeploymentResourceGenerator(BaseConfigurationGenerator):
         deployment_resources = json.loads(_read_content_from_file(
             resources_file
         ))
-        deployment_resources.update(self.generate_deployment_resource())
-        USER_LOG.info(f"Writing deployment resources for "
-                      f"{self.RESOURCE_TYPE} '{self.resource_name}' "
-                      f"to the file '{resources_file}'")
-        _write_content_to_file(resources_file,
-                               json.dumps(deployment_resources, indent=2))
+        injectable_resources = self.generate_deployment_resource()
+        if deployment_resources != {**deployment_resources,
+                                    **injectable_resources}:
+            deployment_resources.update(self.generate_deployment_resource())
+            USER_LOG.info(f"Writing deployment resources for "
+                          f"{self.RESOURCE_TYPE} '{self.resource_name}' "
+                          f"to the file '{resources_file}'")
+            _write_content_to_file(resources_file,
+                                   json.dumps(deployment_resources, indent=2))
+        else:
+            USER_LOG.info(f"Generated deployment resources for "
+                          f"{self.RESOURCE_TYPE} '{self.resource_name}' "
+                          f"of '{resources_file}' match the current one."
+                          f"Proceeding to abort the action.")
 
     def _find_file_with_duplicate(self):
         """Looks for self.resouce_name inside each deployment_resource.json.
