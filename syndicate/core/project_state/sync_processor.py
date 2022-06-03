@@ -13,7 +13,6 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.project_state.project_state import PROJECT_STATE_FILE
 from syndicate.core.project_state.project_state import ProjectState
@@ -24,10 +23,13 @@ USER_LOG = get_user_logger()
 
 def sync_project_state():
     from syndicate.core import CONFIG, CONN, PROJECT_STATE
+    from pathlib import PurePath
     bucket_name = CONFIG.deploy_target_bucket
+    key_compound = PurePath(CONFIG.deploy_target_bucket_key_compound,
+                            PROJECT_STATE_FILE).as_posix()
     s3 = CONN.s3()
     if not s3.is_file_exists(bucket_name=bucket_name,
-                             key=PROJECT_STATE_FILE):
+                             key=key_compound):
         _LOG.debug('Remote .syndicate file does not exists. Pushing...')
         PROJECT_STATE.save_to_remote()
         _LOG.debug('Push successful')
