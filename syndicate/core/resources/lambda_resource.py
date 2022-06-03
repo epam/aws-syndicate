@@ -357,15 +357,7 @@ class LambdaResource(BaseResource):
             s3_key=key,
             publish_version=publish_version)
 
-        # temporary solution
         role_name = meta['iam_role_name']
-        if not role_name.startswith(CONFIG.resources_prefix):
-            _LOG.warning('Seems that you are updating the lambda but the '
-                         'meta does not contain its execution role. Hence, in'
-                         ' lambda\'s meta role\'s prefix and suffix was not '
-                         'resolved. Adding them..')
-            role_name = f'{CONFIG.resources_prefix}{role_name}' \
-                        f'{CONFIG.resources_suffix}'
         role_arn = self.iam_conn.check_if_role_exists(role_name)
         if not role_arn:
             _LOG.warning('Execution role does not exist. Keeping the old one')

@@ -288,6 +288,11 @@ def create_deployment_resources(deploy_name, bundle_name,
     # validate_deployment_packages(resources)
     _LOG.debug('{0} file was loaded successfully'.format(BUILD_META_FILE_NAME))
 
+    resources = resolve_meta(resources)
+    _LOG.debug('Names were resolved')
+    resources = populate_s3_paths(resources, bundle_name)
+    _LOG.debug('Artifacts s3 paths were resolved')
+
     # TODO make filter chain
     if deploy_only_resources:
         resources = dict((k, v) for (k, v) in resources.items() if
@@ -304,10 +309,6 @@ def create_deployment_resources(deploy_name, bundle_name,
         resources = dict((k, v) for (k, v) in resources.items() if
                          v['resource_type'] not in excluded_types)
 
-    resources = resolve_meta(resources)
-    _LOG.debug('Names were resolved')
-    resources = populate_s3_paths(resources, bundle_name)
-    _LOG.debug('Artifacts s3 paths were resolved')
     _LOG.debug(prettify_json(resources))
 
     _LOG.debug('Going to create: {0}'.format(prettify_json(resources)))
@@ -363,17 +364,17 @@ def update_deployment_resources(bundle_name, deploy_name, replace_output=False,
                      v['resource_type'] in
                      PROCESSOR_FACADE.update_handlers().keys())
 
-    if update_only_types:
-        resources = dict((k, v) for (k, v) in resources.items() if
-                         v['resource_type'] in update_only_types)
-
-    if update_only_resources:
-        resources = dict((k, v) for (k, v) in resources.items() if
-                         k in update_only_resources)
     resources = resolve_meta(resources)
     _LOG.debug('Names were resolved')
     resources = populate_s3_paths(resources, bundle_name)
     _LOG.debug('Artifacts s3 paths were resolved')
+
+    if update_only_types:
+        resources = dict((k, v) for (k, v) in resources.items() if
+                         v['resource_type'] in update_only_types)
+    if update_only_resources:
+        resources = dict((k, v) for (k, v) in resources.items() if
+                         k in update_only_resources)
 
     _LOG.debug('Going to update the following resources: {0}'.format(
         prettify_json(resources)))
