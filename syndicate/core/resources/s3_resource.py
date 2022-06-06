@@ -25,6 +25,7 @@ from syndicate.core.resources.helper import build_description_obj, chunks
 
 _LOG = get_logger('syndicate.core.resources.s3_resource')
 
+
 def validate_bucket_name(bucket_name: str):
     """Checks whether the given bucket name is valid.
     If the given name isn't valid, ValueError with an appropriate message
