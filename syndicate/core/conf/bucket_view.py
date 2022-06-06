@@ -4,7 +4,7 @@ from typing import Union
 from collections.abc import Iterable
 
 NAMED_S3_URI_PATTERN = r'^(?P<proto>s3:\/\/)?(?:(?P<name>[0-9a-z\-]+)' \
-                       r'(?:\/)?)(?P<key>(?<=\/)(?:[0-9a-z\-]+(?:\/)?)+)?$'
+                       r'(?:\/)?)(?P<key>(?<=\/)(?:[0-9a-z\-_]+(?:\/)?)+)?$'
 S3_PATTERN_GROUP_NAMES = ('proto', 'name', 'key')
 
 
