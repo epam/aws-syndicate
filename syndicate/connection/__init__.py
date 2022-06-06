@@ -42,6 +42,7 @@ from syndicate.connection.sqs_connection import SqsConnection
 from syndicate.connection.step_functions_connection import SFConnection
 from syndicate.connection.resource_groups_tagging_api_connection import \
     ResourceGroupsTaggingAPIConnection
+from syndicate.connection.dax_connection import DaxConnection
 
 
 class ConnectionProvider(object):
@@ -198,3 +199,10 @@ class ConnectionProvider(object):
         if region:
             credentials['region'] = region
         return ResourceGroupsTaggingAPIConnection(**credentials)
+
+    @lru_cache(maxsize=None)
+    def dax(self, region=None):
+        credentials = self.credentials.copy()
+        if region:
+            credentials['region'] = region
+        return DaxConnection(**credentials)

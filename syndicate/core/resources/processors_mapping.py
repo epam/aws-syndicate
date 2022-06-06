@@ -29,7 +29,8 @@ from syndicate.core.constants import (API_GATEWAY_TYPE, CLOUD_WATCH_ALARM_TYPE,
                                       COGNITO_USER_POOL_TYPE,
                                       COGNITO_FEDERATED_POOL_TYPE,
                                       DOCUMENTDB_CLUSTER_TYPE,
-                                      DOCUMENTDB_INSTANCE_TYPE)
+                                      DOCUMENTDB_INSTANCE_TYPE,
+                                      DAX_CLUSTER_TYPE)
 
 
 class ProcessorFacade:
@@ -90,7 +91,9 @@ class ProcessorFacade:
                 self.resources_provider.documentdb_cluster().create_db_cluster,
             DOCUMENTDB_INSTANCE_TYPE:
                 self.resources_provider.documentdb_instance()
-                    .create_db_instance
+                    .create_db_instance,
+            DAX_CLUSTER_TYPE:
+                self.resources_provider.dax_cluster().create_cluster
         }
 
     def describe_handlers(self):
@@ -144,7 +147,9 @@ class ProcessorFacade:
                     .describe_documentdb_cluster,
             DOCUMENTDB_INSTANCE_TYPE:
                 self.resources_provider.documentdb_instance()
-                    .describe_documentdb_instance
+                    .describe_documentdb_instance,
+            DAX_CLUSTER_TYPE:
+                self.resources_provider.dax_cluster().describe_cluster
         }
 
     def remove_handlers(self):
@@ -201,7 +206,9 @@ class ProcessorFacade:
                 self.resources_provider.documentdb_cluster().remove_db_cluster,
             DOCUMENTDB_INSTANCE_TYPE:
                 self.resources_provider.documentdb_instance()
-                    .remove_db_instance
+                    .remove_db_instance,
+            DAX_CLUSTER_TYPE:
+                self.resources_provider.dax_cluster().remove_cluster
         }
 
     def update_handlers(self):
