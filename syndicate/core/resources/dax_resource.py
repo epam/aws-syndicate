@@ -13,13 +13,13 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-from syndicate.commons.log_helper import get_logger
-from syndicate.core.resources.base_resource import BaseResource
+from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.helper import unpack_kwargs
+from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import build_description_obj
 
-
 _LOG = get_logger('syndicate.core.resources.dynamo_db_resource')
+USER_LOG = get_user_logger()
 
 
 class DaxResource(BaseResource):
@@ -28,28 +28,30 @@ class DaxResource(BaseResource):
         self.iam_conn = iam_conn
 
     def create_cluster(self, args):
-        return self.create_pool(self.create_cluster_from_meta, args)
+        return self.create_pool(self._create_cluster_from_meta, args)
 
     @unpack_kwargs
-    def create_cluster_from_meta(self, name, meta):
+    def _create_cluster_from_meta(self, name, meta):
         role_name = meta['iam_role_name']
         role_arn = self.iam_conn.check_if_role_exists(role_name)
         if not role_arn:
-            raise AssertionError(f'Role {role_name} does not exist; '
-                                 f'Dax cluster {name} failed to be created.')
+            message = f'Role {role_name} does not exist; ' \
+                      f'Dax cluster {name} failed to be created.'
+            _LOG.error(message)
+            raise AssertionError(message)
         # subnet_ids = meta.get('subnet_ids') or []
         # if subnet_ids:
         #     self.dax_conn.create_subnet_group(
         #         subnet_group_name=f'{name}-subnet-group-syndicate'
         #     )
-        breakpoint()
         response = self.dax_conn.create_cluster(
             cluster_name=name,
             node_type=meta['node_type'],
             replication_factor=meta['replication_factor'],
             iam_role_arn=role_arn,
             subnet_group_name=meta.get('subnet_group_name'),
-            security_group_ids=meta.get('security_group_ids') or []
+            security_group_ids=meta.get('security_group_ids') or [],
+            parameter_group_name=meta.get('parameter_group_name')
         )
         return self.describe_cluster(name, meta, response['Cluster'])
 
@@ -60,8 +62,17 @@ class DaxResource(BaseResource):
             arn = response['ClusterArn']
             del response['ClusterArn']
             return {
-                arn: build_description_obj()
+                arn: build_description_obj(response, name, meta)
             }
 
-    def remove_cluster(self):
-        pass
+    def remove_cluster(self, args):
+        return self.create_pool(self._remove_cluster, args)
+
+    @unpack_kwargs
+    def _remove_cluster(self, arn, config):
+        cluster_name = config['resource_name']
+        try:
+            self.dax_conn.delete_cluster(cluster_name)
+        except self.dax_conn.client.exceptions.InvalidClusterStateFault as e:
+            USER_LOG.warning(e.response['Error']['Message'] +
+                             ' Remove it manually!')

@@ -35,14 +35,15 @@ class DaxConnection:
 
     def create_cluster(self, cluster_name, node_type, replication_factor,
                        iam_role_arn, subnet_group_name=None,
-                       security_group_ids=None):
+                       security_group_ids=None, parameter_group_name=None):
         params = dict(
             ClusterName=cluster_name,
             NodeType=node_type,
             ReplicationFactor=replication_factor,
             IamRoleArn=iam_role_arn,
             SubnetGroupName=subnet_group_name,
-            SecurityGroupIds=security_group_ids
+            SecurityGroupIds=security_group_ids,
+            ParameterGroupName=parameter_group_name
         )
         params = {key: value for key, value in params.items() if value}
         return self.client.create_cluster(**params)
@@ -53,7 +54,14 @@ class DaxConnection:
                 ClusterNames=[cluster_name],
             )
             return response['Clusters'][0]
-        except self.client.exceptions.ClusterNotFoundFault as e:
+        except self.client.exceptions.ClusterNotFo7undFault:
+            return
+
+    def delete_cluster(self, cluster_name):
+        try:
+            return self.client.delete_cluster(ClusterName=cluster_name)
+        except self.client.exceptions.ClusterNotFoundFault:
+            _LOG.warning(f'Dax cluster with name \'{cluster_name}\' not found')
             return
 
     def create_subnet_group(self, subnet_group_name, subnet_ids):
