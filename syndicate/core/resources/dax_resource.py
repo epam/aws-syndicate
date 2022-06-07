@@ -13,6 +13,8 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+from time import time
+
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.helper import unpack_kwargs
 from syndicate.core.resources.base_resource import BaseResource
@@ -39,17 +41,24 @@ class DaxResource(BaseResource):
                       f'Dax cluster {name} failed to be created.'
             _LOG.error(message)
             raise AssertionError(message)
-        # subnet_ids = meta.get('subnet_ids') or []
-        # if subnet_ids:
-        #     self.dax_conn.create_subnet_group(
-        #         subnet_group_name=f'{name}-subnet-group-syndicate'
-        #     )
+        subnet_group_name = meta.get('subnet_group_name')
+        subnet_ids = meta.get('subnet_ids') or []
+        if subnet_ids:  # or only subnet_group_name can pass the validator
+            _LOG.info(f'Subnet_ids \'{subnet_ids}\' were given. '
+                      f'Creating Dax subnet group')
+            subnet_group_name = f'{name}-subnet-group-syndicate-{int(time())}'
+            self.dax_conn.create_subnet_group(
+                subnet_group_name=subnet_group_name,
+                subnet_ids=subnet_ids
+            )
+            _LOG.info(f'Dax subnet group with name {subnet_group_name} '
+                      f'was created.')
         response = self.dax_conn.create_cluster(
             cluster_name=name,
             node_type=meta['node_type'],
             replication_factor=meta['replication_factor'],
             iam_role_arn=role_arn,
-            subnet_group_name=meta.get('subnet_group_name'),
+            subnet_group_name=subnet_group_name,
             security_group_ids=meta.get('security_group_ids') or [],
             parameter_group_name=meta.get('parameter_group_name')
         )

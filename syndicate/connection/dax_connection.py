@@ -69,5 +69,4 @@ class DaxConnection:
             SubnetGroupName=subnet_group_name,
             SubnetIds=subnet_ids
         )
-        params = {key: value for key, value in params.items() if value}
         return self.client.create_subnet_group(**params)
