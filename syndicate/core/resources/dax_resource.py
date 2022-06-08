@@ -59,8 +59,10 @@ class DaxResource(BaseResource):
             replication_factor=meta['replication_factor'],
             iam_role_arn=role_arn,
             subnet_group_name=subnet_group_name,
+            cluster_endpoint_encryption_type=meta.get('cluster_endpoint_encryption_type'),
             security_group_ids=meta.get('security_group_ids') or [],
-            parameter_group_name=meta.get('parameter_group_name')
+            parameter_group_name=meta.get('parameter_group_name'),
+            availability_zones=meta.get('availability_zones') or []
         )
         return self.describe_cluster(name, meta, response['Cluster'])
 

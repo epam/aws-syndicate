@@ -33,9 +33,13 @@ class DaxConnection:
                              aws_session_token=aws_session_token)
         _LOG.debug('Opened new DAX connection.')
 
-    def create_cluster(self, cluster_name, node_type, replication_factor,
-                       iam_role_arn, subnet_group_name=None,
-                       security_group_ids=None, parameter_group_name=None):
+    def create_cluster(self, cluster_name: str, node_type: str,
+                       replication_factor: str, iam_role_arn: str,
+                       subnet_group_name: str = None,
+                       cluster_endpoint_encryption_type: str = 'TLS',
+                       security_group_ids: list = None,
+                       parameter_group_name: str = None,
+                       availability_zones: list = None):
         params = dict(
             ClusterName=cluster_name,
             NodeType=node_type,
@@ -43,7 +47,9 @@ class DaxConnection:
             IamRoleArn=iam_role_arn,
             SubnetGroupName=subnet_group_name,
             SecurityGroupIds=security_group_ids,
-            ParameterGroupName=parameter_group_name
+            ParameterGroupName=parameter_group_name,
+            AvailabilityZones=availability_zones,
+            ClusterEndpointEncryptionType=cluster_endpoint_encryption_type
         )
         params = {key: value for key, value in params.items() if value}
         return self.client.create_cluster(**params)
