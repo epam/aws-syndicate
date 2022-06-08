@@ -283,7 +283,8 @@ class LambdaResource(BaseResource):
         _LOG.debug('Lambda created %s', name)
         # AWS sometimes returns None after function creation, needs for
         # stability
-        time.sleep(10)
+        waiter = self.lambda_conn.get_waiter('function_exists')
+        waiter.wait(FunctionName=name)
 
         log_group_name = name
         retention = meta.get('logs_expiration')
@@ -406,7 +407,9 @@ class LambdaResource(BaseResource):
 
         # AWS sometimes returns None after function creation, needs for
         # stability
-        time.sleep(10)
+        waiter = self.lambda_conn.get_waiter('function_updated_v2')
+        waiter.wait(FunctionName=name)
+
         response = self.lambda_conn.get_function(name)
         _LOG.debug(f'Lambda describe result: {response}')
         code_sha_256 = response['Configuration']['CodeSha256']
