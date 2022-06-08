@@ -691,3 +691,6 @@ class LambdaConnection(object):
             versions.extend(resp.get('Versions'))
             next_marker = resp.get('NextMarker')
         return versions
+
+    def get_waiter(self, waiter_name):
+        return self.client.get_waiter(waiter_name)
