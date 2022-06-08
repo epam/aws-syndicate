@@ -14,6 +14,8 @@
     limitations under the License.
 """
 import re
+import click
+import sys
 
 from syndicate.core.build.validator import assert_required_property
 
@@ -192,8 +194,10 @@ def validate_dax_cluster(cluster_name: str, cluster_meta: dict):
     encryption_type = cluster_meta.get('cluster_endpoint_encryption_type')
     if encryption_type and encryption_type not in ['NONE', 'TLS']:
         errors.append('Cluster endpoint encryption type must be either '
-                      '\'NONE\' or \'TLS\'. By default it is \'TLS\'')
+                      f'\'NONE\' or \'TLS\' but not \'{encryption_type}\'. '
+                      f'By default it is \'TLS\'')
     if errors:
         errors_string = '\n'.join(errors)
-        raise AssertionError(f'Errors occurred during Dax cluster meta '
-                             f'validation:\n{errors_string}')
+        click.echo(f'Errors occurred during Dax cluster meta '
+                   f'validation:\n{errors_string}')
+        sys.exit(1)

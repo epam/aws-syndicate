@@ -34,6 +34,40 @@ def meta(ctx, project_path):
     ctx.obj[PROJECT_PATH_PARAM] = project_path
 
 
+@meta.command(name='dax_cluster')
+@click.option('--resource_name', required=True, type=str,
+              help="Dax cluster name")
+@click.option('--node_type', required=True, type=str,
+              help="The node type for the nodes in the cluster")
+@click.option('--iam_role_name', required=True, type=str,
+              help="Role name to access DynamoDB tables")
+@click.option('--subnet_group_name', type=str,
+              help='The name of the subnet group to be used for the '
+                   'replication group')
+@click.option('--subnet_ids', type=str, multiple=True,
+              help='Subnet ids to create a subnet group from. If specified, '
+                   'you must not specify \'--subnet_group_name\'')
+@click.option('--cluster_endpoint_encryption_type',
+              type=click.Choice(['NONE', 'TLS']), default='TLS',
+              help='The encryption type of the cluster\'s endpoint. '
+                   'The default value is \'TLS\'')
+@click.option('--parameter_group_name', type=str,
+              help='The parameter group to be associated with the DAX cluster')
+@click.pass_context
+@timeit()
+def dax_cluster(ctx, **kwargs):
+    """Generated dax cluster deployment resource template"""
+    kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
+    if kwargs.get('subnet_group_name') and kwargs.get('subnet_ids'):
+        raise click.UsageError(
+            'You must specify either only \'--subnet_group_name\' '
+            'or only \'--subnet_ids\'')
+    generator = DaxClusterGenerator(**kwargs)
+    _generate(generator)
+    click.echo(f'Dax cluster \'{kwargs["resource_name"]}\' was '
+               f'successfully generated')
+
+
 @meta.command(name='dynamodb')
 @click.option('--resource_name', required=True, type=str,
               help="DynamoDB table name")
