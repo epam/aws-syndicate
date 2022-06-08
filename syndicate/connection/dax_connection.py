@@ -52,7 +52,11 @@ class DaxConnection:
             ClusterEndpointEncryptionType=cluster_endpoint_encryption_type
         )
         params = {key: value for key, value in params.items() if value}
-        return self.client.create_cluster(**params)
+        try:
+            return self.client.create_cluster(**params)
+        except self.client.exceptions.ClusterAlreadyExistsFault as e:
+            _LOG.warning(f'Cluster {cluster_name} already exists')
+            return
 
     def describe_cluster(self, cluster_name):
         try:

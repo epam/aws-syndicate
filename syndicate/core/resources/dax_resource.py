@@ -64,7 +64,13 @@ class DaxResource(BaseResource):
             parameter_group_name=meta.get('parameter_group_name'),
             availability_zones=meta.get('availability_zones') or []
         )
-        return self.describe_cluster(name, meta, response['Cluster'])
+        if response:
+            _LOG.info(f'Dax cluster \'{name}\' was successfully created')
+            return self.describe_cluster(name, meta, response['Cluster'])
+        else:
+            _LOG.warning(f'Dax cluster \'{name}\' was not created because '
+                         f'it already exists')
+            return self.describe_cluster(name, meta)
 
     def describe_cluster(self, name, meta, response=None):
         if not response:
