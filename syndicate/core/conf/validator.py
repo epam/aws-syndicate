@@ -15,6 +15,8 @@
 """
 import datetime
 import os
+import re
+from syndicate.core.conf.bucket_view import NAMED_S3_URI_PATTERN
 
 MIN_BUCKET_NAME_LEN = 3
 MAX_BUCKET_NAME_LEN = 63
@@ -194,11 +196,12 @@ class ConfigValidator:
 
         errors = []
         # check min length
-        if len(value) < MIN_BUCKET_NAME_LEN or len(
-                value) > MAX_BUCKET_NAME_LEN:
+        name = re.compile(
+            NAMED_S3_URI_PATTERN).match(value).groupdict().get('name')
+        if len(name) < MIN_BUCKET_NAME_LEN or len(name) > MAX_BUCKET_NAME_LEN:
             errors.append(f'The length of {key} must be between '
                           f'{MIN_BUCKET_NAME_LEN} and {MAX_BUCKET_NAME_LEN} '
-                          f'characters long')
+                          f'characters long but not {len(name)}')
         return errors
 
     def _validate_project_mapping(self, key, value):
