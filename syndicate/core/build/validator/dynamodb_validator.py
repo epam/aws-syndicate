@@ -179,11 +179,9 @@ def validate_dax_cluster(cluster_name: str, cluster_meta: dict):
 
     subnet_group_name = cluster_meta.get('subnet_group_name')
     subnet_ids = cluster_meta.get('subnet_ids')
-    if subnet_group_name and subnet_ids:
-        errors.append(
-            'Only either \'subnet_group_name\' or \'subnet_ids\' must be '
-            'specified. In case \'subnet_ids\' are set, subnet group will '
-            'be created for you;')
+    if subnet_ids and not subnet_group_name:
+        errors.append('You must specify \'subnet_group_name\' if you '
+                      'specify \'subnet_ids\'')
 
     for key, value_type in parameter_type_mapping.items():
         value = cluster_meta.get(key)

@@ -43,16 +43,18 @@ class DaxResource(BaseResource):
             raise AssertionError(message)
         subnet_group_name = meta.get('subnet_group_name')
         subnet_ids = meta.get('subnet_ids') or []
-        if subnet_ids:  # or only subnet_group_name can pass the validator
+        if subnet_ids:
             _LOG.info(f'Subnet_ids \'{subnet_ids}\' were given. '
-                      f'Creating Dax subnet group')
-            subnet_group_name = f'{name}-subnet-group-syndicate-{int(time())}'
+                      f'Creating Dax subnet group \'{subnet_group_name}\'')
             self.dax_conn.create_subnet_group(
                 subnet_group_name=subnet_group_name,
                 subnet_ids=subnet_ids
             )
             _LOG.info(f'Dax subnet group with name {subnet_group_name} '
                       f'was created.')
+        elif subnet_group_name:
+            _LOG.info(f'Subnet_ids were not given. Assuming that subnet '
+                      f'group \'{subnet_group_name}\' already exists')
         response = self.dax_conn.create_cluster(
             cluster_name=name,
             node_type=meta['node_type'],
