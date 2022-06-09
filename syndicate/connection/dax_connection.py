@@ -55,7 +55,7 @@ class DaxConnection:
         try:
             return self.client.create_cluster(**params)
         except self.client.exceptions.ClusterAlreadyExistsFault as e:
-            _LOG.warning(f'Cluster {cluster_name} already exists')
+            _LOG.warning(f'Cluster \'{cluster_name}\' already exists')
             return
 
     def describe_cluster(self, cluster_name):
@@ -64,7 +64,8 @@ class DaxConnection:
                 ClusterNames=[cluster_name],
             )
             return response['Clusters'][0]
-        except self.client.exceptions.ClusterNotFo7undFault:
+        except self.client.exceptions.ClusterNotFoundFault:
+            _LOG.warning(f'Cluster \'{cluster_name}\' not found')
             return
 
     def delete_cluster(self, cluster_name):
@@ -80,3 +81,22 @@ class DaxConnection:
             SubnetIds=subnet_ids
         )
         return self.client.create_subnet_group(**params)
+
+    def describe_subnet_group(self, subnet_group_name: str):
+        try:
+            return self.client.describe_subnet_groups(
+                SubnetGroupNames=[subnet_group_name]
+            )['SubnetGroups'][0]
+        except self.client.exceptions.SubnetGroupNotFoundFault:
+            _LOG.warning(f'Subnet group \'{subnet_group_name}\' not found')
+            return
+
+    def delete_subnet_group(self, subnet_group_name: str):
+        try:
+            self.client.delete_subnet_group(
+                SubnetGroupName=subnet_group_name
+            )
+        except self.client.exceptions.SubnetGroupNotFoundFault:
+            _LOG.warning(f'Subnet group with name '
+                         f'\'{subnet_group_name}\' not found')
+            return
