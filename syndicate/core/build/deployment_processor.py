@@ -14,6 +14,7 @@
     limitations under the License.
 """
 import concurrent
+import functools
 import json
 from concurrent.futures import ALL_COMPLETED, ThreadPoolExecutor
 from functools import cmp_to_key
@@ -26,7 +27,10 @@ from syndicate.core.build.bundle_processor import (create_deploy_output,
                                                    remove_deploy_output,
                                                    remove_failed_deploy_output)
 from syndicate.core.build.helper import _json_serial
-from syndicate.core.build.meta_processor import resolve_meta, populate_s3_paths
+from syndicate.core.build.meta_processor import (resolve_meta,
+                                                 populate_s3_paths,
+                                                 resolve_resource_name)
+
 from syndicate.core.constants import (BUILD_META_FILE_NAME,
                                       CLEAN_RESOURCE_TYPE_PRIORITY,
                                       DEPLOY_RESOURCE_TYPE_PRIORITY,
@@ -390,15 +394,6 @@ def update_deployment_resources(bundle_name, deploy_name, replace_output=False,
                          replace_output=replace_output)
     return success
 
-
-def _filter_the_dict(dictionary, callback):
-    new_dict = dict()
-    for (key, value) in dictionary.items():
-        if callback(value):
-            new_dict[key] = value
-    return new_dict
-
-
 @exit_on_exception
 def remove_deployment_resources(deploy_name, bundle_name,
                                 clean_only_resources=None,
@@ -406,25 +401,43 @@ def remove_deployment_resources(deploy_name, bundle_name,
                                 excluded_resources=None,
                                 excluded_types=None,
                                 clean_externals=None):
+    from syndicate.core import CONFIG
     output = new_output = load_deploy_output(bundle_name, deploy_name)
     _LOG.info('Output file was loaded successfully')
 
+    preset_name_resolution = functools.partial(resolve_resource_name,
+                                               prefix=CONFIG.resources_prefix,
+                                               suffix=CONFIG.resources_suffix)
+
+    resolve_n_unify_names = lambda collection: set(
+        collection + tuple(map(preset_name_resolution, collection)))
+
+    clean_only_resources = resolve_n_unify_names(clean_only_resources
+                                                          or tuple())
+    excluded_resources = resolve_n_unify_names(excluded_resources
+                                                        or tuple())
+
+    _LOG.info('Prefixes and suffixes of any resource names have been resolved.')
+
     if any([clean_only_resources, excluded_resources, clean_only_types,
             excluded_types]):
+
         filters = [
             lambda v: v['resource_name'] in clean_only_resources,
-            lambda v: v['resource_name'] not in excluded_resources,
             lambda v: v['resource_meta']['resource_type'] in clean_only_types,
-            lambda v: v['resource_meta'][
-                          'resource_type'] not in excluded_types]
-        for function in filters:
-            some_result = _filter_the_dict(new_output, function)
-            if some_result:
-                new_output = some_result
-
+            lambda v: not clean_only_resources and v['resource_name']
+                      not in excluded_resources,
+            lambda v: not clean_only_types and
+                      v['resource_meta']['resource_type'] not in excluded_types
+        ]
+        new_output = dict(
+            filter(lambda item: any(map(lambda f: f(item[1]), filters)),
+                   new_output.items())
+        )
     if not clean_externals:
         new_output = dict((k, v) for (k, v) in new_output.items() if
-                          not v['resource_meta'].get('external'))
+                          not v['resource_meta'].get('external') or
+                          any(map(lambda f: f(v), filters[:2])))
     # sort resources with priority
     resources_list = list(new_output.items())
     resources_list.sort(key=cmp_to_key(_compare_clean_resources))
