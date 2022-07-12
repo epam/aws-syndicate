@@ -59,3 +59,5 @@ from syndicate.core.generators.deployment_resources.docdb_cluster_generator \
     import DocumentDBClusterGenerator
 from syndicate.core.generators.deployment_resources.docdb_instance_generator \
     import DocumentDBInstanceGenerator
+from syndicate.core.generators.deployment_resources.eventbridge_rule_generator \
+    import EventBridgeRuleGenerator

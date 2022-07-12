@@ -708,6 +708,32 @@ def cloudwatch_event_rule(ctx, **kwargs):
                f"added successfully")
 
 
+@meta.command(name="eventbridge_rule")
+@click.option('--resource_name', type=str, required=True,
+              help="EventBridge rule name")
+@click.option('--rule_type', required=True, help="EventBridge rule type",
+              type=click.Choice(['schedule', 'ec2', 'api_call']))
+@click.option('--expression', type=str,
+              help="Rule expression (cron schedule). Valuable only if "
+                   "rule_type is 'schedule'")
+@click.option('--aws_service', type=str,
+              help="The name of AWS service which the rule listens to. "
+                   "Required only if rule_type is 'api_call'")
+@click.option('--region', type=ValidRegionParamType(allowed_all=True),
+              help="The region where the rule is deployed. Default value is "
+                   "the one from syndicate config")
+@click.pass_context
+@timeit()
+def eventbridge_rule(ctx, **kwargs):
+    """Generates EventBridge rule deployment resources-template
+    claiming compatibility with Cloudwatch event rule generator"""
+    kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
+    generator = EventBridgeRuleGenerator(**kwargs)
+    _generate(generator)
+    click.echo(f"EventBridge rule '{kwargs['resource_name']}' was "
+               f"added successfully")
+
+
 @meta.command(name="documentdb_cluster")
 @click.option('--resource_name', type=str, required=True,
               help="DocumentDB cluster name")

@@ -90,7 +90,7 @@ class CloudWatchResource(BaseResource):
         return description
 
     def create_cloud_watch_rule(self, args):
-        """ Create CloudWatch rule from meta in region/regions.
+        """ Create an event rule from meta in region/regions.
 
         :type args: list
         """
@@ -120,7 +120,7 @@ class CloudWatchResource(BaseResource):
             if event_buses:
                 time.sleep(5)
                 self._attach_tenant_rule_targets(name, region, event_buses)
-            _LOG.info('Created cloud watch rule %s in %s.', name, region)
+            _LOG.info('Created an event rule %s in %s.', name, region)
             response = self._cw_events_conn_builder(region).get_rule(name)
             time.sleep(5)
             return self.describe_rule(name=name, meta=meta, region=region,
