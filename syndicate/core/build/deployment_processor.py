@@ -418,16 +418,15 @@ def remove_deployment_resources(deploy_name, bundle_name,
                                                         or tuple())
 
     _LOG.info('Prefixes and suffixes of any resource names have been resolved.')
-
     if any([clean_only_resources, excluded_resources, clean_only_types,
             excluded_types]):
 
         filters = [
             lambda v: v['resource_name'] in clean_only_resources,
             lambda v: v['resource_meta']['resource_type'] in clean_only_types,
-            lambda v: not clean_only_resources and v['resource_name']
-                      not in excluded_resources,
-            lambda v: not clean_only_types and
+            lambda v: (not clean_only_resources) and bool(excluded_resources)
+                and v['resource_name'] not in excluded_resources,
+            lambda v: (not clean_only_types) and bool(excluded_types) and
                       v['resource_meta']['resource_type'] not in excluded_types
         ]
         new_output = dict(
