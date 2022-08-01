@@ -19,7 +19,7 @@ import re
 import sys
 import time
 from datetime import datetime
-from pathlib import Path
+from pathlib import Path, PurePath
 
 import yaml
 
@@ -102,9 +102,12 @@ class ProjectState:
     def get_remote() -> 'ProjectState':
         from syndicate.core import CONN, CONFIG
         bucket_name = CONFIG.deploy_target_bucket
+        key_compound = PurePath(
+            CONFIG.deploy_target_bucket_key_compound, PROJECT_STATE_FILE
+        ).as_posix()
         s3 = CONN.s3()
         remote_project_state = s3.load_file_body(bucket_name=bucket_name,
-                                                 key=PROJECT_STATE_FILE)
+                                                 key=key_compound)
         remote_project_state = yaml.unsafe_load(remote_project_state)
         _LOG.info(f'Unsafely loaded project state file from S3 bucket. The '
                   f'retrieved object has type: '
@@ -124,9 +127,11 @@ class ProjectState:
             project_state_to_save else self.dct
         from syndicate.core import CONN, CONFIG
         bucket_name = CONFIG.deploy_target_bucket
+        key_compound = PurePath(CONFIG.deploy_target_bucket_key_compound,
+                                    PROJECT_STATE_FILE).as_posix()
         s3 = CONN.s3()
         s3.put_object(file_obj=yaml.dump(dict_to_save, sort_keys=False),
-                      key=PROJECT_STATE_FILE,
+                      key=key_compound,
                       bucket=bucket_name,
                       content_type='application/x-yaml')
 

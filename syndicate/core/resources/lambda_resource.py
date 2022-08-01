@@ -15,7 +15,7 @@
 """
 import json
 import time
-
+from pathlib import PurePath
 from botocore.exceptions import ClientError
 
 from syndicate.commons.log_helper import get_logger, get_user_logger
@@ -210,6 +210,7 @@ class LambdaResource(BaseResource):
     @unpack_kwargs
     @retry
     def _create_lambda_from_meta(self, name, meta):
+        from syndicate.core import CONFIG
         _LOG.debug('Creating lambda %s', name)
         req_params = ['iam_role_name', 'runtime', 'memory', 'timeout',
                       'func_name']
@@ -217,10 +218,13 @@ class LambdaResource(BaseResource):
         validate_params(name, meta, req_params)
 
         key = meta[S3_PATH_NAME]
-        if not self.s3_conn.is_file_exists(self.deploy_target_bucket, key):
+        key_compound = PurePath(CONFIG.deploy_target_bucket_key_compound,
+                                key).as_posix()
+        if not self.s3_conn.is_file_exists(self.deploy_target_bucket,
+                                           key_compound):
             raise AssertionError(f'Error while creating lambda: {name};'
-                                 f'Deployment package {key} does not exist '
-                                 f'in {self.deploy_target_bucket} bucket')
+                f'Deployment package {key_compound} does not exist '
+                f'in {self.deploy_target_bucket} bucket')
 
         lambda_def = self.lambda_conn.get_function(name)
         if lambda_def:
@@ -266,7 +270,7 @@ class LambdaResource(BaseResource):
             memory=meta['memory'],
             timeout=meta['timeout'],
             s3_bucket=self.deploy_target_bucket,
-            s3_key=key,
+            s3_key=key_compound,
             env_vars=meta.get('env_variables'),
             vpc_sub_nets=meta.get('subnet_ids'),
             vpc_security_group=meta.get('security_group_ids'),
@@ -279,7 +283,8 @@ class LambdaResource(BaseResource):
         _LOG.debug('Lambda created %s', name)
         # AWS sometimes returns None after function creation, needs for
         # stability
-        time.sleep(10)
+        waiter = self.lambda_conn.get_waiter('function_exists')
+        waiter.wait(FunctionName=name)
 
         log_group_name = name
         retention = meta.get('logs_expiration')
@@ -340,10 +345,13 @@ class LambdaResource(BaseResource):
         validate_params(name, meta, req_params)
 
         key = meta[S3_PATH_NAME]
-        if not self.s3_conn.is_file_exists(self.deploy_target_bucket, key):
+        key_compound = PurePath(CONFIG.deploy_target_bucket_key_compound,
+                                key).as_posix()
+        if not self.s3_conn.is_file_exists(self.deploy_target_bucket,
+                                           key_compound):
             raise AssertionError(
                 'Deployment package {0} does not exist '
-                'in {1} bucket'.format(key, self.deploy_target_bucket))
+                'in {1} bucket'.format(key_compound, self.deploy_target_bucket))
 
         response = self.lambda_conn.get_function(name)
         if not response:
@@ -354,18 +362,10 @@ class LambdaResource(BaseResource):
         self.lambda_conn.update_code_source(
             lambda_name=name,
             s3_bucket=self.deploy_target_bucket,
-            s3_key=key,
+            s3_key=key_compound,
             publish_version=publish_version)
 
-        # temporary solution
         role_name = meta['iam_role_name']
-        if not role_name.startswith(CONFIG.resources_prefix):
-            _LOG.warning('Seems that you are updating the lambda but the '
-                         'meta does not contain its execution role. Hence, in'
-                         ' lambda\'s meta role\'s prefix and suffix was not '
-                         'resolved. Adding them..')
-            role_name = f'{CONFIG.resources_prefix}{role_name}' \
-                        f'{CONFIG.resources_suffix}'
         role_arn = self.iam_conn.check_if_role_exists(role_name)
         if not role_arn:
             _LOG.warning('Execution role does not exist. Keeping the old one')
@@ -407,7 +407,9 @@ class LambdaResource(BaseResource):
 
         # AWS sometimes returns None after function creation, needs for
         # stability
-        time.sleep(10)
+        waiter = self.lambda_conn.get_waiter('function_updated_v2')
+        waiter.wait(FunctionName=name)
+
         response = self.lambda_conn.get_function(name)
         _LOG.debug(f'Lambda describe result: {response}')
         code_sha_256 = response['Configuration']['CodeSha256']
@@ -820,13 +822,17 @@ class LambdaResource(BaseResource):
         :param context: because of usage in 'update' flow
         :return:
         """
+        from syndicate.core import CONFIG
         req_params = ['runtimes', 'deployment_package']
 
         validate_params(name, meta, req_params)
 
         key = meta[S3_PATH_NAME]
+        key_compound = PurePath(CONFIG.deploy_target_bucket_key_compound,
+                                key).as_posix()
         file_name = key.split('/')[-1]
-        self.s3_conn.download_file(self.deploy_target_bucket, key, file_name)
+        self.s3_conn.download_file(self.deploy_target_bucket, key_compound,
+                                   file_name)
         with open(file_name, 'rb') as file_data:
             file_body = file_data.read()
         import hashlib
@@ -848,7 +854,8 @@ class LambdaResource(BaseResource):
 
         args = {'layer_name': name, 'runtimes': meta['runtimes'],
                 's3_bucket': self.deploy_target_bucket,
-                's3_key': meta[S3_PATH_NAME]}
+                's3_key': PurePath(CONFIG.deploy_target_bucket_key_compound,
+                                   meta[S3_PATH_NAME]).as_posix()}
         if meta.get('description'):
             args['description'] = meta['description']
         if meta.get('license'):

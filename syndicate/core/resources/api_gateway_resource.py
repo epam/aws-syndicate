@@ -142,30 +142,42 @@ class ApiGatewayResource(BaseResource):
                         continue
                     cache_ttl_setting = cache_configuration.get(
                         'cache_ttl_sec')
+                    encrypt_cache_data = cache_configuration.get(
+                        'encrypt_cache_data')
                     if cache_ttl_setting:
                         _LOG.info(
                             'Configuring cache for {0}; TTL: {1}'.format(
                                 resource_path, cache_ttl_setting))
                         escaped_resource = self._escape_path(resource_path)
+                        patch_operations = [
+                            {
+                                'op': 'replace',
+                                'path': '/{0}/{1}/caching/ttlInSeconds'.format(
+                                    escaped_resource,
+                                    method_name),
+                                'value': str(cache_ttl_setting),
+                            },
+                            {
+                                'op': 'replace',
+                                'path': '/{0}/{1}/caching/enabled'.format(
+                                    escaped_resource,
+                                    method_name),
+                                'value': 'True',
+                            }
+                        ]
+                        if encrypt_cache_data is not None:
+                            patch_operations.append({
+                                'op': 'replace',
+                                'path': '/{0}/{1}/caching/dataEncrypted'.format(
+                                    escaped_resource,
+                                    method_name),
+                                'value': 'true' if bool(
+                                    encrypt_cache_data) else 'false'
+                            })
                         self.connection.update_configuration(
                             rest_api_id=api_id,
                             stage_name=stage_name,
-                            patch_operations=[
-                                {
-                                    'op': 'replace',
-                                    'path': '/{0}/{1}/caching/ttlInSeconds'.format(
-                                        escaped_resource,
-                                        method_name),
-                                    'value': str(cache_ttl_setting),
-                                },
-                                {
-                                    'op': 'replace',
-                                    'path': '/{0}/{1}/caching/enabled'.format(
-                                        escaped_resource,
-                                        method_name),
-                                    'value': 'True',
-                                }
-                            ]
+                            patch_operations=patch_operations
                         )
                         _LOG.info(
                             'Cache for {0} was configured'.format(
@@ -267,19 +279,29 @@ class ApiGatewayResource(BaseResource):
             _LOG.debug('Cluster cache configuration found:{0}'.format(
                 cache_cluster_configuration))
             # set default ttl for root endpoint
+            patch_operations = []
             cluster_cache_ttl_sec = cache_cluster_configuration.get(
                 'cache_ttl_sec')
-            self.connection.update_configuration(
-                rest_api_id=api_id,
-                stage_name=deploy_stage,
-                patch_operations=[
-                    {
-                        'op': 'replace',
-                        'path': '/*/*/caching/ttlInSeconds',
-                        'value': str(cluster_cache_ttl_sec),
-                    }
-                ]
-            )
+            encrypt_cache_data = cache_cluster_configuration.get(
+                'encrypt_cache_data')
+            if cluster_cache_ttl_sec:
+                patch_operations.append({
+                    'op': 'replace',
+                    'path': '/*/*/caching/ttlInSeconds',
+                    'value': str(cluster_cache_ttl_sec),
+                })
+            if encrypt_cache_data is not None:
+                patch_operations.append({
+                    'op': 'replace',
+                    'path': '/*/*/caching/dataEncrypted',
+                    'value': 'true' if bool(encrypt_cache_data) else 'false'
+                })
+            if patch_operations:
+                self.connection.update_configuration(
+                    rest_api_id=api_id,
+                    stage_name=deploy_stage,
+                    patch_operations=patch_operations
+                )
             # customize cache settings for endpoints
             self.configure_cache(api_id, deploy_stage, api_resources)
 

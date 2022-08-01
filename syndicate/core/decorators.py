@@ -14,7 +14,7 @@
     limitations under the License.
 """
 from functools import wraps
-
+from pathlib import PurePath
 import click
 
 from syndicate.commons.log_helper import get_logger
@@ -40,9 +40,11 @@ def check_deploy_name_for_duplicates(func):
         if deploy_name and bundle_name and not replace_output:
             output_file_name = f'{bundle_name}/outputs/{deploy_name}.json'
 
+            key_compound = PurePath(CONFIG.deploy_target_bucket_key_compound,
+                                    output_file_name).as_posix()
             exists = CONN.s3().is_file_exists(
                 CONFIG.deploy_target_bucket,
-                key=output_file_name)
+                key=key_compound)
             if exists:
                 _LOG.warn(f'Output file already exists with name '
                           f'{output_file_name}. If it should be replaced with '
