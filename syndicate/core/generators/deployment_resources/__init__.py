@@ -61,3 +61,5 @@ from syndicate.core.generators.deployment_resources.docdb_instance_generator \
     import DocumentDBInstanceGenerator
 from syndicate.core.generators.deployment_resources.dax_cluster_generator \
     import DaxClusterGenerator
+from syndicate.core.generators.deployment_resources.eventbridge_rule_generator \
+    import EventBridgeRuleGenerator
