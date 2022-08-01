@@ -395,6 +395,24 @@ def update_deployment_resources(bundle_name, deploy_name, replace_output=False,
                          replace_output=replace_output)
     return success
 
+def _cross_wired_filter(collection, control, target, dependencies,
+                        chain: dict = None):
+    chain = chain or {}
+    for i, f in enumerate(control):
+        s = i + len(dependencies)//2
+        if any([dependencies[i], dependencies[s]]):
+            temp, j, filter_collection = {}, (i + 1) % (len(dependencies)//2), \
+                lambda func, c: dict(
+                    filter(lambda item: func(item[1]), c.items())
+                )
+            temp = filter_collection(f, collection) \
+                if dependencies[i] else collection
+            temp = filter_collection(target[j], temp) \
+                if dependencies[s] else temp
+            temp = temp if dependencies[i] or not dependencies[j] else {}
+            chain.update(temp)
+    return chain
+
 @exit_on_exception
 def remove_deployment_resources(deploy_name, bundle_name,
                                 clean_only_resources=None,
@@ -405,11 +423,9 @@ def remove_deployment_resources(deploy_name, bundle_name,
     from syndicate.core import CONFIG
     output = new_output = load_deploy_output(bundle_name, deploy_name)
     _LOG.info('Output file was loaded successfully')
-
     preset_name_resolution = functools.partial(resolve_resource_name,
                                                prefix=CONFIG.resources_prefix,
                                                suffix=CONFIG.resources_suffix)
-
     resolve_n_unify_names = lambda collection: set(
         collection + tuple(map(preset_name_resolution, collection)))
 
@@ -417,27 +433,27 @@ def remove_deployment_resources(deploy_name, bundle_name,
                                                           or tuple())
     excluded_resources = resolve_n_unify_names(excluded_resources
                                                         or tuple())
-
     _LOG.info('Prefixes and suffixes of any resource names have been resolved.')
-    if any([clean_only_resources, excluded_resources, clean_only_types,
-            excluded_types]):
-
-        filters = [
+    dependencies = tuple(map(bool, (clean_only_resources, clean_only_types,
+                                     excluded_types, excluded_resources)))
+    if any(dependencies):
+        filters = (
             lambda v: v['resource_name'] in clean_only_resources,
             lambda v: v['resource_meta']['resource_type'] in clean_only_types,
-            lambda v: (not clean_only_resources) and bool(excluded_resources)
-                and v['resource_name'] not in excluded_resources,
-            lambda v: (not clean_only_types) and bool(excluded_types) and
-                      v['resource_meta']['resource_type'] not in excluded_types
-        ]
-        new_output = dict(
-            filter(lambda item: any(map(lambda f: f(item[1]), filters)),
-                   new_output.items())
+            lambda v: v['resource_name'] not in excluded_resources,
+            lambda v: v['resource_meta']['resource_type'] not in excluded_types
         )
-    if not clean_externals:
+        if any(dependencies[:2]):
+            new_output = _cross_wired_filter(new_output, filters[:2],
+                                             filters[2:], dependencies)
+        elif any(dependencies[2:]):
+            for i, exclusion in enumerate(filters[2:]):
+                new_output = _cross_wired_filter(new_output, [exclusion],
+                                                 filters[i:i+1],
+                                                 dependencies[::-1])
+    if clean_externals:
         new_output = dict((k, v) for (k, v) in new_output.items() if
-                          not v['resource_meta'].get('external') or
-                          any(map(lambda f: f(v), filters[:2])))
+                          v['resource_meta'].get('external'))
     # sort resources with priority
     resources_list = list(new_output.items())
     resources_list.sort(key=cmp_to_key(_compare_clean_resources))
