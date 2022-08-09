@@ -1,4 +1,5 @@
-from .. import ISource,  AbstractBuilder
+from . import AbstractBuilder
+from .. import ISource
 
 from functools import wraps, singledispatchmethod
 from typing import Callable, Dict, Tuple, Any, Union, Type
@@ -72,7 +73,7 @@ class CurriedFunctionBuilder(AbstractBuilder):
         ...
 
     @condition.register
-    def condition(self, determinant: FunctionType, action: Callable):
+    def _condition(self, determinant: FunctionType, action: Callable):
         """
         Attaches a conditional based determinant to the body of the curried
         function, given one has been assigned. Bounds an action part
@@ -183,7 +184,7 @@ class IterativeFunctionBuilder(AbstractBuilder):
         raise NotImplementedError
 
     @attach.register
-    def attach(self, part: ISource):
+    def _attach(self, part: ISource):
         """
         Attaches a concrete source to store functions into.
         :part:ISource
@@ -192,7 +193,7 @@ class IterativeFunctionBuilder(AbstractBuilder):
         self._source = part
 
     @attach.register
-    def attach(self, part: FunctionType):
+    def _attach(self, part: FunctionType):
         """
         Attaches a function into a source, given one has been assigned,
         otherwise raises an Implementation Error.

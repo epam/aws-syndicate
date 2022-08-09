@@ -15,7 +15,7 @@
 """
 
 from .interface import IBuilder
-from .abstract import AbstractBuilder, FunctionBuilder
+from .abstract import AbstractBuilder
 from .concrete import (
     CurriedFunctionBuilder, IterativeFunctionBuilder
 )

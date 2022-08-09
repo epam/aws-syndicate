@@ -204,7 +204,7 @@ class DetachedResponsibilityNodeRoutingBuilder(AbstractBuilder):
         message = 'Functional condition attachment could ' \
                   'proceed only after a curried builder ' \
                   'has been assigned.'
-        self._condition(determinant=part, error_message=message)
+        self._conditional(determinant=part, error_message=message)
 
     @attach.register
     def _attach(self, part: Exception):
@@ -217,10 +217,10 @@ class DetachedResponsibilityNodeRoutingBuilder(AbstractBuilder):
         message = 'Exceptional condition attachment could '\
                   'proceed only after a curried builder '\
                   'has been assigned.'
-        self._condition(determinant=part, error_message=message)
+        self._conditional(determinant=part, error_message=message)
 
-    def _condition(self, determinant: Union[Exception, FunctionType],
-                   error_message: str):
+    def _conditional(self, determinant: Union[Exception, FunctionType],
+                     error_message: str):
         """
         General condition attachment to a curried function builder,
         given one has been previously assigned.
