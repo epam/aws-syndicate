@@ -14,7 +14,9 @@
     limitations under the License.
 """
 
-from .interface import IRelation, IReference
+from .interface import IRelation, IReference, ISource, IStore
+from .abstract import AbstractSource
 from .concrete import (
-    RetainedReference, InterchangeableReference, OneToOneRelation
+    RetainedReference, InterchangeableReference, OneToOneRelation,
+    PriorityBasedSource, QueueStore
 )

@@ -14,7 +14,7 @@ class BlackBoxResponsibilityNode(AbstractResponsibilityNode):
         self._box = None
 
     @property
-    def box(self) -> Union[None, Callable]:
+    def box(self) -> Union[Callable, None]:
         """
         Returns the outsourced black box oracle.
         :returns:Union[None,Callable]
