@@ -15,8 +15,7 @@
 """
 
 from .interface import IBuilder
-from .abstract import AbstractBuilder
+from .abstract import AbstractBuilder, FunctionBuilder
 from .concrete import (
-    CurriedFunctionBuilder, ResponsibilityNodeBuilder,
-    BlackBoxResponsibilityNodeBuilder
+    CurriedFunctionBuilder, IterativeFunctionBuilder
 )
