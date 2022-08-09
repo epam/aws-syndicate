@@ -1,23 +1,41 @@
 from . import AbstractBuilder
-from .. import IRelation, IReference
-from .. import (
-    IResponsibilityNode, BlackBoxResponsibilityNode
-)
+from .. import ISource
 
 from functools import wraps, singledispatchmethod
-from typing import Callable
+from typing import Callable, Dict, Tuple, Any, Union, Type
 from types import FunctionType
-from collections import deque
 
 
 class CurriedFunctionBuilder(AbstractBuilder):
+    """
+    A concrete Builder class, which provides behaviour for
+    functional curring, by providing the following methods,
+    which define a `body`.
 
+    Attributes:
+        - body:Union[Callable, Type[None]]: body of the curried function.
+
+    Public methods:
+        - attach(self, part:FunctionType): Attaches the body of a function.
+        - retrieve(self, part:FunctionType): Attaches the body of a function.
+        - pre(self, part:Callable): Attaches a function pre-computing payload.
+        - post(self, part:Callable): Attaches a decorator payload.
+        - condition(self, determinant:Exception, action:Callable):
+            Attaches an exception-based condition, which invokes an
+            action, given the exception is to arise.
+        - condition(self, determinant:FunctionType, action:Callable):
+            Attaches a function based condition, which invokes an
+            action, given the is not True.
+    Properties:
+        - product:Callable: a curried result of a functional composition,
+        which raises the NotImplementedError, under the assumption that
+        no `body` function has been assigned.
+    """
     def _reset(self):
         """
-        Resets a builder to empty body and retrieve attributes.
+        Resets a builder to an empty body.
         """
-        self._body = None
-        self._retrieve = lambda args: args
+        self._body: Union[Callable, Type[None]] = None
 
     @singledispatchmethod
     def attach(self, part):
@@ -27,197 +45,172 @@ class CurriedFunctionBuilder(AbstractBuilder):
     def _attach(self, part: FunctionType):
         """
         Attaches single persistent function to the body.
+        :part:FunctionType
+        :returns:None
         """
         self._body = part
 
-    @attach.register
-    def _attach(self, part: deque):
+    def pre(self, part: Callable):
         """
-        Attaches deque of functions to the body, which shifts a queue for each
-        invocation, compelling to cycle through each outsourced body.
+        Attaches a prepended body function, given one has been
+        previously assigned, otherwise is set up as the body.
+        :part:Callable
+        :returns:None
         """
-        def fetch(source: deque):
-            function = source.popleft() if bool(source) else None
-            if not isinstance(function, Callable):
-                function = lambda *args, **kwargs: None
-            return function
-
-        initial = fetch(part)
-        part.appendleft(initial)
-
-        @wraps(initial)
-        def wrapper(*args, **kwargs):
-            outsourced = fetch(part)
-            output = outsourced(*args, **kwargs)
-            part.append(outsourced)
-            return output
-
-        self.attach(wrapper)
-
-    def pre(self, part):
         self.attach(self._pre(part) if self._body else part)
 
     def post(self, part):
+        """
+        Attaches a wrapper around a body function, given one has been
+        previously assigned, otherwise is set up as the body.
+        :part:Callable
+        :returns:None
+        """
         self.attach(self._post(part) if self._body else part)
 
-    def retrieve(self, part):
+    @singledispatchmethod
+    def condition(self, determinant, action: Callable):
+        raise NotImplementedError
+
+    @condition.register
+    def _condition(self, determinant: FunctionType, action: Callable):
         """
-        Sets up a return policy of a curried function.
+        Attaches a conditional based determinant to the body of the curried
+        function, given one has been assigned. Bounds an action part
+        which has to take place, given the decision has not been
+        satisfied.
+        :determinant:FunctionType
+        :action:Callable
+        :return:None
         """
-        if not isinstance(part, Callable):
-            raise TypeError('A retrieve policy of a function must be callable.')
-        self._retrieve = part
+        body = self._body
+        if not body:
+            raise NotImplementedError
+
+        def function(target, *args, **kwargs):
+            if determinant(*args, **kwargs):
+                return target(*args, **kwargs)
+            else:
+                return action(*args, **kwargs)
+
+        self.attach(self._wrap(body, function))
+
+    @condition.register
+    def _condition(self, determinant: BaseException, action: Callable):
+        """
+        Attaches an exception based determinant wrapper to the body
+        of a curried function, given one has been assigned.
+        Bounds an action part which has to take place, given
+        the exception has to arise.
+        :determinant:Exception
+        :action:Callable
+        :return:None
+        """
+        body = self._body
+        if not body:
+            raise NotImplementedError
+
+        def function(target, *args, **kwargs):
+            try:
+                output = target(*args, **kwargs)
+            except determinant.__class__:
+                return action(*args, **kwargs)
+            else:
+                return output
+
+        self.attach(self._wrap(body, function))
 
     @property
-    def product(self):
+    def product(self) -> Callable:
+        """
+        Produces the resulting curried function.
+        :returns:Callable
+        """
         _ = super(self.__class__, self).product
-        retrieve = self._retrieve
-        body = self._post(retrieve)
+        body = self._body
         self._reset()
         return body
 
-    def _pre(self, part):
-        return self._wrap(lambda target, *args, **kwargs: target(
+    def _pre(self, part: Callable):
+        """
+        Returns a wrapper around previously assigned body function.
+        :part:Callable
+        :returns:Callable
+        """
+        body = self._body or (lambda *args, **kwargs: None)
+        return self._wrap(body, lambda target, *args, **kwargs: target(
             part(*args, **kwargs)
         ))
 
     def _post(self, part):
-        return self._wrap(lambda target, *args, **kwargs: part(
+        """
+        Returns a wrapper around previously assigned body function.
+        :part:Callable
+        :returns:Callable
+        """
+        body = self._body or (lambda *args, **kwargs: None)
+        return self._wrap(body, lambda target, *args, **kwargs: part(
             target(*args, **kwargs)
         ))
 
-    def _wrap(self, composition):
-        target = self._body
-
+    @staticmethod
+    def _wrap(target: Callable, composition: Callable[[Callable, Tuple, Dict],
+                                                      Any]):
+        """
+        Returns a wrapped Callable target, encapsulating it out a
+        callable composition.
+        :target:Callable
+        :composition:Callable
+        :return:Callable
+        """
         @wraps(target)
         def wrapper(*args, **kwargs):
             return composition(target, *args, **kwargs)
         return wrapper
 
 
-class ResponsibilityNodeBuilder(AbstractBuilder):
-
+class IterativeFunctionBuilder(AbstractBuilder):
     """
-    A concrete Builder class, which provides behaviour aimed at
-    producing a non-computable ResponsibilityNode.
+    A concrete Builder class, which produces a iterator based
+    function, executing attached functions one at a time
+    providing independent input.
     """
 
     def _reset(self):
-        self._node = None
-        self._relation = None
-        self._reference = None
+        self._source = None
 
     @singledispatchmethod
     def attach(self, part):
         raise NotImplementedError
 
     @attach.register
-    def _attach(self, part: IResponsibilityNode):
+    def _attach(self, part: ISource):
         """
-        Attaches a responsibility node to the builder.
-        :part:IResponsibility
-        :return:None
+        Attaches a concrete source to store functions into.
+        :part:ISource
+        :returns:None
         """
-        self._node = part
-
-    @attach.register
-    def _attach(self, part: IRelation):
-        """
-        Attaches a relation complement of the node.
-        :part:IRelation
-        :return:None
-        """
-        self._relation = part
-
-    @attach.register
-    def _attach(self, part: IReference):
-        """
-        Attaches a reference node to the builder, given commitment
-        is either None or an instance of a ResponsibilityNode.
-        :part:IResponsibility
-        :return:None
-        """
-        if not any((
-            part.commitment is None,
-            isinstance(part.commitment, IResponsibilityNode)
-        )):
-            raise NotImplementedError('Reference commitment must be an instance'
-                                      'of IResponsibilityNode or NoneType.')
-        self._reference = part
-
-    @property
-    def product(self):
-        """
-        Returns a simple non-computable ResponsibilityNode, having
-        assigned the reference to the relation and subsequently complemented
-        the pending node with the aforementioned relation.
-        :returns:IResponsibilityNode
-        """
-        _ = super(self.__class__, self).product
-        node, relation, reference = self._node, self._relation, self._reference
-        relation.reference = reference
-        node.relation = relation
-        self._reset()
-        return node
-
-
-class BlackBoxResponsibilityNodeBuilder(AbstractBuilder):
-    """
-    A concrete Builder class, which provides behaviour for
-    producing a outsourced, black-box computable ResponsibilityNode, based
-    on a curried function builder.
-    """
-
-    def _reset(self):
-        self._node = None
-        self._builder = None
-        self._deque = None
-
-    @singledispatchmethod
-    def attach(self, part):
-        raise NotImplementedError
-
-    @attach.register
-    def _attach(self, part: BlackBoxResponsibilityNode):
-        """
-        Attaches a black-box responsibility node to the builder.
-        :part:BlackBoxResponsibilityNode
-        :return:None
-        """
-        self._node = part
+        self._source = part
 
     @attach.register
     def _attach(self, part: FunctionType):
         """
-        Attaches a function to a deque of continues delegation.
-        :part:FunctionType
-        :return:None
+        Attaches a function into a source, given one has been assigned,
+        otherwise raises an Implementation Error.
         """
-        if not self._deque:
-            self._deque = deque()
-        self._deque.append(part)
+        if not self._source:
+            raise NotImplementedError('Function attachment could only proceed'
+                                      ' after a source has been assigned.')
+        self._source.put(part)
 
-    @attach.register
-    def _attach(self, part: CurriedFunctionBuilder):
-        """
-        Attaches a currying function builder, for an eminent product generation,
-        deemed as an outsourced black-box computation.
-        :part:CurriedFunctionBuilder
-        :return:None
-        """
-        self._builder = part
-
-    @property
     def product(self):
         """
-        Returns a black-box responsibility node, attaching
-        the outsourced computation to the curried function builder,
-        providing an executable box of a node.
-        :returns:BlackBoxResponsibilityNode
+        Produces a function, which iteratively invokes each
+        attached function.
+        :returns:Callable
         """
         _ = super(self.__class__, self).product
-        node, builder, _deque = self._node, self._builder, self._deque
-        builder.attach(_deque if len(_deque) > 1 else _deque.pop())
-        node.box = builder.product
+        source = self._source
+        iterator = iter(source.get, None)
         self._reset()
-        return node
+        return lambda *args, **kwargs: next(iterator)(*args, **kwargs)

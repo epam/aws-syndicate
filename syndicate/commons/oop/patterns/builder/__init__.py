@@ -17,6 +17,5 @@
 from .interface import IBuilder
 from .abstract import AbstractBuilder
 from .concrete import (
-    CurriedFunctionBuilder, ResponsibilityNodeBuilder,
-    BlackBoxResponsibilityNodeBuilder
+    CurriedFunctionBuilder, IterativeFunctionBuilder
 )

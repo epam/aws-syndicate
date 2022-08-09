@@ -25,3 +25,32 @@ class IReference(ABC):
     def commitment(self, other):
         ...
 
+class ISource(ABC):
+
+    @abstractmethod
+    def get(self):
+        ...
+
+    @abstractmethod
+    def put(self, data):
+        ...
+
+    @property
+    @abstractmethod
+    def store(self):
+        ...
+
+    @store.setter
+    @abstractmethod
+    def store(self, other):
+        ...
+
+class IStore(ABC):
+    @abstractmethod
+    def get(self):
+        ...
+
+    @abstractmethod
+    def put(self, data):
+        ...
+

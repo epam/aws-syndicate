@@ -16,3 +16,4 @@
 from .bridge import *
 from .responsibility import *
 from .builder import *
+from .integration import *
