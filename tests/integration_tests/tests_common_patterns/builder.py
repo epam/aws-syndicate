@@ -1,9 +1,15 @@
 import unittest
 
-from syndicate.commons.oop.patterns import CurriedFunctionBuilder
-from syndicate.commons.oop.complements.builder import produce_filter_function
+from syndicate.commons.oop.patterns import (
+    CurriedFunctionBuilder, IterativeFunctionBuilder,
+    PriorityBasedSource, QueueStore
+)
 
-from random import sample
+from syndicate.commons.oop.complements.builder import (
+    produce_function, produce_filter_builder
+)
+
+from random import sample, randint
 
 
 class BuilderProductionTest(unittest.TestCase):
@@ -18,11 +24,10 @@ class BuilderProductionTest(unittest.TestCase):
             self.assertRaises(NotImplementedError, lambda: builder.product)
 
 
-class CurryingProductionTest(BuilderProductionTest):
+class FunctionCurringProductionTest(BuilderProductionTest):
 
     def setUp(self) -> None:
         self.builder = CurriedFunctionBuilder()
-        self.retrieve = lambda data: data
 
     def test_prepending(self):
         """
@@ -46,16 +51,6 @@ class CurryingProductionTest(BuilderProductionTest):
         payload = range(10)
         self.assertEqual(function(payload), (9, None))
 
-    def test_retrieve_policy(self):
-        """
-        Tests retrieving/return policy of a curried function, by compelling
-        function to return the last element of a sequence.
-        """
-        self.builder.attach(self.retrieve)
-        self.builder.retrieve(lambda data: data[-1])
-        function = self.builder.product
-        payload = range(10)
-        self.assertEqual(function(payload), payload[-1])
 
     def test_indistinguishability(self):
         """
@@ -64,48 +59,92 @@ class CurryingProductionTest(BuilderProductionTest):
         """
         n, k = sample(range(10), 2)
         core = lambda data: data + k
-        self.builder.attach(self.retrieve)
+        self.builder.attach(lambda data: data)
         self.builder.pre(core)
         pre = self.builder.product
 
-        self.builder.attach(self.retrieve)
+        self.builder.attach(lambda data: data)
         self.builder.post(core)
         post = self.builder.product
 
         self.assertEqual(pre(n), post(n))
 
-    def test_persistent_attachment(self):
+    def test_exception_based_condition(self):
         """
-        Tests attachment to a single function, enforcing bounded commitment.
+        Tests exception based handling of a given curried function.
+        Given example provides a function, which handles
+        ZeroDivisionError, by returning a message:str.
         """
-        n, k = sample(range(10), 2)
-        self.builder.attach(lambda data: data+k)
-        product = self.builder.product
-        self.assertEqual(product(n), n+k)
+        self.builder.attach(lambda a, b: a//b)
+        message = '{} cannot divide {}.'
+        self.builder.condition(ZeroDivisionError(),
+                               lambda a, b: message.format(a, b))
+        function = self.builder.product
+        self.assertEqual(function(1, 0), message.format(1, 0))
 
-    def test_deque_attachment(self):
+    def test_boolean_based_condition(self):
         """
-        Tests continues queue-based attachment to functions, which rotate with
-        respect to the order.
-        Given example of a modular addition provides:
-            - attachments:Deque[f[i](data) := data + i], for 0<i<n.
-            - constant input equal to 1.
-        Therefore, for each execution of a curried function, at some point
-        of time denoted `t`, output is congruent to 0 < (t mod n) + 1 < n+1.
+        Tests condition based handling of a given curried function.
+        Given example provides a function, which handles
+        ZeroDivisionError, by returning a message:str.
         """
-        from collections import deque
-        from random import randint
+        self.builder.attach(lambda a, b: a // b)
+        message = '{} cannot divide {}.'
+        self.builder.condition(lambda a, b: b != 0,
+                               lambda a, b: message.format(a, b))
+        function = self.builder.product
+        self.assertEqual(function(1, 0), message.format(1, 0))
 
-        n = randint(2, 20)
-        attachments = deque([
-            (lambda value: lambda data: data+value)(each)
-            for each in range(n)
-        ])
-        self.builder.attach(attachments)
-        product = self.builder.product
-        output = [product(1) for _ in range(n+1)]
-        expected = [t % n + 1 for t in range(n+1)]
-        self.assertEqual(output, expected)
+
+class IterativeFunctionalProductionTest(BuilderProductionTest):
+
+    def setUp(self) -> None:
+        self.builder = IterativeFunctionBuilder()
+        self.source = PriorityBasedSource()
+        self.source.store = QueueStore()
+
+    def test_unattached_source_exception(self):
+        """
+        Test exception raising, given an instance of
+        attaching a function before a source.
+        """
+        action = lambda: self.builder.attach(lambda data: data)
+        self.assertRaises(NotImplementedError, action)
+
+    def test_iterative_exception(self):
+        """
+        Tests StopIteration exception rising, given
+        a finite source has run out of functions.
+        An example of such, may be a source of `n` functions.
+        """
+        n = randint(0, 20)
+        self.builder.attach(self.source)
+        for _ in range(n):
+            self.builder.attach(lambda *_ : None)
+        function = self.builder.product
+
+        _, *_ = map(function, range(n))
+        self.assertRaises(StopIteration, function)
+
+    def test_iterative_invocation(self):
+        """
+        Tests iterative behaviour of deriving a function, out of
+        a source, for any new execution.
+        """
+        functions = (lambda a, b: a+b, lambda a, b: a-b)
+        self.builder.attach(self.source)
+        for each in functions:
+            self.builder.attach(each)
+        function = self.builder.product
+
+        excepted, output = [], []
+        for each in functions:
+            _a, _b = map(lambda _: randint(0, 100), range(2))
+            excepted.append(each(_a, _b))
+            output.append(function(_a, _b))
+
+        self.assertEqual(output, excepted)
+
 
 
 class FilterFunctionProductionTest(unittest.TestCase):
@@ -118,12 +157,12 @@ class FilterFunctionProductionTest(unittest.TestCase):
         Tests filtering of an iterative data, based on a sample range condition.
         """
         payload = tuple(range(20))
-        function = produce_filter_function(
+        function = produce_function(produce_filter_builder(
             self.condition,
             extraction=lambda data: data,
             unwrap=lambda data: data,
-            encapsulate=tuple,
-        )
+            wrap=tuple,
+        ))
         output, expected = function(payload), payload[:10]
         self.assertEqual(output, expected)
 
@@ -135,14 +174,15 @@ class FilterFunctionProductionTest(unittest.TestCase):
 
         payload = dict(zip(letters[:20], range(20)))
 
-        function = produce_filter_function(
+        function = produce_function(produce_filter_builder(
             self.condition,
             unwrap=lambda data: dict.items(data),
-            encapsulate=dict,
+            wrap=dict,
             extraction=lambda data: data[1]
-        )
+        ))
         output, expected = tuple(function(payload)), tuple(letters[:10])
         self.assertEqual(output, expected)
+
 
 
 if __name__ == '__main__':

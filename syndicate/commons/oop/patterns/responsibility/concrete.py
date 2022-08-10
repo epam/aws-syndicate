@@ -32,10 +32,6 @@ class BlackBoxResponsibilityNode(AbstractResponsibilityNode):
         if not isinstance(other, Callable):
             raise TypeError('An outsourced computable must be '
                             'of a callable type.')
-        if len(signature(other).parameters) !=\
-                len(signature(self.handle).parameters):
-            raise RuntimeError(f'A callable must contain the same '
-                               f'amount of parameters as `handle` method.')
         self._box = other
 
     def handle(self, data):

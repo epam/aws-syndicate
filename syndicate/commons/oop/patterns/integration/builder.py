@@ -231,7 +231,7 @@ class DetachedResponsibilityNodeRoutingBuilder(AbstractBuilder):
         if not self._curring:
             raise NotImplementedError(error_message)
         curring = self._curring
-        self._condition = partial(curring.condition, determinant=determinant)
+        self._condition = partial(curring.condition, determinant)
 
     @property
     def product(self) -> BlackBoxResponsibilityNode:

@@ -70,7 +70,7 @@ class CurriedFunctionBuilder(AbstractBuilder):
 
     @singledispatchmethod
     def condition(self, determinant, action: Callable):
-        ...
+        raise NotImplementedError
 
     @condition.register
     def _condition(self, determinant: FunctionType, action: Callable):
@@ -96,7 +96,7 @@ class CurriedFunctionBuilder(AbstractBuilder):
         self.attach(self._wrap(body, function))
 
     @condition.register
-    def _condition(self, determinant: Exception, action: Callable):
+    def _condition(self, determinant: BaseException, action: Callable):
         """
         Attaches an exception based determinant wrapper to the body
         of a curried function, given one has been assigned.
@@ -113,11 +113,10 @@ class CurriedFunctionBuilder(AbstractBuilder):
         def function(target, *args, **kwargs):
             try:
                 output = target(*args, **kwargs)
-            except determinant:
+            except determinant.__class__:
                 return action(*args, **kwargs)
             else:
                 return output
-
         self.attach(self._wrap(body, function))
 
     @property
@@ -203,6 +202,7 @@ class IterativeFunctionBuilder(AbstractBuilder):
                                       ' after a source has been assigned.')
         self._source.put(part)
 
+    @property
     def product(self):
         """
         Produces a function, which iteratively invokes each

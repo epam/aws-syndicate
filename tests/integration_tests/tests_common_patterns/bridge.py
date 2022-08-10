@@ -1,5 +1,6 @@
 from syndicate.commons.oop.patterns import (
-    InterchangeableReference, RetainedReference
+    InterchangeableReference, RetainedReference, PriorityBasedSource,
+    QueueStore
 )
 
 from random import randint
@@ -47,6 +48,29 @@ class ReferenceTest(unittest.TestCase):
         del self.retained_reference.commitment
         self.assertIs(self.retained_reference.commitment, None)
 
+class PriorityBasedQueuedSourceTest(unittest.TestCase):
+    def setUp(self):
+        self.source = PriorityBasedSource()
+        self.source.store = QueueStore()
+
+    def test_single_priority_retrieval(self):
+        """
+        Tests priority based retrieval out of store.
+        """
+        k = randint(0, 100)
+        self.source.put(k)
+        self.assertEqual(self.source.get(), k)
+
+    def test_iterative_behaviour(self):
+        """
+        Tests priority based iterative behaviour of the source.
+        """
+        n, excepted = randint(0, 100), []
+        for _ in range(n):
+            k = randint(0, 100)
+            excepted.append(k)
+            self.source.put(k)
+        self.assertEqual(list(iter(self.source.get, None)), excepted)
 
 if __name__ == '__main__':
     unittest.main()

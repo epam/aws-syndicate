@@ -22,4 +22,4 @@ class AbstractSource(ISource):
         """
         if not isinstance(other, IStore):
             raise TypeError('A store must be of IStore class.')
-        self._reference = other
+        self._store = other
