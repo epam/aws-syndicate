@@ -102,7 +102,7 @@ class CurriedFunctionBuilder(AbstractBuilder):
         of a curried function, given one has been assigned.
         Bounds an action part which has to take place, given
         the exception has to arise.
-        :determinant:Exception
+        :determinant:BaseException
         :action:Callable
         :return:None
         """
@@ -203,6 +203,7 @@ class IterativeFunctionBuilder(AbstractBuilder):
                                       ' after a source has been assigned.')
         self._source.put(part)
 
+    @property
     def product(self):
         """
         Produces a function, which iteratively invokes each
