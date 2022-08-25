@@ -24,6 +24,8 @@ from syndicate.connection.helper import apply_methods_decorator, retry
 
 _LOG = get_logger('syndicate.connection.dynamo_connection')
 
+DEFAULT_READ_CAPACITY = DEFAULT_WRITE_CAPACITY = 5
+
 
 def _append_attr_definition(definition, attr_name, attr_type):
     """ Adds an attribute definition if it is not already present.
@@ -108,8 +110,8 @@ class DynamoConnection(object):
         _LOG.debug('Opened new DynamoDB connection.')
 
     def create_table(self, table_name, hash_key_name, hash_key_type,
-                     sort_key_name=None, sort_key_type=None, read_throughput=5,
-                     write_throughput=5, wait=True, global_indexes=None,
+                     sort_key_name=None, sort_key_type=None, read_throughput=None,
+                     write_throughput=None, wait=True, global_indexes=None,
                      local_indexes=None):
         """ Table creation.
 
@@ -125,8 +127,19 @@ class DynamoConnection(object):
         :type local_indexes: dict
         :returns created table
         """
-        throughput = dict(ReadCapacityUnits=read_throughput,
-                          WriteCapacityUnits=write_throughput)
+        params = dict()
+        if not read_throughput and not write_throughput:
+            _LOG.info('No write_capacity neither read_capacity are specified. '
+                      'Setting on-demand mode')
+            params['BillingMode'] = 'PAY_PER_REQUEST'
+        else:
+            _LOG.info('Read or/and write capacity are specified. '
+                      'Using provisioned mode.')
+            params['BillingMode'] = 'PROVISIONED'
+            params['ProvisionedThroughput'] = dict(
+                ReadCapacityUnits=read_throughput or DEFAULT_READ_CAPACITY,
+                WriteCapacityUnits=write_throughput or DEFAULT_WRITE_CAPACITY)
+
         schema = [dict(AttributeName=hash_key_name, KeyType='HASH')]
         definition = [dict(AttributeName=hash_key_name,
                            AttributeType=hash_key_type)]
@@ -144,11 +157,10 @@ class DynamoConnection(object):
             for index in local_indexes:
                 _add_index_keys_to_definition(definition=definition,
                                               index=index)
-
-        params = dict(TableName=table_name, KeySchema=schema,
-                      AttributeDefinitions=definition,
-                      ProvisionedThroughput=throughput,
-                      StreamSpecification=stream)
+        params.update(dict(
+            TableName=table_name, KeySchema=schema,
+            AttributeDefinitions=definition, StreamSpecification=stream
+        ))
         if global_indexes:
             params['GlobalSecondaryIndexes'] = []
             for index in global_indexes:
