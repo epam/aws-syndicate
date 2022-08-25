@@ -157,9 +157,7 @@ class DynamoDBResource(AbstractExternalResource, BaseResource):
         :type name: str
         :type meta: dict
         """
-        required_parameters = ['hash_key_name', 'hash_key_type',
-                               'read_capacity',
-                               'write_capacity']
+        required_parameters = ['hash_key_name', 'hash_key_type']
         validate_params(name, meta, required_parameters)
 
         res = self.dynamodb_conn.describe_table(name)
@@ -178,11 +176,10 @@ class DynamoDBResource(AbstractExternalResource, BaseResource):
         self.dynamodb_conn.create_table(
             name, meta['hash_key_name'], meta['hash_key_type'],
             meta.get('sort_key_name'), meta.get('sort_key_type'),
-            meta['read_capacity'], meta['write_capacity'],
+            meta.get('read_capacity'), meta.get('write_capacity'),
             global_indexes=meta.get('global_indexes'),
             local_indexes=meta.get('local_indexes'),
-            wait=False)
-        time.sleep(5)
+            wait=True)
         response = self.dynamodb_conn.describe_table(name)
         if not response:
             raise AssertionError('Table with name {0} has not been created!'
