@@ -149,7 +149,7 @@ def initialize_connection():
             if CONFIG.serial_number:
                 token_code = prompt_mfa_code()
             temp_credentials = sts.get_session_token(
-                duration=3600,
+                duration=CONFIG.session_duration,
                 serial_number=CONFIG.serial_number,
                 token_code=token_code
             )

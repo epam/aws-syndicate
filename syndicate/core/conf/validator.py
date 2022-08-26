@@ -48,6 +48,7 @@ TEMP_AWS_ACCESS_KEY_ID_CFG = 'temp_aws_access_key_id'
 TEMP_AWS_SECRET_ACCESS_KEY_CFG = 'temp_aws_secret_access_key'
 TEMP_AWS_SESSION_TOKEN_CFG = 'temp_aws_session_token'
 EXPIRATION_CFG = 'expiration'
+SESSION_DURATION_CFG = 'session_duration'
 ACCESS_ROLE_CFG = 'access_role'
 IAM_PERMISSIONS_BOUNDARY_CFG = 'iam_permissions_boundary'
 
@@ -103,6 +104,10 @@ class ConfigValidator:
             SERIAL_NUMBER_CFG: {
                 REQUIRED: False,
                 VALIDATOR: self._validate_serial_number
+            },
+            SESSION_DURATION_CFG: {
+                REQUIRED: False,
+                VALIDATOR: self._validate_session_duration,
             },
             TEMP_AWS_SECRET_ACCESS_KEY_CFG: {
                 REQUIRED: False,
@@ -322,6 +327,13 @@ class ConfigValidator:
         result = ConfigValidator._validate_resources_prefix_suffix(key, value)
         if result:
             return result[0]
+
+    @staticmethod
+    def _validate_session_duration(key, value):
+        if not isinstance(value, int):
+            return [f'\'{key}\' must a an integer']
+        if value < 900:
+            return [f'\'{key}\' must begin from 900 seconds']
 
     @staticmethod
     def _assert_value_is_str(key, value):
