@@ -61,7 +61,7 @@ def generate_configuration_files(name, config_path, region,
                             aws_access_key_id=access_key,
                             aws_secret_access_key=secret_key)
         caller_identity = sts.get_caller_identity()
-        account_id = int(caller_identity['Account'])
+        account_id = str(caller_identity['Account'])
     except ClientError:
         _USER_LOG.error('Invalid credentials provided, please '
                         'specify the correct one')
