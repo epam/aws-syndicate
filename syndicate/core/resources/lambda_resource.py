@@ -669,14 +669,18 @@ class LambdaResource(BaseResource):
         required_parameters = ['target_rule']
         validate_params(lambda_name, trigger_meta, required_parameters)
         rule_name = trigger_meta['target_rule']
-
         rule_arn = self.cw_events_conn.get_rule_arn(rule_name)
-        self.cw_events_conn.add_rule_target(rule_name, lambda_arn)
-        self.lambda_conn.add_invocation_permission(lambda_arn,
-                                                   'events.amazonaws.com',
-                                                   rule_arn)
-        _LOG.info(f'Lambda {lambda_name} subscribed to cloudwatch rule '
-                  f'{rule_name}')
+        targets = self.cw_events_conn.list_targets_by_rule(rule_name)
+        if lambda_arn not in map(lambda each: each.get('Arn'), targets):
+            self.cw_events_conn.add_rule_target(rule_name, lambda_arn)
+            self.lambda_conn.add_invocation_permission(lambda_arn,
+                                                       'events.amazonaws.com',
+                                                       rule_arn)
+            _LOG.info(f'Lambda {lambda_name} subscribed to cloudwatch rule '
+                      f'{rule_name}')
+        else:
+            _LOG.info(f'Lambda {lambda_name} is already bound '
+                      f'to cloudwatch rule {rule_name} as a target')
 
     @retry
     def _create_s3_trigger_from_meta(self, lambda_name, lambda_arn, role_name,
