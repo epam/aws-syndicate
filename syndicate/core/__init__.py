@@ -28,6 +28,7 @@ from syndicate.core.resources.processors_mapping import ProcessorFacade
 from syndicate.core.resources.resources_provider import ResourceProvider
 from syndicate.core.conf.bucket_view import URIBucketView, RegexViewDigest, \
     NAMED_S3_URI_PATTERN, S3_PATTERN_GROUP_NAMES
+from syndicate.core.helper import handle_interruption
 
 _LOG = get_logger('deployment.__init__')
 USER_LOG = get_user_logger()
@@ -220,3 +221,8 @@ def prompt_mfa_code():
         mfa_code = input(f'Token code must consist of 6 numbers. '
                          f'Try again: ')
     return mfa_code
+
+
+def initialize_signal_handling():
+    from signal import SIGINT, signal
+    signal(SIGINT, handle_interruption)

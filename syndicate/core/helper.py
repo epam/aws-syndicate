@@ -26,6 +26,7 @@ from functools import wraps
 from pathlib import Path
 from threading import Thread
 from time import time
+from signal import SIGINT
 
 import click
 from click import BadParameter
@@ -36,7 +37,8 @@ from syndicate.core.conf.processor import path_resolver
 from syndicate.core.conf.validator import ConfigValidator, ALL_REGIONS
 from syndicate.core.constants import (ARTIFACTS_FOLDER, BUILD_META_FILE_NAME,
                                       DEFAULT_SEP, DATE_FORMAT_ISO_8601)
-from syndicate.core.project_state.project_state import MODIFICATION_LOCK
+from syndicate.core.project_state.project_state import MODIFICATION_LOCK, \
+    WARMUP_LOCK, ProjectState
 from syndicate.core.project_state.sync_processor import sync_project_state
 
 _LOG = get_logger('syndicate.core.helper')
@@ -553,3 +555,20 @@ def check_lambdas_names(ctx, param, value):
         except ValueError as e:
             raise click.BadParameter(e.__str__(), ctx, param)
     return value
+
+
+def handle_interruption(_num: SIGINT, _frame):
+    """ Meant to handle interruption signal, by releasing any given lock """
+    _naming, _lock_types = 'PROJECT_STATE', (MODIFICATION_LOCK, WARMUP_LOCK)
+    if _num == SIGINT:
+        from syndicate.core import PROJECT_STATE
+        _state = PROJECT_STATE
+        if isinstance(_state, ProjectState):
+            _locked_type = next((each for each in _lock_types
+                                 if not _state.is_lock_free(each)), None)
+            if _locked_type:
+                _LOG.warn(f'Releasing the project state lock {_locked_type},'
+                          'due to user interruption.')
+                _state.release_lock(_locked_type)
+                sync_project_state()
+    sys.exit(_num)
