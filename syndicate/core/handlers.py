@@ -21,7 +21,7 @@ import click
 from tabulate import tabulate
 
 from syndicate.core import CONF_PATH, initialize_connection, \
-    initialize_project_state
+    initialize_project_state, initialize_signal_handling
 from syndicate.core.build.artifact_processor import (RUNTIME_NODEJS,
                                                      assemble_artifacts,
                                                      RUNTIME_JAVA_8,
@@ -90,6 +90,7 @@ def syndicate():
         click.echo('Configuration used: ' + CONF_PATH)
         initialize_connection()
         initialize_project_state()
+        initialize_signal_handling()
     elif _not_require_config(sys.argv):
         pass
     else:
