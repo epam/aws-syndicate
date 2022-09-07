@@ -94,8 +94,8 @@ def syndicate():
         pass
     else:
         click.echo('Environment variable SDCT_CONF is not set! '
-                   'Please verify that you configured have provided path to '
-                   'correct config files '
+                   'Please verify that you have provided path to '
+                   'the correct config files '
                    'or execute `syndicate generate config` command.')
         sys.exit(1)
 
