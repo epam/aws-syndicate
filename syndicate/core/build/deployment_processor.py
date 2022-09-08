@@ -395,6 +395,7 @@ def update_deployment_resources(bundle_name, deploy_name, replace_output=False,
                          replace_output=replace_output)
     return success
 
+
 def _cross_wired_filter(collection, control, target, dependencies,
                         chain: dict = None):
     chain = chain or {}
@@ -412,6 +413,7 @@ def _cross_wired_filter(collection, control, target, dependencies,
             temp = temp if dependencies[i] or not dependencies[j] else {}
             chain.update(temp)
     return chain
+
 
 @exit_on_exception
 def remove_deployment_resources(deploy_name, bundle_name,
@@ -435,13 +437,17 @@ def remove_deployment_resources(deploy_name, bundle_name,
                                                         or tuple())
     _LOG.info('Prefixes and suffixes of any resource names have been resolved.')
     dependencies = tuple(map(bool, (clean_only_resources, clean_only_types,
-                                     excluded_types, excluded_resources)))
+                                    excluded_types, excluded_resources)))
+
+    # todo refactor for more flexible approach
     if any(dependencies):
         filters = (
-            lambda v: v['resource_name'] in clean_only_resources,
-            lambda v: v['resource_meta']['resource_type'] in clean_only_types,
-            lambda v: v['resource_name'] not in excluded_resources,
-            lambda v: v['resource_meta']['resource_type'] not in excluded_types
+            lambda v: v.get('resource_name') in clean_only_resources,
+            lambda v: v.get('resource_meta', {}).get('resource_type')
+            in clean_only_types,
+            lambda v: v.get('resource_name') not in excluded_resources,
+            lambda v: v.get('resource_meta', {}).get('resource_type')
+            not in excluded_types
         )
         if any(dependencies[:2]):
             new_output = _cross_wired_filter(new_output, filters[:2],
