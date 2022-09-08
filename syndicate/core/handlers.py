@@ -607,7 +607,10 @@ def assemble(ctx, bundle_name):
     """
     click.echo(f'Building artifacts, bundle: {bundle_name}')
     from syndicate.core import PROJECT_STATE
-    build_mapping_dict = PROJECT_STATE.load_project_build_mapping()
+    # Updates stale lambda state aggregation
+    PROJECT_STATE.refresh_lambda_state()
+
+    build_mapping_dict: dict = PROJECT_STATE.load_project_build_mapping()
     if build_mapping_dict:
         for key, value in build_mapping_dict.items():
             func = RUNTIME_LANG_TO_BUILD_MAPPING.get(key)

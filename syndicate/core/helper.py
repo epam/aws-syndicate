@@ -572,3 +572,10 @@ def handle_interruption(_num: SIGINT, _frame):
                 _state.release_lock(_locked_type)
                 sync_project_state()
     sys.exit(_num)
+
+
+def check_lambda_state_consistency(objected_lambdas: list,
+                                   subjected_lambdas: dict, runtime: str):
+    from syndicate.core.groups import RUNTIME
+    return next((True for each in objected_lambdas if subjected_lambdas.get(
+        each, {}).get(RUNTIME) == runtime), False)

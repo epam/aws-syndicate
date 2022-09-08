@@ -363,6 +363,15 @@ def _common_python_module(src_path):
     _write_content_to_file(file=exception_path, content=EXCEPTION_CONTENT)
 
 
+def resolve_lambda_path(project: Path, runtime: str, source: str) -> Path:
+    _lambda = ''
+    if runtime == RUNTIME_JAVA:
+        _lambda = _generate_java_package_name(project.name).replace('.', '/')
+    elif runtime in LAMBDAS_PROCESSORS:
+        _lambda = FOLDER_LAMBDAS
+    return project/Path(source, _lambda)
+
+
 COMMON_MODULE_PROCESSORS = {
     RUNTIME_JAVA: _common_java_module,
     RUNTIME_NODEJS: _common_nodejs_module,
