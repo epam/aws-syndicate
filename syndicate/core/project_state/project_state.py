@@ -20,6 +20,7 @@ import sys
 import time
 from datetime import datetime
 from pathlib import Path, PurePath
+from typing import Union
 
 import yaml
 
@@ -45,6 +46,7 @@ MODIFICATION_LOCK = 'modification_lock'
 WARMUP_LOCK = 'warm_up_lock'
 PROJECT_STATE_FILE = '.syndicate'
 INIT_FILE = '__init__.py'
+INDEX_FILE = 'index.js'
 
 BUILD_MAPPINGS = {
     RUNTIME_JAVA: 'jsrc/main/java',
@@ -274,6 +276,58 @@ class ProjectState:
         elif remote_deploy:
             self.latest_deploy = remote_deploy
 
+    def refresh_lambda_state(self):
+        """
+        Refreshes current Project lambda State, be resolving
+        the compatibility with the retained state. Given any consistency
+        conflict the ProjectState is re-persisted.
+        :return: None
+        """
+        from syndicate.core.generators.lambda_function import \
+            resolve_lambda_path
+        from syndicate.core.helper import check_lambda_state_consistency
+
+        _persistence_need: bool = False
+        _project_path = Path(self.project_path)
+        _stale_lambdas = self.lambdas
+        for runtime, source in BUILD_MAPPINGS.items():
+            _path = resolve_lambda_path(_project_path, runtime, source)
+            _updated = self._update_lambdas_from_path(_path, runtime)
+            if not _persistence_need and check_lambda_state_consistency(
+                    objected_lambdas=_updated,
+                    subjected_lambdas=_stale_lambdas,
+                    runtime=runtime
+            ):
+                _persistence_need = True
+
+        if _persistence_need:
+            self.save()
+
+    def _update_lambdas_from_path(self, path: Union[str, Path], runtime: str):
+        """
+        Non persistently updates ProjectState runtime and
+        any found lambdas from a given path.
+        :parameter path:Path
+        :parameter runtime: str
+        :return: List
+        """
+        try:
+            path = path if isinstance(path, Path) else Path(path)
+        except (TypeError, Exception):
+            _LOG.error(f'Requested path {path} must be of str or Path type.')
+            return []
+
+        _LOG.info(f'Going to resolve any lambda names from a given path: '
+                  f'{path.absolute()}.')
+        _lambdas: list = self._resolve_lambdas_from_path(path, runtime)
+        for name in self._resolve_lambdas_from_path(path, runtime):
+            _LOG.info(f'Going to add the following \'{runtime}\' lambda:'
+                      f'\'{name}\' to the pending ProjectState.')
+            self.add_lambda(lambda_name=name, runtime=runtime)
+        if _lambdas:
+            self.add_project_build_mapping(runtime)
+        return _lambdas
+
     def add_lambda(self, lambda_name, runtime):
         lambdas = self.dct.get(STATE_LAMBDAS)
         if not lambdas:
@@ -363,57 +417,59 @@ class ProjectState:
 
     @staticmethod
     def build_from_structure(config):
-        """Builds project state file from existing project folder in case of 
+        """Builds project state file from existing project folder in case of
         moving from older versions
         :type config: syndicate.core.conf.processor.ConfigHolder
         """
-        from syndicate.core.generators.lambda_function import FOLDER_LAMBDAS, \
-            _generate_java_package_name
-        project_path = config.project_path
-        project_name = Path(project_path).name
-        project_state = ProjectState.generate(project_path=project_path,
-                                              project_name=project_name)
+        from syndicate.core.generators.lambda_function import\
+            resolve_lambda_path
+        absolute_path = config.project_path
+        project_path = Path(absolute_path)
+        project_state = ProjectState.generate(project_path=absolute_path,
+                                              project_name=project_path.name)
 
         for runtime, source_path in BUILD_MAPPINGS.items():
-            if runtime == RUNTIME_JAVA:
-                java_package_name = _generate_java_package_name(project_name)
-                java_package_as_path = java_package_name.replace('.', '/')
-                lambdas_path = Path(project_path, source_path,
-                                    java_package_as_path)
-            else:
-                lambdas_path = Path(project_path, source_path, FOLDER_LAMBDAS)
+            lambdas_path = resolve_lambda_path(project_path, runtime,
+                                               source_path)
             if os.path.exists(lambdas_path):
                 project_state.add_project_build_mapping(runtime)
-                project_state._add_lambdas_from_path(lambdas_path, runtime)
+                project_state._update_lambdas_from_path(lambdas_path, runtime)
 
         project_state.save()
 
         return project_state
 
-    def _add_lambdas_from_path(self, lambdas_path, runtime):
-        """Adds to project state all the lambdas from given dir.
-        :type lambdas_dir: list
+    @staticmethod
+    def _resolve_lambdas_from_path(path: Path, runtime: str):
         """
-        if runtime == RUNTIME_JAVA:
-            lambda_name_in_java_file_regex = 'lambdaName\s*=\s*"(\w+)"'
+        Resolves a list of names bound to lambda functions,
+        retained inside a given path, based on a provided runtime.
+        :parameter path: Path
+        :parameter runtime: str
+        :return: List[str]
+        """
 
-            for lambda_file in os.listdir(lambdas_path):
-                file_path = os.path.join(lambdas_path, lambda_file)
-                if not os.path.isfile(file_path):
+        lambda_list = []
+        _java_lambda_regex = 'lambdaName\s*=\s*"(\w+)"'
+
+        if not path.exists():
+            return lambda_list
+
+        for item in path.iterdir():
+            if runtime == RUNTIME_JAVA:
+                if not item.is_file():
                     continue
-                with open(file_path, 'r') as file:
-                    result = re.search(lambda_name_in_java_file_regex,
-                                       file.read())
-                    if result:
-                        lambda_name = result.group(1)
-                        self.add_lambda(lambda_name, runtime)
-                    else:
-                        print("Couldn't retrieve lambda name from the java "
-                              "lambda by path: {}".format(file_path),
-                              file=sys.stderr)
+                try:
+                    match = re.search(_java_lambda_regex, item.read_text())
+                    if match:
+                        lambda_list.append(match.group(1))
+                except (OSError, Exception):
+                    print("Couldn't retrieve lambda name from the java "
+                          "lambda by path: {}".format(item.absolute()),
+                          file=sys.stderr)
+            else:
+                if (item/INIT_FILE).exists() or (item/INDEX_FILE).exists():
+                    lambda_list.append(item.name)
 
-        else:
-            lambdas = [lambda_dir for lambda_dir in
-                       os.listdir(lambdas_path) if os.path.isfile(
-                    os.path.join(lambdas_path, lambda_dir, INIT_FILE))]
-            [self.add_lambda(lambda_name, runtime) for lambda_name in lambdas]
+        return lambda_list
+

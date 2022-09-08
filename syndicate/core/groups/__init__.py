@@ -16,3 +16,4 @@
 RUNTIME_JAVA = 'java'
 RUNTIME_NODEJS = 'nodejs'
 RUNTIME_PYTHON = 'python'
+RUNTIME = 'runtime'
