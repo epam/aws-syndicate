@@ -450,7 +450,7 @@ class ProjectState:
         """
 
         lambda_list = []
-        _java_lambda_regex = 'lambdaName\s*=\s*"(\w+)"'
+        _java_lambda_regex = 'lambdaName\s*=\s*"(.+)"'
 
         if not path.exists():
             return lambda_list
