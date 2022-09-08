@@ -187,5 +187,6 @@ class BatchComputeEnvironmentResource(BaseResource):
         params['service_role'] = self.iam_conn.check_if_role_exists(
             role_name=params['service_role'])
 
-        response = self.batch_conn.update_compute_environment(**params)
-        return response
+        # response: TypedDict[computeEnvironmentName|Arn, ResponseMetadata]
+        _response: dict = self.batch_conn.update_compute_environment(**params)
+        return self.describe_compute_environment(name=name, meta=meta)
