@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed an issue when build meta is validated before resolving aliases in it
 - Added `minimum_compression_size` param to API gateway deployment_resource declaration. It enables payload compression for an API with given size;
 - Added lambda URL support;
+- Add lambda ephemeral storage support;
 - Added an ability to create DynamoDB in on-demand mode if `read_capacity` 
   and `write_capacity` are not specified;
 - Describe an existing Api Gateway instead of creating a new one;
