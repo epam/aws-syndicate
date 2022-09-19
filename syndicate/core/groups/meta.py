@@ -34,6 +34,40 @@ def meta(ctx, project_path):
     ctx.obj[PROJECT_PATH_PARAM] = project_path
 
 
+@meta.command(name='dax_cluster')
+@click.option('--resource_name', required=True, type=str,
+              help="Dax cluster name")
+@click.option('--node_type', required=True, type=str,
+              help="The node type for the nodes in the cluster")
+@click.option('--iam_role_name', required=True, type=str,
+              help="Role name to access DynamoDB tables")
+@click.option('--subnet_group_name', type=str,
+              help='The name of the subnet group to be used for the '
+                   'replication group')
+@click.option('--subnet_ids', type=str, multiple=True,
+              help='Subnet ids to create a subnet group from. If specified, '
+                   'you must not specify \'--subnet_group_name\'')
+@click.option('--cluster_endpoint_encryption_type',
+              type=click.Choice(['NONE', 'TLS']), default='TLS',
+              help='The encryption type of the cluster\'s endpoint. '
+                   'The default value is \'TLS\'')
+@click.option('--parameter_group_name', type=str,
+              help='The parameter group to be associated with the DAX cluster')
+@click.pass_context
+@timeit()
+def dax_cluster(ctx, **kwargs):
+    """Generated dax cluster deployment resource template"""
+    kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
+    if kwargs.get('subnet_group_name') and kwargs.get('subnet_ids'):
+        raise click.UsageError(
+            'You must specify either only \'--subnet_group_name\' '
+            'or only \'--subnet_ids\'')
+    generator = DaxClusterGenerator(**kwargs)
+    _generate(generator)
+    click.echo(f'Dax cluster \'{kwargs["resource_name"]}\' was '
+               f'successfully generated')
+
+
 @meta.command(name='dynamodb')
 @click.option('--resource_name', required=True, type=str,
               help="DynamoDB table name")
@@ -139,6 +173,20 @@ def dynamodb_autoscaling(ctx, **kwargs):
                                           'authenticated-read']),
               help="The channel ACL to be applied to the bucket. If not "
                    "specified, sets the default value to 'private'")
+@click.option('--block_public_acls', type=bool, required=False,
+              help='Specifies whether Amazon S3 should block public access '
+                   'control lists (ACLs) for this bucket and objects in this '
+                   'bucket. Default value is True')
+@click.option('--ignore_public_acls', type=bool, required=False,
+              help='Specifies whether Amazon S3 should ignore public ACLs for '
+                   'this bucket and objects in this bucket. Default value '
+                   'is True')
+@click.option('--block_public_policy', type=bool, required=False,
+              help='Specifies whether Amazon S3 should block public bucket '
+                   'policies for this bucket. Default value is True')
+@click.option('--restrict_public_buckets', type=bool, required=False,
+              help='Specifies whether Amazon S3 should restrict public bucket '
+                   'policies for this bucket. Default value is True')
 @click.pass_context
 @timeit()
 def s3_bucket(ctx, **kwargs):
@@ -269,6 +317,9 @@ def iam_policy(ctx, **kwargs):
 @click.option("--external_id", type=str, help="External ID in role")
 @click.option("--instance_profile", type=bool,
               help="If true, instance profile with role name is created")
+@click.option('--permissions_boundary', type=str,
+              help="The name or the ARN of permissions boundary policy to "
+                   "attach to this role")
 @click.pass_context
 @timeit()
 def iam_role(ctx, **kwargs):
@@ -292,7 +343,7 @@ def kinesis_stream(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = KinesisStreamGenerator(**kwargs)
     _generate(generator)
-    click.echo(f"Kinesis stream '{kwargs['resource_name']}' was"
+    click.echo(f"Kinesis stream '{kwargs['resource_name']}' was "
                f"added successfully")
 
 
@@ -465,9 +516,9 @@ def sns_application(ctx, **kwargs):
               help="The attributes to be auto-verified. "
                    "Default value is email", multiple=True)
 @click.option('--sns_caller_arn', type=str,
-              help="The arn of the IAM role in your account which Cognito will "
-                   "use to send SMS messages. Required if 'phone_number' in "
-                   "'auto_verified_attributes' is specified")
+              help="The arn of the IAM role in your account which Cognito "
+                   "will use to send SMS messages. Required if 'phone_number' "
+                   "in 'auto_verified_attributes' is specified")
 @click.option('--username_attributes',
               type=click.Choice(['phone_number', 'email']),
               help="Specifies whether email addresses or phone numbers can "
@@ -541,8 +592,8 @@ def cognito_federated_pool(ctx, **kwargs):
               type=click.Choice(['EC2', 'SPOT', 'FARGATE', 'FARGATE_SPOT']),
               help="The type of compute environment. Default value is EC2")
 @click.option('--minv_cpus', type=click.IntRange(min=0),
-              help='The minimum number of Amazon EC2 vCPUs that an environment '
-                   'should maintain. Default value is 0')
+              help='The minimum number of Amazon EC2 vCPUs that an '
+                   'environment should maintain. Default value is 0')
 @click.option('--maxv_cpus', type=click.IntRange(min=1),
               help="The maximum number of Amazon EC2 vCPUs that a compute "
                    "environment can reach. Default value is 8")
@@ -550,16 +601,16 @@ def cognito_federated_pool(ctx, **kwargs):
               help="The desired number of Amazon EC2 vCPUS in the compute "
                    "environment. Default value is 1")
 @click.option('--instance_types', type=str, multiple=True,
-              help="The instances types that can be launched. Default value is "
-                   "'optimal'")
+              help="The instances types that can be launched. Default value "
+                   "is 'optimal'")
 @click.option('--security_group_ids', type=str, multiple=True, required=True,
               help="The Amazon EC2 security groups associated with instances "
-                   "launched in the compute environment.")
+                   "launched in the compute environment")
 @click.option('--subnets', type=str, multiple=True, required=True,
               help="The VPC subnets where the compute resources are launched")
 @click.option('--instance_role', type=str,
               help="The Amazon ECS instance profile applied to Amazon EC2 "
-                   "instances in a compute environment.")
+                   "instances in a compute environment")
 @click.pass_context
 @timeit()
 def batch_compenv(ctx, **kwargs):
@@ -588,7 +639,7 @@ def batch_compenv(ctx, **kwargs):
                    'Default value is \'alpine\'')
 @click.option('--job_role_arn', type=str,
               help='The ARN of the IAM role that the container can assume for '
-                   'AWS permissions.')
+                   'AWS permissions')
 @click.pass_context
 @timeit()
 def batch_jobdef(ctx, **kwargs):
@@ -691,6 +742,32 @@ def cloudwatch_event_rule(ctx, **kwargs):
                f"added successfully")
 
 
+@meta.command(name="eventbridge_rule")
+@click.option('--resource_name', type=str, required=True,
+              help="EventBridge rule name")
+@click.option('--rule_type', required=True, help="EventBridge rule type",
+              type=click.Choice(['schedule', 'ec2', 'api_call']))
+@click.option('--expression', type=str,
+              help="Rule expression (cron schedule). Valuable only if "
+                   "rule_type is 'schedule'")
+@click.option('--aws_service', type=str,
+              help="The name of AWS service which the rule listens to. "
+                   "Required only if rule_type is 'api_call'")
+@click.option('--region', type=ValidRegionParamType(allowed_all=True),
+              help="The region where the rule is deployed. Default value is "
+                   "the one from syndicate config")
+@click.pass_context
+@timeit()
+def eventbridge_rule(ctx, **kwargs):
+    """Generates EventBridge rule deployment resources-template
+    claiming compatibility with Cloudwatch event rule generator"""
+    kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
+    generator = EventBridgeRuleGenerator(**kwargs)
+    _generate(generator)
+    click.echo(f"EventBridge rule '{kwargs['resource_name']}' was "
+               f"added successfully")
+
+
 @meta.command(name="documentdb_cluster")
 @click.option('--resource_name', type=str, required=True,
               help="DocumentDB cluster name")
@@ -731,7 +808,7 @@ def documentdb_cluster(ctx, **kwargs):
 @click.option('--availability_zone', type=str,
               help="The Amazon EC2 Availability Zone that the instance is "
                    "created in. If not specified a random zone it the "
-                   "endpoint's region is set.")
+                   "endpoint's region is set")
 @click.pass_context
 @timeit()
 def documentdb_instance(ctx, **kwargs):
@@ -752,4 +829,4 @@ def _generate(generator: BaseConfigurationGenerator):
     except RuntimeError as e:
         raise click.Abort(e)
     except Exception as e:
-        raise Exception(f"An unexpected error occured: {e}")
+        raise Exception(f"An unexpected error occurred: {e}")

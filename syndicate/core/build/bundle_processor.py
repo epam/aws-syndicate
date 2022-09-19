@@ -16,7 +16,7 @@
 import json
 import os
 from concurrent.futures import ThreadPoolExecutor
-
+from pathlib import PurePath
 from botocore.exceptions import ClientError
 
 from syndicate.commons.log_helper import get_logger
@@ -50,26 +50,29 @@ def create_deploy_output(bundle_name, deploy_name, output, success,
     key = _build_output_key(bundle_name=bundle_name,
                             deploy_name=deploy_name,
                             is_regular_output=success)
+    key_compound = PurePath(CONFIG.deploy_target_bucket_key_compound,
+                            key).as_posix()
     if CONN.s3().is_file_exists(CONFIG.deploy_target_bucket,
-                                key) and not replace_output:
+                                key_compound) and not replace_output:
         _LOG.warn(
             'Output file for deploy {0} already exists.'.format(deploy_name))
     else:
-        CONN.s3().put_object(output_str, key,
+        CONN.s3().put_object(output_str, key_compound,
                              CONFIG.deploy_target_bucket,
                              'application/json')
         _LOG.info('Output file with name {} has been {}'.format(
             key, 'replaced' if replace_output else 'created'))
-
 
 def remove_deploy_output(bundle_name, deploy_name):
     from syndicate.core import CONFIG, CONN
     key = _build_output_key(bundle_name=bundle_name,
                             deploy_name=deploy_name,
                             is_regular_output=True)
+    key_compound = PurePath(CONFIG.deploy_target_bucket_key_compound,
+                            key).as_posix()
     if CONN.s3().is_file_exists(CONFIG.deploy_target_bucket,
-                                key):
-        CONN.s3().remove_object(CONFIG.deploy_target_bucket, key)
+                                key_compound):
+        CONN.s3().remove_object(CONFIG.deploy_target_bucket, key_compound)
     else:
         _LOG.warn(
             'Output file for deploy {0} does not exist.'.format(deploy_name))
@@ -80,9 +83,11 @@ def remove_failed_deploy_output(bundle_name, deploy_name):
     key = _build_output_key(bundle_name=bundle_name,
                             deploy_name=deploy_name,
                             is_regular_output=False)
+    key_compound = PurePath(CONFIG.deploy_target_bucket_key_compound,
+                            key).as_posix()
     if CONN.s3().is_file_exists(CONFIG.deploy_target_bucket,
-                                key):
-        CONN.s3().remove_object(CONFIG.deploy_target_bucket, key)
+                                key_compound):
+        CONN.s3().remove_object(CONFIG.deploy_target_bucket, key_compound)
     else:
         _LOG.warn(
             'Failed output file for deploy {0} does not exist.'.format(
@@ -94,10 +99,12 @@ def load_deploy_output(bundle_name, deploy_name):
     key = _build_output_key(bundle_name=bundle_name,
                             deploy_name=deploy_name,
                             is_regular_output=True)
+    key_compound = PurePath(CONFIG.deploy_target_bucket_key_compound,
+                            key).as_posix()
     if CONN.s3().is_file_exists(
-            CONFIG.deploy_target_bucket, key):
+            CONFIG.deploy_target_bucket, key_compound):
         output_file = CONN.s3().load_file_body(
-            CONFIG.deploy_target_bucket, key)
+            CONFIG.deploy_target_bucket, key_compound)
         return json.loads(output_file)
     else:
         raise AssertionError('Deploy name {0} does not exist.'
@@ -109,11 +116,13 @@ def load_failed_deploy_output(bundle_name, deploy_name):
     key = _build_output_key(bundle_name=bundle_name,
                             deploy_name=deploy_name,
                             is_regular_output=False)
+    key_compound = PurePath(CONFIG.deploy_target_bucket_key_compound,
+                            key).as_posix()
     if CONN.s3().is_file_exists(CONFIG.deploy_target_bucket,
-                                key):
+                                key_compound):
         output_file = CONN.s3().load_file_body(
             CONFIG.deploy_target_bucket,
-            key)
+            key_compound)
         return json.loads(output_file)
     else:
         raise AssertionError('Deploy name {0} does not exist.'
@@ -123,8 +132,10 @@ def load_failed_deploy_output(bundle_name, deploy_name):
 def load_meta_resources(bundle_name):
     from syndicate.core import CONFIG, CONN
     key = build_path(bundle_name, BUILD_META_FILE_NAME)
+    key_compound = PurePath(CONFIG.deploy_target_bucket_key_compound,
+                            key).as_posix()
     meta_file = CONN.s3().load_file_body(
-        CONFIG.deploy_target_bucket, key)
+        CONFIG.deploy_target_bucket, key_compound)
     return json.loads(meta_file)
 
 
@@ -132,9 +143,11 @@ def if_bundle_exist(bundle_name):
     from syndicate.core import CONFIG, CONN
     _assert_bundle_bucket_exists()
     bundle_folder = bundle_name + DEFAULT_SEP
+    key_compound = PurePath(CONFIG.deploy_target_bucket_key_compound,
+                            bundle_folder).as_posix()
     return CONN.s3().get_keys_by_prefix(
         CONFIG.deploy_target_bucket,
-        bundle_folder)
+        key_compound)
 
 
 def upload_bundle_to_s3(bundle_name, force):
@@ -179,6 +192,7 @@ def create_bundles_bucket():
         CONN.s3().create_bucket(
             bucket_name=CONFIG.deploy_target_bucket,
             location=CONFIG.region)
+        CONN.s3().put_public_access_block(CONFIG.deploy_target_bucket)
         _LOG.info('{0} bucket created successfully'.format(
             CONFIG.deploy_target_bucket))
 
@@ -248,7 +262,9 @@ def _download_package_from_s3(conn, bucket_name, key, path):
 @unpack_kwargs
 def _put_package_to_s3(path, path_to_package):
     from syndicate.core import CONN, CONFIG
-    CONN.s3().upload_single_file(path_to_package, path,
+    key_compound = PurePath(CONFIG.deploy_target_bucket_key_compound,
+                            path).as_posix()
+    CONN.s3().upload_single_file(path_to_package, key_compound,
                                  CONFIG.deploy_target_bucket)
 
 

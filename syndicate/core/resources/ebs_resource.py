@@ -15,7 +15,7 @@
 """
 from time import time
 from uuid import uuid1
-
+from pathlib import PurePath
 from botocore.exceptions import ClientError
 
 from syndicate.commons.log_helper import get_logger
@@ -54,6 +54,7 @@ class EbsResource(BaseResource):
 
     @unpack_kwargs
     def _create_ebs_app_env_from_meta(self, name, meta):
+        from syndicate.core import CONFIG
         response = self.ebs_conn.describe_applications([name])
         if response:
             _LOG.warn(f'{name} EBS app exists.')
@@ -171,7 +172,10 @@ class EbsResource(BaseResource):
                                          tier=meta['tier'],
                                          solution_stack_name=stack)
         key = meta[S3_PATH_NAME]
-        if not self.s3_conn.is_file_exists(self.deploy_target_bucket, key):
+        key_compound = PurePath(CONFIG.deploy_target_bucket_key_compound,
+                                key).as_posix()
+        if not self.s3_conn.is_file_exists(self.deploy_target_bucket,
+                                           key_compound):
             raise AssertionError(f'Deployment package does not exist in '
                                  f'{self.deploy_target_bucket} bucket')
 
@@ -180,7 +184,7 @@ class EbsResource(BaseResource):
         self.ebs_conn.create_app_version(app_name=name,
                                          version_label=version_label,
                                          s3_bucket=self.deploy_target_bucket,
-                                         s3_key=key)
+                                         s3_key=key_compound)
         _LOG.debug(f'Waiting for beanstalk env {env_name}')
         # wait for env creation
         start = time()

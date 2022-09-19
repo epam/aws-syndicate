@@ -27,6 +27,7 @@ from syndicate.core.resources.docdb_cluster_resource import \
 from syndicate.core.resources.docdb_instance_resource import \
     DocumentDBInstanceResource
 from syndicate.core.resources.dynamo_db_resource import DynamoDBResource
+from syndicate.core.resources.dax_resource import DaxResource
 from syndicate.core.resources.ebs_resource import EbsResource
 from syndicate.core.resources.ec2_resource import Ec2Resource
 from syndicate.core.resources.iam_resource import IamResource
@@ -43,6 +44,7 @@ from syndicate.core.resources.batch_jobqueue_resource import (
     BatchJobQueueResource)
 from syndicate.core.resources.batch_jobdef_resource import (
     BatchJobDefinitionResource)
+from syndicate.core.resources.group_tagging_api_resource import TagsApiResource
 
 
 class ResourceProvider:
@@ -86,6 +88,8 @@ class ResourceProvider:
         _batch_jobdef_resource = None
         _documentdb_cluster_resource = None
         _documentdb_instance_resource = None
+        _tags_api_resource = None
+        _dax_cluster_resource = None
 
         def __init__(self, config, credentials) -> None:
             self.credentials = credentials
@@ -158,6 +162,14 @@ class ResourceProvider:
                     iam_conn=self._conn_provider.iam()
                 )
             return self._dynamodb_resource
+
+        def dax_cluster(self):
+            if not self._dax_cluster_resource:
+                self._dax_cluster_resource = DaxResource(
+                    dax_conn=self._conn_provider.dax(),
+                    iam_conn=self._conn_provider.iam()
+                )
+            return self._dax_cluster_resource
 
         def ebs(self):
             if not self._ebs_resource:
@@ -288,3 +300,10 @@ class ResourceProvider:
                         account_id=self.config.account_id
                     )
             return self._documentdb_instance_resource
+
+        def tags_api(self):
+            if not self._tags_api_resource:
+                self._tags_api_resource = TagsApiResource(
+                    connection=self._conn_provider.groups_tagging_api()
+                )
+            return self._tags_api_resource

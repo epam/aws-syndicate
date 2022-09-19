@@ -13,6 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+import time
 from botocore.exceptions import ClientError
 
 from syndicate.commons.log_helper import get_logger
@@ -25,9 +26,7 @@ AUTOSCALING_REQUIRED_PARAMS = ['resource_name', 'dimension',
                                'min_capacity', 'max_capacity',
                                'role_name']
 
-DYNAMODB_TABLE_REQUIRED_PARAMS = ['hash_key_name', 'hash_key_type',
-                                  'read_capacity',
-                                  'write_capacity']
+DYNAMODB_TABLE_REQUIRED_PARAMS = ['hash_key_name', 'hash_key_type']
 
 _LOG = get_logger('syndicate.core.resources.dynamo_db_resource')
 
@@ -182,10 +181,10 @@ class DynamoDBResource(AbstractExternalResource, BaseResource):
         self.dynamodb_conn.create_table(
             name, meta['hash_key_name'], meta['hash_key_type'],
             meta.get('sort_key_name'), meta.get('sort_key_type'),
-            meta['read_capacity'], meta['write_capacity'],
+            meta.get('read_capacity'), meta.get('write_capacity'),
             global_indexes=meta.get('global_indexes'),
             local_indexes=meta.get('local_indexes'),
-            wait=False)
+            wait=True)
         response = self.dynamodb_conn.describe_table(name)
         if not response:
             raise AssertionError('Table with name {0} has not been created!'

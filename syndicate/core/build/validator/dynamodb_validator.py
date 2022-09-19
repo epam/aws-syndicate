@@ -13,6 +13,10 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+import re
+import click
+import sys
+
 from syndicate.core.build.validator import assert_required_property
 
 HASH_KEY_NAME = 'hash_key_name'
@@ -144,3 +148,54 @@ def _assert_key(meta, res_name, key_name_attr, key_type_attr):
     assert_required_property(resource_name=res_name,
                              property_name=key_type_attr,
                              property_value=key_type_value)
+
+
+def validate_dax_cluster(cluster_name: str, cluster_meta: dict):
+    cluster_name = cluster_name.lower()
+    parameter_type_mapping = {
+        'node_type': str,
+        'iam_role_name': str,
+        'replication_factor': int,
+        'subnet_group_name': str,
+        'security_group_ids': list,
+        'subnet_ids': list,
+        'cluster_endpoint_encryption_type': str,
+        'parameter_group_name': str,
+        'availability_zones': list
+    }
+
+    errors = []
+    if not (1 <= len(cluster_name) <= 20):
+        errors.append(f'Cluster name \'{cluster_name}\' must be between '
+                      f'1 and 20 characters but not {len(cluster_name)};')
+    invalid_characters = re.findall('[^a-z0-9-]', cluster_name)
+    if invalid_characters:
+        errors.append(f'Cluster name \'{cluster_name}\' contains invalid '
+                      f'characters: {invalid_characters};')
+
+    for param in {'node_type', 'iam_role_name', 'replication_factor'}:
+        if not cluster_meta.get(param):
+            errors.append(f'Param \'{param}\' is required for a Dax cluster;')
+
+    subnet_group_name = cluster_meta.get('subnet_group_name')
+    subnet_ids = cluster_meta.get('subnet_ids')
+    if subnet_ids and not subnet_group_name:
+        errors.append('You must specify \'subnet_group_name\' if you '
+                      'specify \'subnet_ids\'')
+
+    for key, value_type in parameter_type_mapping.items():
+        value = cluster_meta.get(key)
+        if value and not isinstance(value, value_type):
+            errors.append(f'Parameter \'{key}\' must have type '
+                          f'\'{value_type.__name__}\' instead '
+                          f'of {type(value).__name__};')
+    encryption_type = cluster_meta.get('cluster_endpoint_encryption_type')
+    if encryption_type and encryption_type not in ['NONE', 'TLS']:
+        errors.append('Cluster endpoint encryption type must be either '
+                      f'\'NONE\' or \'TLS\' but not \'{encryption_type}\'. '
+                      f'By default it is \'TLS\'')
+    if errors:
+        errors_string = '\n'.join(errors)
+        click.echo(f'Errors occurred during Dax cluster meta '
+                   f'validation:\n{errors_string}')
+        sys.exit(1)

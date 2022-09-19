@@ -166,7 +166,7 @@ HANDLER = LambdaName()
 
 
 def lambda_handler(event, context):
-    HANDLER.lambda_handler(event=event, context=context)
+    return HANDLER.lambda_handler(event=event, context=context)
 """
 
 NODEJS_LAMBDA_HANDLER_TEMPLATE = """exports.handler = async (event) => {
@@ -470,7 +470,9 @@ def _generate_python_node_lambda_config(lambda_name, lambda_relative_path):
         'event_sources': [],
         'env_variables': {},
         'publish_version': True,
-        'alias': _alias_variable(LAMBDAS_ALIASES_NAME_CFG)
+        'alias': _alias_variable(LAMBDAS_ALIASES_NAME_CFG),
+        'url_config': {},
+        'ephemeral_storage': 512
     })
 
 
@@ -489,7 +491,9 @@ def _generate_nodejs_node_lambda_config(lambda_name, lambda_relative_path):
         'event_sources': [],
         'env_variables': {},
         'publish_version': True,
-        'alias': _alias_variable(LAMBDAS_ALIASES_NAME_CFG)
+        'alias': _alias_variable(LAMBDAS_ALIASES_NAME_CFG),
+        'url_config': {},
+        'ephemeral_storage': 512
     })
 
 

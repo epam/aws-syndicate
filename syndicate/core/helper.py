@@ -26,6 +26,7 @@ from functools import wraps
 from pathlib import Path
 from threading import Thread
 from time import time
+from signal import SIGINT
 
 import click
 from click import BadParameter
@@ -36,7 +37,8 @@ from syndicate.core.conf.processor import path_resolver
 from syndicate.core.conf.validator import ConfigValidator, ALL_REGIONS
 from syndicate.core.constants import (ARTIFACTS_FOLDER, BUILD_META_FILE_NAME,
                                       DEFAULT_SEP, DATE_FORMAT_ISO_8601)
-from syndicate.core.project_state.project_state import MODIFICATION_LOCK
+from syndicate.core.project_state.project_state import MODIFICATION_LOCK, \
+    WARMUP_LOCK, ProjectState
 from syndicate.core.project_state.sync_processor import sync_project_state
 
 _LOG = get_logger('syndicate.core.helper')
@@ -196,7 +198,7 @@ def resolve_default_bundle_name(command_name):
     if command_name == 'clean':
         bundle_name = PROJECT_STATE.latest_deployed_bundle_name
     else:
-        bundle_name = PROJECT_STATE.latest_built_bundle_name
+        bundle_name = PROJECT_STATE.latest_bundle_name
     if not bundle_name:
         click.echo('Property \'bundle\' is not specified and could '
                    'not be resolved due to absence of data about the '
@@ -224,6 +226,7 @@ param_resolver_map = {
 def resolve_default_value(ctx, param, value):
     if value:
         return value
+    sync_project_state()
     command_name = ctx.info_name
     param_resolver = param_resolver_map.get(param.name)
     if not param_resolver:
@@ -236,27 +239,31 @@ def resolve_default_value(ctx, param, value):
 
 
 def create_bundle_callback(ctx, param, value):
-    from syndicate.core import CONFIG
-    bundle_path = os.path.join(CONFIG.project_path, ARTIFACTS_FOLDER, value)
+    from syndicate.core.build.helper import resolve_bundle_directory
+    if not value:
+        raise BadParameter('Parameter is required')
+    bundle_path = resolve_bundle_directory(value)
     if not os.path.exists(bundle_path):
         os.makedirs(bundle_path)
     return value
 
 
 def verify_bundle_callback(ctx, param, value):
-    from syndicate.core import CONFIG
-    bundle_path = os.path.join(CONFIG.project_path, ARTIFACTS_FOLDER, value)
+    from syndicate.core.build.helper import resolve_bundle_directory
+    bundle_path = resolve_bundle_directory(value)
     if not os.path.exists(bundle_path):
-        raise AssertionError("Bundle name does not exist. Please, invoke "
-                             "'build_artifacts' command to create a bundle.")
+        raise click.BadParameter(
+            "Bundle name does not exist. Please, invoke "
+            "'syndicate assemble' command to create a bundle.")
     return value
 
 
 def verify_meta_bundle_callback(ctx, param, value):
-    bundle_path = build_path(CONF_PATH, ARTIFACTS_FOLDER, value)
+    from syndicate.core.build.helper import resolve_bundle_directory
+    bundle_path = resolve_bundle_directory(value)
     build_meta_path = os.path.join(bundle_path, BUILD_META_FILE_NAME)
     if not os.path.exists(build_meta_path):
-        raise AssertionError(
+        raise click.BadParameter(
             "Bundle name is incorrect. {0} does not exist. Please, invoke "
             "'package_meta' command to create a file.".format(
                 BUILD_META_FILE_NAME))
@@ -268,9 +275,9 @@ def resolve_and_verify_bundle_callback(ctx, param, value):
         _LOG.debug(f'{param.name} is not specified, latest build will be used')
         value = resolve_default_value(ctx, param, value)
         if not value:
-            raise AssertionError(
-                'No valid bundles found for the given project. Please, '
-                'invoke \'syndicate build\' command to create a bundle.'
+            raise click.BadParameter(
+                f'Couldn\'t resolve the parameter automatically. '
+                f'Try to specify it manually'
             )
     return verify_meta_bundle_callback(ctx, param, value)
 
@@ -494,6 +501,29 @@ class ValidRegionParamType(click.types.StringParamType):
         return f"[{'|'.join(shorten_regions)}]"
 
 
+class DictParamType(click.types.StringParamType):
+    name = 'dict'
+    ITEMS_SEPARATOR = ','
+    KEY_VALUE_SEPARATOR = ':'
+
+    def convert(self, value, param, ctx):
+        value = super().convert(value, param, ctx)
+        _LOG.info(f'Stripping {value} from "{self.ITEMS_SEPARATOR}" a bit..')
+        value = value[1:] if value.startswith(self.ITEMS_SEPARATOR) else value
+        value = value[:-1] if value.endswith(self.ITEMS_SEPARATOR) else value
+        result = {}
+        _LOG.info(f'Converting: {value} to dict..')
+        for item in value.split(self.ITEMS_SEPARATOR):
+            k, v = item.split(self.KEY_VALUE_SEPARATOR)
+            result[k] = v
+        _LOG.info(f'Converted to such a dict: {result}')
+        return result
+
+    def get_metavar(self, param):
+        return f'KEY{self.KEY_VALUE_SEPARATOR}VALUE1' \
+               f'{self.ITEMS_SEPARATOR}KEY2{self.KEY_VALUE_SEPARATOR}VALUE2'
+
+
 def check_bundle_bucket_name(ctx, param, value):
     try:
         from syndicate.core.resources.s3_resource import validate_bucket_name
@@ -552,3 +582,27 @@ def check_lambdas_names(ctx, param, value):
         except ValueError as e:
             raise click.BadParameter(e.__str__(), ctx, param)
     return value
+
+
+def handle_interruption(_num: SIGINT, _frame):
+    """ Meant to handle interruption signal, by releasing any given lock """
+    _naming, _lock_types = 'PROJECT_STATE', (MODIFICATION_LOCK, WARMUP_LOCK)
+    if _num == SIGINT:
+        from syndicate.core import PROJECT_STATE
+        _state = PROJECT_STATE
+        if isinstance(_state, ProjectState):
+            _locked_type = next((each for each in _lock_types
+                                 if not _state.is_lock_free(each)), None)
+            if _locked_type:
+                _LOG.warn(f'Releasing the project state lock {_locked_type},'
+                          'due to user interruption.')
+                _state.release_lock(_locked_type)
+                sync_project_state()
+    sys.exit(_num)
+
+
+def check_lambda_state_consistency(objected_lambdas: list,
+                                   subjected_lambdas: dict, runtime: str):
+    from syndicate.core.groups import RUNTIME
+    return next((True for each in objected_lambdas if subjected_lambdas.get(
+        each, {}).get(RUNTIME) == runtime), False)

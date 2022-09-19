@@ -15,14 +15,17 @@
 """
 import datetime
 import os
+import re
+from syndicate.core.conf.bucket_view import NAMED_S3_URI_PATTERN
 
 MIN_BUCKET_NAME_LEN = 3
 MAX_BUCKET_NAME_LEN = 63
 
 ALL_REGIONS = ['us-east-1', 'us-east-2', 'us-west-1', 'us-west-2', 'sa-east-1',
                'ca-central-1', 'eu-west-1', 'eu-central-1', 'eu-west-2',
-               'eu-west-3', 'ap-northeast-1', 'ap-northeast-2',
-               'ap-southeast-1', 'ap-southeast-2', 'ap-south-1', 'eu-north-1']
+               'eu-west-3', 'ap-northeast-1', 'ap-northeast-2', 'ap-east-1',
+               'ap-southeast-1', 'ap-southeast-2', 'ap-south-1', 'eu-north-1',
+               'eu-south-1', 'ap-northeast-3', 'ap-southeast-3', 'af-south-1']
 
 REQUIRED = 'required'
 VALIDATOR = 'validator'
@@ -45,6 +48,11 @@ TEMP_AWS_ACCESS_KEY_ID_CFG = 'temp_aws_access_key_id'
 TEMP_AWS_SECRET_ACCESS_KEY_CFG = 'temp_aws_secret_access_key'
 TEMP_AWS_SESSION_TOKEN_CFG = 'temp_aws_session_token'
 EXPIRATION_CFG = 'expiration'
+SESSION_DURATION_CFG = 'session_duration'
+ACCESS_ROLE_CFG = 'access_role'
+IAM_PERMISSIONS_BOUNDARY_CFG = 'iam_permissions_boundary'
+
+TAGS_CFG = 'tags'
 
 PYTHON_LANGUAGE_NAME = 'python'
 NODEJS_LANGUAGE_NAME = 'nodejs'
@@ -75,7 +83,7 @@ class ConfigValidator:
                 REQUIRED: True,
                 VALIDATOR: self._validate_bundle_bucket_name},
             PROJECTS_MAPPING_CFG: {
-                REQUIRED: True,
+                REQUIRED: False,
                 VALIDATOR: self._validate_project_mapping},
             AWS_ACCESS_KEY_ID_CFG: {
                 REQUIRED: False,
@@ -97,6 +105,10 @@ class ConfigValidator:
                 REQUIRED: False,
                 VALIDATOR: self._validate_serial_number
             },
+            SESSION_DURATION_CFG: {
+                REQUIRED: False,
+                VALIDATOR: self._validate_session_duration,
+            },
             TEMP_AWS_SECRET_ACCESS_KEY_CFG: {
                 REQUIRED: False,
                 VALIDATOR: self._validate_aws_access_key
@@ -112,27 +124,41 @@ class ConfigValidator:
             EXPIRATION_CFG: {
                 REQUIRED: False,
                 VALIDATOR: self._validate_expiration
+            },
+            ACCESS_ROLE_CFG: {
+                REQUIRED: False,
+                VALIDATOR: self._validate_access_role
+            },
+            TAGS_CFG: {
+                REQUIRED: False,
+                VALIDATOR: self._validate_tags
+            },
+            IAM_PERMISSIONS_BOUNDARY_CFG: {
+                REQUIRED: False,
+                VALIDATOR: self._validate_iam_permissions_boundary
             }
         }
 
     def validate(self):
         error_messages = {}
-        for key, value in self._config_dict.items():
-            validation_rules = self._fields_validators_mapping.get(key)
-            if not validation_rules:
-                raise AssertionError(
-                    f'There is no validator for the configuration field {key}')
+        impostors = set(self._config_dict.keys()) - set(
+            self._fields_validators_mapping.keys())
+        if impostors:
+            raise AssertionError(
+                f'There is no validator for the configuration fields: '
+                f'{impostors}')
 
+        for key, validation_rules in self._fields_validators_mapping.items():
+            value = self._config_dict.get(key)
             is_required = validation_rules.get(REQUIRED)
-            if is_required:
-                if not value:
-                    error_messages[key] = REQUIRED_PARAM_ERROR.format(key)
-                    continue
-
-            validator_func = validation_rules.get(VALIDATOR)
-            validation_errors = validator_func(key, value)
-            if validation_errors:
-                error_messages[key] = validation_errors
+            if is_required and not value:
+                error_messages[key] = REQUIRED_PARAM_ERROR.format(key)
+                continue
+            if value:
+                validator_func = validation_rules.get(VALIDATOR)
+                validation_errors = validator_func(key, value)
+                if validation_errors:
+                    error_messages[key] = validation_errors
         return error_messages
 
     def _validate_project_path(self, key, value):
@@ -151,7 +177,7 @@ class ConfigValidator:
         errors = []
         try:
             int(value)
-        except TypeError as e:
+        except TypeError:
             errors.append(f'{key} must be int, not {type(value)}')
             return errors
         if len(str(value)) != 12:
@@ -175,11 +201,12 @@ class ConfigValidator:
 
         errors = []
         # check min length
-        if len(value) < MIN_BUCKET_NAME_LEN or len(
-                value) > MAX_BUCKET_NAME_LEN:
+        name = re.compile(
+            NAMED_S3_URI_PATTERN).match(value).groupdict().get('name')
+        if len(name) < MIN_BUCKET_NAME_LEN or len(name) > MAX_BUCKET_NAME_LEN:
             errors.append(f'The length of {key} must be between '
                           f'{MIN_BUCKET_NAME_LEN} and {MAX_BUCKET_NAME_LEN} '
-                          f'characters long')
+                          f'characters long but not {len(name)}')
         return errors
 
     def _validate_project_mapping(self, key, value):
@@ -242,6 +269,44 @@ class ConfigValidator:
         if str_error:
             return [str_error]
 
+    def _validate_access_role(self, key, value):
+        str_error = self._assert_value_is_str(key=key,
+                                              value=value)
+        if str_error:
+            return [str_error]
+
+    def _validate_tags(self, key, value):
+        errors = []
+        if not value:
+            return errors
+        if not isinstance(value, dict):
+            errors.append(f'\'{key}\' param must be a dictionary but '
+                          f'not a \'{type(value).__name__}\'')
+            return errors
+        if len(value) > 50:
+            errors.append(f'Each resource can have up to 50 user created tags.'
+                          f' You have specified: {len(value)}')
+        for tag_name, tag_value in value.items():
+            if tag_name.startswith('aws:'):
+                errors.append(f'\'{tag_name}\': you can\'t create, edit or '
+                              f'delete a tag that begins with the \'aws:\' '
+                              f'prefix.')
+                if not 1 <= len(tag_name) <= 128:
+                    errors.append(f'\'{tag_name}\': the tag key must be a '
+                                  f'minimum of 1 and a maximum of 128 Unicode '
+                                  f'characters')
+                if not 0 <= len(tag_value) <= 256:
+                    errors.append(f'\'{tag_value}\': the tag value must be a '
+                                  f'minimum of 0 and a maximum of 256 Unicode '
+                                  f'characters')
+        return errors
+
+    def _validate_iam_permissions_boundary(self, key, value):
+        errors = []
+        if not isinstance(value, str):
+            return [f'\'{key}\' must have a string type']
+        return errors
+
     @staticmethod
     def _validate_expiration(key, value):
         if not isinstance(value, datetime.datetime):
@@ -262,6 +327,13 @@ class ConfigValidator:
         result = ConfigValidator._validate_resources_prefix_suffix(key, value)
         if result:
             return result[0]
+
+    @staticmethod
+    def _validate_session_duration(key, value):
+        if not isinstance(value, int):
+            return [f'\'{key}\' must a an integer']
+        if value < 900:
+            return [f'\'{key}\' must begin from 900 seconds']
 
     @staticmethod
     def _assert_value_is_str(key, value):

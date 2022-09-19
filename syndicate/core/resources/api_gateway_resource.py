@@ -144,30 +144,42 @@ class ApiGatewayResource(BaseResource):
                         continue
                     cache_ttl_setting = cache_configuration.get(
                         'cache_ttl_sec')
+                    encrypt_cache_data = cache_configuration.get(
+                        'encrypt_cache_data')
                     if cache_ttl_setting:
                         _LOG.info(
                             'Configuring cache for {0}; TTL: {1}'.format(
                                 resource_path, cache_ttl_setting))
                         escaped_resource = self._escape_path(resource_path)
+                        patch_operations = [
+                            {
+                                'op': 'replace',
+                                'path': '/{0}/{1}/caching/ttlInSeconds'.format(
+                                    escaped_resource,
+                                    method_name),
+                                'value': str(cache_ttl_setting),
+                            },
+                            {
+                                'op': 'replace',
+                                'path': '/{0}/{1}/caching/enabled'.format(
+                                    escaped_resource,
+                                    method_name),
+                                'value': 'True',
+                            }
+                        ]
+                        if encrypt_cache_data is not None:
+                            patch_operations.append({
+                                'op': 'replace',
+                                'path': '/{0}/{1}/caching/dataEncrypted'.format(
+                                    escaped_resource,
+                                    method_name),
+                                'value': 'true' if bool(
+                                    encrypt_cache_data) else 'false'
+                            })
                         self.connection.update_configuration(
                             rest_api_id=api_id,
                             stage_name=stage_name,
-                            patch_operations=[
-                                {
-                                    'op': 'replace',
-                                    'path': '/{0}/{1}/caching/ttlInSeconds'.format(
-                                        escaped_resource,
-                                        method_name),
-                                    'value': str(cache_ttl_setting),
-                                },
-                                {
-                                    'op': 'replace',
-                                    'path': '/{0}/{1}/caching/enabled'.format(
-                                        escaped_resource,
-                                        method_name),
-                                    'value': 'True',
-                                }
-                            ]
+                            patch_operations=patch_operations
                         )
                         _LOG.info(
                             'Cache for {0} was configured'.format(
@@ -184,6 +196,11 @@ class ApiGatewayResource(BaseResource):
 
         api_resources = meta['resources']
 
+        api_gw_describe = self.describe_api_resources(name, meta)
+        if api_gw_describe:
+            _LOG.info(f'Api gateway with name \'{name}\' exists. Returning')
+            return api_gw_describe
+        _LOG.info(f'Api gateway with name \'{name}\' does not exist. Creating')
         api_item = self.connection.create_rest_api(
             api_name=name,
             binary_media_types=meta.get('binary_media_types'))
@@ -272,19 +289,29 @@ class ApiGatewayResource(BaseResource):
             _LOG.debug('Cluster cache configuration found:{0}'.format(
                 cache_cluster_configuration))
             # set default ttl for root endpoint
+            patch_operations = []
             cluster_cache_ttl_sec = cache_cluster_configuration.get(
                 'cache_ttl_sec')
-            self.connection.update_configuration(
-                rest_api_id=api_id,
-                stage_name=deploy_stage,
-                patch_operations=[
-                    {
-                        'op': 'replace',
-                        'path': '/*/*/caching/ttlInSeconds',
-                        'value': str(cluster_cache_ttl_sec),
-                    }
-                ]
-            )
+            encrypt_cache_data = cache_cluster_configuration.get(
+                'encrypt_cache_data')
+            if cluster_cache_ttl_sec:
+                patch_operations.append({
+                    'op': 'replace',
+                    'path': '/*/*/caching/ttlInSeconds',
+                    'value': str(cluster_cache_ttl_sec),
+                })
+            if encrypt_cache_data is not None:
+                patch_operations.append({
+                    'op': 'replace',
+                    'path': '/*/*/caching/dataEncrypted',
+                    'value': 'true' if bool(encrypt_cache_data) else 'false'
+                })
+            if patch_operations:
+                self.connection.update_configuration(
+                    rest_api_id=api_id,
+                    stage_name=deploy_stage,
+                    patch_operations=patch_operations
+                )
             # customize cache settings for endpoints
             self.configure_cache(api_id, deploy_stage, api_resources)
 
@@ -572,17 +599,18 @@ class ApiGatewayResource(BaseResource):
                                                            _CORS_HEADER_VALUE)
 
     @staticmethod
-    def _get_lambdas_invoked_by_api_gw(resources_meta):
-        affected_lambdas = []
-
+    def _get_lambdas_invoked_by_api_gw(resources_meta, retrieve_aliases=False):
+        lambdas = set()
         for resource, meta in resources_meta.items():
             for method, description in meta.items():
                 if method in SUPPORTED_METHODS:
-                    lambda_name = description.get('lambda_name')
-                    if lambda_name and lambda_name not in affected_lambdas:
-                        affected_lambdas.append(lambda_name)
-
-        return affected_lambdas
+                    lambda_ = description.get('lambda_name')
+                    if lambda_:
+                        if retrieve_aliases:
+                            lambda_ = (lambda_,
+                                       description.get('lambda_alias'))
+                        lambdas.add(lambda_)
+        return list(lambdas)
 
     def remove_api_gateways(self, args):
         for arg in args:
@@ -590,8 +618,30 @@ class ApiGatewayResource(BaseResource):
             # wait for success deletion
             time.sleep(60)
 
+    def _remove_invocation_permissions_from_lambdas(self, config):
+        api_id = config['description']['id']
+        _LOG.info(fr'Removing invocation permissions for api {api_id}')
+        lambdas_aliases = self._get_lambdas_invoked_by_api_gw(
+            config['resource_meta'].get('resources', {}),
+            retrieve_aliases=True)
+        for lambda_, alias in lambdas_aliases:
+            _LOG.info(f'Removing invocation permissions for api {api_id} '
+                      f'from lambda {lambda_} and alias {alias}')
+            statements = self.lambda_res.get_invocation_permission(
+                lambda_name=self.lambda_res.build_lambda_arn(lambda_),
+                qualifier=alias
+            ).get('Statement', [])
+            ids_to_remove = [st.get('Sid') for st in statements if
+                             api_id in st.get('Condition', {}).get(
+                                 'ArnLike', {}).get('AWS:SourceArn', '')]
+            self.lambda_res.remove_invocation_permissions(
+                lambda_name=lambda_, qualifier=alias,
+                ids_to_remove=ids_to_remove
+            )
+
     def _remove_api_gateway(self, arn, config):
         api_id = config['description']['id']
+        self._remove_invocation_permissions_from_lambdas(config)
         try:
             self.connection.remove_api(api_id)
             _LOG.info(f'API Gateway {api_id} was removed.')

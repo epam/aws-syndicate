@@ -139,12 +139,18 @@ class BaseDeploymentResourceGenerator(BaseConfigurationGenerator):
         return result
 
     def write(self):
-        """Writes generated meta to root deployment_resources. If resource
+        """Writes generated meta to the highest, level-wise,
+        deployment_resources, excluding the lambdas sub-folder. If resource
         with the name {self.resource_name} already exists, it'll ask a
         user whether overwrite it or not. If 'yes', resource meta will
         be written to the file, where the duplicate was found"""
 
-        resources_file = Path(self.project_path, RESOURCES_FILE_NAME)
+        resources_file = next(
+            iter(path for path in Path(self.project_path).rglob(
+                RESOURCES_FILE_NAME) if 'lambdas' not in path.parts),
+            Path(self.project_path, RESOURCES_FILE_NAME)
+        )
+
         if not resources_file.exists():
             USER_LOG.warning('Root "deployment_resources.json" wasn\'t found. '
                              'Creating the one...')

@@ -74,6 +74,7 @@ class BatchComputeEnvironmentResource(BaseResource):
 
     @unpack_kwargs
     def _create_compute_environment_from_meta(self, name, meta):
+        from syndicate.core import CONFIG
         params = meta.copy()
         params['compute_environment_name'] = name
 
@@ -94,11 +95,12 @@ class BatchComputeEnvironmentResource(BaseResource):
             if not role:
                 _LOG.warn("Default Service Role '%s' not found and will be "
                           "created", DEFAULT_SERVICE_ROLE)
-                allowed_account = self.iam_conn.resource.CurrentUser().arn.split(':')[4]
+                allowed_account = self.account_id
                 self.iam_conn.create_custom_role(
                     role_name=DEFAULT_SERVICE_ROLE,
                     allowed_account=allowed_account,
-                    allowed_service='batch'
+                    allowed_service='batch',
+                    permissions_boundary=CONFIG.iam_permissions_boundary
                 )
                 policy_arn = self.iam_conn.get_policy_arn(DEFAULT_SERVICE_ROLE)
                 self.iam_conn.attach_policy(
@@ -132,6 +134,7 @@ class BatchComputeEnvironmentResource(BaseResource):
                                 args)
 
     def _update_compute_environment_from_meta(self, meta):
+        from syndicate.core import CONFIG
         name = meta.pop('name')
         arn = f'arn:aws:batch:{self.region}:{self.account_id}:' \
               f'compute-environment/{name}'
@@ -164,11 +167,12 @@ class BatchComputeEnvironmentResource(BaseResource):
             if not role:
                 _LOG.warn(f"Default Service Role '{DEFAULT_SERVICE_ROLE}' not "
                           f"found and will be created")
-                allowed_account = self.iam_conn.resource.CurrentUser().arn.split(':')[4]
+                allowed_account = self.account_id
                 self.iam_conn.create_custom_role(
                     role_name=DEFAULT_SERVICE_ROLE,
                     allowed_account=allowed_account,
-                    allowed_service='batch'
+                    allowed_service='batch',
+                    permissions_boundary=CONFIG.iam_permissions_boundary
                 )
                 policy_arn = self.iam_conn.get_policy_arn(DEFAULT_SERVICE_ROLE)
                 self.iam_conn.attach_policy(
@@ -183,5 +187,6 @@ class BatchComputeEnvironmentResource(BaseResource):
         params['service_role'] = self.iam_conn.check_if_role_exists(
             role_name=params['service_role'])
 
-        response = self.batch_conn.update_compute_environment(**params)
-        return response
+        # response: TypedDict[computeEnvironmentName|Arn, ResponseMetadata]
+        _response: dict = self.batch_conn.update_compute_environment(**params)
+        return self.describe_compute_environment(name=name, meta=meta)

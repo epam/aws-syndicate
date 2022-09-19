@@ -56,6 +56,51 @@ def validate_batch_jobdef(jobdef_name, jobdef_meta):
                 _validate_field_type
             ]
         },
+        {
+            'field_name': 'retry_strategy',
+            'field_value': jobdef_meta.get('retry_strategy'),
+            'prefix': '',
+            'required_type': dict,
+            'validators': [
+                _validate_field_type
+            ]
+        },
+        {
+            'field_name': 'propagate_tags',
+            'field_value': jobdef_meta.get('propagate_tags'),
+            'prefix': '',
+            'required_type': bool,
+            'validators': [
+                _validate_field_type
+            ]
+        },
+        {
+            'field_name': 'timeout',
+            'field_value': jobdef_meta.get('timeout'),
+            'prefix': '',
+            'required_type': dict,
+            'validators': [
+                _validate_field_type
+            ]
+        },
+        {
+            'field_name': 'tags',
+            'field_value': jobdef_meta.get('tags'),
+            'prefix': '',
+            'required_type': dict,
+            'validators': [
+                _validate_field_type
+            ]
+        },
+        {
+            'field_name': 'platform_capabilities',
+            'field_value': jobdef_meta.get('platform_capabilities'),
+            'prefix': '',
+            'required_type': list,
+            'validators': [
+                _validate_field_type
+            ]
+        }
     ]
 
     job_definition_type = jobdef_meta.get('job_definition_type')
@@ -325,51 +370,6 @@ def _validate_node_properties(node_properties):
             'validators': [
                 _validate_field_type,
                 _validate_required_field
-            ]
-        },
-        {
-            'field_name': 'retry_strategy',
-            'field_value': node_properties.get('retry_strategy'),
-            'prefix': prefix,
-            'required_type': dict,
-            'validators': [
-                _validate_field_type
-            ]
-        },
-        {
-            'field_name': 'propagate_tags',
-            'field_value': node_properties.get('propagate_tags'),
-            'prefix': prefix,
-            'required_type': bool,
-            'validators': [
-                _validate_field_type
-            ]
-        },
-        {
-            'field_name': 'timeout',
-            'field_value': node_properties.get('timeout'),
-            'prefix': prefix,
-            'required_type': dict,
-            'validators': [
-                _validate_field_type
-            ]
-        },
-        {
-            'field_name': 'tags',
-            'field_value': node_properties.get('tags'),
-            'prefix': prefix,
-            'required_type': dict,
-            'validators': [
-                _validate_field_type
-            ]
-        },
-        {
-            'field_name': 'platformCapabilities',
-            'field_value': node_properties.get('platformCapabilities'),
-            'prefix': prefix,
-            'required_type': list,
-            'validators': [
-                _validate_field_type
             ]
         },
     ]

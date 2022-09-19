@@ -16,6 +16,7 @@
 
 from syndicate.core.constants import (API_GATEWAY_TYPE, CLOUD_WATCH_ALARM_TYPE,
                                       CLOUD_WATCH_RULE_TYPE,
+                                      EVENT_BRIDGE_RULE_TYPE,
                                       DYNAMO_TABLE_TYPE, EBS_TYPE,
                                       EC2_INSTANCE_TYPE, IAM_POLICY,
                                       IAM_ROLE, KINESIS_STREAM_TYPE,
@@ -29,7 +30,8 @@ from syndicate.core.constants import (API_GATEWAY_TYPE, CLOUD_WATCH_ALARM_TYPE,
                                       COGNITO_USER_POOL_TYPE,
                                       COGNITO_FEDERATED_POOL_TYPE,
                                       DOCUMENTDB_CLUSTER_TYPE,
-                                      DOCUMENTDB_INSTANCE_TYPE)
+                                      DOCUMENTDB_INSTANCE_TYPE,
+                                      DAX_CLUSTER_TYPE)
 
 
 class ProcessorFacade:
@@ -50,6 +52,8 @@ class ProcessorFacade:
             DYNAMO_TABLE_TYPE:
                 self.resources_provider.dynamodb().create_tables_by_10,
             CLOUD_WATCH_RULE_TYPE:
+                self.resources_provider.cw().create_cloud_watch_rule,
+            EVENT_BRIDGE_RULE_TYPE:
                 self.resources_provider.cw().create_cloud_watch_rule,
             S3_BUCKET_TYPE:
                 self.resources_provider.s3().create_s3_bucket,
@@ -90,7 +94,9 @@ class ProcessorFacade:
                 self.resources_provider.documentdb_cluster().create_db_cluster,
             DOCUMENTDB_INSTANCE_TYPE:
                 self.resources_provider.documentdb_instance()
-                    .create_db_instance
+                    .create_db_instance,
+            DAX_CLUSTER_TYPE:
+                self.resources_provider.dax_cluster().create_cluster
         }
 
     def describe_handlers(self):
@@ -104,6 +110,8 @@ class ProcessorFacade:
             DYNAMO_TABLE_TYPE:
                 self.resources_provider.dynamodb().describe_table,
             CLOUD_WATCH_RULE_TYPE:
+                self.resources_provider.cw().describe_rule_from_meta,
+            EVENT_BRIDGE_RULE_TYPE:
                 self.resources_provider.cw().describe_rule_from_meta,
             S3_BUCKET_TYPE:
                 self.resources_provider.s3().describe_bucket,
@@ -144,7 +152,9 @@ class ProcessorFacade:
                     .describe_documentdb_cluster,
             DOCUMENTDB_INSTANCE_TYPE:
                 self.resources_provider.documentdb_instance()
-                    .describe_documentdb_instance
+                    .describe_documentdb_instance,
+            DAX_CLUSTER_TYPE:
+                self.resources_provider.dax_cluster().describe_cluster
         }
 
     def remove_handlers(self):
@@ -154,6 +164,8 @@ class ProcessorFacade:
             API_GATEWAY_TYPE:
                 self.resources_provider.api_gw().remove_api_gateways,
             CLOUD_WATCH_RULE_TYPE:
+                self.resources_provider.cw().remove_cloud_watch_rules,
+            EVENT_BRIDGE_RULE_TYPE:
                 self.resources_provider.cw().remove_cloud_watch_rules,
             COGNITO_USER_POOL_TYPE:
                 self.resources_provider.cognito_user_pool()
@@ -201,7 +213,9 @@ class ProcessorFacade:
                 self.resources_provider.documentdb_cluster().remove_db_cluster,
             DOCUMENTDB_INSTANCE_TYPE:
                 self.resources_provider.documentdb_instance()
-                    .remove_db_instance
+                    .remove_db_instance,
+            DAX_CLUSTER_TYPE:
+                self.resources_provider.dax_cluster().remove_cluster
         }
 
     def update_handlers(self):

@@ -248,11 +248,13 @@ def _populate_s3_path_ebs(meta, bundle_name):
         meta[S3_PATH_NAME] = build_path(bundle_name, deployment_package)
 
 
-def _populate_s3_path(meta, bundle_name):
-    resource_type = meta.get('resource_type')
-    mapping_func = S3_PATH_MAPPING.get(resource_type)
-    if mapping_func:
-        mapping_func(meta, bundle_name)
+def populate_s3_paths(overall_meta, bundle_name):
+    for name, meta in overall_meta.items():
+        resource_type = meta.get('resource_type')
+        mapping_func = S3_PATH_MAPPING.get(resource_type)
+        if mapping_func:
+            mapping_func(meta, bundle_name)
+    return overall_meta
 
 
 RUNTIME_PATH_RESOLVER = {
@@ -293,7 +295,6 @@ def _look_for_configs(nested_files, resources_meta, path, bundle_name):
 
             lambda_name = lambda_conf['name']
             _LOG.debug('Found lambda: {0}'.format(lambda_name))
-            _populate_s3_path(lambda_conf, bundle_name)
             res = _check_duplicated_resources(resources_meta, lambda_name,
                                               lambda_conf)
             if res:
@@ -323,7 +324,6 @@ def _look_for_configs(nested_files, resources_meta, path, bundle_name):
                         " Please, add new creation function or change "
                         "resource name with existing one.".format(
                             resource_type))
-                _populate_s3_path(resource, bundle_name)
                 res = _check_duplicated_resources(resources_meta,
                                                   resource_name, resource)
                 if res:
@@ -397,6 +397,8 @@ def resolve_meta(overall_meta):
     overall_meta = _resolve_aliases(overall_meta)
     _LOG.debug('Resolved meta was created')
     _LOG.debug(prettify_json(overall_meta))
+    _resolve_permissions_boundary(overall_meta)
+    _LOG.debug('Permissions boundary were resolved')
     # get dict with resolved prefix and suffix in meta resources
     # key: current_name, value: resolved_name
     resolved_names = {}
@@ -419,6 +421,7 @@ def resolve_meta(overall_meta):
         _resolve_names_in_meta(overall_meta, current_name, resolved_name)
     return overall_meta
 
+
 def _resolve_aliases(overall_meta):
     """
     :type overall_meta: dict
@@ -429,6 +432,17 @@ def _resolve_aliases(overall_meta):
                    CONFIG.aliases.items()}
         overall_meta = resolve_dynamic_identifier(aliases, overall_meta)
     return overall_meta
+
+
+def _resolve_permissions_boundary(overall_meta):
+    """Adds to every resource with resource_type IAM_ROLE permissions boundary
+    from the config"""
+    from syndicate.core import CONFIG
+    if CONFIG.iam_permissions_boundary:
+        for name, meta in overall_meta.items():
+            if meta.get('resource_type') == IAM_ROLE:
+                meta['permissions_boundary'] = CONFIG.iam_permissions_boundary
+
 
 def resolve_resource_name(resource_name, prefix=None, suffix=None):
     return _resolve_suffix_name(

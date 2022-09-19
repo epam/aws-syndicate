@@ -27,9 +27,14 @@ from syndicate.core.conf.validator import \
      ALL_REGIONS, ALLOWED_RUNTIME_LANGUAGES, ConfigValidator,
      USE_TEMP_CREDS_CFG, SERIAL_NUMBER_CFG,
      TEMP_AWS_ACCESS_KEY_ID_CFG, TEMP_AWS_SECRET_ACCESS_KEY_CFG,
-     TEMP_AWS_SESSION_TOKEN_CFG, EXPIRATION_CFG)
+     TEMP_AWS_SESSION_TOKEN_CFG, EXPIRATION_CFG, TAGS_CFG,
+     IAM_PERMISSIONS_BOUNDARY_CFG)
 from syndicate.core.constants import (DEFAULT_SEP, IAM_POLICY, IAM_ROLE,
                                       S3_BUCKET_TYPE)
+
+from syndicate.core.conf.bucket_view import \
+    AbstractBucketView, AbstractViewDigest
+from typing import Union
 
 CONFIG_FILE_NAME = 'syndicate.yml'
 ALIASES_FILE_NAME = 'syndicate_aliases.yml'
@@ -105,7 +110,11 @@ def _project_mapping(value):
 
 class ConfigHolder:
     def __init__(self, dir_path):
-        con_path = os.path.join(dir_path, CONFIG_FILE_NAME)
+        con_path_yml = os.path.join(dir_path, CONFIG_FILE_NAME)
+        con_path_yaml = os.path.join(dir_path,
+                                     CONFIG_FILE_NAME.replace('yml', 'yaml'))
+        con_path = con_path_yml if \
+            os.path.exists(con_path_yml) else con_path_yaml
         self._config_path = con_path
         if os.path.isfile(con_path):
             self._init_yaml_config(dir_path=dir_path, con_path=con_path)
@@ -122,7 +131,11 @@ class ConfigHolder:
                                      f'while {con_path} parsing: {errors}')
         self._config_dict = config_content
 
-        aliases_path = os.path.join(dir_path, ALIASES_FILE_NAME)
+        aliases_path_yml = os.path.join(dir_path, ALIASES_FILE_NAME)
+        aliases_path_yaml = os.path.join(
+            dir_path, ALIASES_FILE_NAME.replace('yml', 'yaml'))
+        aliases_path = aliases_path_yml \
+            if os.path.exists(aliases_path_yml) else aliases_path_yaml
         aliases_content = load_yaml_file_content(file_path=aliases_path)
         self._aliases = aliases_content
         self._aliases.update(self.default_aliases)
@@ -132,6 +145,7 @@ class ConfigHolder:
         if not os.path.isfile(con_path):
             raise AssertionError(
                 'sdct.conf does not exist inside %s folder' % dir_path)
+        self._config_path = con_path
         self._config_dict = ConfigObj(con_path,
                                       configspec=REQUIRED_PARAMETERS)
         self._validate_ini()
@@ -153,7 +167,7 @@ class ConfigHolder:
             TEMP_AWS_SESSION_TOKEN_CFG: temp_aws_session_token,
             EXPIRATION_CFG: expiration
         }
-        update_yaml_file_content(
+        update_file_content(
             file_path=self._config_path,
             content=content_to_update
         )
@@ -200,6 +214,41 @@ class ConfigHolder:
     def _resolve_variable(self, variable_name):
         return self._config_dict.get(variable_name)
 
+    def _prepare_bucket_view(self) -> Union[None, AbstractBucketView]:
+        """
+        Prepares assigned bucket view instance,
+        by providing the raw config payload.
+        Under circumstances of an error, deletes the previously installed view,
+        which defaults to using the raw format.
+        :return: [None, AbstractBucketView]
+        """
+        view = self.deploy_target_bucket_view
+        raw = self._resolve_variable(DEPLOY_TARGET_BUCKET_CFG)
+        try:
+            view.raw = raw
+            _LOG.info(f'Viewing complement, {view.__class__.__name__},'
+                      ' has been found, setting up the raw data.')
+            return view
+
+        except AttributeError:
+            _LOG.warn('No viewing complement has been found.')
+        except AbstractBucketView.BucketViewRuntimeError:
+            _LOG.warn('Viewing complement set-up has failed.')
+
+        del self.deploy_target_bucket_view
+        return None
+
+    def _resolve_bucket_view_attribute(self, attribute_name: str, default=None):
+        """
+        Retrieves bucket view value respectively to a provided attribute name.
+        """
+        if not isinstance(attribute_name, str):
+            raise KeyError('Name of an attribute must be a string.')
+        view = self.deploy_target_bucket_view
+        if view and not view.raw:
+            view = self._prepare_bucket_view()
+        return getattr(view, attribute_name, default)
+
     @property
     def default_aliases(self):
         return {
@@ -238,8 +287,37 @@ class ConfigHolder:
         return self._resolve_variable(REGION_CFG)
 
     @property
-    def deploy_target_bucket(self):
-        return self._resolve_variable(DEPLOY_TARGET_BUCKET_CFG)
+    def deploy_target_bucket(self) -> str:
+        return self._resolve_bucket_view_attribute('name',
+            self._resolve_variable(DEPLOY_TARGET_BUCKET_CFG)
+        )
+
+    @property
+    def deploy_target_bucket_key_compound(self) -> str:
+        return self._resolve_bucket_view_attribute('key', '')
+
+    @property
+    def deploy_target_bucket_view(self) -> Union[AbstractBucketView, None]:
+        return getattr(self, '_deploy_target_bucket_view', None)
+
+    @deploy_target_bucket_view.setter
+    def deploy_target_bucket_view(self, view: AbstractBucketView):
+        if not isinstance(view, AbstractBucketView):
+            _LOG.error('Bucket view couldn\'t have been set, '
+                       'due to improper type.')
+        elif not isinstance(view.digest, AbstractViewDigest):
+            _LOG.error('Bucket view couldn\'t have been set,'
+                       ' due to unassigned digest-parser property.')
+        else:
+            setattr(self, '_deploy_target_bucket_view', view)
+
+    @deploy_target_bucket_view.deleter
+    def deploy_target_bucket_view(self):
+        delattr(self, '_deploy_target_bucket_view')
+
+    @property
+    def iam_permissions_boundary(self):
+        return self._resolve_variable(IAM_PERMISSIONS_BOUNDARY_CFG)
 
     # mapping build tool : paths to project
     @property
@@ -290,7 +368,12 @@ class ConfigHolder:
 
     @property
     def use_temp_creds(self):
-        return bool(self._resolve_variable(USE_TEMP_CREDS_CFG))
+        var = self._resolve_variable(USE_TEMP_CREDS_CFG)
+        if isinstance(var, bool):
+            return var
+        elif isinstance(var, str):
+            return var.lower() in ("yes", "true", "t", "1")
+        return False
 
     @property
     def serial_number(self):
@@ -312,6 +395,14 @@ class ConfigHolder:
     def expiration(self):
         return self._resolve_variable(EXPIRATION_CFG)
 
+    @property
+    def tags(self):
+        tags = self._resolve_variable(TAGS_CFG)
+        if not tags:
+            tags = {}
+        tags = {k: str(v) for k, v in tags.items()}
+        return tags
+
     def resolve_alias(self, name):
         if self._aliases.get(name):
             return self._aliases[name]
@@ -328,8 +419,21 @@ def load_yaml_file_content(file_path):
         return yaml.load(yaml_file, Loader=yaml.FullLoader)
 
 
+def update_file_content(file_path, content):
+    if file_path.endswith('.yaml') or file_path.endswith('.yml'):
+        update_yaml_file_content(file_path=file_path, content=content)
+    elif file_path.endswith('.conf'):
+        update_ini_file_content(file_path=file_path, content=content)
+
+
 def update_yaml_file_content(file_path, content):
     file_content = load_yaml_file_content(file_path=file_path)
     file_content.update(content)
     with open(file_path, 'w') as yaml_file:
         yaml.dump(file_content, yaml_file, default_flow_style=False)
+
+
+def update_ini_file_content(file_path, content):
+    config = ConfigObj(file_path, configspec=REQUIRED_PARAMETERS)
+    config.update(content)
+    config.write()

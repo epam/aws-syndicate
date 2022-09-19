@@ -13,11 +13,12 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+import json
 import time
-
+from pathlib import PurePath
 from botocore.exceptions import ClientError
 
-from syndicate.commons.log_helper import get_logger
+from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.connection.helper import retry
 from syndicate.core.build.meta_processor import S3_PATH_NAME
 from syndicate.core.helper import (unpack_kwargs,
@@ -40,6 +41,7 @@ KINESIS_TRIGGER_REQUIRED_PARAMS = ['target_stream', 'batch_size',
 PROVISIONED_CONCURRENCY = 'provisioned_concurrency'
 
 _LOG = get_logger('syndicate.core.resources.lambda_resource')
+USER_LOG = get_user_logger()
 
 LAMBDA_MAX_CONCURRENCY = 'max_concurrency'
 LAMBDA_CONCUR_QUALIFIER_ALIAS = 'ALIAS'
@@ -181,6 +183,21 @@ class LambdaResource(BaseResource):
             source_arn=source_arn,
             statement_id=statement_id)
 
+    def get_invocation_permission(self, lambda_name, qualifier):
+        policies = self.lambda_conn.get_policy(lambda_name=lambda_name,
+                                               qualifier=qualifier)
+        if not policies:
+            _LOG.warning(f'No invocation permissions were found in '
+                         f'lambda: {lambda_name} with qualifier: {qualifier}')
+            return {}
+        return json.loads(policies['Policy'])
+
+    def remove_invocation_permissions(self, lambda_name, qualifier,
+                                      ids_to_remove=None):
+        self.lambda_conn.remove_invocation_permission(
+            func_name=lambda_name, qualifier=qualifier,
+            ids_to_remove=ids_to_remove)
+
     def build_lambda_arn_with_alias(self, response, alias=None):
         name = response['Configuration']['FunctionName']
         l_arn = self.build_lambda_arn(name=name)
@@ -222,6 +239,7 @@ class LambdaResource(BaseResource):
     @unpack_kwargs
     @retry
     def _create_lambda_from_meta(self, name, meta):
+        from syndicate.core import CONFIG
         _LOG.debug('Creating lambda %s', name)
         req_params = ['iam_role_name', 'runtime', 'memory', 'timeout',
                       'func_name']
@@ -229,11 +247,13 @@ class LambdaResource(BaseResource):
         validate_params(name, meta, req_params)
 
         key = meta[S3_PATH_NAME]
-        if not self.s3_conn.is_file_exists(self.deploy_target_bucket, key):
-            raise AssertionError('Error while creating lambda: %s;'
-                                 'Deployment package %s does not exist '
-                                 'in %s bucket', name, key,
-                                 self.deploy_target_bucket)
+        key_compound = PurePath(CONFIG.deploy_target_bucket_key_compound,
+                                key).as_posix()
+        if not self.s3_conn.is_file_exists(self.deploy_target_bucket,
+                                           key_compound):
+            raise AssertionError(f'Error while creating lambda: {name};'
+                f'Deployment package {key_compound} does not exist '
+                f'in {self.deploy_target_bucket} bucket')
 
         lambda_def = self.lambda_conn.get_function(name)
         if lambda_def:
@@ -243,9 +263,8 @@ class LambdaResource(BaseResource):
         role_name = meta['iam_role_name']
         role_arn = self.iam_conn.check_if_role_exists(role_name)
         if not role_arn:
-            raise AssertionError('Role {} does not exist; '
-                                 'Lambda {} failed to be configured.'.format(
-                role_name, name))
+            raise AssertionError(f'Role {role_name} does not exist; '
+                                 f'Lambda {name} failed to be configured.')
 
         dl_target_arn = self.get_dl_target_arn(meta=meta,
                                                region=self.region,
@@ -263,6 +282,8 @@ class LambdaResource(BaseResource):
                         'due to layer absence!'.format(layer_name, name))
                 lambda_layers_arns.append(layer_arn)
 
+        ephemeral_storage = meta.get('ephemeral_storage', 512)
+
         self.lambda_conn.create_lambda(
             lambda_name=name,
             func_name=meta['func_name'],
@@ -271,18 +292,21 @@ class LambdaResource(BaseResource):
             memory=meta['memory'],
             timeout=meta['timeout'],
             s3_bucket=self.deploy_target_bucket,
-            s3_key=key,
+            s3_key=key_compound,
             env_vars=meta.get('env_variables'),
             vpc_sub_nets=meta.get('subnet_ids'),
             vpc_security_group=meta.get('security_group_ids'),
             dl_target_arn=dl_target_arn,
             tracing_mode=meta.get('tracing_mode'),
             publish_version=publish_version,
-            layers=lambda_layers_arns
+            layers=lambda_layers_arns,
+            ephemeral_storage=ephemeral_storage
         )
         _LOG.debug('Lambda created %s', name)
-        # AWS sometimes returns None after function creation, needs for stability
-        time.sleep(10)
+        # AWS sometimes returns None after function creation, needs for
+        # stability
+        waiter = self.lambda_conn.get_waiter('function_exists')
+        waiter.wait(FunctionName=name)
 
         log_group_name = name
         retention = meta.get('logs_expiration')
@@ -297,7 +321,7 @@ class LambdaResource(BaseResource):
         version = lambda_def['Configuration']['Version']
         self._setup_function_concurrency(name=name, meta=meta)
 
-        # enabling aliases
+        # enabling aliases,
         # aliases can be enabled only and for $LATEST
         alias = meta.get('alias')
         if alias:
@@ -305,6 +329,16 @@ class LambdaResource(BaseResource):
             _LOG.debug(self.lambda_conn.create_alias(function_name=name,
                                                      name=alias,
                                                      version=version))
+        url_config = meta.get('url_config')
+        if url_config:
+            _LOG.info('Url config is found. Setting the function url')
+            url = self.lambda_conn.set_url_config(
+                function_name=name, auth_type=url_config.get('auth_type'),
+                qualifier=alias, cors=url_config.get('cors'),
+                principal=url_config.get('principal'),
+                source_arn=url_config.get('source_arn')
+            )
+            print(f'{name}:{alias if alias else ""}: {url}')
 
         arn = self.build_lambda_arn_with_alias(lambda_def, alias) \
             if publish_version or alias else \
@@ -339,16 +373,20 @@ class LambdaResource(BaseResource):
     @exit_on_exception
     @unpack_kwargs
     def _update_lambda(self, name, meta, context):
+        from syndicate.core import CONFIG
         _LOG.info('Updating lambda: {0}'.format(name))
         req_params = ['runtime', 'memory', 'timeout', 'func_name']
 
         validate_params(name, meta, req_params)
 
         key = meta[S3_PATH_NAME]
-        if not self.s3_conn.is_file_exists(self.deploy_target_bucket, key):
+        key_compound = PurePath(CONFIG.deploy_target_bucket_key_compound,
+                                key).as_posix()
+        if not self.s3_conn.is_file_exists(self.deploy_target_bucket,
+                                           key_compound):
             raise AssertionError(
                 'Deployment package {0} does not exist '
-                'in {1} bucket'.format(key, self.deploy_target_bucket))
+                'in {1} bucket'.format(key_compound, self.deploy_target_bucket))
 
         response = self.lambda_conn.get_function(name)
         if not response:
@@ -359,30 +397,63 @@ class LambdaResource(BaseResource):
         self.lambda_conn.update_code_source(
             lambda_name=name,
             s3_bucket=self.deploy_target_bucket,
-            s3_key=key,
+            s3_key=key_compound,
             publish_version=publish_version)
 
-        # update lambda layers version
-        if meta.get('layers'):
-            layers = meta.get('layers')
-            updated_layers_arns = [layer_arn
-                                   for layer_arn, body in context.items()
-                                   if body.get('resource_name') in layers]
-            self.lambda_conn.update_lambda_configuration(lambda_name=name,
-                                                         layers=updated_layers_arns)
+        role_name = meta['iam_role_name']
+        role_arn = self.iam_conn.check_if_role_exists(role_name)
+        if not role_arn:
+            _LOG.warning('Execution role does not exist. Keeping the old one')
 
-        # AWS sometimes returns None after function creation, needs for stability
-        time.sleep(10)
+        handler = meta.get('func_name')
+        env_vars = meta.get('env_variables')
+        timeout = meta.get('timeout')
+        memory_size = meta.get('memory_size')
+        vpc_sub_nets = meta.get('subnet_ids')
+        vpc_security_group = meta.get('security_group_ids')
+        runtime = meta.get('runtime')
+        layers = meta.get('layers')
+
+        dl_type = meta.get('dl_resource_type')
+        if dl_type:
+            dl_type = dl_type.lower()
+        dl_name = meta.get('dl_resource_name')
+
+        dl_target_arn = 'arn:aws:{0}:{1}:{2}:{3}'.format(
+            dl_type,
+            self.region,
+            self.account_id,
+            dl_name) if dl_type and dl_name else None
+
+        # update lambda layers version
+        if layers:
+            layers = [layer_arn for layer_arn, body in context.items()
+                      if body.get('resource_name') in layers]
+
+        ephemeral_storage = meta.get('ephemeral_storage', 512)
+
+        self.lambda_conn.update_lambda_configuration(
+            lambda_name=name, role=role_arn, handler=handler,
+            env_vars=env_vars,
+            timeout=timeout, memory_size=memory_size, runtime=runtime,
+            vpc_sub_nets=vpc_sub_nets, vpc_security_group=vpc_security_group,
+            dead_letter_arn=dl_target_arn, layers=layers,
+            ephemeral_storage=ephemeral_storage)
+
+        # AWS sometimes returns None after function creation, needs for
+        # stability
+        waiter = self.lambda_conn.get_waiter('function_updated_v2')
+        waiter.wait(FunctionName=name)
+
         response = self.lambda_conn.get_function(name)
-        _LOG.debug('Lambda describe result: {0}'.format(response))
+        _LOG.debug(f'Lambda describe result: {response}')
         code_sha_256 = response['Configuration']['CodeSha256']
         publish_ver_response = self.lambda_conn.publish_version(
             function_name=name,
             code_sha_256=code_sha_256)
         updated_version = publish_ver_response['Version']
         _LOG.info(
-            'Version {0} for lambda {1} published'.format(updated_version,
-                                                          name))
+            f'Version {updated_version} for lambda {name} published')
 
         alias_name = meta.get('alias')
         if alias_name:
@@ -394,21 +465,37 @@ class LambdaResource(BaseResource):
                     name=alias_name,
                     version=updated_version)
                 _LOG.info(
-                    'Alias {0} has been created for lambda {1}'.format(
-                        alias_name,
-                        name))
+                    f'Alias {alias_name} has been created for lambda {name}')
             else:
                 self.lambda_conn.update_alias(
                     function_name=name,
                     alias_name=alias_name,
                     function_version=updated_version)
                 _LOG.info(
-                    'Alias {0} has been updated for lambda {1}'.format(
-                        alias_name,
-                        name))
+                    f'Alias {alias_name} has been updated for lambda {name}')
+
+        url_config = meta.get('url_config')
+        if url_config:
+            _LOG.info('URL config is found. Setting the function URL')
+            url = self.lambda_conn.set_url_config(
+                function_name=name, auth_type=url_config.get('auth_type'),
+                qualifier=alias_name, cors=url_config.get('cors'),
+                principal=url_config.get('principal'),
+                source_arn=url_config.get('source_arn')
+            )
+            print(f'{name}:{alias_name if alias_name else ""}: {url}')
+        else:
+            existing_url = self.lambda_conn.get_url_config(
+                function_name=name, qualifier=alias_name)
+            if existing_url:
+                _LOG.info('Going to delete existing URL config that is not '
+                          'described in the lambda_config file')
+                self.lambda_conn.delete_url_config(
+                    function_name=name, qualifier=alias_name)
+
         req_max_concurrency = meta.get(LAMBDA_MAX_CONCURRENCY)
-        existing_max_concurrency = self.lambda_conn.describe_function_concurrency(
-            name=name)
+        existing_max_concurrency = self.lambda_conn.\
+            describe_function_concurrency(name=name)
         if req_max_concurrency and existing_max_concurrency:
             if existing_max_concurrency != req_max_concurrency:
                 self._set_function_concurrency(name=name, meta=meta)
@@ -423,8 +510,8 @@ class LambdaResource(BaseResource):
         return self.describe_lambda(name, meta, response)
 
     def _set_function_concurrency(self, name, meta):
-        provisioned = self.lambda_conn.describe_provisioned_concurrency_configs(
-            name=name)
+        provisioned = self.lambda_conn.\
+            describe_provisioned_concurrency_configs(name=name)
         if provisioned:
             self._delete_lambda_prov_concur_config(
                 function_name=name,
@@ -434,8 +521,8 @@ class LambdaResource(BaseResource):
     def _manage_provisioned_concurrency_configuration(self, function_name,
                                                       meta,
                                                       lambda_def=None):
-        existing_configs = self.lambda_conn.describe_provisioned_concurrency_configs(
-            name=function_name)
+        existing_configs = self.lambda_conn.\
+            describe_provisioned_concurrency_configs(name=function_name)
         concurrency = meta.get(PROVISIONED_CONCURRENCY)
 
         if not existing_configs and not concurrency:
@@ -469,8 +556,9 @@ class LambdaResource(BaseResource):
 
         if existing_configs and not concurrency:
             # to delete existing one
-            self._delete_lambda_prov_concur_config(function_name=function_name,
-                                                   existing_config=existing_configs)
+            self._delete_lambda_prov_concur_config(
+                function_name=function_name,
+                existing_config=existing_configs)
             return
 
     def _delete_lambda_prov_concur_config(self, function_name,
@@ -507,13 +595,14 @@ class LambdaResource(BaseResource):
         max_prov_limit = self.lambda_conn.describe_function_concurrency(
             name=function_name)
         if not max_prov_limit:
-            max_prov_limit = self.lambda_conn.get_unresolved_concurrent_executions()
+            max_prov_limit = self.lambda_conn.\
+                get_unresolved_concurrent_executions()
 
         if requested_provisioned_level > max_prov_limit:
             raise AssertionError(f'Requested provisioned concurrency for '
-                                 f'lambda {function_name} must not be greater than '
-                                 f'function concurrency limit if any or account '
-                                 f'unreserved concurrency. '
+                                 f'lambda {function_name} must not be greater '
+                                 f'than function concurrency limit if any or '
+                                 f'account unreserved concurrency. '
                                  f'Max is set to {max_prov_limit}; '
                                  f'Requested: {requested_provisioned_level}')
 
@@ -594,7 +683,7 @@ class LambdaResource(BaseResource):
         target_queue = trigger_meta['target_queue']
 
         if not self.sqs_conn.get_queue_url(target_queue, self.account_id):
-            _LOG.debug('Queue %s does not exist', target_queue)
+            _LOG.debug(f'Queue {target_queue} does not exist')
             return
 
         queue_arn = 'arn:aws:sqs:{0}:{1}:{2}'.format(self.region,
@@ -613,14 +702,18 @@ class LambdaResource(BaseResource):
         validate_params(lambda_name, trigger_meta,
                         CLOUD_WATCH_TRIGGER_REQUIRED_PARAMS)
         rule_name = trigger_meta['target_rule']
-
         rule_arn = self.cw_events_conn.get_rule_arn(rule_name)
-        self.cw_events_conn.add_rule_target(rule_name, lambda_arn)
-        self.lambda_conn.add_invocation_permission(lambda_arn,
-                                                   'events.amazonaws.com',
-                                                   rule_arn)
-        _LOG.info('Lambda %s subscribed to cloudwatch rule %s', lambda_name,
-                  rule_name)
+        targets = self.cw_events_conn.list_targets_by_rule(rule_name)
+        if lambda_arn not in map(lambda each: each.get('Arn'), targets):
+            self.cw_events_conn.add_rule_target(rule_name, lambda_arn)
+            self.lambda_conn.add_invocation_permission(lambda_arn,
+                                                       'events.amazonaws.com',
+                                                       rule_arn)
+            _LOG.info(f'Lambda {lambda_name} subscribed to cloudwatch rule '
+                      f'{rule_name}')
+        else:
+            _LOG.info(f'Lambda {lambda_name} is already bound '
+                      f'to cloudwatch rule {rule_name} as a target')
 
     @retry
     def _create_s3_trigger_from_meta(self, lambda_name, lambda_arn, role_name,
@@ -630,8 +723,8 @@ class LambdaResource(BaseResource):
 
         if not self.s3_conn.is_bucket_exists(target_bucket):
             _LOG.error(
-                'S3 bucket {0} event source for lambda {1} was not created.'.format(
-                    target_bucket, lambda_name))
+                f'S3 bucket {target_bucket} event source for lambda '
+                f'{lambda_name} was not created.')
             return
         self.lambda_conn.add_invocation_permission(lambda_arn,
                                                    's3.amazonaws.com',
@@ -763,11 +856,15 @@ class LambdaResource(BaseResource):
         :param context: because of usage in 'update' flow
         :return:
         """
+        from syndicate.core import CONFIG
         validate_params(name, meta, LAMBDA_LAYER_REQUIRED_PARAMS)
 
         key = meta[S3_PATH_NAME]
+        key_compound = PurePath(CONFIG.deploy_target_bucket_key_compound,
+                                key).as_posix()
         file_name = key.split('/')[-1]
-        self.s3_conn.download_file(self.deploy_target_bucket, key, file_name)
+        self.s3_conn.download_file(self.deploy_target_bucket, key_compound,
+                                   file_name)
         with open(file_name, 'rb') as file_data:
             file_body = file_data.read()
         import hashlib
@@ -789,7 +886,8 @@ class LambdaResource(BaseResource):
 
         args = {'layer_name': name, 'runtimes': meta['runtimes'],
                 's3_bucket': self.deploy_target_bucket,
-                's3_key': meta[S3_PATH_NAME]}
+                's3_key': PurePath(CONFIG.deploy_target_bucket_key_compound,
+                                   meta[S3_PATH_NAME]).as_posix()}
         if meta.get('description'):
             args['description'] = meta['description']
         if meta.get('license'):
