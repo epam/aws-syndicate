@@ -50,7 +50,7 @@ def generate_build_meta(bundle_name, dsl_list, output_directory):
             click.echo(f'There is no transformer for the dsl: {dsl}')
             continue
 
-        transformer = transformer_type()
+        transformer = transformer_type(bundle_name=bundle_name)
         transformed_build_meta = \
             transformer.transform_build_meta(build_meta=meta_resources)
         if not output_directory:

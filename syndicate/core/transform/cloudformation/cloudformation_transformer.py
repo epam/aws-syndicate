@@ -39,8 +39,8 @@ from .converter.cf_sqs_converter import CfSqsConverter
 
 class CloudFormationTransformer(BuildMetaTransformer):
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, bundle_name):
+        super().__init__(bundle_name)
         self.template = Template()
 
     def output_file_name(self) -> str:

@@ -17,7 +17,7 @@ from abc import abstractmethod, ABC
 from functools import cmp_to_key
 
 from syndicate.core.build.deployment_processor import compare_deploy_resources
-from syndicate.core.build.meta_processor import resolve_meta
+from syndicate.core.build.meta_processor import resolve_meta, populate_s3_paths
 from syndicate.core.constants import \
     (IAM_POLICY, IAM_ROLE, LAMBDA_TYPE, DYNAMO_TABLE_TYPE, S3_BUCKET_TYPE,
      CLOUD_WATCH_RULE_TYPE, SQS_QUEUE_TYPE, API_GATEWAY_TYPE, SNS_TOPIC_TYPE,
@@ -28,7 +28,7 @@ from syndicate.core.constants import \
 
 class BuildMetaTransformer(ABC):
 
-    def __init__(self):
+    def __init__(self, bundle_name=None):
         from syndicate.core import CONFIG, RESOURCES_PROVIDER
         self.config = CONFIG
         self.resources_provider = RESOURCES_PROVIDER
@@ -52,9 +52,11 @@ class BuildMetaTransformer(ABC):
             BATCH_JOBQUEUE_TYPE: self._transform_batch_jobqueue,
             BATCH_JOBDEF_TYPE: self._transform_batch_jobdef
         }
+        self.bundle_name = bundle_name
 
     def transform_build_meta(self, build_meta):
         build_meta = resolve_meta(build_meta)
+        build_meta = populate_s3_paths(build_meta, self.bundle_name)
         resources_list = list(build_meta.items())
         resources_list.sort(key=cmp_to_key(compare_deploy_resources))
         for name, resource in resources_list:

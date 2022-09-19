@@ -59,8 +59,8 @@ _LOG = get_logger('syndicate.core.transform.terraform_transformer')
 
 class TerraformTransformer(BuildMetaTransformer):
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, bundle_name=None):
+        super().__init__(bundle_name)
         self.template = TerraformTemplate('aws', 'default', self.config.region)
 
     def add_resource(self, transformed_resource):
