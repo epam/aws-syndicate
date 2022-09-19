@@ -76,7 +76,8 @@ class CfApiGatewayConverter(CfResourceConverter):
             authorization_type = method_meta.get('authorization_type')
             authorizer_id = None
             if authorization_type not in ['NONE', 'AWS_IAM']:
-                authorizer_id = authorizers_mapping.get(authorization_type)
+                authorizer_id = authorizers_mapping.get(
+                    to_logic_name('ApiGatewayAuthorizer', authorization_type))
                 if not authorizer_id:
                     raise AssertionError(
                         'Authorizer {0} is not present in '
@@ -369,6 +370,7 @@ class CfApiGatewayConverter(CfResourceConverter):
             for key, val in authorizers_meta.items():
                 authorizer_name = to_logic_name('ApiGatewayAuthorizer', key)
                 authorizer = apigateway.Authorizer(authorizer_name)
+                authorizer.Name = authorizer_name
                 authorizer.RestApiId = Ref(rest_api)
                 authorizer.Type = val.get('type')
                 authorizer.AuthorizerResultTtlInSeconds = val.get('ttl')
