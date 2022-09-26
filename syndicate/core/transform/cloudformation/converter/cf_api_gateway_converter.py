@@ -425,11 +425,13 @@ class CfApiGatewayConverter(CfResourceConverter):
         resource_path_split = resource_path.split('/')
         target_resource = None
         for path_part in resource_path_split:
-            cur_resource_path = ''.join(resource_path.partition(path_part)[:2])
-            api_resource_name = to_logic_name('ApiGatewayResource', cur_resource_path)
+            api_resource_name = to_logic_name(
+                'ApiGatewayResource',
+                ''.join(resource_path.partition(path_part)[:2]))
             existing_resource = self.get_resource(api_resource_name)
             if existing_resource:
                 target_resource = existing_resource
+                parent_resource_id = Ref(existing_resource)
                 continue
             resource = apigateway.Resource(api_resource_name)
             resource.ParentId = parent_resource_id
