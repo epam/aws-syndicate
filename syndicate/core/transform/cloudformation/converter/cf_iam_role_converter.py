@@ -16,10 +16,13 @@
 from troposphere import Ref, iam
 
 from syndicate.connection.iam_connection import IAMConnection
+from syndicate.commons.log_helper import get_user_logger
 from .cf_resource_converter import CfResourceConverter
 from ..cf_transform_utils import (to_logic_name, iam_role_logic_name, is_arn,
                                   iam_managed_policy_logic_name,
                                   iam_instance_profile_logic_name)
+
+_LOG = get_user_logger()
 
 
 class CfIamRoleConverter(CfResourceConverter):
@@ -38,12 +41,17 @@ class CfIamRoleConverter(CfResourceConverter):
             self._convert_instance_profile(role_name=name)
 
     def _prepare_policy_arns(self, meta):
-        custom_policies = meta.get('custom_policies', [])
-        predefined_policies = meta.get('predefined_policies', [])
+        custom_policies = meta.get('custom_policies') or []
+        predefined_policies = meta.get('predefined_policies') or []
         policy_arns = []
         for policy in predefined_policies:
             iam_service = self.resources_provider.iam()
-            policy_arn = iam_service.iam_conn.get_policy_arn(policy)
+            policy_arn = iam_service.iam_conn.get_policy_arn(
+                policy, policy_scope='AWS')
+            if not policy_arn:
+                _LOG.warning(f'AWS-managed policy with name \'{policy}\' '
+                             f'not found. Skipping...')
+                continue
             policy_arns.append(policy_arn)
         for policy in custom_policies:
             policy_arns.append(Ref(iam_managed_policy_logic_name(policy)))
@@ -80,7 +88,7 @@ class CfIamRoleConverter(CfResourceConverter):
         policy = iam.PolicyType(logic_name)
         policy.PolicyDocument = policy_document
         policy.PolicyName = policy_name
-        policy.Roles = [role.ref()]
+        policy.Roles = [role if isinstance(role, str) else role.ref(), ]
         return policy
 
     @staticmethod

@@ -190,13 +190,17 @@ class CfDynamoDbTableConverter(CfResourceConverter):
 
                         metric_spec = app_scaling.PredefinedMetricSpecification(
                             PredefinedMetricType=metric_type)
-
+                        _params = {
+                            'PredefinedMetricSpecification': metric_spec,
+                            'ScaleInCooldown': scale_in_cooldown,
+                            'ScaleOutCooldown': scale_out_cooldown,
+                            'TargetValue':target_value
+                        }
+                        _params = {k: v for k, v in _params.items() if
+                                   isinstance(v, (bool, int)) or v}
                         scaling_policy.TargetTrackingScalingPolicyConfiguration = \
                             app_scaling.TargetTrackingScalingPolicyConfiguration(
-                                PredefinedMetricSpecification=metric_spec,
-                                ScaleInCooldown=scale_in_cooldown,
-                                ScaleOutCooldown=scale_out_cooldown,
-                                TargetValue=target_value
+                                **_params
                             )
                         self.template.add_resource(scaling_policy)
                 else:
