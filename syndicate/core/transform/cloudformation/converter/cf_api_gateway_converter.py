@@ -166,7 +166,7 @@ class CfApiGatewayConverter(CfResourceConverter):
         cache_key_parameters = cache_configuration.get(
             'cache_key_parameters') if cache_configuration else None
         integration = apigateway.Integration()
-        lambda_uri = self.get_lambda_function_uri(lambda_arn=lambda_arn)
+        lambda_uri = self.get_lambda_function_uri(lambda_name=lambda_name)
         if cache_key_parameters:
             integration.CacheKeyParameters = cache_key_parameters
         if method_meta.get('lambda_region'):
@@ -311,11 +311,14 @@ class CfApiGatewayConverter(CfResourceConverter):
         integration.IntegrationResponses = [integr_resp]
         return options_method
 
-    def get_lambda_function_uri(self, lambda_arn):
+    def get_lambda_function_uri(self, lambda_name):
         left_part = 'arn:aws:apigateway:{0}:lambda:path' \
-                    '/2015-03-31/functions/'.format(self.config.region)
+                    '/2015-03-31/functions/arn:aws:lambda:{0}:{1}:' \
+                    'function:{2}:{3}'.format(
+            self.config.region, self.config.account_id, lambda_name,
+            self.config.lambdas_alias_name)
         right_part = '/invocations'
-        return Join('', [left_part, lambda_arn, right_part])
+        return Join('', [left_part, right_part])
 
     def get_execute_api_rest_endpoint_arn(self, api_id, method, resource_path,
                                           stage='*'):
@@ -377,15 +380,16 @@ class CfApiGatewayConverter(CfResourceConverter):
                 authorizer.IdentitySource = val.get('identity_source')
 
                 lambda_arn = self._resolve_lambda_arn(meta=val)
+                lambda_name = val.get('lambda_name')
 
-                authorizer_uri = self.get_lambda_function_uri(lambda_arn=lambda_arn)
+                authorizer_uri = self.get_lambda_function_uri(lambda_name=lambda_name)
                 authorizer.AuthorizerUri = authorizer_uri
                 self.template.add_resource(authorizer)
                 authorizers.append(authorizer)
 
                 permission = CfLambdaFunctionConverter.convert_lambda_permission(
                     lambda_arn=lambda_arn,
-                    lambda_name=val.get('lambda_name'),
+                    lambda_name=lambda_name,
                     principal='apigateway'
                 )
                 self.template.add_resource(permission)
