@@ -14,6 +14,7 @@
     limitations under the License.
 """
 from json import dumps
+from functools import lru_cache
 
 from boto3 import client, resource
 from botocore.exceptions import ClientError
@@ -79,6 +80,7 @@ class IAMConnection(object):
             roles.extend(response.get('Roles'))
         return roles
 
+    @lru_cache()
     def get_policies(self, scope='All', only_attached=False):
         """
         :param scope: 'All'|'AWS'|'Local'
@@ -234,6 +236,11 @@ class IAMConnection(object):
         :param policy_scope: 'All'|'AWS'|'Local'
         :type name: str
         """
+        # TODO this method is highly time-ineffective especially if we, for
+        #  instance, perform `syndicate transform` on a big meta, where
+        #  there is a huge amount of policies names.
+        #  lru_cache for self.get_policies makes the situation better but in
+        #  general it should be refactored.
         custom_policies = self.get_policies(policy_scope)
         for each in custom_policies:
             if each['PolicyName'] == name:
