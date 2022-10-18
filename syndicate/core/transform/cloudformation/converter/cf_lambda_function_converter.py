@@ -15,7 +15,7 @@
 """
 from troposphere import GetAtt, Ref, logs, awslambda
 
-from syndicate.commons.log_helper import get_logger
+from syndicate.commons.log_helper import get_user_logger
 from syndicate.connection.cloud_watch_connection import \
     get_lambda_log_group_name
 from syndicate.core.constants import S3_PATH_NAME
@@ -42,7 +42,7 @@ from ..cf_transform_utils import \
      s3_bucket_logic_name, sns_topic_logic_name,
      kinesis_stream_logic_name, lambda_layer_logic_name)
 
-_LOG = get_logger('cf_lambda_function_converter')
+_LOG = get_user_logger()
 
 
 class CfLambdaFunctionConverter(CfResourceConverter):
@@ -56,13 +56,18 @@ class CfLambdaFunctionConverter(CfResourceConverter):
         lambda_function.Handler = meta['func_name']
         lambda_function.MemorySize = meta['memory']
         role_name = meta['iam_role_name']
+
         role = self.get_resource(iam_role_logic_name(role_name))
+        _arn = None
         if not role:
-            raise AssertionError(
-                'Role {} does not exist; '
-                'Lambda {} failed to be configured.'.format(role_name, name))
-        lambda_function.Role = \
-            GetAtt(iam_role_logic_name(meta['iam_role_name']), 'Arn')
+            _LOG.warning(f'Role \'{role_name}\' was not found in '
+                         f'build_meta.json. Building arn manually')
+            iam_service = self.resources_provider.iam()
+            role = role_name  # for kinesis trigger
+            _arn = iam_service.iam_conn.build_role_arn(role_name)
+        else:
+            _arn = GetAtt(iam_role_logic_name(meta['iam_role_name']), 'Arn')
+        lambda_function.Role = _arn
         lambda_function.Runtime = meta['runtime'].lower()
         lambda_function.Timeout = meta['timeout']
 

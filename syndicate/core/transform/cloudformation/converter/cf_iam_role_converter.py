@@ -88,7 +88,7 @@ class CfIamRoleConverter(CfResourceConverter):
         policy = iam.PolicyType(logic_name)
         policy.PolicyDocument = policy_document
         policy.PolicyName = policy_name
-        policy.Roles = [role.ref()]
+        policy.Roles = [role if isinstance(role, str) else role.ref(), ]
         return policy
 
     @staticmethod

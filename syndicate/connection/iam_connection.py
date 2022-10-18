@@ -33,6 +33,10 @@ def get_account_role_arn(account_number):
 class IAMConnection(object):
     """ IAM connection class."""
 
+    def build_role_arn(self, role_name: str) -> str:
+        from syndicate.core import CONFIG
+        return f'arn:aws:iam::{CONFIG.account_id}:role/{role_name}'
+
     def __init__(self, region=None, aws_access_key_id=None,
                  aws_secret_access_key=None, aws_session_token=None):
         self.client = client('iam', region,
