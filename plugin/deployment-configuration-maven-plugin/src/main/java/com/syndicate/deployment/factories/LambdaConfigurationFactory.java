@@ -55,7 +55,7 @@ public final class LambdaConfigurationFactory {
                 .withVersion(version).withRole(lambdaHandler.roleName()).withFunction(function.toString())
                 .withRegionScope(lambdaHandler.regionScope()).withPackageName(packageName)
                 .withMemory(lambdaHandler.memory()).withTimeout(lambdaHandler.timeout())
-                .withRuntime(DeploymentRuntime.JAVA8).withResourceType(ResourceType.LAMBDA)
+                .withRuntime(lambdaHandler.runtime()).withResourceType(ResourceType.LAMBDA)
                 .withDependencies(dependencies).withEventSources(events)
                 .withVariables(variables).withSubnetIds(lambdaHandler.subnetsIds())
                 .withSecurityGroupIds(lambdaHandler.securityGroupIds())
