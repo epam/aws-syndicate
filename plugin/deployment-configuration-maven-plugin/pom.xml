@@ -28,7 +28,7 @@
         <dependency>
             <groupId>net.sf.aws-syndicate</groupId>
             <artifactId>deployment-configuration-annotations</artifactId>
-            <version>1.5.11</version>
+            <version>1.6.0</version>
         </dependency>
         <dependency>
             <groupId>org.reflections</groupId>
@@ -108,11 +108,6 @@
             <groupId>io.github.openfeign</groupId>
             <artifactId>feign-jackson</artifactId>
             <version>10.0.1</version>
-        </dependency>
-        <dependency>
-            <groupId>net.sf.aws-syndicate</groupId>
-            <artifactId>deployment-configuration-maven-plugin</artifactId>
-            <version>1.5.0</version>
         </dependency>
     </dependencies>
 
