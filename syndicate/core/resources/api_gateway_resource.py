@@ -195,11 +195,11 @@ class ApiGatewayResource(BaseResource):
 
         api_resources = meta['resources']
 
-        api_gw_describe = self.describe_api_resources(name, meta)
-        if api_gw_describe:
-            _LOG.info(f'Api gateway with name \'{name}\' exists. Returning')
-            return api_gw_describe
-        _LOG.info(f'Api gateway with name \'{name}\' does not exist. Creating')
+        # api_gw_describe = self.describe_api_resources(name, meta)
+        # if api_gw_describe:
+        #     _LOG.info(f'Api gateway with name \'{name}\' exists. Returning')
+        #     return api_gw_describe
+        # _LOG.info(f'Api gateway with name \'{name}\' does not exist. Creating')
         api_item = self.connection.create_rest_api(
             api_name=name,
             binary_media_types=meta.get('binary_media_types'))

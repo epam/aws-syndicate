@@ -18,6 +18,7 @@ package com.syndicate.deployment.annotations.lambda;
 
 
 import com.syndicate.deployment.annotations.DeploymentResource;
+import com.syndicate.deployment.model.DeploymentRuntime;
 import com.syndicate.deployment.model.RegionScope;
 import com.syndicate.deployment.model.TracingMode;
 
@@ -42,6 +43,8 @@ public @interface LambdaHandler {
      * Required if class does not implement sdk interface
      */
     String methodName() default "";
+
+    DeploymentRuntime runtime() default DeploymentRuntime.JAVA8;
 
     int timeout() default 300;
 

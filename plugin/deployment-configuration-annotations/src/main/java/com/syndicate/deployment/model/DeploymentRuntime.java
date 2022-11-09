@@ -23,7 +23,11 @@ import com.fasterxml.jackson.annotation.JsonValue;
  */
 public enum DeploymentRuntime {
 
-    JAVA8("java8"), PYTHON("python2.7"), NODEJS43("nodejs4.3"), NODEJS("nodejs");
+    JAVA8("java8"),
+    JAVA11("java11"),
+    PYTHON("python2.7"),
+    NODEJS43("nodejs4.3"),
+    NODEJS("nodejs");
 
     String name;
 
