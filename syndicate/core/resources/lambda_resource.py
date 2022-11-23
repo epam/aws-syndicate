@@ -458,6 +458,13 @@ class LambdaResource(BaseResource):
                 self.lambda_conn.delete_url_config(
                     function_name=name, qualifier=alias_name)
 
+        arn = response['Configuration']['FunctionArn']
+        if meta.get('event_sources'):
+            for trigger_meta in meta.get('event_sources'):
+                trigger_type = trigger_meta['resource_type']
+                func = self.CREATE_TRIGGER[trigger_type]
+                func(self, name, arn, role_name, trigger_meta)
+
         req_max_concurrency = meta.get(LAMBDA_MAX_CONCURRENCY)
         existing_max_concurrency = self.lambda_conn.\
             describe_function_concurrency(name=name)
@@ -670,6 +677,9 @@ class LambdaResource(BaseResource):
         validate_params(lambda_name, trigger_meta, required_parameters)
         rule_name = trigger_meta['target_rule']
         rule_arn = self.cw_events_conn.get_rule_arn(rule_name)
+        if not rule_arn:
+            _LOG.error(f'No Arn of \'{rule_name}\' rule name could be found.')
+
         targets = self.cw_events_conn.list_targets_by_rule(rule_name)
         if lambda_arn not in map(lambda each: each.get('Arn'), targets):
             self.cw_events_conn.add_rule_target(rule_name, lambda_arn)
