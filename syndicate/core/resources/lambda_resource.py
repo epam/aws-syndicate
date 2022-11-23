@@ -679,6 +679,7 @@ class LambdaResource(BaseResource):
         rule_arn = self.cw_events_conn.get_rule_arn(rule_name)
         if not rule_arn:
             _LOG.error(f'No Arn of \'{rule_name}\' rule name could be found.')
+            return None
 
         targets = self.cw_events_conn.list_targets_by_rule(rule_name)
         if lambda_arn not in map(lambda each: each.get('Arn'), targets):
