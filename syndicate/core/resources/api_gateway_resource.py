@@ -539,14 +539,14 @@ class ApiGatewayResource(BaseResource):
                 )
                 _id = f'{lambda_arn}-{api_source_arn}'
                 statement_id = md5(_id.encode('utf-8')).hexdigest()
-                try:
-                    self.lambda_res.add_invocation_permission(
-                        name=lambda_arn,
-                        principal='apigateway.amazonaws.com',
-                        source_arn=api_source_arn,
-                        statement_id=statement_id
-                    )
-                except ClientError as _e:
+                response: dict = self.lambda_res.add_invocation_permission(
+                    name=lambda_arn,
+                    principal='apigateway.amazonaws.com',
+                    source_arn=api_source_arn,
+                    statement_id=statement_id,
+                    exists_ok=True
+                )
+                if response is None:
                     message = f'Permission: \'{statement_id}\' attached to ' \
                               f'\'{lambda_arn}\' lambda to allow ' \
                               f'lambda:InvokeFunction for ' \

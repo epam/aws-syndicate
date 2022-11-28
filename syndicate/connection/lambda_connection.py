@@ -404,7 +404,7 @@ class LambdaConnection(object):
         if qualifier:
             params['Qualifier'] = qualifier
         try:
-            self.client.add_permission(**params)
+            return self.client.add_permission(**params)
         except ClientError as e:
             if e.response["Error"]["Code"] == 'ResourceConflictException' \
                     and exists_ok:

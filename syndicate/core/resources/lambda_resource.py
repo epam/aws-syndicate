@@ -159,12 +159,14 @@ class LambdaResource(BaseResource):
                 'FunctionArn']
 
     def add_invocation_permission(self, name, principal, source_arn=None,
-                                  statement_id=None):
+                                  statement_id=None, exists_ok = False):
         return self.lambda_conn.add_invocation_permission(
             name=name,
             principal=principal,
             source_arn=source_arn,
-            statement_id=statement_id)
+            statement_id=statement_id,
+            exists_ok=exists_ok
+        )
 
     def get_invocation_permission(self, lambda_name, qualifier):
         policies = self.lambda_conn.get_policy(lambda_name=lambda_name,
