@@ -14,6 +14,7 @@
     limitations under the License.
 """
 import time
+from hashlib import md5
 
 from botocore.exceptions import ClientError
 
@@ -536,11 +537,23 @@ class ApiGatewayResource(BaseResource):
                 api_source_arn = api_source_arn.format(
                     method=_method, path=_path
                 )
+                _id = f'{lambda_arn}-{api_source_arn}'
+                statement_id = md5(_id.encode('utf-8')).hexdigest()
+                try:
+                    self.lambda_res.add_invocation_permission(
+                        name=lambda_arn,
+                        principal='apigateway.amazonaws.com',
+                        source_arn=api_source_arn,
+                        statement_id=statement_id
+                    )
+                except ClientError as _e:
+                    message = f'Permission: \'{statement_id}\' attached to ' \
+                              f'\'{lambda_arn}\' lambda to allow ' \
+                              f'lambda:InvokeFunction for ' \
+                              f'apigateway.amazonaws.com principal from ' \
+                              f'\'{api_source_arn}\' SourceArn already exists.'
+                    _LOG.warning(message+' Skipping.')
 
-                self.lambda_res.add_invocation_permission(
-                    name=lambda_arn,
-                    principal='apigateway.amazonaws.com',
-                    source_arn=api_source_arn)
             elif integration_type == 'service':
                 uri = method_meta.get('uri')
                 role = method_meta.get('role')
