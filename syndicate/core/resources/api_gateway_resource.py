@@ -13,6 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+import json
 import time
 
 from botocore.exceptions import ClientError
@@ -247,6 +248,11 @@ class ApiGatewayResource(BaseResource):
                                                   'identity_source'),
                                               ttl=val.get('ttl'),
                                               provider_arns=provider_arns)
+
+        models = meta.get('models')
+        if models:
+            args = [{'api_id': api_id, 'models': {k: v}} for k, v in models.items()]
+            self.create_pool(self._create_model_from_metadata, args, 1)
         if api_resources:
             api_resp = meta.get('api_method_responses')
             api_integration_resp = meta.get('api_method_integration_responses')
@@ -475,13 +481,19 @@ class ApiGatewayResource(BaseResource):
             else:
                 authorization_type = _CUSTOM_AUTHORIZER_TYPE
 
+        method_request_models = method_meta.get('method_request_models')
+        if method_request_models:
+            (content_type, name), = method_request_models.items()
+            model = self.connection.get_model(api_id, name)
+            method_request_models = model if not model else method_request_models
+
         self.connection.create_method(
             api_id, resource_id, method,
             authorization_type=authorization_type,
             authorizer_id=method_meta.get('authorizer_id'),
             api_key_required=method_meta.get('api_key_required'),
             request_parameters=method_meta.get('method_request_parameters'),
-            request_models=method_meta.get('method_request_models'),
+            request_models=method_request_models,
             request_validator=method_meta.get('request_validator'))
         # second step: create integration
         integration_type = method_meta.get('integration_type')
@@ -707,3 +719,15 @@ class ApiGatewayResource(BaseResource):
                 _LOG.warn('API Gateway %s is not found', api_id)
             else:
                 raise e
+
+    @unpack_kwargs
+    def _create_model_from_metadata(self, api_id, models):
+        _LOG.info('Going to process API Gateway models')
+        for name, model_data in models.items():
+            description = model_data.get('description')
+            schema = model_data.get('schema')
+            if isinstance(schema, dict):
+                schema = json.dumps(schema)
+            content_type = model_data.get('content_type')
+            self.connection.create_model(
+                api_id, name, content_type, description, schema)
