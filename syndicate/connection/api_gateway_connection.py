@@ -221,8 +221,7 @@ class ApiGatewayConnection(object):
         if request_models:
             params['requestModels'] = request_models
         if request_validator:
-            params['requestValidatorId'] = self.create_request_validator(
-                api_id, request_validator)
+            params['requestValidatorId'] = request_validator
         self.client.put_method(**params)
 
     def create_request_validator(self, api_id, request_validator):
@@ -654,9 +653,16 @@ class ApiGatewayConnection(object):
                      schema=None):
         """Adds a new Model resource to an existing RestApi resource."""
         _LOG.debug(f'Creating new model "{name}"')
-        return self.client.create_model(
-                restApiId=rest_api_id, name=name, description=description,
-                schema=schema, contentType=content_type)
+        params = {
+            'contentType': content_type,
+            'restApiId': rest_api_id,
+            'name': name
+        }
+        if description:
+            params['description'] = description
+        if schema:
+            params['schema'] = schema
+        return self.client.create_model(**params)
 
     def delete_model(self, rest_api_id, name):
         _LOG.debug(f'Deleting model "{name}"')

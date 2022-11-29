@@ -33,6 +33,16 @@ _CORS_HEADER_VALUE = "'*'"
 _COGNITO_AUTHORIZER_TYPE = 'COGNITO_USER_POOLS'
 _CUSTOM_AUTHORIZER_TYPE = 'CUSTOM'
 
+_REQUEST_VALIDATORS = {
+    'Validate body': {
+        'params': {'validate_request_body': True}, 'id': None},
+    'Validate query string parameters and headers': {
+        'params': {'validate_request_parameters': True}, 'id': None},
+    'Validate body, query string parameters, and headers': {
+        'params': {'validate_request_body': True,
+                   'validate_request_parameters': True}, 'id': None}
+}
+
 
 class ApiGatewayResource(BaseResource):
 
@@ -43,6 +53,29 @@ class ApiGatewayResource(BaseResource):
         self.cognito_res = cognito_res
         self.account_id = account_id
         self.region = region
+
+    def _create_default_validators(self, api_id):
+        for validator in _REQUEST_VALIDATORS.values():
+            params = validator['params']
+            _id = self.connection.create_request_validator(api_id, params)
+            validator['id'] = _id
+
+    def _retrieve_request_validator_id(self, api_id, request_validator=None):
+        if not request_validator:
+            return None
+        if request_validator.get('name'):
+            _id = self.connection.create_request_validator(api_id,
+                                                           request_validator)
+            return _id
+        if ('validate_request_body', True) in request_validator.items():
+            return _REQUEST_VALIDATORS['Validate body']['id']
+        elif ('validate_request_parameters', True) in request_validator\
+                .items():
+            return _REQUEST_VALIDATORS[
+                'Validate query string parameters and headers']['id']
+        else:
+            return _REQUEST_VALIDATORS[
+                'Validate body, query string parameters, and headers']['id']
 
     def api_resource_identifier(self, name, output=None):
         if output:
@@ -205,6 +238,9 @@ class ApiGatewayResource(BaseResource):
             api_name=name,
             binary_media_types=meta.get('binary_media_types'))
         api_id = api_item['id']
+
+        # create default request validators
+        self._create_default_validators(api_id)
 
         # set minimumCompressionSize if the param exists
         minimum_compression_size = meta.get('minimum_compression_size', None)
@@ -487,6 +523,9 @@ class ApiGatewayResource(BaseResource):
             model = self.connection.get_model(api_id, name)
             method_request_models = model if not model else method_request_models
 
+        request_validator_id = self._retrieve_request_validator_id(
+            api_id, method_meta.get('request_validator'))
+
         self.connection.create_method(
             api_id, resource_id, method,
             authorization_type=authorization_type,
@@ -494,7 +533,7 @@ class ApiGatewayResource(BaseResource):
             api_key_required=method_meta.get('api_key_required'),
             request_parameters=method_meta.get('method_request_parameters'),
             request_models=method_request_models,
-            request_validator=method_meta.get('request_validator'))
+            request_validator=request_validator_id)
         # second step: create integration
         integration_type = method_meta.get('integration_type')
         # set up integration - lambda or aws service
