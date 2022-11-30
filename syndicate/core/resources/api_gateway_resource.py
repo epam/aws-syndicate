@@ -14,6 +14,7 @@
     limitations under the License.
 """
 import time
+from hashlib import md5
 
 from botocore.exceptions import ClientError
 
@@ -31,6 +32,8 @@ _CORS_HEADER_NAME = 'Access-Control-Allow-Origin'
 _CORS_HEADER_VALUE = "'*'"
 _COGNITO_AUTHORIZER_TYPE = 'COGNITO_USER_POOLS'
 _CUSTOM_AUTHORIZER_TYPE = 'CUSTOM'
+
+POLICY_STATEMENT_SINGLETON = 'policy_statement_singleton'
 
 
 class ApiGatewayResource(BaseResource):
@@ -394,7 +397,9 @@ class ApiGatewayResource(BaseResource):
                     authorizers_mapping=authorizers_mapping,
                     api_resp=api_resp,
                     api_integration_resp=api_integration_resp,
-                    enable_cors=enable_cors)
+                    enable_cors=enable_cors,
+                    resource_meta=resource_meta
+                )
             if enable_cors and not self.connection.get_method(api_id,
                                                               resource_id,
                                                               'OPTIONS'):
@@ -424,7 +429,9 @@ class ApiGatewayResource(BaseResource):
                     method=method,
                     method_meta=method_meta,
                     enable_cors=enable_cors,
-                    authorizers_mapping=authorizers_mapping)
+                    authorizers_mapping=authorizers_mapping,
+                    resource_meta=resource_meta
+                )
             except Exception as e:
                 _LOG.error('Resource: {0}, method {1}.'
                            .format(resource_path, method), exc_info=True)
@@ -440,7 +447,10 @@ class ApiGatewayResource(BaseResource):
                                      method,
                                      method_meta, authorizers_mapping,
                                      enable_cors=False, api_resp=None,
-                                     api_integration_resp=None):
+                                     api_integration_resp=None,
+                                     resource_meta: dict = None):
+
+        resource_meta = resource_meta or dict()
         # init responses for method
         method_responses = method_meta.get("responses")
         if method_responses:
@@ -511,12 +521,39 @@ class ApiGatewayResource(BaseResource):
                     enable_proxy=enable_proxy,
                     cache_key_parameters=cache_key_parameters)
                 # add permissions to invoke
+                # Allows to apply method or resource singleton of a policy
+                # statement, setting wildcard on the respective scope.
+
                 api_source_arn = f"arn:aws:execute-api:{self.region}:" \
-                                 f"{self.account_id}:{api_id}/*/{method}{resource_path}"
-                self.lambda_res.add_invocation_permission(
+                                 f"{self.account_id}:{api_id}/*"\
+                                 "/{method}/{path}"
+
+                _method, _path = method, resource_path.lstrip('/')
+                if method_meta.get(POLICY_STATEMENT_SINGLETON):
+                    _method = '*'
+                if resource_meta.get(POLICY_STATEMENT_SINGLETON):
+                    _path = '*'
+
+                api_source_arn = api_source_arn.format(
+                    method=_method, path=_path
+                )
+                _id = f'{lambda_arn}-{api_source_arn}'
+                statement_id = md5(_id.encode('utf-8')).hexdigest()
+                response: dict = self.lambda_res.add_invocation_permission(
                     name=lambda_arn,
                     principal='apigateway.amazonaws.com',
-                    source_arn=api_source_arn)
+                    source_arn=api_source_arn,
+                    statement_id=statement_id,
+                    exists_ok=True
+                )
+                if response is None:
+                    message = f'Permission: \'{statement_id}\' attached to ' \
+                              f'\'{lambda_arn}\' lambda to allow ' \
+                              f'lambda:InvokeFunction for ' \
+                              f'apigateway.amazonaws.com principal from ' \
+                              f'\'{api_source_arn}\' SourceArn already exists.'
+                    _LOG.warning(message+' Skipping.')
+
             elif integration_type == 'service':
                 uri = method_meta.get('uri')
                 role = method_meta.get('role')
@@ -602,7 +639,9 @@ class ApiGatewayResource(BaseResource):
                     authorizers_mapping=authorizers_mapping,
                     api_resp=api_resp,
                     api_integration_resp=api_integration_resp,
-                    enable_cors=enable_cors)
+                    enable_cors=enable_cors,
+                    resource_meta=resource_meta
+                )
             if enable_cors and not self.connection.get_method(api_id,
                                                               resource_id,
                                                               'OPTIONS'):
@@ -633,7 +672,9 @@ class ApiGatewayResource(BaseResource):
                         method=method,
                         method_meta=method_meta,
                         enable_cors=enable_cors,
-                        authorizers_mapping=authorizers_mapping)
+                        authorizers_mapping=authorizers_mapping,
+                        resource_meta=resource_meta
+                    )
                 except Exception as e:
                     _LOG.error('Resource: {0}, method {1}.'
                                .format(resource_path, method), exc_info=True)
