@@ -83,6 +83,7 @@ class ApiGatewayResource(BaseResource):
                 existing_resources = api_output['description']['resources']
                 existing_paths = [i['path'] for i in existing_resources]
                 meta_api_resources = meta['resources']
+                resources_statement_singleton = meta.get(POLICY_STATEMENT_SINGLETON)
                 api_resp = meta.get('api_method_responses')
                 api_integration_resp = meta.get(
                     'api_method_integration_responses')
@@ -98,7 +99,8 @@ class ApiGatewayResource(BaseResource):
                         api_id=api_id,
                         api_resources=api_resources,
                         api_resp=api_resp,
-                        api_integration_resp=api_integration_resp)
+                        api_integration_resp=api_integration_resp,
+                        resources_statement_singleton=resources_statement_singleton)
                     self.create_pool(self._create_resource_from_metadata,
                                      args, 1)
                     # add headers
@@ -197,7 +199,8 @@ class ApiGatewayResource(BaseResource):
         validate_params(name, meta, required_parameters)
 
         api_resources = meta['resources']
-
+        # whether to put a wildcard in lambda resource-based policy permissions
+        resources_permission_singleton = meta.get(POLICY_STATEMENT_SINGLETON)
         # api_gw_describe = self.describe_api_resources(name, meta)
         # if api_gw_describe:
         #     _LOG.info(f'Api gateway with name \'{name}\' exists. Returning')
@@ -253,9 +256,9 @@ class ApiGatewayResource(BaseResource):
         if api_resources:
             api_resp = meta.get('api_method_responses')
             api_integration_resp = meta.get('api_method_integration_responses')
-            args = self.__prepare_api_resources_args(api_id, api_resources,
-                                                     api_resp,
-                                                     api_integration_resp)
+            args = self.__prepare_api_resources_args(
+                api_id, api_resources, api_resp, api_integration_resp,
+                resources_permission_singleton)
             self.create_pool(self._create_resource_from_metadata, args, 1)
         else:
             _LOG.info('There is no resources in %s API Gateway description.',
@@ -313,9 +316,10 @@ class ApiGatewayResource(BaseResource):
             # customize cache settings for endpoints
             self.configure_cache(api_id, deploy_stage, api_resources)
 
-    def __prepare_api_resources_args(self, api_id, api_resources,
-                                     api_resp=None,
-                                     api_integration_resp=None):
+    def __prepare_api_resources_args(
+            self, api_id, api_resources, api_resp=None,
+            api_integration_resp=None,
+            resources_statement_singleton: bool = False):
         # describe authorizers and create a mapping
         authorizers = self.connection.get_authorizers(api_id)
         authorizers_mapping = {x['name']: x['id'] for x in authorizers}
@@ -335,13 +339,15 @@ class ApiGatewayResource(BaseResource):
                         enable_cors=enable_cors,
                         authorizers_mapping=authorizers_mapping,
                         api_resp=api_resp,
-                        api_integration_resp=api_integration_resp)
+                        api_integration_resp=api_integration_resp,
+                        resources_statement_singleton=resources_statement_singleton)
                 else:
                     args.append({
                         'api_id': api_id,
                         'resource_path': each,
                         'resource_meta': resource_meta,
-                        'authorizers_mapping': authorizers_mapping
+                        'authorizers_mapping': authorizers_mapping,
+                        'resources_statement_singleton': resources_statement_singleton
                     })
             else:
                 raise AssertionError(
@@ -370,7 +376,9 @@ class ApiGatewayResource(BaseResource):
                                 resource_meta,
                                 enable_cors, authorizers_mapping,
                                 api_resp=None,
-                                api_integration_resp=None):
+                                api_integration_resp=None,
+                                resources_statement_singleton: bool = False
+                                ):
         """ Check if all specified methods exist and create some if not.
     
         :type api_id: str
@@ -379,6 +387,8 @@ class ApiGatewayResource(BaseResource):
         :type enable_cors: bool or None
         :type:
         """
+        methods_statement_singleton = resource_meta.get(
+            POLICY_STATEMENT_SINGLETON)
         for method in resource_meta:
             if method == 'enable_cors':
                 continue
@@ -398,7 +408,8 @@ class ApiGatewayResource(BaseResource):
                     api_resp=api_resp,
                     api_integration_resp=api_integration_resp,
                     enable_cors=enable_cors,
-                    resource_meta=resource_meta
+                    resources_statement_singleton=resources_statement_singleton,
+                    methods_statement_singleton=methods_statement_singleton
                 )
             if enable_cors and not self.connection.get_method(api_id,
                                                               resource_id,
@@ -409,11 +420,13 @@ class ApiGatewayResource(BaseResource):
     @unpack_kwargs
     def _create_resource_from_metadata(self, api_id, resource_path,
                                        resource_meta,
-                                       authorizers_mapping):
+                                       authorizers_mapping,
+                                       resources_statement_singleton: bool = False):
         self.connection.create_resource(api_id, resource_path)
         _LOG.info('Resource %s created.', resource_path)
         resource_id = self.connection.get_resource_id(api_id, resource_path)
         enable_cors = resource_meta.get('enable_cors')
+        methods_statement_singleton = resource_meta.get(POLICY_STATEMENT_SINGLETON)
         for method in resource_meta:
             try:
                 if method == 'enable_cors' or method not in SUPPORTED_METHODS:
@@ -430,7 +443,8 @@ class ApiGatewayResource(BaseResource):
                     method_meta=method_meta,
                     enable_cors=enable_cors,
                     authorizers_mapping=authorizers_mapping,
-                    resource_meta=resource_meta
+                    resources_statement_singleton=resources_statement_singleton,
+                    methods_statement_singleton=methods_statement_singleton
                 )
             except Exception as e:
                 _LOG.error('Resource: {0}, method {1}.'
@@ -443,14 +457,14 @@ class ApiGatewayResource(BaseResource):
             self.connection.enable_cors_for_resource(api_id, resource_id)
             _LOG.info('CORS enabled for resource %s', resource_path)
 
-    def _create_method_from_metadata(self, api_id, resource_id, resource_path,
-                                     method,
-                                     method_meta, authorizers_mapping,
-                                     enable_cors=False, api_resp=None,
-                                     api_integration_resp=None,
-                                     resource_meta: dict = None):
-
-        resource_meta = resource_meta or dict()
+    def _create_method_from_metadata(
+            self, api_id, resource_id, resource_path, method, method_meta,
+            authorizers_mapping, enable_cors=False, api_resp=None,
+            api_integration_resp=None,
+            resources_statement_singleton: bool = False,
+            methods_statement_singleton: bool = False):
+        resources_statement_singleton = resources_statement_singleton or False
+        methods_statement_singleton = methods_statement_singleton or False
         # init responses for method
         method_responses = method_meta.get("responses")
         if method_responses:
@@ -529,10 +543,10 @@ class ApiGatewayResource(BaseResource):
                                  "/{method}/{path}"
 
                 _method, _path = method, resource_path.lstrip('/')
-                if method_meta.get(POLICY_STATEMENT_SINGLETON):
-                    _method = '*'
-                if resource_meta.get(POLICY_STATEMENT_SINGLETON):
+                if resources_statement_singleton:
                     _path = '*'
+                if methods_statement_singleton:
+                    _method = '*'
 
                 api_source_arn = api_source_arn.format(
                     method=_method, path=_path
@@ -607,84 +621,6 @@ class ApiGatewayResource(BaseResource):
         else:
             self.connection.create_integration_response(
                 api_id, resource_id, method, enable_cors=enable_cors)
-
-    def _check_existing_methods(self, api_id, resource_id, resource_path,
-                                resource_meta,
-                                enable_cors, authorizers_mapping,
-                                api_resp=None,
-                                api_integration_resp=None):
-        """ Check if all specified methods exist and create some if not.
-    
-        :type api_id: str
-        :type resource_id: str
-        :type resource_meta: dict
-        :type enable_cors: bool or None
-        :type:
-        """
-        for method in resource_meta:
-            if method == 'enable_cors':
-                continue
-            if self.connection.get_method(api_id, resource_id, method):
-                _LOG.info('Method %s exists.', method)
-                continue
-            else:
-                _LOG.info('Creating method %s for resource %s...',
-                          method, resource_id)
-                self._create_method_from_metadata(
-                    api_id=api_id,
-                    resource_id=resource_id,
-                    resource_path=resource_path,
-                    method=method,
-                    method_meta=resource_meta[method],
-                    authorizers_mapping=authorizers_mapping,
-                    api_resp=api_resp,
-                    api_integration_resp=api_integration_resp,
-                    enable_cors=enable_cors,
-                    resource_meta=resource_meta
-                )
-            if enable_cors and not self.connection.get_method(api_id,
-                                                              resource_id,
-                                                              'OPTIONS'):
-                _LOG.info('Enabling CORS for resource %s...', resource_id)
-                self.connection.enable_cors_for_resource(api_id, resource_id)
-
-        @unpack_kwargs
-        def _create_resource_from_metadata(self, api_id, resource_path,
-                                           resource_meta,
-                                           authorizers_mapping):
-            self.connection.create_resource(api_id, resource_path)
-            _LOG.info('Resource %s created.', resource_path)
-            resource_id = self.connection.get_resource_id(api_id,
-                                                          resource_path)
-            enable_cors = resource_meta.get('enable_cors')
-            for method in resource_meta:
-                try:
-                    if method == 'enable_cors' or method not in SUPPORTED_METHODS:
-                        continue
-
-                    method_meta = resource_meta[method]
-                    _LOG.info('Creating method %s for resource %s...',
-                              method, resource_path)
-                    self._create_method_from_metadata(
-                        api_id=api_id,
-                        resource_id=resource_id,
-                        resource_path=resource_path,
-                        method=method,
-                        method_meta=method_meta,
-                        enable_cors=enable_cors,
-                        authorizers_mapping=authorizers_mapping,
-                        resource_meta=resource_meta
-                    )
-                except Exception as e:
-                    _LOG.error('Resource: {0}, method {1}.'
-                               .format(resource_path, method), exc_info=True)
-                    raise e
-                _LOG.info('Method %s for resource %s created.', method,
-                          resource_path)
-            # create enable cors only after all methods in resource created
-            if enable_cors:
-                self.connection.enable_cors_for_resource(api_id, resource_id)
-                _LOG.info('CORS enabled for resource %s', resource_path)
 
     def _customize_gateway_responses(self, api_id):
         responses = self.connection.get_gateway_responses(api_id)
