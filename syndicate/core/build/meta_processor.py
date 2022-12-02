@@ -154,6 +154,20 @@ def _check_duplicated_resources(initial_meta_dict, additional_item_name,
                               f"{additional_item} will be overwritten")
                 additional_item['minimum_compression_size'] = init_compression
 
+            # join authorizers
+            initial_authorizers = initial_item.get('authorizers') or {}
+            additional_authorizers = additional_item.get('authorizers') or {}
+            additional_item['authorizers'] = {**initial_authorizers,
+                                              **additional_authorizers}
+            # join models
+            initial_models = initial_item.get('models') or {}
+            additional_models = additional_item.get('models') or {}
+            additional_item['models'] = {**initial_models, **additional_models}
+            # policy statement singleton
+            _pst = initial_item.get('policy_statement_singleton')
+            if 'policy_statement_singleton' not in additional_item and _pst:
+                additional_item['policy_statement_singleton'] = _pst
+
             additional_item = _merge_api_gw_list_typed_configurations(
                 initial_item,
                 additional_item,
