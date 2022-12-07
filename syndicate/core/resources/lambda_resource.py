@@ -15,6 +15,7 @@
 """
 import json
 import time
+from typing import Optional
 from pathlib import PurePath
 from botocore.exceptions import ClientError
 
@@ -38,6 +39,11 @@ LAMBDA_CONCUR_QUALIFIER_ALIAS = 'ALIAS'
 LAMBDA_CONCUR_QUALIFIER_VERSION = 'VERSION'
 _LAMBDA_PROV_CONCURRENCY_QUALIFIERS = [LAMBDA_CONCUR_QUALIFIER_ALIAS,
                                        LAMBDA_CONCUR_QUALIFIER_VERSION]
+SNAP_START = 'snap_start'
+_APPLY_SNAP_START_VERSIONS = 'PublishedVersions'
+_APPLY_SNAP_START_NONE = 'None'
+_SNAP_START_CONFIGURATIONS = [_APPLY_SNAP_START_VERSIONS,
+                              _APPLY_SNAP_START_NONE]
 
 
 class LambdaResource(BaseResource):
@@ -280,7 +286,8 @@ class LambdaResource(BaseResource):
             tracing_mode=meta.get('tracing_mode'),
             publish_version=publish_version,
             layers=lambda_layers_arns,
-            ephemeral_storage=ephemeral_storage
+            ephemeral_storage=ephemeral_storage,
+            snap_start=self._resolve_snap_start(meta=meta)
         )
         _LOG.debug('Lambda created %s', name)
         # AWS sometimes returns None after function creation, needs for
@@ -405,7 +412,9 @@ class LambdaResource(BaseResource):
             timeout=timeout, memory_size=memory_size, runtime=runtime,
             vpc_sub_nets=vpc_sub_nets, vpc_security_group=vpc_security_group,
             dead_letter_arn=dl_target_arn, layers=layers,
-            ephemeral_storage=ephemeral_storage)
+            ephemeral_storage=ephemeral_storage,
+            snap_start=self._resolve_snap_start(meta=meta)
+        )
 
         # AWS sometimes returns None after function creation, needs for
         # stability
@@ -911,3 +920,23 @@ class LambdaResource(BaseResource):
                 _LOG.warn('Lambda Layer {} is not found'.format(layer_name))
             else:
                 raise e
+
+    @staticmethod
+    def _resolve_snap_start(meta: dict) -> Optional[str]:
+        runtime: str = meta.get('runtime')
+        if not runtime:
+            return
+
+        runtime = runtime.lower()
+        snap_start = meta.get(SNAP_START, None)
+        if snap_start and snap_start not in _SNAP_START_CONFIGURATIONS:
+            values = ', '.join(map('"{}"'.format, _SNAP_START_CONFIGURATIONS))
+            issue = f'must reflect one of the following values: {values}'
+            _LOG.warn(f'If given "{SNAP_START}" - {issue}.')
+            snap_start = None
+
+        if snap_start and 'java' not in runtime:
+            _LOG.warn(f'"{runtime}" runtime does support \'{SNAP_START}\'.')
+            snap_start = None
+
+        return snap_start

@@ -61,7 +61,7 @@ class LambdaConnection(object):
                       timeout=300, vpc_sub_nets=None, vpc_security_group=None,
                       env_vars=None, dl_target_arn=None, tracing_mode=None,
                       publish_version=False, layers=None,
-                      ephemeral_storage=512):
+                      ephemeral_storage=512, snap_start: str = None):
         """ Create Lambda method
         :type lambda_name: str
         :type func_name: str
@@ -80,6 +80,7 @@ class LambdaConnection(object):
         :type layers: list
         :param ephemeral_storage: amount of ephemeral storage between 512 MB
         and 10,240 MB
+        :param snap_start: Optional[str] denotes `PublishedVersions`|`None`
         :return: response
         """
         layers = [] if layers is None else layers
@@ -103,6 +104,10 @@ class LambdaConnection(object):
         if tracing_mode:
             params['TracingConfig'] = {
                 'Mode': tracing_mode
+            }
+        if snap_start:
+            params['SnapStart'] = {
+                'ApplyOn': snap_start
             }
         return self.client.create_function(**params)
 
@@ -517,7 +522,8 @@ class LambdaConnection(object):
                                     vpc_security_group=None,
                                     env_vars=None, runtime=None,
                                     dead_letter_arn=None, kms_key_arn=None,
-                                    layers=None, ephemeral_storage=None):
+                                    layers=None, ephemeral_storage=None,
+                                    snap_start: str =None):
         params = dict(FunctionName=lambda_name)
         if ephemeral_storage:
             params['EphemeralStorage'] = {'Size': ephemeral_storage}
@@ -551,6 +557,10 @@ class LambdaConnection(object):
             params['DeadLetterConfig'] = {'TargetArn': dead_letter_arn}
         if kms_key_arn:
             params['KMSKeyArn'] = kms_key_arn
+        if snap_start:
+            params['SnapStart'] = {
+                'ApplyOn': snap_start
+            }
         return self.client.update_function_configuration(**params)
 
     def put_function_concurrency(self, function_name, concurrent_executions):
