@@ -18,6 +18,11 @@ class FirehoseResource(BaseResource):
 
     @unpack_kwargs
     def _create_stream_from_meta(self, name, meta):
+        response = self.connection.describe_delivery_stream(name)
+        if response:
+            _arn = response['DeliveryStreamARN']
+            return self.describe_stream(name, meta, _arn, response)
+
         _s3 = meta.get('s3_destination_configuration') or {}
         s3_configuration = delete_none({
             'RoleARN': self.iam_resource.build_role_arn(_s3.get('role')),
@@ -32,10 +37,16 @@ class FirehoseResource(BaseResource):
             # 'EncryptionConfiguration': {},
             # 'CloudWatchLoggingOptions': {}
         })
+        _kinesis = meta.get('kinesis_stream_source_configuration') or {}
+        kinesis_configuration = delete_none({
+            'KinesisStreamARN': _kinesis.get('kinesis_stream_arn'),
+            'RoleARN': self.iam_resource.build_role_arn(_kinesis.get('role'))
+        })
         stream_type = meta.get('stream_type') or 'DirectPut'
         arn = self.connection.create_delivery_stream(
             stream_name=name, s3_configuration=s3_configuration,
-            stream_type=stream_type)
+            stream_type=stream_type,
+            kinesis_stream_source=kinesis_configuration)
         _LOG.info(f'Created firehose stream {arn}')
         return self.describe_stream(name=name, meta=meta, arn=arn)
 
