@@ -1,3 +1,5 @@
+import time
+
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.helper import unpack_kwargs, \
     dict_keys_to_capitalized_camel_case
@@ -17,16 +19,30 @@ class FirehoseResource(BaseResource):
 
     @unpack_kwargs
     def _create_stream_from_meta(self, name, meta):
+        response = self.connection.describe_delivery_stream(name)
+        if response:
+            stream_status = response['DeliveryStreamStatus']['StreamStatus']
+            if stream_status == 'DELETING':
+                _LOG.debug(f'Waiting for deletion kinesis stream {name}...')
+                time.sleep(75)
+            else:
+                _LOG.warn(f'{name} kinesis stream exists')
+                return build_description_obj(response, name, meta)
+
         s3_configuration = dict_keys_to_capitalized_camel_case(
             meta['s3_destination_configuration'])
         s3_configuration['RoleARN'] = s3_configuration.pop('RoleArn')
         s3_configuration['BucketARN'] = s3_configuration.pop('BucketArn')
         stream_type = meta['stream_type']
-        kinesis_stream_source = dict_keys_to_capitalized_camel_case(
-            meta['kinesis_stream_source'])
-        s3_configuration['KinesisStreamARN'] = kinesis_stream_source.pop(
-            'KinesisStreamArn')
-        s3_configuration['RoleARN'] = kinesis_stream_source.pop('RoleArn')
+        kinesis_stream_source = meta.get('kinesis_stream_source')
+        if kinesis_stream_source:
+            kinesis_stream_source = dict_keys_to_capitalized_camel_case(
+                kinesis_stream_source)
+            kinesis_stream_source['KinesisStreamARN'] = kinesis_stream_source.pop(
+                'KinesisStreamArn')
+            kinesis_stream_source['RoleARN'] = kinesis_stream_source.pop(
+                'RoleArn')
+
         self.connection.create_delivery_stream(
             stream_name=name, s3_configuration=s3_configuration,
             stream_type=stream_type,

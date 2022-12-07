@@ -23,8 +23,9 @@ class FirehoseConnection(object):
                                s3_configuration, kinesis_stream_source=None):
         params = {'DeliveryStreamName': stream_name,
                   'S3DestinationConfiguration': s3_configuration,
-                  'DeliveryStreamType': stream_type,
-                  'KinesisStreamSourceConfiguration': kinesis_stream_source}
+                  'DeliveryStreamType': stream_type}
+        if kinesis_stream_source:
+            params['KinesisStreamSourceConfiguration'] = kinesis_stream_source
         return self.client.create_delivery_stream(**params)
 
     def describe_delivery_stream(self, stream_name, limit=None,
@@ -34,8 +35,17 @@ class FirehoseConnection(object):
             params['Limit'] = limit
         if exclusive_start_id:
             params['ExclusiveStartDestinationId'] = exclusive_start_id
-        return self.client.describe_delivery_stream(**params)[
-                'DeliveryStreamDescription']
+
+        try:
+            return self.client.describe_delivery_stream(**params)[
+                    'DeliveryStreamDescription']
+        except ClientError as e:
+            if 'ResourceNotFoundException' in str(e):
+                _LOG.warning(
+                    f'Cannot find delivery stream with name {stream_name}')
+                pass
+            else:
+                raise e
 
     def delete_delivery_stream(self, stream_name):
         try:
@@ -45,6 +55,6 @@ class FirehoseConnection(object):
             if 'ResourceNotFoundException' in str(e):
                 _LOG.warning(
                     f'Cannot find delivery stream with name {stream_name}')
-                pass  # valid exception
+                pass
             else:
                 raise e
