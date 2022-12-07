@@ -16,6 +16,7 @@
 import ipaddress
 import string
 import re
+from typing import Optional
 
 from syndicate.commons.log_helper import get_logger
 from syndicate.core import ClientError
@@ -163,7 +164,9 @@ class S3Resource(BaseResource):
             else:
                 raise e
 
-    def build_bucket_arn(self, maybe_arn: str) -> str:
+    def build_bucket_arn(self, maybe_arn: str) -> Optional[str]:
+        if not isinstance(maybe_arn, str):
+            return
         if self.is_bucket_arn(maybe_arn):
             return maybe_arn
         return f'arn:aws:s3:::{maybe_arn}'

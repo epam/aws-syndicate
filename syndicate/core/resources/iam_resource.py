@@ -14,6 +14,7 @@
     limitations under the License.
 """
 import re
+from typing import Optional
 from botocore.exceptions import ClientError
 
 from syndicate.commons.log_helper import get_logger
@@ -322,7 +323,9 @@ class IamResource(BaseResource):
         _LOG.info(f'Updated IAM policy {name}')
         return self.describe_policy(name=name, meta=meta)
 
-    def build_role_arn(self, maybe_arn: str) -> str:
+    def build_role_arn(self, maybe_arn: str) -> Optional[str]:
+        if not isinstance(maybe_arn, str):
+            return
         if self.is_role_arn(maybe_arn):
             return maybe_arn
         return f'arn:aws:iam::{self.account_id}:' \
