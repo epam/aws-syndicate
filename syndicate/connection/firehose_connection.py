@@ -20,11 +20,11 @@ class FirehoseConnection(object):
         _LOG.debug('Opened new Firehose connection.')
 
     def create_delivery_stream(self, stream_name, stream_type,
-                               s3_configuration):
+                               s3_configuration) -> str:
         params = {'DeliveryStreamName': stream_name,
                   'S3DestinationConfiguration': s3_configuration,
                   'DeliveryStreamType': stream_type}
-        return self.client.create_delivery_stream(**params)
+        return self.client.create_delivery_stream(**params)['DeliveryStreamARN']
 
     def describe_delivery_stream(self, stream_name, limit=None,
                                  exclusive_start_id=None):

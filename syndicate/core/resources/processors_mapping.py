@@ -221,7 +221,7 @@ class ProcessorFacade:
             DAX_CLUSTER_TYPE:
                 self.resources_provider.dax_cluster().remove_cluster,
             FIREHOSE_TYPE:
-                self.resources_provider.firehose().delete_stream
+                self.resources_provider.firehose().delete_streams
         }
 
     def update_handlers(self):

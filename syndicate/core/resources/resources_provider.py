@@ -200,7 +200,9 @@ class ResourceProvider:
         def firehose(self):
             if not self._firehose_resource:
                 self._firehose_resource = FirehoseResource(
-                    firehose_conn=self._conn_provider.firehose()
+                    firehose_conn=self._conn_provider.firehose(),
+                    s3_resource=self.s3(),
+                    iam_resource=self.iam()
                 )
             return self._firehose_resource
 
@@ -241,7 +243,8 @@ class ResourceProvider:
         def s3(self):
             if not self._s3_resource:
                 self._s3_resource = S3Resource(
-                    s3_conn=self._conn_provider.s3()
+                    s3_conn=self._conn_provider.s3(),
+                    account_id=self.config.account_id
                 )
             return self._s3_resource
 
