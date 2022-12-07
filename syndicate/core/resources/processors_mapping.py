@@ -31,7 +31,7 @@ from syndicate.core.constants import (API_GATEWAY_TYPE, CLOUD_WATCH_ALARM_TYPE,
                                       COGNITO_FEDERATED_POOL_TYPE,
                                       DOCUMENTDB_CLUSTER_TYPE,
                                       DOCUMENTDB_INSTANCE_TYPE,
-                                      DAX_CLUSTER_TYPE)
+                                      DAX_CLUSTER_TYPE, FIREHOSE_TYPE)
 
 
 class ProcessorFacade:
@@ -96,7 +96,9 @@ class ProcessorFacade:
                 self.resources_provider.documentdb_instance()
                     .create_db_instance,
             DAX_CLUSTER_TYPE:
-                self.resources_provider.dax_cluster().create_cluster
+                self.resources_provider.dax_cluster().create_cluster,
+            FIREHOSE_TYPE:
+                self.resources_provider.firehose().create_stream
         }
 
     def describe_handlers(self):
@@ -154,7 +156,9 @@ class ProcessorFacade:
                 self.resources_provider.documentdb_instance()
                     .describe_documentdb_instance,
             DAX_CLUSTER_TYPE:
-                self.resources_provider.dax_cluster().describe_cluster
+                self.resources_provider.dax_cluster().describe_cluster,
+            FIREHOSE_TYPE:
+                self.resources_provider.firehose().describe_stream
         }
 
     def remove_handlers(self):
@@ -215,7 +219,9 @@ class ProcessorFacade:
                 self.resources_provider.documentdb_instance()
                     .remove_db_instance,
             DAX_CLUSTER_TYPE:
-                self.resources_provider.dax_cluster().remove_cluster
+                self.resources_provider.dax_cluster().remove_cluster,
+            FIREHOSE_TYPE:
+                self.resources_provider.firehose().delete_stream
         }
 
     def update_handlers(self):
