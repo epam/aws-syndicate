@@ -37,13 +37,26 @@ _CUSTOM_AUTHORIZER_TYPE = 'CUSTOM'
 POLICY_STATEMENT_SINGLETON = 'policy_statement_singleton'
 
 _REQUEST_VALIDATORS = {
+    'NONE': {
+        'validate_request_body': False,
+        'validate_request_parameters': False,
+        'id': None
+    },
     'Validate body': {
-        'params': {'validate_request_body': True}, 'id': None},
+        'validate_request_body': True,
+        'validate_request_parameters': False,
+        'id': None
+    },
     'Validate query string parameters and headers': {
-        'params': {'validate_request_parameters': True}, 'id': None},
+        'validate_request_parameters': True,
+        'validate_request_body': False,
+        'id': None
+    },
     'Validate body, query string parameters, and headers': {
-        'params': {'validate_request_body': True,
-                   'validate_request_parameters': True}, 'id': None}
+        'validate_request_body': True,
+        'validate_request_parameters': True,
+        'id': None
+    }
 }
 
 
@@ -58,27 +71,31 @@ class ApiGatewayResource(BaseResource):
         self.region = region
 
     def _create_default_validators(self, api_id):
-        for validator in _REQUEST_VALIDATORS.values():
-            params = validator['params']
-            _id = self.connection.create_request_validator(api_id, params)
-            validator['id'] = _id
+        for name, options in _REQUEST_VALIDATORS.items():
+            _id = self.connection.create_request_validator(
+                api_id, name, options['validate_request_body'],
+                options['validate_request_parameters']
+            )
+            options['id'] = _id
 
     def _retrieve_request_validator_id(self, api_id, request_validator=None):
+        request_validator = request_validator or {}
         if not request_validator:
-            return None
-        if request_validator.get('name'):
-            _id = self.connection.create_request_validator(api_id,
-                                                           request_validator)
-            return _id
-        if ('validate_request_body', True) in request_validator.items():
-            return _REQUEST_VALIDATORS['Validate body']['id']
-        elif ('validate_request_parameters', True) in request_validator\
-                .items():
-            return _REQUEST_VALIDATORS[
-                'Validate query string parameters and headers']['id']
-        else:
-            return _REQUEST_VALIDATORS[
-                'Validate body, query string parameters, and headers']['id']
+            return
+        validate_request_body = request_validator.get(
+            'validate_request_body') or False
+        validate_request_parameters = request_validator.get(
+            'validate_request_parameters') or False
+        name = request_validator.get('name')
+
+        if name:
+            return self.connection.create_request_validator(
+                api_id, name, validate_request_body,
+                validate_request_parameters)
+        for validators in _REQUEST_VALIDATORS.values():
+            if (validators['validate_request_body'] == validate_request_body) \
+                    and (validators['validate_request_parameters'] == validate_request_parameters):
+                return validators['id']
 
     def api_resource_identifier(self, name, output=None):
         if output:
