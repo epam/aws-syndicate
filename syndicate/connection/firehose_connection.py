@@ -20,10 +20,11 @@ class FirehoseConnection(object):
         _LOG.debug('Opened new Firehose connection.')
 
     def create_delivery_stream(self, stream_name, stream_type,
-                               s3_configuration):
+                               s3_configuration, kinesis_stream_source=None):
         params = {'DeliveryStreamName': stream_name,
                   'S3DestinationConfiguration': s3_configuration,
-                  'DeliveryStreamType': stream_type}
+                  'DeliveryStreamType': stream_type,
+                  'KinesisStreamSourceConfiguration': kinesis_stream_source}
         return self.client.create_delivery_stream(**params)
 
     def describe_delivery_stream(self, stream_name, limit=None,

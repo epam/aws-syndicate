@@ -22,9 +22,15 @@ class FirehoseResource(BaseResource):
         s3_configuration['RoleARN'] = s3_configuration.pop('RoleArn')
         s3_configuration['BucketARN'] = s3_configuration.pop('BucketArn')
         stream_type = meta['stream_type']
+        kinesis_stream_source = dict_keys_to_capitalized_camel_case(
+            meta['kinesis_stream_source'])
+        s3_configuration['KinesisStreamARN'] = kinesis_stream_source.pop(
+            'KinesisStreamArn')
+        s3_configuration['RoleARN'] = kinesis_stream_source.pop('RoleArn')
         self.connection.create_delivery_stream(
             stream_name=name, s3_configuration=s3_configuration,
-            stream_type=stream_type)
+            stream_type=stream_type,
+            kinesis_stream_source=kinesis_stream_source)
         _LOG.info(f'Created firehose stream {name}')
         return self.describe_stream(name=name, meta=meta)
 
