@@ -30,6 +30,7 @@ from syndicate.core.resources.dynamo_db_resource import DynamoDBResource
 from syndicate.core.resources.dax_resource import DaxResource
 from syndicate.core.resources.ebs_resource import EbsResource
 from syndicate.core.resources.ec2_resource import Ec2Resource
+from syndicate.core.resources.firehose_resource import FirehoseResource
 from syndicate.core.resources.iam_resource import IamResource
 from syndicate.core.resources.kinesis_resource import KinesisResource
 from syndicate.core.resources.lambda_resource import LambdaResource
@@ -77,6 +78,7 @@ class ResourceProvider:
         _dynamodb_resource = None
         _ebs_resource = None
         _ec2_resource = None
+        _firehose_resource = None
         _iam_resource = None
         _kinesis_resource = None
         _lambda_resource = None
@@ -195,6 +197,15 @@ class ResourceProvider:
                 )
             return self._ec2_resource
 
+        def firehose(self):
+            if not self._firehose_resource:
+                self._firehose_resource = FirehoseResource(
+                    firehose_conn=self._conn_provider.firehose(),
+                    s3_resource=self.s3(),
+                    iam_resource=self.iam()
+                )
+            return self._firehose_resource
+
         def iam(self):
             if not self._iam_resource:
                 self._iam_resource = IamResource(
@@ -232,7 +243,8 @@ class ResourceProvider:
         def s3(self):
             if not self._s3_resource:
                 self._s3_resource = S3Resource(
-                    s3_conn=self._conn_provider.s3()
+                    s3_conn=self._conn_provider.s3(),
+                    account_id=self.config.account_id
                 )
             return self._s3_resource
 

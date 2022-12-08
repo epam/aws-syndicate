@@ -17,7 +17,7 @@ from botocore.exceptions import ClientError
 
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.helper import (
-    unpack_kwargs, dict_keys_to_capitalized_camel_case)
+    unpack_kwargs)
 from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import build_description_obj
 
