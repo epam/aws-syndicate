@@ -647,15 +647,19 @@ class LambdaResource(BaseResource):
         required_parameters = ['target_table', 'batch_size']
         validate_params(lambda_name, trigger_meta, required_parameters)
         table_name = trigger_meta['target_table']
+        batch_window = trigger_meta.get('batch_window')
+        filters = trigger_meta.get('filters')
 
         if not self.dynamodb_conn.is_stream_enabled(table_name):
             self.dynamodb_conn.enable_table_stream(table_name)
 
         stream = self.dynamodb_conn.get_table_stream_arn(table_name)
         # TODO support another sub type
-        self.lambda_conn.add_event_source(lambda_arn, stream,
-                                          trigger_meta['batch_size'],
-                                          start_position='LATEST')
+        self.lambda_conn.add_event_source(
+            lambda_arn, stream, batch_size=trigger_meta['batch_size'],
+            batch_window=batch_window, start_position='LATEST',
+            filters=filters
+        )
         # start_position='LATEST' - in case we did not remove tables before
         _LOG.info('Lambda %s subscribed to dynamodb table %s', lambda_name,
                   table_name)

@@ -15,6 +15,7 @@
 """
 import json
 import uuid
+from typing import Optional, List
 
 from boto3 import client
 from botocore.exceptions import ClientError
@@ -232,22 +233,28 @@ class LambdaConnection(object):
             next_marker = response.get('NextMarker')
 
     def add_event_source(self, func_name, stream_arn, batch_size=15,
-                         start_position=None):
-        """ Create event source for Lambda.
-
+                         batch_window: Optional[int] = None,
+                         start_position=None,
+                         filters: Optional[List] = None):
+        """ Create event source for Lambda
         :type func_name: str
         :type stream_arn: str
+        :param batch_window: Optional[int]
         :param batch_size: max limit of Lambda event process in one time
         :param start_position: option for Lambda reading event mode
+        :param filters: Optional[list]
         :return: response
         """
-        params = dict(EventSourceArn=stream_arn,
-                      FunctionName=func_name,
-                      Enabled=True,
-                      BatchSize=batch_size)
-
+        params = dict(
+            EventSourceArn=stream_arn, FunctionName=func_name,
+            Enabled=True, BatchSize=batch_size
+        )
+        if batch_window:
+            params['MaximumBatchingWindowInSeconds'] = batch_window
         if start_position:
             params['StartingPosition'] = start_position
+        if filters:
+            params['FilterCriteria'] = {'Filters': filters}
 
         response = self.client.create_event_source_mapping(**params)
         return response
