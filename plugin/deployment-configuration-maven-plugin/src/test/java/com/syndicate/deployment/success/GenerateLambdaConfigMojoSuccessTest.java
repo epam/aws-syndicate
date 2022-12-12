@@ -21,12 +21,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.syndicate.deployment.goal.SyndicateMetaGeneratorGoal;
 import com.syndicate.deployment.goal.TerraformMetaGeneratorGoal;
-import com.syndicate.deployment.model.DependencyItem;
-import com.syndicate.deployment.model.DeploymentRuntime;
-import com.syndicate.deployment.model.LambdaConfiguration;
-import com.syndicate.deployment.model.RegionScope;
-import com.syndicate.deployment.model.ResourceType;
-import com.syndicate.deployment.model.TracingMode;
+import com.syndicate.deployment.model.*;
 import com.syndicate.deployment.model.events.SnsTriggerEventSourceItem;
 import com.syndicate.deployment.model.terraform.TerraformLambdaConfiguration;
 import com.syndicate.deployment.resolvers.credentials.CredentialResolverChain;
@@ -182,6 +177,7 @@ public class GenerateLambdaConfigMojoSuccessTest {
                 .withSubnetIds(new String[]{})
                 .withSecurityGroupIds(new String[]{})
                 .withResourceType(ResourceType.LAMBDA)
+                .withSnapStart(LambdaSnapStart.PublishedVersions)
                 .build();
 
         // lambda_process_notification
@@ -211,6 +207,7 @@ public class GenerateLambdaConfigMojoSuccessTest {
                 .withConcurrentExecutions(1)
                 .withDlResourceName("lambda-dead-letter-queue-name")
                 .withDlResourceType("sqs")
+                .withSnapStart(LambdaSnapStart.None)
                 .build();
 
 

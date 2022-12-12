@@ -60,6 +60,7 @@ public final class LambdaConfigurationFactory {
                 .withVariables(variables).withSubnetIds(lambdaHandler.subnetsIds())
                 .withSecurityGroupIds(lambdaHandler.securityGroupIds())
                 .withPublishVersion(lambdaHandler.isPublishVersion())
+                .withSnapStart(lambdaHandler.snapStart())
                 .build();
 
         if (lambdaHandler.tracingMode() != TracingMode.NoTracing) {

@@ -19,6 +19,7 @@ import com.syndicate.deployment.annotations.environment.EnvironmentVariable;
 import com.syndicate.deployment.annotations.events.SnsEventSource;
 import com.syndicate.deployment.annotations.lambda.LambdaHandler;
 import com.syndicate.deployment.annotations.resources.DependsOn;
+import com.syndicate.deployment.model.LambdaSnapStart;
 import com.syndicate.deployment.model.RegionScope;
 import com.syndicate.deployment.model.ResourceType;
 import com.syndicate.deployment.model.TracingMode;
@@ -28,7 +29,9 @@ import com.syndicate.deployment.model.TracingMode;
  */
 @LambdaHandler(tracingMode = TracingMode.Active,
         lambdaName = "lambda_execute_notification",
-        roleName = "lr_get_notification_content")
+        roleName = "lr_get_notification_content",
+        snapStart = LambdaSnapStart.PublishedVersions
+)
 @EnvironmentVariable(key = "name", value = "lambda_execute_notification")
 @DependsOn(name = "stackAuditTopic", resourceType = ResourceType.SNS_TOPIC)
 @SnsEventSource(targetTopic = "stackAuditTopic", regionScope = RegionScope.ALL)

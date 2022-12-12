@@ -29,6 +29,7 @@ import com.syndicate.deployment.annotations.events.DynamoDbTriggerEventSource;
 import com.syndicate.deployment.annotations.lambda.LambdaHandler;
 import com.syndicate.deployment.annotations.resources.DependsOn;
 import com.syndicate.deployment.model.DeploymentRuntime;
+import com.syndicate.deployment.model.LambdaSnapStart;
 import com.syndicate.deployment.model.ResourceType;
 
 import java.util.Map;
@@ -39,7 +40,8 @@ import java.util.Map;
 @LambdaHandler(
         lambdaName = "dynamodb_item_processor",
         roleName = "PutObjectToS3Role",
-        runtime = DeploymentRuntime.JAVA11
+        runtime = DeploymentRuntime.JAVA11,
+        snapStart = LambdaSnapStart.PublishedVersions
 )
 @DynamoDbTriggerEventSource(targetTable = "Notifications", batchSize = 1)
 @DependsOn(name = "Notifications", resourceType = ResourceType.DYNAMODB_TABLE)

@@ -19,6 +19,7 @@ package com.syndicate.deployment.annotations.lambda;
 
 import com.syndicate.deployment.annotations.DeploymentResource;
 import com.syndicate.deployment.model.DeploymentRuntime;
+import com.syndicate.deployment.model.LambdaSnapStart;
 import com.syndicate.deployment.model.RegionScope;
 import com.syndicate.deployment.model.TracingMode;
 
@@ -63,5 +64,7 @@ public @interface LambdaHandler {
     String aliasName() default "";
 
     String[] layers() default {};
+
+    LambdaSnapStart snapStart() default LambdaSnapStart.None;
 
 }
