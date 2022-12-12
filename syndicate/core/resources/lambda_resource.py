@@ -460,12 +460,15 @@ class LambdaResource(BaseResource):
                 self.lambda_conn.delete_url_config(
                     function_name=name, qualifier=alias_name)
 
-        arn = response['Configuration']['FunctionArn']
         if meta.get('event_sources'):
+            if alias_name:
+                _arn = self.build_lambda_arn_with_alias(response, alias_name)
+            else:
+                _arn = response['Configuration']['FunctionArn']
             for trigger_meta in meta.get('event_sources'):
                 trigger_type = trigger_meta['resource_type']
                 func = self.CREATE_TRIGGER[trigger_type]
-                func(self, name, arn, role_name, trigger_meta)
+                func(self, name, _arn, role_name, trigger_meta)
 
         req_max_concurrency = meta.get(LAMBDA_MAX_CONCURRENCY)
         existing_max_concurrency = self.lambda_conn.\
