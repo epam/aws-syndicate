@@ -567,11 +567,16 @@ class IAMConnection(object):
             _LOG.warn(f'No need to update policy \'{name}\': the new and the '
                       f'old contents are identical.')
             return
+        versions = self.client.list_policy_versions(PolicyArn=arn)["Versions"]
+        to_remove = next((v for v in reversed(versions) if v['IsDefaultVersion'] == False), None)
+        if to_remove:
+            _LOG.info(f'Old version of policy is found. Removing one: {to_remove}')
+            self.remove_policy_version(policy_arn=arn,
+                                       version_id=to_remove['VersionId'])
         self.create_policy_version(policy_arn=arn,
                                    policy_document=dumps(policy_json),
                                    set_as_default=True)
-        self.remove_policy_version(policy_arn=arn,
-                                   version_id=policy_version['VersionId'])
+
 
     def create_group(self, name):
         return self.client.create_group(GroupName=name)
