@@ -15,7 +15,7 @@
 """
 import json
 import uuid
-from typing import Optional, List
+from typing import Optional, List, Tuple, Iterable
 
 from boto3 import client
 from botocore.exceptions import ClientError
@@ -34,14 +34,15 @@ AUTH_TYPE_TO_STATEMENT_ID = {
 
 
 def _str_list_to_list(param, param_name):
-    result = None
     if isinstance(param, list):
         result = param
+    elif isinstance(param, Iterable):
+        result = list(param)
     elif isinstance(param, str):
         result = [param]
     else:
         raise ValueError(
-            '{} must be a str or a list of str.'.format(param_name))
+            '{} must be a str or an iterable of strings.'.format(param_name))
     return result
 
 
@@ -540,17 +541,16 @@ class LambdaConnection(object):
             params['Timeout'] = timeout
         if memory_size:
             params['MemorySize'] = memory_size
-        if vpc_sub_nets:
-            vpc_sub_nets = _str_list_to_list(vpc_sub_nets, 'VPC_SUB_NETS')
-        if vpc_security_group:
-            vpc_sub_nets = _str_list_to_list(vpc_security_group,
-                                             'VPC_SECURITY_GROUPS')
-        if vpc_sub_nets and vpc_security_group:
-            params['VpcConfig'] = {
-                'SubnetIds': vpc_sub_nets,
-                'SecurityGroupIds': vpc_security_group
-            }
-        env_vars = env_vars if env_vars else {}
+        if vpc_sub_nets is not None:
+            params.setdefault('VpcConfig', {}).update({
+                'SubnetIds': _str_list_to_list(vpc_sub_nets, 'VPC_SUB_NETS')
+            })
+        if vpc_security_group is not None:
+            params.setdefault('VpcConfig', {}).update({
+                'SecurityGroupIds': _str_list_to_list(vpc_security_group,
+                                                      'VPC_SECURITY_GROUPS')
+            })
+        env_vars = env_vars or {}
         params['Environment'] = {'Variables': env_vars}
         if runtime:
             params['Runtime'] = runtime
@@ -701,3 +701,29 @@ class LambdaConnection(object):
 
     def get_waiter(self, waiter_name):
         return self.client.get_waiter(waiter_name)
+
+    def retrieve_vpc_config(self, response: dict) -> Tuple[set, set, Optional[str]]:
+        """
+        Retrieves subnets ids, security groups ids and vpc id from response
+        received from lambda.get_function:
+        response = {
+            ...
+            "VpcConfig": {
+                "SubnetIds": [],
+                "SecurityGroupIds": [],
+                "VpcId": ""
+            },
+            ...
+        }
+        """
+        _vpc = response.get('VpcConfig', {})
+        _subnet_ids = set(_vpc.get('SubnetIds', []))
+        _security_groups = set(_vpc.get('SecurityGroupIds', []))
+        _vpc_id = _vpc.get('VpcId')
+        return _subnet_ids, _security_groups, _vpc_id
+
+    def retrieve_ephemeral_storage(self, response: dict) -> Optional[int]:
+        """
+        Works like the one above
+        """
+        return response.get('EphemeralStorage', {}).get('Size')
