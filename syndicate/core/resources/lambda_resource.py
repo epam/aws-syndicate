@@ -402,7 +402,7 @@ class LambdaResource(BaseResource):
         if layers:
             layers = [layer_arn for layer_arn, body in context.items()
                       if body.get('resource_name') in layers]
-        _LOG.debug(f'Updating lambda {name} configuration')
+        _LOG.info(f'Updating lambda {name} configuration')
         self.lambda_conn.update_lambda_configuration(
             lambda_name=name, role=role_arn, handler=handler,
             env_vars=env_vars,
@@ -410,18 +410,18 @@ class LambdaResource(BaseResource):
             vpc_sub_nets=vpc_subnets, vpc_security_group=vpc_security_group,
             dead_letter_arn=dl_target_arn, layers=layers,
             ephemeral_storage=ephemeral_storage)
-        _LOG.debug(f'Lambda configuration has been updated')
+        _LOG.info(f'Lambda configuration has been updated')
 
         # It seems to me that the waiter is not necessary here, the method
         # lambda_conn.update_lambda_configuration is the one that actually
         # waits. But still it does not make it worse :)
-        _LOG.debug(f'Initializing function updated waiter for {name}')
+        _LOG.info(f'Initializing function updated waiter for {name}')
         waiter = self.lambda_conn.get_waiter('function_updated_v2')
         waiter.wait(FunctionName=name)
-        _LOG.debug(f'Waiting has finished')
+        _LOG.info(f'Waiting has finished')
 
         response = self.lambda_conn.get_function(name)
-        _LOG.debug(f'Lambda describe result: {response}')
+        _LOG.info(f'Lambda describe result: {response}')
         code_sha_256 = response['Configuration']['CodeSha256']
         publish_ver_response = self.lambda_conn.publish_version(
             function_name=name,
@@ -658,11 +658,22 @@ class LambdaResource(BaseResource):
 
         stream = self.dynamodb_conn.get_table_stream_arn(table_name)
         # TODO support another sub type
-        self.lambda_conn.add_event_source(
-            lambda_arn, stream, batch_size=trigger_meta['batch_size'],
-            batch_window=batch_window, start_position='LATEST',
-            filters=filters
-        )
+        event_source = next(iter(self.lambda_conn.list_event_sources(
+            event_source_arn=stream, function_name=lambda_arn)), None)
+        if event_source:
+            _LOG.info(f'Lambda event source mapping for source arn '
+                      f'{stream} and lambda arn {lambda_arn} was found. '
+                      f'Updating it')
+            self.lambda_conn.update_event_source(
+                event_source['UUID'], function_name=lambda_arn,
+                batch_size=trigger_meta['batch_size'],
+                batch_window=batch_window, filters=filters)
+        else:
+            self.lambda_conn.add_event_source(
+                lambda_arn, stream, batch_size=trigger_meta['batch_size'],
+                batch_window=batch_window, start_position='LATEST',
+                filters=filters
+            )
         # start_position='LATEST' - in case we did not remove tables before
         _LOG.info('Lambda %s subscribed to dynamodb table %s', lambda_name,
                   table_name)

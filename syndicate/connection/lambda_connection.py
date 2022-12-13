@@ -255,6 +255,16 @@ class LambdaConnection(object):
         response = self.client.create_event_source_mapping(**params)
         return response
 
+    def list_event_sources(self, event_source_arn: Optional[str] = None,
+                           function_name: Optional[str] = None) -> List:
+        params = dict()
+        if event_source_arn:
+            params['EventSourceArn'] = event_source_arn
+        if function_name:
+            params['FunctionName'] = function_name
+        return self.client.list_event_source_mappings(**params)['EventSourceMappings']
+
+
     def lambdas_list(self):
         """ Get all existing Lambdas.
 
@@ -433,22 +443,17 @@ class LambdaConnection(object):
                                          S3Key=s3_key,
                                          Publish=publish_version)
 
-    def update_event_source(self, lambda_name, batch_size):
-        """ Update batch size of lambda event source stream.
+    def update_event_source(self, uuid, function_name, batch_size,
+                            batch_window=None, filters: Optional[List] = None):
+        params = dict(
+            UUID=uuid, FunctionName=function_name, BatchSize=batch_size
+        )
+        if batch_window is not None:
+            params['MaximumBatchingWindowInSeconds'] = batch_window
+        if filters is not None:
+            params['FilterCriteria'] = {'Filters': filters}
+        return self.client.update_event_source_mapping(**params)
 
-        :type lambda_name: str
-        :type batch_size: int
-        """
-        triggers = self.triggers_list(lambda_name)
-        for trigger in triggers:
-            trigger_name = trigger['FunctionArn'].split(':')[-1]
-            if trigger_name == lambda_name:
-                return self.client.update_event_source_mapping(
-                    UUID=trigger['UUID'],
-                    FunctionName=lambda_name,
-                    Enabled=True,
-                    BatchSize=batch_size
-                )
 
     def get_function(self, lambda_name, qualifier=None):
         """ Get function info if it is exists,
