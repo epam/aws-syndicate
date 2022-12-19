@@ -17,6 +17,9 @@ import json
 
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.conf.processor import GLOBAL_AWS_SERVICES
+from typing import TypeVar, Optional
+
+T = TypeVar('T')
 
 _LOG = get_logger('syndicate.core.resources.helper')
 
@@ -156,3 +159,11 @@ def filter_list_by_shape(lst, shape):
             new_lst.append(filter_dict_by_shape(d, shape[0]))
 
     return new_lst
+
+
+def if_updated(new: T, old: T) -> Optional[T]:
+    """
+    If `new` differs from `old` it `new` will be returned.
+    If it does not, None is returned. They must be comparable
+    """
+    return new if new != old else None
