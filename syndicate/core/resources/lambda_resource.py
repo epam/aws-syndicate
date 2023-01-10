@@ -705,6 +705,8 @@ class LambdaResource(BaseResource):
         required_parameters = ['target_rule']
         validate_params(lambda_name, trigger_meta, required_parameters)
         rule_name = trigger_meta['target_rule']
+        # TODO add InputPath & InputTransformer if needed
+        input_dict = trigger_meta.get('input')
         rule_arn = self.cw_events_conn.get_rule_arn(rule_name)
         if not rule_arn:
             _LOG.error(f'No Arn of \'{rule_name}\' rule name could be found.')
@@ -712,7 +714,7 @@ class LambdaResource(BaseResource):
 
         targets = self.cw_events_conn.list_targets_by_rule(rule_name)
         if lambda_arn not in map(lambda each: each.get('Arn'), targets):
-            self.cw_events_conn.add_rule_target(rule_name, lambda_arn)
+            self.cw_events_conn.add_rule_target(rule_name, lambda_arn, input_dict)
             self.lambda_conn.add_invocation_permission(lambda_arn,
                                                        'events.amazonaws.com',
                                                        rule_arn)
