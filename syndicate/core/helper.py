@@ -593,3 +593,16 @@ def delete_none(_dict):
     elif isinstance(_dict, (list, set, tuple)):
         _dict = type(_dict)(delete_none(item) for item in _dict if item is not None)
     return _dict
+
+
+def without_zip_ext(name: str) -> str:
+    _zip = '.zip'
+    if name.endswith(_zip):
+        name = name[:-len(_zip)]
+    return name
+
+def zip_ext(name: str) -> str:
+    _zip = '.zip'
+    if not name.endswith(_zip):
+        name = name + _zip
+    return name
