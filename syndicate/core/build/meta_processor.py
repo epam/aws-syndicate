@@ -27,7 +27,7 @@ from syndicate.core.constants import (API_GATEWAY_TYPE, ARTIFACTS_FOLDER,
                                       LAMBDA_CONFIG_FILE_NAME, LAMBDA_TYPE,
                                       RESOURCES_FILE_NAME, RESOURCE_LIST,
                                       IAM_ROLE, LAMBDA_LAYER_TYPE,
-                                      S3_PATH_NAME)
+                                      S3_PATH_NAME, LAMBDA_LAYER_CONFIG_FILE_NAME)
 from syndicate.core.helper import (build_path, prettify_json,
                                    resolve_aliases_for_string,
                                    write_content_to_file)
@@ -301,7 +301,7 @@ def _look_for_configs(nested_files, resources_meta, path, bundle_name):
     :type path: str
     """
     for each in nested_files:
-        if each.endswith(LAMBDA_CONFIG_FILE_NAME):
+        if each.endswith(LAMBDA_CONFIG_FILE_NAME) or each.endswith(LAMBDA_LAYER_CONFIG_FILE_NAME):
             lambda_config_path = os.path.join(path, each)
             _LOG.debug('Processing file: {0}'.format(lambda_config_path))
             with open(lambda_config_path) as data_file:
