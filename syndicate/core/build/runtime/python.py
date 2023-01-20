@@ -52,7 +52,7 @@ def assemble_python_lambdas(project_path, bundles_dir):
         project_abs_path = CONFIG.project_path
     _LOG.info('Going to process python project by path: {0}'.format(
         project_abs_path))
-    with ThreadPoolExecutor(max_workers=10) as executor:
+    with ThreadPoolExecutor(max_workers=5) as executor:
         futures = []
         for root, sub_dirs, files in os.walk(project_abs_path):
             for item in files:
