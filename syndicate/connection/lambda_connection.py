@@ -15,7 +15,7 @@
 """
 import json
 import uuid
-from typing import Optional, List
+from typing import Optional, List, Tuple, Iterable
 
 from boto3 import client
 from botocore.exceptions import ClientError
@@ -34,14 +34,15 @@ AUTH_TYPE_TO_STATEMENT_ID = {
 
 
 def _str_list_to_list(param, param_name):
-    result = None
     if isinstance(param, list):
         result = param
+    elif isinstance(param, Iterable):
+        result = list(param)
     elif isinstance(param, str):
         result = [param]
     else:
         raise ValueError(
-            '{} must be a str or a list of str.'.format(param_name))
+            '{} must be a str or an iterable of strings.'.format(param_name))
     return result
 
 
@@ -259,6 +260,16 @@ class LambdaConnection(object):
         response = self.client.create_event_source_mapping(**params)
         return response
 
+    def list_event_sources(self, event_source_arn: Optional[str] = None,
+                           function_name: Optional[str] = None) -> List:
+        params = dict()
+        if event_source_arn:
+            params['EventSourceArn'] = event_source_arn
+        if function_name:
+            params['FunctionName'] = function_name
+        return self.client.list_event_source_mappings(**params)['EventSourceMappings']
+
+
     def lambdas_list(self):
         """ Get all existing Lambdas.
 
@@ -437,22 +448,17 @@ class LambdaConnection(object):
                                          S3Key=s3_key,
                                          Publish=publish_version)
 
-    def update_event_source(self, lambda_name, batch_size):
-        """ Update batch size of lambda event source stream.
+    def update_event_source(self, uuid, function_name, batch_size,
+                            batch_window=None, filters: Optional[List] = None):
+        params = dict(
+            UUID=uuid, FunctionName=function_name, BatchSize=batch_size
+        )
+        if batch_window is not None:
+            params['MaximumBatchingWindowInSeconds'] = batch_window
+        if filters is not None:
+            params['FilterCriteria'] = {'Filters': filters}
+        return self.client.update_event_source_mapping(**params)
 
-        :type lambda_name: str
-        :type batch_size: int
-        """
-        triggers = self.triggers_list(lambda_name)
-        for trigger in triggers:
-            trigger_name = trigger['FunctionArn'].split(':')[-1]
-            if trigger_name == lambda_name:
-                return self.client.update_event_source_mapping(
-                    UUID=trigger['UUID'],
-                    FunctionName=lambda_name,
-                    Enabled=True,
-                    BatchSize=batch_size
-                )
 
     def get_function(self, lambda_name, qualifier=None):
         """ Get function info if it is exists,
@@ -546,17 +552,16 @@ class LambdaConnection(object):
             params['Timeout'] = timeout
         if memory_size:
             params['MemorySize'] = memory_size
-        if vpc_sub_nets:
-            vpc_sub_nets = _str_list_to_list(vpc_sub_nets, 'VPC_SUB_NETS')
-        if vpc_security_group:
-            vpc_sub_nets = _str_list_to_list(vpc_security_group,
-                                             'VPC_SECURITY_GROUPS')
-        if vpc_sub_nets and vpc_security_group:
-            params['VpcConfig'] = {
-                'SubnetIds': vpc_sub_nets,
-                'SecurityGroupIds': vpc_security_group
-            }
-        env_vars = env_vars if env_vars else {}
+        if vpc_sub_nets is not None:
+            params.setdefault('VpcConfig', {}).update({
+                'SubnetIds': _str_list_to_list(vpc_sub_nets, 'VPC_SUB_NETS')
+            })
+        if vpc_security_group is not None:
+            params.setdefault('VpcConfig', {}).update({
+                'SecurityGroupIds': _str_list_to_list(vpc_security_group,
+                                                      'VPC_SECURITY_GROUPS')
+            })
+        env_vars = env_vars or {}
         params['Environment'] = {'Variables': env_vars}
         if runtime:
             params['Runtime'] = runtime
@@ -711,3 +716,29 @@ class LambdaConnection(object):
 
     def get_waiter(self, waiter_name):
         return self.client.get_waiter(waiter_name)
+
+    def retrieve_vpc_config(self, response: dict) -> Tuple[set, set, Optional[str]]:
+        """
+        Retrieves subnets ids, security groups ids and vpc id from response
+        received from lambda.get_function:
+        response = {
+            ...
+            "VpcConfig": {
+                "SubnetIds": [],
+                "SecurityGroupIds": [],
+                "VpcId": ""
+            },
+            ...
+        }
+        """
+        _vpc = response.get('VpcConfig', {})
+        _subnet_ids = set(_vpc.get('SubnetIds', []))
+        _security_groups = set(_vpc.get('SecurityGroupIds', []))
+        _vpc_id = _vpc.get('VpcId')
+        return _subnet_ids, _security_groups, _vpc_id
+
+    def retrieve_ephemeral_storage(self, response: dict) -> Optional[int]:
+        """
+        Works like the one above
+        """
+        return response.get('EphemeralStorage', {}).get('Size')

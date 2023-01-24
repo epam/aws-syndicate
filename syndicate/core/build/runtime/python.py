@@ -31,8 +31,11 @@ from syndicate.commons.log_helper import get_logger
 from syndicate.core.build.helper import build_py_package_name, zip_dir
 from syndicate.core.conf.processor import path_resolver
 from syndicate.core.constants import (LAMBDA_CONFIG_FILE_NAME, DEFAULT_SEP,
-                                      REQ_FILE_NAME, LOCAL_REQ_FILE_NAME)
-from syndicate.core.helper import (build_path, unpack_kwargs)
+                                      REQ_FILE_NAME, LOCAL_REQ_FILE_NAME,
+                                      LAMBDA_LAYER_CONFIG_FILE_NAME,
+                                      PYTHON_LAMBDA_LAYER_PATH)
+from syndicate.core.helper import (build_path, unpack_kwargs, zip_ext,
+                                   without_zip_ext)
 from syndicate.core.resources.helper import validate_params
 
 _LOG = get_logger('python_runtime_assembler')
@@ -62,6 +65,14 @@ def assemble_python_lambdas(project_path, bundles_dir):
                         'project_path': project_path,
                     }
                     futures.append(executor.submit(_build_python_artifact, arg))
+                elif item.endswith(LAMBDA_LAYER_CONFIG_FILE_NAME):
+                    _LOG.info(f'Going to build lambda layer in `{root}`')
+                    arg = {
+                        'layer_root': root,
+                        'bundle_dir': bundles_dir,
+                        'project_path': project_path
+                    }
+                    futures.append(executor.submit(build_python_lambda_layer, arg))
         result = concurrent.futures.wait(futures, return_when=FIRST_EXCEPTION)
     for future in result.done:
         exception = future.exception()
@@ -69,6 +80,58 @@ def assemble_python_lambdas(project_path, bundles_dir):
             print(f'\033[91m' + str(exception), file=sys.stderr)
             sys.exit(1)
     _LOG.info('Python project was processed successfully')
+
+
+def remove_dir(path: Union[str, Path]):
+    removed = False
+    while not removed:
+        _LOG.info(f'Trying to remove "{path}"')
+        try:
+            shutil.rmtree(path)
+            removed = True
+        except Exception as e:
+            _LOG.warn(f'An error "{e}" occurred while '
+                      f'removing artifacts "{path}"')
+
+
+@unpack_kwargs
+def build_python_lambda_layer(layer_root: str, bundle_dir: str, project_path: str):
+    """
+    Layer root is a dir where these files exist:
+    - lambda_layer_config.json
+    - local_requirements.txt
+    - requirements.txt
+    """
+    with open(Path(layer_root, LAMBDA_LAYER_CONFIG_FILE_NAME), 'r') as file:
+        layer_config = json.load(file)
+    validate_params(layer_root, layer_config, ['name', 'deployment_package'])
+    artifact_name = without_zip_ext(layer_config['deployment_package'])
+    artifact_path = Path(bundle_dir, artifact_name)
+    path_for_requirements = artifact_path / PYTHON_LAMBDA_LAYER_PATH
+    _LOG.info(f'Artifacts path: {artifact_path}')
+    os.makedirs(artifact_path, exist_ok=True)
+
+    # install requirements.txt content
+    requirements_path = Path(layer_root, REQ_FILE_NAME)
+    if os.path.exists(requirements_path):
+        install_requirements_to(requirements_path, to=path_for_requirements)
+
+    # install local requirements
+    local_requirements_path = Path(layer_root, LOCAL_REQ_FILE_NAME)
+    if os.path.exists(local_requirements_path):
+        _LOG.info('Going to install local dependencies')
+        _install_local_req(path_for_requirements, local_requirements_path,
+                           project_path)
+        _LOG.info('Local dependencies were installed successfully')
+
+    # making zip archive
+    package_name = zip_ext(layer_config['deployment_package'])
+    _LOG.info(f'Packaging artifacts by {artifact_path} to {package_name}')
+    zip_dir(str(artifact_path), str(Path(bundle_dir, package_name)))
+    _LOG.info(f'Package \'{package_name}\' was successfully created')
+    # remove unused folder
+    remove_dir(artifact_path)
+    _LOG.info(f'"{artifact_path}" was removed successfully')
 
 
 @unpack_kwargs
@@ -87,20 +150,7 @@ def _build_python_artifact(root, config_file, target_folder, project_path):
     # install requirements.txt content
     requirements_path = Path(root, REQ_FILE_NAME)
     if os.path.exists(requirements_path):
-        _LOG.info('Going to install 3-rd party dependencies')
-        try:
-            command = f"{sys.executable} -m pip install -r " \
-                      f"{requirements_path} -t {artifact_path}"
-            if platform.system() == 'Windows':
-                command += ' --no-cache-dir'
-            subprocess.run(command.split(), stderr=subprocess.PIPE, check=True)
-        except subprocess.CalledProcessError as e:
-            message = f'An error: \n"{e.stderr.decode()}"\noccured while ' \
-                      f'installing requirements: "{str(requirements_path)}" ' \
-                      f'for package "{artifact_path}"'
-            _LOG.error(message)
-            raise RuntimeError(message)
-        _LOG.info('3-rd party dependencies were installed successfully')
+        install_requirements_to(requirements_path, to=artifact_path)
 
     # install local requirements
     local_requirements_path = Path(root, LOCAL_REQ_FILE_NAME)
@@ -133,16 +183,25 @@ def _build_python_artifact(root, config_file, target_folder, project_path):
     _LOG.info(f'Package \'{package_name}\' was successfully created')
 
     # remove unused folder
-    removed = False
-    while not removed:
-        _LOG.info(f'Trying to remove "{artifact_path}"')
-        try:
-            shutil.rmtree(artifact_path)
-            removed = True
-        except Exception as e:
-            _LOG.warn(f'An error "{e}" occured while '
-                      f'removing artifacts "{artifact_path}"')
+    remove_dir(artifact_path)
     _LOG.info(f'"{artifact_path}" was removed successfully')
+
+
+def install_requirements_to(requirements_txt: Union[str, Path], to: Union[str, Path]):
+    _LOG.info('Going to install 3-rd party dependencies')
+    try:
+        command = f"{sys.executable} -m pip install -r " \
+                  f"{str(requirements_txt)} -t {str(to)}"
+        # if platform.system() == 'Windows':
+        #     command += ' --no-cache-dir'
+        subprocess.run(command.split(), stderr=subprocess.PIPE, check=True)
+    except subprocess.CalledProcessError as e:
+        message = f'An error: \n"{e.stderr.decode()}"\noccured while ' \
+                  f'installing requirements: "{str(requirements_txt)}" ' \
+                  f'for package "{to}"'
+        _LOG.error(message)
+        raise RuntimeError(message)
+    _LOG.info('3-rd party dependencies were installed successfully')
 
 
 def _install_local_req(artifact_path, local_req_path, project_path):

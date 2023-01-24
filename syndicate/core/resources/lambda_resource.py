@@ -25,9 +25,8 @@ from syndicate.core.build.meta_processor import S3_PATH_NAME
 from syndicate.core.helper import (unpack_kwargs,
                                    exit_on_exception)
 from syndicate.core.resources.base_resource import BaseResource
-from syndicate.core.resources.helper import (build_description_obj,
-                                             validate_params,
-                                             assert_required_params)
+from syndicate.core.resources.helper import (
+    build_description_obj, validate_params, assert_required_params, if_updated)
 
 PROVISIONED_CONCURRENCY = 'provisioned_concurrency'
 
@@ -365,6 +364,7 @@ class LambdaResource(BaseResource):
         response = self.lambda_conn.get_function(name)
         if not response:
             raise AssertionError('{0} lambda does not exist.'.format(name))
+        old_conf = response['Configuration']
 
         publish_version = meta.get('publish_version', False)
 
@@ -378,14 +378,20 @@ class LambdaResource(BaseResource):
         role_arn = self.iam_conn.check_if_role_exists(role_name)
         if not role_arn:
             _LOG.warning('Execution role does not exist. Keeping the old one')
-
-        handler = meta.get('func_name')
+        role_arn = if_updated(role_arn, old_conf.get('Role'))
+        handler = if_updated(meta.get('func_name'), old_conf.get('Handler'))
         env_vars = meta.get('env_variables')
-        timeout = meta.get('timeout')
-        memory_size = meta.get('memory_size')
-        vpc_sub_nets = meta.get('subnet_ids')
-        vpc_security_group = meta.get('security_group_ids')
-        runtime = meta.get('runtime')
+        timeout = if_updated(meta.get('timeout'), old_conf.get('Timeout'))
+        memory_size = if_updated(meta.get('memory_size'), old_conf.get('MemorySize'))
+
+        old_subnets, old_security_groups, _ = self.lambda_conn.retrieve_vpc_config(old_conf)
+        vpc_subnets = if_updated(set(meta.get('subnet_ids') or []), old_subnets)
+        vpc_security_group = if_updated(
+            set(meta.get('security_group_ids') or []), old_security_groups)
+        runtime = if_updated(meta.get('runtime'), old_conf.get('Runtime'))
+        ephemeral_storage = if_updated(
+            meta.get('ephemeral_storage'),
+            self.lambda_conn.retrieve_ephemeral_storage(old_conf))
         layers = meta.get('layers')
 
         dl_type = meta.get('dl_resource_type')
@@ -403,26 +409,28 @@ class LambdaResource(BaseResource):
         if layers:
             layers = [layer_arn for layer_arn, body in context.items()
                       if body.get('resource_name') in layers]
-
-        ephemeral_storage = meta.get('ephemeral_storage', 512)
-
+        _LOG.info(f'Updating lambda {name} configuration')
         self.lambda_conn.update_lambda_configuration(
             lambda_name=name, role=role_arn, handler=handler,
             env_vars=env_vars,
             timeout=timeout, memory_size=memory_size, runtime=runtime,
-            vpc_sub_nets=vpc_sub_nets, vpc_security_group=vpc_security_group,
+            vpc_sub_nets=vpc_subnets, vpc_security_group=vpc_security_group,
             dead_letter_arn=dl_target_arn, layers=layers,
             ephemeral_storage=ephemeral_storage,
             snap_start=self._resolve_snap_start(meta=meta)
         )
+        _LOG.info(f'Lambda configuration has been updated')
 
-        # AWS sometimes returns None after function creation, needs for
-        # stability
+        # It seems to me that the waiter is not necessary here, the method
+        # lambda_conn.update_lambda_configuration is the one that actually
+        # waits. But still it does not make it worse :)
+        _LOG.info(f'Initializing function updated waiter for {name}')
         waiter = self.lambda_conn.get_waiter('function_updated_v2')
         waiter.wait(FunctionName=name)
+        _LOG.info(f'Waiting has finished')
 
         response = self.lambda_conn.get_function(name)
-        _LOG.debug(f'Lambda describe result: {response}')
+        _LOG.info(f'Lambda describe result: {response}')
         code_sha_256 = response['Configuration']['CodeSha256']
         publish_ver_response = self.lambda_conn.publish_version(
             function_name=name,
@@ -469,12 +477,15 @@ class LambdaResource(BaseResource):
                 self.lambda_conn.delete_url_config(
                     function_name=name, qualifier=alias_name)
 
-        arn = response['Configuration']['FunctionArn']
         if meta.get('event_sources'):
+            if alias_name:
+                _arn = self.build_lambda_arn_with_alias(response, alias_name)
+            else:
+                _arn = response['Configuration']['FunctionArn']
             for trigger_meta in meta.get('event_sources'):
                 trigger_type = trigger_meta['resource_type']
                 func = self.CREATE_TRIGGER[trigger_type]
-                func(self, name, arn, role_name, trigger_meta)
+                func(self, name, _arn, role_name, trigger_meta)
 
         req_max_concurrency = meta.get(LAMBDA_MAX_CONCURRENCY)
         existing_max_concurrency = self.lambda_conn.\
@@ -490,6 +501,7 @@ class LambdaResource(BaseResource):
         self._manage_provisioned_concurrency_configuration(function_name=name,
                                                            meta=meta,
                                                            lambda_def=context)
+        _LOG.info(f'Updating has finished for lambda {name}')
         return self.describe_lambda(name, meta, response)
 
     def _set_function_concurrency(self, name, meta):
@@ -655,11 +667,22 @@ class LambdaResource(BaseResource):
 
         stream = self.dynamodb_conn.get_table_stream_arn(table_name)
         # TODO support another sub type
-        self.lambda_conn.add_event_source(
-            lambda_arn, stream, batch_size=trigger_meta['batch_size'],
-            batch_window=batch_window, start_position='LATEST',
-            filters=filters
-        )
+        event_source = next(iter(self.lambda_conn.list_event_sources(
+            event_source_arn=stream, function_name=lambda_arn)), None)
+        if event_source:
+            _LOG.info(f'Lambda event source mapping for source arn '
+                      f'{stream} and lambda arn {lambda_arn} was found. '
+                      f'Updating it')
+            self.lambda_conn.update_event_source(
+                event_source['UUID'], function_name=lambda_arn,
+                batch_size=trigger_meta['batch_size'],
+                batch_window=batch_window, filters=filters)
+        else:
+            self.lambda_conn.add_event_source(
+                lambda_arn, stream, batch_size=trigger_meta['batch_size'],
+                batch_window=batch_window, start_position='LATEST',
+                filters=filters
+            )
         # start_position='LATEST' - in case we did not remove tables before
         _LOG.info('Lambda %s subscribed to dynamodb table %s', lambda_name,
                   table_name)
@@ -691,6 +714,8 @@ class LambdaResource(BaseResource):
         required_parameters = ['target_rule']
         validate_params(lambda_name, trigger_meta, required_parameters)
         rule_name = trigger_meta['target_rule']
+        # TODO add InputPath & InputTransformer if needed
+        input_dict = trigger_meta.get('input')
         rule_arn = self.cw_events_conn.get_rule_arn(rule_name)
         if not rule_arn:
             _LOG.error(f'No Arn of \'{rule_name}\' rule name could be found.')
@@ -698,7 +723,7 @@ class LambdaResource(BaseResource):
 
         targets = self.cw_events_conn.list_targets_by_rule(rule_name)
         if lambda_arn not in map(lambda each: each.get('Arn'), targets):
-            self.cw_events_conn.add_rule_target(rule_name, lambda_arn)
+            self.cw_events_conn.add_rule_target(rule_name, lambda_arn, input_dict)
             self.lambda_conn.add_invocation_permission(lambda_arn,
                                                        'events.amazonaws.com',
                                                        rule_arn)

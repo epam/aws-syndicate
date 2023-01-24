@@ -42,6 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added an ability to create models in API Gateway;
 - Added AWS Kinesis Firehose support;
 - Add lambda event-source-mapping filters support;
+- Added an ability to build lambda layers (similarly to lambdas)
 
 
 ## [0.9.6] - 2021-04-29
