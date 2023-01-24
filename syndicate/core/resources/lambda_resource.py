@@ -745,10 +745,17 @@ class LambdaResource(BaseResource):
                 f'S3 bucket {target_bucket} event source for lambda '
                 f'{lambda_name} was not created.')
             return
+
+        bucket_arn = 'arn:aws:s3:::{0}'.format(target_bucket)
+
         self.lambda_conn.add_invocation_permission(lambda_arn,
                                                    's3.amazonaws.com',
-                                                   'arn:aws:s3:::{0}'.format(
-                                                       target_bucket))
+                                                   bucket_arn)
+        _LOG.debug('Waiting for activation of invoke-permission of %s',
+                   bucket_arn)
+
+        time.sleep(5)
+
         self.s3_conn.configure_event_source_for_lambda(target_bucket,
                                                        lambda_arn,
                                                        trigger_meta[
