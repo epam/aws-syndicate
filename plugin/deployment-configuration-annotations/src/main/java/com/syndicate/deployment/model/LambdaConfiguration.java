@@ -108,6 +108,9 @@ public class LambdaConfiguration {
     @JsonProperty("snap_start")
     private LambdaSnapStart snapStart;
 
+    @JsonProperty("resource_group")
+    private String resourceGroup;
+
     public String getName() {
         return name;
     }
@@ -408,6 +411,13 @@ public class LambdaConfiguration {
 
         public Builder withSnapStart(LambdaSnapStart snapStart) {
             configuration.snapStart = snapStart;
+            return this;
+        }
+
+        public Builder withResourceGroup(String resourceGroup) {
+            if (resourceGroup != null && !resourceGroup.isEmpty()){
+                configuration.resourceGroup = resourceGroup;
+            }
             return this;
         }
 
