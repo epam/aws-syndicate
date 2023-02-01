@@ -67,4 +67,6 @@ public @interface LambdaHandler {
 
     LambdaSnapStart snapStart() default LambdaSnapStart.None;
 
+    String resourceGroup() default "";
+
 }

@@ -61,6 +61,7 @@ public final class LambdaConfigurationFactory {
                 .withSecurityGroupIds(lambdaHandler.securityGroupIds())
                 .withPublishVersion(lambdaHandler.isPublishVersion())
                 .withSnapStart(lambdaHandler.snapStart())
+                .withResourceGroup(lambdaHandler.resourceGroup())
                 .build();
 
         if (lambdaHandler.tracingMode() != TracingMode.NoTracing) {

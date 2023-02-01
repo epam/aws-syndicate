@@ -7,7 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.1.0] - 2022-07-12
 ### Added
 - `snap_start` support of Java-based lambda configurations of 
-`PublishedVersions` or `None` values. 
+`PublishedVersions` or `None` values.
+- `resourceGroup` annotation parameter to Java-based lambda.
 
 
 ## [1.0.0] - 2021-06-11
