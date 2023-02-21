@@ -190,10 +190,12 @@ def _build_python_artifact(root, config_file, target_folder, project_path):
 def install_requirements_to(requirements_txt: Union[str, Path], to: Union[str, Path]):
     _LOG.info('Going to install 3-rd party dependencies')
     try:
-        command = f"{sys.executable} -m pip install -r " \
-                  f"{str(requirements_txt)} -t {str(to)}"
-        # if platform.system() == 'Windows':
-        #     command += ' --no-cache-dir'
+        # probably we can remove "if platform.processor() == 'arm' else ''",
+        # but it worked for other platforms before, so I just want to
+        # disturb it. Tamper with command only if Mac m1
+        command = f"{sys.executable} -m pip install " \
+                  f"{'--platform manylinux2014_x86_64 --implementation cp --only-binary=:all:' if platform.processor() == 'arm' else ''}" \
+                  f" -r {str(requirements_txt)} -t {str(to)}"
         subprocess.run(command.split(), stderr=subprocess.PIPE, check=True)
     except subprocess.CalledProcessError as e:
         message = f'An error: \n"{e.stderr.decode()}"\noccured while ' \
