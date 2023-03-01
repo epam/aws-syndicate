@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `snap_start` support of Java-based lambda configurations of 
 `PublishedVersions` or `None` values.
 - `resourceGroup` annotation parameter to Java-based lambda.
+- Specify target AWS Lambda platform, python version and implementation to install dependencies
 
 
 ## [1.0.0] - 2021-06-11
