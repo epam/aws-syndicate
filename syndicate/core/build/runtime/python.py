@@ -150,7 +150,9 @@ def _build_python_artifact(root, config_file, target_folder, project_path):
     # install requirements.txt content
     requirements_path = Path(root, REQ_FILE_NAME)
     if os.path.exists(requirements_path):
-        install_requirements_to(requirements_path, to=artifact_path)
+        python_version = _get_python_version(lambda_config=lambda_config)
+        install_requirements_to(requirements_path, to=artifact_path,
+                                python_version=python_version)
 
     # install local requirements
     local_requirements_path = Path(root, LOCAL_REQ_FILE_NAME)
@@ -187,11 +189,17 @@ def _build_python_artifact(root, config_file, target_folder, project_path):
     _LOG.info(f'"{artifact_path}" was removed successfully')
 
 
-def install_requirements_to(requirements_txt: Union[str, Path], to: Union[str, Path]):
+def install_requirements_to(requirements_txt: Union[str, Path],
+                            to: Union[str, Path],
+                            python_version: str="3.7"):
     _LOG.info('Going to install 3-rd party dependencies')
     try:
         command = f"{sys.executable} -m pip install -r " \
-                  f"{str(requirements_txt)} -t {str(to)}"
+                  f"{str(requirements_txt)} -t {str(to)} " \
+                  f"--implementation cp " \
+                  f"--python {python_version} " \
+                  f"--platform manylinux2014_x86_64 " \
+                  f"--only-binary=:all:"
         # if platform.system() == 'Windows':
         #     command += ' --no-cache-dir'
         subprocess.run(command.split(), stderr=subprocess.PIPE, check=True)
@@ -230,6 +238,12 @@ def _install_local_req(artifact_path, local_req_path, project_path):
             i += 1
         _LOG.debug('Python files from packages were copied successfully')
 
+def _get_python_version(lambda_config):
+    """
+     "runtime": "python3.7" => "3.7"
+    """
+    runtime = lambda_config.get('runtime', '')
+    return ''.join([ch for ch in runtime if ch.isdigit() or ch == '.'])
 
 def _copy_py_files(search_path, destination_path):
     files = glob.iglob(build_path(search_path, _PY_EXT))
