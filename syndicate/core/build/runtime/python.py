@@ -150,9 +150,8 @@ def _build_python_artifact(root, config_file, target_folder, project_path):
     # install requirements.txt content
     requirements_path = Path(root, REQ_FILE_NAME)
     if os.path.exists(requirements_path):
-        python_version = _get_python_version(lambda_config=lambda_config)
         install_requirements_to(requirements_path, to=artifact_path,
-                                python_version=python_version)
+                                config=lambda_config)
 
     # install local requirements
     local_requirements_path = Path(root, LOCAL_REQ_FILE_NAME)
@@ -191,15 +190,21 @@ def _build_python_artifact(root, config_file, target_folder, project_path):
 
 def install_requirements_to(requirements_txt: Union[str, Path],
                             to: Union[str, Path],
-                            python_version: str="3.7"):
+                            config: dict = None):
     _LOG.info('Going to install 3-rd party dependencies')
+    supported_platforms = config.get('platforms') if config else None
+    python_version = _get_python_version(lambda_config=config)
     try:
+        if supported_platforms and python_version:
+            # tries to install packages compatible with specific platforms
+            install_requirements_for_platform(
+                requirements_txt=requirements_txt,
+                to=to,
+                supported_platforms=supported_platforms,
+                python_version=python_version
+            )
         command = f"{sys.executable} -m pip install -r " \
-                  f"{str(requirements_txt)} -t {str(to)} " \
-                  f"--implementation cp " \
-                  f"--python {python_version} " \
-                  f"--platform manylinux2014_x86_64 " \
-                  f"--only-binary=:all:"
+                  f"{str(requirements_txt)} -t {str(to)}"
         # if platform.system() == 'Windows':
         #     command += ' --no-cache-dir'
         subprocess.run(command.split(), stderr=subprocess.PIPE, check=True)
@@ -210,6 +215,32 @@ def install_requirements_to(requirements_txt: Union[str, Path],
         _LOG.error(message)
         raise RuntimeError(message)
     _LOG.info('3-rd party dependencies were installed successfully')
+
+
+def install_requirements_for_platform(requirements_txt: Union[str, Path],
+                                      to: Union[str, Path],
+                                      python_version: str,
+                                      supported_platforms: list):
+    _LOG.info('Going to install 3-rd party dependencies')
+    try:
+        command = f"{sys.executable} -m pip install -r " \
+                  f"{str(requirements_txt)} -t {str(to)} " \
+                  f"--implementation cp " \
+                  f"--python {python_version} " \
+                  f"--only-binary=:all: "
+        platforms_part = ' '.join([f'--platform {p}' for p in
+                                   supported_platforms])
+        command += platforms_part
+        subprocess.run(command.split(), stderr=subprocess.PIPE, check=True)
+    except subprocess.CalledProcessError as e:
+        message = f'An error: \n"{e.stderr.decode()}"\noccured while ' \
+                  f'installing requirements for platforms:' \
+                  f'{",".join(supported_platforms)}: ' \
+                  f'"{str(requirements_txt)}" for package "{to}"'
+        _LOG.error(message)
+        _LOG.warning('3-rd party dependencies were installed with errors')
+    else:
+        _LOG.info('3-rd party dependencies were installed successfully')
 
 
 def _install_local_req(artifact_path, local_req_path, project_path):
@@ -238,12 +269,16 @@ def _install_local_req(artifact_path, local_req_path, project_path):
             i += 1
         _LOG.debug('Python files from packages were copied successfully')
 
+
 def _get_python_version(lambda_config):
     """
      "runtime": "python3.7" => "3.7"
     """
+    if not lambda_config:
+        return
     runtime = lambda_config.get('runtime', '')
     return ''.join([ch for ch in runtime if ch.isdigit() or ch == '.'])
+
 
 def _copy_py_files(search_path, destination_path):
     files = glob.iglob(build_path(search_path, _PY_EXT))
