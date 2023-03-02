@@ -222,28 +222,33 @@ def install_requirements_to(requirements_txt: Union[str, Path],
 def install_requirements_for_platform(
         requirements_txt: Union[str, Path], to: Union[str, Path],
         python_version: str, supported_platforms: list) -> \
-        Union[None, subprocess.CalledProcessError]:
-    _LOG.info('Going to install 3-rd party dependencies')
-    try:
-        command = f"{sys.executable} -m pip install -r " \
-                  f"{str(requirements_txt)} -t {str(to)} " \
-                  f"--implementation cp " \
-                  f"--python {python_version} " \
-                  f"--only-binary=:all: "
-        platforms_part = ' '.join([f'--platform {p}' for p in
-                                   supported_platforms])
-        command += platforms_part
-        subprocess.run(command.split(), stderr=subprocess.PIPE, check=True)
-    except subprocess.CalledProcessError as e:
-        message = f'An error: \n"{e.stderr.decode()}"\noccured while ' \
-                  f'installing requirements for platforms:' \
-                  f'{",".join(supported_platforms)}: ' \
-                  f'"{str(requirements_txt)}" for package "{to}"'
-        _LOG.error(message)
-        _LOG.warning('3-rd party dependencies were installed with errors')
-        return e
-    else:
-        _LOG.info('3-rd party dependencies were installed successfully')
+        Union[None, bool]:
+    _LOG.info(f'Going to install 3-rd party dependencies for platforms: '
+              f'{",".join(supported_platforms)}')
+
+    with open(requirements_txt, 'r') as f:
+        requirements = f.read().split(os.linesep)
+    with_errors = False
+
+    for package in requirements:
+        try:
+            command = f"{sys.executable} -m pip install " \
+                      f"{package} -t {str(to)} " \
+                      f"--implementation cp " \
+                      f"--python {python_version} " \
+                      f"--only-binary=:all: "
+            platforms_part = ' '.join([f'--platform {p}' for p in
+                                       supported_platforms])
+            command += platforms_part
+            subprocess.run(command.split(), stderr=subprocess.PIPE, check=True)
+        except subprocess.CalledProcessError as e:
+            message = f'An error: \n"{e.stderr.decode()}"\noccured while ' \
+                      f'installing requirements for platforms:' \
+                      f'{",".join(supported_platforms)}: ' \
+                      f'"{str(requirements_txt)}" for package "{package}"'
+            _LOG.error(message)
+            with_errors = True
+    return with_errors
 
 
 def _install_local_req(artifact_path, local_req_path, project_path):
