@@ -195,19 +195,21 @@ def install_requirements_to(requirements_txt: Union[str, Path],
     supported_platforms = config.get('platforms') if config else None
     python_version = _get_python_version(lambda_config=config)
     try:
+        required_default_install = True
         if supported_platforms and python_version:
             # tries to install packages compatible with specific platforms
-            install_requirements_for_platform(
+            required_default_install = install_requirements_for_platform(
                 requirements_txt=requirements_txt,
                 to=to,
                 supported_platforms=supported_platforms,
                 python_version=python_version
             )
-        command = f"{sys.executable} -m pip install -r " \
-                  f"{str(requirements_txt)} -t {str(to)}"
-        # if platform.system() == 'Windows':
-        #     command += ' --no-cache-dir'
-        subprocess.run(command.split(), stderr=subprocess.PIPE, check=True)
+        if required_default_install:
+            command = f"{sys.executable} -m pip install -r " \
+                      f"{str(requirements_txt)} -t {str(to)}"
+            # if platform.system() == 'Windows':
+            #     command += ' --no-cache-dir'
+            subprocess.run(command.split(), stderr=subprocess.PIPE, check=True)
     except subprocess.CalledProcessError as e:
         message = f'An error: \n"{e.stderr.decode()}"\noccured while ' \
                   f'installing requirements: "{str(requirements_txt)}" ' \
@@ -217,10 +219,10 @@ def install_requirements_to(requirements_txt: Union[str, Path],
     _LOG.info('3-rd party dependencies were installed successfully')
 
 
-def install_requirements_for_platform(requirements_txt: Union[str, Path],
-                                      to: Union[str, Path],
-                                      python_version: str,
-                                      supported_platforms: list):
+def install_requirements_for_platform(
+        requirements_txt: Union[str, Path], to: Union[str, Path],
+        python_version: str, supported_platforms: list) -> \
+        Union[None, subprocess.CalledProcessError]:
     _LOG.info('Going to install 3-rd party dependencies')
     try:
         command = f"{sys.executable} -m pip install -r " \
@@ -239,6 +241,7 @@ def install_requirements_for_platform(requirements_txt: Union[str, Path],
                   f'"{str(requirements_txt)}" for package "{to}"'
         _LOG.error(message)
         _LOG.warning('3-rd party dependencies were installed with errors')
+        return e
     else:
         _LOG.info('3-rd party dependencies were installed successfully')
 
