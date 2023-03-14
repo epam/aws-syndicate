@@ -1,10 +1,3 @@
-[![Quality gate](https://sonarcloud.io/api/project_badges/quality_gate?project=aws-syndicate)](https://sonarcloud.io/dashboard?id=aws-syndicate)
-
-* [![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=aws-syndicate&metric=security_rating)](https://sonarcloud.io/dashboard?id=aws-syndicate)
-* [![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=aws-syndicate&metric=sqale_rating)](https://sonarcloud.io/dashboard?id=aws-syndicate)
-* [![Bugs](https://sonarcloud.io/api/project_badges/measure?project=aws-syndicate&metric=bugs)](https://sonarcloud.io/dashboard?id=aws-syndicate)
-* [![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=aws-syndicate&metric=vulnerabilities)](https://sonarcloud.io/dashboard?id=aws-syndicate)
-
 # AWS deployment framework for serverless applications
 
 aws-syndicate is an Amazon Web Services deployment framework written in Python,
