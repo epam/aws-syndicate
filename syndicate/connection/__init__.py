@@ -15,7 +15,8 @@
 """
 from functools import lru_cache
 
-from syndicate.connection.api_gateway_connection import ApiGatewayConnection
+from syndicate.connection.api_gateway_connection import ApiGatewayConnection, \
+    ApiGatewayV2Connection
 from syndicate.connection.application_autoscaling_connection import (
     ApplicationAutoscaling)
 from syndicate.connection.batch_connection import BatchConnection
@@ -27,6 +28,7 @@ from syndicate.connection.cognito_identity_connection import (
     CognitoIdentityConnection)
 from syndicate.connection.cognito_identity_provider_connection import \
     CognitoIdentityProviderConnection
+from syndicate.connection.dax_connection import DaxConnection
 from syndicate.connection.documentdb_connection import DocumentDBConnection
 from syndicate.connection.dynamo_connection import DynamoConnection
 from syndicate.connection.ec2_connection import EC2Connection
@@ -37,13 +39,12 @@ from syndicate.connection.iam_connection import IAMConnection
 from syndicate.connection.kinesis_connection import KinesisConnection
 from syndicate.connection.kms_connection import KMSConnection
 from syndicate.connection.lambda_connection import LambdaConnection
+from syndicate.connection.resource_groups_tagging_api_connection import \
+    ResourceGroupsTaggingAPIConnection
 from syndicate.connection.s3_connection import S3Connection
 from syndicate.connection.sns_connection import SNSConnection
 from syndicate.connection.sqs_connection import SqsConnection
 from syndicate.connection.step_functions_connection import SFConnection
-from syndicate.connection.resource_groups_tagging_api_connection import \
-    ResourceGroupsTaggingAPIConnection
-from syndicate.connection.dax_connection import DaxConnection
 
 
 class ConnectionProvider(object):
@@ -56,6 +57,12 @@ class ConnectionProvider(object):
         if region:
             credentials['region'] = region
         return ApiGatewayConnection(**credentials)
+
+    def api_gateway_v2(self, region=None):
+        creds = self.credentials
+        if region:
+            creds = {**creds, 'region': region}
+        return ApiGatewayV2Connection(**creds)
 
     @lru_cache(maxsize=None)
     def lambda_conn(self, region=None):

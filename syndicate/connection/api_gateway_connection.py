@@ -13,9 +13,12 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-from boto3 import client
-from botocore.exceptions import ClientError
 from secrets import token_hex
+from typing import Optional
+
+from boto3 import client
+from botocore.client import BaseClient
+from botocore.exceptions import ClientError
 
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import apply_methods_decorator, retry
@@ -657,3 +660,55 @@ class ApiGatewayConnection(object):
                 return None
             else:
                 raise e
+
+
+class ApiGatewayV2Connection:
+    def __init__(self, region=None, aws_access_key_id=None,
+                 aws_secret_access_key=None, aws_session_token=None):
+        self._region = region
+        self._aws_access_key_id = aws_access_key_id
+        self._aws_secret_access_key = aws_secret_access_key
+        self._aws_session_token = aws_session_token
+        self._client: Optional[BaseClient] = None
+
+    @property
+    def client(self) -> BaseClient:
+        if not self._client:
+            self._client = client(
+                'apigatewayv2', self._region,
+                aws_access_key_id=self._aws_access_key_id,
+                aws_secret_access_key=self._aws_secret_access_key,
+                aws_session_token=self._aws_session_token
+            )
+            _LOG.debug('Opened new API Gateway connection.')
+        return self._client
+
+    def create_web_socket_api(self, name: str,
+                              route_selection_expression: Optional[
+                                  str] = 'request.body.action') -> str:
+        return self.client.create_api(
+            Name=name,
+            ProtocolType='WEBSOCKET',
+            RouteSelectionExpression=route_selection_expression
+        )['ApiId']
+
+    def create_stage(self, api_id: str, stage_name: str):
+        return self.client.create_stage(
+            ApiId=api_id,
+            StageName=stage_name
+        )
+
+    def create_deployment(self, api_id: str, stage_name: str):
+        return self.client.create_deployment(
+            ApiId=api_id,
+            StageName=stage_name
+        )
+
+    def get_api_by_name(self, name: str) -> Optional[dict]:
+        return next((api for api in self.client.get_apis()['Items']
+                     if api['Name'] == name), None)
+
+    def delete_api(self, api_id: str):
+        return self.client.delete_api(
+            ApiId=api_id
+        )
