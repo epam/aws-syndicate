@@ -23,8 +23,8 @@ POLICY_LAMBDA_BASIC_EXECUTION = "lambda-basic-execution"
 
 LAMBDA_ROLE_NAME_PATTERN = '{0}-role'  # 0 - lambda_name
 
-SRC_MAIN_JAVA = '/src/main/java'
-FILE_POM = '/pom.xml'
+SRC_MAIN_JAVA = 'jsrc/main/java'
+FILE_POM = 'pom.xml'
 CANCEL_MESSAGE = 'Creating of {} has been canceled.'
 
 JAVA_LAMBDA_HANDLER_CLASS = """package {java_package_name};
@@ -65,7 +65,11 @@ JAVA_ROOT_POM_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
 
     <properties>
         <maven-shade-plugin.version>3.2.0</maven-shade-plugin.version>
-        <deployment-configuration-annotations.version>1.5.8</deployment-configuration-annotations.version>
+        <deployment-configuration-annotations.version>1.8.0</deployment-configuration-annotations.version>
+        <maven.compiler.source>1.8</maven.compiler.source>
+        <maven.compiler.target>1.8</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <src.dir>jsrc/main/java</src.dir>
     </properties>
 
     <dependencies>
@@ -84,6 +88,7 @@ JAVA_ROOT_POM_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
     </dependencies>
 
     <build>
+        <sourceDirectory>${src.dir}</sourceDirectory>
         <plugins>
             <plugin>
                 <groupId>net.sf.aws-syndicate</groupId>
@@ -138,15 +143,30 @@ JAVA_ROOT_POM_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
 </project>
 """
 
-PYTHON_LAMBDA_HANDLER_TEMPLATE = """import json
+PYTHON_LAMBDA_HANDLER_TEMPLATE = """from commons.log_helper import get_logger
+from commons.abstract_lambda import AbstractLambda
+
+_LOG = get_logger('LambdaName-handler')
+
+
+class LambdaName(AbstractLambda):
+
+    def validate_request(self, event) -> dict:
+        pass
+        
+    def handle_request(self, event, context):
+        \"\"\"
+        Explain incoming event here
+        \"\"\"
+        # todo implement business logic
+        return 200
+    
+
+HANDLER = LambdaName()
 
 
 def lambda_handler(event, context):
-    # TODO implement
-    return {
-        'statusCode': 200,
-        'body': json.dumps('Hello from Lambda!')
-    }
+    return HANDLER.lambda_handler(event=event, context=context)
 """
 
 NODEJS_LAMBDA_HANDLER_TEMPLATE = """exports.handler = async (event) => {
@@ -159,6 +179,277 @@ NODEJS_LAMBDA_HANDLER_TEMPLATE = """exports.handler = async (event) => {
 };
 """
 
+GITIGNORE_CONTENT = """.syndicate
+logs/
+"""
+
+CHANGELOG_TEMPLATE = """# Changelog
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [1.0.0] - yyyy-MM-dd
+### Added
+    -  Added items
+
+### Changed
+    -  Changed items 
+
+### Removed
+    -  Removed items 
+"""
+
+README_TEMPLATE = """# project_name
+
+High level project overview - business value it brings, non-detailed technical overview.
+
+### Notice
+All the technical details described below are actual for the particular
+version, or a range of versions of the software.
+### Actual for versions: 1.0.0
+
+## project_name diagram
+
+![project_name](pics/project_name_diagram.png)
+
+## Lambdas descriptions
+
+### Lambda `lambda-name`
+Lambda feature overview.
+
+### Required configuration
+#### Environment variables
+* environment_variable_name: description
+
+#### Trigger event
+```buildoutcfg
+{
+    "key": "value",
+    "key1": "value1",
+    "key2": "value3"
+}
+```
+* key: [Required] description of key
+* key1: description of key1
+
+#### Expected response
+```buildoutcfg
+{
+    "status": 200,
+    "message": "Operation succeeded"
+}
+```
+---
+
+## Deployment from scratch
+1. action 1 to deploy the software
+2. action 2
+...
+
+"""
+
+ABSTRACT_LAMBDA_CONTENT = """from abc import abstractmethod
+
+from commons import ApplicationException, build_response
+from commons.log_helper import get_logger
+
+_LOG = get_logger('abstract-lambda')
+
+
+class AbstractLambda:
+
+    @abstractmethod
+    def validate_request(self, event) -> dict:
+        \"\"\"
+        Validates event attributes
+        :param event: lambda incoming event
+        :return: dict with attribute_name in key and error_message in value
+        \"\"\"
+        pass
+
+    @abstractmethod
+    def handle_request(self, event, context):
+        \"\"\"
+        Inherited lambda function code
+        :param event: lambda event
+        :param context: lambda context
+        :return:
+        \"\"\"
+        pass
+
+    def lambda_handler(self, event, context):
+        try:
+            _LOG.debug(f'Request: {event}')
+            if event.get('warm_up'):
+                return
+            errors = self.validate_request(event=event)
+            if errors:
+                return build_response(code=400,
+                                      content=errors)
+            execution_result = self.handle_request(event=event,
+                                                   context=context)
+            _LOG.debug(f'Response: {execution_result}')
+            return execution_result
+        except ApplicationException as e:
+            _LOG.error(f'Error occurred; Event: {event}; Error: {e}')
+            return build_response(code=e.code,
+                                  content=e.content)
+        except Exception as e:
+            _LOG.error(
+                f'Unexpected error occurred; Event: {event}; Error: {e}')
+            return build_response(code=500,
+                                  content='Internal server error')
+"""
+
+INIT_CONTENT = """from commons.exception import ApplicationException
+
+RESPONSE_BAD_REQUEST_CODE = 400
+RESPONSE_UNAUTHORIZED = 401
+RESPONSE_FORBIDDEN_CODE = 403
+RESPONSE_RESOURCE_NOT_FOUND_CODE = 404
+RESPONSE_OK_CODE = 200
+RESPONSE_INTERNAL_SERVER_ERROR = 500
+RESPONSE_NOT_IMPLEMENTED = 501
+RESPONSE_SERVICE_UNAVAILABLE_CODE = 503
+
+
+def build_response(content, code=200):
+    if code == RESPONSE_OK_CODE:
+        return {
+            'code': code,
+            'body': content
+        }
+    raise ApplicationException(
+        code=code,
+        content=content
+    )
+
+
+def raise_error_response(code, content):
+    raise ApplicationException(code=code, content=content)
+"""
+
+EXCEPTION_CONTENT = """class ApplicationException(Exception):
+
+    def __init__(self, code, content):
+        self.code = code
+        self.content = content
+
+    def __str__(self):
+        return f'{self.code}:{self.content}'
+"""
+
+LOG_HELPER_CONTENT = """import logging
+import os
+from sys import stdout
+
+_name_to_level = {
+    'CRITICAL': logging.CRITICAL,
+    'FATAL': logging.FATAL,
+    'ERROR': logging.ERROR,
+    'WARNING': logging.WARNING,
+    'INFO': logging.INFO,
+    'DEBUG': logging.DEBUG
+}
+
+logger = logging.getLogger(__name__)
+logger.propagate = False
+console_handler = logging.StreamHandler(stream=stdout)
+console_handler.setFormatter(
+    logging.Formatter('%(asctime)s - %(levelname)s - %(name)s - %(message)s'))
+logger.addHandler(console_handler)
+
+
+log_level = _name_to_level.get(os.environ.get('log_level'))
+if not log_level:
+    log_level = logging.INFO
+logging.captureWarnings(True)
+
+
+def get_logger(log_name, level=log_level):
+    module_logger = logger.getChild(log_name)
+    if level:
+        module_logger.setLevel(level)
+    return module_logger
+"""
+
+PYTHON_TESTS_INIT_CONTENT = \
+"""import sys
+from pathlib import Path
+
+SOURCE_FOLDER = 'src'
+
+
+class ImportFromSourceContext:
+    \"\"\"Context object to import lambdas and packages. It's necessary because
+    root path is not the path to the syndicate project but the path where
+    lambdas are accumulated - SOURCE_FOLDER \"\"\"
+
+    def __init__(self, source_folder=SOURCE_FOLDER):
+        self.source_folder = source_folder
+        self.assert_source_path_exists()
+
+    @property
+    def project_path(self) -> Path:
+        return Path(__file__).parent.parent
+
+    @property
+    def source_path(self) -> Path:
+        return Path(self.project_path, self.source_folder)
+
+    def assert_source_path_exists(self):
+        source_path = self.source_path
+        if not source_path.exists():
+            print(f'Source path "{source_path}" does not exist.',
+                  file=sys.stderr)
+            sys.exit(1)
+
+    def _add_source_to_path(self):
+        source_path = str(self.source_path)
+        if source_path not in sys.path:
+            sys.path.append(source_path)
+
+    def _remove_source_from_path(self):
+        source_path = str(self.source_path)
+        if source_path in sys.path:
+            sys.path.remove(source_path)
+
+    def __enter__(self):
+        self._add_source_to_path()
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self._remove_source_from_path()
+
+"""
+
+PYTHON_TESTS_INIT_LAMBDA_TEMPLATE = \
+"""import unittest
+import importlib
+from tests import ImportFromSourceContext
+
+with ImportFromSourceContext():
+    LAMBDA_HANDLER = importlib.import_module('lambdas.{lambda_name}.handler')
+
+
+class {camel_lambda_name}LambdaTestCase(unittest.TestCase):
+    \"\"\"Common setups for this lambda\"\"\"
+
+    def setUp(self) -> None:
+        self.HANDLER = LAMBDA_HANDLER.{camel_lambda_name}()
+
+"""
+
+PYTHON_TESTS_BASIC_TEST_CASE_TEMPLATE = \
+"""from tests.{test_lambda_folder} import {camel_lambda_name}LambdaTestCase
+
+
+class TestSuccess({camel_lambda_name}LambdaTestCase):
+
+    def test_success(self):
+        self.assertEqual(self.HANDLER.handle_request(dict(), dict()), 200)
+
+"""
 
 def _stringify(dict_content):
     return json.dumps(dict_content, indent=2)
@@ -179,7 +470,9 @@ def _generate_python_node_lambda_config(lambda_name, lambda_relative_path):
         'event_sources': [],
         'env_variables': {},
         'publish_version': True,
-        'alias': _alias_variable(LAMBDAS_ALIASES_NAME_CFG)
+        'alias': _alias_variable(LAMBDAS_ALIASES_NAME_CFG),
+        'url_config': {},
+        'ephemeral_storage': 512
     })
 
 
@@ -190,7 +483,7 @@ def _generate_nodejs_node_lambda_config(lambda_name, lambda_relative_path):
         'func_name': 'index.handler',
         'resource_type': 'lambda',
         'iam_role_name': LAMBDA_ROLE_NAME_PATTERN.format(lambda_name),
-        'runtime': 'nodejs10.x',
+        'runtime': 'nodejs14.x',
         'memory': 128,
         'timeout': 100,
         'lambda_path': lambda_relative_path,
@@ -198,7 +491,9 @@ def _generate_nodejs_node_lambda_config(lambda_name, lambda_relative_path):
         'event_sources': [],
         'env_variables': {},
         'publish_version': True,
-        'alias': _alias_variable(LAMBDAS_ALIASES_NAME_CFG)
+        'alias': _alias_variable(LAMBDAS_ALIASES_NAME_CFG),
+        'url_config': {},
+        'ephemeral_storage': 512
     })
 
 
@@ -207,7 +502,7 @@ def _generate_package_nodejs_lambda(lambda_name):
         "name": lambda_name,
         "version": "1.0.0",
         "description": "",
-        "main": FILE_LAMBDA_HANDLER_NODEJS[1:],
+        "main": FILE_LAMBDA_HANDLER_NODEJS,
         "scripts": {},
         "author": "",
         "license": "ISC",
@@ -236,11 +531,13 @@ def _get_lambda_default_policy():
                             "logs:CreateLogGroup",
                             "logs:CreateLogStream",
                             "logs:PutLogEvents",
-                            "dynamodb:Get*",
-                            "dynamodb:Put*",
-                            "dynamodb:Describe*",
-                            "xray:PutTraceSegments",
-                            "xray:PutTelemetryRecords",
+                            "dynamodb:GetItem",
+                            "dynamodb:Query",
+                            "dynamodb:PutItem",
+                            "dynamodb:Batch*",
+                            "dynamodb:DeleteItem",
+                            "ssm:PutParameter",
+                            "ssm:GetParameter",
                             "kms:Decrypt"
                         ],
                         "Effect": "Allow",

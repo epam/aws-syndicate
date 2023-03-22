@@ -22,7 +22,7 @@ from syndicate.core.build.runtime.nodejs import assemble_node_lambdas
 from syndicate.core.build.runtime.python import assemble_python_lambdas
 
 RUNTIME_JAVA_8 = 'java8'
-RUNTIME_NODEJS = 'nodejs10.x'
+RUNTIME_NODEJS = 'nodejs14.x'
 RUNTIME_PYTHON = 'pythonX'
 
 SUPPORTED_RUNTIMES = [
@@ -48,8 +48,7 @@ def assemble_artifacts(bundle_name, project_path, runtime):
                                                      SUPPORTED_RUNTIMES))
 
     bundle_dir = resolve_bundle_directory(bundle_name=bundle_name)
-    if not os.path.exists(bundle_dir):
-        os.makedirs(bundle_dir)
+    os.makedirs(bundle_dir, exist_ok=True)
     _LOG.debug('Target directory: {0}'.format(bundle_dir))
 
     assemble_func = RUNTIME_TO_BUILDER_MAPPING.get(runtime)

@@ -17,6 +17,9 @@ import json
 
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.conf.processor import GLOBAL_AWS_SERVICES
+from typing import TypeVar, Optional
+
+T = TypeVar('T')
 
 _LOG = get_logger('syndicate.core.resources.helper')
 
@@ -85,8 +88,17 @@ def chunks(l, n):
         yield l[i:i + n]
 
 
-def resolve_dynamic_identifier(name, value, dict):
-    return json.loads(json.dumps(dict).replace(name, value))
+def resolve_dynamic_identifier(to_replace, resource_meta):
+    """
+    Replaces keys from 'to_replace' with values from it inside json built
+    from 'resource_meta'
+    :type to_replace: dict
+    :type resource_meta: dict
+    """
+    raw_json = json.dumps(resource_meta)
+    for name, value in to_replace.items():
+        raw_json = raw_json.replace(name, value)
+    return json.loads(raw_json)
 
 
 def build_description_obj(response, name, meta):
@@ -115,6 +127,14 @@ def assert_required_params(required_params_names, all_params):
         raise AssertionError(f'Missing required parameters: {missing}')
 
 
+def assert_possible_values(iterable: list, possible: list):
+    if not set(iterable).issubset(set(possible)):
+        message = f'Incorrect values in given iteramble: {iterable}. ' \
+                  f'Must be a subset of these: {possible}'
+        _LOG.error(message)
+        raise AssertionError(message)
+
+
 def filter_dict_by_shape(d, shape):
     new_d = {}
     for attribute, value in shape.items():
@@ -139,3 +159,11 @@ def filter_list_by_shape(lst, shape):
             new_lst.append(filter_dict_by_shape(d, shape[0]))
 
     return new_lst
+
+
+def if_updated(new: T, old: T) -> Optional[T]:
+    """
+    If `new` differs from `old` it `new` will be returned.
+    If it does not, None is returned. They must be comparable
+    """
+    return new if new != old else None

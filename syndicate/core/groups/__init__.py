@@ -13,6 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-PROJECT_JAVA = 'java'
-PROJECT_NODEJS = 'nodejs'
-PROJECT_PYTHON = 'python'
+RUNTIME_JAVA = 'java'
+RUNTIME_NODEJS = 'nodejs'
+RUNTIME_PYTHON = 'python'
+RUNTIME = 'runtime'

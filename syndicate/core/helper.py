@@ -15,26 +15,34 @@
 """
 import collections
 import concurrent.futures
-import datetime
+import getpass
 import json
 import os
+import re
 import subprocess
 import sys
+from datetime import datetime, timedelta
 from functools import wraps
 from pathlib import Path
 from threading import Thread
 from time import time
+from signal import SIGINT
 
 import click
 from click import BadParameter
 from tqdm import tqdm
 
-from syndicate.commons.log_helper import get_logger
+from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.conf.processor import path_resolver
+from syndicate.core.conf.validator import ConfigValidator, ALL_REGIONS
 from syndicate.core.constants import (ARTIFACTS_FOLDER, BUILD_META_FILE_NAME,
-                                      DEFAULT_SEP)
+                                      DEFAULT_SEP, DATE_FORMAT_ISO_8601)
+from syndicate.core.project_state.project_state import MODIFICATION_LOCK, \
+    WARMUP_LOCK, ProjectState
+from syndicate.core.project_state.sync_processor import sync_project_state
 
 _LOG = get_logger('syndicate.core.helper')
+USER_LOG = get_user_logger()
 
 CONF_PATH = os.environ.get('SDCT_CONF')
 
@@ -72,6 +80,9 @@ def exit_on_exception(handler_func):
             return handler_func(*args, **kwargs)
         except Exception as e:
             _LOG.exception("Error occurred: %s", str(e))
+            from syndicate.core import PROJECT_STATE
+            PROJECT_STATE.release_lock(MODIFICATION_LOCK)
+            sync_project_state()
             sys.exit(1)
 
     return wrapper
@@ -144,44 +155,118 @@ def resolve_aliases_for_string(string_value):
         return input_string
 
 
-def check_required_param(ctx, param, value):
-    if not value:
-        raise BadParameter('Parameter is required')
-    return value
-
-
 def resolve_path_callback(ctx, param, value):
     if not value:
         raise BadParameter('Parameter is required')
     return path_resolver(value)
 
 
-def create_bundle_callback(ctx, param, value):
+def generate_default_bundle_name(ctx, param, value):
+    if value:
+        return value
     from syndicate.core import CONFIG
-    bundle_path = os.path.join(CONFIG.project_path, ARTIFACTS_FOLDER, value)
+    # regex to replace all special characters except dash, underscore and dot
+    pattern = re.compile('[^0-9a-zA-Z.\-_]')
+    project_path = CONFIG.project_path
+    project_name = project_path.split("/")[-1]
+    result_project_name = re.sub(pattern, '', project_name)
+    date = datetime.now().strftime("%y%m%d.%H%M%S")
+    bundle_name = f'{result_project_name}_{date}'
+    if len(bundle_name) > 63:
+        USER_LOG.warn(f'Bundle name \'{bundle_name}\' is too long. Trim it to '
+                      f'the last 63 characters. Please rename project to '
+                      f'shorter name to avoid this warning.')
+        return bundle_name[-63:]
+    return bundle_name
+
+
+def resolve_default_bundle_name(command_name):
+    from syndicate.core import PROJECT_STATE
+    if command_name == 'clean':
+        bundle_name = PROJECT_STATE.latest_deployed_bundle_name
+    else:
+        bundle_name = PROJECT_STATE.latest_bundle_name
+    if not bundle_name:
+        click.echo('Property \'bundle\' is not specified and could '
+                   'not be resolved due to absence of data about the '
+                   'latest build operation')
+        return
+    return bundle_name
+
+
+def resolve_default_deploy_name(command_name):
+    from syndicate.core import PROJECT_STATE
+    if command_name == 'clean':
+        deploy_name = PROJECT_STATE.latest_deployed_deploy_name
+    else:
+        deploy_name = PROJECT_STATE.default_deploy_name
+
+    return deploy_name
+
+
+param_resolver_map = {
+    'bundle_name': resolve_default_bundle_name,
+    'deploy_name': resolve_default_deploy_name
+}
+
+
+def resolve_default_value(ctx, param, value):
+    if value:
+        return value
+    sync_project_state()
+    command_name = ctx.info_name
+    param_resolver = param_resolver_map.get(param.name)
+    if not param_resolver:
+        raise AssertionError(
+            f'There is no resolver of default value '
+            f'for param {param.name}')
+    resolved_value = param_resolver(command_name=command_name)
+    USER_LOG.info(f'Resolved value of {param.name}: {resolved_value}')
+    return resolved_value
+
+
+def create_bundle_callback(ctx, param, value):
+    from syndicate.core.build.helper import resolve_bundle_directory
+    if not value:
+        raise BadParameter('Parameter is required')
+    bundle_path = resolve_bundle_directory(value)
     if not os.path.exists(bundle_path):
         os.makedirs(bundle_path)
     return value
 
 
 def verify_bundle_callback(ctx, param, value):
-    from syndicate.core import CONFIG
-    bundle_path = os.path.join(CONFIG.project_path, ARTIFACTS_FOLDER, value)
+    from syndicate.core.build.helper import resolve_bundle_directory
+    bundle_path = resolve_bundle_directory(value)
     if not os.path.exists(bundle_path):
-        raise AssertionError("Bundle name does not exist. Please, invoke "
-                             "'build_artifacts' command to create a bundle.")
+        raise click.BadParameter(
+            "Bundle name does not exist. Please, invoke "
+            "'syndicate assemble' command to create a bundle.")
     return value
 
 
 def verify_meta_bundle_callback(ctx, param, value):
-    bundle_path = build_path(CONF_PATH, ARTIFACTS_FOLDER, value)
+    from syndicate.core.build.helper import resolve_bundle_directory
+    bundle_path = resolve_bundle_directory(value)
     build_meta_path = os.path.join(bundle_path, BUILD_META_FILE_NAME)
     if not os.path.exists(build_meta_path):
-        raise AssertionError(
+        raise click.BadParameter(
             "Bundle name is incorrect. {0} does not exist. Please, invoke "
             "'package_meta' command to create a file.".format(
                 BUILD_META_FILE_NAME))
     return value
+
+
+def resolve_and_verify_bundle_callback(ctx, param, value):
+    if not value:
+        _LOG.debug(f'{param.name} is not specified, latest build will be used')
+        value = resolve_default_value(ctx, param, value)
+        if not value:
+            raise click.BadParameter(
+                f'Couldn\'t resolve the parameter automatically. '
+                f'Try to specify it manually'
+            )
+    return verify_meta_bundle_callback(ctx, param, value)
 
 
 def write_content_to_file(file_path, file_name, obj):
@@ -198,17 +283,66 @@ def write_content_to_file(file_path, file_name, obj):
         _LOG.info('{0} file was created.'.format(meta_file.name))
 
 
-def timeit(handler_func):
-    @wraps(handler_func)
-    def timed(*args, **kwargs):
-        ts = time()
-        result = handler_func(*args, **kwargs)
-        te = time()
-        _LOG.info('Stage %s, elapsed time: %s', handler_func.__name__,
-                  str(datetime.timedelta(seconds=te - ts)))
-        return result
+def sync_lock(lock_type):
+    def real_wrapper(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            sync_project_state()
+            from syndicate.core import PROJECT_STATE
+            if PROJECT_STATE.is_lock_free(lock_type):
+                PROJECT_STATE.acquire_lock(lock_type)
+                sync_project_state()
+            else:
+                raise AssertionError(f'The project {lock_type} is locked.')
+            try:
+                func(*args, **kwargs)
+            except Exception as e:
+                _LOG.exception("Error occurred: %s", str(e))
+                from syndicate.core import PROJECT_STATE
+                PROJECT_STATE.release_lock(lock_type)
+                sync_project_state()
+                sys.exit(1)
+            PROJECT_STATE.release_lock(lock_type)
+            sync_project_state()
 
-    return timed
+        return wrapper
+
+    return real_wrapper
+
+
+def timeit(action_name=None):
+    def internal_timeit(func):
+        @wraps(func)
+        def timed(*args, **kwargs):
+            ts = time()
+            result = func(*args, **kwargs)
+            te = time()
+            _LOG.info('Stage %s, elapsed time: %s', func.__name__,
+                      str(timedelta(seconds=te - ts)))
+            if action_name:
+                username = getpass.getuser()
+                duration = round(te - ts, 3)
+                start_date_formatted = datetime.fromtimestamp(ts) \
+                    .strftime(DATE_FORMAT_ISO_8601)
+                end_date_formatted = datetime.fromtimestamp(te) \
+                    .strftime(DATE_FORMAT_ISO_8601)
+
+                bundle_name = kwargs.get('bundle_name')
+                deploy_name = kwargs.get('deploy_name')
+                from syndicate.core import PROJECT_STATE
+                PROJECT_STATE.log_execution_event(
+                    operation=action_name,
+                    initiator=username,
+                    bundle_name=bundle_name,
+                    deploy_name=deploy_name,
+                    time_start=start_date_formatted,
+                    time_end=end_date_formatted,
+                    duration_sec=duration)
+            return result
+
+        return timed
+
+    return internal_timeit
 
 
 def execute_parallel_tasks(*fns):
@@ -258,6 +392,34 @@ def dict_keys_to_camel_case(d: dict):
     return new_d
 
 
+def string_to_capitalized_camel_case(s: str):
+    temp = s.split('_')
+    res = ''.join(ele.capitalize() for ele in temp)
+    return res
+
+
+def dict_keys_to_capitalized_camel_case(d: dict):
+    new_d = {}
+    for key, value in d.items():
+        if isinstance(value, (str, int)):
+            new_d[string_to_capitalized_camel_case(key)] = value
+
+        if isinstance(value, list):
+            new_list = []
+            for index, item in enumerate(value):
+                if isinstance(item, (str, int)):
+                    new_list.append(item)
+                if isinstance(item, dict):
+                    new_list.append(dict_keys_to_camel_case(item))
+            new_d[string_to_capitalized_camel_case(key)] = new_list
+
+        if isinstance(value, dict):
+            new_d[string_to_capitalized_camel_case(key)] = \
+                dict_keys_to_camel_case(value)
+
+    return new_d
+
+
 class OrderedGroup(click.Group):
     def __init__(self, name=None, commands=None, **attrs):
         super(OrderedGroup, self).__init__(name, commands, **attrs)
@@ -265,3 +427,182 @@ class OrderedGroup(click.Group):
 
     def list_commands(self, ctx):
         return self.commands
+
+
+class OptionRequiredIf(click.Option):
+    def __init__(self, *args, **kwargs):
+        self.required_if = kwargs.pop('required_if')
+        if not self.required_if:
+            raise AssertionError("'required_if' param must be specified")
+        super().__init__(*args, **kwargs)
+
+    def handle_parse_result(self, ctx, opts, args):
+        is_current_present: bool = self.name in opts
+        is_required_present: bool = self.required_if in opts
+        if is_current_present ^ is_required_present:
+            raise click.UsageError(f"options: '{self.name}' and "
+                                   f"'{self.required_if}' "
+                                   f"must be specified together")
+        else:
+            return super().handle_parse_result(ctx, opts, args)
+
+
+class ValidRegionParamType(click.types.StringParamType):
+    ALL_VALUE = 'ALL'
+    name = 'region'
+
+    def __init__(self, allowed_all=False):
+        self.allowed_all = allowed_all
+
+    def convert(self, value, param, ctx):
+        value = super().convert(value, param, ctx)
+        if self.allowed_all and value.upper() == self.ALL_VALUE:
+            _LOG.info("The value is 'ALL' and 'allowed_all=True', returning..")
+            return value.lower()
+        _LOG.info(f"Checking whether {value} is a valid region...")
+        if value not in ALL_REGIONS:
+            _LOG.error(f"Invalid region '{value}' was given")
+            self.fail(f"Value '{value}' is not a valid region. Try one of "
+                      f"these: {ALL_REGIONS}", param, ctx)
+        _LOG.info(f"Value '{value}' is a valid region, returning..")
+        return value
+
+    def get_metavar(self, param):
+        shorten_regions = [ALL_REGIONS[0], "...", ALL_REGIONS[-1]]
+        if self.allowed_all:
+            shorten_regions.insert(0, self.ALL_VALUE)
+        return f"[{'|'.join(shorten_regions)}]"
+
+
+class DictParamType(click.types.StringParamType):
+    name = 'dict'
+    ITEMS_SEPARATOR = ','
+    KEY_VALUE_SEPARATOR = ':'
+
+    def convert(self, value, param, ctx):
+        value = super().convert(value, param, ctx)
+        _LOG.info(f'Stripping {value} from "{self.ITEMS_SEPARATOR}" a bit..')
+        value = value[1:] if value.startswith(self.ITEMS_SEPARATOR) else value
+        value = value[:-1] if value.endswith(self.ITEMS_SEPARATOR) else value
+        result = {}
+        _LOG.info(f'Converting: {value} to dict..')
+        for item in value.split(self.ITEMS_SEPARATOR):
+            k, v = item.split(self.KEY_VALUE_SEPARATOR)
+            result[k] = v
+        _LOG.info(f'Converted to such a dict: {result}')
+        return result
+
+    def get_metavar(self, param):
+        return f'KEY{self.KEY_VALUE_SEPARATOR}VALUE1' \
+               f'{self.ITEMS_SEPARATOR}KEY2{self.KEY_VALUE_SEPARATOR}VALUE2'
+
+
+def check_bundle_bucket_name(ctx, param, value):
+    try:
+        from syndicate.core.resources.s3_resource import validate_bucket_name
+        validate_bucket_name(value)
+        return value
+    except ValueError as e:
+        raise BadParameter(e.__str__())
+
+
+def check_prefix_suffix_length(ctx, param, value):
+    if value:
+        value = value.lower().strip()
+        result = ConfigValidator.validate_prefix_suffix(param.name, value)
+        if result:
+            raise BadParameter(result)
+        return value
+
+
+def resolve_project_path(ctx, param, value):
+    from syndicate.core import CONFIG
+    if not value:
+        USER_LOG.info(f"Parameter: '{param.name}' wasn't specified. "
+                      f"Getting automatically")
+        value = CONFIG.project_path \
+            if CONFIG and CONFIG.project_path else os.getcwd()
+        USER_LOG.info(f"Path: '{value}' was assigned to the "
+                      f"parameter: '{param.name}'")
+    return value
+
+
+def check_lambda_name(value):
+    """Validates lambda's name"""
+    _LOG.info(f"Validating lambda name: '{value}'")
+    invalid_character = re.search('[^0-9a-zA-Z\-]', value)
+    error = None
+    if not 3 <= len(value) <= 63:
+        error = f'lambda name \'{value}\' length must be between 3 and 63 characters'
+    elif invalid_character:
+        error = f'lambda name \'{value}\' contains invalid characters: ' \
+                f'{invalid_character.group()}'
+    elif value.startswith('-'):
+        error = f"lambda name '{value}' cannot start with '-'"
+    elif value.endswith('-'):
+        error = f"lambda name '{value}' cannot end with '-'"
+    if error:
+        _LOG.error(f"Lambda name validation error: {error}")
+        raise ValueError(error)
+    _LOG.info(f"Lambda name: '{value}' passed the validation")
+
+
+def check_lambdas_names(ctx, param, value):
+    """Applies lambda name validator for each lambda's name"""
+    for lambda_name in value:
+        try:
+            check_lambda_name(lambda_name)
+        except ValueError as e:
+            raise click.BadParameter(e.__str__(), ctx, param)
+    return value
+
+
+def handle_interruption(_num: SIGINT, _frame):
+    """ Meant to handle interruption signal, by releasing any given lock """
+    _naming, _lock_types = 'PROJECT_STATE', (MODIFICATION_LOCK, WARMUP_LOCK)
+    if _num == SIGINT:
+        from syndicate.core import PROJECT_STATE
+        _state = PROJECT_STATE
+        if isinstance(_state, ProjectState):
+            _locked_type = next((each for each in _lock_types
+                                 if not _state.is_lock_free(each)), None)
+            if _locked_type:
+                _LOG.warn(f'Releasing the project state lock {_locked_type},'
+                          'due to user interruption.')
+                _state.release_lock(_locked_type)
+                sync_project_state()
+    sys.exit(_num)
+
+
+def check_lambda_state_consistency(objected_lambdas: list,
+                                   subjected_lambdas: dict, runtime: str):
+    from syndicate.core.groups import RUNTIME
+    return next((True for each in objected_lambdas if subjected_lambdas.get(
+        each, {}).get(RUNTIME) == runtime), False)
+
+
+def delete_none(_dict):
+    """Delete None values recursively"""
+    if isinstance(_dict, dict):
+        for key, value in list(_dict.items()):
+            if isinstance(value, (list, dict, tuple, set)):
+                _dict[key] = delete_none(value)
+            elif value is None or key is None:
+                del _dict[key]
+
+    elif isinstance(_dict, (list, set, tuple)):
+        _dict = type(_dict)(delete_none(item) for item in _dict if item is not None)
+    return _dict
+
+
+def without_zip_ext(name: str) -> str:
+    _zip = '.zip'
+    if name.endswith(_zip):
+        name = name[:-len(_zip)]
+    return name
+
+def zip_ext(name: str) -> str:
+    _zip = '.zip'
+    if not name.endswith(_zip):
+        name = name + _zip
+    return name

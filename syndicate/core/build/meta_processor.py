@@ -27,7 +27,7 @@ from syndicate.core.constants import (API_GATEWAY_TYPE, ARTIFACTS_FOLDER,
                                       LAMBDA_CONFIG_FILE_NAME, LAMBDA_TYPE,
                                       RESOURCES_FILE_NAME, RESOURCE_LIST,
                                       IAM_ROLE, LAMBDA_LAYER_TYPE,
-                                      S3_PATH_NAME)
+                                      S3_PATH_NAME, LAMBDA_LAYER_CONFIG_FILE_NAME)
 from syndicate.core.helper import (build_path, prettify_json,
                                    resolve_aliases_for_string,
                                    write_content_to_file)
@@ -142,6 +142,32 @@ def _check_duplicated_resources(initial_meta_dict, additional_item_name,
             if init_deploy_stage:
                 additional_item['deploy_stage'] = init_deploy_stage
 
+            init_compression = initial_item.get("minimum_compression_size")
+            if init_compression:
+                additional_comp_size = \
+                    additional_item.get('minimum_compression_size')
+                if additional_comp_size:
+                    _LOG.warn(f"Found 'minimum_compression_size': "
+                              f"{init_compression} inside root "
+                              f"deployment_resources. The value "
+                              f"'{additional_comp_size}' from: "
+                              f"{additional_item} will be overwritten")
+                additional_item['minimum_compression_size'] = init_compression
+
+            # join authorizers
+            initial_authorizers = initial_item.get('authorizers') or {}
+            additional_authorizers = additional_item.get('authorizers') or {}
+            additional_item['authorizers'] = {**initial_authorizers,
+                                              **additional_authorizers}
+            # join models
+            initial_models = initial_item.get('models') or {}
+            additional_models = additional_item.get('models') or {}
+            additional_item['models'] = {**initial_models, **additional_models}
+            # policy statement singleton
+            _pst = initial_item.get('policy_statement_singleton')
+            if 'policy_statement_singleton' not in additional_item and _pst:
+                additional_item['policy_statement_singleton'] = _pst
+
             additional_item = _merge_api_gw_list_typed_configurations(
                 initial_item,
                 additional_item,
@@ -236,20 +262,26 @@ def _populate_s3_path_ebs(meta, bundle_name):
         meta[S3_PATH_NAME] = build_path(bundle_name, deployment_package)
 
 
-def _populate_s3_path(meta, bundle_name):
-    resource_type = meta.get('resource_type')
-    mapping_func = S3_PATH_MAPPING.get(resource_type)
-    if mapping_func:
-        mapping_func(meta, bundle_name)
+def populate_s3_paths(overall_meta, bundle_name):
+    for name, meta in overall_meta.items():
+        resource_type = meta.get('resource_type')
+        mapping_func = S3_PATH_MAPPING.get(resource_type)
+        if mapping_func:
+            mapping_func(meta, bundle_name)
+    return overall_meta
 
 
 RUNTIME_PATH_RESOLVER = {
-    'python2.7': _populate_s3_path_python_node,
+    'python3.6': _populate_s3_path_python_node,
     'python3.7': _populate_s3_path_python_node,
     'python3.8': _populate_s3_path_python_node,
+    'python3.9': _populate_s3_path_python_node,
     'java8': _populate_s3_path_java,
+    'java8.al2': _populate_s3_path_java,
+    'java11': _populate_s3_path_java,
     'nodejs10.x': _populate_s3_path_python_node,
-    'nodejs8.10': _populate_s3_path_python_node
+    'nodejs14.x': _populate_s3_path_python_node,
+    'nodejs12.x': _populate_s3_path_python_node
 }
 
 S3_PATH_MAPPING = {
@@ -269,7 +301,7 @@ def _look_for_configs(nested_files, resources_meta, path, bundle_name):
     :type path: str
     """
     for each in nested_files:
-        if each.endswith(LAMBDA_CONFIG_FILE_NAME):
+        if each.endswith(LAMBDA_CONFIG_FILE_NAME) or each.endswith(LAMBDA_LAYER_CONFIG_FILE_NAME):
             lambda_config_path = os.path.join(path, each)
             _LOG.debug('Processing file: {0}'.format(lambda_config_path))
             with open(lambda_config_path) as data_file:
@@ -277,7 +309,6 @@ def _look_for_configs(nested_files, resources_meta, path, bundle_name):
 
             lambda_name = lambda_conf['name']
             _LOG.debug('Found lambda: {0}'.format(lambda_name))
-            _populate_s3_path(lambda_conf, bundle_name)
             res = _check_duplicated_resources(resources_meta, lambda_name,
                                               lambda_conf)
             if res:
@@ -307,7 +338,6 @@ def _look_for_configs(nested_files, resources_meta, path, bundle_name):
                         " Please, add new creation function or change "
                         "resource name with existing one.".format(
                             resource_type))
-                _populate_s3_path(resource, bundle_name)
                 res = _check_duplicated_resources(resources_meta,
                                                   resource_name, resource)
                 if res:
@@ -328,10 +358,11 @@ def create_resource_json(project_path, bundle_name):
 
         _look_for_configs(nested_items, resources_meta, path, bundle_name)
 
+    meta_for_validation = _resolve_aliases(resources_meta)
     # check if all dependencies were described
     common_validator = VALIDATOR_BY_TYPE_MAPPING[ALL_TYPES]
-    for name, meta in resources_meta.items():
-        common_validator(resource_meta=meta, all_meta=resources_meta)
+    for name, meta in meta_for_validation.items():
+        common_validator(resource_meta=meta, all_meta=meta_for_validation)
 
         resource_type = meta['resource_type']
         type_validator = VALIDATOR_BY_TYPE_MAPPING.get(resource_type)
@@ -377,13 +408,11 @@ def create_meta(project_path, bundle_name):
 def resolve_meta(overall_meta):
     from syndicate.core import CONFIG
     iam_suffix = _resolve_iam_suffix(iam_suffix=CONFIG.iam_suffix)
-    if CONFIG.aliases:
-        for key, value in CONFIG.aliases.items():
-            name = '${' + key + '}'
-            overall_meta = resolve_dynamic_identifier(name, str(value),
-                                                      overall_meta)
-            _LOG.debug('Resolved meta was created')
+    overall_meta = _resolve_aliases(overall_meta)
+    _LOG.debug('Resolved meta was created')
     _LOG.debug(prettify_json(overall_meta))
+    _resolve_permissions_boundary(overall_meta)
+    _LOG.debug('Permissions boundary were resolved')
     # get dict with resolved prefix and suffix in meta resources
     # key: current_name, value: resolved_name
     resolved_names = {}
@@ -405,6 +434,28 @@ def resolve_meta(overall_meta):
         overall_meta[resolved_name] = overall_meta.pop(current_name)
         _resolve_names_in_meta(overall_meta, current_name, resolved_name)
     return overall_meta
+
+
+def _resolve_aliases(overall_meta):
+    """
+    :type overall_meta: dict
+    """
+    from syndicate.core import CONFIG
+    if CONFIG.aliases:
+        aliases = {'${' + key + '}': str(value) for key, value in
+                   CONFIG.aliases.items()}
+        overall_meta = resolve_dynamic_identifier(aliases, overall_meta)
+    return overall_meta
+
+
+def _resolve_permissions_boundary(overall_meta):
+    """Adds to every resource with resource_type IAM_ROLE permissions boundary
+    from the config"""
+    from syndicate.core import CONFIG
+    if CONFIG.iam_permissions_boundary:
+        for name, meta in overall_meta.items():
+            if meta.get('resource_type') == IAM_ROLE:
+                meta['permissions_boundary'] = CONFIG.iam_permissions_boundary
 
 
 def resolve_resource_name(resource_name, prefix=None, suffix=None):

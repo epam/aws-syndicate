@@ -20,18 +20,21 @@ from configobj import ConfigObj
 from validate import Validator, VdtTypeError
 
 from syndicate.commons.log_helper import get_logger
-from syndicate.core.conf.validator import (PROJECT_PATH_CFG, REGION_CFG,
-                                           DEPLOY_TARGET_BUCKET_CFG,
-                                           ACCOUNT_ID_CFG,
-                                           PROJECTS_MAPPING_CFG,
-                                           AWS_ACCESS_KEY_ID_CFG,
-                                           RESOURCES_PREFIX_CFG,
-                                           RESOURCES_SUFFIX_CFG,
-                                           AWS_SECRET_ACCESS_KEY_CFG,
-                                           ALL_REGIONS, ALLOWED_BUILD_TOOLS,
-                                           ConfigValidator)
+from syndicate.core.conf.validator import \
+    (PROJECT_PATH_CFG, REGION_CFG, DEPLOY_TARGET_BUCKET_CFG,
+     ACCOUNT_ID_CFG, PROJECTS_MAPPING_CFG, AWS_ACCESS_KEY_ID_CFG,
+     RESOURCES_PREFIX_CFG, RESOURCES_SUFFIX_CFG, AWS_SECRET_ACCESS_KEY_CFG,
+     ALL_REGIONS, ALLOWED_RUNTIME_LANGUAGES, ConfigValidator,
+     USE_TEMP_CREDS_CFG, SERIAL_NUMBER_CFG,
+     TEMP_AWS_ACCESS_KEY_ID_CFG, TEMP_AWS_SECRET_ACCESS_KEY_CFG,
+     TEMP_AWS_SESSION_TOKEN_CFG, EXPIRATION_CFG, TAGS_CFG,
+     IAM_PERMISSIONS_BOUNDARY_CFG)
 from syndicate.core.constants import (DEFAULT_SEP, IAM_POLICY, IAM_ROLE,
                                       S3_BUCKET_TYPE)
+
+from syndicate.core.conf.bucket_view import \
+    AbstractBucketView, AbstractViewDigest
+from typing import Union
 
 CONFIG_FILE_NAME = 'syndicate.yml'
 ALIASES_FILE_NAME = 'syndicate_aliases.yml'
@@ -54,7 +57,9 @@ REQUIRED_PARAMETERS = {
 
 ALL_CONFIG_PARAMETERS = [
     AWS_ACCESS_KEY_ID_CFG, AWS_SECRET_ACCESS_KEY_CFG,
-    RESOURCES_PREFIX_CFG, RESOURCES_SUFFIX_CFG
+    RESOURCES_PREFIX_CFG, RESOURCES_SUFFIX_CFG,
+    TEMP_AWS_ACCESS_KEY_ID_CFG, TEMP_AWS_SECRET_ACCESS_KEY_CFG,
+    TEMP_AWS_SESSION_TOKEN_CFG, EXPIRATION_CFG
 ]
 ALL_CONFIG_PARAMETERS.extend(REQUIRED_PARAMETERS.keys())
 
@@ -63,11 +68,9 @@ ERROR_MESSAGE_MAPPING = {
     REGION_CFG: "is invalid. Valid options: " + str(ALL_REGIONS),
     DEPLOY_TARGET_BUCKET_CFG: 'length must be between 3 and 63 characters',
     ACCOUNT_ID_CFG: 'must be 12-digit number',
-    PROJECTS_MAPPING_CFG: "must be as a mapping of build tool to project "
-                          "path, separated by ';'. Build tool name "
-                          "and project path should be separated by ':'."
-                          " Allowed build "
-                          "tools values: " + str(ALLOWED_BUILD_TOOLS),
+    PROJECTS_MAPPING_CFG: "must be as a mapping of runtime language to "
+                          "project path. Allowed runtime language values: "
+                          + str(ALLOWED_RUNTIME_LANGUAGES),
     RESOURCES_PREFIX_CFG: 'length must be less than or equal to 5',
     RESOURCES_SUFFIX_CFG: 'length must be less than or equal to 5'
 }
@@ -100,32 +103,47 @@ def _project_mapping(value):
         items = mapping.split(':')
         if len(items) != 2:
             raise VdtTypeError(value)
-        if items[0] not in ALLOWED_BUILD_TOOLS:
+        if items[0] not in ALLOWED_RUNTIME_LANGUAGES:
             raise VdtTypeError(value)
     return value
 
 
 class ConfigHolder:
     def __init__(self, dir_path):
-        con_path = os.path.join(dir_path, CONFIG_FILE_NAME)
+        con_path_yml = os.path.join(dir_path, CONFIG_FILE_NAME)
+        con_path_yaml = os.path.join(dir_path,
+                                     CONFIG_FILE_NAME.replace('yml', 'yaml'))
+        con_path = con_path_yml if \
+            os.path.exists(con_path_yml) else con_path_yaml
+        self._config_path = con_path
         if os.path.isfile(con_path):
             self._init_yaml_config(dir_path=dir_path, con_path=con_path)
         else:
             self._init_ini_config(dir_path=dir_path)
+
+    def _assert_no_errors(self, errors: list):
+        if errors:
+            raise AssertionError(f'The following error occurred '
+                                 f'while {self._config_path} '
+                                 f'parsing: {errors}')
 
     def _init_yaml_config(self, dir_path, con_path):
         config_content = load_yaml_file_content(file_path=con_path)
         if config_content:
             validator = ConfigValidator(config_content)
             errors = validator.validate()
-            if errors:
-                raise AssertionError(f'The following error occurred '
-                                     f'while {con_path} parsing: {errors}')
+            self._assert_no_errors(errors)
+
         self._config_dict = config_content
 
-        aliases_path = os.path.join(dir_path, ALIASES_FILE_NAME)
+        aliases_path_yml = os.path.join(dir_path, ALIASES_FILE_NAME)
+        aliases_path_yaml = os.path.join(
+            dir_path, ALIASES_FILE_NAME.replace('yml', 'yaml'))
+        aliases_path = aliases_path_yml \
+            if os.path.exists(aliases_path_yml) else aliases_path_yaml
         aliases_content = load_yaml_file_content(file_path=aliases_path)
         self._aliases = aliases_content
+        self._aliases.update(self.default_aliases)
 
     def _init_ini_config(self, dir_path):
         con_path = os.path.join(dir_path, LEGACY_CONFIG_FILE_NAME)
@@ -142,6 +160,22 @@ class ConfigHolder:
                       'inside %s folder' % dir_path)
         else:
             self._aliases = ConfigObj(alias_path)
+            self._aliases.update(self.default_aliases)
+
+    def set_temp_credentials_to_config(self, temp_aws_access_key_id,
+                                       temp_aws_secret_access_key,
+                                       temp_aws_session_token,
+                                       expiration):
+        content_to_update = {
+            TEMP_AWS_ACCESS_KEY_ID_CFG: temp_aws_access_key_id,
+            TEMP_AWS_SECRET_ACCESS_KEY_CFG: temp_aws_secret_access_key,
+            TEMP_AWS_SESSION_TOKEN_CFG: temp_aws_session_token,
+            EXPIRATION_CFG: expiration
+        }
+        update_file_content(
+            file_path=self._config_path,
+            content=content_to_update
+        )
 
     def _validate_ini(self):
         # building a validator
@@ -181,9 +215,53 @@ class ConfigHolder:
 
             if messages:
                 raise Exception('Configuration is invalid. ' + messages)
+        tags = self._config_dict.get(TAGS_CFG) or {}
+        self._assert_no_errors(ConfigValidator.validate_tags(TAGS_CFG, tags))
 
     def _resolve_variable(self, variable_name):
         return self._config_dict.get(variable_name)
+
+    def _prepare_bucket_view(self) -> Union[None, AbstractBucketView]:
+        """
+        Prepares assigned bucket view instance,
+        by providing the raw config payload.
+        Under circumstances of an error, deletes the previously installed view,
+        which defaults to using the raw format.
+        :return: [None, AbstractBucketView]
+        """
+        view = self.deploy_target_bucket_view
+        raw = self._resolve_variable(DEPLOY_TARGET_BUCKET_CFG)
+        try:
+            view.raw = raw
+            _LOG.info(f'Viewing complement, {view.__class__.__name__},'
+                      ' has been found, setting up the raw data.')
+            return view
+
+        except AttributeError:
+            _LOG.warn('No viewing complement has been found.')
+        except AbstractBucketView.BucketViewRuntimeError:
+            _LOG.warn('Viewing complement set-up has failed.')
+
+        del self.deploy_target_bucket_view
+        return None
+
+    def _resolve_bucket_view_attribute(self, attribute_name: str, default=None):
+        """
+        Retrieves bucket view value respectively to a provided attribute name.
+        """
+        if not isinstance(attribute_name, str):
+            raise KeyError('Name of an attribute must be a string.')
+        view = self.deploy_target_bucket_view
+        if view and not view.raw:
+            view = self._prepare_bucket_view()
+        return getattr(view, attribute_name, default)
+
+    @property
+    def default_aliases(self):
+        return {
+            ACCOUNT_ID_CFG: self.account_id,
+            REGION_CFG: self.region
+        }
 
     @property
     def project_path(self):
@@ -216,8 +294,37 @@ class ConfigHolder:
         return self._resolve_variable(REGION_CFG)
 
     @property
-    def deploy_target_bucket(self):
-        return self._resolve_variable(DEPLOY_TARGET_BUCKET_CFG)
+    def deploy_target_bucket(self) -> str:
+        return self._resolve_bucket_view_attribute('name',
+            self._resolve_variable(DEPLOY_TARGET_BUCKET_CFG)
+        )
+
+    @property
+    def deploy_target_bucket_key_compound(self) -> str:
+        return self._resolve_bucket_view_attribute('key', '')
+
+    @property
+    def deploy_target_bucket_view(self) -> Union[AbstractBucketView, None]:
+        return getattr(self, '_deploy_target_bucket_view', None)
+
+    @deploy_target_bucket_view.setter
+    def deploy_target_bucket_view(self, view: AbstractBucketView):
+        if not isinstance(view, AbstractBucketView):
+            _LOG.error('Bucket view couldn\'t have been set, '
+                       'due to improper type.')
+        elif not isinstance(view.digest, AbstractViewDigest):
+            _LOG.error('Bucket view couldn\'t have been set,'
+                       ' due to unassigned digest-parser property.')
+        else:
+            setattr(self, '_deploy_target_bucket_view', view)
+
+    @deploy_target_bucket_view.deleter
+    def deploy_target_bucket_view(self):
+        delattr(self, '_deploy_target_bucket_view')
+
+    @property
+    def iam_permissions_boundary(self):
+        return self._resolve_variable(IAM_PERMISSIONS_BOUNDARY_CFG)
 
     # mapping build tool : paths to project
     @property
@@ -266,6 +373,41 @@ class ConfigHolder:
     def aliases(self):
         return self._aliases
 
+    @property
+    def use_temp_creds(self):
+        var = self._resolve_variable(USE_TEMP_CREDS_CFG)
+        if isinstance(var, bool):
+            return var
+        elif isinstance(var, str):
+            return var.lower() in ("yes", "true", "t", "1")
+        return False
+
+    @property
+    def serial_number(self):
+        return self._resolve_variable(SERIAL_NUMBER_CFG)
+
+    @property
+    def temp_aws_access_key_id(self):
+        return self._resolve_variable(TEMP_AWS_ACCESS_KEY_ID_CFG)
+
+    @property
+    def temp_aws_secret_access_key(self):
+        return self._resolve_variable(TEMP_AWS_SECRET_ACCESS_KEY_CFG)
+
+    @property
+    def temp_aws_session_token(self):
+        return self._resolve_variable(TEMP_AWS_SESSION_TOKEN_CFG)
+
+    @property
+    def expiration(self):
+        return self._resolve_variable(EXPIRATION_CFG)
+
+    @property
+    def tags(self) -> dict:
+        tags = self._resolve_variable(TAGS_CFG) or {}
+        tags = {k: str(v) for k, v in tags.items()}
+        return tags
+
     def resolve_alias(self, name):
         if self._aliases.get(name):
             return self._aliases[name]
@@ -280,3 +422,23 @@ def load_yaml_file_content(file_path):
         raise AssertionError(f'There is no file by path: {file_path}')
     with open(file_path, 'r') as yaml_file:
         return yaml.load(yaml_file, Loader=yaml.FullLoader)
+
+
+def update_file_content(file_path, content):
+    if file_path.endswith('.yaml') or file_path.endswith('.yml'):
+        update_yaml_file_content(file_path=file_path, content=content)
+    elif file_path.endswith('.conf'):
+        update_ini_file_content(file_path=file_path, content=content)
+
+
+def update_yaml_file_content(file_path, content):
+    file_content = load_yaml_file_content(file_path=file_path)
+    file_content.update(content)
+    with open(file_path, 'w') as yaml_file:
+        yaml.dump(file_content, yaml_file, default_flow_style=False)
+
+
+def update_ini_file_content(file_path, content):
+    config = ConfigObj(file_path, configspec=REQUIRED_PARAMETERS)
+    config.update(content)
+    config.write()

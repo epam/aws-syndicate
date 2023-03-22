@@ -13,6 +13,11 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+import ipaddress
+import string
+import re
+from typing import Optional
+
 from syndicate.commons.log_helper import get_logger
 from syndicate.core import ClientError
 from syndicate.core.helper import unpack_kwargs
@@ -22,10 +27,51 @@ from syndicate.core.resources.helper import build_description_obj, chunks
 _LOG = get_logger('syndicate.core.resources.s3_resource')
 
 
+def validate_bucket_name(bucket_name: str):
+    """Checks whether the given bucket name is valid.
+    If the given name isn't valid, ValueError with an appropriate message
+    is raised.
+    :type bucket_name: str
+    :param bucket_name: the name to check
+    """
+    bucket_name = bucket_name.strip()
+    _LOG.info(f"Starting validating bucket name '{bucket_name}'")
+    error = None
+    if not bucket_name or not 3 <= len(bucket_name) <= 63:
+        error = 'Bucket name must be between 3 and 63 characters long'
+    else:
+        invalid_characters = re.search('[^a-z0-9.-]', bucket_name)
+        if invalid_characters:
+            character = invalid_characters.group()
+            if character in string.ascii_uppercase:
+                error = 'Bucket name must not contain uppercase characters'
+            else:
+                error = f'Bucket name contains invalid characters: {character}'
+        elif any(bucket_name.startswith(symbol) for symbol in '.-'):
+            error = 'Bucket name must start with a lowercase letter or number'
+        elif any(bucket_name.endswith(symbol) for symbol in '.-'):
+            error = 'Bucket name must not end with dash or period'
+        elif '..' in bucket_name:
+            error = 'Bucket name must not contain two adjacent periods'
+        elif '.-' in bucket_name or '-.' in bucket_name:
+            error = 'Bucket name must not contain dash next to period'
+        else:
+            try:
+                ipaddress.ip_address(bucket_name)
+                error = 'Bucket name must not resemble an IP address'
+            except ValueError:
+                pass
+    if error:
+        _LOG.warning(error)
+        raise ValueError(error)
+    _LOG.info(f"Finished validating bucket name '{bucket_name}'")
+
+
 class S3Resource(BaseResource):
 
-    def __init__(self, s3_conn) -> None:
+    def __init__(self, s3_conn, account_id) -> None:
         self.s3_conn = s3_conn
+        self.account_id = account_id
 
     def create_s3_bucket(self, args):
         return self.create_pool(self._create_s3_bucket_from_meta, args)
@@ -63,6 +109,15 @@ class S3Resource(BaseResource):
         cors_configuration = meta.get('cors')
         if cors_configuration:
             self.s3_conn.put_cors(bucket_name=name, rules=cors_configuration)
+        public_access_block = meta.get('public_access_block', {})
+        if not all([isinstance(param, bool) for param in
+                    public_access_block.values()]):
+            message = f'Parameters inside public_access_block should have ' \
+                      f'bool type'
+            _LOG.error(message)
+            raise AssertionError(message)
+        self.s3_conn.put_public_access_block(name,
+                                             **public_access_block)
         return self.describe_bucket(name, meta)
 
     def _delete_objects(self, bucket_name, keys):
@@ -108,3 +163,16 @@ class S3Resource(BaseResource):
                 _LOG.warn('S3 bucket {0} is not found'.format(bucket_name))
             else:
                 raise e
+
+    def build_bucket_arn(self, maybe_arn: str) -> Optional[str]:
+        if not isinstance(maybe_arn, str):
+            return
+        if self.is_bucket_arn(maybe_arn):
+            return maybe_arn
+        return f'arn:aws:s3:::{maybe_arn}'
+
+    @staticmethod
+    def is_bucket_arn(maybe_arn: str) -> bool:
+        # TODO add files keys support to regex
+        return bool(re.match(r'^arn:aws:s3:::[a-z0-9.-]{3,63}/?$',
+                             maybe_arn))

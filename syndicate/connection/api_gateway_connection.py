@@ -15,6 +15,7 @@
 """
 from boto3 import client
 from botocore.exceptions import ClientError
+from secrets import token_hex
 
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import apply_methods_decorator, retry
@@ -221,53 +222,30 @@ class ApiGatewayConnection(object):
         if request_models:
             params['requestModels'] = request_models
         if request_validator:
-            params['requestValidatorId'] = self.create_request_validator(
-                api_id, request_validator)
+            params['requestValidatorId'] = request_validator
         self.client.put_method(**params)
 
-    def create_request_validator(self, api_id, request_validator):
+    def create_request_validator(self, api_id, name: str = None,
+                                 validate_request_body: bool = False,
+                                 validate_request_parameters: bool = False):
         """
-        Helper function to create a request validator. Returns its id.
-
+        Helper function to create a request validator. Returns its id
         :type api_id: str
         :param api_id: Identifier of the associated RestApi.
-        :type request_validator: dict
-        :param request_validator: Dictionary with values to create request
-        validator. It could contains name of validator and validate parameters
-        (validate_request_body, validate_request_parameters or both)
+        :type name: str
+        :param name: name of request validator. If not set, will be generated
+        :type validate_request_body: bool = False
+        :param validate_request_body: whether to validate request body
+        :type validate_request_parameters: bool = False
+        :param validate_request_parameters: whether to validate query params
         :return: str, identifier of created RequestValidator.
         """
-        try:
-            validator_name = request_validator.pop('name')
-        except KeyError:  # not critical error
-            validator_name = None
-
-        request_validator_params = {}
-
-        if ('validate_request_body', True) in request_validator.items():
-            request_validator_params.update({'validateRequestBody': True,
-                                             'name': 'Validate body'})
-        if ('validate_request_parameters', True) in request_validator.items():
-            request_validator_params.update({'validateRequestParameters': True,
-                                             'name': 'Validate query string '
-                                                     'parameters and headers'})
-
-        # Need an additional check for validator name.
-        # If the user wants to validate both the body and the parameters,
-        # the number of 'request_validator_params' parameters will be equal
-        # to three
-        SETTED_PARAMETERS = 3
-
-        if len(request_validator_params) == SETTED_PARAMETERS:
-            request_validator_params.update({'name': 'Validate body, query '
-                                                     'string parameters, '
-                                                     'and headers'})
-        if validator_name:
-            request_validator_params.update({'name': validator_name})
-
-        request_validator_id = self.client.create_request_validator(
-            restApiId=api_id, **request_validator_params)['id']
-        return request_validator_id
+        params = dict(
+            restApiId=api_id,
+            name=name or f'default-validator-name-{token_hex(8)}',
+            validateRequestBody=validate_request_body,
+            validateRequestParameters=validate_request_parameters)
+        return self.client.create_request_validator(**params)['id']
 
     def create_integration(self, api_id, resource_id, method, int_type,
                            integration_method=None, uri=None, credentials=None,
@@ -630,3 +608,52 @@ class ApiGatewayConnection(object):
                 items.extend(response.get('items'))
             position = response.get('position')
         return items
+
+    def get_authorizer(self, rest_api_id, authorizer_id):
+        return self.client.get_authorizer(restApiId=rest_api_id,
+                                          authorizerId=authorizer_id)
+
+    def update_compression_size(self, rest_api_id, compression_size=None):
+        """Enables api compression and sets minimum compression size equal
+        to given param. If the param wasn't given, will be disabled"""
+        patchOperation = {
+            'op': 'replace',
+            'path': '/minimumCompressionSize',
+        }
+        if compression_size:
+            patchOperation['value'] = str(compression_size)
+            _LOG.debug(f'Setting compression size to "{compression_size}"')
+        params = dict(restApiId=rest_api_id)
+        params['patchOperations'] = [patchOperation, ]
+        _LOG.debug(f'Updating rest api with params: "{params}"')
+        return self.client.update_rest_api(**params)
+
+    def create_model(self, rest_api_id, name, content_type, description=None,
+                     schema=None):
+        """Adds a new Model resource to an existing RestApi resource."""
+        _LOG.debug(f'Creating new model "{name}"')
+        params = {
+            'contentType': content_type,
+            'restApiId': rest_api_id,
+            'name': name
+        }
+        if description:
+            params['description'] = description
+        if schema:
+            params['schema'] = schema
+        return self.client.create_model(**params)
+
+    def delete_model(self, rest_api_id, name):
+        _LOG.debug(f'Deleting model "{name}"')
+        return self.client.delete_model(restApiId=rest_api_id, modelName=name)
+
+    def get_model(self, rest_api_id, name, flatten=False):
+        try:
+            return self.client.get_model(restApiId=rest_api_id, modelName=name,
+                                         flatten=flatten)
+        except ClientError as e:
+            if 'NotFoundException' in str(e):
+                _LOG.warn(f'Cannot find model "{name}"')
+                return None
+            else:
+                raise e

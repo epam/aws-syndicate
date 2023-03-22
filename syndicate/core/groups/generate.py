@@ -14,91 +14,160 @@
     limitations under the License.
 """
 import os
-import pathlib
-import click
 
+import click
+from syndicate.core.conf.generator import generate_configuration_files
+from syndicate.core.generators.lambda_function import (
+    generate_lambda_function)
 from syndicate.core.generators.project import (generate_project_structure,
                                                PROJECT_PROCESSORS)
-from syndicate.core.generators.lambda_function import (generate_lambda_function)
-from syndicate.core.helper import (check_required_param, timeit, OrderedGroup)
+from syndicate.core.groups.meta import meta
+from syndicate.core.helper import (timeit, OrderedGroup,
+                                   check_bundle_bucket_name,
+                                   check_prefix_suffix_length,
+                                   resolve_project_path,
+                                   check_lambdas_names, DictParamType)
 
 GENERATE_GROUP_NAME = 'generate'
+GENERATE_PROJECT_COMMAND_NAME = 'project'
+GENERATE_CONFIG_COMMAND_NAME = 'config'
+PROJECT_PATH_HELP = 'Path to project folder. ' \
+                    'Default value: current working directory'
 
 
-@click.group(name=GENERATE_GROUP_NAME, cls=OrderedGroup, chain=True)
+@click.group(name=GENERATE_GROUP_NAME, cls=OrderedGroup)
 def generate():
-    """Manages auto-generating"""
+    """Generates project, lambda or configs"""
 
 
-@generate.command(name='project')
-@click.option('--project_name', nargs=1, callback=check_required_param,
-              help='* The project name')
-@click.option('--lang', nargs=1, callback=check_required_param,
-              help='* The name of programming language that will '
-                   'be used in the project',
-              type=click.Choice(PROJECT_PROCESSORS))
-@click.option('--project_path', nargs=1,
-              help='The path where project structure will be created')
-@click.pass_context
-@timeit
-def project(ctx, project_name, lang, project_path):
+@generate.command(name=GENERATE_PROJECT_COMMAND_NAME)
+@click.option('--name', nargs=1, required=True, help='The project name')
+@click.option('--path', nargs=1,
+              help=PROJECT_PATH_HELP)
+@timeit()
+def project(name, path):
     """
     Generates project with all the necessary components and in a right
     folders/files hierarchy to start developing in a min.
-    :param ctx:
-    :param project_name: the project name
-    :param lang: name of programming language that will be used in the project
-    :param project_path: the path where project structure will be created
-    :return:
     """
-    click.echo('Project name: {}'.format(project_name))
-    click.echo('Language: {}'.format(lang))
+    click.echo(f'Project name: {name}')
 
-    proj_path = pathlib.Path().absolute() if not project_path else project_path
+    proj_path = os.getcwd() if not path else path
     if not os.access(proj_path, os.X_OK | os.W_OK):
-        return ('Incorrect permissions for the provided path {}'.format(
-            proj_path))
-    click.echo('Project path: {}'.format(proj_path))
-    generate_project_structure(project_name=project_name,
-                               project_path=proj_path,
-                               project_language=lang)
+        click.echo(
+            f"Incorrect permissions for the provided path '{proj_path}'")
+        return
+    click.echo(f'Project path: {proj_path}')
+    generate_project_structure(project_name=name,
+                               project_path=proj_path)
 
 
 @generate.command(name='lambda')
-@click.option('--project_name', nargs=1, callback=check_required_param,
-              help='* The project name')
-@click.option('--lang', nargs=1, callback=check_required_param,
-              help='* The name of programming language that will '
-                   'be used in the project',
+@click.option('--name', multiple=True, type=str,
+              required=True, callback=check_lambdas_names,
+              help='(multiple) The lambda function name')
+@click.option('--runtime', required=True,
+              help='Lambda\'s runtime. If multiple lambda names are specified,'
+                   ' the runtime will be applied to all lambdas',
               type=click.Choice(PROJECT_PROCESSORS))
 @click.option('--project_path', nargs=1,
-              help='The path where project structure will be created. '
-                   '(If not specified - will be used current directory)')
-@click.option('--lambda_name', nargs=1, multiple=True, type=str,
-              callback=check_required_param,
-              help='(multiple) * The lambda function name')
-@click.pass_context
-@timeit
-def lambda_function(ctx, project_name, lang, project_path, lambda_name):
+              help="Path to the project folder. Default value: the one "
+                   "from the current config if it exists. "
+                   "Otherwise - the current working directory",
+              callback=resolve_project_path)
+@timeit()
+def lambda_function(name, runtime, project_path):
     """
     Generates required environment for lambda function
-    :param ctx:
-    :param project_name: the project name
-    :param lang: name of programming language that will be used in the project
-    :param project_path: the path where project structure will be created
-    :param lambda_name: the lambda function name (multiple)
-    :return:
     """
-    proj_path = pathlib.Path().absolute() if not project_path else project_path
-    if not os.access(proj_path, os.X_OK | os.W_OK):
-        return ('Incorrect permissions for the provided path {}'.format(
-            proj_path))
+    if not os.access(project_path, os.F_OK):
+        click.echo(f"The provided path {project_path} doesn't exist")
+        return
+    elif not os.access(project_path, os.W_OK) or not os.access(project_path,
+                                                               os.X_OK):
+        click.echo(f"Incorrect permissions for the provided path "
+                   f"'{project_path}'")
+        return
+    click.echo(f'Lambda names: {name}')
+    click.echo(f'Runtime: {runtime}')
+    click.echo(f'Project path: {project_path}')
+    generate_lambda_function(project_path=project_path,
+                             runtime=runtime,
+                             lambda_names=name)
 
-    click.echo('Project name: {}'.format(project_name))
-    click.echo('Language: {}'.format(lang))
-    click.echo('Project path: {}'.format(proj_path))
-    click.echo('Lambda names: {}'.format(str(lambda_name)))
-    generate_lambda_function(project_name=project_name,
-                             project_path=proj_path,
-                             project_language=lang,
-                             lambda_names=lambda_name)
+
+@generate.command(name=GENERATE_CONFIG_COMMAND_NAME)
+@click.option('--name',
+              required=True,
+              help='Name of the configuration to create. '
+                   'Generated config will be created in folder '
+                   '.syndicate-config-{name}. May contain name '
+                   'of the environment')
+@click.option('--region',
+              help='The region that is used to deploy the application',
+              required=True)
+@click.option('--bundle_bucket_name',
+              help='Name of the bucket that is used for uploading artifacts.'
+                   ' It will be created if specified.', required=True,
+              callback=check_bundle_bucket_name)
+@click.option('--access_key',
+              help='AWS access key id that is used to deploy the application. '
+                   'Retrieved from session by default')
+@click.option('--secret_key',
+              help='AWS secret key that is used to deploy the application. '
+                   'Retrieved from session by default')
+@click.option('--config_path',
+              help='Path to store generated configuration file')
+@click.option('--project_path',
+              help=PROJECT_PATH_HELP)
+@click.option('--prefix',
+              help='Prefix that is added to project names while deployment '
+                   'by pattern: {prefix}resource_name{suffix}. '
+                   'Must be less than or equal to 5',
+              callback=check_prefix_suffix_length)
+@click.option('--suffix',
+              help='Suffix that is added to project names while deployment '
+                   'by pattern: {prefix}resource_name{suffix}. '
+                   'Must be less than or equal to 5',
+              callback=check_prefix_suffix_length)
+@click.option('--use_temp_creds', type=bool, default=False,
+              help='Indicates Syndicate to generate and use temporary AWS '
+                   'credentials')
+@click.option('--access_role', type=str,
+              help='Indicates Syndicate to use this role\'s temporary AWS '
+                   'credentials. Cannot be used if \'--use_temp_creds\' is '
+                   'equal to true')
+@click.option('--serial_number', type=str,
+              help='The identification number of the MFA device that is '
+                   'associated with the IAM user which will be used for '
+                   'deployment. If specified MFA token will be asked before '
+                   'making actions')
+@click.option('--tags', type=DictParamType(),
+              help='Tags to add to the config. They will be added to all the '
+                   'resources during deployment')
+@click.option('--iam_permissions_boundary', type=str,
+              help='Common permissions boundary arn to add to all the roles')
+@timeit()
+def config(name, config_path, project_path, region, access_key, secret_key,
+           bundle_bucket_name, prefix, suffix, use_temp_creds, access_role,
+           serial_number, tags, iam_permissions_boundary):
+    """
+    Creates Syndicate configuration files
+    """
+    generate_configuration_files(name=name,
+                                 config_path=config_path,
+                                 project_path=project_path,
+                                 region=region,
+                                 access_key=access_key,
+                                 secret_key=secret_key,
+                                 bundle_bucket_name=bundle_bucket_name,
+                                 prefix=prefix,
+                                 suffix=suffix,
+                                 use_temp_creds=use_temp_creds,
+                                 access_role=access_role,
+                                 serial_number=serial_number,
+                                 tags=tags,
+                                 iam_permissions_boundary=iam_permissions_boundary)
+
+
+generate.add_command(meta)

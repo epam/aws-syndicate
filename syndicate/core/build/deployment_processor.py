@@ -14,11 +14,12 @@
     limitations under the License.
 """
 import concurrent
+import functools
 import json
 from concurrent.futures import ALL_COMPLETED, ThreadPoolExecutor
 from functools import cmp_to_key
 
-from syndicate.commons.log_helper import get_logger
+from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.build.bundle_processor import (create_deploy_output,
                                                    load_deploy_output,
                                                    load_failed_deploy_output,
@@ -26,14 +27,19 @@ from syndicate.core.build.bundle_processor import (create_deploy_output,
                                                    remove_deploy_output,
                                                    remove_failed_deploy_output)
 from syndicate.core.build.helper import _json_serial
-from syndicate.core.build.meta_processor import resolve_meta
+from syndicate.core.build.meta_processor import (resolve_meta,
+                                                 populate_s3_paths,
+                                                 resolve_resource_name)
+
 from syndicate.core.constants import (BUILD_META_FILE_NAME,
                                       CLEAN_RESOURCE_TYPE_PRIORITY,
                                       DEPLOY_RESOURCE_TYPE_PRIORITY,
                                       UPDATE_RESOURCE_TYPE_PRIORITY)
 from syndicate.core.helper import exit_on_exception, prettify_json
 
+
 _LOG = get_logger('syndicate.core.build.deployment_processor')
+USER_LOG = get_user_logger()
 
 
 def get_dependencies(name, meta, resources_dict, resources):
@@ -74,7 +80,7 @@ def _process_resources(resources, handlers_mapping, pass_context=False):
                                         pass_context=pass_context))
                 continue
             elif current_res_type != resource_type:
-                _LOG.info('Processing {0} resources ...'.format(resource_type))
+                USER_LOG.info(f'Processing {resource_type} resources')
                 func = handlers_mapping[resource_type]
                 response = func(args)  # todo exception may be raised here
                 if response:
@@ -86,15 +92,16 @@ def _process_resources(resources, handlers_mapping, pass_context=False):
                                         pass_context=pass_context))
                 resource_type = current_res_type
         if args:
-            _LOG.info('Processing {0} resources ...'.format(resource_type))
+            USER_LOG.info(f'Processing {resource_type} resources')
             func = handlers_mapping[resource_type]
             response = func(args)
             if response:
                 output.update(response)
         return True, output
     except Exception as e:
-        _LOG.exception('Error occurred while {0} '
-                       'resource creating: {1}'.format(resource_type, str(e)))
+        USER_LOG.exception('Error occurred while {0} '
+                           'resource creating: {1}'.format(resource_type,
+                                                           str(e)))
         # args list always contains one item here
         return False, update_failed_output(args[0]['name'], args[0]['meta'],
                                            resource_type, output)
@@ -159,14 +166,14 @@ def clean_resources(output):
             args.append({'arn': arn, 'config': config})
             continue
         elif res_type != resource_type:
-            _LOG.info('Removing {0} resources ...'.format(resource_type))
+            USER_LOG.info('Removing {0} resources ...'.format(resource_type))
             func = PROCESSOR_FACADE.remove_handlers()[resource_type]
             func(args)
             del args[:]
             args.append({'arn': arn, 'config': config})
             resource_type = res_type
     if args:
-        _LOG.info('Removing {0} resources ...'.format(resource_type))
+        USER_LOG.info('Removing {0} resources ...'.format(resource_type))
         func = PROCESSOR_FACADE.remove_handlers()[resource_type]
         func(args)
 
@@ -283,7 +290,12 @@ def create_deployment_resources(deploy_name, bundle_name,
                                 replace_output=False):
     resources = load_meta_resources(bundle_name)
     # validate_deployment_packages(resources)
-    _LOG.info('{0} file was loaded successfully'.format(BUILD_META_FILE_NAME))
+    _LOG.debug('{0} file was loaded successfully'.format(BUILD_META_FILE_NAME))
+
+    resources = resolve_meta(resources)
+    _LOG.debug('Names were resolved')
+    resources = populate_s3_paths(resources, bundle_name)
+    _LOG.debug('Artifacts s3 paths were resolved')
 
     # TODO make filter chain
     if deploy_only_resources:
@@ -301,8 +313,6 @@ def create_deployment_resources(deploy_name, bundle_name,
         resources = dict((k, v) for (k, v) in resources.items() if
                          v['resource_type'] not in excluded_types)
 
-    resources = resolve_meta(resources)
-    _LOG.debug('Names were resolved')
     _LOG.debug(prettify_json(resources))
 
     _LOG.debug('Going to create: {0}'.format(prettify_json(resources)))
@@ -320,20 +330,23 @@ def create_deployment_resources(deploy_name, bundle_name,
     _LOG.info('Going to deploy AWS resources')
     success, output = deploy_resources(resources_list)
     if success:
-        _LOG.info('AWS resources were deployed successfully')
+        USER_LOG.info('AWS resources were deployed successfully')
 
         # apply dynamic changes that uses ARNs
         _LOG.info('Going to apply dynamic changes')
         _apply_dynamic_changes(resources, output)
-        _LOG.info('Dynamic changes were applied successfully')
+        USER_LOG.info('Dynamic changes were applied successfully')
 
-    _LOG.info('Going to create deploy output')
+        _LOG.info('Going to apply common tags')
+        _apply_tags(output)
+
+    USER_LOG.info('Going to create deploy output')
     create_deploy_output(bundle_name=bundle_name,
                          deploy_name=deploy_name,
                          output=output,
                          success=success,
                          replace_output=replace_output)
-    _LOG.info('Deploy output for {0} was created.'.format(deploy_name))
+    USER_LOG.info('Deploy output for {0} was created.'.format(deploy_name))
     return success
 
 
@@ -342,8 +355,13 @@ def update_deployment_resources(bundle_name, deploy_name, replace_output=False,
                                 update_only_types=None,
                                 update_only_resources=None):
     from syndicate.core import PROCESSOR_FACADE
-    resources = resolve_meta(load_meta_resources(bundle_name))
+    resources = load_meta_resources(bundle_name)
     _LOG.debug(prettify_json(resources))
+
+    resources = resolve_meta(resources)
+    _LOG.debug('Names were resolved')
+    resources = populate_s3_paths(resources, bundle_name)
+    _LOG.debug('Artifacts s3 paths were resolved')
 
     _LOG.warn(
         'Please pay attention that only the '
@@ -358,7 +376,6 @@ def update_deployment_resources(bundle_name, deploy_name, replace_output=False,
     if update_only_types:
         resources = dict((k, v) for (k, v) in resources.items() if
                          v['resource_type'] in update_only_types)
-
     if update_only_resources:
         resources = dict((k, v) for (k, v) in resources.items() if
                          k in update_only_resources)
@@ -379,12 +396,23 @@ def update_deployment_resources(bundle_name, deploy_name, replace_output=False,
     return success
 
 
-def _filter_the_dict(dictionary, callback):
-    new_dict = dict()
-    for (key, value) in dictionary.items():
-        if callback(value):
-            new_dict[key] = value
-    return new_dict
+def _cross_wired_filter(collection, control, target, dependencies,
+                        chain: dict = None):
+    chain = chain or {}
+    for i, f in enumerate(control):
+        s = i + len(dependencies)//2
+        if any([dependencies[i], dependencies[s]]):
+            temp, j, filter_collection = {}, (i + 1) % (len(dependencies)//2), \
+                lambda func, c: dict(
+                    filter(lambda item: func(item[1]), c.items())
+                )
+            temp = filter_collection(f, collection) \
+                if dependencies[i] else collection
+            temp = filter_collection(target[j], temp) \
+                if dependencies[s] else temp
+            temp = temp if dependencies[i] or not dependencies[j] else {}
+            chain.update(temp)
+    return chain
 
 
 @exit_on_exception
@@ -394,27 +422,49 @@ def remove_deployment_resources(deploy_name, bundle_name,
                                 excluded_resources=None,
                                 excluded_types=None,
                                 clean_externals=None):
+    from syndicate.core import CONFIG
     output = new_output = load_deploy_output(bundle_name, deploy_name)
     _LOG.info('Output file was loaded successfully')
-    filters = [
-        lambda v: v['resource_name'] in clean_only_resources,
-        lambda v: v['resource_name'] not in excluded_resources,
-        lambda v: v['resource_meta']['resource_type'] in clean_only_types,
-        lambda v: v['resource_meta']['resource_type'] not in excluded_types]
+    preset_name_resolution = functools.partial(resolve_resource_name,
+                                               prefix=CONFIG.resources_prefix,
+                                               suffix=CONFIG.resources_suffix)
+    resolve_n_unify_names = lambda collection: set(
+        collection + tuple(map(preset_name_resolution, collection)))
 
-    for function in filters:
-        some_result = _filter_the_dict(new_output, function)
-        if some_result:
-            new_output = some_result
+    clean_only_resources = resolve_n_unify_names(clean_only_resources
+                                                          or tuple())
+    excluded_resources = resolve_n_unify_names(excluded_resources
+                                                        or tuple())
+    _LOG.info('Prefixes and suffixes of any resource names have been resolved.')
+    dependencies = tuple(map(bool, (clean_only_resources, clean_only_types,
+                                    excluded_types, excluded_resources)))
 
-    if not clean_externals:
+    # todo refactor for more flexible approach
+    if any(dependencies):
+        filters = (
+            lambda v: v.get('resource_name') in clean_only_resources,
+            lambda v: v.get('resource_meta', {}).get('resource_type')
+            in clean_only_types,
+            lambda v: v.get('resource_name') not in excluded_resources,
+            lambda v: v.get('resource_meta', {}).get('resource_type')
+            not in excluded_types
+        )
+        if any(dependencies[:2]):
+            new_output = _cross_wired_filter(new_output, filters[:2],
+                                             filters[2:], dependencies)
+        elif any(dependencies[2:]):
+            for i, exclusion in enumerate(filters[2:]):
+                new_output = _cross_wired_filter(new_output, [exclusion],
+                                                 filters[i:i+1],
+                                                 dependencies[::-1])
+    if clean_externals:
         new_output = dict((k, v) for (k, v) in new_output.items() if
-                          not v['resource_meta'].get('external'))
+                          v['resource_meta'].get('external'))
     # sort resources with priority
     resources_list = list(new_output.items())
     resources_list.sort(key=cmp_to_key(_compare_clean_resources))
     _LOG.debug('Resources to delete: {0}'.format(resources_list))
-    _LOG.info('Going to clean AWS resources')
+    USER_LOG.info('Going to clean AWS resources')
     clean_resources(resources_list)
     # remove new_output from bucket
     if output == new_output:
@@ -470,6 +520,9 @@ def continue_deployment_resources(deploy_name, bundle_name,
         _LOG.info('Going to apply dynamic changes')
         _apply_dynamic_changes(resources, updated_output)
         _LOG.info('Dynamic changes were applied successfully')
+
+        _LOG.info('Going to apply common tags')
+        _apply_tags(output)
 
     # remove failed output from bucket
     remove_failed_deploy_output(bundle_name, deploy_name)
@@ -561,6 +614,12 @@ def _apply_dynamic_changes(resources, output):
                                   'for {0} type'.format(dependency_type))
             _LOG.info('Dynamic changes were applied to {0}'.format(name))
     concurrent.futures.wait(futures, timeout=None, return_when=ALL_COMPLETED)
+
+
+def _apply_tags(output: dict):
+    from syndicate.core import RESOURCES_PROVIDER
+    tags_resource = RESOURCES_PROVIDER.tags_api()
+    tags_resource.apply_tags(output)
 
 
 def _compare_deploy_resources(first, second):

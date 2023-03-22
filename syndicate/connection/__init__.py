@@ -25,10 +25,14 @@ from syndicate.connection.cloud_watch_connection import (EventConnection,
 from syndicate.connection.cloudfront_connection import CloudFrontConnection
 from syndicate.connection.cognito_identity_connection import (
     CognitoIdentityConnection)
+from syndicate.connection.cognito_identity_provider_connection import \
+    CognitoIdentityProviderConnection
+from syndicate.connection.documentdb_connection import DocumentDBConnection
 from syndicate.connection.dynamo_connection import DynamoConnection
 from syndicate.connection.ec2_connection import EC2Connection
 from syndicate.connection.elastic_beanstalk_connection import (
     BeanstalkConnection)
+from syndicate.connection.firehose_connection import FirehoseConnection
 from syndicate.connection.iam_connection import IAMConnection
 from syndicate.connection.kinesis_connection import KinesisConnection
 from syndicate.connection.kms_connection import KMSConnection
@@ -37,6 +41,9 @@ from syndicate.connection.s3_connection import S3Connection
 from syndicate.connection.sns_connection import SNSConnection
 from syndicate.connection.sqs_connection import SqsConnection
 from syndicate.connection.step_functions_connection import SFConnection
+from syndicate.connection.resource_groups_tagging_api_connection import \
+    ResourceGroupsTaggingAPIConnection
+from syndicate.connection.dax_connection import DaxConnection
 
 
 class ConnectionProvider(object):
@@ -77,6 +84,13 @@ class ConnectionProvider(object):
         if region:
             credentials['region'] = region
         return CognitoIdentityConnection(**credentials)
+
+    @lru_cache(maxsize=None)
+    def cognito_identity_provider(self, region=None):
+        credentials = self.credentials.copy()
+        if region:
+            credentials['region'] = region
+        return CognitoIdentityProviderConnection(**credentials)
 
     @lru_cache(maxsize=None)
     def iam(self):
@@ -146,6 +160,13 @@ class ConnectionProvider(object):
         return KinesisConnection(**credentials)
 
     @lru_cache(maxsize=None)
+    def firehose(self, region=None):
+        credentials = self.credentials.copy()
+        if region:
+            credentials['region'] = region
+        return FirehoseConnection(**credentials)
+
+    @lru_cache(maxsize=None)
     def application_autoscaling(self, region=None):
         credentials = self.credentials.copy()
         if region:
@@ -172,3 +193,24 @@ class ConnectionProvider(object):
         if region:
             credentials['region'] = region
         return BatchConnection(**credentials)
+
+    @lru_cache(maxsize=None)
+    def documentdb(self, region=None):
+        credentials = self.credentials.copy()
+        if region:
+            credentials['region'] = region
+        return DocumentDBConnection(**credentials)
+
+    @lru_cache(maxsize=None)
+    def groups_tagging_api(self, region=None):
+        credentials = self.credentials.copy()
+        if region:
+            credentials['region'] = region
+        return ResourceGroupsTaggingAPIConnection(**credentials)
+
+    @lru_cache(maxsize=None)
+    def dax(self, region=None):
+        credentials = self.credentials.copy()
+        if region:
+            credentials['region'] = region
+        return DaxConnection(**credentials)
