@@ -1,86 +1,61 @@
-# AWS deployment framework for serverless applications
+# Syndicate
 
 aws-syndicate is an Amazon Web Services deployment framework written in Python,
 which allows to easily deploy serverless applications using resource
-descriptions. The framework allows to work with applications that engage the
-following AWS services:
-
-* API Gateway
-
-* AWS Batch
-
-* CloudWatch Events
-
-* Cognito
-
-* DocumentDB
-
-* DynamoDB
-
-* Elastic Beanstalk
-
-* Elastic Compute Cloud
-
-* Identity and Access Management
-
-* Kinesis
-
-* Lambda
-
-* Lambda Layers
-
-* Simple Notification Service
-
-* Simple Queue Service
-
-* Simple Storage Service
-
-* Step Functions
+descriptions.
 
 ## Changelog
 
 [See CHANGELOG here](https://github.com/epam/aws-syndicate/blob/master/CHANGELOG.md "aws-syndicate changelog")
 
-## Installing
+## 1. Installation
+
+### 1.1 Installation from PyPI
 
 [Install aws-syndicate from PyPI](https://pypi.org/project/aws-syndicate/ "aws-syndicate on PyPI")
 
-#### Installation from sources
+### 1.2 Installation from source code
 
-**Prerequisites**
+#### 1.2.1 Prerequisites
 
-1) Installed [Python 3.7](https://www.python.org/downloads/ "Python 3.7") or
+1) [Python 3.7](https://www.python.org/downloads/ "Python 3.7") or
    higher version;
-2) Installed package manager [PIP 9.0](https://pypi.org/project/pip/ "PIP 9.0")
+2) Package manager [PIP 9.0](https://pypi.org/project/pip/ "PIP 9.0")
    or higher version;
-3) Installed [Apache Maven 3.3.9](https://maven.apache.org/download.cgi "Apache Maven 3.3.9")
+3) [Apache Maven 3.3.9](https://maven.apache.org/download.cgi "Apache Maven 3.3.9")
 or higher version (for Java projects).
 
-**macOS**
+#### 1.2.2 Installation on macOS
 
 Detailed guide how to install Python you can find
-[here](https://wsvincent.com/install-python3-mac/ "here").
-Also [here](https://www.baeldung.com/install-maven-on-windows-linux-mac "here")
+[here](https://docs.python-guide.org/starting/install3/osx/ "here").
+Also [here](https://www.baeldung.com/install-maven-on-windows-linux-mac "here") 
 you can find detailed guild how to install
-the [latest Apache Maven](https://maven.apache.org/download.cgi "latest Apache Maven")
-.
+the [latest Apache Maven](https://maven.apache.org/download.cgi "latest Apache Maven").
 
-1) Create virtual environment:
-   `python3 -m venv syndicate_venv`
+1. Pull the project
+```shell
+git clone https://github.com/epam/aws-syndicate.git
+```
+2. Create virtual environment:
+```shell
+python3 -m venv syndicate_venv
+```
+3. Activate your virtual environment:
+```shell
+source syndicate_venv/bin/activate
+```
+4. Install Syndicate framework with pip from GitHub:
+```shell
+pip3 install aws-syndicate/.
+```
+5. Set up a Syndicate Java [plugin](https://github.com/epam/aws-syndicate/tree/master/plugin "plugin"):
+```shell
+mvn install -f aws-syndicate/plugin/
+```
+6. Go to the `2. Usage guide`
 
-2) Activate your virtual environment:
-   `source syndicate_venv/bin/activate`
-
-3) Install Syndicate framework with pip from GitHub:
-   `pip3 install git+https://github.com/epam/aws-syndicate.git@master`
-
-4) Set up a Syndicate
-   Java [plugin](https://github.com/epam/aws-syndicate/tree/master/plugin "plugin"):
-   `mvn install /aws-syndicate/plugin/`
-
-5) Go to the Common configuration.
-
-**Linux**
+#### 1.2.2 Installation on Linux
 
 Detailed guide how to install Python you can
 find [here](https://docs.python-guide.org/starting/install3/linux/ "here").
@@ -88,132 +63,110 @@ Also [here](https://www.baeldung.com/install-maven-on-windows-linux-mac "here")
 you can find detailed guild how to install
 the [latest Apache Maven](https://maven.apache.org/download.cgi "latest Apache Maven").
 
-1) Create virtual environment:
-   `python3 -m venv syndicate_venv`
+1. Pull the project
+```shell
+git clone https://github.com/epam/aws-syndicate.git
+```
+2. Create virtual environment:
+```shell
+python3 -m venv syndicate_venv
+```
+3. Activate your virtual environment:
+```shell
+source syndicate_venv/bin/activate
+```
+4. Install Syndicate framework with pip from GitHub:
+```shell
+pip3 install aws-syndicate/.
+```
+5. Set up a Syndicate Java [plugin](https://github.com/epam/aws-syndicate/tree/master/plugin "plugin"):
+```shell
+mvn install -f aws-syndicate/plugin/
+```
+6. Go to the `2. Usage guide`
 
-2) Activate your virtual environment:
-   `source syndicate_venv/bin/activate`
+#### 1.2.3 Installation on Windows
 
-3) Install Syndicate framework with pip from GitHub:
-   `pip3 install git+https://github.com/epam/aws-syndicate.git@master`
-
-4) Set up a Syndicate
-   Java [plugin](https://github.com/epam/aws-syndicate/tree/master/plugin "plugin"):
-   `mvn install /aws-syndicate/plugin/`
-
-5) Go to the Common configuration.
-
-**Common prerequisites**
-
-1) Installed [Python 3.7](https://www.python.org/downloads/ "Python 3.7") or
-   higher version;
-
-   _*Windows*: Detailed guide how to install Python you can
-   find [here](https://www.ics.uci.edu/~pattis/common/handouts/pythoneclipsejava/python.html "here")
-   ._
-
-   _*Linux*: Detailed guide how to install Python you can
-   find [here](https://docs.python-guide.org/starting/install3/linux/ "here")._
-
-   _*macOS*: Detailed guide how to install Python you can
-   find [here](https://wsvincent.com/install-python3-mac/ "here"). If you use
-   Ubuntu 16.04 or
-   earlier [here](https://www.pytorials.com/install-python36-on-ubuntu/ "here")
-   you can find installation guide._
-
-2) Installed package manager [PIP 9.0](https://pypi.org/project/pip/ "PIP 9.0")
-   or higher version;
-3) Installed [virtualenv](https://virtualenv.pypa.io/en/latest/installation.html "virtualenv");
-4) Installed [Apache Maven](https://maven.apache.org/download.cgi "Apache Maven").
-
-_*
-Windows*: [Here](https://docs.wso2.com/display/IS323/Installing+Apache+Maven+on+Windows "Here")
+Detailed guide how to install Python you can
+find [here](https://docs.python-guide.org/starting/install3/win/ "here").
+Also [here](https://www.baeldung.com/install-maven-on-windows-linux-mac "here")
 you can find detailed guild how to install
-the [latest Apache Maven](https://maven.apache.org/download.cgi "latest Apache Maven")
-._
+the [latest Apache Maven](https://maven.apache.org/download.cgi "latest Apache Maven").
 
-_*
-Linux*: [Here](https://www.baeldung.com/install-maven-on-windows-linux-mac "Here")
-you can find detailed guild how to install
-the [latest Apache Maven](https://maven.apache.org/download.cgi "latest Apache Maven")
-._
+1. Pull the project
+```shell
+git clone https://github.com/epam/aws-syndicate.git
+```
+2. Create virtual environment:
+```shell
+python3 -m venv syndicate_venv
+```
+3. Activate your virtual environment:
+```shell
+syndicate_venv\Scripts\activate.bat
+```
+4. Install Syndicate framework with pip from GitHub:
+```shell
+pip3 install aws-syndicate/.
+```
+5. Set up a Syndicate Java [plugin](https://github.com/epam/aws-syndicate/tree/master/plugin "plugin"):
+```shell
+mvn install -f aws-syndicate/plugin/
+```
+6. Go to the `2. Usage guide`
 
-_*
-macOS*: [Here](https://www.baeldung.com/install-maven-on-windows-linux-mac "Here")
-you can find detailed guild how to install
-the [latest Apache Maven](https://maven.apache.org/download.cgi "latest Apache Maven")
-._
+## 2. Usage guide
 
-**Installation guide**
+### 2.1 Creating Project files
 
-1) Create virtual environment:
-
-   `virtualenv -p python3 syndicate_venv`
-
-2) Activate your virtual environment:
-
-   Linux/macOS:
-   `source syndicate_venv/bin/activate`
-
-   Windows:
-   `\syndicate_venv\Scripts\activate.bat`
-
-3) Install Syndicate framework with pip from GitHub:
-
-   `pip3 install git+https://github.com/epam/aws-syndicate.git@master`
-
-4) Set up a Syndicate
-
-   Java [plugin](https://github.com/epam/aws-syndicate/tree/master/plugin "plugin"):
-   `mvn install /aws-syndicate/plugin/`
-
-5) Go to the Common configuration.
-
-## Common configuration
-
-It's time to configure aws-syndicate.
-
-**Generate Syndicate project draft**
-
-Execute `syndicate generate project` command to generates project with all the
+Execute `syndicate generate project` command to generate the project with all the
 necessary components and in a right folders/files hierarchy to start developing
 in a min. Command example:
-
-    syndicate generate project
+```shell
+syndicate generate project 
     --name $project_name
     --config_path $path_to_project
+```
 
 All the provided information is validated. After the project folder will be
 generated the command will return the following message:
-
+```shell
     Project name: $project_name
     Project path: $path_to_project
+```
 
 The following files will be created in this folder: .gitignore, .syndicate,
 CHANGELOG.md, deployment_resources.json, README.md.
 
+Command sample:
+```shell
+syndicate generate project --name DemoSyndicateJava && cd DemoSyndicateJava
+```
+
 For more details please execute `syndicate generate project --help`
 
-**Generate Syndicate configuration files**
+### 2.2 Creating configuration files for environment
 
-Execute `syndicate generate config` command to create Syndicate configuration
+Execute the `syndicate generate config` command to create Syndicate configuration
 files. Command example:
 
-```properties
+```shell
 syndicate generate config
-    --acces_role        $acces_role_name
-    --access_key        $access_key
-    --bundle_bucket_name $s3_bucket_name
-    --config_path       $path_to_store_config
-    --name              $configuration_name
-    --prefix            $prefix
-    --project_path      $relative_path_to_project
-    --region            $region_name
-    --secret_key        $secret_key
-    --serial_number     $serial_number
-    --session_token     $aws_session_token
-    --suffix            $suffix
-    --use_temp_creds    $use_temp_creds #Specify,if use mfa or access_role
+    --name                      $configuration_name   [required]
+    --region                    $region_name          [required]
+    --bundle_bucket_name        $s3_bucket_name       [required]
+    --access_key                $access_key           [required]
+    --secret_key                $secret_key           [required]
+    --config_path               $path_to_store_config
+    --project_path              $relative_path_to_project
+    --prefix                    $prefix
+    --suffix                    $suffix
+    --use_temp_creds            $use_temp_creds #Specify,if use mfa or access_role
+    --access_role               $role_name
+    --serial_number             $serial_number
+    --tags                      $KEY:VALUE
+    --iam_permissions_boundary  $ARN
+    --session_token             $aws_session_token
 ```
 
 All the provided information is validated.
@@ -229,11 +182,12 @@ generate new credentials, save and use them until expiration.
 
 After the configuration files will be generated the command will return the
 following message:
-
-    Syndicate initialization has been completed. 
-    Set SDCT_CONF:
-    Unix: export SDCT_CONF=$path_to_store_config
-    Windows: setx SDCT_CONF $path_to_store_config
+```shell
+ Syndicate initialization has been completed. 
+ Set SDCT_CONF:
+ Unix: export SDCT_CONF=$path_to_store_config
+ Windows: setx SDCT_CONF $path_to_store_config
+```
 
 Just copy one of the last two lines, depending on your OS, and execute the
 command. The commands set the environment variable SDCT_CONF required by
@@ -242,20 +196,27 @@ aws-syndicate to operate.
 > Pay attention that the default syndicate_aliases.yaml file has been generated.
 > Your application may require additional aliases to be deployed - please add them to the file.
 
+Command sample:
+```shell
+SYNDICATE_AWS_ACCESS_KEY=# enter your aws_access_key_id here
+SYNDICATE_AWS_SECRET_KEY=# enter your aws_secret_access_key here
+syndicate generate config --name dev --region eu-central-1 --bundle_bucket_name syndicate-artifacts-eu-central-1 --access_key $SYNDICATE_AWS_ACCESS_KEY --secret_key $SYNDICATE_AWS_SECRET_KEY --config_path $(pwd) --prefix syn- --suffix -dev --tags ENV:DEV
+```
+
 For more details please execute `syndicate generate config --help`
 
 *Note:* You can find a detailed structure of the syndicate.yml file [here](docs/wiki_syndicate.yml.md)
 
-**Generate draft of lambda functions**
+### 2.3 Creating lambda files
 
 Execute `syndicate generate lambda` command to generate required environment for
 lambda function except business logic. Command example:
-
-    syndicate generate lambda
+```shell
+syndicate generate lambda
     --name $lambda_name_1
-    --name $lambda_name_2
     --runtime python|java|nodejs
     --project_path $project_path
+```
 
 All the provided information is validated. Different environments will be
 created for different runtimes:
@@ -328,10 +289,70 @@ created for different runtimes:
     └── ...
 ```
 
+Command sample:
+```shell
+syndicate generate lambda --name DemoLambda --runtime java --project_path $(pwd)
+```
+
 For more details please execute `syndicate generate lambda --help`
 
-Deployment
-------------
+### 2.4 Add other infrastructure components 
+
+This step is optional and could be skipped while getting familiar with syndicate.
+
+All the resources syndicate works with could be generated in the same way as lambda. 
+Invoke the `syndicate generate meta --help` command to find out which resources are available. 
+
+
+### 2.5 Open project in your IDE
+
+Now the project is ready to be adjusted. Consider opening your favourite IDE and observe the files created by syndicate. 
+
+## 3. Deployment
+
+
+### 3.1 Create an S3 bucket for aws-syndicate artifacts:
+```shell
+syndicate create_deploy_target_bucket
+```
+
+### 3.2 Build project artifacts
+```shell
+syndicate build
+```
+
+### 3.3 Deploy project resources to AWS account
+```shell
+syndicate deploy
+```
+Now the DemoLambda is created and available to be tested.  
+
+### 3.4 Update resources
+In order to be sure your latest changes works well on the AWS account the application should be deployed to the AWS account.
+To do this use the following commands set:
+```shell
+syndicate build
+syndicate update
+```
+
+### 3.5 Lambdas invocations metrics
+```shell
+syndicate profiler
+```
+
+### 3.6 Clean up project resources from AWS Account
+```shell
+syndicate clean 
+```
+
+### 3.7 Observing the environment manipulation history
+```shell
+syndicate status # this shows the general CLI dashboard where latest modification, locks state, latest event, project resources are shown
+syndicate status --events # this returns all the history of what happened to the environment
+```
+
+## 4. Examples
+
 If you are just getting familiar with the functionality, you can use one of the
 pre-prepared examples that contain a minimum set of AWS resources and lambdas.
 
@@ -353,28 +374,6 @@ The demo application consists of the following infrastructure:
 * 1 S3 bucket
 * 2 lambdas
 * 1 API Gateway
-
-Create an S3 bucket for aws-syndicate artifacts:
-
-    $ syndicate create_deploy_target_bucket
-
-Next, build aws-syndicate bundle with artifacts to be deployed:
-
-    $ syndicate build --bundle_name demo-deploy
-
-Then, deploy AWS resources:
-
-    $ syndicate deploy --bundle_name demo-deploy --deploy_name sdct-example
-
-We have done it! The demo serverless application is ready to be used.
-
-If you need to update AWS resources from the latest built bundle:
-
-    $ syndicate update
-
-If you need to clean AWS resources:
-
-    $ syndicate clean
 
 Documentation
 ------------

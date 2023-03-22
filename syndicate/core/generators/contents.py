@@ -65,7 +65,7 @@ JAVA_ROOT_POM_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
 
     <properties>
         <maven-shade-plugin.version>3.2.0</maven-shade-plugin.version>
-        <deployment-configuration-annotations.version>1.5.11</deployment-configuration-annotations.version>
+        <deployment-configuration-annotations.version>1.8.0</deployment-configuration-annotations.version>
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
