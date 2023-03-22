@@ -767,16 +767,52 @@ class ApiGatewayResource(BaseResource):
             self.connection.create_model(
                 api_id, name, content_type, description, schema)
 
+    def build_web_socket_api_gateway_arn(self, api_id: str) -> str:
+        return f'arn:aws:execute-api:{self.apigw_v2.client.meta.region_name}' \
+               f':{self.account_id}:{api_id}/*'
+
     def create_web_socket_api_gateway(self, args):
         return self.create_pool(self._create_web_socker_api_from_meta, args, 1)
 
     @unpack_kwargs
     def _create_web_socker_api_from_meta(self, name: str, meta: dict):
         stage_name = meta.get('deploy_stage')
+        resources = meta.get('resources') or {}
         route_selection_expression = meta.get('route_selection_expression')
         api_id = self.apigw_v2.create_web_socket_api(
             name=name, route_selection_expression=route_selection_expression)
-        # TODO create integrations here
+        for route_name, route_meta in resources.items():
+            int_type = route_meta.get('integration_type') or 'lambda'
+            if int_type != 'lambda':
+                _LOG.error(f'Integration type: {int_type} currently '
+                           f'not supported. Skipping..')
+                continue
+            lambda_name = route_meta['lambda_name']
+            lambda_version = route_meta.get('lambda_version')
+            lambda_alias = route_meta.get('lambda_alias')
+            lambda_arn = self.lambda_res.resolve_lambda_arn_by_version_and_alias(
+                lambda_name, lambda_version, lambda_alias)
+
+            integration_id = self.apigw_v2.create_lambda_integration(
+                api_id=api_id,
+                lambda_arn=lambda_arn,
+                enable_proxy=route_meta.get('enable_proxy') or False
+            )
+            self.apigw_v2.put_route_integration(
+                api_id=api_id,
+                route_name=route_name,
+                integration_id=integration_id
+            )
+            source_arn = f'{self.build_web_socket_api_gateway_arn(api_id)}/{route_name}'
+
+            self.lambda_res.add_invocation_permission(
+                name=lambda_arn,
+                principal='apigateway.amazonaws.com',
+                source_arn=source_arn,
+                statement_id=f'{name}-{route_name.strip("$")}-invoke',
+                exists_ok=True
+            )
+
         self.apigw_v2.create_stage(api_id=api_id, stage_name=stage_name)
         return self.describe_v2_api_gateway(
             name=name, meta=meta, api_id=api_id
@@ -794,8 +830,7 @@ class ApiGatewayResource(BaseResource):
         # maybe the arn is not valid - I didn't manage to find a valid
         # example browsing for 5 minutes, so the hell with it. Currently,
         # nothing depends on it
-        arn = 'arn:aws:apigateway:{0}::/websocket/{1}'.format(
-            self.region, api_id)
+        arn = self.build_web_socket_api_gateway_arn(api_id)
         return {
             arn: build_description_obj(response, name, meta)
         }
