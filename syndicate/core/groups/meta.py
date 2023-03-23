@@ -1,13 +1,14 @@
-import os
 import json
+import os
 
 import click
+
 from syndicate.core.generators.deployment_resources import *
 from syndicate.core.generators.lambda_function import PROJECT_PATH_PARAM
 from syndicate.core.helper import OrderedGroup, OptionRequiredIf
+from syndicate.core.helper import ValidRegionParamType
 from syndicate.core.helper import check_bundle_bucket_name
 from syndicate.core.helper import resolve_project_path, timeit
-from syndicate.core.helper import ValidRegionParamType
 
 GENERATE_META_GROUP_NAME = 'meta'
 dynamodb_type_param = click.Choice(['S', 'N', 'B'])
@@ -213,6 +214,22 @@ def api_gateway(ctx, **kwargs):
     """Generates api gateway deployment resources template"""
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = ApiGatewayGenerator(**kwargs)
+    _generate(generator)
+    click.echo(f"Api gateway '{kwargs['resource_name']}' was "
+               f"added successfully")
+
+
+@meta.command(name='web_socket_api_gateway')
+@click.option('--resource_name', required=True, type=str,
+              help="Api gateway name")
+@click.option('--deploy_stage', required=True, type=str,
+              help="The stage to deploy the API")
+@click.pass_context
+@timeit()
+def web_socket_api_gateway(ctx, **kwargs):
+    """Generates web socket api gateway deployment resources template"""
+    kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
+    generator = WebSocketApiGatewayGenerator(**kwargs)
     _generate(generator)
     click.echo(f"Api gateway '{kwargs['resource_name']}' was "
                f"added successfully")

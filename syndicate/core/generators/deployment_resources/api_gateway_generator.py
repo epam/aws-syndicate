@@ -1,6 +1,7 @@
 import json
 
 import click
+
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.constants import API_GATEWAY_TYPE
 from syndicate.core.generators import (_read_content_from_file,
