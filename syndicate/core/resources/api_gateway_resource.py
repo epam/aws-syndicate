@@ -772,10 +772,10 @@ class ApiGatewayResource(BaseResource):
                f':{self.account_id}:{api_id}/*'
 
     def create_web_socket_api_gateway(self, args):
-        return self.create_pool(self._create_web_socker_api_from_meta, args, 1)
+        return self.create_pool(self._create_web_socket_api_from_meta, args, 1)
 
     @unpack_kwargs
-    def _create_web_socker_api_from_meta(self, name: str, meta: dict):
+    def _create_web_socket_api_from_meta(self, name: str, meta: dict):
         stage_name = meta.get('deploy_stage')
         resources = meta.get('resources') or {}
         route_selection_expression = meta.get('route_selection_expression')
