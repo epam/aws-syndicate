@@ -120,7 +120,8 @@ def build_python_lambda_layer(layer_root: str, bundle_dir: str,
     # install requirements.txt content
     requirements_path = Path(layer_root, REQ_FILE_NAME)
     if os.path.exists(requirements_path):
-        install_requirements_to(requirements_path, to=path_for_requirements)
+        install_requirements_to(requirements_path, to=path_for_requirements,
+                                config=layer_config)
 
     # install local requirements
     local_requirements_path = Path(layer_root, LOCAL_REQ_FILE_NAME)
@@ -202,7 +203,7 @@ def install_requirements_to(requirements_txt: Union[str, Path],
     supported_platforms = update_platforms(set(config.get('platforms') or []))
     python_version = _get_python_version(lambda_config=config)
     try:
-        if supported_platforms and python_version:
+        if supported_platforms:
             # tries to install packages compatible with specific platforms
             # returns the list of requirement that failed the installation
             failed_requirements = install_requirements_for_platform(
@@ -306,7 +307,7 @@ def install_requirements_for_platform(requirements_txt: Union[str, Path],
               f'{",".join(supported_platforms)}')
     fp = open(requirements_txt, 'r')
     it = (
-        line.strip() for line in
+        line.split(' #')[0].strip() for line in
         filter(lambda line: not line.strip().startswith('#'), fp)
     )
     failed_requirements = []
@@ -361,12 +362,19 @@ def _install_local_req(artifact_path, local_req_path, project_path):
 
 def _get_python_version(lambda_config: dict) -> Optional[str]:
     """
-     "runtime": "python3.7" => "3.7"
+    Lambda config or layer config.
+     "runtime": "python3.7" => "3.7".
+    If "runtime" contains a list with runtimes. The lowest version is returned
     """
-    if not lambda_config:
+    runtimes: Union[None, List, str] = lambda_config.get('runtime')
+    if not runtimes:
         return
-    runtime = lambda_config.get('runtime', '')
-    return ''.join(ch for ch in runtime if ch.isdigit() or ch == '.')
+    if isinstance(runtimes, str):
+        runtimes = [runtimes]
+    return sorted(
+        ''.join(ch for ch in runtime if ch.isdigit() or ch == '.')
+        for runtime in runtimes
+    )[0]
 
 
 def _copy_py_files(search_path, destination_path):
