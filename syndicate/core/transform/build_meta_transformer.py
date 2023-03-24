@@ -16,6 +16,7 @@
 from abc import abstractmethod, ABC
 from functools import cmp_to_key
 
+from syndicate.commons.log_helper import get_user_logger
 from syndicate.core.build.deployment_processor import compare_deploy_resources
 from syndicate.core.build.meta_processor import resolve_meta, populate_s3_paths
 from syndicate.core.constants import \
@@ -24,6 +25,8 @@ from syndicate.core.constants import \
      CLOUD_WATCH_ALARM_TYPE, KINESIS_STREAM_TYPE, COGNITO_FEDERATED_POOL_TYPE,
      SNS_PLATFORM_APPLICATION_TYPE, BATCH_COMPENV_TYPE, BATCH_JOBQUEUE_TYPE,
      BATCH_JOBDEF_TYPE, LAMBDA_LAYER_TYPE)
+
+_LOG = get_user_logger()
 
 
 class BuildMetaTransformer(ABC):
@@ -63,9 +66,9 @@ class BuildMetaTransformer(ABC):
             resource_type = resource.get('resource_type')
             transformer = self.transformer_mapping.get(resource_type)
             if transformer is None:
-                raise ValueError(
-                    "Transformation is not supported for resources "
+                _LOG.warning("Transformation is not supported for resources "
                     "of the '{}' type".format(resource_type))
+                continue
             transformer(name=name, resource=resource)
         return self._compose_template()
 
