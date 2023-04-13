@@ -373,11 +373,6 @@ def update_deployment_resources(bundle_name, deploy_name, replace_output=False,
                      v['resource_type'] in
                      PROCESSOR_FACADE.update_handlers().keys())
 
-    resources = resolve_meta(resources)
-    _LOG.debug('Names were resolved')
-    resources = populate_s3_paths(resources, bundle_name)
-    _LOG.debug('Artifacts s3 paths were resolved')
-
     if update_only_types:
         resources = dict((k, v) for (k, v) in resources.items() if
                          v['resource_type'] in update_only_types)
