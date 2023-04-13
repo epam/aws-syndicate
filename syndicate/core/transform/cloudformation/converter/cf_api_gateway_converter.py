@@ -173,7 +173,8 @@ class CfApiGatewayConverter(CfResourceConverter):
             integration.Credentials = method_meta.get('lambda_region')
         integration.IntegrationHttpMethod = 'POST'
         integration.PassthroughBehavior = passthrough_behavior if passthrough_behavior else 'WHEN_NO_MATCH'
-        integration.RequestTemplates = body_template
+        if body_template:
+            integration.RequestTemplates = body_template
         integration.Type = 'AWS_PROXY' if enable_proxy else 'AWS'
         integration.Uri = lambda_uri
         api_source_arn = self.get_execute_api_rest_endpoint_arn(

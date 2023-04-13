@@ -27,7 +27,7 @@ from syndicate.core.constants import (API_GATEWAY_TYPE, ARTIFACTS_FOLDER,
                                       LAMBDA_CONFIG_FILE_NAME, LAMBDA_TYPE,
                                       RESOURCES_FILE_NAME, RESOURCE_LIST,
                                       IAM_ROLE, LAMBDA_LAYER_TYPE,
-                                      S3_PATH_NAME)
+                                      S3_PATH_NAME, LAMBDA_LAYER_CONFIG_FILE_NAME)
 from syndicate.core.helper import (build_path, prettify_json,
                                    resolve_aliases_for_string,
                                    write_content_to_file)
@@ -153,6 +153,20 @@ def _check_duplicated_resources(initial_meta_dict, additional_item_name,
                               f"'{additional_comp_size}' from: "
                               f"{additional_item} will be overwritten")
                 additional_item['minimum_compression_size'] = init_compression
+
+            # join authorizers
+            initial_authorizers = initial_item.get('authorizers') or {}
+            additional_authorizers = additional_item.get('authorizers') or {}
+            additional_item['authorizers'] = {**initial_authorizers,
+                                              **additional_authorizers}
+            # join models
+            initial_models = initial_item.get('models') or {}
+            additional_models = additional_item.get('models') or {}
+            additional_item['models'] = {**initial_models, **additional_models}
+            # policy statement singleton
+            _pst = initial_item.get('policy_statement_singleton')
+            if 'policy_statement_singleton' not in additional_item and _pst:
+                additional_item['policy_statement_singleton'] = _pst
 
             additional_item = _merge_api_gw_list_typed_configurations(
                 initial_item,
@@ -287,7 +301,7 @@ def _look_for_configs(nested_files, resources_meta, path, bundle_name):
     :type path: str
     """
     for each in nested_files:
-        if each.endswith(LAMBDA_CONFIG_FILE_NAME):
+        if each.endswith(LAMBDA_CONFIG_FILE_NAME) or each.endswith(LAMBDA_LAYER_CONFIG_FILE_NAME):
             lambda_config_path = os.path.join(path, each)
             _LOG.debug('Processing file: {0}'.format(lambda_config_path))
             with open(lambda_config_path) as data_file:

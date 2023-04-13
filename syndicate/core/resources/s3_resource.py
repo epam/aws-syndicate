@@ -14,8 +14,9 @@
     limitations under the License.
 """
 import ipaddress
-import string
 import re
+import string
+from typing import Optional
 
 from syndicate.commons.log_helper import get_logger
 from syndicate.core import ClientError
@@ -68,8 +69,9 @@ def validate_bucket_name(bucket_name: str):
 
 class S3Resource(BaseResource):
 
-    def __init__(self, s3_conn) -> None:
+    def __init__(self, s3_conn, account_id) -> None:
         self.s3_conn = s3_conn
+        self.account_id = account_id
 
     def create_s3_bucket(self, args):
         return self.create_pool(self._create_s3_bucket_from_meta, args)
@@ -166,3 +168,15 @@ class S3Resource(BaseResource):
             else:
                 raise e
 
+    def build_bucket_arn(self, maybe_arn: str) -> Optional[str]:
+        if not isinstance(maybe_arn, str):
+            return
+        if self.is_bucket_arn(maybe_arn):
+            return maybe_arn
+        return f'arn:aws:s3:::{maybe_arn}'
+
+    @staticmethod
+    def is_bucket_arn(maybe_arn: str) -> bool:
+        # TODO add files keys support to regex
+        return bool(re.match(r'^arn:aws:s3:::[a-z0-9.-]{3,63}/?$',
+                             maybe_arn))

@@ -35,7 +35,8 @@ class IAMConnection(object):
 
     def build_role_arn(self, role_name: str) -> str:
         from syndicate.core import CONFIG
-        return f'arn:aws:iam::{CONFIG.account_id}:role/{role_name}'
+        return f'arn:aws:iam::{CONFIG.account_id}:role' \
+               f'/{CONFIG.resources_prefix}{role_name}{CONFIG.resources_suffix}'
 
     def __init__(self, region=None, aws_access_key_id=None,
                  aws_secret_access_key=None, aws_session_token=None):
@@ -580,11 +581,15 @@ class IAMConnection(object):
             _LOG.warn(f'No need to update policy \'{name}\': the new and the '
                       f'old contents are identical.')
             return
+        versions = self.client.list_policy_versions(PolicyArn=arn)["Versions"]
+        to_remove = next((v for v in reversed(versions) if v['IsDefaultVersion'] == False), None)
+        if to_remove:
+            _LOG.info(f'Old version of policy is found. Removing one: {to_remove}')
+            self.remove_policy_version(policy_arn=arn,
+                                       version_id=to_remove['VersionId'])
         self.create_policy_version(policy_arn=arn,
                                    policy_document=dumps(policy_json),
                                    set_as_default=True)
-        self.remove_policy_version(policy_arn=arn,
-                                   version_id=policy_version['VersionId'])
 
     def create_group(self, name):
         return self.client.create_group(GroupName=name)

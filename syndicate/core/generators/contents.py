@@ -65,7 +65,11 @@ JAVA_ROOT_POM_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
 
     <properties>
         <maven-shade-plugin.version>3.2.0</maven-shade-plugin.version>
+<<<<<<< HEAD
         <deployment-configuration-annotations.version>1.5.11</deployment-configuration-annotations.version>
+=======
+        <deployment-configuration-annotations.version>1.8.0</deployment-configuration-annotations.version>
+>>>>>>> master
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -451,6 +455,7 @@ class TestSuccess({camel_lambda_name}LambdaTestCase):
 
 """
 
+
 def _stringify(dict_content):
     return json.dumps(dict_content, indent=2)
 
@@ -472,7 +477,9 @@ def _generate_python_node_lambda_config(lambda_name, lambda_relative_path):
         'publish_version': True,
         'alias': _alias_variable(LAMBDAS_ALIASES_NAME_CFG),
         'url_config': {},
-        'ephemeral_storage': 512
+        'ephemeral_storage': 512,
+        # 'platforms': ['manylinux2014_x86_64']
+        # by default (especially if you have linux), you don't need it
     })
 
 

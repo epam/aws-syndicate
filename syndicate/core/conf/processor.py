@@ -121,14 +121,19 @@ class ConfigHolder:
         else:
             self._init_ini_config(dir_path=dir_path)
 
+    def _assert_no_errors(self, errors: list):
+        if errors:
+            raise AssertionError(f'The following error occurred '
+                                 f'while {self._config_path} '
+                                 f'parsing: {errors}')
+
     def _init_yaml_config(self, dir_path, con_path):
         config_content = load_yaml_file_content(file_path=con_path)
         if config_content:
             validator = ConfigValidator(config_content)
             errors = validator.validate()
-            if errors:
-                raise AssertionError(f'The following error occurred '
-                                     f'while {con_path} parsing: {errors}')
+            self._assert_no_errors(errors)
+
         self._config_dict = config_content
 
         aliases_path_yml = os.path.join(dir_path, ALIASES_FILE_NAME)
@@ -210,6 +215,8 @@ class ConfigHolder:
 
             if messages:
                 raise Exception('Configuration is invalid. ' + messages)
+        tags = self._config_dict.get(TAGS_CFG) or {}
+        self._assert_no_errors(ConfigValidator.validate_tags(TAGS_CFG, tags))
 
     def _resolve_variable(self, variable_name):
         return self._config_dict.get(variable_name)
@@ -403,10 +410,8 @@ class ConfigHolder:
         return self._resolve_variable(EXPIRATION_CFG)
 
     @property
-    def tags(self):
-        tags = self._resolve_variable(TAGS_CFG)
-        if not tags:
-            tags = {}
+    def tags(self) -> dict:
+        tags = self._resolve_variable(TAGS_CFG) or {}
         tags = {k: str(v) for k, v in tags.items()}
         return tags
 

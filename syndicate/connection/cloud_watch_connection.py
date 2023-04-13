@@ -16,6 +16,7 @@
 import json
 import uuid
 from json import dumps
+from typing import Optional
 
 from boto3 import client
 from botocore.exceptions import ClientError
@@ -210,17 +211,17 @@ class EventConnection(object):
         if rule:
             return rule['Arn']
 
-    def add_rule_target(self, rule_name, target_arn):
-        """ Add to CloudWatch rule targets for invocations.
-
+    def add_rule_target(self, rule_name: str, target_arn: str,
+                        input_: Optional[dict]=None):
+        """Add to CloudWatch rule targets for invocations
         :type rule_name: str
         :type target_arn: str
+        :type input_: Optional[dict]
         """
-        self.client.put_targets(Rule=rule_name,
-                                Targets=[{
-                                    'Id': str(uuid.uuid1()),
-                                    'Arn': target_arn
-                                }])
+        target = {'Id': str(uuid.uuid1()), 'Arn': target_arn}
+        if input_ and isinstance(input_, dict):
+            target['Input'] = json.dumps(input_)
+        self.client.put_targets(Rule=rule_name, Targets=[target, ])
 
     def add_rule_sf_target(self, rule_name, target_arn, input, role_arn):
         """ Add to CloudWatch rule targets for invocations.

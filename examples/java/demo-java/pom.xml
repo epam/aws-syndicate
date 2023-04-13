@@ -34,16 +34,21 @@
         <dependency>
             <groupId>net.sf.aws-syndicate</groupId>
             <artifactId>deployment-configuration-annotations</artifactId>
-            <version>1.5.5</version>
+            <version>1.7.0</version>
         </dependency>
     </dependencies>
+
+    <properties>
+        <maven.compiler.source>1.7</maven.compiler.source>
+        <maven.compiler.target>1.7</maven.compiler.target>
+    </properties>
 
     <build>
         <plugins>
             <plugin>
                 <groupId>net.sf.aws-syndicate</groupId>
                 <artifactId>deployment-configuration-maven-plugin</artifactId>
-                <version>1.5.5</version>
+                <version>1.7.0</version>
                 <configuration>
                     <packages>
                         <package>com.aws.syndicate.demo</package>

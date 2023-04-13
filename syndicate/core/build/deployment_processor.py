@@ -358,6 +358,11 @@ def update_deployment_resources(bundle_name, deploy_name, replace_output=False,
     resources = load_meta_resources(bundle_name)
     _LOG.debug(prettify_json(resources))
 
+    resources = resolve_meta(resources)
+    _LOG.debug('Names were resolved')
+    resources = populate_s3_paths(resources, bundle_name)
+    _LOG.debug('Artifacts s3 paths were resolved')
+
     _LOG.warn(
         'Please pay attention that only the '
         'following resources types are supported for update: {}'.format(

@@ -16,6 +16,8 @@
 import json
 import time
 from pathlib import PurePath
+from typing import Optional
+
 from botocore.exceptions import ClientError
 
 from syndicate.commons.log_helper import get_logger, get_user_logger
@@ -24,9 +26,8 @@ from syndicate.core.build.meta_processor import S3_PATH_NAME
 from syndicate.core.helper import (unpack_kwargs,
                                    exit_on_exception)
 from syndicate.core.resources.base_resource import BaseResource
-from syndicate.core.resources.helper import (build_description_obj,
-                                             validate_params,
-                                             assert_required_params)
+from syndicate.core.resources.helper import (
+    build_description_obj, validate_params, assert_required_params, if_updated)
 
 LAMBDA_LAYER_REQUIRED_PARAMS = ['runtimes', 'deployment_package']
 
@@ -48,6 +49,11 @@ LAMBDA_CONCUR_QUALIFIER_ALIAS = 'ALIAS'
 LAMBDA_CONCUR_QUALIFIER_VERSION = 'VERSION'
 _LAMBDA_PROV_CONCURRENCY_QUALIFIERS = [LAMBDA_CONCUR_QUALIFIER_ALIAS,
                                        LAMBDA_CONCUR_QUALIFIER_VERSION]
+SNAP_START = 'snap_start'
+_APPLY_SNAP_START_VERSIONS = 'PublishedVersions'
+_APPLY_SNAP_START_NONE = 'None'
+_SNAP_START_CONFIGURATIONS = [_APPLY_SNAP_START_VERSIONS,
+                              _APPLY_SNAP_START_NONE]
 
 DYNAMO_DB_TRIGGER = 'dynamodb_trigger'
 CLOUD_WATCH_RULE_TRIGGER = 'cloudwatch_rule_trigger'
@@ -176,12 +182,14 @@ class LambdaResource(BaseResource):
                 'FunctionArn']
 
     def add_invocation_permission(self, name, principal, source_arn=None,
-                                  statement_id=None):
+                                  statement_id=None, exists_ok=False):
         return self.lambda_conn.add_invocation_permission(
             name=name,
             principal=principal,
             source_arn=source_arn,
-            statement_id=statement_id)
+            statement_id=statement_id,
+            exists_ok=exists_ok
+        )
 
     def get_invocation_permission(self, lambda_name, qualifier):
         policies = self.lambda_conn.get_policy(lambda_name=lambda_name,
@@ -252,8 +260,8 @@ class LambdaResource(BaseResource):
         if not self.s3_conn.is_file_exists(self.deploy_target_bucket,
                                            key_compound):
             raise AssertionError(f'Error while creating lambda: {name};'
-                f'Deployment package {key_compound} does not exist '
-                f'in {self.deploy_target_bucket} bucket')
+                                 f'Deployment package {key_compound} does not exist '
+                                 f'in {self.deploy_target_bucket} bucket')
 
         lambda_def = self.lambda_conn.get_function(name)
         if lambda_def:
@@ -300,7 +308,8 @@ class LambdaResource(BaseResource):
             tracing_mode=meta.get('tracing_mode'),
             publish_version=publish_version,
             layers=lambda_layers_arns,
-            ephemeral_storage=ephemeral_storage
+            ephemeral_storage=ephemeral_storage,
+            snap_start=self._resolve_snap_start(meta=meta)
         )
         _LOG.debug('Lambda created %s', name)
         # AWS sometimes returns None after function creation, needs for
@@ -386,11 +395,13 @@ class LambdaResource(BaseResource):
                                            key_compound):
             raise AssertionError(
                 'Deployment package {0} does not exist '
-                'in {1} bucket'.format(key_compound, self.deploy_target_bucket))
+                'in {1} bucket'.format(key_compound,
+                                       self.deploy_target_bucket))
 
         response = self.lambda_conn.get_function(name)
         if not response:
             raise AssertionError('{0} lambda does not exist.'.format(name))
+        old_conf = response['Configuration']
 
         publish_version = meta.get('publish_version', False)
 
@@ -404,15 +415,23 @@ class LambdaResource(BaseResource):
         role_arn = self.iam_conn.check_if_role_exists(role_name)
         if not role_arn:
             _LOG.warning('Execution role does not exist. Keeping the old one')
-
-        handler = meta.get('func_name')
+        role_arn = if_updated(role_arn, old_conf.get('Role'))
+        handler = if_updated(meta.get('func_name'), old_conf.get('Handler'))
         env_vars = meta.get('env_variables')
-        timeout = meta.get('timeout')
-        memory_size = meta.get('memory_size')
-        vpc_sub_nets = meta.get('subnet_ids')
-        vpc_security_group = meta.get('security_group_ids')
-        runtime = meta.get('runtime')
-        layers = meta.get('layers')
+        timeout = if_updated(meta.get('timeout'), old_conf.get('Timeout'))
+        memory_size = if_updated(meta.get('memory_size'),
+                                 old_conf.get('MemorySize'))
+
+        old_subnets, old_security_groups, _ = self.lambda_conn.retrieve_vpc_config(
+            old_conf)
+        vpc_subnets = if_updated(set(meta.get('subnet_ids') or []),
+                                 old_subnets)
+        vpc_security_group = if_updated(
+            set(meta.get('security_group_ids') or []), old_security_groups)
+        runtime = if_updated(meta.get('runtime'), old_conf.get('Runtime'))
+        ephemeral_storage = if_updated(
+            meta.get('ephemeral_storage'),
+            self.lambda_conn.retrieve_ephemeral_storage(old_conf))
 
         dl_type = meta.get('dl_resource_type')
         if dl_type:
@@ -425,28 +444,39 @@ class LambdaResource(BaseResource):
             self.account_id,
             dl_name) if dl_type and dl_name else None
 
-        # update lambda layers version
-        if layers:
-            layers = [layer_arn for layer_arn, body in context.items()
-                      if body.get('resource_name') in layers]
+        lambda_layers_arns = []
+        layer_meta = meta.get('layers')
+        if layer_meta:
+            for layer_name in layer_meta:
+                layer_arn = self.lambda_conn.get_lambda_layer_arn(layer_name)
+                if not layer_arn:
+                    raise AssertionError(
+                        'Could not link lambda layer {} to lambda {} '
+                        'due to layer absence!'.format(layer_name, name))
+                lambda_layers_arns.append(layer_arn)
 
-        ephemeral_storage = meta.get('ephemeral_storage', 512)
-
+        _LOG.info(f'Updating lambda {name} configuration')
         self.lambda_conn.update_lambda_configuration(
             lambda_name=name, role=role_arn, handler=handler,
             env_vars=env_vars,
             timeout=timeout, memory_size=memory_size, runtime=runtime,
-            vpc_sub_nets=vpc_sub_nets, vpc_security_group=vpc_security_group,
-            dead_letter_arn=dl_target_arn, layers=layers,
-            ephemeral_storage=ephemeral_storage)
+            vpc_sub_nets=vpc_subnets, vpc_security_group=vpc_security_group,
+            dead_letter_arn=dl_target_arn, layers=lambda_layers_arns,
+            ephemeral_storage=ephemeral_storage,
+            snap_start=self._resolve_snap_start(meta=meta)
+        )
+        _LOG.info(f'Lambda configuration has been updated')
 
-        # AWS sometimes returns None after function creation, needs for
-        # stability
+        # It seems to me that the waiter is not necessary here, the method
+        # lambda_conn.update_lambda_configuration is the one that actually
+        # waits. But still it does not make it worse :)
+        _LOG.info(f'Initializing function updated waiter for {name}')
         waiter = self.lambda_conn.get_waiter('function_updated_v2')
         waiter.wait(FunctionName=name)
+        _LOG.info(f'Waiting has finished')
 
         response = self.lambda_conn.get_function(name)
-        _LOG.debug(f'Lambda describe result: {response}')
+        _LOG.info(f'Lambda describe result: {response}')
         code_sha_256 = response['Configuration']['CodeSha256']
         publish_ver_response = self.lambda_conn.publish_version(
             function_name=name,
@@ -493,8 +523,18 @@ class LambdaResource(BaseResource):
                 self.lambda_conn.delete_url_config(
                     function_name=name, qualifier=alias_name)
 
+        if meta.get('event_sources'):
+            if alias_name:
+                _arn = self.build_lambda_arn_with_alias(response, alias_name)
+            else:
+                _arn = response['Configuration']['FunctionArn']
+            for trigger_meta in meta.get('event_sources'):
+                trigger_type = trigger_meta['resource_type']
+                func = self.CREATE_TRIGGER[trigger_type]
+                func(self, name, _arn, role_name, trigger_meta)
+
         req_max_concurrency = meta.get(LAMBDA_MAX_CONCURRENCY)
-        existing_max_concurrency = self.lambda_conn.\
+        existing_max_concurrency = self.lambda_conn. \
             describe_function_concurrency(name=name)
         if req_max_concurrency and existing_max_concurrency:
             if existing_max_concurrency != req_max_concurrency:
@@ -507,10 +547,11 @@ class LambdaResource(BaseResource):
         self._manage_provisioned_concurrency_configuration(function_name=name,
                                                            meta=meta,
                                                            lambda_def=context)
+        _LOG.info(f'Updating has finished for lambda {name}')
         return self.describe_lambda(name, meta, response)
 
     def _set_function_concurrency(self, name, meta):
-        provisioned = self.lambda_conn.\
+        provisioned = self.lambda_conn. \
             describe_provisioned_concurrency_configs(name=name)
         if provisioned:
             self._delete_lambda_prov_concur_config(
@@ -521,7 +562,7 @@ class LambdaResource(BaseResource):
     def _manage_provisioned_concurrency_configuration(self, function_name,
                                                       meta,
                                                       lambda_def=None):
-        existing_configs = self.lambda_conn.\
+        existing_configs = self.lambda_conn. \
             describe_provisioned_concurrency_configs(name=function_name)
         concurrency = meta.get(PROVISIONED_CONCURRENCY)
 
@@ -582,10 +623,18 @@ class LambdaResource(BaseResource):
             lambda_def = self.lambda_conn.get_function(
                 lambda_name=function_name)
         qualifier = concurrency.get('qualifier')
-        resolved_qualifier = self._resolve_requested_qualifier(
-            lambda_def=lambda_def,
-            meta=meta,
-            qualifier=qualifier)
+        if not qualifier:
+            raise AssertionError('Parameter `qualifier` is required for '
+                                 'concurrency configuration but it is absent')
+        if qualifier not in _LAMBDA_PROV_CONCURRENCY_QUALIFIERS:
+            raise AssertionError(
+                f'Parameter `qualifier` must be one of '
+                f'{_LAMBDA_PROV_CONCURRENCY_QUALIFIERS}, but it is equal '
+                f'to ${qualifier}')
+
+        resolved_qualifier = self._resolve_requested_qualifier(lambda_def,
+                                                               meta,
+                                                               qualifier)
 
         requested_provisioned_level = concurrency.get('value')
         if not requested_provisioned_level:
@@ -595,7 +644,7 @@ class LambdaResource(BaseResource):
         max_prov_limit = self.lambda_conn.describe_function_concurrency(
             name=function_name)
         if not max_prov_limit:
-            max_prov_limit = self.lambda_conn.\
+            max_prov_limit = self.lambda_conn. \
                 get_unresolved_concurrent_executions()
 
         if requested_provisioned_level > max_prov_limit:
@@ -663,15 +712,30 @@ class LambdaResource(BaseResource):
         validate_params(lambda_name, trigger_meta,
                         DYNAMODB_TRIGGER_REQUIRED_PARAMS)
         table_name = trigger_meta['target_table']
+        batch_window = trigger_meta.get('batch_window')
+        filters = trigger_meta.get('filters')
 
         if not self.dynamodb_conn.is_stream_enabled(table_name):
             self.dynamodb_conn.enable_table_stream(table_name)
 
         stream = self.dynamodb_conn.get_table_stream_arn(table_name)
         # TODO support another sub type
-        self.lambda_conn.add_event_source(lambda_arn, stream,
-                                          trigger_meta['batch_size'],
-                                          start_position='LATEST')
+        event_source = next(iter(self.lambda_conn.list_event_sources(
+            event_source_arn=stream, function_name=lambda_arn)), None)
+        if event_source:
+            _LOG.info(f'Lambda event source mapping for source arn '
+                      f'{stream} and lambda arn {lambda_arn} was found. '
+                      f'Updating it')
+            self.lambda_conn.update_event_source(
+                event_source['UUID'], function_name=lambda_arn,
+                batch_size=trigger_meta['batch_size'],
+                batch_window=batch_window, filters=filters)
+        else:
+            self.lambda_conn.add_event_source(
+                lambda_arn, stream, batch_size=trigger_meta['batch_size'],
+                batch_window=batch_window, start_position='LATEST',
+                filters=filters
+            )
         # start_position='LATEST' - in case we did not remove tables before
         _LOG.info('Lambda %s subscribed to dynamodb table %s', lambda_name,
                   table_name)
@@ -702,10 +766,17 @@ class LambdaResource(BaseResource):
         validate_params(lambda_name, trigger_meta,
                         CLOUD_WATCH_TRIGGER_REQUIRED_PARAMS)
         rule_name = trigger_meta['target_rule']
+        # TODO add InputPath & InputTransformer if needed
+        input_dict = trigger_meta.get('input')
         rule_arn = self.cw_events_conn.get_rule_arn(rule_name)
+        if not rule_arn:
+            _LOG.error(f'No Arn of \'{rule_name}\' rule name could be found.')
+            return None
+
         targets = self.cw_events_conn.list_targets_by_rule(rule_name)
         if lambda_arn not in map(lambda each: each.get('Arn'), targets):
-            self.cw_events_conn.add_rule_target(rule_name, lambda_arn)
+            self.cw_events_conn.add_rule_target(rule_name, lambda_arn,
+                                                input_dict)
             self.lambda_conn.add_invocation_permission(lambda_arn,
                                                        'events.amazonaws.com',
                                                        rule_arn)
@@ -726,10 +797,17 @@ class LambdaResource(BaseResource):
                 f'S3 bucket {target_bucket} event source for lambda '
                 f'{lambda_name} was not created.')
             return
+
+        bucket_arn = 'arn:aws:s3:::{0}'.format(target_bucket)
+
         self.lambda_conn.add_invocation_permission(lambda_arn,
                                                    's3.amazonaws.com',
-                                                   'arn:aws:s3:::{0}'.format(
-                                                       target_bucket))
+                                                   bucket_arn)
+        _LOG.debug('Waiting for activation of invoke-permission of %s',
+                   bucket_arn)
+
+        time.sleep(5)
+
         self.s3_conn.configure_event_source_for_lambda(target_bucket,
                                                        lambda_arn,
                                                        trigger_meta[
@@ -926,3 +1004,23 @@ class LambdaResource(BaseResource):
                 _LOG.warn('Lambda Layer {} is not found'.format(layer_name))
             else:
                 raise e
+
+    @staticmethod
+    def _resolve_snap_start(meta: dict) -> Optional[str]:
+        runtime: str = meta.get('runtime')
+        if not runtime:
+            return
+
+        runtime = runtime.lower()
+        snap_start = meta.get(SNAP_START, None)
+        if snap_start and snap_start not in _SNAP_START_CONFIGURATIONS:
+            values = ', '.join(map('"{}"'.format, _SNAP_START_CONFIGURATIONS))
+            issue = f'must reflect one of the following values: {values}'
+            _LOG.warn(f'If given "{SNAP_START}" - {issue}.')
+            snap_start = None
+
+        if snap_start and 'java' not in runtime:
+            _LOG.warn(f'"{runtime}" runtime does support \'{SNAP_START}\'.')
+            snap_start = None
+
+        return snap_start

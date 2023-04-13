@@ -105,6 +105,12 @@ public class LambdaConfiguration {
     @JsonProperty("layers")
     private String[] layers;
 
+    @JsonProperty("snap_start")
+    private LambdaSnapStart snapStart;
+
+    @JsonProperty("resource_group")
+    private String resourceGroup;
+
     public String getName() {
         return name;
     }
@@ -240,6 +246,14 @@ public class LambdaConfiguration {
 
     public void setLayers(String[] layers) {
         this.layers = layers;
+    }
+
+    public LambdaSnapStart getSnapStart() {
+        return snapStart;
+    }
+
+    public void setSnapStart(LambdaSnapStart snapStart) {
+        this.snapStart = snapStart;
     }
 
     public static class Builder {
@@ -393,6 +407,18 @@ public class LambdaConfiguration {
         	Objects.requireNonNull(layers, "Array of layers names cannot be null");
         	configuration.layers = layers;
         	return this;
+        }
+
+        public Builder withSnapStart(LambdaSnapStart snapStart) {
+            configuration.snapStart = snapStart;
+            return this;
+        }
+
+        public Builder withResourceGroup(String resourceGroup) {
+            if (resourceGroup != null && !resourceGroup.isEmpty()){
+                configuration.resourceGroup = resourceGroup;
+            }
+            return this;
         }
 
         public LambdaConfiguration build() {
