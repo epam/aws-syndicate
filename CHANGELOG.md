@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2023-04-13
+- Added `web_socker_api_gateway` resource type. Allows to deploy web-socket
+  API with lambda integrations
+
 ## [1.1.1] - 2023-04-13
 - improve python artifacts building process. By default, 
   `manylinux2014_x86_64` is used for M1 and Windows. In case the platform 
@@ -51,8 +55,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added AWS Kinesis Firehose support;
 - Add lambda event-source-mapping filters support;
 - Added an ability to build lambda layers (similarly to lambdas)
-- Added `web_socker_api_gateway` resource type. Allows to deploy web-socket 
-  API with lambda integrations
 
 
 ## [0.9.6] - 2021-04-29
