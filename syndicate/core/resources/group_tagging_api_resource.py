@@ -13,11 +13,12 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.connection import ResourceGroupsTaggingAPIConnection
 from syndicate.core.constants import LAMBDA_TYPE
 from syndicate.core.resources.helper import chunks
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 _LOG = get_logger('syndicate.core.resources.group_tagging_api_resource')
 USER_LOG = get_user_logger()

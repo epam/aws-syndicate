@@ -27,6 +27,10 @@ from syndicate.connection.helper import apply_methods_decorator, retry
 _LOG = get_logger('syndicate.connection.cloud_watch_connection')
 
 
+def get_lambda_log_group_name(lambda_name):
+    return '/aws/lambda/' + lambda_name
+
+
 @apply_methods_decorator(retry)
 class LogsConnection(object):
     """ CloudWatch Log connection class."""
@@ -54,7 +58,7 @@ class LogsConnection(object):
         :type lambda_arn: str
         :type filter_pattern: str
         """
-        log_group_name = '/aws/lambda/' + log_group_name
+        log_group_name = get_lambda_log_group_name(log_group_name)
         self.client.put_subscription_filter(logGroupName=log_group_name,
                                             filterName=filter_name,
                                             filterPattern=filter_pattern,
@@ -72,7 +76,7 @@ class LogsConnection(object):
         possible_retention_days = (1, 3, 5, 7, 14, 30, 60, 90, 120, 150,
                                    180, 365, 400, 545, 731, 1827, 3653)
 
-        log_group_name = '/aws/lambda/' + group_name
+        log_group_name = get_lambda_log_group_name(group_name)
         self.client.create_log_group(logGroupName=log_group_name)
 
         if retention_in_days in possible_retention_days:

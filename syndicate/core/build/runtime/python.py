@@ -22,6 +22,7 @@ import shutil
 import subprocess
 import sys
 from concurrent.futures import FIRST_EXCEPTION
+from concurrent.futures import FIRST_EXCEPTION
 from concurrent.futures.thread import ThreadPoolExecutor
 from distutils.dir_util import copy_tree
 from itertools import chain

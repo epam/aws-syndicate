@@ -4,7 +4,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.1.1] - 2023-04-13
+# [1.2.0] - 2023-04-13
+- Added `transform` command that creates a CloudFormation or Terraform template based on the `build_meta` of your project
+
+
+## [1.1.1] - 2023-04-11
 - improve python artifacts building process. By default, 
   `manylinux2014_x86_64` is used for M1 and Windows. In case the platform 
   is set and pip installation fails, the Syndicate will try to install 

@@ -14,6 +14,7 @@
     limitations under the License.
 """
 from json import dumps
+from functools import lru_cache
 
 from boto3 import client, resource
 from botocore.exceptions import ClientError
@@ -31,6 +32,11 @@ def get_account_role_arn(account_number):
 @apply_methods_decorator(retry)
 class IAMConnection(object):
     """ IAM connection class."""
+
+    def build_role_arn(self, role_name: str) -> str:
+        from syndicate.core import CONFIG
+        return f'arn:aws:iam::{CONFIG.account_id}:role' \
+               f'/{CONFIG.resources_prefix}{role_name}{CONFIG.resources_suffix}'
 
     def __init__(self, region=None, aws_access_key_id=None,
                  aws_secret_access_key=None, aws_session_token=None):
@@ -79,6 +85,7 @@ class IAMConnection(object):
             roles.extend(response.get('Roles'))
         return roles
 
+    @lru_cache()
     def get_policies(self, scope='All', only_attached=False):
         """
         :param scope: 'All'|'AWS'|'Local'
@@ -150,16 +157,13 @@ class IAMConnection(object):
         :param trusted_relationships: if not specified will use default
         """
         if not trusted_relationships:
-            trusted_relationships = {
-                "Version": "2012-10-17",
-                "Statement": []
-            }
+            trusted_relationships = self.empty_trusted_relationships()
         if allowed_account:
-            trusted_accounts = IAMConnection._set_allowed_account(
+            trusted_accounts = IAMConnection.set_allowed_account(
                 allowed_account, external_id, 'create')
             trusted_relationships['Statement'].append(trusted_accounts)
         if allowed_service:
-            trusted_services = IAMConnection._set_allowed_service(
+            trusted_services = IAMConnection.set_allowed_service(
                 allowed_service, 'create')
             trusted_relationships['Statement'].append(trusted_services)
         if isinstance(trusted_relationships, dict):
@@ -177,6 +181,14 @@ class IAMConnection(object):
             if e.response['Error']['Code'] == 'EntityAlreadyExists':
                 return self.client.get_role(role_name)['Role']
             raise e
+
+    @staticmethod
+    def empty_trusted_relationships():
+        trusted_relationships = {
+            "Version": "2012-10-17",
+            "Statement": []
+        }
+        return trusted_relationships
 
     def attach_policy(self, role_name, policy_arn):
         self.client.attach_role_policy(
@@ -229,6 +241,11 @@ class IAMConnection(object):
         :param policy_scope: 'All'|'AWS'|'Local'
         :type name: str
         """
+        # TODO this method is highly time-ineffective especially if we, for
+        #  instance, perform `syndicate transform` on a big meta, where
+        #  there is a huge amount of policies names.
+        #  lru_cache for self.get_policies makes the situation better but in
+        #  general it should be refactored.
         custom_policies = self.get_policies(policy_scope)
         for each in custom_policies:
             if each['PolicyName'] == name:
@@ -463,17 +480,14 @@ class IAMConnection(object):
                 "Statement": updated_role.get('Statement', [])
             }
         else:
-            trusted_relationships = {
-                "Version": "2012-10-17",
-                "Statement": []
-            }
+            trusted_relationships = self.empty_trusted_relationships()
         statement = trusted_relationships['Statement']
         if allowed_account:
-            trusted_accounts = IAMConnection._set_allowed_account(
+            trusted_accounts = IAMConnection.set_allowed_account(
                 allowed_account, external_id, 'update')
             statement.append(trusted_accounts)
         if allowed_service:
-            trusted_services = IAMConnection._set_allowed_service(
+            trusted_services = IAMConnection.set_allowed_service(
                 allowed_service, 'update')
             statement.append(trusted_services)
         if isinstance(trusted_relationships, dict):
@@ -496,7 +510,7 @@ class IAMConnection(object):
             raise e
 
     @staticmethod
-    def _set_allowed_account(allowed_account, external_id, action):
+    def set_allowed_account(allowed_account, external_id, action):
         if isinstance(allowed_account, str):
             principal = get_account_role_arn(allowed_account)
         elif isinstance(allowed_account, list):
@@ -524,7 +538,7 @@ class IAMConnection(object):
         return trusted_accounts
 
     @staticmethod
-    def _set_allowed_service(allowed_service, action):
+    def set_allowed_service(allowed_service, action):
         if isinstance(allowed_service, str):
             principal = "{0}.amazonaws.com".format(allowed_service)
         elif isinstance(allowed_service, list):
@@ -576,7 +590,6 @@ class IAMConnection(object):
         self.create_policy_version(policy_arn=arn,
                                    policy_document=dumps(policy_json),
                                    set_as_default=True)
-
 
     def create_group(self, name):
         return self.client.create_group(GroupName=name)

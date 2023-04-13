@@ -269,7 +269,6 @@ class LambdaConnection(object):
             params['FunctionName'] = function_name
         return self.client.list_event_source_mappings(**params)['EventSourceMappings']
 
-
     def lambdas_list(self):
         """ Get all existing Lambdas.
 
