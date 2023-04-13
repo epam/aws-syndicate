@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] - 2023-04-13
+- improve python artifacts building process. By default, 
+  `manylinux2014_x86_64` is used for M1 and Windows. In case the platform 
+  is set and pip installation fails, the Syndicate will try to install 
+  a package the default way.
+
 ## [1.1.0] - 2022-12-07
 ### Added
 - `snap_start` support of Java-based lambda configurations of 

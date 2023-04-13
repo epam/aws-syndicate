@@ -392,7 +392,6 @@ class LambdaResource(BaseResource):
         ephemeral_storage = if_updated(
             meta.get('ephemeral_storage'),
             self.lambda_conn.retrieve_ephemeral_storage(old_conf))
-        layers = meta.get('layers')
 
         dl_type = meta.get('dl_resource_type')
         if dl_type:
@@ -405,17 +404,24 @@ class LambdaResource(BaseResource):
             self.account_id,
             dl_name) if dl_type and dl_name else None
 
-        # update lambda layers version
-        if layers:
-            layers = [layer_arn for layer_arn, body in context.items()
-                      if body.get('resource_name') in layers]
+        lambda_layers_arns = []
+        layer_meta = meta.get('layers')
+        if layer_meta:
+            for layer_name in layer_meta:
+                layer_arn = self.lambda_conn.get_lambda_layer_arn(layer_name)
+                if not layer_arn:
+                    raise AssertionError(
+                        'Could not link lambda layer {} to lambda {} '
+                        'due to layer absence!'.format(layer_name, name))
+                lambda_layers_arns.append(layer_arn)
+
         _LOG.info(f'Updating lambda {name} configuration')
         self.lambda_conn.update_lambda_configuration(
             lambda_name=name, role=role_arn, handler=handler,
             env_vars=env_vars,
             timeout=timeout, memory_size=memory_size, runtime=runtime,
             vpc_sub_nets=vpc_subnets, vpc_security_group=vpc_security_group,
-            dead_letter_arn=dl_target_arn, layers=layers,
+            dead_letter_arn=dl_target_arn, layers=lambda_layers_arns,
             ephemeral_storage=ephemeral_storage,
             snap_start=self._resolve_snap_start(meta=meta)
         )

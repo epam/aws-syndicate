@@ -17,28 +17,31 @@ import concurrent
 import glob
 import json
 import os
+import platform
 import shutil
 import subprocess
 import sys
-import platform
-from typing import Union
 from concurrent.futures import FIRST_EXCEPTION
 from concurrent.futures.thread import ThreadPoolExecutor
-from pathlib import Path
 from distutils.dir_util import copy_tree
+from itertools import chain
+from pathlib import Path
+from typing import Union, Optional, List, Set
 
-from syndicate.commons.log_helper import get_logger
+from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.build.helper import build_py_package_name, zip_dir
 from syndicate.core.conf.processor import path_resolver
 from syndicate.core.constants import (LAMBDA_CONFIG_FILE_NAME, DEFAULT_SEP,
                                       REQ_FILE_NAME, LOCAL_REQ_FILE_NAME,
                                       LAMBDA_LAYER_CONFIG_FILE_NAME,
-                                      PYTHON_LAMBDA_LAYER_PATH)
+                                      PYTHON_LAMBDA_LAYER_PATH,
+                                      MANY_LINUX_2014_PLATFORM)
 from syndicate.core.helper import (build_path, unpack_kwargs, zip_ext,
                                    without_zip_ext)
 from syndicate.core.resources.helper import validate_params
 
-_LOG = get_logger('python_runtime_assembler')
+_LOG = get_logger(__name__)
+USER_LOG = get_user_logger()
 
 _PY_EXT = "*.py"
 
@@ -64,7 +67,8 @@ def assemble_python_lambdas(project_path, bundles_dir):
                         'target_folder': bundles_dir,
                         'project_path': project_path,
                     }
-                    futures.append(executor.submit(_build_python_artifact, arg))
+                    futures.append(
+                        executor.submit(_build_python_artifact, arg))
                 elif item.endswith(LAMBDA_LAYER_CONFIG_FILE_NAME):
                     _LOG.info(f'Going to build lambda layer in `{root}`')
                     arg = {
@@ -72,7 +76,8 @@ def assemble_python_lambdas(project_path, bundles_dir):
                         'bundle_dir': bundles_dir,
                         'project_path': project_path
                     }
-                    futures.append(executor.submit(build_python_lambda_layer, arg))
+                    futures.append(
+                        executor.submit(build_python_lambda_layer, arg))
         result = concurrent.futures.wait(futures, return_when=FIRST_EXCEPTION)
     for future in result.done:
         exception = future.exception()
@@ -95,7 +100,8 @@ def remove_dir(path: Union[str, Path]):
 
 
 @unpack_kwargs
-def build_python_lambda_layer(layer_root: str, bundle_dir: str, project_path: str):
+def build_python_lambda_layer(layer_root: str, bundle_dir: str,
+                              project_path: str):
     """
     Layer root is a dir where these files exist:
     - lambda_layer_config.json
@@ -114,7 +120,8 @@ def build_python_lambda_layer(layer_root: str, bundle_dir: str, project_path: st
     # install requirements.txt content
     requirements_path = Path(layer_root, REQ_FILE_NAME)
     if os.path.exists(requirements_path):
-        install_requirements_to(requirements_path, to=path_for_requirements)
+        install_requirements_to(requirements_path, to=path_for_requirements,
+                                config=layer_config)
 
     # install local requirements
     local_requirements_path = Path(layer_root, LOCAL_REQ_FILE_NAME)
@@ -190,26 +197,35 @@ def _build_python_artifact(root, config_file, target_folder, project_path):
 
 def install_requirements_to(requirements_txt: Union[str, Path],
                             to: Union[str, Path],
-                            config: dict = None):
+                            config: Optional[dict] = None):
+    config = config or {}
     _LOG.info('Going to install 3-rd party dependencies')
-    supported_platforms = config.get('platforms') if config else None
+    supported_platforms = update_platforms(set(config.get('platforms') or []))
     python_version = _get_python_version(lambda_config=config)
     try:
-        required_default_install = True
-        if supported_platforms and python_version:
+        if supported_platforms:
             # tries to install packages compatible with specific platforms
-            required_default_install = install_requirements_for_platform(
+            # returns the list of requirement that failed the installation
+            failed_requirements = install_requirements_for_platform(
                 requirements_txt=requirements_txt,
                 to=to,
                 supported_platforms=supported_platforms,
                 python_version=python_version
             )
-        if required_default_install:
-            command = f"{sys.executable} -m pip install -r " \
-                      f"{str(requirements_txt)} -t {str(to)}"
-            # if platform.system() == 'Windows':
-            #     command += ' --no-cache-dir'
-            subprocess.run(command.split(), stderr=subprocess.PIPE, check=True)
+            for failed in failed_requirements:
+                command = build_pip_install_command(  # default installation
+                    requirement=failed,
+                    to=to,
+                )
+                subprocess.run(command, stderr=subprocess.PIPE, check=True)
+        else:
+            _LOG.info('Installing all the requirements with defaults')
+            command = build_pip_install_command(
+                requirement=requirements_txt,
+                to=to
+            )
+            subprocess.run(command, stderr=subprocess.PIPE, check=True)
+
     except subprocess.CalledProcessError as e:
         message = f'An error: \n"{e.stderr.decode()}"\noccured while ' \
                   f'installing requirements: "{str(requirements_txt)}" ' \
@@ -219,36 +235,102 @@ def install_requirements_to(requirements_txt: Union[str, Path],
     _LOG.info('3-rd party dependencies were installed successfully')
 
 
-def install_requirements_for_platform(
-        requirements_txt: Union[str, Path], to: Union[str, Path],
-        python_version: str, supported_platforms: list) -> \
-        Union[None, bool]:
+def build_pip_install_command(
+        requirement: Optional[Union[str, Path]],
+        to: Optional[Union[str, Path]] = None,
+        implementation: Optional[str] = None,
+        python: Optional[str] = None,
+        only_binary: Optional[str] = None,
+        platforms: Optional[Set[str]] = None,
+        additional_args: Optional[List[str]] = None) -> List[str]:
+    """
+    :param requirement: path to requirements.txt or just one requirement.
+    If the path is not file or does not exist it will be treated as one
+    requirement.
+    :param to: Optional[str] the path where to install requirements
+    :param implementation: Optional[str], can be `cp`
+    :param python: Optional[str], can be `3.8`, `3.9`
+    :param only_binary: Optional[str], can be `:all:` or `:none:`
+    :param platforms: Optional[Set], can be {'manylinux2014_x86_64'}
+    :param additional_args: Optional[List[str]] list or some additional args
+    :return: List[str]
+    """
+    command = [
+        sys.executable, '-m', 'pip', 'install'
+    ]
+    r_path = Path(requirement)
+    if r_path.exists() and r_path.is_file():
+        command.extend(['-r', str(r_path)])
+    else:  # not a path to requirements.txt but one requirement
+        command.append(requirement)
+
+    if to:
+        command.extend(['-t', str(to)])
+    if implementation:
+        command.extend(['--implementation', 'cp'])
+    if python:
+        command.extend(['--python', python])
+    if only_binary:
+        command.append(f'--only-binary={only_binary}')
+    if platforms:
+        command.extend(chain.from_iterable(
+            ('--platform', p) for p in platforms
+        ))
+    command.extend(additional_args or [])
+    return command
+
+
+def update_platforms(platforms: Set[str]) -> Set[str]:
+    """
+    If platforms are not empty, just return them without changing
+    (user's choice). But in case the set is empty and the current
+    processor is ARM (mac m1) or OS is Windows, we add
+    manylinux2014_x86_64 to the list of platforms because by default
+    lambdas with x86_64.
+    This code is experimental and can be adjusted
+    """
+    if platforms:
+        return platforms
+    _arm = platform.processor() == 'arm'
+    _win = platform.system() == 'Windows'
+    if _arm or _win:
+        platforms.add(MANY_LINUX_2014_PLATFORM)
+    return platforms
+
+
+def install_requirements_for_platform(requirements_txt: Union[str, Path],
+                                      to: Union[str, Path],
+                                      python_version: str,
+                                      supported_platforms: Set[str]
+                                      ) -> List[str]:
     _LOG.info(f'Going to install 3-rd party dependencies for platforms: '
               f'{",".join(supported_platforms)}')
-
-    with open(requirements_txt, 'r') as f:
-        requirements = f.read().split(os.linesep)
-    with_errors = False
-
-    for package in requirements:
+    fp = open(requirements_txt, 'r')
+    it = (
+        line.split(' #')[0].strip() for line in
+        filter(lambda line: not line.strip().startswith('#'), fp)
+    )
+    failed_requirements = []
+    for requirement in it:
         try:
-            command = f"{sys.executable} -m pip install " \
-                      f"{package} -t {str(to)} " \
-                      f"--implementation cp " \
-                      f"--python {python_version} " \
-                      f"--only-binary=:all: "
-            platforms_part = ' '.join([f'--platform {p}' for p in
-                                       supported_platforms])
-            command += platforms_part
-            subprocess.run(command.split(), stderr=subprocess.PIPE, check=True)
+            command = build_pip_install_command(
+                requirement=requirement,
+                to=to,
+                implementation='cp',
+                python=python_version,
+                only_binary=':all:',
+                platforms=supported_platforms
+            )
+            subprocess.run(command, stderr=subprocess.PIPE, check=True)
         except subprocess.CalledProcessError as e:
             message = f'An error: \n"{e.stderr.decode()}"\noccured while ' \
                       f'installing requirements for platforms:' \
                       f'{",".join(supported_platforms)}: ' \
-                      f'"{str(requirements_txt)}" for package "{package}"'
-            _LOG.error(message)
-            with_errors = True
-    return with_errors
+                      f'"{str(requirements_txt)}" for package "{requirement}"'
+            USER_LOG.warning(f"\033[93m{message}\033[0m")
+            failed_requirements.append(requirement)
+    fp.close()
+    return failed_requirements
 
 
 def _install_local_req(artifact_path, local_req_path, project_path):
@@ -271,21 +353,28 @@ def _install_local_req(artifact_path, local_req_path, project_path):
         temp_path = ''
         while i < len(folders):
             temp_path += DEFAULT_SEP + folders[i]
-            src_path = Path(CONFIG.project_path, project_path,temp_path)
+            src_path = Path(CONFIG.project_path, project_path, temp_path)
             dst_path = Path(artifact_path, temp_path)
             _copy_py_files(str(src_path), str(dst_path))
             i += 1
         _LOG.debug('Python files from packages were copied successfully')
 
 
-def _get_python_version(lambda_config):
+def _get_python_version(lambda_config: dict) -> Optional[str]:
     """
-     "runtime": "python3.7" => "3.7"
+    Lambda config or layer config.
+     "runtime": "python3.7" => "3.7".
+    If "runtime" contains a list with runtimes. The lowest version is returned
     """
-    if not lambda_config:
+    runtimes: Union[None, List, str] = lambda_config.get('runtime')
+    if not runtimes:
         return
-    runtime = lambda_config.get('runtime', '')
-    return ''.join([ch for ch in runtime if ch.isdigit() or ch == '.'])
+    if isinstance(runtimes, str):
+        runtimes = [runtimes]
+    return sorted(
+        ''.join(ch for ch in runtime if ch.isdigit() or ch == '.')
+        for runtime in runtimes
+    )[0]
 
 
 def _copy_py_files(search_path, destination_path):
