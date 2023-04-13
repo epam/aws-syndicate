@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [1.2.0] - 2023-04-13
+- Added `transform` command that creates a CloudFormation or Terraform template based on the `build_meta` of your project
+
+
+## [1.1.1] - 2023-04-11
+- improve python artifacts building process. By default, 
+  `manylinux2014_x86_64` is used for M1 and Windows. In case the platform 
+  is set and pip installation fails, the Syndicate will try to install 
+  a package the default way.
+
+## [1.1.0] - 2022-12-07
+### Added
+- `snap_start` support of Java-based lambda configurations of 
+`PublishedVersions` or `None` values.
+- `resourceGroup` annotation parameter to Java-based lambda.
+- Specify target AWS Lambda platform, python version and implementation to install dependencies
+
+
 ## [1.0.0] - 2021-06-11
 ### Changed
 - `init` command was replaced with `generate config`
@@ -14,7 +32,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Provided ability to add information about created lambda to `.syndicate` file
 - Added `test` command that allows to run tests inside your python project
 - Added `profiler` command that allows to display application Lambda metrics
-- Added `transform` command that creates a CloudFormation or Terraform template based on the `build_meta` of your project
 - Fixed an issue in `clean` command, associated with API Gateway skipping removing Lambda trigger permissions
 - Fixed an issued in `clean` command associated with removing EC2 instances
 - Fixed an issue in `clean` command, associated with removing resources if they specified as excluded
@@ -30,10 +47,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed an issue when build meta is validated before resolving aliases in it
 - Added `minimum_compression_size` param to API gateway deployment_resource declaration. It enables payload compression for an API with given size;
 - Added lambda URL support;
-- Add lambda ephemeral storage support;
+- Added lambda ephemeral storage support;
 - Added an ability to create DynamoDB in on-demand mode if `read_capacity` 
   and `write_capacity` are not specified;
 - Describe an existing Api Gateway instead of creating a new one;
+- Added an ability to create models in API Gateway;
+- Added AWS Kinesis Firehose support;
+- Add lambda event-source-mapping filters support;
+- Added an ability to build lambda layers (similarly to lambdas)
 
 
 ## [0.9.6] - 2021-04-29

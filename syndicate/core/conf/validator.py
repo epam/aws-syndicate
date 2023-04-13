@@ -131,7 +131,7 @@ class ConfigValidator:
             },
             TAGS_CFG: {
                 REQUIRED: False,
-                VALIDATOR: self._validate_tags
+                VALIDATOR: self.validate_tags
             },
             IAM_PERMISSIONS_BOUNDARY_CFG: {
                 REQUIRED: False,
@@ -275,7 +275,8 @@ class ConfigValidator:
         if str_error:
             return [str_error]
 
-    def _validate_tags(self, key, value):
+    @staticmethod
+    def validate_tags(key, value):
         errors = []
         if not value:
             return errors
