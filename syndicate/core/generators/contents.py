@@ -473,7 +473,8 @@ def _generate_python_node_lambda_config(lambda_name, lambda_relative_path):
         'alias': _alias_variable(LAMBDAS_ALIASES_NAME_CFG),
         'url_config': {},
         'ephemeral_storage': 512,
-        "platforms": ['manylinux2014_x86_64']
+        # 'platforms': ['manylinux2014_x86_64']
+        # by default (especially if you have linux), you don't need it
     })
 
 
