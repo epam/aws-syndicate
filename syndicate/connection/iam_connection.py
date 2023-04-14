@@ -157,7 +157,7 @@ class IAMConnection(object):
         :param trusted_relationships: if not specified will use default
         """
         if not trusted_relationships:
-            trusted_relationships = self.empty_trusted_relationships()
+            trusted_relationships = IAMConnection.empty_trusted_relationships()
         if allowed_account:
             trusted_accounts = IAMConnection.set_allowed_account(
                 allowed_account, external_id, 'create')
@@ -480,7 +480,7 @@ class IAMConnection(object):
                 "Statement": updated_role.get('Statement', [])
             }
         else:
-            trusted_relationships = self.empty_trusted_relationships()
+            trusted_relationships = IAMConnection.empty_trusted_relationships()
         statement = trusted_relationships['Statement']
         if allowed_account:
             trusted_accounts = IAMConnection.set_allowed_account(

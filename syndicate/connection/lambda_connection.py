@@ -638,8 +638,8 @@ class LambdaConnection(object):
 
         while response.get('NextMarker'):
             kwargs['Marker'] = response['NextMarker']
-            response = self.client.list_layer_versions(kwargs)
-            versions.append(response['LayerVersions'])
+            response = self.client.list_layer_versions(**kwargs)
+            versions.extend(response['LayerVersions'])
 
         return versions
 
