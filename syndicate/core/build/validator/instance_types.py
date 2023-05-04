@@ -42,4 +42,7 @@ INSTANCE_TYPES = ('r3', 'r4', 'm6g.xlarge', 'r5', 'optimal', 'r5d.24xlarge', 'm5
                   'm5a.16xlarge', 'r5dn.metal', 'c3.xlarge', 'r5b.2xlarge', 'g4dn', 'r5.12xlarge', 'r4.large',
                   'c5a.24xlarge', 'm3.large', 'm5ad.16xlarge', 'a1', 'r5b.metal', 'r5n.8xlarge', 'a1.4xlarge',
                   'r5dn.16xlarge', 'm5a', 'r5a.large', 'm5zn.3xlarge', 'r5dn', 'c5d.4xlarge', 'r5n.large', 'c3.8xlarge',
-                  'inf1.xlarge', 'm5d', 'm5.4xlarge')
+                  'inf1.xlarge', 'm5d', 'm5.4xlarge', 'c7g', 'c7g.medium', 'c7g.large', 'c7g.xlarge', 'c7g.2xlarge',
+                  'c7g.4xlarge', 'c7g.8xlarge', 'c7g.12xlarge', 'c7g.16xlarge', 'c7g.metal', 't4g.nano', 't4g.micro',
+                  't4g.small', 't4g.medium', 't4g.large', 't4g.xlarge', 't4g.2xlarge', 't4g', 't3.nano', 't3.micro',
+                  't3.small', 't3.medium', 't3.large', 't3.xlarge', 't3.2xlarge', 't3')
