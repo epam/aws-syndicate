@@ -45,4 +45,8 @@ INSTANCE_TYPES = ('r3', 'r4', 'm6g.xlarge', 'r5', 'optimal', 'r5d.24xlarge', 'm5
                   'inf1.xlarge', 'm5d', 'm5.4xlarge', 'c7g', 'c7g.medium', 'c7g.large', 'c7g.xlarge', 'c7g.2xlarge',
                   'c7g.4xlarge', 'c7g.8xlarge', 'c7g.12xlarge', 'c7g.16xlarge', 'c7g.metal', 't4g.nano', 't4g.micro',
                   't4g.small', 't4g.medium', 't4g.large', 't4g.xlarge', 't4g.2xlarge', 't4g', 't3.nano', 't3.micro',
-                  't3.small', 't3.medium', 't3.large', 't3.xlarge', 't3.2xlarge', 't3')
+                  't3.small', 't3.medium', 't3.large', 't3.xlarge', 't3.2xlarge', 't3', 'c6gd.medium', 'c6gd.large',
+                  'c6gd.xlarge', 'c6gd.2xlarge', '	c6gd.4xlarge', 'c6gd.8xlarge', 'c6gd.12xlarge', 'c6gd.metal',
+                  'c6gd.16xlarge', 'c6gn.medium', 'c6gn.large', 'c6gn.xlarge', 'c6gn.2xlarge', 'c6gn.4xlarge',
+                  'c6gn.8xlarge', 'c6gn.12xlarge', 'c6gn.16xlarge', 'r6gd.medium', 'r6gd.large', 'r6gd.xlarge',
+                  'r6gd.2xlarge', 'r6gd.4xlarge', 'r6gd.8xlarge', 'r6gd.12xlarge', 'r6gd.16xlarge', 'r6gd.metal')
