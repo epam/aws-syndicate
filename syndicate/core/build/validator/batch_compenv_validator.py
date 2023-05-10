@@ -13,7 +13,8 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-from syndicate.core.build.validator.instance_types import INSTANCE_TYPES
+from syndicate.connection.ec2_connection import InstanceTypes
+from syndicate.core.constants import OPTIMAL_INSTANCE_TYPE
 
 COMPENV_STATES = ('ENABLED', 'DISABLED')
 COMPENV_TYPES = ('UNMANAGED', 'MANAGED')
@@ -254,13 +255,17 @@ def _validate_compute_resources(compute_resources):
     ]
     _process_config(compute_resource_config)
 
-
-    instance_types = compute_resources.get('instance_types')
+    instance_types = compute_resources.get('instance_types') or []
+    # available = set(InstanceTypes.with_groups(
+    #     InstanceTypes.from_api(region_name=CONFIG.region)
+    # ))
+    available = set(InstanceTypes.with_groups(InstanceTypes.from_botocore()))
+    available.add(OPTIMAL_INSTANCE_TYPE)
     for instance_type in instance_types:
         _validate_options_field(
             field_name='instance_types__item',
             field_value=instance_type,
-            field_options=INSTANCE_TYPES
+            field_options=available
         )
 
     desiredv_cpus = compute_resources.get('desiredv_cpus')

@@ -13,8 +13,13 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+import inspect
+import json
 import time
+from pathlib import Path
+from typing import Generator, Optional, List, Iterable
 
+import botocore
 from boto3 import client
 
 from syndicate.commons.log_helper import get_logger
@@ -349,3 +354,64 @@ class EC2Connection(object):
         if public_ip:
             params['PublicIp'] = public_ip
         return self.client.associate_address(**params)
+
+
+class InstanceTypes:
+    @staticmethod
+    def from_api(region_name: Optional[str] = None,
+                 current_generation: Optional[bool] = None,
+                 arch: Optional[List] = None,
+                 ) -> Generator[str, None, None]:
+        filters = []
+        if isinstance(current_generation, bool):
+            filters.append({
+                'Name': 'current-generation',
+                'Values': [str(current_generation).lower()]
+            })
+        if isinstance(arch, list):
+            assert set(arch).issubset({'arm64', 'i386', 'x86_64'})
+            filters.append({
+                'Name': 'processor-info.supported-architecture',
+                'Values': arch
+            })
+
+        params = {}
+        if filters:
+            params['Filters'] = filters
+
+        ec2 = client('ec2', region_name=region_name)
+        while True:
+            res = ec2.describe_instance_types(**params)
+            yield from (item['InstanceType'] for item in res['InstanceTypes'])
+            _next = res.get('NextToken')
+            if not _next:
+                break
+            params['NextToken'] = _next
+
+    @staticmethod
+    def from_botocore() -> Generator[str, None, None]:
+        path = Path(inspect.getfile(botocore)).parent
+        with open(Path(path, 'data', 'ec2', '2016-11-15',
+                       'service-2.json')) as fp:
+            data = json.load(fp)
+        yield from data['shapes']['InstanceType']['enum']
+
+    @staticmethod
+    def instance_type_group(instance_type: str) -> str:
+        return instance_type.split('.')[0]
+
+    @staticmethod
+    def with_groups(it: Iterable[str]) -> Generator[str, None, None]:
+        """
+        Before yielding an instance type, yields its group.
+        A group is yielded only once.
+        :param it: Iterable[str]
+        :return: Generator[str, None, None]
+        """
+        emitted = set()
+        for instance_type in it:
+            group = InstanceTypes.instance_type_group(instance_type)
+            if group not in emitted:
+                yield group
+                emitted.add(group)
+            yield instance_type
