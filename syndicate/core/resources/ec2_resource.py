@@ -17,6 +17,7 @@ import os
 from time import sleep
 
 from syndicate.commons.log_helper import get_logger
+from syndicate.connection.ec2_connection import InstanceTypes
 from syndicate.core import ClientError
 from syndicate.core.helper import unpack_kwargs
 from syndicate.core.resources.base_resource import BaseResource
@@ -67,6 +68,8 @@ class Ec2Resource(BaseResource):
         instance_type = meta.get('instance_type')
         if not instance_type:
             raise AssertionError('Instance type must be specified')
+        if instance_type not in InstanceTypes.from_botocore():
+            raise AssertionError(f'Not available instance type: {instance_type}')
 
         key_name = meta.get('key_name')
         if not self.ec2_conn.if_key_pair_exists(key_name):

@@ -5,7 +5,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 # [1.2.2] - 2023-05-05
-- Added new supported EC2 instance types
+- Resolve available instance types from `botocore` data
 
 # [1.2.1] - 2023-05-04
 - Added new supported EC2 instance types: `c7g`, `t4g`, `t3`
