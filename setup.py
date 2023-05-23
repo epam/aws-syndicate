@@ -39,7 +39,7 @@ setup(
         'colorama==0.4.1',
         'pyyaml==5.4',
         'requests-aws-sign==0.1.6',
-        'requests==2.27.1',
+        'requests==2.31.0',
         'tabulate==0.8.9',
         'troposphere==4.1.0'
     ],
