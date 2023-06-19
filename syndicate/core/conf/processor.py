@@ -28,7 +28,7 @@ from syndicate.core.conf.validator import \
      USE_TEMP_CREDS_CFG, SERIAL_NUMBER_CFG,
      TEMP_AWS_ACCESS_KEY_ID_CFG, TEMP_AWS_SECRET_ACCESS_KEY_CFG,
      TEMP_AWS_SESSION_TOKEN_CFG, EXPIRATION_CFG, TAGS_CFG,
-     IAM_PERMISSIONS_BOUNDARY_CFG)
+     IAM_PERMISSIONS_BOUNDARY_CFG, LAMBDAS_ALIASES_NAME_CFG)
 from syndicate.core.constants import (DEFAULT_SEP, IAM_POLICY, IAM_ROLE,
                                       S3_BUCKET_TYPE)
 
@@ -221,6 +221,9 @@ class ConfigHolder:
     def _resolve_variable(self, variable_name):
         return self._config_dict.get(variable_name)
 
+    def _resolve_aliases(self, variable_name):
+        return self._aliases.get(variable_name)
+
     def _prepare_bucket_view(self) -> Union[None, AbstractBucketView]:
         """
         Prepares assigned bucket view instance,
@@ -270,6 +273,10 @@ class ConfigHolder:
     @property
     def account_id(self):
         return str(self._resolve_variable(ACCOUNT_ID_CFG))
+
+    @property
+    def lambdas_alias_name(self):
+        return str(self._resolve_aliases(LAMBDAS_ALIASES_NAME_CFG))
 
     @property
     def access_role(self):

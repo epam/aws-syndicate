@@ -325,7 +325,7 @@ def create_deployment_resources(deploy_name, bundle_name,
 
     # sort resources with priority
     resources_list = list(resources.items())
-    resources_list.sort(key=cmp_to_key(_compare_deploy_resources))
+    resources_list.sort(key=cmp_to_key(compare_deploy_resources))
 
     _LOG.info('Going to deploy AWS resources')
     success, output = deploy_resources(resources_list)
@@ -511,7 +511,7 @@ def continue_deployment_resources(deploy_name, bundle_name,
 
     # sort resources with priority
     resources_list = list(resources.items())
-    resources_list.sort(key=cmp_to_key(_compare_deploy_resources))
+    resources_list.sort(key=cmp_to_key(compare_deploy_resources))
 
     success, updated_output = continue_deploy_resources(resources_list, output)
     _LOG.info('AWS resources were deployed successfully')
@@ -622,7 +622,7 @@ def _apply_tags(output: dict):
     tags_resource.apply_tags(output)
 
 
-def _compare_deploy_resources(first, second):
+def compare_deploy_resources(first, second):
     first_resource_type = first[-1]['resource_type']
     second_resource_type = second[-1]['resource_type']
     first_res_priority = DEPLOY_RESOURCE_TYPE_PRIORITY[first_resource_type]

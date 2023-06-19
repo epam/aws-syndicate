@@ -15,12 +15,12 @@
 """
 import re
 from typing import Optional
+
 from botocore.exceptions import ClientError
 
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import retry
-from syndicate.core.helper import prettify_json, unpack_kwargs, \
-    exit_on_exception
+from syndicate.core.helper import prettify_json, unpack_kwargs
 from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import (build_description_obj,
                                              resolve_dynamic_identifier)

@@ -24,9 +24,9 @@ import sys
 from datetime import datetime, timedelta
 from functools import wraps
 from pathlib import Path
+from signal import SIGINT
 from threading import Thread
 from time import time
-from signal import SIGINT
 
 import click
 from click import BadParameter
@@ -35,7 +35,7 @@ from tqdm import tqdm
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.conf.processor import path_resolver
 from syndicate.core.conf.validator import ConfigValidator, ALL_REGIONS
-from syndicate.core.constants import (ARTIFACTS_FOLDER, BUILD_META_FILE_NAME,
+from syndicate.core.constants import (BUILD_META_FILE_NAME,
                                       DEFAULT_SEP, DATE_FORMAT_ISO_8601)
 from syndicate.core.project_state.project_state import MODIFICATION_LOCK, \
     WARMUP_LOCK, ProjectState
@@ -153,6 +153,19 @@ def resolve_aliases_for_string(string_value):
         return input_string
     except ValueError:
         return input_string
+
+
+def check_required_param(ctx, param, value):
+    if not value:
+        raise BadParameter('Parameter is required')
+    return value
+
+
+def param_to_lower(ctx, param, value):
+    if isinstance(value, tuple):
+        return tuple([a_value.lower() for a_value in value])
+    if isinstance(value, str):
+        return value.lower()
 
 
 def resolve_path_callback(ctx, param, value):
@@ -371,23 +384,37 @@ def string_to_camel_case(s: str):
     return str(res)
 
 
+def string_to_upper_camel_case(s: str):
+    temp = s.split('_')
+    res = ''.join(ele.title() for ele in temp)
+    return str(res)
+
+
 def dict_keys_to_camel_case(d: dict):
+    return _inner_dict_keys_to_camel_case(d, string_to_camel_case)
+
+
+def dict_keys_to_upper_camel_case(d: dict):
+    return _inner_dict_keys_to_camel_case(d, string_to_upper_camel_case)
+
+
+def _inner_dict_keys_to_camel_case(d: dict, case_formatter):
     new_d = {}
     for key, value in d.items():
-        if isinstance(value, (str, int)):
-            new_d[string_to_camel_case(key)] = value
+        if isinstance(value, (str, int, float)):
+            new_d[case_formatter(key)] = value
 
         if isinstance(value, list):
             new_list = []
             for index, item in enumerate(value):
-                if isinstance(item, (str, int)):
+                if isinstance(item, (str, int, float)):
                     new_list.append(item)
                 if isinstance(item, dict):
                     new_list.append(dict_keys_to_camel_case(item))
-            new_d[string_to_camel_case(key)] = new_list
+            new_d[case_formatter(key)] = new_list
 
         if isinstance(value, dict):
-            new_d[string_to_camel_case(key)] = dict_keys_to_camel_case(value)
+            new_d[case_formatter(key)] = dict_keys_to_camel_case(value)
 
     return new_d
 
@@ -591,7 +618,8 @@ def delete_none(_dict):
                 del _dict[key]
 
     elif isinstance(_dict, (list, set, tuple)):
-        _dict = type(_dict)(delete_none(item) for item in _dict if item is not None)
+        _dict = type(_dict)(
+            delete_none(item) for item in _dict if item is not None)
     return _dict
 
 
@@ -600,6 +628,7 @@ def without_zip_ext(name: str) -> str:
     if name.endswith(_zip):
         name = name[:-len(_zip)]
     return name
+
 
 def zip_ext(name: str) -> str:
     _zip = '.zip'

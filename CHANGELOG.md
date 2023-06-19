@@ -4,11 +4,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.2.0] - 2023-04-13
+# [1.2.4] - 2023-04-13
 - Added `web_socker_api_gateway` resource type. Allows to deploy web-socket
   API with lambda integrations
 
-## [1.1.1] - 2023-04-13
+# [1.2.3] - 2023-05-15
+- Fixed resolving of available instance types for Windows
+
+# [1.2.2] - 2023-05-05
+- Resolve available instance types from `botocore` data
+
+# [1.2.1] - 2023-05-04
+- Added new supported EC2 instance types: `c7g`, `t4g`, `t3`
+
+# [1.2.0] - 2023-04-13
+- Added `transform` command that creates a CloudFormation or Terraform template based on the `build_meta` of your project
+
+
+## [1.1.1] - 2023-04-11
 - improve python artifacts building process. By default, 
   `manylinux2014_x86_64` is used for M1 and Windows. In case the platform 
   is set and pip installation fails, the Syndicate will try to install 

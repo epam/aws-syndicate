@@ -26,6 +26,8 @@ from syndicate.core.resources.helper import (build_description_obj,
                                              validate_params)
 from syndicate.connection.api_gateway_connection import ApiGatewayV2Connection
 
+API_REQUIRED_PARAMS = ['resources', 'deploy_stage']
+
 _LOG = get_logger('syndicate.core.resources.api_gateway_resource')
 
 SUPPORTED_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS',
@@ -96,7 +98,8 @@ class ApiGatewayResource(BaseResource):
                 validate_request_parameters)
         for validators in _REQUEST_VALIDATORS.values():
             if (validators['validate_request_body'] == validate_request_body) \
-                    and (validators['validate_request_parameters'] == validate_request_parameters):
+                    and (validators[
+                             'validate_request_parameters'] == validate_request_parameters):
                 return validators['id']
 
     def api_resource_identifier(self, name, output=None):
@@ -136,7 +139,8 @@ class ApiGatewayResource(BaseResource):
                 existing_resources = api_output['description']['resources']
                 existing_paths = [i['path'] for i in existing_resources]
                 meta_api_resources = meta['resources']
-                resources_statement_singleton = meta.get(POLICY_STATEMENT_SINGLETON)
+                resources_statement_singleton = meta.get(
+                    POLICY_STATEMENT_SINGLETON)
                 api_resp = meta.get('api_method_responses')
                 api_integration_resp = meta.get(
                     'api_method_integration_responses')
@@ -248,8 +252,7 @@ class ApiGatewayResource(BaseResource):
         :type name: str
         :type meta: dict
         """
-        required_parameters = ['resources', 'deploy_stage']
-        validate_params(name, meta, required_parameters)
+        validate_params(name, meta, API_REQUIRED_PARAMS)
 
         api_resources = meta['resources']
         # whether to put a wildcard in lambda resource-based policy permissions
@@ -312,7 +315,8 @@ class ApiGatewayResource(BaseResource):
 
         models = meta.get('models')
         if models:
-            args = [{'api_id': api_id, 'models': {k: v}} for k, v in models.items()]
+            args = [{'api_id': api_id, 'models': {k: v}} for k, v in
+                    models.items()]
             self.create_pool(self._create_model_from_metadata, args, 1)
         if api_resources:
             api_resp = meta.get('api_method_responses')
@@ -335,8 +339,12 @@ class ApiGatewayResource(BaseResource):
         self.__deploy_api_gateway(api_id, meta, api_resources)
         return self.describe_api_resources(api_id=api_id, meta=meta, name=name)
 
+    @staticmethod
+    def get_deploy_stage_name(stage_name=None):
+        return stage_name if stage_name else 'prod'
+
     def __deploy_api_gateway(self, api_id, meta, api_resources):
-        deploy_stage = meta['deploy_stage']
+        deploy_stage = self.get_deploy_stage_name(meta.get('deploy_stage'))
         cache_cluster_configuration = meta.get('cluster_cache_configuration')
         root_cache_enabled = cache_cluster_configuration.get(
             'cache_enabled') if cache_cluster_configuration else None
@@ -487,7 +495,8 @@ class ApiGatewayResource(BaseResource):
         _LOG.info('Resource %s created.', resource_path)
         resource_id = self.connection.get_resource_id(api_id, resource_path)
         enable_cors = resource_meta.get('enable_cors')
-        methods_statement_singleton = resource_meta.get(POLICY_STATEMENT_SINGLETON)
+        methods_statement_singleton = resource_meta.get(
+            POLICY_STATEMENT_SINGLETON)
         for method in resource_meta:
             try:
                 if method == 'enable_cors' or method not in SUPPORTED_METHODS:
@@ -527,22 +536,11 @@ class ApiGatewayResource(BaseResource):
         resources_statement_singleton = resources_statement_singleton or False
         methods_statement_singleton = methods_statement_singleton or False
         # init responses for method
-        method_responses = method_meta.get("responses")
-        if method_responses:
-            resp = method_responses
-        elif api_resp:
-            resp = api_resp
-        else:
-            resp = []
+        resp = self.init_method_responses(api_resp, method_meta)
 
         # init integration responses for method
-        integration_method_responses = method_meta.get("integration_responses")
-        if integration_method_responses:
-            integr_resp = integration_method_responses
-        elif api_resp:
-            integr_resp = api_integration_resp
-        else:
-            integr_resp = []
+        integr_resp = self.init_integration_method_responses(
+            api_integration_resp, method_meta)
 
         # resolve authorizer if needed
         authorization_type = method_meta.get('authorization_type')
@@ -609,7 +607,7 @@ class ApiGatewayResource(BaseResource):
                 # statement, setting wildcard on the respective scope.
 
                 api_source_arn = f"arn:aws:execute-api:{self.region}:" \
-                                 f"{self.account_id}:{api_id}/*"\
+                                 f"{self.account_id}:{api_id}/*" \
                                  "/{method}/{path}"
 
                 _method, _path = method, resource_path.lstrip('/')
@@ -636,7 +634,7 @@ class ApiGatewayResource(BaseResource):
                               f'lambda:InvokeFunction for ' \
                               f'apigateway.amazonaws.com principal from ' \
                               f'\'{api_source_arn}\' SourceArn already exists.'
-                    _LOG.warning(message+' Skipping.')
+                    _LOG.warning(message + ' Skipping.')
 
             elif integration_type == 'service':
                 uri = method_meta.get('uri')
@@ -691,6 +689,29 @@ class ApiGatewayResource(BaseResource):
         else:
             self.connection.create_integration_response(
                 api_id, resource_id, method, enable_cors=enable_cors)
+
+    @staticmethod
+    def init_method_responses(api_resp, method_meta):
+        method_responses = method_meta.get("responses")
+        if method_responses:
+            resp = method_responses
+        elif api_resp:
+            resp = api_resp
+        else:
+            resp = []
+        return resp
+
+    @staticmethod
+    def init_integration_method_responses(api_integration_resp,
+                                          method_meta):
+        integration_method_responses = method_meta.get("integration_responses")
+        if integration_method_responses:
+            integration_resp = integration_method_responses
+        elif api_integration_resp:
+            integration_resp = api_integration_resp
+        else:
+            integration_resp = []
+        return integration_resp
 
     def _customize_gateway_responses(self, api_id):
         responses = self.connection.get_gateway_responses(api_id)

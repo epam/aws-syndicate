@@ -451,6 +451,7 @@ class TestSuccess({camel_lambda_name}LambdaTestCase):
 
 """
 
+
 def _stringify(dict_content):
     return json.dumps(dict_content, indent=2)
 

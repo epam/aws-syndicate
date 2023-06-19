@@ -269,7 +269,6 @@ class LambdaConnection(object):
             params['FunctionName'] = function_name
         return self.client.list_event_source_mappings(**params)['EventSourceMappings']
 
-
     def lambdas_list(self):
         """ Get all existing Lambdas.
 
@@ -639,8 +638,8 @@ class LambdaConnection(object):
 
         while response.get('NextMarker'):
             kwargs['Marker'] = response['NextMarker']
-            response = self.client.list_layer_versions(kwargs)
-            versions.append(response['LayerVersions'])
+            response = self.client.list_layer_versions(**kwargs)
+            versions.extend(response['LayerVersions'])
 
         return versions
 

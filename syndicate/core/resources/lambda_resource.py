@@ -15,8 +15,9 @@
 """
 import json
 import time
-from typing import Optional
 from pathlib import PurePath
+from typing import Optional
+
 from botocore.exceptions import ClientError
 
 from syndicate.commons.log_helper import get_logger, get_user_logger
@@ -27,6 +28,16 @@ from syndicate.core.helper import (unpack_kwargs,
 from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import (
     build_description_obj, validate_params, assert_required_params, if_updated)
+
+LAMBDA_LAYER_REQUIRED_PARAMS = ['runtimes', 'deployment_package']
+
+DYNAMODB_TRIGGER_REQUIRED_PARAMS = ['target_table', 'batch_size']
+CLOUD_WATCH_TRIGGER_REQUIRED_PARAMS = ['target_rule']
+S3_TRIGGER_REQUIRED_PARAMS = ['target_bucket', 's3_events']
+SQS_TRIGGER_REQUIRED_PARAMS = ['target_queue', 'batch_size']
+SNS_TRIGGER_REQUIRED_PARAMS = ['target_topic']
+KINESIS_TRIGGER_REQUIRED_PARAMS = ['target_stream', 'batch_size',
+                                   'starting_position']
 
 PROVISIONED_CONCURRENCY = 'provisioned_concurrency'
 
@@ -43,6 +54,13 @@ _APPLY_SNAP_START_VERSIONS = 'PublishedVersions'
 _APPLY_SNAP_START_NONE = 'None'
 _SNAP_START_CONFIGURATIONS = [_APPLY_SNAP_START_VERSIONS,
                               _APPLY_SNAP_START_NONE]
+
+DYNAMO_DB_TRIGGER = 'dynamodb_trigger'
+CLOUD_WATCH_RULE_TRIGGER = 'cloudwatch_rule_trigger'
+S3_TRIGGER = 's3_trigger'
+SNS_TOPIC_TRIGGER = 'sns_topic_trigger'
+KINESIS_TRIGGER = 'kinesis_trigger'
+SQS_TRIGGER = 'sqs_trigger'
 
 
 class LambdaResource(BaseResource):
@@ -164,7 +182,7 @@ class LambdaResource(BaseResource):
                 'FunctionArn']
 
     def add_invocation_permission(self, name, principal, source_arn=None,
-                                  statement_id=None, exists_ok = False):
+                                  statement_id=None, exists_ok=False):
         return self.lambda_conn.add_invocation_permission(
             name=name,
             principal=principal,
@@ -202,17 +220,29 @@ class LambdaResource(BaseResource):
         con_exec = meta.get(LAMBDA_MAX_CONCURRENCY)
         if con_exec:
             _LOG.debug('Going to set up concurrency executions')
-            unresolved_exec = self.lambda_conn.get_unresolved_concurrent_executions()
-            if con_exec <= unresolved_exec:
+            if self.check_concurrency_availability(con_exec):
                 self.lambda_conn.put_function_concurrency(
                     function_name=name,
                     concurrent_executions=con_exec)
                 _LOG.info(
-                    f'Concurrency limit for lambda {name} is set to {con_exec}')
-            else:
-                _LOG.warn(
-                    f'Account does not have such unresolved executions.'
-                    f' Current un - {unresolved_exec}')
+                    f'Concurrency limit for lambda {name} '
+                    f'is set to {con_exec}')
+
+    def check_concurrency_availability(self, requested_concurrency):
+        if not (isinstance(requested_concurrency, int)
+                and requested_concurrency >= 0):
+            _LOG.warn('The number of reserved concurrent executions '
+                      'must be a non-negative integer.')
+            return False
+        unresolved_exec = \
+            self.lambda_conn.get_unresolved_concurrent_executions()
+        if requested_concurrency <= unresolved_exec:
+            return True
+        else:
+            _LOG.warn(
+                f'Account does not have such unresolved executions.'
+                f' Current un - {unresolved_exec}')
+            return False
 
     @unpack_kwargs
     @retry
@@ -230,8 +260,8 @@ class LambdaResource(BaseResource):
         if not self.s3_conn.is_file_exists(self.deploy_target_bucket,
                                            key_compound):
             raise AssertionError(f'Error while creating lambda: {name};'
-                f'Deployment package {key_compound} does not exist '
-                f'in {self.deploy_target_bucket} bucket')
+                                 f'Deployment package {key_compound} does not exist '
+                                 f'in {self.deploy_target_bucket} bucket')
 
         lambda_def = self.lambda_conn.get_function(name)
         if lambda_def:
@@ -244,16 +274,9 @@ class LambdaResource(BaseResource):
             raise AssertionError(f'Role {role_name} does not exist; '
                                  f'Lambda {name} failed to be configured.')
 
-        dl_type = meta.get('dl_resource_type')
-        if dl_type:
-            dl_type = dl_type.lower()
-        dl_name = meta.get('dl_resource_name')
-
-        dl_target_arn = 'arn:aws:{0}:{1}:{2}:{3}'.format(
-            dl_type,
-            self.region,
-            self.account_id,
-            dl_name) if dl_type and dl_name else None
+        dl_target_arn = self.get_dl_target_arn(meta=meta,
+                                               region=self.region,
+                                               account_id=self.account_id)
 
         publish_version = meta.get('publish_version', False)
         lambda_layers_arns = []
@@ -343,6 +366,19 @@ class LambdaResource(BaseResource):
             lambda_def=lambda_def)
         return self.describe_lambda(name, meta, lambda_def)
 
+    @staticmethod
+    def get_dl_target_arn(meta, region, account_id):
+        dl_type = meta.get('dl_resource_type')
+        if dl_type:
+            dl_type = dl_type.lower()
+        dl_name = meta.get('dl_resource_name')
+        dl_target_arn = 'arn:aws:{0}:{1}:{2}:{3}'.format(
+            dl_type,
+            region,
+            account_id,
+            dl_name) if dl_type and dl_name else None
+        return dl_target_arn
+
     @exit_on_exception
     @unpack_kwargs
     def _update_lambda(self, name, meta, context):
@@ -359,7 +395,8 @@ class LambdaResource(BaseResource):
                                            key_compound):
             raise AssertionError(
                 'Deployment package {0} does not exist '
-                'in {1} bucket'.format(key_compound, self.deploy_target_bucket))
+                'in {1} bucket'.format(key_compound,
+                                       self.deploy_target_bucket))
 
         response = self.lambda_conn.get_function(name)
         if not response:
@@ -382,10 +419,13 @@ class LambdaResource(BaseResource):
         handler = if_updated(meta.get('func_name'), old_conf.get('Handler'))
         env_vars = meta.get('env_variables')
         timeout = if_updated(meta.get('timeout'), old_conf.get('Timeout'))
-        memory_size = if_updated(meta.get('memory_size'), old_conf.get('MemorySize'))
+        memory_size = if_updated(meta.get('memory_size'),
+                                 old_conf.get('MemorySize'))
 
-        old_subnets, old_security_groups, _ = self.lambda_conn.retrieve_vpc_config(old_conf)
-        vpc_subnets = if_updated(set(meta.get('subnet_ids') or []), old_subnets)
+        old_subnets, old_security_groups, _ = self.lambda_conn.retrieve_vpc_config(
+            old_conf)
+        vpc_subnets = if_updated(set(meta.get('subnet_ids') or []),
+                                 old_subnets)
         vpc_security_group = if_updated(
             set(meta.get('security_group_ids') or []), old_security_groups)
         runtime = if_updated(meta.get('runtime'), old_conf.get('Runtime'))
@@ -494,7 +534,7 @@ class LambdaResource(BaseResource):
                 func(self, name, _arn, role_name, trigger_meta)
 
         req_max_concurrency = meta.get(LAMBDA_MAX_CONCURRENCY)
-        existing_max_concurrency = self.lambda_conn.\
+        existing_max_concurrency = self.lambda_conn. \
             describe_function_concurrency(name=name)
         if req_max_concurrency and existing_max_concurrency:
             if existing_max_concurrency != req_max_concurrency:
@@ -511,7 +551,7 @@ class LambdaResource(BaseResource):
         return self.describe_lambda(name, meta, response)
 
     def _set_function_concurrency(self, name, meta):
-        provisioned = self.lambda_conn.\
+        provisioned = self.lambda_conn. \
             describe_provisioned_concurrency_configs(name=name)
         if provisioned:
             self._delete_lambda_prov_concur_config(
@@ -522,7 +562,7 @@ class LambdaResource(BaseResource):
     def _manage_provisioned_concurrency_configuration(self, function_name,
                                                       meta,
                                                       lambda_def=None):
-        existing_configs = self.lambda_conn.\
+        existing_configs = self.lambda_conn. \
             describe_provisioned_concurrency_configs(name=function_name)
         concurrency = meta.get(PROVISIONED_CONCURRENCY)
 
@@ -592,7 +632,7 @@ class LambdaResource(BaseResource):
                 f'{_LAMBDA_PROV_CONCURRENCY_QUALIFIERS}, but it is equal '
                 f'to ${qualifier}')
 
-        resolved_qualified = self._resolve_requested_qualifier(lambda_def,
+        resolved_qualifier = self._resolve_requested_qualifier(lambda_def,
                                                                meta,
                                                                qualifier)
 
@@ -604,7 +644,7 @@ class LambdaResource(BaseResource):
         max_prov_limit = self.lambda_conn.describe_function_concurrency(
             name=function_name)
         if not max_prov_limit:
-            max_prov_limit = self.lambda_conn.\
+            max_prov_limit = self.lambda_conn. \
                 get_unresolved_concurrent_executions()
 
         if requested_provisioned_level > max_prov_limit:
@@ -617,18 +657,25 @@ class LambdaResource(BaseResource):
 
         self.lambda_conn.configure_provisioned_concurrency(
             name=function_name,
-            qualifier=resolved_qualified,
+            qualifier=resolved_qualifier,
             concurrent_executions=requested_provisioned_level)
         _LOG.info(f'Provisioned concurrency has been configured for lambda '
                   f'{function_name} of type {qualifier}, '
                   f'value {requested_provisioned_level}')
 
     def _resolve_requested_qualifier(self, lambda_def, meta, qualifier):
+        if not qualifier:
+            raise AssertionError('Parameter `qualifier` is required for '
+                                 'concurrency configuration but it is absent')
+        if qualifier not in _LAMBDA_PROV_CONCURRENCY_QUALIFIERS:
+            raise AssertionError(f'Parameter `qualifier` must be one of '
+                                 f'{_LAMBDA_PROV_CONCURRENCY_QUALIFIERS}, but it is equal '
+                                 f'to ${qualifier}')
         lambda_def['Alias'] = meta.get('alias')
         resolve_qualifier_req = lambda_def
-        resolved_qualified = self._LAMBDA_QUALIFIER_RESOLVER[qualifier](
+        resolved_qualifier = self._LAMBDA_QUALIFIER_RESOLVER[qualifier](
             self, resolve_qualifier_req)
-        return resolved_qualified
+        return resolved_qualifier
 
     @staticmethod
     def _resolve_configured_existing_qualifier(existing_config):
@@ -662,8 +709,8 @@ class LambdaResource(BaseResource):
     def _create_dynamodb_trigger_from_meta(self, lambda_name, lambda_arn,
                                            role_name,
                                            trigger_meta):
-        required_parameters = ['target_table', 'batch_size']
-        validate_params(lambda_name, trigger_meta, required_parameters)
+        validate_params(lambda_name, trigger_meta,
+                        DYNAMODB_TRIGGER_REQUIRED_PARAMS)
         table_name = trigger_meta['target_table']
         batch_window = trigger_meta.get('batch_window')
         filters = trigger_meta.get('filters')
@@ -696,8 +743,7 @@ class LambdaResource(BaseResource):
     @retry
     def _create_sqs_trigger_from_meta(self, lambda_name, lambda_arn, role_name,
                                       trigger_meta):
-        required_parameters = ['target_queue', 'batch_size']
-        validate_params(lambda_name, trigger_meta, required_parameters)
+        validate_params(lambda_name, trigger_meta, SQS_TRIGGER_REQUIRED_PARAMS)
         target_queue = trigger_meta['target_queue']
 
         if not self.sqs_conn.get_queue_url(target_queue, self.account_id):
@@ -717,8 +763,8 @@ class LambdaResource(BaseResource):
     def _create_cloud_watch_trigger_from_meta(self, lambda_name, lambda_arn,
                                               role_name,
                                               trigger_meta):
-        required_parameters = ['target_rule']
-        validate_params(lambda_name, trigger_meta, required_parameters)
+        validate_params(lambda_name, trigger_meta,
+                        CLOUD_WATCH_TRIGGER_REQUIRED_PARAMS)
         rule_name = trigger_meta['target_rule']
         # TODO add InputPath & InputTransformer if needed
         input_dict = trigger_meta.get('input')
@@ -729,7 +775,8 @@ class LambdaResource(BaseResource):
 
         targets = self.cw_events_conn.list_targets_by_rule(rule_name)
         if lambda_arn not in map(lambda each: each.get('Arn'), targets):
-            self.cw_events_conn.add_rule_target(rule_name, lambda_arn, input_dict)
+            self.cw_events_conn.add_rule_target(rule_name, lambda_arn,
+                                                input_dict)
             self.lambda_conn.add_invocation_permission(lambda_arn,
                                                        'events.amazonaws.com',
                                                        rule_arn)
@@ -742,8 +789,7 @@ class LambdaResource(BaseResource):
     @retry
     def _create_s3_trigger_from_meta(self, lambda_name, lambda_arn, role_name,
                                      trigger_meta):
-        required_parameters = ['target_bucket', 's3_events']
-        validate_params(lambda_name, trigger_meta, required_parameters)
+        validate_params(lambda_name, trigger_meta, S3_TRIGGER_REQUIRED_PARAMS)
         target_bucket = trigger_meta['target_bucket']
 
         if not self.s3_conn.is_bucket_exists(target_bucket):
@@ -775,8 +821,7 @@ class LambdaResource(BaseResource):
     def _create_sns_topic_trigger_from_meta(self, lambda_name, lambda_arn,
                                             role_name,
                                             trigger_meta):
-        required_params = ['target_topic']
-        validate_params(lambda_name, trigger_meta, required_params)
+        validate_params(lambda_name, trigger_meta, SNS_TRIGGER_REQUIRED_PARAMS)
         topic_name = trigger_meta['target_topic']
 
         region = trigger_meta.get('region')
@@ -789,15 +834,14 @@ class LambdaResource(BaseResource):
     @retry
     def _create_kinesis_stream_trigger_from_meta(self, lambda_name, lambda_arn,
                                                  role_name, trigger_meta):
-        required_parameters = ['target_stream', 'batch_size',
-                               'starting_position']
-        validate_params(lambda_name, trigger_meta, required_parameters)
+        validate_params(lambda_name, trigger_meta,
+                        KINESIS_TRIGGER_REQUIRED_PARAMS)
 
         stream_name = trigger_meta['target_stream']
 
-        stream = self.kinesis_conn.get_stream(stream_name)
-        stream_arn = stream['StreamDescription']['StreamARN']
-        stream_status = stream['StreamDescription']['StreamStatus']
+        stream_description = self.kinesis_conn.get_stream(stream_name)
+        stream_arn = stream_description['StreamARN']
+        stream_status = stream_description['StreamStatus']
         # additional waiting for stream
         if stream_status != 'ACTIVE':
             _LOG.debug('Kinesis stream %s is not in active state,'
@@ -850,12 +894,12 @@ class LambdaResource(BaseResource):
                                           trigger_meta['starting_position'])
 
     CREATE_TRIGGER = {
-        'dynamodb_trigger': _create_dynamodb_trigger_from_meta,
-        'cloudwatch_rule_trigger': _create_cloud_watch_trigger_from_meta,
-        's3_trigger': _create_s3_trigger_from_meta,
-        'sns_topic_trigger': _create_sns_topic_trigger_from_meta,
-        'kinesis_trigger': _create_kinesis_stream_trigger_from_meta,
-        'sqs_trigger': _create_sqs_trigger_from_meta
+        DYNAMO_DB_TRIGGER: _create_dynamodb_trigger_from_meta,
+        CLOUD_WATCH_RULE_TRIGGER: _create_cloud_watch_trigger_from_meta,
+        S3_TRIGGER: _create_s3_trigger_from_meta,
+        SNS_TOPIC_TRIGGER: _create_sns_topic_trigger_from_meta,
+        KINESIS_TRIGGER: _create_kinesis_stream_trigger_from_meta,
+        SQS_TRIGGER: _create_sqs_trigger_from_meta
     }
 
     def remove_lambdas(self, args):
@@ -891,9 +935,7 @@ class LambdaResource(BaseResource):
         :return:
         """
         from syndicate.core import CONFIG
-        req_params = ['runtimes', 'deployment_package']
-
-        validate_params(name, meta, req_params)
+        validate_params(name, meta, LAMBDA_LAYER_REQUIRED_PARAMS)
 
         key = meta[S3_PATH_NAME]
         key_compound = PurePath(CONFIG.deploy_target_bucket_key_compound,

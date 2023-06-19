@@ -22,6 +22,12 @@ from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import (build_description_obj,
                                              validate_params)
 
+AUTOSCALING_REQUIRED_PARAMS = ['resource_name', 'dimension',
+                               'min_capacity', 'max_capacity',
+                               'role_name']
+
+DYNAMODB_TABLE_REQUIRED_PARAMS = ['hash_key_name', 'hash_key_type']
+
 _LOG = get_logger('syndicate.core.resources.dynamo_db_resource')
 
 
@@ -157,8 +163,7 @@ class DynamoDBResource(AbstractExternalResource, BaseResource):
         :type name: str
         :type meta: dict
         """
-        required_parameters = ['hash_key_name', 'hash_key_type']
-        validate_params(name, meta, required_parameters)
+        validate_params(name, meta, DYNAMODB_TABLE_REQUIRED_PARAMS)
 
         res = self.dynamodb_conn.describe_table(name)
         autoscaling_config = meta.get('autoscaling')
@@ -214,7 +219,7 @@ class DynamoDBResource(AbstractExternalResource, BaseResource):
         for item in autoscaling_config:
             dimension = item['dimension']
             resource_name = item['resource_name']
-            resource_id = self._build_res_id(dimension, resource_name, name)
+            resource_id = self.build_res_id(dimension, resource_name, name)
             sc_targets = self.app_autoscaling_conn.describe_scalable_targets(
                 service_namespace='dynamodb',
                 resources_ids=[resource_id],
@@ -236,10 +241,7 @@ class DynamoDBResource(AbstractExternalResource, BaseResource):
         targets = []
         policies = []
         for item in autoscaling_config:
-            autoscaling_required_parameters = ['resource_name', 'dimension',
-                                               'min_capacity', 'max_capacity',
-                                               'role_name']
-            validate_params(name, item, autoscaling_required_parameters)
+            validate_params(name, item, AUTOSCALING_REQUIRED_PARAMS)
             role_name = item['role_name']
             role_arn = self.iam_conn.check_if_role_exists(role_name)
             if role_arn:
@@ -293,7 +295,7 @@ class DynamoDBResource(AbstractExternalResource, BaseResource):
     def register_autoscaling_target(self, dimension, item, role_arn,
                                     table_name):
         resource_name = item['resource_name']
-        resource_id = self._build_res_id(dimension, resource_name, table_name)
+        resource_id = self.build_res_id(dimension, resource_name, table_name)
         self.app_autoscaling_conn.register_target(service_namespace='dynamodb',
                                                   resource_id=resource_id,
                                                   scalable_dimension=dimension,
@@ -308,7 +310,8 @@ class DynamoDBResource(AbstractExternalResource, BaseResource):
             scalable_dimension=dimension)
         return resource_id, targets
 
-    def _build_res_id(self, dimension, resource_name, table_name):
+    @staticmethod
+    def build_res_id(dimension, resource_name, table_name):
         resource_id = 'table/{0}'.format(table_name) \
             if 'table' in dimension \
             else 'table/{0}/index/{1}'.format(table_name, resource_name)
