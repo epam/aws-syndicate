@@ -15,7 +15,7 @@
     <packaging>maven-plugin</packaging>
 
     <properties>
-        <dependency.maven.version>3.3.9</dependency.maven.version>
+        <dependency.maven.version>3.8.1</dependency.maven.version>
         <junit.version>4.13.1</junit.version>
         <maven-plugin-annotations.version>3.3</maven-plugin-annotations.version>
         <maven-plugin-plugin.version>3.6.0</maven-plugin-plugin.version>
