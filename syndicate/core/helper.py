@@ -27,6 +27,7 @@ from pathlib import Path
 from signal import SIGINT
 from threading import Thread
 from time import time
+from typing import TypeVar, Generator
 
 import click
 from click import BadParameter
@@ -45,6 +46,8 @@ _LOG = get_logger('syndicate.core.helper')
 USER_LOG = get_user_logger()
 
 CONF_PATH = os.environ.get('SDCT_CONF')
+
+T = TypeVar('T')
 
 
 def unpack_kwargs(handler_func):
@@ -635,3 +638,38 @@ def zip_ext(name: str) -> str:
     if not name.endswith(_zip):
         name = name + _zip
     return name
+
+
+def iter_values(finding: T) -> Generator[str, str, T]:
+    """
+    Yields values from the given dict with an ability to send back
+    the desired values. I proudly think this is cool, because we can put
+    keys replacement login outside of this generator
+    >>> gen = iter_values({'1':'q', '2': ['w', 'e'], '3': {'4': 'r'}})
+    >>> next(gen)
+    q
+    >>> gen.send('instead of q')
+    w
+    >>> gen.send('instead of w')
+    e
+    >>> gen.send('instead of e')
+    r
+    >>> gen.send('instead of r')
+    After the last command StopIteration will be raised, and it
+    will contain the changed finding
+    :param finding:
+    :return:
+    """
+    if isinstance(finding, (str, int, bool, type(None))):
+        new = yield finding
+        return new
+    if isinstance(finding, dict):
+        dct = {}
+        for k, v in finding.items():
+            dct[k] = yield from iter_values(v)
+        return dct
+    if isinstance(finding, list):
+        ls = []
+        for v in finding:
+            ls.append((yield from iter_values(v)))
+        return ls

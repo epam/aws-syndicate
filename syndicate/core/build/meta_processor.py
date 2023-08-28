@@ -15,6 +15,7 @@
 """
 import os
 from json import load
+from typing import Dict
 
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.build.helper import (build_py_package_name,
@@ -30,7 +31,7 @@ from syndicate.core.constants import (API_GATEWAY_TYPE, ARTIFACTS_FOLDER,
                                       S3_PATH_NAME, LAMBDA_LAYER_CONFIG_FILE_NAME)
 from syndicate.core.helper import (build_path, prettify_json,
                                    resolve_aliases_for_string,
-                                   write_content_to_file)
+                                   write_content_to_file, iter_values)
 from syndicate.core.resources.helper import resolve_dynamic_identifier
 
 DEFAULT_IAM_SUFFIX_LENGTH = 5
@@ -372,26 +373,50 @@ def create_resource_json(project_path, bundle_name):
     return resources_meta
 
 
-def _resolve_names_in_meta(resources_dict, old_value, new_value):
-    if isinstance(resources_dict, dict):
-        for k, v in resources_dict.items():
-            # if k == old_value:
-            #     resources_dict[new_value] = resources_dict.pop(k)
-            if isinstance(v, str) and old_value == v:
-                resources_dict[k] = v.replace(old_value, new_value)
-            elif isinstance(v, str) and old_value in v and v.startswith('arn'):
-                resources_dict[k] = v.replace(old_value, new_value)
-            else:
-                _resolve_names_in_meta(v, old_value, new_value)
-    elif isinstance(resources_dict, list):
-        for item in resources_dict:
-            if isinstance(item, dict):
-                _resolve_names_in_meta(item, old_value, new_value)
-            elif isinstance(item, str):
-                if item == old_value:
-                    index = resources_dict.index(old_value)
-                    del resources_dict[index]
-                    resources_dict.append(new_value)
+def _resolve_names_in_meta(resources_dict: dict,
+                           values: Dict[str, str]) -> Dict:
+    """
+    :param resources_dict:
+    :param values:
+    :return:
+    """
+    gen = iter_values(resources_dict)
+    try:
+        real = next(gen)
+        while True:
+            if not isinstance(real, str):  # int, bool, None
+                real = gen.send(real)
+                continue
+            # isinstance(real, str)
+            replacement = real
+            for old, new in values.items():
+                if old in replacement:
+                    replacement = replacement.replace(old, new)
+            real = gen.send(replacement)
+    except StopIteration as e:
+        return e.value
+
+
+# def _resolve_names_in_meta(resources_dict, old_value, new_value):
+#     if isinstance(resources_dict, dict):
+#         for k, v in resources_dict.items():
+#             # if k == old_value:
+#             #     resources_dict[new_value] = resources_dict.pop(k)
+#             if isinstance(v, str) and old_value == v:
+#                 resources_dict[k] = v.replace(old_value, new_value)
+#             elif isinstance(v, str) and old_value in v and v.startswith('arn'):
+#                 resources_dict[k] = v.replace(old_value, new_value)
+#             else:
+#                 _resolve_names_in_meta(v, old_value, new_value)
+#     elif isinstance(resources_dict, list):
+#         for item in resources_dict:
+#             if isinstance(item, dict):
+#                 _resolve_names_in_meta(item, old_value, new_value)
+#             elif isinstance(item, str):
+#                 if item == old_value:
+#                     index = resources_dict.index(old_value)
+#                     del resources_dict[index]
+#                     resources_dict.append(new_value)
 
 
 def create_meta(project_path, bundle_name):
@@ -430,9 +455,9 @@ def resolve_meta(overall_meta):
                 resolved_names[name] = resolved_name
     _LOG.debug('Going to resolve names in meta')
     _LOG.debug('Resolved names mapping: {0}'.format(str(resolved_names)))
-    for current_name, resolved_name in resolved_names.items():
-        overall_meta[resolved_name] = overall_meta.pop(current_name)
-        _resolve_names_in_meta(overall_meta, current_name, resolved_name)
+    for old, new in resolved_names.items():
+        overall_meta[new] = overall_meta.pop(old)
+    overall_meta = _resolve_names_in_meta(overall_meta, resolved_names)
     return overall_meta
 
 
