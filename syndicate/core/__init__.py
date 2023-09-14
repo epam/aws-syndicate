@@ -106,7 +106,7 @@ def initialize_connection():
     CONFIG = ConfigHolder(CONF_PATH)
     CONFIG.deploy_target_bucket_view = uri_bucket_view
     sts = STSConnection(CONFIG.region, CONFIG.aws_access_key_id,
-                        CONFIG.aws_secret_access_key)
+                        CONFIG.aws_secret_access_key, CONFIG.aws_session_token)
     try:
         CREDENTIALS = {
             'region': CONFIG.region
