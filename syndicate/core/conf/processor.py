@@ -308,9 +308,8 @@ class ConfigHolder:
     @property
     def deploy_target_bucket(self) -> str:
         return self._resolve_bucket_view_attribute('name',
-                                                   self._resolve_variable(
-                                                       DEPLOY_TARGET_BUCKET_CFG)
-                                                   )
+            self._resolve_variable(DEPLOY_TARGET_BUCKET_CFG)
+        )
 
     @property
     def deploy_target_bucket_key_compound(self) -> str:
