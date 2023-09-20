@@ -85,7 +85,7 @@ mvn install -f aws-syndicate/plugin/
 ```
 6. Go to the `2. Usage guide`
 
-#### 1.2.4 Installation on Windows
+#### 1.2.3 Installation on Windows
 
 Detailed guide how to install Python you can
 find [here](https://docs.python-guide.org/starting/install3/win/ "here").
