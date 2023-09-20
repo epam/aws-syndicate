@@ -28,7 +28,8 @@ from syndicate.core.conf.validator import \
      USE_TEMP_CREDS_CFG, SERIAL_NUMBER_CFG,
      TEMP_AWS_ACCESS_KEY_ID_CFG, TEMP_AWS_SECRET_ACCESS_KEY_CFG,
      TEMP_AWS_SESSION_TOKEN_CFG, EXPIRATION_CFG, TAGS_CFG,
-     IAM_PERMISSIONS_BOUNDARY_CFG, LAMBDAS_ALIASES_NAME_CFG)
+     IAM_PERMISSIONS_BOUNDARY_CFG, LAMBDAS_ALIASES_NAME_CFG,
+     AWS_SESSION_TOKEN_CFG)
 from syndicate.core.constants import (DEFAULT_SEP, IAM_POLICY, IAM_ROLE,
                                       S3_BUCKET_TYPE)
 
@@ -291,6 +292,10 @@ class ConfigHolder:
     @property
     def aws_access_key_id(self):
         return self._resolve_variable(AWS_ACCESS_KEY_ID_CFG)
+
+    @property
+    def aws_session_token(self):
+        return self._resolve_variable(AWS_SESSION_TOKEN_CFG)
 
     @property
     def aws_secret_access_key(self):
