@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 # [1.3.1] - 2023-09-20
 - Add support Python 3.10 and Python 3.11
+- Fixed ignored request parameters when creating api gateway's resource method using lambda integration
 
 # [1.3.0] - 2023-09-14
 - Added ability to use SSO credentials
