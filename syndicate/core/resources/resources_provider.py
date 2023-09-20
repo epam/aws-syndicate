@@ -31,6 +31,7 @@ from syndicate.core.resources.dax_resource import DaxResource
 from syndicate.core.resources.ebs_resource import EbsResource
 from syndicate.core.resources.ec2_resource import Ec2Resource
 from syndicate.core.resources.firehose_resource import FirehoseResource
+from syndicate.core.resources.eventbridge_schedule_resource import EventBridgeScheduleResource
 from syndicate.core.resources.iam_resource import IamResource
 from syndicate.core.resources.kinesis_resource import KinesisResource
 from syndicate.core.resources.lambda_resource import LambdaResource
@@ -92,6 +93,7 @@ class ResourceProvider:
         _documentdb_instance_resource = None
         _tags_api_resource = None
         _dax_cluster_resource = None
+        _eventbridge_schedule_resource = None
 
         def __init__(self, config, credentials) -> None:
             self.credentials = credentials
@@ -205,6 +207,14 @@ class ResourceProvider:
                     iam_resource=self.iam()
                 )
             return self._firehose_resource
+
+        def eventbridge_schedule(self):
+            if not self._eventbridge_schedule_resource:
+                self._eventbridge_schedule_resource = EventBridgeScheduleResource(
+                    eventbridge_conn=self._conn_provider.eventbridge_schedule(),
+                    iam_resource=self.iam()
+                )
+            return self._eventbridge_schedule_resource
 
         def iam(self):
             if not self._iam_resource:

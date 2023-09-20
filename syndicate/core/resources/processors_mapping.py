@@ -31,7 +31,9 @@ from syndicate.core.constants import (API_GATEWAY_TYPE, CLOUD_WATCH_ALARM_TYPE,
                                       COGNITO_FEDERATED_POOL_TYPE,
                                       DOCUMENTDB_CLUSTER_TYPE,
                                       DOCUMENTDB_INSTANCE_TYPE,
-                                      DAX_CLUSTER_TYPE, FIREHOSE_TYPE)
+                                      DAX_CLUSTER_TYPE, FIREHOSE_TYPE,
+                                      EVENT_BRIDGE_SCHEDULE_TYPE)
+
 
 
 class ProcessorFacade:
@@ -98,7 +100,9 @@ class ProcessorFacade:
             DAX_CLUSTER_TYPE:
                 self.resources_provider.dax_cluster().create_cluster,
             FIREHOSE_TYPE:
-                self.resources_provider.firehose().create_stream
+                self.resources_provider.firehose().create_stream,
+            EVENT_BRIDGE_SCHEDULE_TYPE:
+                self.resources_provider.eventbridge_schedule().create_schedule
         }
 
     def describe_handlers(self):
