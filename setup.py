@@ -27,20 +27,20 @@ with open(path.join(this_directory, 'README.md'), encoding='utf-8') as f:
 
 setup(
     name='aws-syndicate',
-    version='1.3.2',
+    version='1.3.3',
     packages=find_packages(),
     include_package_data=True,
     install_requires=[
         'click==7.1.2',
-        'botocore==1.29.18',
-        'boto3==1.26.18',
-        'configobj==5.0.6',
-        'tqdm==4.19.5',
-        'colorama==0.4.1',
-        'pyyaml==5.4',
+        'botocore==1.29.80',
+        'boto3==1.26.80',
+        'configobj==5.0.8',
+        'tqdm==4.65.2',
+        'colorama==0.4.5',
+        'pyyaml==6.0.1',
         'requests-aws-sign==0.1.6',
-        'requests==2.27.1',
-        'tabulate==0.8.9',
+        'requests==2.31.0',
+        'tabulate==0.9.0',
         'troposphere==4.1.0'
     ],
     entry_points='''
@@ -58,6 +58,6 @@ setup(
         'Development Status :: 5 - Production/Stable',
         'Intended Audience :: Developers',
         'Topic :: Software Development :: Build Tools',
-        'Programming Language :: Python :: 3.7'
+        'Programming Language :: Python :: 3.10'
     ],
 )
