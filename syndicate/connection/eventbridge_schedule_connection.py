@@ -13,50 +13,25 @@ class EventBridgeScheduleConnection(object):
 
     def __init__(self, region=None, aws_access_key_id=None,
                  aws_secret_access_key=None, aws_session_token=None):
-        self.client = client('events', region,
+        self.client = client('scheduler', region,
                              aws_access_key_id=aws_access_key_id,
                              aws_secret_access_key=aws_secret_access_key,
                              aws_session_token=aws_session_token)
         _LOG.debug('Opened new EventBridge Schedule connection.')
 
-    def create_rule(self, **params):
+    def create_schedule(self, **params):
+        return self.client.create_schedule(**params)['ScheduleArn']
 
-        # params = {
-        #     'Name': name,
-        #     'ScheduleExpression': schedule_expression,
-        #     'State': state
-        # }
-        # if description:
-        #     params['Description'] = description
-        return self.client.put_rule(**params)['RuleArn']
+    def update_schedule(self, **params):
+        return self.client.update_schedule(**params)['ScheduleArn']
 
-    # def describe_rule(self, name):
-    #     params = {'Name': name}
-    #     try:
-    #         return self.client.describe_schedule(**params)['Rule']
-    #     except ClientError as e:
-    #         if 'ResourceNotFoundException' in str(e):
-    #             _LOG.warning(
-    #                 f'Cannot find EventBridge rule with name {name}')
-    #             pass
-    #         else:
-    #             raise e
-
-    def delete_rule(self, name):
-        try:
-            return self.client.delete_rule(Name=name)
-        except ClientError as e:
-            if 'ResourceNotFoundException' in str(e):
-                _LOG.warning(
-                    f'Cannot find EventBridge rule with name {name}')
-                pass
-            else:
-                raise e
-
-    def describe_schedule(self, name):
+    def describe_schedule(self, name, group_name=None):
         params = {'Name': name}
+        if group_name is not None:
+            params['GroupName'] = group_name
+
         try:
-            return self.client.describe_rule(**params)
+            return self.client.get_schedule(**params)
 
         except ClientError as e:
             if 'ResourceNotFoundException' in str(e):
@@ -65,3 +40,10 @@ class EventBridgeScheduleConnection(object):
                 return None
             else:
                 raise e
+
+    def delete_schedule(self, name, group_name=None):
+        params = {'Name': name}
+        if group_name is not None:
+            params['GroupName'] = group_name
+
+        return self.client.delete_schedule(**params)

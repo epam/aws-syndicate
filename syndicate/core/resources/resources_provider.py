@@ -211,8 +211,7 @@ class ResourceProvider:
         def eventbridge_schedule(self):
             if not self._eventbridge_schedule_resource:
                 self._eventbridge_schedule_resource = EventBridgeScheduleResource(
-                    eventbridge_conn=self._conn_provider.eventbridge_schedule(),
-                    iam_resource=self.iam()
+                    eventbridge_conn=self._conn_provider.eventbridge_schedule()
                 )
             return self._eventbridge_schedule_resource
 

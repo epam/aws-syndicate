@@ -437,12 +437,12 @@ def dict_keys_to_capitalized_camel_case(d: dict):
                 if isinstance(item, (str, int)):
                     new_list.append(item)
                 if isinstance(item, dict):
-                    new_list.append(dict_keys_to_camel_case(item))
+                    new_list.append(dict_keys_to_capitalized_camel_case(item))
             new_d[string_to_capitalized_camel_case(key)] = new_list
 
         if isinstance(value, dict):
             new_d[string_to_capitalized_camel_case(key)] = \
-                dict_keys_to_camel_case(value)
+                dict_keys_to_capitalized_camel_case(value)
 
     return new_d
 

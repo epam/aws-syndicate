@@ -18,6 +18,7 @@ import json
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.conf.processor import GLOBAL_AWS_SERVICES
 from typing import TypeVar, Optional
+from datetime import datetime
 
 T = TypeVar('T')
 
@@ -34,6 +35,21 @@ def validate_params(name, meta, required_params):
                 'All required parameters must be specified! Resource: {0}'
                 ' Required parameters: {1}. Given parameters: {2}'.format(
                     name, parameters_string, existing_parameters_string))
+
+
+def validate_date(name, date_str):
+    """
+    Checks if the provided date in `date_str` is in ISO 8601 or Unix timestamp format
+    """
+    try:
+        datetime.fromisoformat(date_str)
+        unix_timestamp = int(date_str)
+        datetime.utcfromtimestamp(unix_timestamp)
+        return date_str
+    except Exception as e:
+        raise AssertionError('Invalid date format: {0}. Resource: {1}'
+            ' Error message: {2}'.format(
+                date_str, name, e))
 
 
 def check_region_available(region_name, available_regions, res_meta=None):

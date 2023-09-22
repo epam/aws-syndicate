@@ -13,63 +13,96 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-import datetime
-import ipaddress
-import re
-import string
-from typing import Optional
+from datetime import datetime, timezone
 
 from syndicate.commons.log_helper import get_logger
 from syndicate.core import ClientError
 from syndicate.core.helper import unpack_kwargs
+from syndicate.core.helper import dict_keys_to_capitalized_camel_case
 from syndicate.core.resources.base_resource import BaseResource
-from syndicate.core.resources.helper import build_description_obj, chunks, \
+from syndicate.core.resources.helper import build_description_obj, \
     validate_params, assert_possible_values
 
 _LOG = get_logger('syndicate.core.resources.eventbridge_schedule_resource')
 
-ALLOWED_KEYS = {'name', 'schedule_expression', 'state', 'description',
-                'event_pattern', 'targets'}
-
-REQUIRED_PARAMS = {'name', 'event_pattern', 'state', 'description', 'targets'}
+REQUIRED_PARAMS = {'name', 'schedule_expression', 'state', 'description',
+                   'flexible_time_window'}
 
 
-def template_for_rule(params):
-    name = params.get('name')
-    validate_params(name, params, REQUIRED_PARAMS)
-    validated_params = {}
-
-    state = [params.get('state')]
-    assert_possible_values(state, ['ENABLED', 'DISABLED'])
-
-    start_date_str = params.get('start_date')
-    if start_date_str:
-        try:
-            start_date = datetime.fromisoformat(start_date_str)
-            if start_date < datetime.now():
-                message = "Invalid 'start_date': It should be in future"
-                _LOG.error(message)
-                raise AssertionError(message)
-        except ValueError:
-            message = "Invalid 'start_date': It should be in ISO 8601 format."
-            _LOG.error(message)
-            raise AssertionError(message)
+def convert_to_datetime(name, date_str):
+    try:
+        if len(date_str) > 10:
+            return datetime.fromisoformat(date_str)
+        else:
+            return datetime.utcfromtimestamp(int(date_str))
+    except (ValueError, OSError):
+        raise AssertionError('Invalid date format: {0}. Resource: {1}. Should '
+                             'be ISO8601 or timestamp'.format(
+            date_str, name))
 
 
-    return validated_params
+def prepare_schedule_parameters(meta):
+    name = meta.get('name')
+    validate_params(name, meta, REQUIRED_PARAMS)
+    params = meta.copy()
+
+    # keys inside "Target" parameters should NOT be changed to PascalCase
+    # syndicate user responsible for providing Target's key-values pairs in proper format
+    target = params.pop('target')
+    params = dict_keys_to_capitalized_camel_case(params)
+    params['Target'] = target
+
+    assert_possible_values([params.get('State')],
+                           ['ENABLED', 'DISABLED']) \
+        if 'State' in params else None
+    assert_possible_values([params.get('FlexibleTimeWindow').get('Mode')],
+                           ['OFF', 'FLEXIBLE']) \
+        if 'Mode' in params.get('FlexibleTimeWindow') else None
+
+    start_date, end_date = [convert_to_datetime(name, params.get(date)) for date
+                            in ('StartDate', 'EndDate')]
+    if start_date >= end_date:
+        raise ClientError("Start date must be earlier than end date.")
+
+    if start_date <= datetime.now(timezone.utc) or end_date <= datetime.now(
+            timezone.utc):
+        raise ValueError("Start and end dates must be in the future.")
+
+    return params
 
 
 class EventBridgeScheduleResource(BaseResource):
 
-    def __init__(self, eventbridge_conn, iam_resource):
+    def __init__(self, eventbridge_conn):
         self.connection = eventbridge_conn
-        self.iam = iam_resource
 
     def create_schedule(self, args):
         return self.create_pool(self._create_schedule_from_meta, args)
 
     @unpack_kwargs
     def _create_schedule_from_meta(self, name, meta):
+        _LOG.debug('Creating schedule %s', name)
+        check_params = meta['schedule_content']
+        check_params['name'] = name
+        params = prepare_schedule_parameters(check_params)
+        group_name = check_params.get('group_name')
+        response = self.connection.describe_schedule(name, group_name)
+        if response:
+            _arn = response['Arn']
+            # TODO return error - already exists
+            return self.describe_schedule(name, group_name, meta, _arn,
+                                          response)
+
+        arn = self.connection.create_schedule(**params)
+        _LOG.info(f'Created EventBridge schedule {arn}')
+        return self.describe_schedule(name=name, group_name=group_name,
+                                      meta=meta, arn=arn)
+
+    def update_schedule(self, args):
+        return self.create_pool(self._update_schedule_from_meta, args)
+
+    @unpack_kwargs
+    def _update_schedule_from_meta(self, name, meta, context):
         """ Create EventBridge Schedule from meta description after parameter
         validation.
 
@@ -78,30 +111,35 @@ class EventBridgeScheduleResource(BaseResource):
         """
         check_params = meta['schedule_content']
         check_params['name'] = name
-        params = template_for_rule(check_params)
-
-        response = self.connection.describe_schedule(name)
-        if response:
-            _arn = response['Arn']
-            # TODO return error - already exists
-            return self.describe_schedule(name, meta, _arn, response)
-
-        arn = self.connection.create_rule(**params)
-        _LOG.info(f'Created EventBridge rule {arn}')
-        return self.describe_schedule(name=name, meta=meta, arn=arn)
-
-    def describe_schedule(self, name, meta, arn, response=None):
+        group_name = check_params.get('group_name')
+        response = self.connection.describe_schedule(name, group_name)
         if not response:
-            response = self.connection.describe_schedule(name)
+            raise AssertionError('{0} schedule does not exist.'.format(name))
+
+        params = prepare_schedule_parameters(check_params)
+        _arn = response['Arn']
+
+        arn = self.connection.update_schedule(**params)
+        _LOG.info(f'Updated EventBridge schedule {arn}')
+        return self.describe_schedule(name=name, group_name=group_name,
+                                      meta=meta, arn=arn)
+
+    def describe_schedule(self, name, group_name, meta, arn, response=None):
+        if not response:
+            response = self.connection.describe_schedule(name, group_name)
         return {
             arn: build_description_obj(response, name, meta)
         }
 
-    def delete_schedule(self, args):
-        return self.create_pool(self._delete_schedule, args)
+    def remove_schedule(self, args):
+        return self.create_pool(self._remove_schedule, args)
 
     @unpack_kwargs
-    def _delete_schedule(self, arn, config):
+    def _remove_schedule(self, arn, config):
         name = config['resource_name']
-        response = self.connection.delete_rule(name)
-        return response
+        try:
+            group_name = config['resource_meta']['schedule_content'].get(
+                'group_name')
+        except:
+            group_name = None
+        return self.connection.delete_schedule(name=name, group_name=group_name)

@@ -162,7 +162,9 @@ class ProcessorFacade:
             DAX_CLUSTER_TYPE:
                 self.resources_provider.dax_cluster().describe_cluster,
             FIREHOSE_TYPE:
-                self.resources_provider.firehose().describe_stream
+                self.resources_provider.firehose().describe_stream,
+            EVENT_BRIDGE_SCHEDULE_TYPE:
+                self.resources_provider.eventbridge_schedule().describe_schedule
         }
 
     def remove_handlers(self):
@@ -225,7 +227,9 @@ class ProcessorFacade:
             DAX_CLUSTER_TYPE:
                 self.resources_provider.dax_cluster().remove_cluster,
             FIREHOSE_TYPE:
-                self.resources_provider.firehose().delete_streams
+                self.resources_provider.firehose().delete_streams,
+            EVENT_BRIDGE_SCHEDULE_TYPE:
+                self.resources_provider.eventbridge_schedule().remove_schedule
         }
 
     def update_handlers(self):
@@ -243,6 +247,8 @@ class ProcessorFacade:
             BATCH_COMPENV_TYPE:
                 self.resources_provider.batch_compenv()
                     .update_compute_environment,
+            EVENT_BRIDGE_SCHEDULE_TYPE:
+                self.resources_provider.eventbridge_schedule().update_schedule
         }
 
     def resource_configuration_processor(self):
