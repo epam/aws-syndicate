@@ -52,6 +52,9 @@ def prepare_schedule_parameters(meta):
     params = dict_keys_to_capitalized_camel_case(params)
     params['Target'] = target
 
+    assert_possible_values([params.get('ActionAfterCompletion')],
+                           ['NONE', 'DELETE']) \
+        if 'ActionAfterCompletion' in params else None
     assert_possible_values([params.get('State')],
                            ['ENABLED', 'DISABLED']) \
         if 'State' in params else None
@@ -59,14 +62,18 @@ def prepare_schedule_parameters(meta):
                            ['OFF', 'FLEXIBLE']) \
         if 'Mode' in params.get('FlexibleTimeWindow') else None
 
-    start_date, end_date = [convert_to_datetime(name, params.get(date)) for date
-                            in ('StartDate', 'EndDate')]
-    if start_date >= end_date:
-        raise ClientError("Start date must be earlier than end date.")
+    if 'StartDate' in params:
+        start_date = convert_to_datetime(name, params.get('StartDate'))
+        if start_date <= datetime.now(timezone.utc):
+            raise ValueError("Start date must be in the future.")
+    if 'EndDate' in params:
+        end_date = convert_to_datetime(name, params.get('EndDate'))
+        if start_date <= datetime.now(timezone.utc):
+            raise ValueError("End date must be in the future.")
 
-    if start_date <= datetime.now(timezone.utc) or end_date <= datetime.now(
-            timezone.utc):
-        raise ValueError("Start and end dates must be in the future.")
+    if 'StartDate' in params and 'EndDate' in params:
+        if start_date >= end_date:
+            raise ClientError("Start date must be earlier than end date.")
 
     return params
 
