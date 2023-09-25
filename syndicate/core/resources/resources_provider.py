@@ -31,7 +31,7 @@ from syndicate.core.resources.dax_resource import DaxResource
 from syndicate.core.resources.ebs_resource import EbsResource
 from syndicate.core.resources.ec2_resource import Ec2Resource
 from syndicate.core.resources.firehose_resource import FirehoseResource
-from syndicate.core.resources.eventbridge_schedule_resource import EventBridgeScheduleResource
+from syndicate.core.resources.eventbridge_scheduler_resource import EventBridgeSchedulerResource
 from syndicate.core.resources.iam_resource import IamResource
 from syndicate.core.resources.kinesis_resource import KinesisResource
 from syndicate.core.resources.lambda_resource import LambdaResource
@@ -210,7 +210,7 @@ class ResourceProvider:
 
         def eventbridge_schedule(self):
             if not self._eventbridge_schedule_resource:
-                self._eventbridge_schedule_resource = EventBridgeScheduleResource(
+                self._eventbridge_schedule_resource = EventBridgeSchedulerResource(
                     eventbridge_conn=self._conn_provider.eventbridge_schedule()
                 )
             return self._eventbridge_schedule_resource

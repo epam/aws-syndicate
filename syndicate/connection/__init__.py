@@ -33,7 +33,7 @@ from syndicate.connection.ec2_connection import EC2Connection
 from syndicate.connection.elastic_beanstalk_connection import (
     BeanstalkConnection)
 from syndicate.connection.firehose_connection import FirehoseConnection
-from syndicate.connection.eventbridge_schedule_connection import EventBridgeScheduleConnection
+from syndicate.connection.eventbridge_scheduler_connection import EventBridgeSchedulerConnection
 from syndicate.connection.iam_connection import IAMConnection
 from syndicate.connection.kinesis_connection import KinesisConnection
 from syndicate.connection.kms_connection import KMSConnection
@@ -172,7 +172,7 @@ class ConnectionProvider(object):
         credentials = self.credentials.copy()
         if region:
             credentials['region'] = region
-        return EventBridgeScheduleConnection(**credentials)
+        return EventBridgeSchedulerConnection(**credentials)
 
     @lru_cache(maxsize=None)
     def application_autoscaling(self, region=None):

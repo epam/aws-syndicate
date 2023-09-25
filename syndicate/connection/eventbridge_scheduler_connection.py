@@ -4,11 +4,11 @@ from botocore.exceptions import ClientError
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import apply_methods_decorator, retry
 
-_LOG = get_logger('syndicate.connection.eventbridge_schedule_connection')
+_LOG = get_logger('syndicate.connection.eventbridge_scheduler_connection')
 
 
 @apply_methods_decorator(retry)
-class EventBridgeScheduleConnection(object):
+class EventBridgeSchedulerConnection(object):
     """ EventBridge Schedule Connection class."""
 
     def __init__(self, region=None, aws_access_key_id=None,
@@ -19,13 +19,13 @@ class EventBridgeScheduleConnection(object):
                              aws_session_token=aws_session_token)
         _LOG.debug('Opened new EventBridge Schedule connection.')
 
-    def create_schedule(self, **params):
+    def create_scheduler(self, **params):
         return self.client.create_schedule(**params)['ScheduleArn']
 
-    def update_schedule(self, **params):
+    def update_scheduler(self, **params):
         return self.client.update_schedule(**params)['ScheduleArn']
 
-    def describe_schedule(self, name, group_name=None):
+    def describe_scheduler(self, name, group_name=None):
         params = {'Name': name}
         if group_name is not None:
             params['GroupName'] = group_name
@@ -41,7 +41,7 @@ class EventBridgeScheduleConnection(object):
             else:
                 raise e
 
-    def delete_schedule(self, name, group_name=None):
+    def delete_scheduler(self, name, group_name=None):
         params = {'Name': name}
         if group_name is not None:
             params['GroupName'] = group_name

@@ -41,7 +41,7 @@ def convert_to_datetime(name, date_str):
             date_str, name))
 
 
-def prepare_schedule_parameters(meta):
+def prepare_scheduler_parameters(meta):
     name = meta.get('name')
     validate_params(name, meta, REQUIRED_PARAMS)
     params = meta.copy()
@@ -75,38 +75,38 @@ def prepare_schedule_parameters(meta):
     return params
 
 
-class EventBridgeScheduleResource(BaseResource):
+class EventBridgeSchedulerResource(BaseResource):
 
     def __init__(self, eventbridge_conn):
         self.connection = eventbridge_conn
 
-    def create_schedule(self, args):
-        return self.create_pool(self._create_schedule_from_meta, args)
+    def create_scheduler(self, args):
+        return self.create_pool(self._create_scheduler_from_meta, args)
 
     @unpack_kwargs
-    def _create_schedule_from_meta(self, name, meta):
-        _LOG.debug('Creating schedule %s', name)
+    def _create_scheduler_from_meta(self, name, meta):
+        _LOG.debug(f'Creating schedule {name}')
         check_params = meta['schedule_content']
         check_params['name'] = name
-        params = prepare_schedule_parameters(check_params)
+        params = prepare_scheduler_parameters(check_params)
         group_name = check_params.get('group_name')
-        response = self.connection.describe_schedule(name, group_name)
+        response = self.connection.describe_scheduler(name, group_name)
         if response:
             _arn = response['Arn']
             # TODO return error - already exists
-            return self.describe_schedule(name, group_name, meta, _arn,
-                                          response)
+            return self.describe_scheduler(name, group_name, meta, _arn,
+                                           response)
 
-        arn = self.connection.create_schedule(**params)
+        arn = self.connection.create_scheduler(**params)
         _LOG.info(f'Created EventBridge schedule {arn}')
-        return self.describe_schedule(name=name, group_name=group_name,
-                                      meta=meta, arn=arn)
+        return self.describe_scheduler(name=name, group_name=group_name,
+                                       meta=meta, arn=arn)
 
-    def update_schedule(self, args):
-        return self.create_pool(self._update_schedule_from_meta, args)
+    def update_scheduler(self, args):
+        return self.create_pool(self._update_scheduler_from_meta, args)
 
     @unpack_kwargs
-    def _update_schedule_from_meta(self, name, meta, context):
+    def _update_scheduler_from_meta(self, name, meta, context):
         """ Create EventBridge Schedule from meta description after parameter
         validation.
 
@@ -116,34 +116,34 @@ class EventBridgeScheduleResource(BaseResource):
         check_params = meta['schedule_content']
         check_params['name'] = name
         group_name = check_params.get('group_name')
-        response = self.connection.describe_schedule(name, group_name)
+        response = self.connection.describe_scheduler(name, group_name)
         if not response:
             raise AssertionError('{0} schedule does not exist.'.format(name))
 
-        params = prepare_schedule_parameters(check_params)
+        params = prepare_scheduler_parameters(check_params)
         _arn = response['Arn']
 
-        arn = self.connection.update_schedule(**params)
+        arn = self.connection.update_scheduler(**params)
         _LOG.info(f'Updated EventBridge schedule {arn}')
-        return self.describe_schedule(name=name, group_name=group_name,
-                                      meta=meta, arn=arn)
+        return self.describe_scheduler(name=name, group_name=group_name,
+                                       meta=meta, arn=arn)
 
-    def describe_schedule(self, name, group_name, meta, arn, response=None):
+    def describe_scheduler(self, name, group_name, meta, arn, response=None):
         if not response:
-            response = self.connection.describe_schedule(name, group_name)
+            response = self.connection.describe_scheduler(name, group_name)
         return {
             arn: build_description_obj(response, name, meta)
         }
 
-    def remove_schedule(self, args):
-        return self.create_pool(self._remove_schedule, args)
+    def remove_scheduler(self, args):
+        return self.create_pool(self._remove_scheduler, args)
 
     @unpack_kwargs
-    def _remove_schedule(self, arn, config):
+    def _remove_scheduler(self, arn, config):
         name = config['resource_name']
         try:
             group_name = config['resource_meta']['schedule_content'].get(
                 'group_name')
         except:
             group_name = None
-        return self.connection.delete_schedule(name=name, group_name=group_name)
+        return self.connection.delete_scheduler(name=name, group_name=group_name)
