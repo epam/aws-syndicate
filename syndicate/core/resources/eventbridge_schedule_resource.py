@@ -52,9 +52,6 @@ def prepare_schedule_parameters(meta):
     params = dict_keys_to_capitalized_camel_case(params)
     params['Target'] = target
 
-    assert_possible_values([params.get('ActionAfterCompletion')],
-                           ['NONE', 'DELETE']) \
-        if 'ActionAfterCompletion' in params else None
     assert_possible_values([params.get('State')],
                            ['ENABLED', 'DISABLED']) \
         if 'State' in params else None
