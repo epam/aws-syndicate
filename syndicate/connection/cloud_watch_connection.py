@@ -199,7 +199,7 @@ class EventConnection(object):
 
     def get_rule(self, rule_name):
         try:
-            return self.client.describe_schedule(Name=rule_name)
+            return self.client.describe_rule(Name=rule_name)
         except ClientError as e:
             if 'ResourceNotFoundException' in str(e):
                 pass  # valid exception
