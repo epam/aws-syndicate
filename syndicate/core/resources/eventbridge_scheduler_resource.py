@@ -23,7 +23,7 @@ from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import build_description_obj, \
     validate_params, assert_possible_values
 
-_LOG = get_logger('syndicate.core.resources.eventbridge_schedule_resource')
+_LOG = get_logger('syndicate.core.resources.eventbridge_scheduler_resource')
 
 REQUIRED_PARAMS = {'name', 'schedule_expression', 'state', 'description',
                    'flexible_time_window'}
@@ -36,12 +36,12 @@ def convert_to_datetime(name, date_str):
         else:
             return datetime.utcfromtimestamp(int(date_str))
     except (ValueError, OSError):
-        raise AssertionError('Invalid date format: {0}. Resource: {1}. Should '
-                             'be ISO8601 or timestamp'.format(
-            date_str, name))
+        raise AssertionError(
+            f'Invalid date format: {date_str}. Resource: {name}. Should be ISO8601 or timestamp'
+            )
 
 
-def prepare_scheduler_parameters(meta):
+def prepare_schedule_parameters(meta):
     name = meta.get('name')
     validate_params(name, meta, REQUIRED_PARAMS)
     params = meta.copy()
@@ -62,15 +62,15 @@ def prepare_scheduler_parameters(meta):
     if 'StartDate' in params:
         start_date = convert_to_datetime(name, params.get('StartDate'))
         if start_date <= datetime.now(timezone.utc):
-            raise ValueError("Start date must be in the future.")
+            raise ValueError('Start date must be in the future.')
     if 'EndDate' in params:
         end_date = convert_to_datetime(name, params.get('EndDate'))
         if start_date <= datetime.now(timezone.utc):
-            raise ValueError("End date must be in the future.")
+            raise ValueError('End date must be in the future.')
 
     if 'StartDate' in params and 'EndDate' in params:
         if start_date >= end_date:
-            raise ClientError("Start date must be earlier than end date.")
+            raise ClientError('Start date must be earlier than end date.')
 
     return params
 
@@ -80,33 +80,33 @@ class EventBridgeSchedulerResource(BaseResource):
     def __init__(self, eventbridge_conn):
         self.connection = eventbridge_conn
 
-    def create_scheduler(self, args):
-        return self.create_pool(self._create_scheduler_from_meta, args)
+    def create_schedule(self, args):
+        return self.create_pool(self._create_schedule_from_meta, args)
 
     @unpack_kwargs
-    def _create_scheduler_from_meta(self, name, meta):
+    def _create_schedule_from_meta(self, name, meta):
         _LOG.debug(f'Creating schedule {name}')
         check_params = meta['schedule_content']
         check_params['name'] = name
-        params = prepare_scheduler_parameters(check_params)
+        params = prepare_schedule_parameters(check_params)
         group_name = check_params.get('group_name')
-        response = self.connection.describe_scheduler(name, group_name)
+        response = self.connection.describe_schedule(name, group_name)
         if response:
             _arn = response['Arn']
             # TODO return error - already exists
-            return self.describe_scheduler(name, group_name, meta, _arn,
-                                           response)
+            return self.describe_schedule(name, group_name, meta, _arn,
+                                          response)
 
-        arn = self.connection.create_scheduler(**params)
+        arn = self.connection.create_schedule(**params)
         _LOG.info(f'Created EventBridge schedule {arn}')
-        return self.describe_scheduler(name=name, group_name=group_name,
-                                       meta=meta, arn=arn)
+        return self.describe_schedule(name=name, group_name=group_name,
+                                      meta=meta, arn=arn)
 
-    def update_scheduler(self, args):
-        return self.create_pool(self._update_scheduler_from_meta, args)
+    def update_schedule(self, args):
+        return self.create_pool(self._update_schedule_from_meta, args)
 
     @unpack_kwargs
-    def _update_scheduler_from_meta(self, name, meta, context):
+    def _update_schedule_from_meta(self, name, meta, context):
         """ Create EventBridge Schedule from meta description after parameter
         validation.
 
@@ -116,34 +116,34 @@ class EventBridgeSchedulerResource(BaseResource):
         check_params = meta['schedule_content']
         check_params['name'] = name
         group_name = check_params.get('group_name')
-        response = self.connection.describe_scheduler(name, group_name)
+        response = self.connection.describe_schedule(name, group_name)
         if not response:
-            raise AssertionError('{0} schedule does not exist.'.format(name))
+            raise AssertionError(f'{name} schedule does not exist.')
 
-        params = prepare_scheduler_parameters(check_params)
+        params = prepare_schedule_parameters(check_params)
         _arn = response['Arn']
 
-        arn = self.connection.update_scheduler(**params)
+        arn = self.connection.update_schedule(**params)
         _LOG.info(f'Updated EventBridge schedule {arn}')
-        return self.describe_scheduler(name=name, group_name=group_name,
-                                       meta=meta, arn=arn)
+        return self.describe_schedule(name=name, group_name=group_name,
+                                      meta=meta, arn=arn)
 
-    def describe_scheduler(self, name, group_name, meta, arn, response=None):
+    def describe_schedule(self, name, group_name, meta, arn, response=None):
         if not response:
-            response = self.connection.describe_scheduler(name, group_name)
+            response = self.connection.describe_schedule(name, group_name)
         return {
             arn: build_description_obj(response, name, meta)
         }
 
-    def remove_scheduler(self, args):
-        return self.create_pool(self._remove_scheduler, args)
+    def remove_schedule(self, args):
+        return self.create_pool(self._remove_schedule, args)
 
     @unpack_kwargs
-    def _remove_scheduler(self, arn, config):
+    def _remove_schedule(self, arn, config):
         name = config['resource_name']
         try:
             group_name = config['resource_meta']['schedule_content'].get(
                 'group_name')
         except:
             group_name = None
-        return self.connection.delete_scheduler(name=name, group_name=group_name)
+        return self.connection.delete_schedule(name=name, group_name=group_name)

@@ -93,7 +93,7 @@ class ResourceProvider:
         _documentdb_instance_resource = None
         _tags_api_resource = None
         _dax_cluster_resource = None
-        _eventbridge_schedule_resource = None
+        _eventbridge_scheduler_resource = None
 
         def __init__(self, config, credentials) -> None:
             self.credentials = credentials
@@ -208,12 +208,12 @@ class ResourceProvider:
                 )
             return self._firehose_resource
 
-        def eventbridge_schedule(self):
-            if not self._eventbridge_schedule_resource:
-                self._eventbridge_schedule_resource = EventBridgeSchedulerResource(
-                    eventbridge_conn=self._conn_provider.eventbridge_schedule()
+        def eventbridge_scheduler(self):
+            if not self._eventbridge_scheduler_resource:
+                self._eventbridge_scheduler_resource = EventBridgeSchedulerResource(
+                    eventbridge_conn=self._conn_provider.eventbridge_scheduler()
                 )
-            return self._eventbridge_schedule_resource
+            return self._eventbridge_scheduler_resource
 
         def iam(self):
             if not self._iam_resource:

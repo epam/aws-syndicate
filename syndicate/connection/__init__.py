@@ -168,7 +168,7 @@ class ConnectionProvider(object):
         return FirehoseConnection(**credentials)
 
     @lru_cache(maxsize=None)
-    def eventbridge_schedule(self, region=None):
+    def eventbridge_scheduler(self, region=None):
         credentials = self.credentials.copy()
         if region:
             credentials['region'] = region

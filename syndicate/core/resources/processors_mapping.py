@@ -102,7 +102,7 @@ class ProcessorFacade:
             FIREHOSE_TYPE:
                 self.resources_provider.firehose().create_stream,
             EVENT_BRIDGE_SCHEDULE_TYPE:
-                self.resources_provider.eventbridge_schedule().create_scheduler
+                self.resources_provider.eventbridge_scheduler().create_schedule
         }
 
     def describe_handlers(self):
@@ -164,7 +164,7 @@ class ProcessorFacade:
             FIREHOSE_TYPE:
                 self.resources_provider.firehose().describe_stream,
             EVENT_BRIDGE_SCHEDULE_TYPE:
-                self.resources_provider.eventbridge_schedule().describe_scheduler
+                self.resources_provider.eventbridge_scheduler().describe_schedule
         }
 
     def remove_handlers(self):
@@ -229,7 +229,7 @@ class ProcessorFacade:
             FIREHOSE_TYPE:
                 self.resources_provider.firehose().delete_streams,
             EVENT_BRIDGE_SCHEDULE_TYPE:
-                self.resources_provider.eventbridge_schedule().remove_scheduler
+                self.resources_provider.eventbridge_scheduler().remove_schedule
         }
 
     def update_handlers(self):
@@ -248,7 +248,7 @@ class ProcessorFacade:
                 self.resources_provider.batch_compenv()
                     .update_compute_environment,
             EVENT_BRIDGE_SCHEDULE_TYPE:
-                self.resources_provider.eventbridge_schedule().update_scheduler
+                self.resources_provider.eventbridge_scheduler().update_schedule
         }
 
     def resource_configuration_processor(self):
