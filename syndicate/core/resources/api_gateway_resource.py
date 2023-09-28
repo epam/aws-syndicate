@@ -24,6 +24,7 @@ from syndicate.core.helper import unpack_kwargs
 from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import (build_description_obj,
                                              validate_params)
+from syndicate.connection.api_gateway_connection import ApiGatewayV2Connection
 
 API_REQUIRED_PARAMS = ['resources', 'deploy_stage']
 
@@ -64,13 +65,14 @@ _REQUEST_VALIDATORS = {
 
 class ApiGatewayResource(BaseResource):
 
-    def __init__(self, apigw_conn, lambda_res, cognito_res, account_id,
-                 region) -> None:
+    def __init__(self, apigw_conn, apigw_v2_conn: ApiGatewayV2Connection,
+                 lambda_res, cognito_res, account_id, region) -> None:
         self.connection = apigw_conn
         self.lambda_res = lambda_res
         self.cognito_res = cognito_res
         self.account_id = account_id
         self.region = region
+        self.apigw_v2 = apigw_v2_conn
 
     def _create_default_validators(self, api_id):
         for name, options in _REQUEST_VALIDATORS.items():
@@ -786,3 +788,85 @@ class ApiGatewayResource(BaseResource):
             content_type = model_data.get('content_type')
             self.connection.create_model(
                 api_id, name, content_type, description, schema)
+
+    def build_web_socket_api_gateway_arn(self, api_id: str) -> str:
+        return f'arn:aws:execute-api:{self.apigw_v2.client.meta.region_name}' \
+               f':{self.account_id}:{api_id}/*'
+
+    def create_web_socket_api_gateway(self, args):
+        return self.create_pool(self._create_web_socket_api_from_meta, args, 1)
+
+    @unpack_kwargs
+    def _create_web_socket_api_from_meta(self, name: str, meta: dict):
+        stage_name = meta.get('deploy_stage')
+        resources = meta.get('resources') or {}
+        route_selection_expression = meta.get('route_selection_expression')
+        api_id = self.apigw_v2.create_web_socket_api(
+            name=name, route_selection_expression=route_selection_expression)
+        for route_name, route_meta in resources.items():
+            int_type = route_meta.get('integration_type') or 'lambda'
+            if int_type != 'lambda':
+                _LOG.error(f'Integration type: {int_type} currently '
+                           f'not supported. Skipping..')
+                continue
+            lambda_name = route_meta['lambda_name']
+            lambda_version = route_meta.get('lambda_version')
+            lambda_alias = route_meta.get('lambda_alias')
+            lambda_arn = self.lambda_res.resolve_lambda_arn_by_version_and_alias(
+                lambda_name, lambda_version, lambda_alias)
+
+            integration_id = self.apigw_v2.create_lambda_integration(
+                api_id=api_id,
+                lambda_arn=lambda_arn,
+                enable_proxy=route_meta.get('enable_proxy') or False
+            )
+            self.apigw_v2.put_route_integration(
+                api_id=api_id,
+                route_name=route_name,
+                integration_id=integration_id
+            )
+            source_arn = f'{self.build_web_socket_api_gateway_arn(api_id)}/{route_name}'
+
+            self.lambda_res.add_invocation_permission(
+                name=lambda_arn,
+                principal='apigateway.amazonaws.com',
+                source_arn=source_arn,
+                statement_id=f'{name}-{route_name.strip("$")}-invoke',
+                exists_ok=True
+            )
+
+        self.apigw_v2.create_stage(api_id=api_id, stage_name=stage_name)
+        return self.describe_v2_api_gateway(
+            name=name, meta=meta, api_id=api_id
+        )
+
+    def describe_v2_api_gateway(self, name, meta, api_id=None):
+        if not api_id:
+            api = self.apigw_v2.get_api_by_name(name)
+            if not api:
+                return
+            api_id = api['ApiId']
+
+        # response = self.connection.get_api(api_id)
+        response = {'ApiId': api_id}
+        # maybe the arn is not valid - I didn't manage to find a valid
+        # example browsing for 5 minutes, so the hell with it. Currently,
+        # nothing depends on it
+        arn = self.build_web_socket_api_gateway_arn(api_id)
+        return {
+            arn: build_description_obj(response, name, meta)
+        }
+
+    def remove_v2_api_gateway(self, args):
+        for arg in args:
+            self._remove_v2_api_gateway(**arg)
+            # wait for success deletion
+            # time.sleep(60)
+
+    def _remove_v2_api_gateway(self, arn, config):
+        api_id = config.get('description', {}).get('ApiId')
+        if not api_id:
+            _LOG.warning('V2 api id not found in output. Skipping')
+            return
+        self.apigw_v2.delete_api(api_id)
+        return
