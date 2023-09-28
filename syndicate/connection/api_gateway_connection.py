@@ -325,7 +325,8 @@ class ApiGatewayConnection(object):
                                   passthrough_behavior=None,
                                   credentials=None,
                                   enable_proxy=False,
-                                  cache_key_parameters=None):
+                                  cache_key_parameters=None,
+                                  request_parameters=None):
         """ Create API Gateway integration with lambda by name.
 
         :type lambda_arn: str
@@ -338,6 +339,9 @@ class ApiGatewayConnection(object):
         :type lambda_region: str
         :type credentials: str
         :param credentials: role arn
+        :type request_parameters: dict
+        :param request_parameters: A key-value map specifying request parameters
+         (path, query string, header)
         """
         uri = ('arn:aws:apigateway:{0}:lambda:path/2015-03-31/functions/{1}'
                '/invocations').format(self.region, lambda_arn)
@@ -355,6 +359,8 @@ class ApiGatewayConnection(object):
             params['request_templates'] = request_templates
         if cache_key_parameters:
             params['cache_key_parameters'] = cache_key_parameters
+        if request_parameters:
+            params['request_parameters'] = request_parameters
         self.create_integration(**params)
 
     def create_service_integration(self, acc_id, api_id, resource_id,

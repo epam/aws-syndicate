@@ -4,6 +4,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+
+# [1.3.4] - 2023-09-28
+- replace ignored pip install parameter `--python` with `python-version`
+
+# [1.3.3] - 2023-09-22
+- Set default lambda Python runtime to 3.10
+- Updated libraries to support Python 3.10 as a development tool:
+  - `boto3` from 1.26.18 to 1.26.80
+  - `botocore` from 1.29.18 to 1.29.80
+  - `colorama` from 0.4.1 to 0.4.5
+  - `configobj` from 5.0.6 to 5.0.8
+  - `pyyaml` from 5.4 to 6.0.1
+  - `requests` from 2.27.1 to 2.31.0
+  - `tabulate` from 0.8.9 to 0.9.0
+  - `tqdm` from 4.19.5 to 4.65.2
+
+# [1.3.2] - 2023-09-20
+- Fixed ignored request parameters when creating api gateway's resource method using lambda integration
+
+# [1.3.1] - 2023-09-20
+- Add support Python 3.10 and Python 3.11
+
+# [1.3.0] - 2023-09-14
+- Added ability to use SSO credentials
+- Added parameter `aws_session_token` to `sdct.conf` for role assuming
+
 # [1.2.4] - 2023-04-13
 - Added `web_socker_api_gateway` resource type. Allows to deploy web-socket
   API with lambda integrations

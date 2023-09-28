@@ -601,7 +601,8 @@ class ApiGatewayResource(BaseResource):
                     lambda_arn, api_id, resource_id, method, body_template,
                     passthrough_behavior, method_meta.get('lambda_region'),
                     enable_proxy=enable_proxy,
-                    cache_key_parameters=cache_key_parameters)
+                    cache_key_parameters=cache_key_parameters,
+                    request_parameters=request_parameters)
                 # add permissions to invoke
                 # Allows to apply method or resource singleton of a policy
                 # statement, setting wildcard on the respective scope.
