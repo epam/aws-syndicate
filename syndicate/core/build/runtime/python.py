@@ -270,7 +270,7 @@ def build_pip_install_command(
     if implementation:
         command.extend(['--implementation', 'cp'])
     if python:
-        command.extend(['--python', python])
+        command.extend(['--python-version', python])
     if only_binary:
         command.append(f'--only-binary={only_binary}')
     if platforms:
