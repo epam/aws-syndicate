@@ -437,12 +437,12 @@ def dict_keys_to_capitalized_camel_case(d: dict):
                 if isinstance(item, (str, int)):
                     new_list.append(item)
                 if isinstance(item, dict):
-                    new_list.append(dict_keys_to_camel_case(item))
+                    new_list.append(dict_keys_to_capitalized_camel_case(item))
             new_d[string_to_capitalized_camel_case(key)] = new_list
 
         if isinstance(value, dict):
             new_d[string_to_capitalized_camel_case(key)] = \
-                dict_keys_to_camel_case(value)
+                dict_keys_to_capitalized_camel_case(value)
 
     return new_d
 
@@ -513,9 +513,16 @@ class DictParamType(click.types.StringParamType):
         value = value[:-1] if value.endswith(self.ITEMS_SEPARATOR) else value
         result = {}
         _LOG.info(f'Converting: {value} to dict..')
-        for item in value.split(self.ITEMS_SEPARATOR):
-            k, v = item.split(self.KEY_VALUE_SEPARATOR)
-            result[k] = v
+
+        try:
+            for item in value.split(self.ITEMS_SEPARATOR):
+                k, v = item.split(self.KEY_VALUE_SEPARATOR)
+                result[k] = v
+        except ValueError as e:
+            raise BadParameter(f'Wrong format: {value}. '
+                               f'Must be key:value or key,value. '
+                               f'\nError: {e.__str__()}')
+
         _LOG.info(f'Converted to such a dict: {result}')
         return result
 

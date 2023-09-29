@@ -22,6 +22,7 @@ DAX_CLUSTER_TYPE = 'dax_cluster'
 S3_BUCKET_TYPE = 's3_bucket'
 CLOUD_WATCH_RULE_TYPE = 'cloudwatch_rule'
 EVENT_BRIDGE_RULE_TYPE = 'eventbridge_rule'
+EVENT_BRIDGE_SCHEDULE_TYPE = 'eventbridge_schedule'
 SQS_QUEUE_TYPE = 'sqs_queue'
 API_GATEWAY_TYPE = 'api_gateway'
 WEB_SOCKET_API_GATEWAY_TYPE = 'web_socket_api_gateway'
@@ -61,8 +62,6 @@ PYTHON_LAMBDA_LAYER_PATH = 'python'
 
 DEFAULT_SEP = '/'
 
-# TODO why don't just make a list? the first goes first, the last - last ?..
-#  because each time we add a new resource, it's quite a headache
 DEPLOY_RESOURCE_TYPE_PRIORITY = {
     IAM_POLICY: 1,
     IAM_ROLE: 2,
@@ -90,7 +89,8 @@ DEPLOY_RESOURCE_TYPE_PRIORITY = {
     BATCH_JOBDEF_TYPE: 24,
     FIREHOSE_TYPE: 25,
     DOCUMENTDB_CLUSTER_TYPE: 26,
-    DOCUMENTDB_INSTANCE_TYPE: 27
+    DOCUMENTDB_INSTANCE_TYPE: 27,
+    EVENT_BRIDGE_SCHEDULE_TYPE: 28
 }
 
 CLEAN_RESOURCE_TYPE_PRIORITY = {
@@ -121,6 +121,7 @@ CLEAN_RESOURCE_TYPE_PRIORITY = {
     FIREHOSE_TYPE: 25,
     DOCUMENTDB_INSTANCE_TYPE: 26,
     DOCUMENTDB_CLUSTER_TYPE: 27,
+    EVENT_BRIDGE_SCHEDULE_TYPE: 28
 }
 
 UPDATE_RESOURCE_TYPE_PRIORITY = {

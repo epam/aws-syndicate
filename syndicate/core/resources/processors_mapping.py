@@ -23,7 +23,7 @@ from syndicate.core.constants import \
     LAMBDA_LAYER_TYPE, BATCH_COMPENV_TYPE, BATCH_JOBQUEUE_TYPE, \
     BATCH_JOBDEF_TYPE, COGNITO_USER_POOL_TYPE, COGNITO_FEDERATED_POOL_TYPE, \
     DOCUMENTDB_CLUSTER_TYPE, DOCUMENTDB_INSTANCE_TYPE, DAX_CLUSTER_TYPE, \
-    FIREHOSE_TYPE
+    FIREHOSE_TYPE, EVENT_BRIDGE_SCHEDULE_TYPE
 
 
 class ProcessorFacade:
@@ -92,7 +92,9 @@ class ProcessorFacade:
             DAX_CLUSTER_TYPE:
                 self.resources_provider.dax_cluster().create_cluster,
             FIREHOSE_TYPE:
-                self.resources_provider.firehose().create_stream
+                self.resources_provider.firehose().create_stream,
+            EVENT_BRIDGE_SCHEDULE_TYPE:
+                self.resources_provider.eventbridge_scheduler().create_schedule
         }
 
     def describe_handlers(self):
@@ -154,7 +156,9 @@ class ProcessorFacade:
             DAX_CLUSTER_TYPE:
                 self.resources_provider.dax_cluster().describe_cluster,
             FIREHOSE_TYPE:
-                self.resources_provider.firehose().describe_stream
+                self.resources_provider.firehose().describe_stream,
+            EVENT_BRIDGE_SCHEDULE_TYPE:
+                self.resources_provider.eventbridge_scheduler().describe_schedule
         }
 
     def remove_handlers(self):
@@ -219,7 +223,9 @@ class ProcessorFacade:
             DAX_CLUSTER_TYPE:
                 self.resources_provider.dax_cluster().remove_cluster,
             FIREHOSE_TYPE:
-                self.resources_provider.firehose().delete_streams
+                self.resources_provider.firehose().delete_streams,
+            EVENT_BRIDGE_SCHEDULE_TYPE:
+                self.resources_provider.eventbridge_scheduler().remove_schedule
         }
 
     def update_handlers(self):
@@ -237,6 +243,8 @@ class ProcessorFacade:
             BATCH_COMPENV_TYPE:
                 self.resources_provider.batch_compenv()
                     .update_compute_environment,
+            EVENT_BRIDGE_SCHEDULE_TYPE:
+                self.resources_provider.eventbridge_scheduler().update_schedule
         }
 
     def resource_configuration_processor(self):
