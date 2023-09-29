@@ -15,7 +15,8 @@
 """
 from functools import lru_cache
 
-from syndicate.connection.api_gateway_connection import ApiGatewayConnection
+from syndicate.connection.api_gateway_connection import ApiGatewayConnection, \
+    ApiGatewayV2Connection
 from syndicate.connection.application_autoscaling_connection import (
     ApplicationAutoscaling)
 from syndicate.connection.batch_connection import BatchConnection
@@ -57,6 +58,12 @@ class ConnectionProvider(object):
         if region:
             credentials['region'] = region
         return ApiGatewayConnection(**credentials)
+
+    def api_gateway_v2(self, region=None):
+        creds = self.credentials
+        if region:
+            creds = {**creds, 'region': region}
+        return ApiGatewayV2Connection(**creds)
 
     @lru_cache(maxsize=None)
     def lambda_conn(self, region=None):

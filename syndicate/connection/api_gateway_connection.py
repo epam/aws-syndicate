@@ -14,8 +14,10 @@
     limitations under the License.
 """
 from secrets import token_hex
+from typing import Optional
 
 from boto3 import client
+from botocore.client import BaseClient
 from botocore.exceptions import ClientError
 
 from syndicate.commons.log_helper import get_logger
@@ -710,3 +712,93 @@ class ApiGatewayConnection(object):
                 return None
             else:
                 raise e
+
+
+class ApiGatewayV2Connection:
+    def __init__(self, region=None, aws_access_key_id=None,
+                 aws_secret_access_key=None, aws_session_token=None):
+        self._region = region
+        self._aws_access_key_id = aws_access_key_id
+        self._aws_secret_access_key = aws_secret_access_key
+        self._aws_session_token = aws_session_token
+        self._client: Optional[BaseClient] = None
+
+    @property
+    def client(self) -> BaseClient:
+        if not self._client:
+            self._client = client(
+                'apigatewayv2', self._region,
+                aws_access_key_id=self._aws_access_key_id,
+                aws_secret_access_key=self._aws_secret_access_key,
+                aws_session_token=self._aws_session_token
+            )
+            _LOG.debug('Opened new API Gateway connection.')
+        return self._client
+
+    def create_web_socket_api(self, name: str,
+                              route_selection_expression: Optional[
+                                  str] = 'request.body.action') -> str:
+        return self.client.create_api(
+            Name=name,
+            ProtocolType='WEBSOCKET',
+            RouteSelectionExpression=route_selection_expression
+        )['ApiId']
+
+    def create_stage(self, api_id: str, stage_name: str):
+        return self.client.create_stage(
+            ApiId=api_id,
+            AutoDeploy=True,
+            StageName=stage_name
+        )
+
+    # def create_deployment(self, api_id: str, stage_name: str):
+    #     return self.client.create_deployment(
+    #         ApiId=api_id,
+    #         StageName=stage_name
+    #     )
+
+    def get_api_by_name(self, name: str) -> Optional[dict]:
+        return next((api for api in self.client.get_apis()['Items']
+                     if api['Name'] == name), None)
+
+    def get_route_id_by_name(self, api_id: str, name: str) -> Optional[str]:
+        return next(
+            (route['RouteId'] for route in
+             self.client.get_routes(ApiId=api_id)['Items']
+             if route['RouteKey'] == name), None
+        )
+
+    def delete_api(self, api_id: str):
+        return self.client.delete_api(
+            ApiId=api_id
+        )
+
+    def create_lambda_integration(self, api_id: str, lambda_arn: str,
+                                  enable_proxy: Optional[bool] = False) -> str:
+        integration_uri = \
+            f'arn:aws:apigateway:{self.client.meta.region_name}:lambda:path/' \
+            f'2015-03-31/functions/{lambda_arn}/invocations'
+        return self.client.create_integration(
+            ApiId=api_id,
+            IntegrationType='AWS_PROXY' if enable_proxy else 'AWS',
+            IntegrationMethod='POST',
+            IntegrationUri=integration_uri
+        )['IntegrationId']
+
+    def put_route_integration(self, api_id: str, route_name: str,
+                              integration_id: str) -> str:
+        route_id = self.get_route_id_by_name(api_id, route_name)
+        if route_id:  # already exists
+            self.client.update_route(
+                ApiId=api_id,
+                RouteId=route_id,
+                Target=f'integrations/{integration_id}'
+            )
+        else:  # not route_id, does not exist
+            response = self.client.create_route(
+                ApiId=api_id,
+                RouteKey=route_name,
+                Target=f'integrations/{integration_id}'
+            )
+            route_id = response['RouteId']
+        return route_id
