@@ -15,7 +15,8 @@
 """
 from functools import lru_cache
 
-from syndicate.connection.api_gateway_connection import ApiGatewayConnection
+from syndicate.connection.api_gateway_connection import ApiGatewayConnection, \
+    ApiGatewayV2Connection
 from syndicate.connection.application_autoscaling_connection import (
     ApplicationAutoscaling)
 from syndicate.connection.batch_connection import BatchConnection
@@ -33,6 +34,7 @@ from syndicate.connection.ec2_connection import EC2Connection
 from syndicate.connection.elastic_beanstalk_connection import (
     BeanstalkConnection)
 from syndicate.connection.firehose_connection import FirehoseConnection
+from syndicate.connection.eventbridge_scheduler_connection import EventBridgeSchedulerConnection
 from syndicate.connection.iam_connection import IAMConnection
 from syndicate.connection.kinesis_connection import KinesisConnection
 from syndicate.connection.kms_connection import KMSConnection
@@ -56,6 +58,12 @@ class ConnectionProvider(object):
         if region:
             credentials['region'] = region
         return ApiGatewayConnection(**credentials)
+
+    def api_gateway_v2(self, region=None):
+        creds = self.credentials
+        if region:
+            creds = {**creds, 'region': region}
+        return ApiGatewayV2Connection(**creds)
 
     @lru_cache(maxsize=None)
     def lambda_conn(self, region=None):
@@ -165,6 +173,13 @@ class ConnectionProvider(object):
         if region:
             credentials['region'] = region
         return FirehoseConnection(**credentials)
+
+    @lru_cache(maxsize=None)
+    def eventbridge_scheduler(self, region=None):
+        credentials = self.credentials.copy()
+        if region:
+            credentials['region'] = region
+        return EventBridgeSchedulerConnection(**credentials)
 
     @lru_cache(maxsize=None)
     def application_autoscaling(self, region=None):

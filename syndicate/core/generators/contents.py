@@ -463,7 +463,7 @@ def _generate_python_node_lambda_config(lambda_name, lambda_relative_path):
         'func_name': 'handler.lambda_handler',
         'resource_type': 'lambda',
         'iam_role_name': LAMBDA_ROLE_NAME_PATTERN.format(lambda_name),
-        'runtime': 'python3.7',
+        'runtime': 'python3.10',
         'memory': 128,
         'timeout': 100,
         'lambda_path': lambda_relative_path,

@@ -27,7 +27,8 @@ from syndicate.core.constants import (API_GATEWAY_TYPE, ARTIFACTS_FOLDER,
                                       LAMBDA_CONFIG_FILE_NAME, LAMBDA_TYPE,
                                       RESOURCES_FILE_NAME, RESOURCE_LIST,
                                       IAM_ROLE, LAMBDA_LAYER_TYPE,
-                                      S3_PATH_NAME, LAMBDA_LAYER_CONFIG_FILE_NAME)
+                                      S3_PATH_NAME, LAMBDA_LAYER_CONFIG_FILE_NAME,
+                                      WEB_SOCKET_API_GATEWAY_TYPE)
 from syndicate.core.helper import (build_path, prettify_json,
                                    resolve_aliases_for_string,
                                    write_content_to_file)
@@ -77,7 +78,8 @@ def _check_duplicated_resources(initial_meta_dict, additional_item_name,
         if not initial_item:
             return
         initial_type = initial_item['resource_type']
-        if additional_type == initial_type == API_GATEWAY_TYPE:
+        if additional_type == initial_type and initial_type in \
+                {API_GATEWAY_TYPE, WEB_SOCKET_API_GATEWAY_TYPE}:
             # check if APIs have same resources
             for each in list(initial_item['resources'].keys()):
                 if each in list(additional_item['resources'].keys()):
@@ -131,8 +133,8 @@ def _check_duplicated_resources(initial_meta_dict, additional_item_name,
                     'api_method_integration_responses'] = initial_integration_resp
             # join items dependencies
             dependencies_dict = {each['resource_name']: each
-                                 for each in additional_item['dependencies']}
-            for each in initial_item['dependencies']:
+                                 for each in additional_item.get('dependencies') or []}
+            for each in initial_item.get('dependencies') or []:
                 if each['resource_name'] not in dependencies_dict:
                     additional_item['dependencies'].append(each)
             # join items resources
@@ -167,6 +169,8 @@ def _check_duplicated_resources(initial_meta_dict, additional_item_name,
             _pst = initial_item.get('policy_statement_singleton')
             if 'policy_statement_singleton' not in additional_item and _pst:
                 additional_item['policy_statement_singleton'] = _pst
+
+            additional_item['route_selection_expression'] = initial_item.get('route_selection_expression')
 
             additional_item = _merge_api_gw_list_typed_configurations(
                 initial_item,
@@ -276,6 +280,8 @@ RUNTIME_PATH_RESOLVER = {
     'python3.7': _populate_s3_path_python_node,
     'python3.8': _populate_s3_path_python_node,
     'python3.9': _populate_s3_path_python_node,
+    'python3.10': _populate_s3_path_python_node,
+    'python3.11': _populate_s3_path_python_node,
     'java8': _populate_s3_path_java,
     'java8.al2': _populate_s3_path_java,
     'java11': _populate_s3_path_java,

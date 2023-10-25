@@ -14,24 +14,16 @@
     limitations under the License.
 """
 
-from syndicate.core.constants import (API_GATEWAY_TYPE, CLOUD_WATCH_ALARM_TYPE,
-                                      CLOUD_WATCH_RULE_TYPE,
-                                      EVENT_BRIDGE_RULE_TYPE,
-                                      DYNAMO_TABLE_TYPE, EBS_TYPE,
-                                      EC2_INSTANCE_TYPE, IAM_POLICY,
-                                      IAM_ROLE, KINESIS_STREAM_TYPE,
-                                      LAMBDA_TYPE, S3_BUCKET_TYPE,
-                                      SNS_PLATFORM_APPLICATION_TYPE,
-                                      SNS_TOPIC_TYPE,
-                                      SQS_QUEUE_TYPE, STATE_ACTIVITY_TYPE,
-                                      STEP_FUNCTION_TYPE, LAMBDA_LAYER_TYPE,
-                                      BATCH_COMPENV_TYPE, BATCH_JOBQUEUE_TYPE,
-                                      BATCH_JOBDEF_TYPE,
-                                      COGNITO_USER_POOL_TYPE,
-                                      COGNITO_FEDERATED_POOL_TYPE,
-                                      DOCUMENTDB_CLUSTER_TYPE,
-                                      DOCUMENTDB_INSTANCE_TYPE,
-                                      DAX_CLUSTER_TYPE, FIREHOSE_TYPE)
+from syndicate.core.constants import \
+    API_GATEWAY_TYPE, WEB_SOCKET_API_GATEWAY_TYPE, CLOUD_WATCH_ALARM_TYPE, \
+    CLOUD_WATCH_RULE_TYPE, EVENT_BRIDGE_RULE_TYPE, DYNAMO_TABLE_TYPE,\
+    EBS_TYPE, EC2_INSTANCE_TYPE, IAM_POLICY, IAM_ROLE, KINESIS_STREAM_TYPE,\
+    LAMBDA_TYPE, S3_BUCKET_TYPE, SNS_PLATFORM_APPLICATION_TYPE, \
+    SNS_TOPIC_TYPE, SQS_QUEUE_TYPE, STATE_ACTIVITY_TYPE, STEP_FUNCTION_TYPE, \
+    LAMBDA_LAYER_TYPE, BATCH_COMPENV_TYPE, BATCH_JOBQUEUE_TYPE, \
+    BATCH_JOBDEF_TYPE, COGNITO_USER_POOL_TYPE, COGNITO_FEDERATED_POOL_TYPE, \
+    DOCUMENTDB_CLUSTER_TYPE, DOCUMENTDB_INSTANCE_TYPE, DAX_CLUSTER_TYPE, \
+    FIREHOSE_TYPE, EVENT_BRIDGE_SCHEDULE_TYPE
 
 
 class ProcessorFacade:
@@ -59,6 +51,8 @@ class ProcessorFacade:
                 self.resources_provider.s3().create_s3_bucket,
             API_GATEWAY_TYPE:
                 self.resources_provider.api_gw().create_api_gateway,
+            WEB_SOCKET_API_GATEWAY_TYPE:
+                self.resources_provider.api_gw().create_web_socket_api_gateway,
             COGNITO_USER_POOL_TYPE:
                 self.resources_provider.cognito_user_pool()
                     .create_cognito_user_pool,
@@ -98,7 +92,9 @@ class ProcessorFacade:
             DAX_CLUSTER_TYPE:
                 self.resources_provider.dax_cluster().create_cluster,
             FIREHOSE_TYPE:
-                self.resources_provider.firehose().create_stream
+                self.resources_provider.firehose().create_stream,
+            EVENT_BRIDGE_SCHEDULE_TYPE:
+                self.resources_provider.eventbridge_scheduler().create_schedule
         }
 
     def describe_handlers(self):
@@ -119,6 +115,8 @@ class ProcessorFacade:
                 self.resources_provider.s3().describe_bucket,
             API_GATEWAY_TYPE:
                 self.resources_provider.api_gw().describe_api_resources,
+            WEB_SOCKET_API_GATEWAY_TYPE:
+                self.resources_provider.api_gw().describe_v2_api_gateway,
             COGNITO_USER_POOL_TYPE:
                 self.resources_provider.cognito_user_pool()
                     .describe_user_pool,
@@ -158,7 +156,9 @@ class ProcessorFacade:
             DAX_CLUSTER_TYPE:
                 self.resources_provider.dax_cluster().describe_cluster,
             FIREHOSE_TYPE:
-                self.resources_provider.firehose().describe_stream
+                self.resources_provider.firehose().describe_stream,
+            EVENT_BRIDGE_SCHEDULE_TYPE:
+                self.resources_provider.eventbridge_scheduler().describe_schedule
         }
 
     def remove_handlers(self):
@@ -167,6 +167,8 @@ class ProcessorFacade:
                 self.resources_provider.cw_alarm().remove_alarms,
             API_GATEWAY_TYPE:
                 self.resources_provider.api_gw().remove_api_gateways,
+            WEB_SOCKET_API_GATEWAY_TYPE:
+                self.resources_provider.api_gw().remove_v2_api_gateway,
             CLOUD_WATCH_RULE_TYPE:
                 self.resources_provider.cw().remove_cloud_watch_rules,
             EVENT_BRIDGE_RULE_TYPE:
@@ -221,7 +223,9 @@ class ProcessorFacade:
             DAX_CLUSTER_TYPE:
                 self.resources_provider.dax_cluster().remove_cluster,
             FIREHOSE_TYPE:
-                self.resources_provider.firehose().delete_streams
+                self.resources_provider.firehose().delete_streams,
+            EVENT_BRIDGE_SCHEDULE_TYPE:
+                self.resources_provider.eventbridge_scheduler().remove_schedule
         }
 
     def update_handlers(self):
@@ -239,6 +243,8 @@ class ProcessorFacade:
             BATCH_COMPENV_TYPE:
                 self.resources_provider.batch_compenv()
                     .update_compute_environment,
+            EVENT_BRIDGE_SCHEDULE_TYPE:
+                self.resources_provider.eventbridge_scheduler().update_schedule
         }
 
     def resource_configuration_processor(self):
