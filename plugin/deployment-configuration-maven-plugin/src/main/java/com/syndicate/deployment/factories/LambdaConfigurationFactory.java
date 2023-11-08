@@ -16,17 +16,18 @@
 
 package com.syndicate.deployment.factories;
 
+import com.syndicate.deployment.annotations.LambdaUrlConfig;
 import com.syndicate.deployment.annotations.lambda.LambdaConcurrency;
 import com.syndicate.deployment.annotations.lambda.LambdaHandler;
 import com.syndicate.deployment.annotations.lambda.LambdaProvisionedConcurrency;
 import com.syndicate.deployment.annotations.resources.DeadLetterConfiguration;
 import com.syndicate.deployment.model.DependencyItem;
-import com.syndicate.deployment.model.DeploymentRuntime;
 import com.syndicate.deployment.model.LambdaConfiguration;
 import com.syndicate.deployment.model.ProvisionedConcurrency;
 import com.syndicate.deployment.model.ResourceType;
 import com.syndicate.deployment.model.TracingMode;
 import com.syndicate.deployment.model.events.EventSourceItem;
+import com.syndicate.deployment.model.lambda.url.UrlConfig;
 
 import java.util.Map;
 import java.util.Set;
@@ -95,6 +96,11 @@ public final class LambdaConfigurationFactory {
         if (deadLetterConfiguration != null) {
             lambdaConfiguration.setDlResourceName(deadLetterConfiguration.resourceName());
             lambdaConfiguration.setDlResourceType(deadLetterConfiguration.resourceType().getServiceName());
+        }
+
+        LambdaUrlConfig lambdaUrlConfig = lambdaClass.getDeclaredAnnotation(LambdaUrlConfig.class);
+        if (lambdaUrlConfig != null) {
+            lambdaConfiguration.setUrlConfig(new UrlConfig(lambdaUrlConfig.authType(), lambdaUrlConfig.invokeMode()));
         }
 
         return lambdaConfiguration;
