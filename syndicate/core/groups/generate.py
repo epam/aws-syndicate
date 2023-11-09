@@ -24,9 +24,9 @@ from syndicate.core.generators.project import (generate_project_structure,
 from syndicate.core.groups.meta import meta
 from syndicate.core.helper import (timeit, OrderedGroup,
                                    check_bundle_bucket_name,
-                                   check_prefix_suffix_length,
                                    resolve_project_path,
-                                   check_lambdas_names, DictParamType)
+                                   check_lambdas_names, DictParamType,
+                                   check_suffix, check_prefix)
 
 GENERATE_GROUP_NAME = 'generate'
 GENERATE_PROJECT_COMMAND_NAME = 'project'
@@ -123,13 +123,19 @@ def lambda_function(name, runtime, project_path):
 @click.option('--prefix',
               help='Prefix that is added to project names while deployment '
                    'by pattern: {prefix}resource_name{suffix}. '
-                   'Must be less than or equal to 5',
-              callback=check_prefix_suffix_length)
+                   'Must be less than or equal to 5. If --extended_prefix '
+                   'specified prefix length may be up to 14 symbols',
+              callback=check_prefix)
 @click.option('--suffix',
               help='Suffix that is added to project names while deployment '
                    'by pattern: {prefix}resource_name{suffix}. '
                    'Must be less than or equal to 5',
-              callback=check_prefix_suffix_length)
+              callback=check_suffix)
+@click.option('--extended_prefix', type=bool, default=False,
+              is_eager=True,
+              help='Extends the length of the prefix up to 14 symbols. '
+                   'If specified, a prefix and a suffix will be added to all '
+                   'project resources.')
 @click.option('--use_temp_creds', type=bool, default=False,
               help='Indicates Syndicate to generate and use temporary AWS '
                    'credentials')
@@ -149,8 +155,8 @@ def lambda_function(name, runtime, project_path):
               help='Common permissions boundary arn to add to all the roles')
 @timeit()
 def config(name, config_path, project_path, region, access_key, secret_key,
-           bundle_bucket_name, prefix, suffix, use_temp_creds, access_role,
-           serial_number, tags, iam_permissions_boundary):
+           bundle_bucket_name, prefix, suffix, extended_prefix, use_temp_creds,
+           access_role, serial_number, tags, iam_permissions_boundary):
     """
     Creates Syndicate configuration files
     """
@@ -163,6 +169,7 @@ def config(name, config_path, project_path, region, access_key, secret_key,
                                  bundle_bucket_name=bundle_bucket_name,
                                  prefix=prefix,
                                  suffix=suffix,
+                                 extended_prefix=extended_prefix,
                                  use_temp_creds=use_temp_creds,
                                  access_role=access_role,
                                  serial_number=serial_number,

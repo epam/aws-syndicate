@@ -414,6 +414,7 @@ def create_meta(project_path, bundle_name):
 def resolve_meta(overall_meta):
     from syndicate.core import CONFIG
     iam_suffix = _resolve_iam_suffix(iam_suffix=CONFIG.iam_suffix)
+    extended_prefix_mode = CONFIG.extended_prefix_mode
     overall_meta = _resolve_aliases(overall_meta)
     _LOG.debug('Resolved meta was created')
     _LOG.debug(prettify_json(overall_meta))
@@ -422,9 +423,12 @@ def resolve_meta(overall_meta):
     # get dict with resolved prefix and suffix in meta resources
     # key: current_name, value: resolved_name
     resolved_names = {}
+    resource_types_to_process = GLOBAL_AWS_SERVICES
     for name, res_meta in overall_meta.items():
         resource_type = res_meta['resource_type']
-        if resource_type in GLOBAL_AWS_SERVICES:
+        if extended_prefix_mode:
+            resource_types_to_process = {resource_type}
+        if resource_type in resource_types_to_process:
             resolved_name = resolve_resource_name(
                 resource_name=name,
                 prefix=CONFIG.resources_prefix,

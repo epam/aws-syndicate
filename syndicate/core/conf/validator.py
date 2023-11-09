@@ -42,6 +42,8 @@ DEPLOY_TARGET_BUCKET_CFG = 'deploy_target_bucket'
 PROJECTS_MAPPING_CFG = 'build_projects_mapping'
 RESOURCES_SUFFIX_CFG = 'resources_suffix'
 RESOURCES_PREFIX_CFG = 'resources_prefix'
+EXTENDED_PREFIX_MODE_CFG = 'extended_prefix_mode'
+EXTENDED_PREFIX_PATTERN = '^[a-z0-9-]+$'
 
 USE_TEMP_CREDS_CFG = 'use_temp_creds'
 SERIAL_NUMBER_CFG = 'serial_number'
@@ -70,6 +72,7 @@ class ConfigValidator:
 
     def __init__(self, config_dict) -> None:
         self._config_dict = config_dict
+        self._extended_prefix_mode = config_dict.get(EXTENDED_PREFIX_MODE_CFG)
         self._fields_validators_mapping = {
             PROJECT_PATH_CFG: {
                 REQUIRED: True,
@@ -97,10 +100,14 @@ class ConfigValidator:
                 VALIDATOR: self._validate_aws_session_token},
             RESOURCES_PREFIX_CFG: {
                 REQUIRED: False,
-                VALIDATOR: self._validate_resources_prefix_suffix},
+                VALIDATOR: self._validate_resource_prefix},
             RESOURCES_SUFFIX_CFG: {
                 REQUIRED: False,
                 VALIDATOR: self._validate_resources_prefix_suffix},
+            EXTENDED_PREFIX_MODE_CFG: {
+                REQUIRED: False,
+                VALIDATOR: self._validate_extended_prefix_mode
+            },
             USE_TEMP_CREDS_CFG: {
                 REQUIRED: False,
                 VALIDATOR: self._validate_use_temp_creds
@@ -327,11 +334,50 @@ class ConfigValidator:
             return [
                 f'The length of {key} must be less or equal to 5 character']
 
+    def _validate_resource_prefix(self, key, value):
+        if self._extended_prefix_mode:
+            return self._validate_resources_prefix_extended_mode(key, value)
+        return self._validate_resources_prefix_suffix(key, value)
+
+    @staticmethod
+    def _validate_extended_prefix_mode(key, value):
+        bool_error = ConfigValidator._assert_value_is_bool(
+            key=key, value=value
+        )
+        if bool_error:
+            return [bool_error]
+
+    @staticmethod
+    def _validate_resources_prefix_extended_mode(key, value):
+        result = []
+        str_error = ConfigValidator._assert_value_is_str(key=key, value=value)
+        if str_error:
+            result.append(str_error)
+        if len(value) > 14:
+            result.append(f'The length of {key} must be less or equal to 14 '
+                          f'character')
+        if '--' in value:
+            result.append(f'The {key} must not contain two consecutive '
+                          f'hyphens')
+        if not value[0].isalpha():
+            result.append(f'The first character of the {key} must be a letter')
+        if not re.match(EXTENDED_PREFIX_PATTERN, value):
+            result.append(f'The {key} must contain only lowercase letters, '
+                          f'numbers, and hyphens')
+        return result
+
     @staticmethod
     def validate_prefix_suffix(key, value):
         result = ConfigValidator._validate_resources_prefix_suffix(key, value)
         if result:
             return result[0]
+
+    @staticmethod
+    def validate_extended_prefix(key, value):
+        result = ConfigValidator._validate_resources_prefix_extended_mode(
+            key, value)
+        if result:
+            return result
 
     @staticmethod
     def _validate_session_duration(key, value):
