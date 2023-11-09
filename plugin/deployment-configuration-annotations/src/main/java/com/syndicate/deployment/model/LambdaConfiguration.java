@@ -20,6 +20,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.syndicate.deployment.model.events.EventSourceItem;
+import com.syndicate.deployment.model.lambda.url.UrlConfig;
 
 import java.security.InvalidParameterException;
 import java.util.Arrays;
@@ -110,6 +111,9 @@ public class LambdaConfiguration {
 
     @JsonProperty("resource_group")
     private String resourceGroup;
+
+    @JsonProperty("url_config")
+    private UrlConfig urlConfig;
 
     public String getName() {
         return name;
@@ -254,6 +258,10 @@ public class LambdaConfiguration {
 
     public void setSnapStart(LambdaSnapStart snapStart) {
         this.snapStart = snapStart;
+    }
+
+    public void setUrlConfig(UrlConfig urlConfig) {
+        this.urlConfig = urlConfig;
     }
 
     public static class Builder {
@@ -473,6 +481,7 @@ public class LambdaConfiguration {
                 ", dlResourceType='" + dlResourceType + '\'' +
                 ", tracingMode='" + tracingMode + '\'' +
                 ", alias='" + alias + '\'' +
+                ", urlConfig='" + urlConfig + '\'' +
                 '}';
     }
 }
