@@ -423,12 +423,9 @@ def resolve_meta(overall_meta):
     # get dict with resolved prefix and suffix in meta resources
     # key: current_name, value: resolved_name
     resolved_names = {}
-    resource_types_to_process = GLOBAL_AWS_SERVICES
     for name, res_meta in overall_meta.items():
         resource_type = res_meta['resource_type']
-        if extended_prefix_mode:
-            resource_types_to_process = {resource_type}
-        if resource_type in resource_types_to_process:
+        if resource_type in GLOBAL_AWS_SERVICES or extended_prefix_mode:
             resolved_name = resolve_resource_name(
                 resource_name=name,
                 prefix=CONFIG.resources_prefix,

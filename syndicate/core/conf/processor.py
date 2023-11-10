@@ -384,7 +384,7 @@ class ConfigHolder:
     @property
     def extended_prefix_mode(self):
         prefix_mode = self._resolve_variable(EXTENDED_PREFIX_MODE_CFG)
-        return self.resolve_bool_param(prefix_mode)
+        return self._resolve_bool_param(prefix_mode)
 
     @property
     def aliases(self):
@@ -393,7 +393,7 @@ class ConfigHolder:
     @property
     def use_temp_creds(self):
         var = self._resolve_variable(USE_TEMP_CREDS_CFG)
-        return self.resolve_bool_param(var)
+        return self._resolve_bool_param(var)
 
     @property
     def serial_number(self):
@@ -426,7 +426,7 @@ class ConfigHolder:
             return self._aliases[name]
 
     @staticmethod
-    def resolve_bool_param(parameter):
+    def _resolve_bool_param(parameter):
         if isinstance(parameter, bool):
             return parameter
         elif isinstance(parameter, str):
