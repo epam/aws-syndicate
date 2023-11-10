@@ -540,7 +540,21 @@ def check_bundle_bucket_name(ctx, param, value):
         raise BadParameter(e.__str__())
 
 
-def check_prefix_suffix_length(ctx, param, value):
+def check_prefix(ctx, param, value):
+    extended_prefix = ctx.params.get('extended_prefix')
+    if value:
+        value = value.lower().strip()
+        if extended_prefix:
+            result = ConfigValidator.validate_extended_prefix(param.name,
+                                                              value)
+        else:
+            result = ConfigValidator.validate_prefix_suffix(param.name, value)
+        if result:
+            raise BadParameter(result)
+        return value
+
+
+def check_suffix(ctx, param, value):
     if value:
         value = value.lower().strip()
         result = ConfigValidator.validate_prefix_suffix(param.name, value)

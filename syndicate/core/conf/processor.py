@@ -29,7 +29,7 @@ from syndicate.core.conf.validator import \
      TEMP_AWS_ACCESS_KEY_ID_CFG, TEMP_AWS_SECRET_ACCESS_KEY_CFG,
      TEMP_AWS_SESSION_TOKEN_CFG, EXPIRATION_CFG, TAGS_CFG,
      IAM_PERMISSIONS_BOUNDARY_CFG, LAMBDAS_ALIASES_NAME_CFG,
-     AWS_SESSION_TOKEN_CFG)
+     AWS_SESSION_TOKEN_CFG, EXTENDED_PREFIX_MODE_CFG)
 from syndicate.core.constants import (DEFAULT_SEP, IAM_POLICY, IAM_ROLE,
                                       S3_BUCKET_TYPE)
 
@@ -382,17 +382,18 @@ class ConfigHolder:
         return self._resolve_variable('iam_suffix')
 
     @property
+    def extended_prefix_mode(self):
+        prefix_mode = self._resolve_variable(EXTENDED_PREFIX_MODE_CFG)
+        return self._resolve_bool_param(prefix_mode)
+
+    @property
     def aliases(self):
         return self._aliases
 
     @property
     def use_temp_creds(self):
         var = self._resolve_variable(USE_TEMP_CREDS_CFG)
-        if isinstance(var, bool):
-            return var
-        elif isinstance(var, str):
-            return var.lower() in ("yes", "true", "t", "1")
-        return False
+        return self._resolve_bool_param(var)
 
     @property
     def serial_number(self):
@@ -423,6 +424,14 @@ class ConfigHolder:
     def resolve_alias(self, name):
         if self._aliases.get(name):
             return self._aliases[name]
+
+    @staticmethod
+    def _resolve_bool_param(parameter):
+        if isinstance(parameter, bool):
+            return parameter
+        elif isinstance(parameter, str):
+            return parameter.lower() in ("yes", "true", "t", "1")
+        return False
 
 
 def path_resolver(path):
