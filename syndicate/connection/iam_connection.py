@@ -15,6 +15,7 @@
 """
 from json import dumps
 from functools import lru_cache
+from time import sleep
 
 from boto3 import client, resource
 from botocore.exceptions import ClientError
@@ -259,6 +260,19 @@ class IAMConnection(object):
                 pass  # valid exception
             else:
                 raise e
+
+    def get_policy_allowed_actions(self, arn):
+        allowed_actions = []
+        policy = self.get_policy(arn)
+        version = policy['DefaultVersionId']
+        policy_version_response = self.client.get_policy_version(
+            PolicyArn=arn, VersionId=version)
+        statements = policy_version_response['PolicyVersion']['Document'][
+            'Statement']
+        for statement in statements:
+            if statement["Effect"] == "Allow":
+                allowed_actions.extend(statement['Action'])
+        return allowed_actions
 
     def remove_policy_version(self, policy_arn, version_id):
         self.client.delete_policy_version(
@@ -650,3 +664,23 @@ class IAMConnection(object):
                 _LOG.warn(f'Can not attach more than 10 rules to group '
                           f'{group_name}')
             raise e
+
+    def get_waiter(self, waiter_name):
+        return self.client.get_waiter(waiter_name)
+
+    def policy_waiter(self, policy_source_arn, actions_list, max_attempt=10):
+        num_attempts = 0
+        while True:
+            if num_attempts >= max_attempt:
+                _LOG.warn('The maximum number of policy evaluation attempts '
+                          'was exceeded. Policy source ARN '
+                          f'\'{policy_source_arn}\'')
+                break
+            response = self.client.simulate_principal_policy(
+                PolicySourceArn=policy_source_arn, ActionNames=actions_list)
+            eval_results = response['EvaluationResults']
+            if all(item['EvalDecision'] == 'allowed' for item in eval_results):
+                break
+            num_attempts += 1
+            sleep(1)
+
