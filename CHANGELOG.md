@@ -6,7 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 # [1.6.1] - 2023-11-14
 - Added waiting for IAM role creation
-- Added time delay after attaching a policy to IAM role
+- Added waiting for permissions appearance after attaching policies to the IAM role
 
 # [1.6.0] - 2023-11-10
 - Implemented extended prefix mode
