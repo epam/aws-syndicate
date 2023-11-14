@@ -650,3 +650,6 @@ class IAMConnection(object):
                 _LOG.warn(f'Can not attach more than 10 rules to group '
                           f'{group_name}')
             raise e
+
+    def get_waiter(self, waiter_name):
+        return self.client.get_waiter(waiter_name)

@@ -15,6 +15,7 @@
 """
 import re
 from typing import Optional
+from time import sleep
 
 from botocore.exceptions import ClientError
 
@@ -155,6 +156,8 @@ class IamResource(BaseResource):
             external_id=external_id,
             trusted_relationships=trust_rltn,
             permissions_boundary=permissions_boundary)
+        waiter = self.iam_conn.get_waiter('role_exists')
+        waiter.wait(RoleName=name)
         if instance_profile:
             try:
                 self.iam_conn.create_instance_profile(name)
@@ -178,6 +181,7 @@ class IamResource(BaseResource):
         #     self._attach_permissions_boundary_to_role(permissions_boundary,
         #                                               name)
         _LOG.info(f'Created IAM role {name}.')
+        sleep(5)
         return self.describe_role(name=name, meta=meta, response=response)
 
     def describe_role(self, name, meta, response=None):
