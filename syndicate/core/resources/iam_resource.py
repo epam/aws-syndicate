@@ -15,7 +15,6 @@
 """
 import re
 from typing import Optional
-from time import sleep
 
 from botocore.exceptions import ClientError
 
@@ -147,6 +146,7 @@ class IamResource(BaseResource):
         external_id = meta.get('external_id')
         trust_rltn = meta.get('trusted_relationships')
         permissions_boundary = meta.get('permissions_boundary')
+        evaluate_actions = []
         if principal_service and '{region}' in principal_service:
             principal_service = principal_service.format(region=self.region)
         response = self.iam_conn.create_custom_role(
@@ -174,14 +174,19 @@ class IamResource(BaseResource):
                 if not arn:
                     raise AssertionError(f'Can not get policy arn: {policy}')
                 self.iam_conn.attach_policy(name, arn)
+                allowed_actions = self.iam_conn.get_policy_allowed_actions(arn)
+                for action in allowed_actions:
+                    if action not in evaluate_actions:
+                        evaluate_actions.append(action)
+                        break
         else:
             raise AssertionError(f'There are no policies for role: {name}.')
-
+        if evaluate_actions:
+            self.iam_conn.policy_waiter(response['Arn'], evaluate_actions)
         # if permissions_boundary:
         #     self._attach_permissions_boundary_to_role(permissions_boundary,
         #                                               name)
         _LOG.info(f'Created IAM role {name}.')
-        sleep(5)
         return self.describe_role(name=name, meta=meta, response=response)
 
     def describe_role(self, name, meta, response=None):
