@@ -15,7 +15,6 @@
 """
 from json import dumps
 from functools import lru_cache
-from time import sleep
 
 from boto3 import client, resource
 from botocore.exceptions import ClientError
