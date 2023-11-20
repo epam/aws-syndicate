@@ -4,9 +4,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [1.6.2] - 2023-11-14
+- Fixed SNS subscription deletion with SNS topic deletion
+- Fixed processing of retries for `InvalidParameterValueException`
+
 # [1.6.1] - 2023-11-14
 - Added waiting for IAM role creation
-- Added waiting for permissions appearance after attaching policies to the IAM role
 
 # [1.6.0] - 2023-11-10
 - Implemented extended prefix mode
