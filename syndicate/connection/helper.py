@@ -51,8 +51,8 @@ def retry(handler_func):
             'ProvisionedThroughputExceededException',
             'TooManyRequestsException',
             'ConflictException',
-            'An error occurred (InvalidParameterValueException) when calling'
-            'CreateEventSourceMapping operation',
+            'An error occurred (InvalidParameterValueException) when calling '
+            'the CreateEventSourceMapping operation',
             'The role defined for the function cannot be assumed by Lambda',
             'An error occurred (ResourceConflictException) when calling'
             ' the AddPermission operation: The statement id',
