@@ -224,6 +224,9 @@ class SnsResource(BaseResource):
     def _remove_sns_topic(self, arn, config):
         region = arn.split(':')[3]
         topic_name = config['resource_name']
+        # TODO delete remove_sns_topic_subscriptions when AWS will start
+        #  deleting subscriptions with related SNS topic deletion
+        self._remove_sns_topic_subscriptions(arn)
         try:
             self.connection_provider.sns(region).remove_topic_by_arn(arn)
             _LOG.info('SNS topic %s was removed.', topic_name)
@@ -233,6 +236,15 @@ class SnsResource(BaseResource):
                 _LOG.warn('SNS topic %s is not found', topic_name)
             else:
                 raise e
+
+    def _remove_sns_topic_subscriptions(self, topic_arn):
+        region = topic_arn.split(':')[3]
+        subscriptions = (self.connection_provider.sns(region).
+                         list_subscriptions_by_topic(topic_arn))
+        for subscription in subscriptions:
+            subscription_arn = subscription['SubscriptionArn']
+            self.connection_provider.sns(region).unsubscribe(
+                    subscription_arn)
 
     @unpack_kwargs
     def _create_platform_application_from_meta(self, name, meta, region):

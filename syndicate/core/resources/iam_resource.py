@@ -155,6 +155,8 @@ class IamResource(BaseResource):
             external_id=external_id,
             trusted_relationships=trust_rltn,
             permissions_boundary=permissions_boundary)
+        waiter = self.iam_conn.get_waiter('role_exists')
+        waiter.wait(RoleName=name)
         if instance_profile:
             try:
                 self.iam_conn.create_instance_profile(name)
@@ -173,10 +175,6 @@ class IamResource(BaseResource):
                 self.iam_conn.attach_policy(name, arn)
         else:
             raise AssertionError(f'There are no policies for role: {name}.')
-
-        # if permissions_boundary:
-        #     self._attach_permissions_boundary_to_role(permissions_boundary,
-        #                                               name)
         _LOG.info(f'Created IAM role {name}.')
         return self.describe_role(name=name, meta=meta, response=response)
 

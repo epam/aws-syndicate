@@ -209,11 +209,17 @@ def _merge_api_gw_list_typed_configurations(initial_resource,
 def _populate_s3_path_python_node(meta, bundle_name):
     name = meta.get('name')
     version = meta.get('version')
+    prefix = meta.get('prefix')
+    suffix = meta.get('suffix')
     if not name or not version:
         raise AssertionError('Lambda config must contain name and version. '
                              'Existing configuration'
                              ': {0}'.format(prettify_json(meta)))
     else:
+        if prefix:
+            name = name[len(prefix):]
+        if suffix:
+            name = name[:-len(suffix)]
         meta[S3_PATH_NAME] = build_path(bundle_name,
                                         build_py_package_name(name, version))
 
@@ -414,6 +420,7 @@ def create_meta(project_path, bundle_name):
 def resolve_meta(overall_meta):
     from syndicate.core import CONFIG
     iam_suffix = _resolve_iam_suffix(iam_suffix=CONFIG.iam_suffix)
+    extended_prefix_mode = CONFIG.extended_prefix_mode
     overall_meta = _resolve_aliases(overall_meta)
     _LOG.debug('Resolved meta was created')
     _LOG.debug(prettify_json(overall_meta))
@@ -424,11 +431,14 @@ def resolve_meta(overall_meta):
     resolved_names = {}
     for name, res_meta in overall_meta.items():
         resource_type = res_meta['resource_type']
-        if resource_type in GLOBAL_AWS_SERVICES:
+        if resource_type in GLOBAL_AWS_SERVICES or extended_prefix_mode:
             resolved_name = resolve_resource_name(
                 resource_name=name,
                 prefix=CONFIG.resources_prefix,
                 suffix=CONFIG.resources_suffix)
+            if resource_type == LAMBDA_TYPE:
+                res_meta['prefix'] = CONFIG.resources_prefix
+                res_meta['suffix'] = CONFIG.resources_suffix
             # add iam_suffix to IAM role only if it is specified in config file
             if resource_type == IAM_ROLE and iam_suffix:
                 resolved_name = resolved_name + iam_suffix
