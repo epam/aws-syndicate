@@ -244,7 +244,10 @@ class ProcessorFacade:
                 self.resources_provider.batch_compenv()
                     .update_compute_environment,
             EVENT_BRIDGE_SCHEDULE_TYPE:
-                self.resources_provider.eventbridge_scheduler().update_schedule
+                self.resources_provider.eventbridge_scheduler()
+                    .update_schedule,
+            DYNAMO_TABLE_TYPE:
+                self.resources_provider.dynamodb().update_tables_by_10
         }
 
     def resource_configuration_processor(self):

@@ -65,6 +65,60 @@ class DynamoDBResource(AbstractExternalResource, BaseResource):
             end += 9
         return response
 
+    def update_tables_by_10(self, args):
+        """ Only 10 tables can be created, updated or deleted simultaneously.
+
+        :type args: list
+        """
+        response = dict()
+        start = 0
+        end = 8
+        while start < len(args):
+            tables_to_create = args[start: end]
+            for arg_set in tables_to_create:
+                name = arg_set['name']
+                meta = arg_set['meta']
+                response.update(
+                    self._update_dynamodb_table_from_meta(name, meta))
+            start = end
+            end += 9
+        return response
+
+    def _update_dynamodb_table_from_meta(self, name, meta):
+        response = self.dynamodb_conn.get_table_by_name(name)
+        if not response:
+            raise AssertionError('{0} table does not exist.'.format(name))
+
+        global_indexes = meta.get('global_indexes')
+        existing_global_indexes = response.global_secondary_indexes or []
+
+        gsi_names = [gsi.get('name') for gsi in global_indexes]
+        existing_gsi_names = [gsi.get('IndexName')
+                              for gsi in existing_global_indexes]
+
+        global_indexes_to_delete = [gsi for gsi in existing_global_indexes
+                                    if gsi.get('IndexName') not in gsi_names]
+        global_indexes_to_create = [gsi for gsi in global_indexes
+                                    if gsi.get('name')
+                                    not in existing_gsi_names]
+        for gsi in global_indexes_to_delete:
+            index_name = gsi.get('IndexName')
+            self.dynamodb_conn.delete_global_secondary_index(
+                table_name=name,
+                index_name=index_name)
+            _LOG.info('Removed global secondary index {0} for table {1}'
+                      .format(index_name, name))
+        for gsi in global_indexes_to_create:
+            self.dynamodb_conn.create_global_secondary_index(
+                table_name=name,
+                index_meta=gsi,
+                read_throughput=meta.get('read_capacity'),
+                write_throughput=meta.get('write_capacity'))
+            _LOG.info('Created global secondary index {0} for table {1}'
+                      .format(gsi.get('name'), name))
+        response = self.dynamodb_conn.describe_table(name)
+        return self.describe_table(name, meta, response)
+
     def describe_table(self, name, meta, response=None):
         if not response:
             response = self.dynamodb_conn.describe_table(table_name=name)

@@ -13,6 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+import time
 from operator import itemgetter
 
 from boto3 import client, resource
@@ -180,6 +181,67 @@ class DynamoConnection(object):
         if wait:
             waiter = table.meta.client.get_waiter('table_exists')
             waiter.wait(TableName=table_name)
+        return table,
+
+    def _wait_for_index_update(self, table_name, index_name):
+        sleep_amount = 20
+        max_attempts = 25
+        num_attempts = 0
+        while True:
+            num_attempts += 1
+            table = self.describe_table(table_name)
+            indexes = table.get('GlobalSecondaryIndexes', [])
+            index = next(
+                (idx for idx in indexes if idx['IndexName'] == index_name),
+                None
+            )
+            # there is no index which means it was successfully deleted or
+            # the index is in backfilling state which allows
+            # to continue table update
+            if index is None or index.get('Backfilling'):
+                return
+            if num_attempts >= max_attempts:
+                raise AssertionError('Max attempts exceeded')
+            time.sleep(sleep_amount)
+
+    def delete_global_secondary_index(self, table_name, index_name):
+        table = self.client.update_table(
+            TableName=table_name,
+            GlobalSecondaryIndexUpdates=[
+                {
+                    'Delete': {
+                        'IndexName': index_name
+                    }
+                }
+            ]
+        )
+        self._wait_for_index_update(table_name, index_name=index_name)
+        return table
+
+    def create_global_secondary_index(
+        self,
+        table_name,
+        index_meta,
+        read_throughput=None,
+        write_throughput=None
+    ):
+        index_info = _build_global_index_definition(
+            index_meta,
+            read_throughput,
+            write_throughput
+        )
+        definitions = []
+        _add_index_keys_to_definition(definition=definitions, index=index_meta)
+        table = self.client.update_table(
+            TableName=table_name,
+            AttributeDefinitions=definitions,
+            GlobalSecondaryIndexUpdates=[
+                {
+                    'Create': index_info
+                }
+            ]
+        )
+        self._wait_for_index_update(table_name, index_meta.get('name'))
         return table
 
     def enable_table_stream(self, table_name,
