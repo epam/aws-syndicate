@@ -209,11 +209,17 @@ def _merge_api_gw_list_typed_configurations(initial_resource,
 def _populate_s3_path_python_node(meta, bundle_name):
     name = meta.get('name')
     version = meta.get('version')
+    prefix = meta.get('prefix')
+    suffix = meta.get('suffix')
     if not name or not version:
         raise AssertionError('Lambda config must contain name and version. '
                              'Existing configuration'
                              ': {0}'.format(prettify_json(meta)))
     else:
+        if prefix:
+            name = name[len(prefix):]
+        if suffix:
+            name = name[:-len(suffix)]
         meta[S3_PATH_NAME] = build_path(bundle_name,
                                         build_py_package_name(name, version))
 
@@ -430,6 +436,9 @@ def resolve_meta(overall_meta):
                 resource_name=name,
                 prefix=CONFIG.resources_prefix,
                 suffix=CONFIG.resources_suffix)
+            if resource_type == LAMBDA_TYPE:
+                res_meta['prefix'] = CONFIG.resources_prefix
+                res_meta['suffix'] = CONFIG.resources_suffix
             # add iam_suffix to IAM role only if it is specified in config file
             if resource_type == IAM_ROLE and iam_suffix:
                 resolved_name = resolved_name + iam_suffix
