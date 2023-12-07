@@ -318,12 +318,11 @@ class LambdaResource(BaseResource):
         waiter.wait(FunctionName=name)
 
         _LOG.debug('Setting lambda event invoke config')
-        _LOG.debug(
-            self.lambda_conn.put_function_event_invoke_config(
-                function_name=name,
-                max_retries=meta.get('max_retries')
-            )
+        invoke_config = self.lambda_conn.put_function_event_invoke_config(
+            function_name=name,
+            max_retries=meta.get('max_retries')
         )
+        _LOG.debug(invoke_config)
 
         log_group_name = name
         retention = meta.get('logs_expiration')
@@ -484,12 +483,11 @@ class LambdaResource(BaseResource):
         _LOG.info(f'Waiting has finished')
 
         _LOG.debug('Updating lambda event invoke config')
-        _LOG.debug(
-            self.lambda_conn.update_function_event_invoke_config(
-                function_name=name,
-                max_retries=meta.get('max_retries')
-            )
+        invoke_config = self.lambda_conn.update_function_event_invoke_config(
+            function_name=name,
+            max_retries=meta.get('max_retries')
         )
+        _LOG.debug(invoke_config)
 
         response = self.lambda_conn.get_function(name)
         _LOG.info(f'Lambda describe result: {response}')
