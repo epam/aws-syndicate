@@ -163,6 +163,22 @@ class LambdaConnection(object):
             )
         return function_url
 
+    def put_function_event_invoke_config(self,
+                                         function_name,
+                                         max_retries=2):
+        return self.client.put_function_event_invoke_config(
+            FunctionName=function_name,
+            MaximumRetryAttempts=max_retries
+        )
+
+    def update_function_event_invoke_config(self,
+                                            function_name,
+                                            max_retries=2):
+        return self.client.update_function_event_invoke_config(
+            FunctionName=function_name,
+            MaximumRetryAttempts=max_retries
+        )
+
     def delete_url_config(self, function_name: str, qualifier: str = None):
         params = dict(FunctionName=function_name)
         if qualifier:
