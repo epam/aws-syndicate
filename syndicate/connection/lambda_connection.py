@@ -165,7 +165,9 @@ class LambdaConnection(object):
 
     def put_function_event_invoke_config(self,
                                          function_name,
-                                         max_retries=2):
+                                         max_retries=None):
+        if max_retries is None:
+            max_retries = 2
         return self.client.put_function_event_invoke_config(
             FunctionName=function_name,
             MaximumRetryAttempts=max_retries
@@ -173,7 +175,9 @@ class LambdaConnection(object):
 
     def update_function_event_invoke_config(self,
                                             function_name,
-                                            max_retries=2):
+                                            max_retries=None):
+        if max_retries is None:
+            max_retries = 2
         return self.client.update_function_event_invoke_config(
             FunctionName=function_name,
             MaximumRetryAttempts=max_retries
