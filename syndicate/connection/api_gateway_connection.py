@@ -412,7 +412,7 @@ class ApiGatewayConnection(object):
             params['request_parameters'] = request_parameters
         self.create_integration(**params)
 
-    def get_service_integration_credentials(acc_id, role):
+    def get_service_integration_credentials(self, acc_id, role):
         return 'arn:aws:iam::*:user/*' if role == 'caller_identity' \
             else 'arn:aws:iam::{0}:role/{1}'.format(acc_id, role)
 
