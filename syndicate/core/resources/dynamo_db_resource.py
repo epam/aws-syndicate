@@ -40,20 +40,22 @@ class DynamoDBResource(AbstractExternalResource, BaseResource):
         self.app_autoscaling_conn = app_as_conn
         self.iam_conn = iam_conn
 
-    def create_tables_by_10(self, args):
+    def create_tables(self, args, step=10):
         """ Only 10 tables can be created, updated or deleted simultaneously.
-    
+
+        :param args: list of tables configurations meta
         :type args: list
+        :param step: how many tables to create simultaneously
+        :type step: int
+        :returns tables create results as list
         """
         response = dict()
         waiters = {}
-        start = 0
-        end = 8
-        while start < len(args):
-            tables_to_create = args[start: end]
-            for arg_set in tables_to_create:
-                name = arg_set['name']
-                meta = arg_set['meta']
+        tables_chunks = [args[i:i + step] for i in range(0, len(args), step)]
+        for tables_to_create in tables_chunks:
+            for table in tables_to_create:
+                name = table['name']
+                meta = table['meta']
                 response.update(
                     self._create_dynamodb_table_from_meta(name, meta))
                 table = self.dynamodb_conn.get_table_by_name(name)
@@ -61,27 +63,24 @@ class DynamoDBResource(AbstractExternalResource, BaseResource):
                     'table_exists')
             for table_name in waiters:
                 waiters[table_name].wait(TableName=table_name)
-            start = end
-            end += 9
         return response
 
-    def update_tables_by_10(self, args):
+    def update_tables(self, args):
         """ Only 10 tables can be created, updated or deleted simultaneously.
 
+        :param args: list of tables configurations meta
         :type args: list
+        :returns tables update results as list
         """
         response = dict()
-        start = 0
-        end = 8
-        while start < len(args):
-            tables_to_create = args[start: end]
-            for arg_set in tables_to_create:
-                name = arg_set['name']
-                meta = arg_set['meta']
+        step = 10
+        tables_chunks = [args[i:i + step] for i in range(0, len(args), step)]
+        for tables_to_update in tables_chunks:
+            for table in tables_to_update:
+                name = table['name']
+                meta = table['meta']
                 response.update(
                     self._update_dynamodb_table_from_meta(name, meta))
-            start = end
-            end += 9
         return response
 
     def _update_dynamodb_table_from_meta(self, name, meta):

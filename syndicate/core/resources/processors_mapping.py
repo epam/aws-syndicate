@@ -42,7 +42,7 @@ class ProcessorFacade:
             LAMBDA_LAYER_TYPE:
                 self.resources_provider.lambda_resource().create_lambda_layer,
             DYNAMO_TABLE_TYPE:
-                self.resources_provider.dynamodb().create_tables_by_10,
+                self.resources_provider.dynamodb().create_tables,
             CLOUD_WATCH_RULE_TYPE:
                 self.resources_provider.cw().create_cloud_watch_rule,
             EVENT_BRIDGE_RULE_TYPE:
@@ -247,7 +247,7 @@ class ProcessorFacade:
                 self.resources_provider.eventbridge_scheduler()
                     .update_schedule,
             DYNAMO_TABLE_TYPE:
-                self.resources_provider.dynamodb().update_tables_by_10
+                self.resources_provider.dynamodb().update_tables
         }
 
     def resource_configuration_processor(self):
