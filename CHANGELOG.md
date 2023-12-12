@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+
+# [1.8.0] - 2023-12-12
+### Added
+- A new Maven plugin goal 'assemble-lambda-layer-files' has been added to the 'deployment-configuration-processor' plugin
+- A new Java lambda example with assembling layer files and url config has been added
+- An example of adding custom SDK to layer and url config for lambda has been added to Java examples folder
+### Changed
+- The deployment-configuration-processor version bumped to 1.10.0
+
 # [1.7.5] - 2023-12-11
 - Fixed API Gateway service integration credentials building
 
