@@ -89,33 +89,39 @@ class DynamoDBResource(AbstractExternalResource, BaseResource):
         if not response:
             raise AssertionError('{0} table does not exist.'.format(name))
 
-        global_indexes = meta.get('global_indexes')
+        capacity_mode = response.billing_mode_summary.get('BillingMode') \
+            if response.billing_mode_summary is not None else None
+        global_indexes_meta = meta.get('global_indexes')
         existing_global_indexes = response.global_secondary_indexes or []
 
-        gsi_names = [gsi.get('name') for gsi in global_indexes]
-        existing_gsi_names = [gsi.get('IndexName')
-                              for gsi in existing_global_indexes]
+        update_response = self.dynamodb_conn.update_table_capacity(
+            table_name=name,
+            existing_capacity_mode=capacity_mode,
+            read_capacity=meta.get('write_capacity'),
+            write_capacity=meta.get('write_capacity'),
+            existing_read_capacity=
+                response.provisioned_throughput.get('ReadCapacityUnits'),
+            existing_write_capacity=
+                response.provisioned_throughput.get('WriteCapacityUnits'),
+            global_indexes_meta=global_indexes_meta
+        )
+        if update_response:
+            self.dynamodb_conn._wait_for_table_update(table_name=name)
 
-        global_indexes_to_delete = [gsi for gsi in existing_global_indexes
-                                    if gsi.get('IndexName') not in gsi_names]
-        global_indexes_to_create = [gsi for gsi in global_indexes
-                                    if gsi.get('name')
-                                    not in existing_gsi_names]
-        for gsi in global_indexes_to_delete:
-            index_name = gsi.get('IndexName')
-            self.dynamodb_conn.delete_global_secondary_index(
-                table_name=name,
-                index_name=index_name)
-            _LOG.info('Removed global secondary index {0} for table {1}'
-                      .format(index_name, name))
-        for gsi in global_indexes_to_create:
-            self.dynamodb_conn.create_global_secondary_index(
-                table_name=name,
-                index_meta=gsi,
-                read_throughput=meta.get('read_capacity'),
-                write_throughput=meta.get('write_capacity'))
-            _LOG.info('Created global secondary index {0} for table {1}'
-                      .format(gsi.get('name'), name))
+        update_response = self.dynamodb_conn.update_table_ttl(
+            table_name=name,
+            ttl_attribute_name=meta.get('ttl_attribute_name'))
+        if update_response:
+            self.dynamodb_conn._wait_for_table_update(table_name=name)
+
+        self.dynamodb_conn.update_global_indexes(
+            table_name=name,
+            global_indexes_meta=global_indexes_meta,
+            existing_global_indexes=existing_global_indexes,
+            table_read_capacity=meta.get('read_capacity'),
+            table_write_capacity=meta.get('write_capacity')
+        )
+
         response = self.dynamodb_conn.describe_table(name)
         return self.describe_table(name, meta, response)
 
