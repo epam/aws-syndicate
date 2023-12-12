@@ -1,7 +1,6 @@
 package com.syndicate.deployment.factories;
 
 import com.syndicate.deployment.annotations.lambda.LambdaLayer;
-import com.syndicate.deployment.model.DeploymentRuntime;
 import com.syndicate.deployment.model.LayerConfiguration;
 import com.syndicate.deployment.model.ResourceType;
 
@@ -29,6 +28,12 @@ public class LayerConfigurationFactory {
 		if (!licence.equals("")) {
 			configuration.setLicence(licence);
 		}
+
+		String[] libraries = layerDefinition.libraries();
+		if (libraries.length > 0) {
+			configuration.setLibraries(libraries);
+		}
+
 		return configuration;
 	}
 

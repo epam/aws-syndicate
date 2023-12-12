@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.security.InvalidParameterException;
+import java.util.Arrays;
 import java.util.Objects;
 
 /**
@@ -29,6 +30,9 @@ public class LayerConfiguration {
 
 	@JsonProperty("deployment_package")
 	private String deploymentPackage;
+
+	@JsonProperty("libraries")
+	private String[] libraries;
 
 	public String getName() {
 		return name;
@@ -61,6 +65,15 @@ public class LayerConfiguration {
 
 	public void setDeploymentPackage(String deploymentPackage) {
 		this.deploymentPackage = deploymentPackage;
+	}
+
+	public String[] getLibraries() {
+		return libraries;
+	}
+
+	public LayerConfiguration setLibraries(String[] libraries) {
+		this.libraries = libraries;
+		return this;
 	}
 
 	public DeploymentRuntime[] getRuntimes() {

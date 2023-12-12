@@ -40,20 +40,22 @@ class DynamoDBResource(AbstractExternalResource, BaseResource):
         self.app_autoscaling_conn = app_as_conn
         self.iam_conn = iam_conn
 
-    def create_tables_by_10(self, args):
+    def create_tables(self, args, step=10):
         """ Only 10 tables can be created, updated or deleted simultaneously.
-    
+
+        :param args: list of tables configurations meta
         :type args: list
+        :param step: how many tables to create simultaneously
+        :type step: int
+        :returns tables create results as list
         """
         response = dict()
         waiters = {}
-        start = 0
-        end = 8
-        while start < len(args):
-            tables_to_create = args[start: end]
-            for arg_set in tables_to_create:
-                name = arg_set['name']
-                meta = arg_set['meta']
+        tables_chunks = [args[i:i + step] for i in range(0, len(args), step)]
+        for tables_to_create in tables_chunks:
+            for table in tables_to_create:
+                name = table['name']
+                meta = table['meta']
                 response.update(
                     self._create_dynamodb_table_from_meta(name, meta))
                 table = self.dynamodb_conn.get_table_by_name(name)
@@ -61,9 +63,73 @@ class DynamoDBResource(AbstractExternalResource, BaseResource):
                     'table_exists')
             for table_name in waiters:
                 waiters[table_name].wait(TableName=table_name)
-            start = end
-            end += 9
         return response
+
+    def update_tables(self, args, step=10):
+        """ Only 10 tables can be created, updated or deleted simultaneously.
+
+        :param args: list of tables configurations meta
+        :type args: list
+        :param step: how many tables to update simultaneously
+        :type step: int
+        :returns tables update results as list
+        """
+        response = dict()
+        tables_chunks = [args[i:i + step] for i in range(0, len(args), step)]
+        for tables_to_update in tables_chunks:
+            for table in tables_to_update:
+                name = table['name']
+                meta = table['meta']
+                response.update(
+                    self._update_dynamodb_table_from_meta(name, meta))
+        return response
+
+    def _update_dynamodb_table_from_meta(self, name, meta):
+        """ Update Dynamo DB table from meta description, specifically:
+        capacity (billing) mode, table or gsi capacity units,
+        gsi to create or delete, ttl.
+
+        :param name: DynamoDB table name
+        :type name: str
+        :param meta: table configuration information
+        :type meta: dict
+        :returns table update result as dict
+        """
+        response = self.dynamodb_conn.get_table_by_name(name)
+        if not response:
+            raise AssertionError('{0} table does not exist.'.format(name))
+
+        capacity_mode = response.billing_mode_summary.get('BillingMode') \
+            if response.billing_mode_summary is not None else None
+        global_indexes_meta = meta.get('global_indexes')
+        existing_global_indexes = response.global_secondary_indexes or []
+
+        self.dynamodb_conn.update_table_capacity(
+            table_name=name,
+            existing_capacity_mode=capacity_mode,
+            read_capacity=meta.get('read_capacity'),
+            write_capacity=meta.get('write_capacity'),
+            existing_read_capacity=
+                response.provisioned_throughput.get('ReadCapacityUnits'),
+            existing_write_capacity=
+                response.provisioned_throughput.get('WriteCapacityUnits'),
+            global_indexes_meta=global_indexes_meta
+        )
+
+        self.dynamodb_conn.update_table_ttl(
+            table_name=name,
+            ttl_attribute_name=meta.get('ttl_attribute_name'))
+
+        self.dynamodb_conn.update_global_indexes(
+            table_name=name,
+            global_indexes_meta=global_indexes_meta,
+            existing_global_indexes=existing_global_indexes,
+            table_read_capacity=meta.get('read_capacity'),
+            table_write_capacity=meta.get('write_capacity')
+        )
+
+        response = self.dynamodb_conn.describe_table(name)
+        return self.describe_table(name, meta, response)
 
     def describe_table(self, name, meta, response=None):
         if not response:
