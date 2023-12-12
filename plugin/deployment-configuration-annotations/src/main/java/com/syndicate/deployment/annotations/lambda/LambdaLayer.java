@@ -39,6 +39,8 @@ public @interface LambdaLayer {
 
 	String layerFileName() default "";
 
+	String[] libraries() default {};
+
 	String licence() default "";
 
 	ArtifactExtension artifactExtension() default ArtifactExtension.ZIP;

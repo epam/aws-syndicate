@@ -397,7 +397,9 @@ class ApiGatewayConnection(object):
         """
         uri = 'arn:aws:apigateway:{0}'.format(action)
 
-        credentials = self.get_service_integration_credentials(acc_id, role)
+        credentials = ApiGatewayConnection.get_service_integration_credentials(
+            acc_id, role
+        )
 
         params = dict(int_type='AWS', integration_method=integration_method,
                       method=method, passthrough_behavior='WHEN_NO_MATCH',

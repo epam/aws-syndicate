@@ -25,6 +25,9 @@ _LOG = get_logger('syndicate.connection.helper')
 
 
 def apply_methods_decorator(decorator):
+    # todo after applying this decorator static methods do not work if they
+    #  are invoked from an instance of a class instead of a class.
+    # self.some_static_method(1, 2, 3)  # won't work
     def decorate(cls):
         for attr in cls.__dict__:
             if callable(getattr(cls, attr)):
@@ -41,7 +44,6 @@ def retry(handler_func):
     :param handler_func: function which will be decorated
     """
 
-    # TODO check if it is possible to use it like this: @retry(on='blahblah')
     @wraps(handler_func)
     def wrapper(*args, **kwargs):
         """ Wrapper func."""
