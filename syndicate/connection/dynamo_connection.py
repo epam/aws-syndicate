@@ -181,9 +181,9 @@ class DynamoConnection(object):
         if wait:
             waiter = table.meta.client.get_waiter('table_exists')
             waiter.wait(TableName=table_name)
-        return table,
+        return table
 
-    def update_table_ttl(self, table_name, ttl_attribute_name):
+    def update_table_ttl(self, table_name, ttl_attribute_name, wait=True):
         """ Updates table ttl attribute
 
         :param table_name: DynamoDB table name
@@ -191,22 +191,24 @@ class DynamoConnection(object):
         :param ttl_attribute_name: name of the table's attribute that holds
             ttl value
         :type ttl_attribute_name: str
-        :returns
+        :param wait: to wait for table update to finish or not
+        :type wait: bool
+        :returns update_time_to_live response as dict
         """
         ttl_enabled = ttl_attribute_name is not None
         existing_ttl_specs = self.client.describe_time_to_live(
             TableName=table_name
         )['TimeToLiveDescription']
         existing_ttl_enabled = \
-            existing_ttl_specs['TimeToLiveStatus'] == 'ENABLED'
+            existing_ttl_specs.get('TimeToLiveStatus') == 'ENABLED'
         existing_ttl_attribute_name = \
-            existing_ttl_specs['AttributeName']
+            existing_ttl_specs.get('AttributeName')
 
         if ttl_enabled != existing_ttl_enabled:
             _LOG.info(
                 'Updating ttl value to {0} for table {1}, attribute name: {2}'
                 .format(ttl_enabled, table_name, ttl_attribute_name))
-            return self.client.update_time_to_live(
+            response = self.client.update_time_to_live(
                 TableName=table_name,
                 TimeToLiveSpecification={
                     'Enabled': ttl_enabled,
@@ -217,6 +219,9 @@ class DynamoConnection(object):
                         else existing_ttl_attribute_name
                 }
             )
+            if wait:
+                self._wait_for_table_update(table_name=table_name)
+            return response
 
     def update_global_indexes(self, table_name, global_indexes_meta,
                               existing_global_indexes, table_read_capacity,
@@ -375,7 +380,7 @@ class DynamoConnection(object):
         :type index_name: str
         :returns update_table response as dict
         """
-        table = self.client.update_table(
+        response = self.client.update_table(
             TableName=table_name,
             GlobalSecondaryIndexUpdates=[
                 {
@@ -385,7 +390,7 @@ class DynamoConnection(object):
                 }
             ]
         )
-        return table
+        return response
 
     def create_global_secondary_index(self, table_name, index_meta,
                                       read_throughput=None,
@@ -407,7 +412,7 @@ class DynamoConnection(object):
             write_throughput=write_throughput)
         definitions = []
         _add_index_keys_to_definition(definition=definitions, index=index_meta)
-        table = self.client.update_table(
+        response = self.client.update_table(
             TableName=table_name,
             AttributeDefinitions=definitions,
             GlobalSecondaryIndexUpdates=[
@@ -416,7 +421,7 @@ class DynamoConnection(object):
                 }
             ]
         )
-        return table
+        return response
 
     def update_global_secondary_index(self, table_name, index_name,
                                       read_throughput=None,
@@ -435,7 +440,7 @@ class DynamoConnection(object):
         """
         read_throughput = read_throughput or 1
         write_throughput = write_throughput or 1
-        table = self.client.update_table(
+        response = self.client.update_table(
             TableName=table_name,
             GlobalSecondaryIndexUpdates=[
                 {
@@ -449,7 +454,7 @@ class DynamoConnection(object):
                 }
             ]
         )
-        return table
+        return response
 
     def enable_table_stream(self, table_name,
                             stream_type='NEW_AND_OLD_IMAGES'):
@@ -490,7 +495,7 @@ class DynamoConnection(object):
     def update_table_capacity(self, table_name, existing_capacity_mode,
                               read_capacity, write_capacity,
                               existing_read_capacity, existing_write_capacity,
-                              global_indexes_meta):
+                              global_indexes_meta, wait=True):
         """ Updates table capacity configuration. If both read_capacity and
         write capacity are provided in the deployment_resources.json
         sets their values for the table if it has PROVISIONED billing mode, if
@@ -510,6 +515,8 @@ class DynamoConnection(object):
         :param existing_write_capacity: write capacity currently set
             in the table
         :type existing_write_capacity: int
+        :param wait: to wait for table update to finish or not
+        :type wait: bool
         :returns update_table response as dict
         """
         existing_capacity_mode = existing_capacity_mode or 'PROVISIONED' \
@@ -554,6 +561,8 @@ class DynamoConnection(object):
                        f'capacities: {read_capacity}/{write_capacity}, existing '
                        f'read/write capacities: {existing_read_capacity}/'
                        f'{existing_write_capacity}. Update params: {params}')
+            if wait:
+                self._wait_for_table_update(table_name=table_name)
             return self.client.update_table(**params)
 
     def get_table_by_name(self, table_name):

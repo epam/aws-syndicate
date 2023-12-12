@@ -85,6 +85,16 @@ class DynamoDBResource(AbstractExternalResource, BaseResource):
         return response
 
     def _update_dynamodb_table_from_meta(self, name, meta):
+        """ Update Dynamo DB table from meta description, specifically:
+        capacity (billing) mode, table or gsi capacity units,
+        gsi to create or delete, ttl.
+
+        :param name: DynamoDB table name
+        :type name: str
+        :param meta: table configuration information
+        :type meta: dict
+        :returns table update result as dict
+        """
         response = self.dynamodb_conn.get_table_by_name(name)
         if not response:
             raise AssertionError('{0} table does not exist.'.format(name))
@@ -94,10 +104,10 @@ class DynamoDBResource(AbstractExternalResource, BaseResource):
         global_indexes_meta = meta.get('global_indexes')
         existing_global_indexes = response.global_secondary_indexes or []
 
-        update_response = self.dynamodb_conn.update_table_capacity(
+        self.dynamodb_conn.update_table_capacity(
             table_name=name,
             existing_capacity_mode=capacity_mode,
-            read_capacity=meta.get('write_capacity'),
+            read_capacity=meta.get('read_capacity'),
             write_capacity=meta.get('write_capacity'),
             existing_read_capacity=
                 response.provisioned_throughput.get('ReadCapacityUnits'),
@@ -105,14 +115,10 @@ class DynamoDBResource(AbstractExternalResource, BaseResource):
                 response.provisioned_throughput.get('WriteCapacityUnits'),
             global_indexes_meta=global_indexes_meta
         )
-        if update_response:
-            self.dynamodb_conn._wait_for_table_update(table_name=name)
 
-        update_response = self.dynamodb_conn.update_table_ttl(
+        self.dynamodb_conn.update_table_ttl(
             table_name=name,
             ttl_attribute_name=meta.get('ttl_attribute_name'))
-        if update_response:
-            self.dynamodb_conn._wait_for_table_update(table_name=name)
 
         self.dynamodb_conn.update_global_indexes(
             table_name=name,
