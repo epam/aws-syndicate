@@ -65,15 +65,16 @@ class DynamoDBResource(AbstractExternalResource, BaseResource):
                 waiters[table_name].wait(TableName=table_name)
         return response
 
-    def update_tables(self, args):
+    def update_tables(self, args, step=10):
         """ Only 10 tables can be created, updated or deleted simultaneously.
 
         :param args: list of tables configurations meta
         :type args: list
+        :param step: how many tables to update simultaneously
+        :type step: int
         :returns tables update results as list
         """
         response = dict()
-        step = 10
         tables_chunks = [args[i:i + step] for i in range(0, len(args), step)]
         for tables_to_update in tables_chunks:
             for table in tables_to_update:
