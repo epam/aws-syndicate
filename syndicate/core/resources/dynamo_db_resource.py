@@ -101,7 +101,7 @@ class DynamoDBResource(AbstractExternalResource, BaseResource):
 
         capacity_mode = response.billing_mode_summary.get('BillingMode') \
             if response.billing_mode_summary is not None else None
-        global_indexes_meta = meta.get('global_indexes')
+        global_indexes_meta = meta.get('global_indexes', [])
         existing_global_indexes = response.global_secondary_indexes or []
 
         self.dynamodb_conn.update_table_capacity(
