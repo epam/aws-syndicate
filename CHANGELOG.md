@@ -4,11 +4,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [1.9.2] - 2023-12-13
+### Added
+- Default empty value for dynamodb's global secondary indexes 
+when not declared in deployment_resources.json
 
 # [1.9.1] - 2023-12-13
 ### Added
 - `dynamodb_table` resource priority in `UPDATE_RESOURCE_TYPE_PRIORITY` constant
-
 
 # [1.9.0] - 2023-12-12
 ### Added
