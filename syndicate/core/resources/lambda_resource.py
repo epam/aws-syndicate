@@ -317,14 +317,6 @@ class LambdaResource(BaseResource):
         waiter = self.lambda_conn.get_waiter('function_exists')
         waiter.wait(FunctionName=name)
 
-        if meta.get('max_retries') is not None:
-            _LOG.debug('Setting lambda event invoke config')
-            invoke_config = self.lambda_conn.put_function_event_invoke_config(
-                function_name=name,
-                max_retries=meta.get('max_retries')
-            )
-            _LOG.debug(f'Created lambda invoke config: {invoke_config}')
-
         log_group_name = name
         retention = meta.get('logs_expiration')
         if retention:
@@ -367,6 +359,16 @@ class LambdaResource(BaseResource):
                 trigger_type = trigger_meta['resource_type']
                 func = self.CREATE_TRIGGER[trigger_type]
                 func(self, name, arn, role_name, trigger_meta)
+
+        if meta.get('max_retries') is not None:
+            _LOG.debug('Setting lambda event invoke config')
+            function_name = (name + ":" + alias) if alias else name
+            invoke_config = self.lambda_conn.put_function_event_invoke_config(
+                function_name=function_name,
+                max_retries=meta.get('max_retries')
+            )
+            _LOG.debug(f'Created lambda invoke config: {invoke_config}')
+
         # concurrency configuration
         self._manage_provisioned_concurrency_configuration(
             function_name=name,
@@ -483,27 +485,6 @@ class LambdaResource(BaseResource):
         waiter.wait(FunctionName=name)
         _LOG.info(f'Waiting has finished')
 
-        if meta.get('max_retries') is not None:
-            try:
-                _LOG.debug('Updating lambda event invoke config')
-                invoke_config = \
-                    self.lambda_conn.update_function_event_invoke_config(
-                        function_name=name,
-                        max_retries=meta.get('max_retries')
-                    )
-            except ClientError as e:
-                if e.response['Error']['Code'] == 'ResourceNotFoundException':
-                    _LOG.debug('Lambda event invoke config is absent. '
-                               'Creating a new one')
-                    invoke_config = \
-                        self.lambda_conn.put_function_event_invoke_config(
-                            function_name=name,
-                            max_retries=meta.get('max_retries')
-                        )
-                else:
-                    raise e
-            _LOG.debug(invoke_config)
-
         response = self.lambda_conn.get_function(name)
         _LOG.info(f'Lambda describe result: {response}')
         code_sha_256 = response['Configuration']['CodeSha256']
@@ -561,6 +542,29 @@ class LambdaResource(BaseResource):
                 trigger_type = trigger_meta['resource_type']
                 func = self.CREATE_TRIGGER[trigger_type]
                 func(self, name, _arn, role_name, trigger_meta)
+
+        if meta.get('max_retries') is not None:
+            _LOG.debug('Updating lambda event invoke config')
+            function_name = (name + ":" + alias_name) if alias_name else name
+            try:
+                _LOG.debug('Updating lambda event invoke config')
+                invoke_config = \
+                    self.lambda_conn.update_function_event_invoke_config(
+                        function_name=function_name,
+                        max_retries=meta.get('max_retries')
+                    )
+            except ClientError as e:
+                if e.response['Error']['Code'] == 'ResourceNotFoundException':
+                    _LOG.debug('Lambda event invoke config is absent. '
+                               'Creating a new one')
+                    invoke_config = \
+                        self.lambda_conn.put_function_event_invoke_config(
+                            function_name=function_name,
+                            max_retries=meta.get('max_retries')
+                        )
+                else:
+                    raise e
+            _LOG.debug(invoke_config)
 
         req_max_concurrency = meta.get(LAMBDA_MAX_CONCURRENCY)
         existing_max_concurrency = self.lambda_conn. \
