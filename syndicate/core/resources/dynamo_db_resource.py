@@ -104,7 +104,7 @@ class DynamoDBResource(AbstractExternalResource, BaseResource):
         global_indexes_meta = meta.get('global_indexes', [])
         existing_global_indexes = response.global_secondary_indexes or []
 
-        self.dynamodb_conn.update_table_capacity(
+        response = self.dynamodb_conn.update_table_capacity(
             table_name=name,
             existing_capacity_mode=capacity_mode,
             read_capacity=meta.get('read_capacity'),
@@ -113,8 +113,11 @@ class DynamoDBResource(AbstractExternalResource, BaseResource):
                 response.provisioned_throughput.get('ReadCapacityUnits'),
             existing_write_capacity=
                 response.provisioned_throughput.get('WriteCapacityUnits'),
-            global_indexes_meta=global_indexes_meta
+            existing_global_indexes=existing_global_indexes
         )
+        if response:
+            capacity_mode = response['BillingModeSummary']['BillingMode']
+            existing_global_indexes = response['GlobalSecondaryIndexes']
 
         self.dynamodb_conn.update_table_ttl(
             table_name=name,
@@ -125,7 +128,8 @@ class DynamoDBResource(AbstractExternalResource, BaseResource):
             global_indexes_meta=global_indexes_meta,
             existing_global_indexes=existing_global_indexes,
             table_read_capacity=meta.get('read_capacity'),
-            table_write_capacity=meta.get('write_capacity')
+            table_write_capacity=meta.get('write_capacity'),
+            existing_capacity_mode=capacity_mode
         )
 
         response = self.dynamodb_conn.describe_table(name)
