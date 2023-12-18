@@ -23,8 +23,6 @@ from botocore.exceptions import ClientError
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import apply_methods_decorator, retry
 
-DEFAULT_READ_CAPACITY = 5
-DEFAULT_WRITE_CAPACITY = 5
 
 _LOG = get_logger('syndicate.connection.dynamo_connection')
 

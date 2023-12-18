@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [1.9.5] - 2023-12-18
+- Fixed an issue related to s3 bucket lifecycle policy deployment
+
 # [1.9.4] - 2023-12-15
 ### Changed
 - Updating gsi capacity units when changing table capacity mode from on-demand 
