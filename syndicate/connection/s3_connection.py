@@ -224,11 +224,6 @@ class S3Connection(object):
         :param rule_document:
         :return:
         """
-        # Prefix node is required. In case of Prefix is absent,
-        # empty string will be added.
-        for i in range(len(rule_document['Rules'])):
-            if 'Prefix' not in rule_document['Rules'][i]:
-                rule_document['Rules'][i]['Prefix'] = ''
         self.client.put_bucket_lifecycle_configuration(
             Bucket=bucket_name,
             LifecycleConfiguration=rule_document
