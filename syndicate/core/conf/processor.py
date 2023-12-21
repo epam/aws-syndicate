@@ -16,8 +16,7 @@
 import os
 
 import yaml
-from configobj import ConfigObj
-from validate import Validator, VdtTypeError
+from configparser import ConfigParser
 
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.conf.validator import \
@@ -42,71 +41,10 @@ ALIASES_FILE_NAME = 'syndicate_aliases.yml'
 
 LEGACY_CONFIG_FILE_NAME = 'sdct.conf'
 LEGACY_ALIASES_FILE_NAME = 'sdct_aliases.conf'
-DEFAULT_SECTION_NAME = 'default'
 
 _LOG = get_logger('core.conf.config_holder')
 
 GLOBAL_AWS_SERVICES = {IAM_ROLE, IAM_POLICY, S3_BUCKET_TYPE}
-
-REQUIRED_PARAMETERS = {
-    PROJECT_PATH_CFG: 'string(min=1)',
-    REGION_CFG: "region_func",
-    DEPLOY_TARGET_BUCKET_CFG: 'string(min=3, max=63)',
-    ACCOUNT_ID_CFG: 'account_func',
-    PROJECTS_MAPPING_CFG: 'project_func'
-}
-
-ALL_CONFIG_PARAMETERS = [
-    AWS_ACCESS_KEY_ID_CFG, AWS_SECRET_ACCESS_KEY_CFG,
-    RESOURCES_PREFIX_CFG, RESOURCES_SUFFIX_CFG,
-    TEMP_AWS_ACCESS_KEY_ID_CFG, TEMP_AWS_SECRET_ACCESS_KEY_CFG,
-    TEMP_AWS_SESSION_TOKEN_CFG, EXPIRATION_CFG
-]
-ALL_CONFIG_PARAMETERS.extend(REQUIRED_PARAMETERS.keys())
-
-ERROR_MESSAGE_MAPPING = {
-    PROJECT_PATH_CFG: 'cannot be empty',
-    REGION_CFG: "is invalid. Valid options: " + str(ALL_REGIONS),
-    DEPLOY_TARGET_BUCKET_CFG: 'length must be between 3 and 63 characters',
-    ACCOUNT_ID_CFG: 'must be 12-digit number',
-    PROJECTS_MAPPING_CFG: "must be as a mapping of runtime language to "
-                          "project path. Allowed runtime language values: "
-                          + str(ALLOWED_RUNTIME_LANGUAGES),
-    RESOURCES_PREFIX_CFG: 'length must be less than or equal to 5',
-    RESOURCES_SUFFIX_CFG: 'length must be less than or equal to 5'
-}
-
-
-def _region(value):
-    value = value.lower()
-    if not isinstance(value, str):
-        raise VdtTypeError(value)
-    if value not in ALL_REGIONS:
-        raise VdtTypeError(value)
-    return value
-
-
-def _account(value):
-    if len(value) != 12:
-        raise VdtTypeError(value)
-    try:
-        int(value)
-    except:
-        raise VdtTypeError(value)
-    return value
-
-
-def _project_mapping(value):
-    if value is '' or None:
-        return ''  # valid case if you have no projects to build
-    mappings = value.split(';')
-    for mapping in mappings:
-        items = mapping.split(':')
-        if len(items) != 2:
-            raise VdtTypeError(value)
-        if items[0] not in ALLOWED_RUNTIME_LANGUAGES:
-            raise VdtTypeError(value)
-    return value
 
 
 class ConfigHolder:
@@ -120,7 +58,7 @@ class ConfigHolder:
         if os.path.isfile(con_path):
             self._init_yaml_config(dir_path=dir_path, con_path=con_path)
         else:
-            self._init_ini_config(dir_path=dir_path)
+            self._init_conf_config(dir_path=dir_path)
 
     def _assert_no_errors(self, errors: list):
         if errors:
@@ -146,22 +84,26 @@ class ConfigHolder:
         self._aliases = aliases_content
         self._aliases.update(self.default_aliases)
 
-    def _init_ini_config(self, dir_path):
+    def _init_conf_config(self, dir_path):
         con_path = os.path.join(dir_path, LEGACY_CONFIG_FILE_NAME)
         if not os.path.isfile(con_path):
             raise AssertionError(
                 'sdct.conf does not exist inside %s folder' % dir_path)
+
         self._config_path = con_path
-        self._config_dict = ConfigObj(con_path,
-                                      configspec=REQUIRED_PARAMETERS)
-        self._validate_ini()
+        self._config_dict = load_conf_file_content(self._config_path)
+
+        validator = ConfigValidator(self._config_dict)
+        errors = validator.validate()
+        self._assert_no_errors(errors)
+
         alias_path = os.path.join(dir_path, LEGACY_ALIASES_FILE_NAME)
         if not os.path.exists(alias_path):
             _LOG.warn('sdct_aliases.conf does not exist '
                       'inside %s folder' % dir_path)
-        else:
-            self._aliases = ConfigObj(alias_path)
-            self._aliases.update(self.default_aliases)
+
+        self._aliases = load_conf_file_content(alias_path)
+        self._aliases.update(self.default_aliases)
 
     def set_temp_credentials_to_config(self, temp_aws_access_key_id,
                                        temp_aws_secret_access_key,
@@ -177,47 +119,6 @@ class ConfigHolder:
             file_path=self._config_path,
             content=content_to_update
         )
-
-    def _validate_ini(self):
-        # building a validator
-        validator = Validator({
-            'region_func': _region,
-            'account_func': _account,
-            'project_func': _project_mapping
-        })
-        # validate
-        param_valid_dict = self._config_dict.validate(validator=validator)
-        if not param_valid_dict:
-            raise Exception(f'Error while parsing {self._config_path}')
-        # check non-required parameters
-        prefix_value = self._config_dict.get(RESOURCES_PREFIX_CFG)
-        if prefix_value:
-            if len(prefix_value) > 5:
-                if not isinstance(param_valid_dict, dict):
-                    param_valid_dict = {RESOURCES_PREFIX_CFG: False}
-                else:
-                    param_valid_dict[RESOURCES_PREFIX_CFG] = False
-
-        suffix_value = self._config_dict.get(RESOURCES_SUFFIX_CFG)
-        if suffix_value:
-            if len(suffix_value) > 5:
-                if not isinstance(param_valid_dict, dict):
-                    param_valid_dict = {RESOURCES_SUFFIX_CFG: False}
-                else:
-                    param_valid_dict[RESOURCES_SUFFIX_CFG] = False
-
-        # processing results
-        if isinstance(param_valid_dict, dict):
-            messages = ''
-            for key, value in param_valid_dict.items():
-                if not value:
-                    messages += '\n{0} {1}'.format(key,
-                                                   ERROR_MESSAGE_MAPPING[key])
-
-            if messages:
-                raise Exception('Configuration is invalid. ' + messages)
-        tags = self._config_dict.get(TAGS_CFG) or {}
-        self._assert_no_errors(ConfigValidator.validate_tags(TAGS_CFG, tags))
 
     def _resolve_variable(self, variable_name):
         return self._config_dict.get(variable_name)
@@ -249,7 +150,8 @@ class ConfigHolder:
         del self.deploy_target_bucket_view
         return None
 
-    def _resolve_bucket_view_attribute(self, attribute_name: str, default=None):
+    def _resolve_bucket_view_attribute(self, attribute_name: str,
+                                       default=None):
         """
         Retrieves bucket view value respectively to a provided attribute name.
         """
@@ -445,11 +347,24 @@ def load_yaml_file_content(file_path):
         return yaml.load(yaml_file, Loader=yaml.FullLoader)
 
 
+def load_conf_file_content(file_path):
+    if not os.path.isfile(file_path):
+        raise AssertionError(f'There is no file by path: {file_path}')
+    with open(file_path) as f:
+        config_string = '[default]\n' + f.read()
+
+    config = ConfigParser()
+    config.read_string(config_string)
+    config_dict = dict(config['default'])
+
+    return config_dict
+
+
 def update_file_content(file_path, content):
     if file_path.endswith('.yaml') or file_path.endswith('.yml'):
         update_yaml_file_content(file_path=file_path, content=content)
     elif file_path.endswith('.conf'):
-        update_ini_file_content(file_path=file_path, content=content)
+        update_conf_file_content(file_path=file_path, content=content)
 
 
 def update_yaml_file_content(file_path, content):
@@ -459,7 +374,10 @@ def update_yaml_file_content(file_path, content):
         yaml.dump(file_content, yaml_file, default_flow_style=False)
 
 
-def update_ini_file_content(file_path, content):
-    config = ConfigObj(file_path, configspec=REQUIRED_PARAMETERS)
-    config.update(content)
-    config.write()
+def update_conf_file_content(file_path, content):
+    file_content = load_conf_file_content(file_path)
+    file_content.update(content)
+
+    with open(file_path, 'w') as f:
+        for key, value in file_content.items():
+            f.write(f'{key}={value}\n')
