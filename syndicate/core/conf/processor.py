@@ -14,11 +14,15 @@
     limitations under the License.
 """
 import os
+from configparser import ConfigParser
+from datetime import datetime
+from typing import Union
 
 import yaml
-from configparser import ConfigParser
 
 from syndicate.commons.log_helper import get_logger
+from syndicate.core.conf.bucket_view import \
+    AbstractBucketView, AbstractViewDigest
 from syndicate.core.conf.validator import \
     (PROJECT_PATH_CFG, REGION_CFG, DEPLOY_TARGET_BUCKET_CFG,
      ACCOUNT_ID_CFG, PROJECTS_MAPPING_CFG, AWS_ACCESS_KEY_ID_CFG,
@@ -31,10 +35,6 @@ from syndicate.core.conf.validator import \
      AWS_SESSION_TOKEN_CFG, EXTENDED_PREFIX_MODE_CFG)
 from syndicate.core.constants import (DEFAULT_SEP, IAM_POLICY, IAM_ROLE,
                                       S3_BUCKET_TYPE)
-
-from syndicate.core.conf.bucket_view import \
-    AbstractBucketView, AbstractViewDigest
-from typing import Union
 
 CONFIG_FILE_NAME = 'syndicate.yml'
 ALIASES_FILE_NAME = 'syndicate_aliases.yml'
@@ -340,6 +340,23 @@ def path_resolver(path):
     return path.replace('\\', DEFAULT_SEP).replace('//', DEFAULT_SEP)
 
 
+def str_to_bool(val):
+    if isinstance(val, str):
+        if val.lower() == 'true':
+            return True
+        elif val.lower() == 'false':
+            return False
+    return val
+
+
+def str_to_datetime(val):
+    if isinstance(val, str):
+        if ' ' in val:
+            val = val.replace(' ', 'T')
+        return datetime.fromisoformat(val)
+    return val
+
+
 def load_yaml_file_content(file_path):
     if not os.path.isfile(file_path):
         raise AssertionError(f'There is no file by path: {file_path}')
@@ -350,12 +367,18 @@ def load_yaml_file_content(file_path):
 def load_conf_file_content(file_path):
     if not os.path.isfile(file_path):
         raise AssertionError(f'There is no file by path: {file_path}')
-    with open(file_path) as f:
-        config_string = '[default]\n' + f.read()
 
     config = ConfigParser()
-    config.read_string(config_string)
-    config_dict = dict(config['default'])
+    config.read(file_path)
+    config_dict = {}
+    for section in config.sections():
+        if section == 'tags':
+            config_dict[section] = dict(config[section])
+        else:
+            section_dict = {
+                k: str_to_bool(v) if k != 'expiration' else str_to_datetime(v)
+                for k, v in dict(config[section]).items()}
+            config_dict.update(section_dict)
 
     return config_dict
 
@@ -378,6 +401,16 @@ def update_conf_file_content(file_path, content):
     file_content = load_conf_file_content(file_path)
     file_content.update(content)
 
+    config = ConfigParser()
+    for key, val in file_content.items():
+        if type(val) is dict:  # handle nested dictionary for 'tags'
+            config.add_section(key)
+            for sub_key, sub_val in val.items():
+                config.set(key, sub_key, str(sub_val))
+        else:  # handle other keys
+            if not config.has_section('default'):
+                config.add_section('default')
+            config.set('default', key, str(val))
+
     with open(file_path, 'w') as f:
-        for key, value in file_content.items():
-            f.write(f'{key}={value}\n')
+        config.write(f)
