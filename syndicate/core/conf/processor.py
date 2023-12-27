@@ -357,6 +357,19 @@ def str_to_datetime(val):
     return val
 
 
+def add_default_section(file_path):
+    with open(file_path, 'r+') as f:
+        lines = f.readlines()
+        lines = [line for line in lines if line.strip() != '']
+
+        first_line = lines[0]
+        f.seek(0)
+        if '[default]' not in first_line:
+            rest_of_file = f.read()
+            f.seek(0)
+            f.write('[default]\n' + rest_of_file)
+
+
 def load_yaml_file_content(file_path):
     if not os.path.isfile(file_path):
         raise AssertionError(f'There is no file by path: {file_path}')
@@ -368,9 +381,12 @@ def load_conf_file_content(file_path):
     if not os.path.isfile(file_path):
         raise AssertionError(f'There is no file by path: {file_path}')
 
+    add_default_section(file_path)
+
     config = ConfigParser()
     config.read(file_path)
     config_dict = {}
+
     for section in config.sections():
         if section == 'tags':
             config_dict[section] = dict(config[section])
@@ -403,11 +419,11 @@ def update_conf_file_content(file_path, content):
 
     config = ConfigParser()
     for key, val in file_content.items():
-        if type(val) is dict:  # handle nested dictionary for 'tags'
+        if type(val) is dict:
             config.add_section(key)
             for sub_key, sub_val in val.items():
                 config.set(key, sub_key, str(sub_val))
-        else:  # handle other keys
+        else:
             if not config.has_section('default'):
                 config.add_section('default')
             config.set('default', key, str(val))
