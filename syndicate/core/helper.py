@@ -578,7 +578,7 @@ def resolve_project_path(ctx, param, value):
 def check_lambda_name(value):
     """Validates lambda's name"""
     _LOG.info(f"Validating lambda name: '{value}'")
-    invalid_character = re.search('[^0-9a-zA-Z\-]', value)
+    invalid_character = re.search('[^0-9a-zA-Z\-\_]', value)
     error = None
     if not 3 <= len(value) <= 63:
         error = f'lambda name \'{value}\' length must be between 3 and 63 characters'
