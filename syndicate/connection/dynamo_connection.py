@@ -523,13 +523,13 @@ class DynamoConnection(object):
         :param existing_write_capacity: write capacity currently set
             in the table
         :type existing_write_capacity: int
+        :param existing_global_indexes: global secondary indexes already
+            present in the table
+        :type existing_global_indexes: list
         :param wait: to wait for table update to finish or not
         :type wait: bool
         :returns update_table response as dict
         """
-        existing_capacity_mode = existing_capacity_mode or 'PROVISIONED' \
-            if existing_read_capacity and existing_write_capacity \
-            else 'PAY_PER_REQUEST'
         params = {}
         if read_capacity and write_capacity:
             if existing_capacity_mode == 'PROVISIONED':

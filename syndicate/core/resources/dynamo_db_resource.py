@@ -84,6 +84,24 @@ class DynamoDBResource(AbstractExternalResource, BaseResource):
                     self._update_dynamodb_table_from_meta(name, meta))
         return response
 
+    @staticmethod
+    def _determine_table_capacity_mode(table):
+        if hasattr(table, 'provisioned_throughput'):
+            existing_read_capacity = \
+                table.provisioned_throughput.get('ReadCapacityUnits')
+            existing_write_capacity = \
+                table.provisioned_throughput.get('WriteCapacityUnits')
+        elif isinstance(table, dict):
+            existing_read_capacity = \
+                table['ProvisionedThroughput'].get('ReadCapacityUnits')
+            existing_write_capacity = \
+                table['ProvisionedThroughput'].get('WriteCapacityUnits')
+        else:
+            return None
+        if existing_read_capacity and existing_write_capacity:
+            return 'PROVISIONED'
+        return 'PAY_PER_REQUEST'
+
     def _update_dynamodb_table_from_meta(self, name, meta):
         """ Update Dynamo DB table from meta description, specifically:
         capacity (billing) mode, table or gsi capacity units,
@@ -99,29 +117,33 @@ class DynamoDBResource(AbstractExternalResource, BaseResource):
         if not response:
             raise AssertionError('{0} table does not exist.'.format(name))
 
-        capacity_mode = response.billing_mode_summary.get('BillingMode') \
-            if response.billing_mode_summary is not None else None
+        existing_capacity_mode = self._determine_table_capacity_mode(response)
         global_indexes_meta = meta.get('global_indexes', [])
         existing_global_indexes = response.global_secondary_indexes or []
+        existing_read_capacity = \
+            response.provisioned_throughput.get('ReadCapacityUnits')
+        existing_write_capacity = \
+            response.provisioned_throughput.get('WriteCapacityUnits')
 
         response = self.dynamodb_conn.update_table_capacity(
             table_name=name,
-            existing_capacity_mode=capacity_mode,
+            existing_capacity_mode=existing_capacity_mode,
             read_capacity=meta.get('read_capacity'),
             write_capacity=meta.get('write_capacity'),
-            existing_read_capacity=
-                response.provisioned_throughput.get('ReadCapacityUnits'),
-            existing_write_capacity=
-                response.provisioned_throughput.get('WriteCapacityUnits'),
+            existing_read_capacity=existing_read_capacity,
+            existing_write_capacity=existing_write_capacity,
             existing_global_indexes=existing_global_indexes
         )
         if response:
-            capacity_mode = response['BillingModeSummary']['BillingMode']
-            existing_global_indexes = response['GlobalSecondaryIndexes']
+            existing_capacity_mode = \
+                self._determine_table_capacity_mode(response)
+            existing_global_indexes = \
+                response.get('GlobalSecondaryIndexes', [])
 
         self.dynamodb_conn.update_table_ttl(
             table_name=name,
-            ttl_attribute_name=meta.get('ttl_attribute_name'))
+            ttl_attribute_name=meta.get('ttl_attribute_name')
+        )
 
         self.dynamodb_conn.update_global_indexes(
             table_name=name,
@@ -129,7 +151,7 @@ class DynamoDBResource(AbstractExternalResource, BaseResource):
             existing_global_indexes=existing_global_indexes,
             table_read_capacity=meta.get('read_capacity'),
             table_write_capacity=meta.get('write_capacity'),
-            existing_capacity_mode=capacity_mode
+            existing_capacity_mode=existing_capacity_mode
         )
 
         response = self.dynamodb_conn.describe_table(name)
