@@ -276,7 +276,7 @@ def _validate_container_properties(container_properties, prefix=None):
             'field_name': 'resource_requirements',
             'field_value': container_properties.get('resource_requirements'),
             'prefix': prefix,
-            'required_type': dict,
+            'required_type': list,
             'validators': [
                 _validate_field_type
             ]
