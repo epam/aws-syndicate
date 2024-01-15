@@ -72,7 +72,7 @@ def retry(handler_func):
             'Cannot delete, resource is being modified',
         ]
         last_ex = None
-        for each in range(1, 7, 3): # point here
+        for each in range(1, 7, 3):
             try:
                 return handler_func(*args, **kwargs)
             except ClientError as e:
