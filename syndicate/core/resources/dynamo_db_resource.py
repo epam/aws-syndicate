@@ -91,11 +91,6 @@ class DynamoDBResource(AbstractExternalResource, BaseResource):
                 table.provisioned_throughput.get('ReadCapacityUnits')
             existing_write_capacity = \
                 table.provisioned_throughput.get('WriteCapacityUnits')
-        elif isinstance(table, dict):
-            existing_read_capacity = \
-                table['ProvisionedThroughput'].get('ReadCapacityUnits')
-            existing_write_capacity = \
-                table['ProvisionedThroughput'].get('WriteCapacityUnits')
         else:
             return None
         if existing_read_capacity and existing_write_capacity:
@@ -113,49 +108,42 @@ class DynamoDBResource(AbstractExternalResource, BaseResource):
         :type meta: dict
         :returns table update result as dict
         """
-        response = self.dynamodb_conn.get_table_by_name(name)
-        if not response:
+        table = self.dynamodb_conn.get_table_by_name(name)
+        if not table:
             raise AssertionError('{0} table does not exist.'.format(name))
 
-        existing_capacity_mode = self._determine_table_capacity_mode(response)
-        global_indexes_meta = meta.get('global_indexes', [])
-        existing_global_indexes = response.global_secondary_indexes or []
-        existing_read_capacity = \
-            response.provisioned_throughput.get('ReadCapacityUnits')
-        existing_write_capacity = \
-            response.provisioned_throughput.get('WriteCapacityUnits')
-
-        response = self.dynamodb_conn.update_table_capacity(
+        existing_capacity_mode = self._determine_table_capacity_mode(table)
+        table = self.dynamodb_conn.update_table_capacity(
             table_name=name,
             existing_capacity_mode=existing_capacity_mode,
             read_capacity=meta.get('read_capacity'),
             write_capacity=meta.get('write_capacity'),
-            existing_read_capacity=existing_read_capacity,
-            existing_write_capacity=existing_write_capacity,
-            existing_global_indexes=existing_global_indexes
+            existing_read_capacity=
+                table.provisioned_throughput.get('ReadCapacityUnits'),
+            existing_write_capacity=
+                table.provisioned_throughput.get('WriteCapacityUnits'),
+            existing_global_indexes=table.global_secondary_indexes or []
         )
-        if response:
-            existing_capacity_mode = \
-                self._determine_table_capacity_mode(response)
-            existing_global_indexes = \
-                response.get('GlobalSecondaryIndexes', [])
 
         self.dynamodb_conn.update_table_ttl(
             table_name=name,
             ttl_attribute_name=meta.get('ttl_attribute_name')
         )
 
+        existing_capacity_mode = self._determine_table_capacity_mode(table)
+        global_indexes_meta = meta.get('global_indexes', [])
         self.dynamodb_conn.update_global_indexes(
             table_name=name,
             global_indexes_meta=global_indexes_meta,
-            existing_global_indexes=existing_global_indexes,
-            table_read_capacity=meta.get('read_capacity'),
-            table_write_capacity=meta.get('write_capacity'),
+            existing_global_indexes=table.global_secondary_indexes or [],
+            table_read_capacity=
+                table.provisioned_throughput.get('ReadCapacityUnits'),
+            table_write_capacity=
+                table.provisioned_throughput.get('WriteCapacityUnits'),
             existing_capacity_mode=existing_capacity_mode
         )
 
-        response = self.dynamodb_conn.describe_table(name)
-        return self.describe_table(name, meta, response)
+        return self.describe_table(name, meta)
 
     def describe_table(self, name, meta, response=None):
         if not response:
