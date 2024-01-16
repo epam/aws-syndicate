@@ -318,7 +318,14 @@ class LambdaResource(BaseResource):
         waiter.wait(FunctionName=name)
 
         log_group_name = name
-        retention = meta.get('logs_expiration')
+        possible_retention = meta.get('logs_expiration', 30)
+        try:
+            retention = int(possible_retention)
+        except (TypeError, ValueError):
+            _LOG.warning(f"Can't parse retention `{possible_retention}` as int."
+                         f" Set default 30")
+            retention = 30
+
         if retention:
             self.cw_logs_conn.create_log_group_with_retention_days(
                 group_name=log_group_name,
