@@ -322,8 +322,10 @@ class LambdaResource(BaseResource):
         try:
             retention = int(possible_retention)
         except (TypeError, ValueError):
-            _LOG.warning(f"Can't parse retention `{possible_retention}` as int."
-                         f" Set default 30")
+            _LOG.warning(
+                f"Can't parse logs_expiration `{possible_retention} as int."
+                f" Set default 30"
+            )
             retention = 30
 
         if retention:
