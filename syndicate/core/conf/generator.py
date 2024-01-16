@@ -37,7 +37,8 @@ from syndicate.core.conf.validator import (LAMBDAS_ALIASES_NAME_CFG,
                                            USE_TEMP_CREDS_CFG,
                                            SERIAL_NUMBER_CFG,
                                            ACCESS_ROLE_CFG,
-                                           EXTENDED_PREFIX_MODE_CFG)
+                                           EXTENDED_PREFIX_MODE_CFG,
+                                           LOGS_EXPIRATION)
 from syndicate.core.generators import _mkdir
 
 _LOG = get_logger('config_generator')
@@ -130,6 +131,7 @@ def generate_configuration_files(name, config_path, region,
         ACCOUNT_ID_CFG: account_id,
         REGION_CFG: region,
         LAMBDAS_ALIASES_NAME_CFG: 'prod',
+        LOGS_EXPIRATION: 30,
     }
     aliases_file_path = os.path.join(config_folder_path, ALIASES_FILE_NAME)
     with open(aliases_file_path, 'w') as aliases_file:
