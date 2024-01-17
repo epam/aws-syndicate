@@ -113,7 +113,7 @@ class DynamoDBResource(AbstractExternalResource, BaseResource):
             raise AssertionError('{0} table does not exist.'.format(name))
 
         existing_capacity_mode = self._determine_table_capacity_mode(table)
-        table = self.dynamodb_conn.update_table_capacity(
+        response = self.dynamodb_conn.update_table_capacity(
             table_name=name,
             existing_capacity_mode=existing_capacity_mode,
             read_capacity=meta.get('read_capacity'),
@@ -124,6 +124,8 @@ class DynamoDBResource(AbstractExternalResource, BaseResource):
                 table.provisioned_throughput.get('WriteCapacityUnits'),
             existing_global_indexes=table.global_secondary_indexes or []
         )
+        if response:
+            table = response
 
         self.dynamodb_conn.update_table_ttl(
             table_name=name,
