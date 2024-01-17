@@ -15,7 +15,9 @@
 """
 import json
 
-from syndicate.core.conf.validator import LAMBDAS_ALIASES_NAME_CFG
+from syndicate.core.conf.validator import (
+    LAMBDAS_ALIASES_NAME_CFG, LOGS_EXPIRATION
+)
 from syndicate.core.generators import (_alias_variable,
                                        FILE_LAMBDA_HANDLER_NODEJS)
 
@@ -475,6 +477,7 @@ def _generate_python_node_lambda_config(lambda_name, lambda_relative_path):
         'alias': _alias_variable(LAMBDAS_ALIASES_NAME_CFG),
         'url_config': {},
         'ephemeral_storage': 512,
+        'logs_expiration': _alias_variable(LOGS_EXPIRATION)
         # 'platforms': ['manylinux2014_x86_64']
         # by default (especially if you have linux), you don't need it
     })
