@@ -23,7 +23,9 @@ from botocore.exceptions import ClientError
 
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import apply_methods_decorator, retry
-from syndicate.core.constants import POSSIBLE_RETENTION_DAYS
+from syndicate.core.constants import (
+    POSSIBLE_RETENTION_DAYS, DEFAULT_LOGS_EXPIRATION
+)
 
 _LOG = get_logger('syndicate.connection.cloud_watch_connection')
 
@@ -77,10 +79,12 @@ class LogsConnection(object):
         if retention_in_days == 0:
             retention_in_days = POSSIBLE_RETENTION_DAYS[-1]
         if retention_in_days not in POSSIBLE_RETENTION_DAYS:
-            raise ValueError(
-                f"Possible values for \"logs_expiration\" parameter"
-                f" are: {', '.join(map(str, POSSIBLE_RETENTION_DAYS))}"
-                f" or 0 for setting to max limit")
+            _LOG.warning(
+                f"Invalid value for 'logs_expiration': {retention_in_days}. "
+                f"Possible values: {', '.join(map(str, POSSIBLE_RETENTION_DAYS))}"
+                f" or 0 for max limit. Set default {DEFAULT_LOGS_EXPIRATION}"
+            )
+            retention_in_days = DEFAULT_LOGS_EXPIRATION
 
         log_group_name = get_lambda_log_group_name(group_name)
         self.client.create_log_group(logGroupName=log_group_name)
