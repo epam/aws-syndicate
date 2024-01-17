@@ -5,7 +5,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 # [1.10.1] - 2024-01-17
-- Change from `error` to `warning` integer not provided in allowed values for
+- Change from `error` to `warning` if integer not provided in allowed values for
 `logs_expiration` values and set default to `30`.
 
 # [1.10.0] - 2024-01-16
