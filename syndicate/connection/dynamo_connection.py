@@ -330,16 +330,13 @@ class DynamoConnection(object):
         :type max_attempts: int
         :returns None
         """
-        num_attempts = 0
-        while True:
-            num_attempts += 1
-            _LOG.debug('Waiting for table to update...')
-            table = self.describe_table(table_name)
-            if table['TableStatus'] == 'ACTIVE':
-                return
-            if num_attempts >= max_attempts:
-                raise AssertionError('Max attempts exceeded')
-            time.sleep(sleep_amount)
+        table = self.get_table_by_name(table_name)
+        table.wait_until_exists(
+            WaiterConfig={
+                'Delay': sleep_amount,
+                'MaxAttempts': max_attempts
+            }
+        )
 
     def _wait_for_index_update(self, table_name, index_name, sleep_amount=20,
                                max_attempts=25):
@@ -523,13 +520,14 @@ class DynamoConnection(object):
         :param existing_write_capacity: write capacity currently set
             in the table
         :type existing_write_capacity: int
+        :param existing_global_indexes: global secondary indexes already
+            present in the table
+        :type existing_global_indexes: list
         :param wait: to wait for table update to finish or not
         :type wait: bool
-        :returns update_table response as dict
+        :returns update_table response as boto3.DynamoDB.Table object or None
+            if there were no changes made
         """
-        existing_capacity_mode = existing_capacity_mode or 'PROVISIONED' \
-            if existing_read_capacity and existing_write_capacity \
-            else 'PAY_PER_REQUEST'
         params = {}
         if read_capacity and write_capacity:
             if existing_capacity_mode == 'PROVISIONED':
@@ -573,11 +571,10 @@ class DynamoConnection(object):
                        f'capacities: {read_capacity}/{write_capacity}, existing '
                        f'read/write capacities: {existing_read_capacity}/'
                        f'{existing_write_capacity}. Update params: {params}')
-            table = \
-                self.client.update_table(**params)['TableDescription']
+            self.client.update_table(**params)
             if wait:
                 self._wait_for_table_update(table_name=table_name)
-            return table
+            return self.get_table_by_name(table_name)
 
     def get_table_by_name(self, table_name):
         """ Get table by name.

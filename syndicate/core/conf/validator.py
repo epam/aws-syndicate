@@ -34,6 +34,7 @@ PROJECT_PATH_CFG = 'project_path'
 ACCOUNT_ID_CFG = 'account_id'
 REGION_CFG = 'region'
 LAMBDAS_ALIASES_NAME_CFG = 'lambdas_alias_name'
+LOGS_EXPIRATION = 'logs_expiration'
 
 AWS_ACCESS_KEY_ID_CFG = 'aws_access_key_id'
 AWS_SECRET_ACCESS_KEY_CFG = 'aws_secret_access_key'

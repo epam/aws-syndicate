@@ -71,6 +71,7 @@ def retry(handler_func):
             'Cannot delete, found existing JobQueue relationship',
             'Cannot delete, resource is being modified',
         ]
+        last_ex = None
         for each in range(1, 35, 3):
             try:
                 return handler_func(*args, **kwargs)
@@ -88,6 +89,10 @@ def retry(handler_func):
                         retry_flag = True
                 if not retry_flag:
                     raise e
+                last_ex = e
                 sleep(each)
+
+        if last_ex:
+            raise last_ex
 
     return wrapper
