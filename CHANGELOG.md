@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 The default value is set to "30 days". To ensure the logs never expire, set the
 value to: `logs_expiration: 0`.
 
+# [1.9.9] - 2024-01-15
+- Fix dynamodb table capacity mode recognition during update
+
 # [1.9.8] - 2024-01-15
 - Add last exception raise in `connection/helper.py:retry()`
 
