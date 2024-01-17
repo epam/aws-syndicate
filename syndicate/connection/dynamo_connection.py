@@ -525,7 +525,8 @@ class DynamoConnection(object):
         :type existing_global_indexes: list
         :param wait: to wait for table update to finish or not
         :type wait: bool
-        :returns update_table response as boto3.DynamoDB.Table object
+        :returns update_table response as boto3.DynamoDB.Table object or None
+            if there were no changes made
         """
         params = {}
         if read_capacity and write_capacity:
