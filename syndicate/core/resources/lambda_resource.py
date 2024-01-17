@@ -23,6 +23,7 @@ from botocore.exceptions import ClientError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.connection.helper import retry
 from syndicate.core.build.meta_processor import S3_PATH_NAME
+from syndicate.core.constants import DEFAULT_LOGS_EXPIRATION
 from syndicate.core.helper import (unpack_kwargs,
                                    exit_on_exception)
 from syndicate.core.resources.base_resource import BaseResource
@@ -318,15 +319,15 @@ class LambdaResource(BaseResource):
         waiter.wait(FunctionName=name)
 
         log_group_name = name
-        possible_retention = meta.get('logs_expiration', 30)
+        possible_retention = meta.get('logs_expiration', DEFAULT_LOGS_EXPIRATION)
         try:
             retention = int(possible_retention)
         except (TypeError, ValueError):
             _LOG.warning(
                 f"Can't parse logs_expiration `{possible_retention} as int."
-                f" Set default 30"
+                f" Set default {DEFAULT_LOGS_EXPIRATION}"
             )
-            retention = 30
+            retention = DEFAULT_LOGS_EXPIRATION
 
         if retention:
             self.cw_logs_conn.create_log_group_with_retention_days(
