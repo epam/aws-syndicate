@@ -86,13 +86,10 @@ class DynamoDBResource(AbstractExternalResource, BaseResource):
 
     @staticmethod
     def _determine_table_capacity_mode(table):
-        if hasattr(table, 'provisioned_throughput'):
-            existing_read_capacity = \
-                table.provisioned_throughput.get('ReadCapacityUnits')
-            existing_write_capacity = \
-                table.provisioned_throughput.get('WriteCapacityUnits')
-        else:
-            return None
+        existing_read_capacity = \
+            table.provisioned_throughput.get('ReadCapacityUnits')
+        existing_write_capacity = \
+            table.provisioned_throughput.get('WriteCapacityUnits')
         if existing_read_capacity and existing_write_capacity:
             return 'PROVISIONED'
         return 'PAY_PER_REQUEST'
