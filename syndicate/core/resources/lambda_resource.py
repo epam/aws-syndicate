@@ -505,7 +505,7 @@ class LambdaResource(BaseResource):
                 f" Set default {DEFAULT_LOGS_EXPIRATION}"
             )
             retention = DEFAULT_LOGS_EXPIRATION
-        if retention:
+        if retention is not None:
             self.cw_logs_conn.update_log_group_retention_days(
                 group_name=log_group_name,
                 retention_in_days=retention
