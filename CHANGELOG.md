@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [1.10.2] - 2024-01-19
+- Add a feature in `syndicate update` command to update `logs_expiration`
+parameter in `cloudWatch` logs group. For setting `logs_expiration`, refer to
+`syndicate_aliases`.
+
 # [1.10.1] - 2024-01-17
 - Change from `error` to `warning` if integer not provided in allowed values for
 `logs_expiration` values and set default to `30`.
