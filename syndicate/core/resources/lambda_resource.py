@@ -495,6 +495,22 @@ class LambdaResource(BaseResource):
         waiter.wait(FunctionName=name)
         _LOG.info(f'Waiting has finished')
 
+        log_group_name = name
+        possible_retention = meta.get('logs_expiration', DEFAULT_LOGS_EXPIRATION)
+        try:
+            retention = int(possible_retention)
+        except (TypeError, ValueError):
+            _LOG.warning(
+                f"Can't parse logs_expiration `{possible_retention} as int."
+                f" Set default {DEFAULT_LOGS_EXPIRATION}"
+            )
+            retention = DEFAULT_LOGS_EXPIRATION
+        if retention is not None:
+            self.cw_logs_conn.update_log_group_retention_days(
+                group_name=log_group_name,
+                retention_in_days=retention
+            )
+
         response = self.lambda_conn.get_function(name)
         _LOG.info(f'Lambda describe result: {response}')
         code_sha_256 = response['Configuration']['CodeSha256']

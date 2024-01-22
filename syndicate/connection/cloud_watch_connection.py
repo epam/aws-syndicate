@@ -93,6 +93,42 @@ class LogsConnection(object):
             retentionInDays=retention_in_days
         )
 
+    def update_log_group_retention_days(self, group_name: str,
+                                        retention_in_days: int):
+        """ Updates the retention of a log group for provided lambda function.
+
+        :type group_name: str
+        :type retention_in_days: int
+        """
+
+        if retention_in_days == 0:
+            retention_in_days = POSSIBLE_RETENTION_DAYS[-1]
+        if retention_in_days not in POSSIBLE_RETENTION_DAYS:
+            _LOG.warning(
+                f"Invalid value for 'logs_expiration': {retention_in_days}. "
+                f"Possible values: {', '.join(map(str, POSSIBLE_RETENTION_DAYS))}"
+                f" or 0 for max limit. Set default {DEFAULT_LOGS_EXPIRATION}"
+            )
+            retention_in_days = DEFAULT_LOGS_EXPIRATION
+        log_group_name = get_lambda_log_group_name(group_name)
+        try:
+            res = self.client.describe_log_groups(
+                logGroupNamePrefix=log_group_name)
+        except Exception as e:
+            _LOG.error(
+                f"Error on describing log group: {log_group_name}. Error: {str(e)}")
+            return
+        if not res.get('logGroups'):
+            _LOG.error(
+                f"Log group does not exist: {log_group_name}.")
+            return
+        self.client.put_retention_policy(
+            logGroupName=log_group_name,
+            retentionInDays=retention_in_days
+        )
+        _LOG.info(
+            f"Successfully updated the cloudWatch log group: {log_group_name}")
+
     def get_log_group_arns(self):
         """ Returns ARNs for each log group that currently exists. """
         response = self.get_all_log_groups()
