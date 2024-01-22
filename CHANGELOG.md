@@ -15,8 +15,8 @@ parameter in `cloudWatch` logs group. For setting `logs_expiration`, refer to
 
 # [1.10.0] - 2024-01-16
 - Add parameter `logs_expiration` to `syndicate_aliases.yml` and `lambda_config.json`. 
-The default value is set to "30 days". To ensure the logs never expire, set the
-value to: `logs_expiration: 0`.
+The default value is set to "30 days". To ensure the logs expire after 10 years,
+set the value to: `logs_expiration: 0`.
 
 # [1.9.9] - 2024-01-15
 - Fix dynamodb table capacity mode recognition during update
