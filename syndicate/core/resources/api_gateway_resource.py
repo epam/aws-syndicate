@@ -408,7 +408,7 @@ class ApiGatewayResource(BaseResource):
 
         return True, api_source_arn
 
-    def update_lambdas_permissions(self, api_gateway_id, api_lambdas_arns): # point 333
+    def update_lambdas_permissions(self, api_gateway_id, api_lambdas_arns):
 
         for lambda_arn, routes in api_lambdas_arns.items():
             existing_permissions = self.get_lambda_permissions_for_api(
