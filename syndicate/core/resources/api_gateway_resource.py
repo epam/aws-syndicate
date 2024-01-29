@@ -973,11 +973,11 @@ class ApiGatewayResource(BaseResource):
         for path, path_item in openapi_spec.get('paths', {}).items():
             for method, method_data in path_item.items():
                 integration = method_data.get('x-amazon-apigateway-integration')
-                if not integration or integration.get('type') != 'aws_proxy':
+                if not integration or not integration.get('uri'):
                     continue
                 uri = integration.get('uri')
                 try:
-                    lambda_arn = uri.split(':function:')[1].split('/')[0]
+                    lambda_arn = uri.split('/functions/')[1].split('/')[0]
                 except IndexError:
                     _LOG.warning(f"Invalid lambda arn in integration uri {uri}")
                     continue
