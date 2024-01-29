@@ -19,12 +19,16 @@ from hashlib import md5
 
 from botocore.exceptions import ClientError
 
+from syndicate.commons import deep_get
 from syndicate.commons.log_helper import get_logger
+from syndicate.core.constants import SOURCE_ARN_DEEP_KEY
 from syndicate.core.helper import unpack_kwargs
 from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import (build_description_obj,
                                              validate_params)
-from syndicate.connection.api_gateway_connection import ApiGatewayV2Connection
+from syndicate.connection.api_gateway_connection import ApiGatewayV2Connection, \
+    ApiGatewayConnection
+from syndicate.core.resources.lambda_resource import LambdaResource
 
 API_REQUIRED_PARAMS = ['resources', 'deploy_stage']
 
@@ -65,8 +69,10 @@ _REQUEST_VALIDATORS = {
 
 class ApiGatewayResource(BaseResource):
 
-    def __init__(self, apigw_conn, apigw_v2_conn: ApiGatewayV2Connection,
-                 lambda_res, cognito_res, account_id, region) -> None:
+    def __init__(self, apigw_conn: ApiGatewayConnection,
+                 apigw_v2_conn: ApiGatewayV2Connection,
+                 lambda_res: LambdaResource,
+                 cognito_res, account_id, region) -> None:
         self.connection = apigw_conn
         self.lambda_res = lambda_res
         self.cognito_res = cognito_res
@@ -122,6 +128,9 @@ class ApiGatewayResource(BaseResource):
 
     def api_gateway_update_processor(self, args):
         return self.create_pool(self._create_or_update_api_gateway, args, 1)
+
+    def update_api_gateway_openapi(self, args):
+        return self.create_pool(self._update_api_gateway_openapi_from_meta, args, 1)
 
     @unpack_kwargs
     def _create_or_update_api_gateway(self, name, meta,
@@ -338,6 +347,92 @@ class ApiGatewayResource(BaseResource):
         # deploy api
         self.__deploy_api_gateway(api_id, meta, api_resources)
         return self.describe_api_resources(api_id=api_id, meta=meta, name=name)
+
+    @unpack_kwargs
+    def _update_api_gateway_openapi_from_meta(self, name, meta, context):
+        api_id = self.connection.get_api_id(name)
+        openapi_context = meta.get('definition')
+
+        self.connection.update_openapi(api_id, openapi_context)
+
+        api_lambdas_arns = self.extract_api_gateway_lambdas_arns(openapi_context)
+        self.update_lambdas_permissions(api_id, api_lambdas_arns)
+
+        return self.describe_api_resources(api_id=api_id, meta=meta, name=name)
+
+    def get_lambda_permissions_for_api(self, lambda_arn, api_gateway_id):
+        permissions = self.lambda_res.get_existing_permissions(lambda_arn)
+        # Filter the permissions related to the specific API Gateway
+        filtered_permissions = [
+            statement for statement in permissions
+            if deep_get(
+                statement, SOURCE_ARN_DEEP_KEY, ""
+            ).startswith('arn:aws:execute-api:') and api_gateway_id in deep_get(
+                statement, SOURCE_ARN_DEEP_KEY, "")
+        ]
+
+        return filtered_permissions
+
+    def add_lambda_permission(self, api_gateway_id, lambda_arn, method, path):
+        api_source_arn = (f'arn:aws:execute-api:{self.region}:'
+                          f'{self.account_id}:{api_gateway_id}'
+                          f'/*/{method.upper()}{path}')
+
+        _id = f'{lambda_arn}-{api_source_arn}'
+        statement_id = md5(_id.encode('utf-8')).hexdigest()
+
+        response: dict = self.lambda_res.add_invocation_permission(
+            name=lambda_arn,
+            principal='apigateway.amazonaws.com',
+            source_arn=api_source_arn,
+            statement_id=statement_id,
+            exists_ok=True
+        )
+
+        if response is None:
+            message = f'Permission: \'{statement_id}\' attached to ' \
+                      f'\'{lambda_arn}\' lambda to allow ' \
+                      f'lambda:InvokeFunction for ' \
+                      f'apigateway.amazonaws.com principal from ' \
+                      f'\'{api_source_arn}\' SourceArn already exists.'
+            _LOG.debug(message + ' Skipping.')
+
+            return False, api_source_arn
+
+        message = f'Permission: \'{statement_id}\' attached to ' \
+                  f'\'{lambda_arn}\' lambda to allow ' \
+                  f'lambda:InvokeFunction for ' \
+                  f'apigateway.amazonaws.com principal from ' \
+                  f'\'{api_source_arn}\' SourceArn.'
+        _LOG.debug(message)
+
+        return True, api_source_arn
+
+    def update_lambdas_permissions(self, api_gateway_id, api_lambdas_arns): # point 333
+
+        for lambda_arn, routes in api_lambdas_arns.items():
+            existing_permissions = self.get_lambda_permissions_for_api(
+                lambda_arn, api_gateway_id)
+
+            existing_permissions = {
+                deep_get(perm, SOURCE_ARN_DEEP_KEY): perm.get('Sid')
+                for perm in existing_permissions
+            }
+
+            for route in routes:
+                method = route.get("method")
+                path = route.get("path")
+                is_added, api_source_arn = self.add_lambda_permission(
+                    api_gateway_id,
+                    lambda_arn,
+                    method,
+                    path
+                )
+                if not is_added:
+                    del existing_permissions[api_source_arn]
+
+            self.lambda_res.remove_permissions(lambda_arn,
+                                               existing_permissions.values())
 
     @staticmethod
     def get_deploy_stage_name(stage_name=None):
@@ -870,3 +965,29 @@ class ApiGatewayResource(BaseResource):
             return
         self.apigw_v2.delete_api(api_id)
         return
+
+    @staticmethod
+    def extract_api_gateway_lambdas_arns(openapi_spec):
+        api_gateway_lambdas_arns = {}
+
+        for path, path_item in openapi_spec.get('paths', {}).items():
+            for method, method_data in path_item.items():
+                integration = method_data.get('x-amazon-apigateway-integration')
+                if not integration or integration.get('type') != 'aws_proxy':
+                    continue
+                uri = integration.get('uri')
+                try:
+                    lambda_arn = uri.split(':function:')[1].split('/')[0]
+                except IndexError:
+                    _LOG.warning(f"Invalid lambda arn in integration uri {uri}")
+                    continue
+
+                if not api_gateway_lambdas_arns.get(lambda_arn):
+                    api_gateway_lambdas_arns[lambda_arn] = []
+
+                api_gateway_lambdas_arns[lambda_arn].append({
+                    "path": path,
+                    "method": method
+                })
+
+        return api_gateway_lambdas_arns

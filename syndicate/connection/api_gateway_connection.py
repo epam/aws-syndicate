@@ -13,6 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+import json
 from secrets import token_hex
 from typing import Optional
 
@@ -72,6 +73,19 @@ class ApiGatewayConnection(object):
         if binary_media_types:
             params['binaryMediaTypes'] = binary_media_types
         return self.client.create_rest_api(**params)
+
+    def update_openapi(self, api_id, openapi_context):
+        # Update the API Gateway with the OpenAPI definition
+        try:
+            self.client.put_rest_api(
+                restApiId=api_id,
+                mode='overwrite',
+                body=json.dumps(openapi_context),
+                failOnWarnings=False
+            )
+            _LOG.debug("API Gateway updated successfully.")
+        except self.client.exceptions.ClientError as e:
+            _LOG.error(f"An error occurred: {e}")
 
     def remove_api(self, api_id):
         """

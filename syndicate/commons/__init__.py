@@ -13,3 +13,11 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+from functools import reduce
+from typing import Union, Any
+
+
+def deep_get(dct: dict, path: Union[list, tuple], default=None) -> Any:
+    return reduce(
+        lambda d, key: d.key(key, default) if isinstance(d, dict) else default,
+        path, dct)
