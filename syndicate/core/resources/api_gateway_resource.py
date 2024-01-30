@@ -126,6 +126,14 @@ class ApiGatewayResource(BaseResource):
         """
         return self.create_pool(self._create_api_gateway_from_meta, args, 1)
 
+    def create_api_gateway_openapi(self, args):
+        """ Create OpenAPI api gateway in pool in sub processes.
+
+        :type args: list
+        """
+        return self.create_pool(self._create_api_gateway_openapi_from_meta,
+                                args, 1)
+
     def api_gateway_update_processor(self, args):
         return self.create_pool(self._create_or_update_api_gateway, args, 1)
 
@@ -349,11 +357,27 @@ class ApiGatewayResource(BaseResource):
         return self.describe_api_resources(api_id=api_id, meta=meta, name=name)
 
     @unpack_kwargs
+    def _create_api_gateway_openapi_from_meta(self, name, meta):
+        openapi_context = meta.get('definition')
+        deploy_stage = meta.get('deploy_stage')
+
+        api_id = self.connection.create_openapi(openapi_context)
+        self.connection.deploy_api(api_id, deploy_stage)
+
+        api_lambdas_arns = self.extract_api_gateway_lambdas_arns(
+            openapi_context)
+        self.create_lambdas_permissions(api_id, api_lambdas_arns)
+
+        return self.describe_api_resources(api_id=api_id, meta=meta, name=name)
+
+    @unpack_kwargs
     def _update_api_gateway_openapi_from_meta(self, name, meta, context):
         api_id = self.connection.get_api_id(name)
         openapi_context = meta.get('definition')
+        deploy_stage = meta.get('deploy_stage')
 
         self.connection.update_openapi(api_id, openapi_context)
+        self.connection.deploy_api(api_id, deploy_stage)
 
         api_lambdas_arns = self.extract_api_gateway_lambdas_arns(openapi_context)
         self.update_lambdas_permissions(api_id, api_lambdas_arns)
@@ -408,6 +432,19 @@ class ApiGatewayResource(BaseResource):
 
         return True, api_source_arn
 
+    def create_lambdas_permissions(self, api_gateway_id, api_lambdas_arns):
+
+        for lambda_arn, routes in api_lambdas_arns.items():
+            for route in routes:
+                method = route.get("method")
+                path = route.get("path")
+                self.add_lambda_permission(
+                    api_gateway_id,
+                    lambda_arn,
+                    method,
+                    path
+                )
+
     def update_lambdas_permissions(self, api_gateway_id, api_lambdas_arns):
 
         for lambda_arn, routes in api_lambdas_arns.items():
@@ -431,6 +468,19 @@ class ApiGatewayResource(BaseResource):
                 if not is_added:
                     del existing_permissions[api_source_arn]
 
+            self.lambda_res.remove_permissions(lambda_arn,
+                                               existing_permissions.values())
+
+    def remove_lambdas_permissions(self, api_gateway_id, api_lambdas_arns):
+
+        for lambda_arn, routes in api_lambdas_arns.items():
+            existing_permissions = self.get_lambda_permissions_for_api(
+                lambda_arn, api_gateway_id)
+
+            existing_permissions = {
+                deep_get(perm, SOURCE_ARN_DEEP_KEY): perm.get('Sid')
+                for perm in existing_permissions
+            }
             self.lambda_res.remove_permissions(lambda_arn,
                                                existing_permissions.values())
 
@@ -535,6 +585,10 @@ class ApiGatewayResource(BaseResource):
         return {
             arn: build_description_obj(response, name, meta)
         }
+
+    def describe_openapi(self, api_id, stage_name):
+        response = self.connection.describe_openapi(api_id, stage_name)
+        return json.loads(response['body'].read().decode("utf-8"))
 
     def _check_existing_methods(self, api_id, resource_id, resource_path,
                                 resource_meta,
@@ -839,6 +893,12 @@ class ApiGatewayResource(BaseResource):
             # wait for success deletion
             time.sleep(60)
 
+    def remove_api_gateways_openapi(self, args):
+        for arg in args:
+            self._remove_api_gateway_openapi(**arg)
+            # wait for success deletion
+            time.sleep(60)
+
     def _remove_invocation_permissions_from_lambdas(self, config):
         api_id = config['description']['id']
         _LOG.info(fr'Removing invocation permissions for api {api_id}')
@@ -869,6 +929,22 @@ class ApiGatewayResource(BaseResource):
         except ClientError as e:
             if e.response['Error']['Code'] == 'NotFoundException':
                 _LOG.warn('API Gateway %s is not found', api_id)
+            else:
+                raise e
+
+    def _remove_api_gateway_openapi(self, arn, config):
+        api_id = config['description']['id']
+        stage_name = config["resource_meta"]["deploy_stage"]
+        openapi_context = self.describe_openapi(api_id, stage_name)
+        api_lambdas_arns = self.extract_api_gateway_lambdas_arns(
+            openapi_context)
+        self.remove_lambdas_permissions(api_id, api_lambdas_arns)
+        try:
+            self.connection.remove_api(api_id)
+            _LOG.info(f'API Gateway {api_id} was removed.')
+        except ClientError as e:
+            if e.response['Error']['Code'] == 'NotFoundException':
+                _LOG.warning('API Gateway %s is not found', api_id)
             else:
                 raise e
 

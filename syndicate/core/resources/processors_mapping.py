@@ -51,6 +51,8 @@ class ProcessorFacade:
                 self.resources_provider.s3().create_s3_bucket,
             API_GATEWAY_TYPE:
                 self.resources_provider.api_gw().create_api_gateway,
+            API_GATEWAY_OPENAPI_TYPE:
+                self.resources_provider.api_gw().create_api_gateway_openapi,
             WEB_SOCKET_API_GATEWAY_TYPE:
                 self.resources_provider.api_gw().create_web_socket_api_gateway,
             COGNITO_USER_POOL_TYPE:
@@ -169,6 +171,8 @@ class ProcessorFacade:
                 self.resources_provider.cw_alarm().remove_alarms,
             API_GATEWAY_TYPE:
                 self.resources_provider.api_gw().remove_api_gateways,
+            API_GATEWAY_OPENAPI_TYPE:
+                self.resources_provider.api_gw().remove_api_gateways_openapi,
             WEB_SOCKET_API_GATEWAY_TYPE:
                 self.resources_provider.api_gw().remove_v2_api_gateway,
             CLOUD_WATCH_RULE_TYPE:

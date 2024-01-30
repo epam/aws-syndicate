@@ -74,6 +74,35 @@ class ApiGatewayConnection(object):
             params['binaryMediaTypes'] = binary_media_types
         return self.client.create_rest_api(**params)
 
+    def create_openapi(self, openapi_context):
+        # Create a new API Gateway with the OpenAPI definition
+        try:
+            response = self.client.import_rest_api(
+                body=json.dumps(openapi_context),
+                failOnWarnings=False
+            )
+            api_id = response['id']
+            _LOG.debug(f"API Gateway created successfully with ID: {api_id}")
+            return api_id
+        except self.client.exceptions.ClientError as e:
+            _LOG.error(f"An error occurred: {e}")
+            return None
+
+    def describe_openapi(self, api_id, stage_name):
+        try:
+            response = self.client.get_export(
+                restApiId=api_id,
+                stageName=stage_name,
+                exportType='oas30',
+                parameters={
+                    'extensions': 'integrations,authorizers,apigateway'},
+                accepts='application/json'
+            )
+            return response
+        except self.client.exceptions.NotFoundException:
+            _LOG.error(f"Not found api with id: {api_id}")
+            return None
+
     def update_openapi(self, api_id, openapi_context):
         # Update the API Gateway with the OpenAPI definition
         try:
