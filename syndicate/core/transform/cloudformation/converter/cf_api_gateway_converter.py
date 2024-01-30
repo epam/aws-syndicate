@@ -416,7 +416,7 @@ class CfApiGatewayConverter(CfResourceConverter):
             stage.CacheClusterSize = cache_cluster_size
         if cache_cluster_enabled:
             cache_ttl_sec = cache_cluster_configuration.get('cache_ttl_sec')
-            if cache_ttl_sec:
+            if cache_ttl_sec is not None:
                 stage.CacheTtlInSeconds = cache_ttl_sec
         deployment.StageDescription = stage
         deployment.RestApiId = Ref(rest_api)
