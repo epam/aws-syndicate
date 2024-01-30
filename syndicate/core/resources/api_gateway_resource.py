@@ -475,7 +475,7 @@ class ApiGatewayResource(BaseResource):
                     method,
                     path
                 )
-                if not is_added:
+                if not is_added and api_source_arn in existing_permissions:
                     del existing_permissions[api_source_arn]
 
             self.lambda_res.remove_permissions(lambda_arn,
