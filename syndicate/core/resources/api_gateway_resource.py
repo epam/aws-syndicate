@@ -21,7 +21,9 @@ from botocore.exceptions import ClientError
 
 from syndicate.commons import deep_get
 from syndicate.commons.log_helper import get_logger
-from syndicate.core.constants import SOURCE_ARN_DEEP_KEY
+from syndicate.core.constants import (
+    SOURCE_ARN_DEEP_KEY, SECURITY_SCHEMAS_DEEP_KEY
+)
 from syndicate.core.helper import unpack_kwargs
 from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import (build_description_obj,
@@ -367,6 +369,14 @@ class ApiGatewayResource(BaseResource):
         api_lambdas_arns = self.extract_api_gateway_lambdas_arns(
             openapi_context)
         self.create_lambdas_permissions(api_id, api_lambdas_arns)
+        lambda_authorizers = self.extract_api_gateway_lambda_authorizers(
+            openapi_context)
+        for lambda_arn in lambda_authorizers:
+            self.lambda_res.add_invocation_permission(
+                statement_id=api_id,
+                name=lambda_arn,
+                principal='apigateway.amazonaws.com'
+            )
 
         return self.describe_api_resources(api_id=api_id, meta=meta, name=name)
 
@@ -397,7 +407,8 @@ class ApiGatewayResource(BaseResource):
 
         return filtered_permissions
 
-    def add_lambda_permission(self, api_gateway_id, lambda_arn, method, path):
+    def add_route_permission_to_lambda(self, api_gateway_id, lambda_arn, method,
+                                       path):
         api_source_arn = (f'arn:aws:execute-api:{self.region}:'
                           f'{self.account_id}:{api_gateway_id}'
                           f'/*/{method.upper()}{path}')
@@ -433,12 +444,11 @@ class ApiGatewayResource(BaseResource):
         return True, api_source_arn
 
     def create_lambdas_permissions(self, api_gateway_id, api_lambdas_arns):
-
         for lambda_arn, routes in api_lambdas_arns.items():
             for route in routes:
                 method = route.get("method")
                 path = route.get("path")
-                self.add_lambda_permission(
+                self.add_route_permission_to_lambda(
                     api_gateway_id,
                     lambda_arn,
                     method,
@@ -459,7 +469,7 @@ class ApiGatewayResource(BaseResource):
             for route in routes:
                 method = route.get("method")
                 path = route.get("path")
-                is_added, api_source_arn = self.add_lambda_permission(
+                is_added, api_source_arn = self.add_route_permission_to_lambda(
                     api_gateway_id,
                     lambda_arn,
                     method,
@@ -1066,4 +1076,22 @@ class ApiGatewayResource(BaseResource):
                     "method": method
                 })
 
+        return api_gateway_lambdas_arns
+
+    @staticmethod
+    def extract_api_gateway_lambda_authorizers(openapi_spec):
+        api_gateway_lambdas_arns = set()
+        security_schemas = deep_get(openapi_spec, SECURITY_SCHEMAS_DEEP_KEY, {})
+        for schema_data in security_schemas.values():
+            authorizer = schema_data.get("x-amazon-apigateway-authorizer")
+            if not authorizer or not authorizer.get("authorizerUri"):
+                continue
+            uri = authorizer.get("authorizerUri")
+            try:
+                lambda_arn = uri.split('/functions/')[1].split('/')[0]
+            except IndexError:
+                _LOG.warning(f"Invalid lambda arn in authorizer uri {uri}")
+                continue
+
+            api_gateway_lambdas_arns.add(lambda_arn)
         return api_gateway_lambdas_arns
