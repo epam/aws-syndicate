@@ -10,7 +10,7 @@
 
     <properties>
         <maven-shade-plugin.version>3.2.0</maven-shade-plugin.version>
-        <deployment-configuration-annotations.version>1.10.0</deployment-configuration-annotations.version>
+        <syndicate.java.plugin.version>1.11.0</syndicate.java.plugin.version>
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -18,11 +18,6 @@
     </properties>
 
     <dependencies>
-        <dependency>
-            <groupId>org.apache.commons</groupId>
-            <artifactId>commons-lang3</artifactId>
-            <version>3.14.0</version>
-        </dependency>
         <!--AWS dependencies-->
         <dependency>
             <groupId>com.amazonaws</groupId>
@@ -38,7 +33,7 @@
         <dependency>
             <groupId>net.sf.aws-syndicate</groupId>
             <artifactId>deployment-configuration-annotations</artifactId>
-            <version>${deployment-configuration-annotations.version}</version>
+            <version>${syndicate.java.plugin.version}</version>
         </dependency>
         <!--Custom dependencies (for sdk layer)-->
         <dependency>
@@ -63,7 +58,7 @@
             <plugin>
                 <groupId>net.sf.aws-syndicate</groupId>
                 <artifactId>deployment-configuration-maven-plugin</artifactId>
-                <version>${deployment-configuration-annotations.version}</version>
+                <version>${syndicate.java.plugin.version}</version>
                 <configuration>
                     <packages>
                         <package>com.aws.lambda</package>
