@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [1.12.0] - 2024-01-30
+### Added
+- The @LambdaHandler annotation for Java plugin improved to support the lambda 'architecture' management
+- The Java example 'java-layer-url' extended to use Lambda architecture management
+### Changed
+- The deployment-configuration-processor version bumped to 1.11.0
+
 # [1.11.0] - 2024-01-26
 - Implemented lambda function processor architecture type management
 
