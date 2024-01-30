@@ -369,14 +369,6 @@ class ApiGatewayResource(BaseResource):
         api_lambdas_arns = self.extract_api_gateway_lambdas_arns(
             openapi_context)
         self.create_lambdas_permissions(api_id, api_lambdas_arns)
-        lambda_authorizers = self.extract_api_gateway_lambda_authorizers(
-            openapi_context)
-        for lambda_arn in lambda_authorizers:
-            self.lambda_res.add_invocation_permission(
-                statement_id=api_id,
-                name=lambda_arn,
-                principal='apigateway.amazonaws.com'
-            )
 
         return self.describe_api_resources(api_id=api_id, meta=meta, name=name)
 
@@ -390,7 +382,7 @@ class ApiGatewayResource(BaseResource):
         self.connection.deploy_api(api_id, deploy_stage)
 
         api_lambdas_arns = self.extract_api_gateway_lambdas_arns(openapi_context)
-        self.update_lambdas_permissions(api_id, api_lambdas_arns)
+        self.create_lambdas_permissions(api_id, api_lambdas_arns)
 
         return self.describe_api_resources(api_id=api_id, meta=meta, name=name)
 
@@ -444,46 +436,16 @@ class ApiGatewayResource(BaseResource):
         return True, api_source_arn
 
     def create_lambdas_permissions(self, api_gateway_id, api_lambdas_arns):
-        for lambda_arn, routes in api_lambdas_arns.items():
-            for route in routes:
-                method = route.get("method")
-                path = route.get("path")
-                self.add_route_permission_to_lambda(
-                    api_gateway_id,
-                    lambda_arn,
-                    method,
-                    path
-                )
-
-    def update_lambdas_permissions(self, api_gateway_id, api_lambdas_arns):
-
-        for lambda_arn, routes in api_lambdas_arns.items():
-            existing_permissions = self.get_lambda_permissions_for_api(
-                lambda_arn, api_gateway_id)
-
-            existing_permissions = {
-                deep_get(perm, SOURCE_ARN_DEEP_KEY): perm.get('Sid')
-                for perm in existing_permissions
-            }
-
-            for route in routes:
-                method = route.get("method")
-                path = route.get("path")
-                is_added, api_source_arn = self.add_route_permission_to_lambda(
-                    api_gateway_id,
-                    lambda_arn,
-                    method,
-                    path
-                )
-                if not is_added and api_source_arn in existing_permissions:
-                    del existing_permissions[api_source_arn]
-
-            self.lambda_res.remove_permissions(lambda_arn,
-                                               existing_permissions.values())
+        for lambda_arn in api_lambdas_arns:
+            self.add_route_permission_to_lambda(
+                api_gateway_id,
+                lambda_arn,
+                "*",
+                "/*"
+            )
 
     def remove_lambdas_permissions(self, api_gateway_id, api_lambdas_arns):
-
-        for lambda_arn, routes in api_lambdas_arns.items():
+        for lambda_arn in api_lambdas_arns:
             existing_permissions = self.get_lambda_permissions_for_api(
                 lambda_arn, api_gateway_id)
 
@@ -1054,7 +1016,7 @@ class ApiGatewayResource(BaseResource):
 
     @staticmethod
     def extract_api_gateway_lambdas_arns(openapi_spec):
-        api_gateway_lambdas_arns = {}
+        api_gateway_lambdas_arns = {*()}
 
         for path, path_item in openapi_spec.get('paths', {}).items():
             for method, method_data in path_item.items():
@@ -1068,19 +1030,8 @@ class ApiGatewayResource(BaseResource):
                     _LOG.warning(f"Invalid lambda arn in integration uri {uri}")
                     continue
 
-                if not api_gateway_lambdas_arns.get(lambda_arn):
-                    api_gateway_lambdas_arns[lambda_arn] = []
+                api_gateway_lambdas_arns.add(lambda_arn)
 
-                api_gateway_lambdas_arns[lambda_arn].append({
-                    "path": path,
-                    "method": method
-                })
-
-        return api_gateway_lambdas_arns
-
-    @staticmethod
-    def extract_api_gateway_lambda_authorizers(openapi_spec):
-        api_gateway_lambdas_arns = set()
         security_schemas = deep_get(openapi_spec, SECURITY_SCHEMAS_DEEP_KEY, {})
         for schema_data in security_schemas.values():
             authorizer = schema_data.get("x-amazon-apigateway-authorizer")
