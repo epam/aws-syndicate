@@ -19,6 +19,7 @@ package com.syndicate.deployment.annotations.lambda;
 
 import com.syndicate.deployment.annotations.DeploymentResource;
 import com.syndicate.deployment.model.DeploymentRuntime;
+import com.syndicate.deployment.model.Architecture;
 import com.syndicate.deployment.model.LambdaSnapStart;
 import com.syndicate.deployment.model.RegionScope;
 import com.syndicate.deployment.model.TracingMode;
@@ -46,6 +47,8 @@ public @interface LambdaHandler {
     String methodName() default "";
 
     DeploymentRuntime runtime() default DeploymentRuntime.JAVA8;
+
+    Architecture architecture() default Architecture.X86_64;
 
     int timeout() default 300;
 

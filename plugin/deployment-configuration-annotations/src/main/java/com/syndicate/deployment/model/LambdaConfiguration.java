@@ -61,6 +61,9 @@ public class LambdaConfiguration {
     @JsonProperty("runtime")
     private DeploymentRuntime runtime;
 
+    @JsonProperty("architecture")
+    private Architecture architecture;
+
     @JsonProperty("iam_role_name")
     private String role;
 
@@ -161,6 +164,10 @@ public class LambdaConfiguration {
 
     public DeploymentRuntime getRuntime() {
         return runtime;
+    }
+
+    public Architecture getArchitecture() {
+        return architecture;
     }
 
     public String getRole() {
@@ -328,6 +335,12 @@ public class LambdaConfiguration {
             return this;
         }
 
+        public Builder withArchitecture(Architecture architecture) {
+            Objects.requireNonNull(architecture, "Architecture cannot be null");
+            configuration.architecture = architecture;
+            return this;
+        }
+
         public Builder withRole(String role) {
             Objects.requireNonNull(role, "Role cannot be null");
             configuration.role = role;
@@ -437,6 +450,7 @@ public class LambdaConfiguration {
             Objects.requireNonNull(configuration.packageName, "Package name cannot be null");
             Objects.requireNonNull(configuration.resourceType, "ResourceType cannot be null");
             Objects.requireNonNull(configuration.runtime, "DeploymentRuntime cannot be null");
+            Objects.requireNonNull(configuration.architecture, "Architecture cannot be null");
             Objects.requireNonNull(configuration.role, "Role cannot be null");
             if (configuration.memory <= 0) {
                 throw new InvalidParameterException("Memory cannot be negative or 0");
@@ -468,6 +482,7 @@ public class LambdaConfiguration {
                 ", concurrentExecutions=" + concurrentExecutions +
                 ", resourceType=" + resourceType +
                 ", runtime=" + runtime +
+                ", architecture=" + architecture +
                 ", role='" + role + '\'' +
                 ", memory=" + memory +
                 ", timeout=" + timeout +

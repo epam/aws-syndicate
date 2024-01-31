@@ -225,7 +225,7 @@ class ApiGatewayResource(BaseResource):
                         'cache_ttl_sec')
                     encrypt_cache_data = cache_configuration.get(
                         'encrypt_cache_data')
-                    if cache_ttl_setting:
+                    if cache_ttl_setting is not None:
                         _LOG.info(
                             'Configuring cache for {0}; TTL: {1}'.format(
                                 resource_path, cache_ttl_setting))
@@ -481,7 +481,7 @@ class ApiGatewayResource(BaseResource):
                 'cache_ttl_sec')
             encrypt_cache_data = cache_cluster_configuration.get(
                 'encrypt_cache_data')
-            if cluster_cache_ttl_sec:
+            if cluster_cache_ttl_sec is not None:
                 patch_operations.append({
                     'op': 'replace',
                     'path': '/*/*/caching/ttlInSeconds',

@@ -10,6 +10,7 @@ import com.google.gson.Gson;
 import com.syndicate.deployment.annotations.LambdaUrlConfig;
 import com.syndicate.deployment.annotations.lambda.LambdaHandler;
 import com.syndicate.deployment.annotations.lambda.LambdaLayer;
+import com.syndicate.deployment.model.Architecture;
 import com.syndicate.deployment.model.ArtifactExtension;
 import com.syndicate.deployment.model.DeploymentRuntime;
 import com.syndicate.deployment.model.lambda.url.AuthType;
@@ -22,7 +23,9 @@ import java.util.Optional;
 @LambdaHandler(
         lambdaName = "hello-lambda",
         roleName = "hello-lambda-role",
-        layers = {"sdk-layer"}
+        layers = {"sdk-layer"},
+        runtime = DeploymentRuntime.JAVA11,
+        architecture = Architecture.ARM64
 )
 @LambdaLayer(
         layerName = "sdk-layer",
