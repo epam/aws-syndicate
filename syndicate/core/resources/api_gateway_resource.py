@@ -399,49 +399,15 @@ class ApiGatewayResource(BaseResource):
 
         return filtered_permissions
 
-    def add_route_permission_to_lambda(self, api_gateway_id, lambda_arn, method,
-                                       path):
-        api_source_arn = (f'arn:aws:execute-api:{self.region}:'
-                          f'{self.account_id}:{api_gateway_id}'
-                          f'/*/{method.upper()}{path}')
-
-        _id = f'{lambda_arn}-{api_source_arn}'
-        statement_id = md5(_id.encode('utf-8')).hexdigest()
-
-        response: dict = self.lambda_res.add_invocation_permission(
-            name=lambda_arn,
-            principal='apigateway.amazonaws.com',
-            source_arn=api_source_arn,
-            statement_id=statement_id,
-            exists_ok=True
-        )
-
-        if response is None:
-            message = f'Permission: \'{statement_id}\' attached to ' \
-                      f'\'{lambda_arn}\' lambda to allow ' \
-                      f'lambda:InvokeFunction for ' \
-                      f'apigateway.amazonaws.com principal from ' \
-                      f'\'{api_source_arn}\' SourceArn already exists.'
-            _LOG.debug(message + ' Skipping.')
-
-            return False, api_source_arn
-
-        message = f'Permission: \'{statement_id}\' attached to ' \
-                  f'\'{lambda_arn}\' lambda to allow ' \
-                  f'lambda:InvokeFunction for ' \
-                  f'apigateway.amazonaws.com principal from ' \
-                  f'\'{api_source_arn}\' SourceArn.'
-        _LOG.debug(message)
-
-        return True, api_source_arn
-
     def create_lambdas_permissions(self, api_gateway_id, api_lambdas_arns):
+        api_source_arn = (f'arn:aws:execute-api:{self.region}:'
+                          f'{self.account_id}:{api_gateway_id}/*/*/*')
         for lambda_arn in api_lambdas_arns:
-            self.add_route_permission_to_lambda(
-                api_gateway_id,
-                lambda_arn,
-                "*",
-                "/*"
+            self.lambda_res.add_invocation_permission(
+                name=lambda_arn,
+                principal='apigateway.amazonaws.com',
+                source_arn=api_source_arn,
+                exists_ok=True
             )
 
     def remove_lambdas_permissions(self, api_gateway_id, api_lambdas_arns):
