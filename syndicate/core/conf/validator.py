@@ -17,7 +17,7 @@ import datetime
 import os
 import re
 from syndicate.core.conf.bucket_view import NAMED_S3_URI_PATTERN
-from syndicate.commons.log_helper import get_logger, get_user_logger
+from syndicate.commons.log_helper import get_user_logger
 
 MIN_BUCKET_NAME_LEN = 3
 MAX_BUCKET_NAME_LEN = 63
