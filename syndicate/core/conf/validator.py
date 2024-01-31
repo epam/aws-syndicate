@@ -17,6 +17,7 @@ import datetime
 import os
 import re
 from syndicate.core.conf.bucket_view import NAMED_S3_URI_PATTERN
+from syndicate.commons.log_helper import get_user_logger
 
 MIN_BUCKET_NAME_LEN = 3
 MAX_BUCKET_NAME_LEN = 63
@@ -43,6 +44,7 @@ DEPLOY_TARGET_BUCKET_CFG = 'deploy_target_bucket'
 PROJECTS_MAPPING_CFG = 'build_projects_mapping'
 RESOURCES_SUFFIX_CFG = 'resources_suffix'
 RESOURCES_PREFIX_CFG = 'resources_prefix'
+IAM_SUFFIX_CFG = 'iam_suffix'
 EXTENDED_PREFIX_MODE_CFG = 'extended_prefix_mode'
 EXTENDED_PREFIX_PATTERN = '^[a-z0-9-]+$'
 
@@ -67,6 +69,9 @@ ALLOWED_RUNTIME_LANGUAGES = [PYTHON_LANGUAGE_NAME,
                              NODEJS_LANGUAGE_NAME]
 
 REQUIRED_PARAM_ERROR = 'The required key {} is missing'
+UNKNOWN_PARAM_MESSAGE = 'Unknown parameter(s) in the configuration file: {}'
+
+USER_LOG = get_user_logger()
 
 
 class ConfigValidator:
@@ -105,6 +110,10 @@ class ConfigValidator:
             RESOURCES_SUFFIX_CFG: {
                 REQUIRED: False,
                 VALIDATOR: self._validate_resources_prefix_suffix},
+            IAM_SUFFIX_CFG: {
+                REQUIRED: False,
+                VALIDATOR: self._validate_resources_prefix_suffix
+            },
             EXTENDED_PREFIX_MODE_CFG: {
                 REQUIRED: False,
                 VALIDATOR: self._validate_extended_prefix_mode
@@ -153,12 +162,10 @@ class ConfigValidator:
 
     def validate(self):
         error_messages = {}
-        impostors = set(self._config_dict.keys()) - set(
+        unknown_params = set(self._config_dict.keys()) - set(
             self._fields_validators_mapping.keys())
-        if impostors:
-            raise AssertionError(
-                f'There is no validator for the configuration fields: '
-                f'{impostors}')
+        if unknown_params:
+            USER_LOG.warn(UNKNOWN_PARAM_MESSAGE.format(unknown_params))
 
         for key, validation_rules in self._fields_validators_mapping.items():
             value = self._config_dict.get(key)

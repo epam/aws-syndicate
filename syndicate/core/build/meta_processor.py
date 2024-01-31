@@ -419,7 +419,7 @@ def create_meta(project_path, bundle_name):
 
 def resolve_meta(overall_meta):
     from syndicate.core import CONFIG
-    iam_suffix = _resolve_iam_suffix(iam_suffix=CONFIG.iam_suffix)
+    iam_suffix = CONFIG.iam_suffix
     extended_prefix_mode = CONFIG.extended_prefix_mode
     overall_meta = _resolve_aliases(overall_meta)
     _LOG.debug('Resolved meta was created')
@@ -495,27 +495,3 @@ def _resolve_suffix_name(resource_name, resource_suffix):
     if resource_suffix:
         return resource_name + resolve_aliases_for_string(resource_suffix)
     return resource_name
-
-
-def _resolve_iam_suffix(suffix_len=DEFAULT_IAM_SUFFIX_LENGTH, iam_suffix=None):
-    """
-    This method adds additional suffix to iam roles.
-    The suffix could be passed to the method. Otherwise it will be generated
-    as a random string with the combination of lowercase letters.
-    """
-    if not iam_suffix:
-        return None
-    if suffix_len > DEFAULT_IAM_SUFFIX_LENGTH:
-        raise AssertionError(
-            'Additional suffix for IAM roles should be maximum'
-            '{0} symbols in length. Provided: {1}'.format(
-                DEFAULT_IAM_SUFFIX_LENGTH, suffix_len))
-
-    # check and use provided
-    provided_max_len = DEFAULT_IAM_SUFFIX_LENGTH
-    if len(iam_suffix) > provided_max_len:
-        raise AssertionError(
-            'Provided additional suffix for IAM roles should be maximum'
-            '{0} symbols in length. Provided len: {1}; Suffix: {2}'.format(
-                provided_max_len, len(iam_suffix), iam_suffix))
-    return iam_suffix
