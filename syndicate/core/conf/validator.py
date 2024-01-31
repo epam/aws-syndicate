@@ -17,6 +17,7 @@ import datetime
 import os
 import re
 from syndicate.core.conf.bucket_view import NAMED_S3_URI_PATTERN
+from syndicate.commons.log_helper import get_logger, get_user_logger
 
 MIN_BUCKET_NAME_LEN = 3
 MAX_BUCKET_NAME_LEN = 63
@@ -68,6 +69,9 @@ ALLOWED_RUNTIME_LANGUAGES = [PYTHON_LANGUAGE_NAME,
                              NODEJS_LANGUAGE_NAME]
 
 REQUIRED_PARAM_ERROR = 'The required key {} is missing'
+UNKNOWN_PARAM_MESSAGE = 'Unknown parameter(s) in the configuration file: {}'
+
+USER_LOG = get_user_logger()
 
 
 class ConfigValidator:
@@ -161,9 +165,7 @@ class ConfigValidator:
         unknown_params = set(self._config_dict.keys()) - set(
             self._fields_validators_mapping.keys())
         if unknown_params:
-            raise AssertionError(
-                f'Unknown parameter(s) in the configuration file: '
-                f'{unknown_params}')
+            USER_LOG.warn(UNKNOWN_PARAM_MESSAGE.format(unknown_params))
 
         for key, validation_rules in self._fields_validators_mapping.items():
             value = self._config_dict.get(key)
