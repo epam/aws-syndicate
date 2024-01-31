@@ -86,6 +86,13 @@ class LambdaResource(BaseResource):
     def qualifier_alias_resolver(self, lambda_def):
         return lambda_def['Alias']
 
+    def get_existing_permissions(self, lambda_arn):
+        return self.lambda_conn.get_existing_permissions(lambda_arn)
+
+    def remove_permissions(self, lambda_arn, permissions_sids):
+        return self.lambda_conn.remove_permissions(lambda_arn,
+                                                   permissions_sids)
+
     def qualifier_version_resolver(self, lambda_def):
         latest_version_number = lambda_def['Configuration']['Version']
         if 'LATEST' in latest_version_number:

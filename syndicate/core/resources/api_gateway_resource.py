@@ -19,12 +19,18 @@ from hashlib import md5
 
 from botocore.exceptions import ClientError
 
+from syndicate.commons import deep_get
 from syndicate.commons.log_helper import get_logger
+from syndicate.core.constants import (
+    SOURCE_ARN_DEEP_KEY, SECURITY_SCHEMAS_DEEP_KEY
+)
 from syndicate.core.helper import unpack_kwargs
 from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import (build_description_obj,
                                              validate_params)
-from syndicate.connection.api_gateway_connection import ApiGatewayV2Connection
+from syndicate.connection.api_gateway_connection import ApiGatewayV2Connection, \
+    ApiGatewayConnection
+from syndicate.core.resources.lambda_resource import LambdaResource
 
 API_REQUIRED_PARAMS = ['resources', 'deploy_stage']
 
@@ -65,8 +71,10 @@ _REQUEST_VALIDATORS = {
 
 class ApiGatewayResource(BaseResource):
 
-    def __init__(self, apigw_conn, apigw_v2_conn: ApiGatewayV2Connection,
-                 lambda_res, cognito_res, account_id, region) -> None:
+    def __init__(self, apigw_conn: ApiGatewayConnection,
+                 apigw_v2_conn: ApiGatewayV2Connection,
+                 lambda_res: LambdaResource,
+                 cognito_res, account_id, region) -> None:
         self.connection = apigw_conn
         self.lambda_res = lambda_res
         self.cognito_res = cognito_res
@@ -120,8 +128,19 @@ class ApiGatewayResource(BaseResource):
         """
         return self.create_pool(self._create_api_gateway_from_meta, args, 1)
 
+    def create_api_gateway_openapi(self, args):
+        """ Create OpenAPI api gateway in pool in sub processes.
+
+        :type args: list
+        """
+        return self.create_pool(self._create_api_gateway_openapi_from_meta,
+                                args, 1)
+
     def api_gateway_update_processor(self, args):
         return self.create_pool(self._create_or_update_api_gateway, args, 1)
+
+    def update_api_gateway_openapi(self, args):
+        return self.create_pool(self._update_api_gateway_openapi_from_meta, args, 1)
 
     @unpack_kwargs
     def _create_or_update_api_gateway(self, name, meta,
@@ -339,6 +358,73 @@ class ApiGatewayResource(BaseResource):
         self.__deploy_api_gateway(api_id, meta, api_resources)
         return self.describe_api_resources(api_id=api_id, meta=meta, name=name)
 
+    @unpack_kwargs
+    def _create_api_gateway_openapi_from_meta(self, name, meta):
+        openapi_context = meta.get('definition')
+        deploy_stage = meta.get('deploy_stage')
+
+        api_id = self.connection.create_openapi(openapi_context)
+        self.connection.deploy_api(api_id, deploy_stage)
+
+        api_lambdas_arns = self.extract_api_gateway_lambdas_arns(
+            openapi_context)
+        self.create_lambdas_permissions(api_id, api_lambdas_arns)
+
+        return self.describe_api_resources(api_id=api_id, meta=meta, name=name)
+
+    @unpack_kwargs
+    def _update_api_gateway_openapi_from_meta(self, name, meta, context):
+        api_id = self.connection.get_api_id(name)
+        openapi_context = meta.get('definition')
+        deploy_stage = meta.get('deploy_stage')
+
+        self.connection.update_openapi(api_id, openapi_context)
+        self.connection.deploy_api(api_id, deploy_stage)
+
+        api_lambdas_arns = self.extract_api_gateway_lambdas_arns(openapi_context)
+        self.create_lambdas_permissions(api_id, api_lambdas_arns)
+
+        return self.describe_api_resources(api_id=api_id, meta=meta, name=name)
+
+    def get_lambda_permissions_for_api(self, lambda_arn, api_gateway_id):
+        permissions = self.lambda_res.get_existing_permissions(lambda_arn)
+        # Filter the permissions related to the specific API Gateway
+        filtered_permissions = [
+            statement for statement in permissions
+            if deep_get(
+                statement, SOURCE_ARN_DEEP_KEY, ""
+            ).startswith('arn:aws:execute-api:') and api_gateway_id in deep_get(
+                statement, SOURCE_ARN_DEEP_KEY, "")
+        ]
+
+        return filtered_permissions
+
+    def create_lambdas_permissions(self, api_gateway_id, api_lambdas_arns):
+        api_source_arn = (f'arn:aws:execute-api:{self.region}:'
+                          f'{self.account_id}:{api_gateway_id}/*/*/*')
+        for lambda_arn in api_lambdas_arns:
+            _id = f'{lambda_arn}-{api_source_arn}'
+            statement_id = md5(_id.encode('utf-8')).hexdigest()
+            self.lambda_res.add_invocation_permission(
+                name=lambda_arn,
+                principal='apigateway.amazonaws.com',
+                source_arn=api_source_arn,
+                statement_id=statement_id,
+                exists_ok=True
+            )
+
+    def remove_lambdas_permissions(self, api_gateway_id, api_lambdas_arns):
+        for lambda_arn in api_lambdas_arns:
+            existing_permissions = self.get_lambda_permissions_for_api(
+                lambda_arn, api_gateway_id)
+
+            existing_permissions = {
+                deep_get(perm, SOURCE_ARN_DEEP_KEY): perm.get('Sid')
+                for perm in existing_permissions
+            }
+            self.lambda_res.remove_permissions(lambda_arn,
+                                               existing_permissions.values())
+
     @staticmethod
     def get_deploy_stage_name(stage_name=None):
         return stage_name if stage_name else 'prod'
@@ -440,6 +526,10 @@ class ApiGatewayResource(BaseResource):
         return {
             arn: build_description_obj(response, name, meta)
         }
+
+    def describe_openapi(self, api_id, stage_name):
+        response = self.connection.describe_openapi(api_id, stage_name)
+        return json.loads(response['body'].read().decode("utf-8"))
 
     def _check_existing_methods(self, api_id, resource_id, resource_path,
                                 resource_meta,
@@ -744,6 +834,12 @@ class ApiGatewayResource(BaseResource):
             # wait for success deletion
             time.sleep(60)
 
+    def remove_api_gateways_openapi(self, args):
+        for arg in args:
+            self._remove_api_gateway_openapi(**arg)
+            # wait for success deletion
+            time.sleep(60)
+
     def _remove_invocation_permissions_from_lambdas(self, config):
         api_id = config['description']['id']
         _LOG.info(fr'Removing invocation permissions for api {api_id}')
@@ -774,6 +870,22 @@ class ApiGatewayResource(BaseResource):
         except ClientError as e:
             if e.response['Error']['Code'] == 'NotFoundException':
                 _LOG.warn('API Gateway %s is not found', api_id)
+            else:
+                raise e
+
+    def _remove_api_gateway_openapi(self, arn, config):
+        api_id = config['description']['id']
+        stage_name = config["resource_meta"]["deploy_stage"]
+        openapi_context = self.describe_openapi(api_id, stage_name)
+        api_lambdas_arns = self.extract_api_gateway_lambdas_arns(
+            openapi_context)
+        self.remove_lambdas_permissions(api_id, api_lambdas_arns)
+        try:
+            self.connection.remove_api(api_id)
+            _LOG.info(f'API Gateway {api_id} was removed.')
+        except ClientError as e:
+            if e.response['Error']['Code'] == 'NotFoundException':
+                _LOG.warning('API Gateway %s is not found', api_id)
             else:
                 raise e
 
@@ -870,3 +982,36 @@ class ApiGatewayResource(BaseResource):
             return
         self.apigw_v2.delete_api(api_id)
         return
+
+    @staticmethod
+    def extract_api_gateway_lambdas_arns(openapi_spec):
+        api_gateway_lambdas_arns = {*()}
+
+        for path, path_item in openapi_spec.get('paths', {}).items():
+            for method, method_data in path_item.items():
+                integration = method_data.get('x-amazon-apigateway-integration')
+                if not integration or not integration.get('uri'):
+                    continue
+                uri = integration.get('uri')
+                try:
+                    lambda_arn = uri.split('/functions/')[1].split('/')[0]
+                except IndexError:
+                    _LOG.warning(f"Invalid lambda arn in integration uri {uri}")
+                    continue
+
+                api_gateway_lambdas_arns.add(lambda_arn)
+
+        security_schemas = deep_get(openapi_spec, SECURITY_SCHEMAS_DEEP_KEY, {})
+        for schema_data in security_schemas.values():
+            authorizer = schema_data.get("x-amazon-apigateway-authorizer")
+            if not authorizer or not authorizer.get("authorizerUri"):
+                continue
+            uri = authorizer.get("authorizerUri")
+            try:
+                lambda_arn = uri.split('/functions/')[1].split('/')[0]
+            except IndexError:
+                _LOG.warning(f"Invalid lambda arn in authorizer uri {uri}")
+                continue
+
+            api_gateway_lambdas_arns.add(lambda_arn)
+        return api_gateway_lambdas_arns
