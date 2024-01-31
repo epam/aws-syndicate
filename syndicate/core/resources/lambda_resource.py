@@ -1030,6 +1030,8 @@ class LambdaResource(BaseResource):
             args['description'] = meta['description']
         if meta.get('license'):
             args['layer_license'] = meta['license']
+        if meta.get('architectures'):
+            args['architectures'] = meta['architectures']
         response = self.lambda_conn.create_layer(**args)
 
         _LOG.info(

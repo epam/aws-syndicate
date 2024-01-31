@@ -621,7 +621,7 @@ class LambdaConnection(object):
         )
 
     def create_layer(self, layer_name, s3_bucket, s3_key, runtimes,
-                     description=None,
+                     description=None, architectures=None,
                      layer_license=None):
         kwargs = {'LayerName': layer_name, 'CompatibleRuntimes': runtimes,
                   'Content': {'S3Bucket': s3_bucket, 'S3Key': s3_key}}
@@ -629,6 +629,8 @@ class LambdaConnection(object):
             kwargs['Description'] = description
         if layer_license:
             kwargs['LicenseInfo'] = layer_license
+        if architectures:
+            kwargs['CompatibleArchitectures'] = architectures
         return self.client.publish_layer_version(**kwargs)
 
     def get_lambda_layer_arn(self, name):
