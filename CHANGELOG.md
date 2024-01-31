@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 # [1.12.0] - 2024-01-30
 ### Added
 - The @LambdaHandler annotation for Java plugin improved to support the lambda 'architecture' management
+- The @LambdaLayer annotation for Java plugin improved to support the lambda 'architectures' management
 - The Java example 'java-layer-url' extended to use Lambda architecture management
 ### Changed
 - The deployment-configuration-processor version bumped to 1.11.0
