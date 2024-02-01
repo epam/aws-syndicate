@@ -416,8 +416,16 @@ class CfApiGatewayConverter(CfResourceConverter):
             stage.CacheClusterSize = cache_cluster_size
         if cache_cluster_enabled:
             cache_ttl_sec = cache_cluster_configuration.get('cache_ttl_sec')
+            throttling_rate_limit = cache_cluster_configuration.get(
+                'throttling_rate_limit')
+            throttling_burst_limit = cache_cluster_configuration.get(
+                'throttling_burst_limit')
             if cache_ttl_sec is not None:
                 stage.CacheTtlInSeconds = cache_ttl_sec
+            if throttling_rate_limit is not None:
+                stage.ThrottlingRateLimit = throttling_rate_limit
+            if throttling_burst_limit is not None:
+                stage.ThrottlingBurstLimit = throttling_burst_limit
         deployment.StageDescription = stage
         deployment.RestApiId = Ref(rest_api)
         deployment.StageName = stage_name

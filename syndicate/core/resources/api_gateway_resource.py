@@ -206,6 +206,10 @@ class ApiGatewayResource(BaseResource):
                         'cache_ttl_sec')
                     encrypt_cache_data = cache_configuration.get(
                         'encrypt_cache_data')
+                    throttling_rate_limit = cache_configuration.get(
+                        'throttling_rate_limit')
+                    throttling_burst_limit = cache_configuration.get(
+                        'throttling_burst_limit')
                     if cache_ttl_setting is not None:
                         _LOG.info(
                             'Configuring cache for {0}; TTL: {1}'.format(
@@ -235,6 +239,22 @@ class ApiGatewayResource(BaseResource):
                                     method_name),
                                 'value': 'true' if bool(
                                     encrypt_cache_data) else 'false'
+                            })
+                        if throttling_rate_limit is not None:
+                            patch_operations.append({
+                                    'op': 'replace',
+                                    'path': '/{0}/{1}/throttling/rateLimit'
+                                            ''.format(escaped_resource,
+                                                      method_name),
+                                    'value': str(throttling_rate_limit),
+                            })
+                        if throttling_burst_limit is not None:
+                            patch_operations.append({
+                                    'op': 'replace',
+                                    'path': '/{0}/{1}/throttling/burstLimit'
+                                            ''.format(escaped_resource,
+                                                      method_name),
+                                    'value': str(throttling_burst_limit),
                             })
                         self.connection.update_configuration(
                             rest_api_id=api_id,
@@ -364,6 +384,10 @@ class ApiGatewayResource(BaseResource):
                 'cache_ttl_sec')
             encrypt_cache_data = cache_cluster_configuration.get(
                 'encrypt_cache_data')
+            throttling_rate_limit = cache_cluster_configuration.get(
+                'throttling_rate_limit')
+            throttling_burst_limit = cache_cluster_configuration.get(
+                'throttling_burst_limit')
             if cluster_cache_ttl_sec is not None:
                 patch_operations.append({
                     'op': 'replace',
@@ -375,6 +399,18 @@ class ApiGatewayResource(BaseResource):
                     'op': 'replace',
                     'path': '/*/*/caching/dataEncrypted',
                     'value': 'true' if bool(encrypt_cache_data) else 'false'
+                })
+            if throttling_rate_limit is not None:
+                patch_operations.append({
+                    'op': 'replace',
+                    'path': '/*/*/throttling/rateLimit',
+                    'value': str(throttling_rate_limit),
+                })
+            if throttling_burst_limit is not None:
+                patch_operations.append({
+                    'op': 'replace',
+                    'path': '/*/*/throttling/burstLimit',
+                    'value': str(throttling_burst_limit),
                 })
             if patch_operations:
                 self.connection.update_configuration(
