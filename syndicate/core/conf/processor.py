@@ -399,7 +399,7 @@ def resole_conf_file_types(**params):
     project_mapping = p.pop('build_projects_mapping', None)
     if project_mapping:
         parts = project_mapping.split(':')
-        project_mapping = {parts[0]: parts[1]}
+        project_mapping = {parts[0]: [parts[1]]}
         result.update({'build_projects_mapping': project_mapping})
 
     session_duration = p.pop('session_duration', None)
@@ -450,13 +450,13 @@ def update_yaml_file_content(file_path, content):
 
 
 def update_conf_file_content(file_path, content):
-    file_content = load_conf_file_content(file_path)
-    file_content.update(content)
 
-    config = ConfigParser()
-    for key, val in file_content.items():
-        if not config.has_section('default'):
-            config.add_section('default')
+    config = ConfigParser(allow_no_value=True)
+    config.optionxform = str
+
+    config.read(file_path)
+
+    for key, val in content.items():
         config.set('default', key, str(val))
 
     with open(file_path, 'w') as f:
