@@ -242,15 +242,13 @@ class ConfigValidator:
                 if not paths:
                     errors.append(f'The path in {build_key} project '
                                   f'mapping not specified')
-
-                # TODO improve validation
-                # else:
-                #     for path in paths:
-                #         if not os.path.exists(os.path.join(
-                #                 project_path, path)):
-                #             errors.append(
-                #                 f'The path in {key}:{build_key} project '
-                #                 f'mapping does not exists: {path}')
+                else:
+                    for path in paths:
+                        if not os.path.exists(os.path.join(
+                                project_path, path)):
+                            errors.append(
+                                f'The path in {key}:{build_key} project '
+                                f'mapping does not exists: {path}')
         return errors
 
     def _validate_aws_access_key(self, key, value):
@@ -390,6 +388,12 @@ class ConfigValidator:
 
     @staticmethod
     def _validate_session_duration(key, value):
+        errors = []
+        try:
+            int(value)
+        except TypeError:
+            errors.append(f'{key} must be int, not {type(value)}')
+            return errors
         if not isinstance(value, int):
             return [f'\'{key}\' must a an integer']
         if value < 900:
