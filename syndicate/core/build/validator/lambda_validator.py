@@ -29,9 +29,9 @@ class LambdaValidator:
         ephemeral_storage = self._meta.get('ephemeral_storage')
         if ephemeral_storage:
             self._validate_ephemeral_storage(ephemeral_storage)
-        architecture = self._meta.get('architecture')
-        if architecture:
-            self._validate_architecture(architecture)
+        architectures = self._meta.get('architectures')
+        if architectures:
+            self._validate_architecture(architectures)
 
     def _error(self, message):
         raise AssertionError(message)
@@ -64,11 +64,12 @@ class LambdaValidator:
             self._error('Ephemeral storage size must be between '
                         '512 and 10240 MB')
 
-    def _validate_architecture(self, architecture):
-        if architecture not in LAMBDA_ARCHITECTURE_LIST:
-            self._error(f'Specified unsupported architecture: '
-                        f'"{architecture}". Currently supported '
-                        f'architectures: {LAMBDA_ARCHITECTURE_LIST}')
+    def _validate_architecture(self, architectures):
+        for architecture in architectures:
+            if architecture not in LAMBDA_ARCHITECTURE_LIST:
+                self._error(f'Specified unsupported architecture: '
+                            f'"{architecture}". Currently supported '
+                            f'architectures: {LAMBDA_ARCHITECTURE_LIST}')
 
 
 def validate_lambda(name, meta):

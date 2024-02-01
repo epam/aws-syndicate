@@ -318,7 +318,7 @@ class LambdaResource(BaseResource):
             layers=lambda_layers_arns,
             ephemeral_storage=ephemeral_storage,
             snap_start=self._resolve_snap_start(meta=meta),
-            architecture=meta.get('architecture')
+            architectures=meta.get('architectures')
         )
         _LOG.debug('Lambda created %s', name)
         # AWS sometimes returns None after function creation, needs for
