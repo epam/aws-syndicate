@@ -377,6 +377,46 @@ def load_yaml_file_content(file_path):
         return yaml.load(yaml_file, Loader=yaml.FullLoader)
 
 
+def resole_conf_file_types(**params):
+    p = params.copy()
+
+    result = {}
+
+    tags = p.pop('tags', None)
+    if tags:
+        tags_dict = {}
+        splitted_tags = tags.split(',')
+        for i in splitted_tags:
+            parts = i.split('=')
+            tags_dict.update({parts[0]: parts[1]})
+        result.update({'tags': tags_dict})
+
+    expiration = p.pop('expiration', None)
+    if expiration:
+        expiration = str_to_datetime(expiration)
+        result.update({'expiration': expiration})
+
+    project_mapping = p.pop('build_projects_mapping', None)
+    if project_mapping:
+        parts = project_mapping.split(':')
+        project_mapping = {parts[0]: parts[1]}
+        result.update({'build_projects_mapping': project_mapping})
+
+    session_duration = p.pop('session_duration', None)
+    if session_duration:
+        session_duration = int(session_duration)
+        result.update({'session_duration': session_duration})
+
+    use_remote_tenant_config = p.pop('use_remote_tenant_config', None)
+    if use_remote_tenant_config:
+        use_remote_tenant_config = str_to_bool(use_remote_tenant_config)
+        result.update({'use_remote_tenant_config': use_remote_tenant_config})
+
+    result.update(p)
+
+    return result
+
+
 def load_conf_file_content(file_path):
     if not os.path.isfile(file_path):
         raise AssertionError(f'There is no file by path: {file_path}')
@@ -388,13 +428,9 @@ def load_conf_file_content(file_path):
     config_dict = {}
 
     for section in config.sections():
-        if section == 'tags':
-            config_dict[section] = dict(config[section])
-        else:
-            section_dict = {
-                k: str_to_bool(v) if k != 'expiration' else str_to_datetime(v)
-                for k, v in dict(config[section]).items()}
-            config_dict.update(section_dict)
+        params = dict(config[section])
+        params = resole_conf_file_types(**params)
+        config_dict.update(params)
 
     return config_dict
 
@@ -419,14 +455,9 @@ def update_conf_file_content(file_path, content):
 
     config = ConfigParser()
     for key, val in file_content.items():
-        if type(val) is dict:
-            config.add_section(key)
-            for sub_key, sub_val in val.items():
-                config.set(key, sub_key, str(sub_val))
-        else:
-            if not config.has_section('default'):
-                config.add_section('default')
-            config.set('default', key, str(val))
+        if not config.has_section('default'):
+            config.add_section('default')
+        config.set('default', key, str(val))
 
     with open(file_path, 'w') as f:
         config.write(f)
