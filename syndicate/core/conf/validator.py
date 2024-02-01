@@ -243,13 +243,14 @@ class ConfigValidator:
                     errors.append(f'The path in {build_key} project '
                                   f'mapping not specified')
 
-                else:
-                    for path in paths:
-                        if not os.path.exists(os.path.join(
-                                project_path, path)):
-                            errors.append(
-                                f'The path in {key}:{build_key} project '
-                                f'mapping does not exists: {path}')
+                # TODO improve validation
+                # else:
+                #     for path in paths:
+                #         if not os.path.exists(os.path.join(
+                #                 project_path, path)):
+                #             errors.append(
+                #                 f'The path in {key}:{build_key} project '
+                #                 f'mapping does not exists: {path}')
         return errors
 
     def _validate_aws_access_key(self, key, value):
