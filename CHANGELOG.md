@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 # [1.13.1] - 2024-02-01
 - Lambda parameter `architecture` changed to `architectures`, and the value of the key changed to a list of string
+- Change the Java plugin @LambdaHandler annotation processor to produce the parameter `architectures` instead of `architecture`
 
 # [1.13.0] - 2024-01-31
 - Add support for OpenAPI v3 deploy, update and clean-up in API Gateway
