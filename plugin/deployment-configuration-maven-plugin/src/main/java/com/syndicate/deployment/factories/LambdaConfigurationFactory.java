@@ -21,6 +21,7 @@ import com.syndicate.deployment.annotations.lambda.LambdaConcurrency;
 import com.syndicate.deployment.annotations.lambda.LambdaHandler;
 import com.syndicate.deployment.annotations.lambda.LambdaProvisionedConcurrency;
 import com.syndicate.deployment.annotations.resources.DeadLetterConfiguration;
+import com.syndicate.deployment.model.Architecture;
 import com.syndicate.deployment.model.DependencyItem;
 import com.syndicate.deployment.model.LambdaConfiguration;
 import com.syndicate.deployment.model.ProvisionedConcurrency;
@@ -57,7 +58,7 @@ public final class LambdaConfigurationFactory {
                 .withRegionScope(lambdaHandler.regionScope()).withPackageName(packageName)
                 .withMemory(lambdaHandler.memory()).withTimeout(lambdaHandler.timeout())
                 .withRuntime(lambdaHandler.runtime()).withResourceType(ResourceType.LAMBDA)
-                .withArchitecture(lambdaHandler.architecture())
+                .withArchitectures(new Architecture[]{lambdaHandler.architecture()})
                 .withDependencies(dependencies).withEventSources(events)
                 .withVariables(variables).withSubnetIds(lambdaHandler.subnetsIds())
                 .withSecurityGroupIds(lambdaHandler.securityGroupIds())
