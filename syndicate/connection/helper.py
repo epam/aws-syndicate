@@ -93,6 +93,9 @@ def retry(handler_func):
                 sleep(each)
 
         if last_ex:
-            raise last_ex
+            raise Exception(
+                f"Maximum retries reached for function "
+                f"{handler_func.__name__} due to {type(last_ex).__name__}: "
+                f"{str(last_ex)}") from last_ex
 
     return wrapper
