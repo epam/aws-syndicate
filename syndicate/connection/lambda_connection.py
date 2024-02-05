@@ -60,7 +60,7 @@ class LambdaConnection(object):
 
     def create_lambda(self, lambda_name, func_name,
                       role, s3_bucket, s3_key, runtime='python3.10',
-                      memory=128, timeout=300, architecture=None,
+                      memory=128, timeout=300, architectures=None,
                       vpc_sub_nets=None, vpc_security_group=None,
                       env_vars=None, dl_target_arn=None, tracing_mode=None,
                       publish_version=False, layers=None,
@@ -69,7 +69,7 @@ class LambdaConnection(object):
         :type lambda_name: str
         :type func_name: str
         :param func_name: name of the entry point function
-        :param architecture: str function architecture type ['x86_64'|'arm64']
+        :param architectures: list function architecture type ['x86_64'|'arm64']
         :type role: str
         :param role: aws arn of role
         :type s3_bucket: str
@@ -113,9 +113,34 @@ class LambdaConnection(object):
             params['SnapStart'] = {
                 'ApplyOn': snap_start
             }
-        if architecture:
-            params['Architectures'] = [architecture]
+        if architectures:
+            params['Architectures'] = architectures
         return self.client.create_function(**params)
+
+    def get_existing_permissions(self, lambda_arn):
+        try:
+            # Retrieve the policy associated with the specified Lambda function
+            policy = self.client.get_policy(FunctionName=lambda_arn)
+            permissions = json.loads(policy['Policy']).get('Statement', [])
+
+            return permissions
+        except self.client.exceptions.ResourceNotFoundException:
+            _LOG.warning(f'Permissions for lambda {lambda_arn} are not found')
+            return []
+
+    def remove_permissions(self, lambda_arn, permissions_sids):
+        for permission_sid in permissions_sids:
+            try:
+                self.client.remove_permission(
+                    FunctionName=lambda_arn,
+                    StatementId=permission_sid
+                )
+                _LOG.debug(f"Permissions deleted: {permission_sid},"
+                           f" from lambda: {lambda_arn}")
+            except self.client.exceptions.ClientError as e:
+                _LOG.error(f"Can't delete permission: {permission_sid},"
+                           f" from lambda: {lambda_arn}. Error: {e}")
+                continue
 
     def set_url_config(self, function_name: str, qualifier: str = None,
                        auth_type: str = IAM_AUTH_TYPE, cors: dict = None,

@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [1.13.1] - 2024-02-01
+- Lambda parameter `architecture` changed to `architectures`, and the value of the key changed to a list of string
+- Change the Java plugin @LambdaHandler annotation processor to produce the parameter `architectures` instead of `architecture`
+
+# [1.13.0] - 2024-01-31
+- Add support for OpenAPI v3 deploy, update and clean-up in API Gateway
+- Implement permission setting for lambda functions in OpenAPI v3 implementations
+
 # [1.12.2] - 2024-01-31
 - Added validation for the configuration parameter `iam_suffix`
 - Added warning to logs in case of unknown parameters in the configuration file
@@ -14,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 # [1.12.0] - 2024-01-30
 ### Added
 - The @LambdaHandler annotation for Java plugin improved to support the lambda 'architecture' management
+- The @LambdaLayer annotation for Java plugin improved to support the lambda 'architectures' management
 - The Java example 'java-layer-url' extended to use Lambda architecture management
 ### Changed
 - The deployment-configuration-processor version bumped to 1.11.0
