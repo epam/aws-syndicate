@@ -87,20 +87,18 @@ def _check_duplicated_resources(initial_meta_dict, additional_item_name,
                         "API '{0}' has duplicated resource '{1}'! Please, "
                         "change name of one resource or remove one.".format(
                             additional_item_name, each))
-                    # check is APIs have once described cache configuration
-            initial_cache_config = initial_item.get(
-                'cluster_cache_configuration')
-            additional_cache_config = additional_item.get(
-                'cluster_cache_configuration')
-            if initial_cache_config and additional_cache_config:
-                raise AssertionError(
-                    "API '{0}' has duplicated cluster cache configurations. "
-                    "Please, remove one cluster cache configuration.".format(
-                        additional_item_name)
-                )
-            if initial_cache_config:
-                additional_item[
-                    'cluster_cache_configuration'] = initial_cache_config
+            # check if APIs have duplicated cluster configurations
+            for config in ['cluster_cache_configuration',
+                           'cluster_throttling_configuration']:
+                initial_config = initial_item.get(config)
+                additional_config = additional_item.get(config)
+                if initial_config and additional_config:
+                    raise AssertionError(
+                        "API '{0}' has duplicated {1}. Please, remove one "
+                        "configuration.".format(additional_item_name, config)
+                    )
+                if initial_config:
+                    additional_item[config] = initial_config
             # handle responses
             initial_responses = initial_item.get(
                 'api_method_responses')
