@@ -41,7 +41,8 @@ import java.util.Map;
 @LambdaHandler(lambdaName = "{lambda_name}",
 	roleName = "{lambda_role_name}",
 	isPublishVersion = true,
-	aliasName = "${lambdas_alias_name}"
+	aliasName = "${lambdas_alias_name}",
+	logsExpiration = RetentionSetting.SYNDICATE_ALIASES_SPECIFIED
 )
 public class {lambda_class_name} implements RequestHandler<Object, Map<String, Object>> {
 
