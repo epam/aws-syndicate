@@ -59,6 +59,7 @@ public final class LambdaConfigurationFactory {
                 .withMemory(lambdaHandler.memory()).withTimeout(lambdaHandler.timeout())
                 .withRuntime(lambdaHandler.runtime()).withResourceType(ResourceType.LAMBDA)
                 .withArchitectures(new Architecture[]{lambdaHandler.architecture()})
+                .withLogsExpirations(lambdaHandler.logsExpiration().getValue())
                 .withDependencies(dependencies).withEventSources(events)
                 .withVariables(variables).withSubnetIds(lambdaHandler.subnetsIds())
                 .withSecurityGroupIds(lambdaHandler.securityGroupIds())

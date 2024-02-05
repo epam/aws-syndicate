@@ -109,6 +109,9 @@ public class LambdaConfiguration {
     @JsonProperty("layers")
     private String[] layers;
 
+    @JsonProperty("logs_expiration")
+    private String logsExpiration;
+
     @JsonProperty("snap_start")
     private LambdaSnapStart snapStart;
 
@@ -257,6 +260,10 @@ public class LambdaConfiguration {
 
     public void setLayers(String[] layers) {
         this.layers = layers;
+    }
+
+    public void setLogsExpiration(String logsExpiration) {
+        this.logsExpiration = logsExpiration;
     }
 
     public LambdaSnapStart getSnapStart() {
@@ -439,6 +446,11 @@ public class LambdaConfiguration {
             if (resourceGroup != null && !resourceGroup.isEmpty()){
                 configuration.resourceGroup = resourceGroup;
             }
+            return this;
+        }
+
+        public Builder withLogsExpirations(String logsExpirations) {
+            configuration.logsExpiration = logsExpirations;
             return this;
         }
 
