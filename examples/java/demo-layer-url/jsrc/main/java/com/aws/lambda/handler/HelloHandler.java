@@ -13,6 +13,7 @@ import com.syndicate.deployment.annotations.lambda.LambdaLayer;
 import com.syndicate.deployment.model.Architecture;
 import com.syndicate.deployment.model.ArtifactExtension;
 import com.syndicate.deployment.model.DeploymentRuntime;
+import com.syndicate.deployment.model.RetentionSetting;
 import com.syndicate.deployment.model.lambda.url.AuthType;
 import com.syndicate.deployment.model.lambda.url.InvokeMode;
 import org.apache.commons.lang3.StringUtils;
@@ -25,7 +26,8 @@ import java.util.Optional;
         roleName = "hello-lambda-role",
         layers = {"sdk-layer"},
         runtime = DeploymentRuntime.JAVA11,
-        architecture = Architecture.ARM64
+        architecture = Architecture.ARM64,
+        logsExpiration = RetentionSetting.SYNDICATE_ALIASES_SPECIFIED
 )
 @LambdaLayer(
         layerName = "sdk-layer",
