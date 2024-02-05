@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [1.13.2] - 2024-02-05
+- Improve the  CloudWatch log groups `POSSIBLE_RETENTION_DAYS` constant to
+support all values.
+- Update and fix the retry decorator. In the event of maximum retries being reached,
+we now raise `Exception` detailing the function that failed and the cause.
+- Refactor the Lambda SQS Trigger Creation process to check for existing event
+source mapping, and update or create as needed.
+
 # [1.13.1] - 2024-02-01
 - Lambda parameter `architecture` changed to `architectures`, and the value of the key changed to a list of string
 - Change the Java plugin @LambdaHandler annotation processor to produce the parameter `architectures` instead of `architecture`
