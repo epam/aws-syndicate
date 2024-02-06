@@ -651,7 +651,7 @@ class ApiGatewayConnection(object):
                                                    responseType=response_type,
                                                    patchOperations=[operation])
 
-    def generate_sdk(self, api_id, stage_name='dev', sdk_type='javascript'):
+    def generate_sdk(self, api_id, stage_name='prod', sdk_type='javascript'):
         """ generates sdk of given type for specified stage of api gateway
         :param api_id: api gateway name
         :type api_id: str

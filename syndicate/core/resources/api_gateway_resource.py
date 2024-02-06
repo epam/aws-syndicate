@@ -470,7 +470,7 @@ class ApiGatewayResource(BaseResource):
 
     @staticmethod
     def get_deploy_stage_name(stage_name=None):
-        return stage_name if stage_name else 'dev'
+        return stage_name if stage_name else 'prod'
 
     def __deploy_api_gateway(self, api_id, meta, api_resources):
         deploy_stage = self.get_deploy_stage_name(meta.get('deploy_stage'))
