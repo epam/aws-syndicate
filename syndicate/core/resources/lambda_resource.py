@@ -821,8 +821,20 @@ class LambdaResource(BaseResource):
                                                      self.account_id,
                                                      target_queue)
 
-        self.lambda_conn.add_event_source(lambda_arn, queue_arn,
-                                          trigger_meta['batch_size'])
+        event_source = next(iter(self.lambda_conn.list_event_sources(
+            event_source_arn=queue_arn, function_name=lambda_arn)), None)
+        if event_source:
+            _LOG.info(f'Lambda event source mapping for source arn '
+                      f'{queue_arn} and lambda arn {lambda_arn} was found. '
+                      f'Updating it')
+            self.lambda_conn.update_event_source(
+                event_source['UUID'], function_name=lambda_arn,
+                batch_size=trigger_meta['batch_size'])
+        else:
+            self.lambda_conn.add_event_source(
+                lambda_arn, queue_arn, trigger_meta['batch_size']
+            )
+
         _LOG.info('Lambda %s subscribed to SQS queue %s', lambda_name,
                   target_queue)
 
