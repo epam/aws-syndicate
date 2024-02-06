@@ -34,7 +34,7 @@
         "stream_view_type": "NEW_IMAGE"
     },
     "syndicate-demo-api": {
-        "deploy_stage": "prod",
+        "deploy_stage": "dev",
         "dependencies": [
             {
                 "resource_name": "put_dynamodb_item",

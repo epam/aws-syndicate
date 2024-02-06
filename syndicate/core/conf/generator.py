@@ -131,7 +131,7 @@ def generate_configuration_files(name, config_path, region,
     aliases_content = {
         ACCOUNT_ID_CFG: account_id,
         REGION_CFG: region,
-        LAMBDAS_ALIASES_NAME_CFG: 'prod',
+        LAMBDAS_ALIASES_NAME_CFG: 'dev',
         LOGS_EXPIRATION: DEFAULT_LOGS_EXPIRATION,
     }
     aliases_file_path = os.path.join(config_folder_path, ALIASES_FILE_NAME)
