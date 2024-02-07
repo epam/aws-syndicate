@@ -359,9 +359,12 @@ class ApiGatewayResource(BaseResource):
                                                             lambda_alias)
                 uri = f'arn:aws:apigateway:{self.region}:lambda:path/' \
                       f'2015-03-31/functions/{lambda_arn}/invocations'
+                api_source_arn = (f'arn:aws:execute-api:{self.region}:'
+                                  f'{self.account_id}:{api_id}/*/*/*')
                 self.lambda_res.add_invocation_permission(
                     statement_id=api_id,
                     name=lambda_arn,
+                    source_arn=api_source_arn,
                     principal='apigateway.amazonaws.com')
 
             self.connection.create_authorizer(api_id=api_id, name=key,
