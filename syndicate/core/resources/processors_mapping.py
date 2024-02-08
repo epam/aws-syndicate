@@ -172,7 +172,7 @@ class ProcessorFacade:
             API_GATEWAY_TYPE:
                 self.resources_provider.api_gw().remove_api_gateways,
             API_GATEWAY_OPENAPI_TYPE:
-                self.resources_provider.api_gw().remove_api_gateways_openapi,
+                self.resources_provider.api_gw().remove_api_gateways,
             WEB_SOCKET_API_GATEWAY_TYPE:
                 self.resources_provider.api_gw().remove_v2_api_gateway,
             CLOUD_WATCH_RULE_TYPE:

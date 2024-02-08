@@ -908,12 +908,6 @@ class ApiGatewayResource(BaseResource):
             # wait for success deletion
             time.sleep(60)
 
-    def remove_api_gateways_openapi(self, args):
-        for arg in args:
-            self._remove_api_gateway_openapi(**arg)
-            # wait for success deletion
-            time.sleep(60)
-
     def _remove_invocation_permissions_from_lambdas(self, config):
         api_id = config['description']['id']
         _LOG.info(fr'Removing invocation permissions for api {api_id}')
@@ -937,18 +931,6 @@ class ApiGatewayResource(BaseResource):
 
     def _remove_api_gateway(self, arn, config):
         api_id = config['description']['id']
-        self._remove_invocation_permissions_from_lambdas(config)
-        try:
-            self.connection.remove_api(api_id)
-            _LOG.info(f'API Gateway {api_id} was removed.')
-        except ClientError as e:
-            if e.response['Error']['Code'] == 'NotFoundException':
-                _LOG.warn('API Gateway %s is not found', api_id)
-            else:
-                raise e
-
-    def _remove_api_gateway_openapi(self, arn, config):
-        api_id = config['description']['id']
         stage_name = config["resource_meta"]["deploy_stage"]
         openapi_context = self.describe_openapi(api_id, stage_name)
         api_lambdas_arns = self.extract_api_gateway_lambdas_arns(
@@ -961,7 +943,7 @@ class ApiGatewayResource(BaseResource):
             if e.response['Error']['Code'] == 'NotFoundException':
                 _LOG.warning('API Gateway %s is not found', api_id)
             else:
-                raise e
+                raise
 
     @unpack_kwargs
     def _create_model_from_metadata(self, api_id, models):
