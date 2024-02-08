@@ -127,7 +127,7 @@ class LambdaConnection(object):
         except self.client.exceptions.ResourceNotFoundException:
             _LOG.debug(
                 f'Can`t get permissions for lambda {lambda_arn}. '
-                f'Lambda are removed or not found.'
+                f'Lambda does not exist.'
             )
             return []
 
