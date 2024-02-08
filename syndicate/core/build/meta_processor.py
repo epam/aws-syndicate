@@ -15,6 +15,7 @@
 """
 import os
 from json import load
+from typing import Any
 
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.build.helper import (build_py_package_name,
@@ -301,14 +302,16 @@ S3_PATH_MAPPING = {
 }
 
 
-def _look_for_configs(nested_files, resources_meta, path, bundle_name):
+def _look_for_configs(nested_files: list[str], resources_meta: dict[str, Any],
+                      path: str, bundle_name: str) -> None:
     """ Look for all config files in project structure. Read content and add
     all meta to overall meta if there is no duplicates. If duplicates found -
     raise AssertionError.
 
-    :type nested_files: list
-    :type resources_meta: dict
-    :type path: str
+    :param nested_files: A list of files in the project
+    :param resources_meta: A dictionary of resources metadata
+    :param path: A string path to the project
+    :param bundle_name: A string name of the bundle
     """
     for each in nested_files:
         if each.endswith(LAMBDA_CONFIG_FILE_NAME) or each.endswith(LAMBDA_LAYER_CONFIG_FILE_NAME):
@@ -356,13 +359,15 @@ def _look_for_configs(nested_files, resources_meta, path, bundle_name):
 
 
 # todo validate all required configs
-def create_resource_json(project_path, bundle_name):
+def create_resource_json(project_path: str, bundle_name: str) -> dict[str, Any]:
     """ Create resource catalog json with all resource metadata in project.
+
     :param project_path: path to the project
     :type bundle_name: name of the bucket subdir
     """
     resources_meta = {}
 
+    # Walking through every folder in the project
     for path, _, nested_items in os.walk(project_path):
         # there is no duplicates in single json, because json is a dict
 
