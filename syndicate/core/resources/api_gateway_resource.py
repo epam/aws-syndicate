@@ -594,7 +594,7 @@ class ApiGatewayResource(BaseResource):
         if not response:
             return
         response['resources'] = self.connection.get_resources(api_id)
-        _LOG.info('Created %s API Gateway.', name)
+        _LOG.info('Described %s API Gateway.', name)
         arn = 'arn:aws:apigateway:{0}::/restapis/{1}'.format(self.region,
                                                              api_id)
         return {
