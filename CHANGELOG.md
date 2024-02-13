@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+- # [1.14.4] - 2024-02-09
+### Added
+- added missed import into the Java lambda template
+
 # [1.14.3] - 2024-02-08
 - Refactor `clean` of API Gateway, now it serve one method instead of two
 - Change in `get_existing_permissions` method `_LOG.warning` to `_LOG.debug`
@@ -11,7 +15,7 @@ and enhance message for it
 - Fix in `describe_api_resources` method `_LOG.info` message
 - Update python version in the `README.md` file
 
-# [1.14.2] - 2024-02-06
+- # [1.14.2] - 2024-02-06
 - Add `api_source_arn` when creating permission for lambda authorizer.
 - Change in `syndicate generate` command default value for `lambdas_alias_name`
 from `prod` to `dev`.
