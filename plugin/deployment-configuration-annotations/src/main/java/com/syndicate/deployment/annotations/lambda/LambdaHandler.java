@@ -19,8 +19,10 @@ package com.syndicate.deployment.annotations.lambda;
 
 import com.syndicate.deployment.annotations.DeploymentResource;
 import com.syndicate.deployment.model.DeploymentRuntime;
+import com.syndicate.deployment.model.Architecture;
 import com.syndicate.deployment.model.LambdaSnapStart;
 import com.syndicate.deployment.model.RegionScope;
+import com.syndicate.deployment.model.RetentionSetting;
 import com.syndicate.deployment.model.TracingMode;
 
 import java.lang.annotation.ElementType;
@@ -47,6 +49,8 @@ public @interface LambdaHandler {
 
     DeploymentRuntime runtime() default DeploymentRuntime.JAVA8;
 
+    Architecture architecture() default Architecture.X86_64;
+
     int timeout() default 300;
 
     int memory() default 1024;
@@ -68,5 +72,7 @@ public @interface LambdaHandler {
     LambdaSnapStart snapStart() default LambdaSnapStart.None;
 
     String resourceGroup() default "";
+
+    RetentionSetting logsExpiration() default RetentionSetting.SYNDICATE_DEFAULT_SPECIFIED;
 
 }

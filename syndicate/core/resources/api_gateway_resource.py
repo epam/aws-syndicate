@@ -19,12 +19,20 @@ from hashlib import md5
 
 from botocore.exceptions import ClientError
 
+from syndicate.commons import deep_get
 from syndicate.commons.log_helper import get_logger
+from syndicate.core.constants import (
+    SOURCE_ARN_DEEP_KEY, SECURITY_SCHEMAS_DEEP_KEY,
+    API_GW_DEFAULT_THROTTLING_RATE_LIMIT,
+    API_GW_DEFAULT_THROTTLING_BURST_LIMIT
+)
 from syndicate.core.helper import unpack_kwargs
 from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import (build_description_obj,
                                              validate_params)
-from syndicate.connection.api_gateway_connection import ApiGatewayV2Connection
+from syndicate.connection.api_gateway_connection import ApiGatewayV2Connection, \
+    ApiGatewayConnection
+from syndicate.core.resources.lambda_resource import LambdaResource
 
 API_REQUIRED_PARAMS = ['resources', 'deploy_stage']
 
@@ -62,11 +70,14 @@ _REQUEST_VALIDATORS = {
     }
 }
 
+_DISABLE_THROTTLING_VALUE = -1
 
 class ApiGatewayResource(BaseResource):
 
-    def __init__(self, apigw_conn, apigw_v2_conn: ApiGatewayV2Connection,
-                 lambda_res, cognito_res, account_id, region) -> None:
+    def __init__(self, apigw_conn: ApiGatewayConnection,
+                 apigw_v2_conn: ApiGatewayV2Connection,
+                 lambda_res: LambdaResource,
+                 cognito_res, account_id, region) -> None:
         self.connection = apigw_conn
         self.lambda_res = lambda_res
         self.cognito_res = cognito_res
@@ -120,8 +131,19 @@ class ApiGatewayResource(BaseResource):
         """
         return self.create_pool(self._create_api_gateway_from_meta, args, 1)
 
+    def create_api_gateway_openapi(self, args):
+        """ Create OpenAPI api gateway in pool in sub processes.
+
+        :type args: list
+        """
+        return self.create_pool(self._create_api_gateway_openapi_from_meta,
+                                args, 1)
+
     def api_gateway_update_processor(self, args):
         return self.create_pool(self._create_or_update_api_gateway, args, 1)
+
+    def update_api_gateway_openapi(self, args):
+        return self.create_pool(self._update_api_gateway_openapi_from_meta, args, 1)
 
     @unpack_kwargs
     def _create_or_update_api_gateway(self, name, meta,
@@ -194,23 +216,37 @@ class ApiGatewayResource(BaseResource):
         parameter = parameter[:index] + '~1' + parameter[index + 1:]
         return self._escape_path(parameter)
 
-    def configure_cache(self, api_id, stage_name, api_resources):
+    def configure_resources(self, api_id, stage_name, api_resources):
         for resource_path, resource_meta in api_resources.items():
             for method_name, method_meta in resource_meta.items():
                 if method_name in SUPPORTED_METHODS:
                     cache_configuration = method_meta.get(
                         'cache_configuration')
-                    if not cache_configuration:
-                        continue
+                    throttling_configuration = method_meta.get(
+                        'throttling_configuration')
                     cache_ttl_setting = cache_configuration.get(
-                        'cache_ttl_sec')
+                        'cache_ttl_sec') if cache_configuration else None
                     encrypt_cache_data = cache_configuration.get(
-                        'encrypt_cache_data')
-                    if cache_ttl_setting:
+                        'encrypt_cache_data') if cache_configuration else None
+                    throttling_enabled = throttling_configuration.get(
+                        'throttling_enabled') if throttling_configuration \
+                        else None
+                    throttling_rate_limit = throttling_configuration.get(
+                        'throttling_rate_limit',
+                        API_GW_DEFAULT_THROTTLING_RATE_LIMIT) if (
+                        throttling_configuration and throttling_enabled) else \
+                        _DISABLE_THROTTLING_VALUE
+                    throttling_burst_limit = throttling_configuration.get(
+                        'throttling_burst_limit',
+                        API_GW_DEFAULT_THROTTLING_BURST_LIMIT) if (
+                        throttling_configuration and throttling_enabled) else \
+                        _DISABLE_THROTTLING_VALUE
+                    patch_operations = []
+                    escaped_resource = self._escape_path(resource_path)
+                    if cache_ttl_setting is not None:
                         _LOG.info(
                             'Configuring cache for {0}; TTL: {1}'.format(
                                 resource_path, cache_ttl_setting))
-                        escaped_resource = self._escape_path(resource_path)
                         patch_operations = [
                             {
                                 'op': 'replace',
@@ -236,14 +272,37 @@ class ApiGatewayResource(BaseResource):
                                 'value': 'true' if bool(
                                     encrypt_cache_data) else 'false'
                             })
-                        self.connection.update_configuration(
-                            rest_api_id=api_id,
-                            stage_name=stage_name,
-                            patch_operations=patch_operations
-                        )
+                    if throttling_enabled:
                         _LOG.info(
-                            'Cache for {0} was configured'.format(
-                                resource_path))
+                            'Configuring throttling for {0}; rateLimit: {1}; '
+                            'burstLimit: {2}'.format(
+                                resource_path, throttling_rate_limit,
+                                throttling_burst_limit))
+                    else:
+                        _LOG.info('Throttling for {0} disabled.'.format(
+                            resource_path))
+                    patch_operations.append({
+                            'op': 'replace',
+                            'path': '/{0}/{1}/throttling/rateLimit'
+                                    ''.format(escaped_resource,
+                                              method_name),
+                            'value': str(throttling_rate_limit),
+                    })
+                    patch_operations.append({
+                            'op': 'replace',
+                            'path': '/{0}/{1}/throttling/burstLimit'
+                                    ''.format(escaped_resource,
+                                              method_name),
+                            'value': str(throttling_burst_limit),
+                    })
+                    self.connection.update_configuration(
+                        rest_api_id=api_id,
+                        stage_name=stage_name,
+                        patch_operations=patch_operations
+                    )
+                    _LOG.info(
+                        'Resource {0} was configured'.format(
+                            resource_path))
 
     @unpack_kwargs
     def _create_api_gateway_from_meta(self, name, meta):
@@ -300,9 +359,12 @@ class ApiGatewayResource(BaseResource):
                                                             lambda_alias)
                 uri = f'arn:aws:apigateway:{self.region}:lambda:path/' \
                       f'2015-03-31/functions/{lambda_arn}/invocations'
+                api_source_arn = (f'arn:aws:execute-api:{self.region}:'
+                                  f'{self.account_id}:{api_id}/*/*/*')
                 self.lambda_res.add_invocation_permission(
                     statement_id=api_id,
                     name=lambda_arn,
+                    source_arn=api_source_arn,
                     principal='apigateway.amazonaws.com')
 
             self.connection.create_authorizer(api_id=api_id, name=key,
@@ -339,6 +401,73 @@ class ApiGatewayResource(BaseResource):
         self.__deploy_api_gateway(api_id, meta, api_resources)
         return self.describe_api_resources(api_id=api_id, meta=meta, name=name)
 
+    @unpack_kwargs
+    def _create_api_gateway_openapi_from_meta(self, name, meta):
+        openapi_context = meta.get('definition')
+        deploy_stage = meta.get('deploy_stage')
+
+        api_id = self.connection.create_openapi(openapi_context)
+        self.connection.deploy_api(api_id, deploy_stage)
+
+        api_lambdas_arns = self.extract_api_gateway_lambdas_arns(
+            openapi_context)
+        self.create_lambdas_permissions(api_id, api_lambdas_arns)
+
+        return self.describe_api_resources(api_id=api_id, meta=meta, name=name)
+
+    @unpack_kwargs
+    def _update_api_gateway_openapi_from_meta(self, name, meta, context):
+        api_id = self.connection.get_api_id(name)
+        openapi_context = meta.get('definition')
+        deploy_stage = meta.get('deploy_stage')
+
+        self.connection.update_openapi(api_id, openapi_context)
+        self.connection.deploy_api(api_id, deploy_stage)
+
+        api_lambdas_arns = self.extract_api_gateway_lambdas_arns(openapi_context)
+        self.create_lambdas_permissions(api_id, api_lambdas_arns)
+
+        return self.describe_api_resources(api_id=api_id, meta=meta, name=name)
+
+    def get_lambda_permissions_for_api(self, lambda_arn, api_gateway_id):
+        permissions = self.lambda_res.get_existing_permissions(lambda_arn)
+        # Filter the permissions related to the specific API Gateway
+        filtered_permissions = [
+            statement for statement in permissions
+            if deep_get(
+                statement, SOURCE_ARN_DEEP_KEY, ""
+            ).startswith('arn:aws:execute-api:') and api_gateway_id in deep_get(
+                statement, SOURCE_ARN_DEEP_KEY, "")
+        ]
+
+        return filtered_permissions
+
+    def create_lambdas_permissions(self, api_gateway_id, api_lambdas_arns):
+        api_source_arn = (f'arn:aws:execute-api:{self.region}:'
+                          f'{self.account_id}:{api_gateway_id}/*/*/*')
+        for lambda_arn in api_lambdas_arns:
+            _id = f'{lambda_arn}-{api_source_arn}'
+            statement_id = md5(_id.encode('utf-8')).hexdigest()
+            self.lambda_res.add_invocation_permission(
+                name=lambda_arn,
+                principal='apigateway.amazonaws.com',
+                source_arn=api_source_arn,
+                statement_id=statement_id,
+                exists_ok=True
+            )
+
+    def remove_lambdas_permissions(self, api_gateway_id, api_lambdas_arns):
+        for lambda_arn in api_lambdas_arns:
+            existing_permissions = self.get_lambda_permissions_for_api(
+                lambda_arn, api_gateway_id)
+
+            existing_permissions = {
+                deep_get(perm, SOURCE_ARN_DEEP_KEY): perm.get('Sid')
+                for perm in existing_permissions
+            }
+            self.lambda_res.remove_permissions(lambda_arn,
+                                               existing_permissions.values())
+
     @staticmethod
     def get_deploy_stage_name(stage_name=None):
         return stage_name if stage_name else 'prod'
@@ -354,17 +483,32 @@ class ApiGatewayResource(BaseResource):
                                    cache_cluster_enabled=root_cache_enabled,
                                    cache_cluster_size=str(
                                        cache_size) if cache_size else None)
+        throttling_cluster_configuration = meta.get(
+            'cluster_throttling_configuration')
+        throttling_enabled = throttling_cluster_configuration.get(
+            'throttling_enabled') if throttling_cluster_configuration else None
+        patch_operations = []
+        if not throttling_enabled:
+            patch_operations.append({
+                'op': 'replace',
+                'path': '/*/*/throttling/rateLimit',
+                'value': str(_DISABLE_THROTTLING_VALUE),
+            })
+            patch_operations.append({
+                'op': 'replace',
+                'path': '/*/*/throttling/burstLimit',
+                'value': str(_DISABLE_THROTTLING_VALUE),
+            })
         # configure caching
         if root_cache_enabled:
             _LOG.debug('Cluster cache configuration found:{0}'.format(
                 cache_cluster_configuration))
             # set default ttl for root endpoint
-            patch_operations = []
             cluster_cache_ttl_sec = cache_cluster_configuration.get(
                 'cache_ttl_sec')
             encrypt_cache_data = cache_cluster_configuration.get(
                 'encrypt_cache_data')
-            if cluster_cache_ttl_sec:
+            if cluster_cache_ttl_sec is not None:
                 patch_operations.append({
                     'op': 'replace',
                     'path': '/*/*/caching/ttlInSeconds',
@@ -376,14 +520,30 @@ class ApiGatewayResource(BaseResource):
                     'path': '/*/*/caching/dataEncrypted',
                     'value': 'true' if bool(encrypt_cache_data) else 'false'
                 })
-            if patch_operations:
-                self.connection.update_configuration(
+        # configure throttling
+        if throttling_enabled:
+            throttling_rate_limit = throttling_cluster_configuration.get(
+                'throttling_rate_limit', API_GW_DEFAULT_THROTTLING_RATE_LIMIT)
+            throttling_burst_limit = throttling_cluster_configuration.get(
+                'throttling_burst_limit', API_GW_DEFAULT_THROTTLING_BURST_LIMIT)
+            patch_operations.append({
+                'op': 'replace',
+                'path': '/*/*/throttling/rateLimit',
+                'value': str(throttling_rate_limit),
+            })
+            patch_operations.append({
+                'op': 'replace',
+                'path': '/*/*/throttling/burstLimit',
+                'value': str(throttling_burst_limit),
+            })
+        if any([root_cache_enabled, throttling_enabled]):
+            self.connection.update_configuration(
                     rest_api_id=api_id,
                     stage_name=deploy_stage,
                     patch_operations=patch_operations
                 )
-            # customize cache settings for endpoints
-            self.configure_cache(api_id, deploy_stage, api_resources)
+        # customize settings for endpoints
+        self.configure_resources(api_id, deploy_stage, api_resources)
 
     def __prepare_api_resources_args(
             self, api_id, api_resources, api_resp=None,
@@ -440,6 +600,10 @@ class ApiGatewayResource(BaseResource):
         return {
             arn: build_description_obj(response, name, meta)
         }
+
+    def describe_openapi(self, api_id, stage_name):
+        response = self.connection.describe_openapi(api_id, stage_name)
+        return json.loads(response['body'].read().decode("utf-8"))
 
     def _check_existing_methods(self, api_id, resource_id, resource_path,
                                 resource_meta,
@@ -744,6 +908,12 @@ class ApiGatewayResource(BaseResource):
             # wait for success deletion
             time.sleep(60)
 
+    def remove_api_gateways_openapi(self, args):
+        for arg in args:
+            self._remove_api_gateway_openapi(**arg)
+            # wait for success deletion
+            time.sleep(60)
+
     def _remove_invocation_permissions_from_lambdas(self, config):
         api_id = config['description']['id']
         _LOG.info(fr'Removing invocation permissions for api {api_id}')
@@ -774,6 +944,22 @@ class ApiGatewayResource(BaseResource):
         except ClientError as e:
             if e.response['Error']['Code'] == 'NotFoundException':
                 _LOG.warn('API Gateway %s is not found', api_id)
+            else:
+                raise e
+
+    def _remove_api_gateway_openapi(self, arn, config):
+        api_id = config['description']['id']
+        stage_name = config["resource_meta"]["deploy_stage"]
+        openapi_context = self.describe_openapi(api_id, stage_name)
+        api_lambdas_arns = self.extract_api_gateway_lambdas_arns(
+            openapi_context)
+        self.remove_lambdas_permissions(api_id, api_lambdas_arns)
+        try:
+            self.connection.remove_api(api_id)
+            _LOG.info(f'API Gateway {api_id} was removed.')
+        except ClientError as e:
+            if e.response['Error']['Code'] == 'NotFoundException':
+                _LOG.warning('API Gateway %s is not found', api_id)
             else:
                 raise e
 
@@ -870,3 +1056,36 @@ class ApiGatewayResource(BaseResource):
             return
         self.apigw_v2.delete_api(api_id)
         return
+
+    @staticmethod
+    def extract_api_gateway_lambdas_arns(openapi_spec):
+        api_gateway_lambdas_arns = {*()}
+
+        for path, path_item in openapi_spec.get('paths', {}).items():
+            for method, method_data in path_item.items():
+                integration = method_data.get('x-amazon-apigateway-integration')
+                if not integration or not integration.get('uri'):
+                    continue
+                uri = integration.get('uri')
+                try:
+                    lambda_arn = uri.split('/functions/')[1].split('/')[0]
+                except IndexError:
+                    _LOG.warning(f"Invalid lambda arn in integration uri {uri}")
+                    continue
+
+                api_gateway_lambdas_arns.add(lambda_arn)
+
+        security_schemas = deep_get(openapi_spec, SECURITY_SCHEMAS_DEEP_KEY, {})
+        for schema_data in security_schemas.values():
+            authorizer = schema_data.get("x-amazon-apigateway-authorizer")
+            if not authorizer or not authorizer.get("authorizerUri"):
+                continue
+            uri = authorizer.get("authorizerUri")
+            try:
+                lambda_arn = uri.split('/functions/')[1].split('/')[0]
+            except IndexError:
+                _LOG.warning(f"Invalid lambda arn in authorizer uri {uri}")
+                continue
+
+            api_gateway_lambdas_arns.add(lambda_arn)
+        return api_gateway_lambdas_arns

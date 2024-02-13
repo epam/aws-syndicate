@@ -13,7 +13,8 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-from syndicate.core.constants import IAM_AUTH_TYPE, NONE_AUTH_TYPE
+from syndicate.core.constants import IAM_AUTH_TYPE, NONE_AUTH_TYPE, \
+    LAMBDA_ARCHITECTURE_LIST
 
 
 class LambdaValidator:
@@ -28,6 +29,9 @@ class LambdaValidator:
         ephemeral_storage = self._meta.get('ephemeral_storage')
         if ephemeral_storage:
             self._validate_ephemeral_storage(ephemeral_storage)
+        architectures = self._meta.get('architectures')
+        if architectures:
+            self._validate_architecture(architectures)
 
     def _error(self, message):
         raise AssertionError(message)
@@ -59,6 +63,13 @@ class LambdaValidator:
         if not (512 <= ephemeral_storage <= 10240):
             self._error('Ephemeral storage size must be between '
                         '512 and 10240 MB')
+
+    def _validate_architecture(self, architectures):
+        for architecture in architectures:
+            if architecture not in LAMBDA_ARCHITECTURE_LIST:
+                self._error(f'Specified unsupported architecture: '
+                            f'"{architecture}". Currently supported '
+                            f'architectures: {LAMBDA_ARCHITECTURE_LIST}')
 
 
 def validate_lambda(name, meta):

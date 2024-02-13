@@ -10,8 +10,10 @@ import com.google.gson.Gson;
 import com.syndicate.deployment.annotations.LambdaUrlConfig;
 import com.syndicate.deployment.annotations.lambda.LambdaHandler;
 import com.syndicate.deployment.annotations.lambda.LambdaLayer;
+import com.syndicate.deployment.model.Architecture;
 import com.syndicate.deployment.model.ArtifactExtension;
 import com.syndicate.deployment.model.DeploymentRuntime;
+import com.syndicate.deployment.model.RetentionSetting;
 import com.syndicate.deployment.model.lambda.url.AuthType;
 import com.syndicate.deployment.model.lambda.url.InvokeMode;
 import org.apache.commons.lang3.StringUtils;
@@ -22,12 +24,16 @@ import java.util.Optional;
 @LambdaHandler(
         lambdaName = "hello-lambda",
         roleName = "hello-lambda-role",
-        layers = {"sdk-layer"}
+        layers = {"sdk-layer"},
+        runtime = DeploymentRuntime.JAVA11,
+        architecture = Architecture.ARM64,
+        logsExpiration = RetentionSetting.SYNDICATE_ALIASES_SPECIFIED
 )
 @LambdaLayer(
         layerName = "sdk-layer",
         libraries = {"lib/commons-lang3-3.14.0.jar", "lib/gson-2.10.1.jar"},
-        runtime = DeploymentRuntime.JAVA8,
+        runtime = DeploymentRuntime.JAVA11,
+        architectures = {Architecture.ARM64},
         artifactExtension = ArtifactExtension.ZIP
 )
 @LambdaUrlConfig(

@@ -34,6 +34,7 @@ JAVA_LAMBDA_HANDLER_CLASS = """package {java_package_name};
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.syndicate.deployment.annotations.lambda.LambdaHandler;
+import com.syndicate.deployment.model.RetentionSetting;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -41,7 +42,8 @@ import java.util.Map;
 @LambdaHandler(lambdaName = "{lambda_name}",
 	roleName = "{lambda_role_name}",
 	isPublishVersion = true,
-	aliasName = "${lambdas_alias_name}"
+	aliasName = "${lambdas_alias_name}",
+	logsExpiration = RetentionSetting.SYNDICATE_ALIASES_SPECIFIED
 )
 public class {lambda_class_name} implements RequestHandler<Object, Map<String, Object>> {
 
@@ -67,7 +69,7 @@ JAVA_ROOT_POM_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
 
     <properties>
         <maven-shade-plugin.version>3.2.0</maven-shade-plugin.version>
-        <deployment-configuration-annotations.version>1.10.0</deployment-configuration-annotations.version>
+        <deployment-configuration-annotations.version>1.11.0</deployment-configuration-annotations.version>
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>

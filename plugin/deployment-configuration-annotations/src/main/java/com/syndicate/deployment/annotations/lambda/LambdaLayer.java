@@ -17,6 +17,7 @@
 package com.syndicate.deployment.annotations.lambda;
 
 import com.syndicate.deployment.annotations.DeploymentResource;
+import com.syndicate.deployment.model.Architecture;
 import com.syndicate.deployment.model.ArtifactExtension;
 import com.syndicate.deployment.model.DeploymentRuntime;
 
@@ -46,5 +47,7 @@ public @interface LambdaLayer {
 	ArtifactExtension artifactExtension() default ArtifactExtension.ZIP;
 
 	DeploymentRuntime runtime() default DeploymentRuntime.JAVA8;
+
+	Architecture[] architectures() default {};
 
 }

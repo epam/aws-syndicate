@@ -34,6 +34,9 @@ public class LayerConfiguration {
 	@JsonProperty("libraries")
 	private String[] libraries;
 
+	@JsonProperty("architectures")
+	private Architecture[] architectures;
+
 	public String getName() {
 		return name;
 	}
@@ -82,6 +85,15 @@ public class LayerConfiguration {
 
 	public void setRuntimes(DeploymentRuntime[] runtimes) {
 		this.runtimes = runtimes;
+	}
+
+	public Architecture[] getArchitectures() {
+		return architectures;
+	}
+
+	public LayerConfiguration setArchitectures(Architecture[] architectures) {
+		this.architectures = architectures;
+		return this;
 	}
 
 	public static class Builder {
