@@ -3,7 +3,7 @@ name: Build & maybe upload PyPI package
 
 on:
   push:
-    branches: ["main", "feature/add-github-action"]
+    branches: ["main"]
     tags: ["*"]
   release:
     types:
@@ -21,8 +21,7 @@ jobs:
   release-test-pypi:
     name: Publish dev package to test.pypi.org
     environment: release-test-pypi
-#    if: github.repository_owner == 'epam' && github.event_name == 'push' && github.ref == 'refs/heads/main'
-    if: github.repository_owner == 'epam' && github.event_name == 'push' && github.ref == 'refs/heads/feature/add-github-action'
+    if: github.repository_owner == 'epam' && github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     needs: build-package
 
