@@ -125,7 +125,10 @@ class LambdaConnection(object):
 
             return permissions
         except self.client.exceptions.ResourceNotFoundException:
-            _LOG.warning(f'Permissions for lambda {lambda_arn} are not found')
+            _LOG.debug(
+                f'Can`t get permissions for lambda {lambda_arn}. '
+                f'Lambda does not exist.'
+            )
             return []
 
     def remove_permissions(self, lambda_arn, permissions_sids):

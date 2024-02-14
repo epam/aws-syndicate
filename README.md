@@ -18,7 +18,7 @@ descriptions.
 
 #### 1.2.1 Prerequisites
 
-1) [Python 3.7](https://www.python.org/downloads/ "Python 3.7") or
+1) [Python 3.10](https://www.python.org/downloads/ "Python 3.10") or
    higher version;
 2) Package manager [PIP 9.0](https://pypi.org/project/pip/ "PIP 9.0")
    or higher version;

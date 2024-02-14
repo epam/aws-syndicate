@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 # [1.15.0] - 2024-02-14
 - syndicate clean: add `--preserve_state` parameter to keep deploy output json file
 - syndicate generate config: validate composite deploy_target_bucket (bucket+prefix)
+- change location of the OpenAPI Specification to a separate `openapi_spec.json` file
 
 - # [1.14.3] - 2024-02-09
 ### Added
