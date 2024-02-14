@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Change
 - Move the OpenAPI Specification (OAS) to a separate `openapi_spec.json` file.
 
-- # [1.14.4] - 2024-02-09
+# [1.14.4] - 2024-02-09
 ### Added
 - added missed import into the Java lambda template
 
@@ -19,7 +19,7 @@ and enhance message for it
 - Fix in `describe_api_resources` method `_LOG.info` message
 - Update python version in the `README.md` file
 
-- # [1.14.2] - 2024-02-06
+# [1.14.2] - 2024-02-06
 - Add `api_source_arn` when creating permission for lambda authorizer.
 - Change in `syndicate generate` command default value for `lambdas_alias_name`
 from `prod` to `dev`.
