@@ -421,7 +421,8 @@ def remove_deployment_resources(deploy_name, bundle_name,
                                 clean_only_types=None,
                                 excluded_resources=None,
                                 excluded_types=None,
-                                clean_externals=None):
+                                clean_externals=None,
+                                preserve_state=None):
     from syndicate.core import CONFIG
     output = new_output = load_deploy_output(bundle_name, deploy_name)
     _LOG.info('Output file was loaded successfully')
@@ -468,7 +469,8 @@ def remove_deployment_resources(deploy_name, bundle_name,
     clean_resources(resources_list)
     # remove new_output from bucket
     if output == new_output:
-        remove_deploy_output(bundle_name, deploy_name)
+        if not preserve_state:
+            remove_deploy_output(bundle_name, deploy_name)
     else:
         for key, value in new_output.items():
             output.pop(key)
@@ -541,7 +543,8 @@ def remove_failed_deploy_resources(deploy_name, bundle_name,
                                    clean_only_types=None,
                                    excluded_resources=None,
                                    excluded_types=None,
-                                   clean_externals=None):
+                                   clean_externals=None,
+                                   preserve_state=None):
     output = load_failed_deploy_output(bundle_name, deploy_name)
     _LOG.info('Failed output file was loaded successfully')
 
@@ -572,8 +575,10 @@ def remove_failed_deploy_resources(deploy_name, bundle_name,
 
     _LOG.info('Going to clean AWS resources')
     clean_resources(resources_list)
-    # remove output from bucket
-    remove_failed_deploy_output(bundle_name, deploy_name)
+
+    if not preserve_state:
+        # remove output from bucket
+        remove_failed_deploy_output(bundle_name, deploy_name)
 
 
 def _apply_dynamic_changes(resources, output):

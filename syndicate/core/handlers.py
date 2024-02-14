@@ -337,10 +337,12 @@ def update(bundle_name, deploy_name, replace_output,
               help='If specified provided types will be excluded')
 @click.option('--rollback', is_flag=True,
               help='Remove failed deployed resources')
+@click.option('--preserve_state', is_flag=True,
+              help='Preserve deploy output json file after resources removal')
 @timeit(action_name=CLEAN_ACTION)
 def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
           clean_only_resources_path, clean_externals, excluded_resources,
-          excluded_resources_path, excluded_types, rollback):
+          excluded_resources_path, excluded_types, rollback, preserve_state):
     """
     Cleans the application infrastructure
     """
@@ -374,7 +376,9 @@ def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
             clean_only_resources=clean_only_resources,
             clean_only_types=clean_only_types,
             excluded_resources=excluded_resources,
-            excluded_types=excluded_types, clean_externals=clean_externals)
+            excluded_types=excluded_types, clean_externals=clean_externals,
+            preserve_state=preserve_state
+        )
     else:
         remove_deployment_resources(deploy_name=deploy_name,
                                     bundle_name=bundle_name,
@@ -382,7 +386,8 @@ def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
                                     clean_only_types=clean_only_types,
                                     excluded_resources=excluded_resources,
                                     excluded_types=excluded_types,
-                                    clean_externals=clean_externals)
+                                    clean_externals=clean_externals,
+                                    preserve_state=preserve_state)
     click.echo('AWS resources were removed.')
 
 
