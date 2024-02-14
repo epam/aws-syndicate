@@ -16,7 +16,7 @@
 import os
 from json import load
 from typing import Any
-
+from urllib.parse import urlparse
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.build.helper import (build_py_package_name,
                                          resolve_bundle_directory)
@@ -280,6 +280,33 @@ def populate_s3_paths(overall_meta, bundle_name):
     return overall_meta
 
 
+def extract_deploy_stage_from_openapi_spec(openapi_spec: dict) -> str:
+    """
+    Extract the first path segment from the server URL in an API specification.
+    If no server URL is found, or there is no path segment, raise an exception.
+    """
+
+    servers = openapi_spec.get('servers', [])
+    if not servers:
+        raise ValueError("No server information found in API specification.")
+
+    server_url = servers[0].get('url', '')
+    variables = servers[0].get('variables', {})
+
+    # Substitute variables in the URL template with their default values, if any
+    for var_name, var_details in variables.items():
+        default_value = var_details.get('default', '')
+        server_url = server_url.replace(f'{{{var_name}}}', default_value)
+
+    # Extract the first path segment
+    path_segments = [segment for segment in urlparse(server_url).path.split('/')
+                     if segment]
+    if not path_segments:
+        raise ValueError("No path segments found in server URL.")
+
+    return path_segments[0]
+
+
 RUNTIME_PATH_RESOLVER = {
     'python3.6': _populate_s3_path_python_node,
     'python3.7': _populate_s3_path_python_node,
@@ -327,6 +354,27 @@ def _look_for_configs(nested_files: list[str], resources_meta: dict[str, Any],
             if res:
                 lambda_conf = res
             resources_meta[lambda_name] = lambda_conf
+
+        if each.endswith("openapi_spec.json"):
+            openapi_spec_path = os.path.join(path, each)
+            _LOG.debug(f'Processing file: {openapi_spec_path}')
+            with open(openapi_spec_path) as data_file:
+                openapi_spec = load(data_file)
+
+            api_gateway_name = openapi_spec['info']['title']
+            _LOG.debug(f'Found API Gateway: {api_gateway_name}')
+            deploy_stage = extract_deploy_stage_from_openapi_spec(openapi_spec)
+            resource = {
+                "definition": openapi_spec,
+                "resource_type": "api_gateway_openapi",
+                "deploy_stage": deploy_stage
+            }
+            res = _check_duplicated_resources(
+                resources_meta, api_gateway_name, resource
+            )
+            if res:
+                resource = res
+            resources_meta[api_gateway_name] = resource
 
         if each == RESOURCES_FILE_NAME:
             additional_config_path = os.path.join(path, RESOURCES_FILE_NAME)
