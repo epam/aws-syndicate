@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [1.16.0] - 2024-02-15
+- Implemented API gateway openapi specification export, the command is `syndicate export openapi_spec`
+
 # [1.15.0] - 2024-02-14
 - syndicate clean: add `--preserve_state` parameter to keep deploy output json file
 - syndicate generate config: validate composite deploy_target_bucket (bucket+prefix)

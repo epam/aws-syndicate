@@ -52,6 +52,7 @@ from syndicate.core.groups.generate import (generate,
                                             GENERATE_PROJECT_COMMAND_NAME,
                                             GENERATE_CONFIG_COMMAND_NAME)
 from syndicate.core.groups.tags import tags
+from syndicate.core.groups.export import export
 from syndicate.core.helper import (create_bundle_callback,
                                    handle_futures_progress_bar,
                                    resolve_path_callback, timeit,
@@ -771,5 +772,6 @@ def copy_bundle(ctx, bundle_name, src_account_id, src_bucket_region,
     click.echo('Bundle was copied successfully')
 
 
+syndicate.add_command(export)
 syndicate.add_command(generate)
 syndicate.add_command(tags)

@@ -45,6 +45,7 @@ DOCUMENTDB_CLUSTER_TYPE = 'documentdb_cluster'
 DOCUMENTDB_INSTANCE_TYPE = 'documentdb_instance'
 
 S3_PATH_NAME = 's3_path'
+EXPORT_DIR_NAME = 'export'
 
 # == BUILD PARAMS =============================================================
 ARTIFACTS_FOLDER = 'bundles'
@@ -55,6 +56,7 @@ REQ_FILE_NAME = 'requirements.txt'
 NODE_REQ_FILE_NAME = 'package.json'
 LOCAL_REQ_FILE_NAME = 'local_requirements.txt'
 RESOURCES_FILE_NAME = 'deployment_resources.json'
+OPENAPI_SPEC_FILE_NAME = 'openapi_spec.json'
 
 # layer.zip
 # │ python/PIL
