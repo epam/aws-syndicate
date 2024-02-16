@@ -15,7 +15,7 @@ import json
 
 import requests
 
-from lambda_example.sample_module import format
+from sample_module import format
 
 def lambda_handler(event, context):
     url = event['url']
