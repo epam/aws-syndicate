@@ -4,11 +4,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [1.14.4] - 2024-02-13
+# [1.15.2] - 2024-02-16
 - Actualized information in the file readme.md
-- Actualized project examples
+- Actualized Python project examples
 
-# [1.14.3] - 2024-02-09
+# [1.15.1] - 2024-02-15
+- Refactor handling of duplicate resources for method `_check_duplicated_resources`
+
+# [1.15.0] - 2024-02-14
+- syndicate clean: add `--preserve_state` parameter to keep deploy output json file
+- syndicate generate config: validate composite deploy_target_bucket (bucket+prefix)
+- change location of the OpenAPI Specification to a separate `openapi_spec.json` file
+
+- # [1.14.3] - 2024-02-09
 ### Added
 - added missed import into the Java lambda template
 

@@ -15,7 +15,8 @@
 """
 import os
 from json import load
-
+from typing import Any
+from urllib.parse import urlparse
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.build.helper import (build_py_package_name,
                                          resolve_bundle_directory)
@@ -178,19 +179,15 @@ def _check_duplicated_resources(initial_meta_dict, additional_item_name,
 
             return additional_item
 
-        elif additional_type == initial_type:
-            if additional_item == initial_item:
-                raise AssertionError(
-                    'Warn. Two equals resources descriptions were found! '
-                    'Please, remove one of them. Resource name:'
-                    ' {0}'.format(additional_item_name))
-            else:
-                raise AssertionError(
-                    "Error! Two resources with equal names were found! Name:"
-                    " {0}. Please, rename one of them. First resource: {1}. "
-                    "Second resource: {2}".format(additional_item_name,
-                                                  initial_item,
-                                                  additional_item))
+        else:
+            initial_item_type = initial_item.get("resource_type")
+            additional_item_type = additional_item.get("resource_type")
+            raise AssertionError(
+                f"Error! Two resources with equal names were found! Name: "
+                f"'{additional_item_name}'. Please, rename one of them. First "
+                f"resource: '{initial_item_type}'. Second resource: "
+                f"'{additional_item_type}'"
+            )
 
 
 def _merge_api_gw_list_typed_configurations(initial_resource,
@@ -279,6 +276,33 @@ def populate_s3_paths(overall_meta, bundle_name):
     return overall_meta
 
 
+def extract_deploy_stage_from_openapi_spec(openapi_spec: dict) -> str:
+    """
+    Extract the first path segment from the server URL in an API specification.
+    If no server URL is found, or there is no path segment, raise an exception.
+    """
+
+    servers = openapi_spec.get('servers', [])
+    if not servers:
+        raise ValueError("No server information found in API specification.")
+
+    server_url = servers[0].get('url', '')
+    variables = servers[0].get('variables', {})
+
+    # Substitute variables in the URL template with their default values, if any
+    for var_name, var_details in variables.items():
+        default_value = var_details.get('default', '')
+        server_url = server_url.replace(f'{{{var_name}}}', default_value)
+
+    # Extract the first path segment
+    path_segments = [segment for segment in urlparse(server_url).path.split('/')
+                     if segment]
+    if not path_segments:
+        raise ValueError("No path segments found in server URL.")
+
+    return path_segments[0]
+
+
 RUNTIME_PATH_RESOLVER = {
     'python3.6': _populate_s3_path_python_node,
     'python3.7': _populate_s3_path_python_node,
@@ -301,14 +325,16 @@ S3_PATH_MAPPING = {
 }
 
 
-def _look_for_configs(nested_files, resources_meta, path, bundle_name):
+def _look_for_configs(nested_files: list[str], resources_meta: dict[str, Any],
+                      path: str, bundle_name: str) -> None:
     """ Look for all config files in project structure. Read content and add
     all meta to overall meta if there is no duplicates. If duplicates found -
     raise AssertionError.
 
-    :type nested_files: list
-    :type resources_meta: dict
-    :type path: str
+    :param nested_files: A list of files in the project
+    :param resources_meta: A dictionary of resources metadata
+    :param path: A string path to the project
+    :param bundle_name: A string name of the bundle
     """
     for each in nested_files:
         if each.endswith(LAMBDA_CONFIG_FILE_NAME) or each.endswith(LAMBDA_LAYER_CONFIG_FILE_NAME):
@@ -324,6 +350,27 @@ def _look_for_configs(nested_files, resources_meta, path, bundle_name):
             if res:
                 lambda_conf = res
             resources_meta[lambda_name] = lambda_conf
+
+        if each.endswith("openapi_spec.json"):
+            openapi_spec_path = os.path.join(path, each)
+            _LOG.debug(f'Processing file: {openapi_spec_path}')
+            with open(openapi_spec_path) as data_file:
+                openapi_spec = load(data_file)
+
+            api_gateway_name = openapi_spec['info']['title']
+            _LOG.debug(f'Found API Gateway: {api_gateway_name}')
+            deploy_stage = extract_deploy_stage_from_openapi_spec(openapi_spec)
+            resource = {
+                "definition": openapi_spec,
+                "resource_type": "api_gateway_openapi",
+                "deploy_stage": deploy_stage
+            }
+            res = _check_duplicated_resources(
+                resources_meta, api_gateway_name, resource
+            )
+            if res:
+                resource = res
+            resources_meta[api_gateway_name] = resource
 
         if each == RESOURCES_FILE_NAME:
             additional_config_path = os.path.join(path, RESOURCES_FILE_NAME)
@@ -356,13 +403,15 @@ def _look_for_configs(nested_files, resources_meta, path, bundle_name):
 
 
 # todo validate all required configs
-def create_resource_json(project_path, bundle_name):
+def create_resource_json(project_path: str, bundle_name: str) -> dict[str, Any]:
     """ Create resource catalog json with all resource metadata in project.
+
     :param project_path: path to the project
     :type bundle_name: name of the bucket subdir
     """
     resources_meta = {}
 
+    # Walking through every folder in the project
     for path, _, nested_items in os.walk(project_path):
         # there is no duplicates in single json, because json is a dict
 
