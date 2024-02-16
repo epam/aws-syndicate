@@ -1,0 +1,4 @@
+pynamodb==4.2.0
+pynamodb-attributes==0.3.0
+boto3
+botocore
