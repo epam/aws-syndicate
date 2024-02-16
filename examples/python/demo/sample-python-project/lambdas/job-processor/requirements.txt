@@ -1,2 +1,0 @@
-pynamodb==4.2.0
-pynamodb-attributes==0.1.2
