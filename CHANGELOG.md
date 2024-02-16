@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [1.15.2] - 2024-02-16
+- Actualized information in the file readme.md
+- Actualized Python project examples
+
 # [1.15.1] - 2024-02-15
 - Refactor handling of duplicate resources for method `_check_duplicated_resources`
 
@@ -16,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - added missed import into the Java lambda template
 
-- # [1.14.2] - 2024-02-06
+# [1.14.2] - 2024-02-06
 - Add `api_source_arn` when creating permission for lambda authorizer.
 - Change in `syndicate generate` command default value for `lambdas_alias_name`
 from `prod` to `dev`.

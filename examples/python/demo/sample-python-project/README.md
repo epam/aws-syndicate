@@ -1,9 +1,12 @@
 #### This example shows a Syndicate configuration for deploying:
-* 1 Lambda function (1 external library, 1 local module);
-* 1 IAM role attached to lambda;
-* 1 Custom IAM policy attached to role;
+* 3 Lambda function;
+* 3 IAM role attached to lambdas;
+* 3 Custom IAM policy attached to roles;
+* 1 SQS queue;
+* 1 DynamoDB Table
+* 1 API Gateway
 
-#### To deploy this example:
+#### To deploy this demo project:
 
 ##### 1. Replace following placeholders in `syndicate.yml`:
 * `YOUR_PATH` - actual path of the project;
@@ -16,33 +19,21 @@
 ##### 2. Replace following placeholder in `syndicate_aliases.yml`:
 * `ACCOUNT_ID` - AWS account id where syndicate will deploy this demo;
 * `REGION` - AWS region where syndicate will deploy this demo;
-
+* `SQS_QUEUE_NAME` - Name of SQS queue that will be created;
+   
 ##### 3. Export path to config files:
-`export SDCT_CONF={YOUR_PATH}/.syndicate-config-lambda-external-libraries`
+`export SDCT_CONF=$YOUR_PATH/.syndicate-config-sample-python-project`
 
-##### 4. Build bundle:
+##### 4. Create deploy target bucket
+`syndicate create_deploy_target_bucket`
+
+##### 5. Build bundle:
 `syndicate build`
 
-##### 5. Deploy:
+##### 6. Deploy
 `syndicate deploy`
 
+#### To clean demo project resources:
 
-##### 6. Trigger deployed lambda using aws-cli:
-`aws lambda invoke --function-name lambda_example --payload '{"url": "https://api.github.com/"}' --cli-binary-format raw-in-base64-out response.json`
-
-Response content will be stored in `response.json`:
-```json
-{
-    "statusCode": 200,
-    "headers": {
-        "Content-Type": "application/json"
-    },
-    "body": "{\"url\": \"https://api.github.com/\", \"status_code\": 200, \"response_time\": \"0.112317s.\"}"
-}
-```
-
-#### To clean project resources
-
-##### 1. Clean:
+##### 1. Clean
 `syndicate clean`
-
