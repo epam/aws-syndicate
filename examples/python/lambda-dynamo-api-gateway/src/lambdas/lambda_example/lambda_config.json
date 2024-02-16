@@ -1,10 +1,10 @@
 {
     "version": "1.0",
-    "name": "put_dynamodb_item",
+    "name": "lambda_example",
     "func_name": "handler.lambda_handler",
     "resource_type": "lambda",
     "iam_role_name": "PutItemToDynamoRole",
-    "runtime": "python3.7",
+    "runtime": "python3.10",
     "memory": 128,
     "timeout": 300,
     "lambda_path": "",
@@ -15,6 +15,7 @@
         }
     ],
     "env_variables": {
-        "region": "${region}"
+        "region": "${region}",
+        "table_name": "${target_table_name}"
     }
 }

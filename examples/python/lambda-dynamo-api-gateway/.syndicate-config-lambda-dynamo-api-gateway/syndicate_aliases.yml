@@ -1,0 +1,5 @@
+account_id: ACCOUNT_ID
+lambdas_alias_name: dev
+logs_expiration: 30
+region: REGION
+target_table_name: Notifications

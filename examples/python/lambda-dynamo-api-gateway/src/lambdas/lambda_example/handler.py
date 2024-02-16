@@ -27,8 +27,9 @@ def lambda_handler(event, context):
     }
 
     dynamodb = boto3.resource('dynamodb', region_name=os.environ['region'])
+    table_name = os.environ['table_name']
 
-    table = dynamodb.Table('Notifications')
+    table = dynamodb.Table(table_name)
 
     response = table.put_item(Item=obj)
 

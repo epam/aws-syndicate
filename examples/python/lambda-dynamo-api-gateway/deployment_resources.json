@@ -37,21 +37,21 @@
         "deploy_stage": "prod",
         "dependencies": [
             {
-                "resource_name": "put_dynamodb_item",
+                "resource_name": "lambda_example",
                 "resource_type": "lambda"
             }
         ],
         "resources": {
-            "/notications": {
+            "/notifications": {
                 "enable_cors": true,
                 "POST": {
                     "integration_request_body_template": {},
-                    "authorization_type": "AWS_IAM",
+                    "authorization_type": "NONE",
                     "integration_type": "lambda",
                     "method_request_parameters": {},
                     "default_error_pattern": true,
                     "integration_passthrough_behavior": "WHEN_NO_TEMPLATES",
-                    "lambda_name": "put_dynamodb_item"
+                    "lambda_name": "lambda_example"
                 }
             }
         },
