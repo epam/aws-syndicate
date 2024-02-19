@@ -179,19 +179,15 @@ def _check_duplicated_resources(initial_meta_dict, additional_item_name,
 
             return additional_item
 
-        elif additional_type == initial_type:
-            if additional_item == initial_item:
-                raise AssertionError(
-                    'Warn. Two equals resources descriptions were found! '
-                    'Please, remove one of them. Resource name:'
-                    ' {0}'.format(additional_item_name))
-            else:
-                raise AssertionError(
-                    "Error! Two resources with equal names were found! Name:"
-                    " {0}. Please, rename one of them. First resource: {1}. "
-                    "Second resource: {2}".format(additional_item_name,
-                                                  initial_item,
-                                                  additional_item))
+        else:
+            initial_item_type = initial_item.get("resource_type")
+            additional_item_type = additional_item.get("resource_type")
+            raise AssertionError(
+                f"Error! Two resources with equal names were found! Name: "
+                f"'{additional_item_name}'. Please, rename one of them. First "
+                f"resource: '{initial_item_type}'. Second resource: "
+                f"'{additional_item_type}'"
+            )
 
 
 def _merge_api_gw_list_typed_configurations(initial_resource,
