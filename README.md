@@ -204,8 +204,6 @@ syndicate generate config --name dev --region eu-central-1 --bundle_bucket_name 
 
 For more details please execute `syndicate generate config --help`
 
-*Note:* You can find a detailed structure of the syndicate.yml file [here](docs/wiki_syndicate.yml.md)
-
 ### 2.3 Creating lambda files
 
 Execute `syndicate generate lambda` command to generate required environment for
