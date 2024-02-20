@@ -11,7 +11,3 @@ use_temp_creds: false
 deploy_target_bucket: BUCKET_NAME
 # absolute path to the project folder
 project_path: PROJECT_FOLDER
-
-extended_prefix_mode: true
-resources_prefix: demo-
-resources_suffix: -dev
