@@ -1,0 +1,17 @@
+# AWS account id where syndicate will deploy
+account_id: ACCOUNT_ID
+# AWS region where syndicate will deploy, example: eu-central-1
+region: REGION_NAME
+
+aws_access_key_id: ACCESS_KEY_ID
+aws_secret_access_key: SECRET_ACCESS_KEY
+use_temp_creds: false
+
+# bucket name to upload deployment artifacts, must be unique across all AWS accounts
+deploy_target_bucket: BUCKET_NAME
+# absolute path to the project folder
+project_path: PROJECT_FOLDER
+
+extended_prefix_mode: true
+resources_prefix: demo-
+resources_suffix: -dev
