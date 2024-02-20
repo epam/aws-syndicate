@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.aws.syndicate.demo;
+package com.demojava;
 
-import com.amazonaws.services.dynamodbv2.document.internal.InternalUtils;
+import com.amazonaws.services.dynamodbv2.document.ItemUtils;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.amazonaws.services.lambda.runtime.events.DynamodbEvent;
@@ -31,6 +31,7 @@ import com.syndicate.deployment.annotations.resources.DependsOn;
 import com.syndicate.deployment.model.DeploymentRuntime;
 import com.syndicate.deployment.model.LambdaSnapStart;
 import com.syndicate.deployment.model.ResourceType;
+import com.syndicate.deployment.model.RetentionSetting;
 
 import java.util.Map;
 
@@ -38,6 +39,7 @@ import java.util.Map;
  * Created by Vladyslav Tereshchenko on 9/12/2018.
  */
 @LambdaHandler(
+        logsExpiration = RetentionSetting.SYNDICATE_ALIASES_SPECIFIED,
         lambdaName = "dynamodb_item_processor",
         roleName = "PutObjectToS3Role",
         runtime = DeploymentRuntime.JAVA11,
@@ -53,8 +55,8 @@ public class PutFileToS3BucketHandler implements RequestHandler<DynamodbEvent, V
 
     private static final String INSERT = "INSERT";
 
-    private AmazonS3 s3Client;
-    private ObjectMapper objectMapper;
+    private final AmazonS3 s3Client;
+    private final ObjectMapper objectMapper;
 
     public PutFileToS3BucketHandler() {
         this.s3Client = AmazonS3Client.builder().withRegion(System.getenv("region")).build();
@@ -65,7 +67,7 @@ public class PutFileToS3BucketHandler implements RequestHandler<DynamodbEvent, V
         String bucketName = System.getenv("notification_bucket");
         for (DynamodbEvent.DynamodbStreamRecord record : dynamodbEvent.getRecords()) {
             if (INSERT.equals(record.getEventName())) {
-                Map<String, Object> stringObjectMap = InternalUtils.toSimpleMapValue(record.getDynamodb()
+                Map<String, Object> stringObjectMap = ItemUtils.toSimpleMapValue(record.getDynamodb()
                         .getNewImage());
                 s3Client.putObject(bucketName, (String) stringObjectMap.get("id"),
                         convertObjectToJson(stringObjectMap));
