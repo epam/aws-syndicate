@@ -24,6 +24,10 @@ from syndicate.commons.log_helper import get_logger
 _LOG = get_logger('syndicate.connection.helper')
 
 
+DEFAULT_RETRY_TIMEOUT_SEC = 35
+DEFAULT_RETRY_TIMEOUT_STEP = 3
+
+
 def apply_methods_decorator(decorator):
     # todo after applying this decorator static methods do not work if they
     #  are invoked from an instance of a class instead of a class.
@@ -55,6 +59,10 @@ def retry(handler_func):
             'ConflictException',
             'An error occurred (InvalidParameterValueException) when calling '
             'the CreateEventSourceMapping operation',
+            'An error occurred (InvalidParameterValueException) when calling '
+            'the CreateCluster operation',
+            'An error occurred (SubnetGroupInUseFault) when calling '
+            'the DeleteSubnetGroup operation',
             'The role defined for the function cannot be assumed by Lambda',
             'An error occurred (ResourceConflictException) when calling'
             ' the AddPermission operation: The statement id',
@@ -72,7 +80,8 @@ def retry(handler_func):
             'Cannot delete, resource is being modified',
         ]
         last_ex = None
-        for each in range(1, 35, 3):
+        for each in range(1, DEFAULT_RETRY_TIMEOUT_SEC,
+                          DEFAULT_RETRY_TIMEOUT_STEP):
             try:
                 return handler_func(*args, **kwargs)
             except ClientError as e:
