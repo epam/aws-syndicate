@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [1.15.4] - 2024-02-22
+# [1.15.6] - 2024-02-22
 - Added support of Eventbridge rule
 - Fixed DAX cluster deployment error when DAX Role is deploying on the fly
 - Fixed Dax cluster meta generation error in case of specifying subnet group name and subnets IDs
@@ -12,6 +12,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The parameter "minv_cpus" was removed from a meta template generated for the Fargate type of AWS Batch Compute environment
 - Fixed AWS Batch Compute environment deployment issue in case of specifying the parameter `--allocation_strategy`
 - Changed an error message in case of unsupported resource type
+
+
+# [1.15.5] - 2024-02-21
+- Fix lambda authorization permissions
+
+# [1.15.4] - 2024-02-20
+- Java lambda examples have been actualized for 1.11.0 version
 
 # [1.15.3] - 2024-02-19
 - Removed obsolete documentation (/docs)
