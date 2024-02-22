@@ -360,7 +360,7 @@ class ApiGatewayResource(BaseResource):
                 uri = f'arn:aws:apigateway:{self.region}:lambda:path/' \
                       f'2015-03-31/functions/{lambda_arn}/invocations'
                 api_source_arn = (f'arn:aws:execute-api:{self.region}:'
-                                  f'{self.account_id}:{api_id}/*/*/*')
+                                  f'{self.account_id}:{api_id}/*/*')
                 self.lambda_res.add_invocation_permission(
                     statement_id=api_id,
                     name=lambda_arn,
@@ -411,7 +411,10 @@ class ApiGatewayResource(BaseResource):
 
         api_lambdas_arns = self.extract_api_gateway_lambdas_arns(
             openapi_context)
-        self.create_lambdas_permissions(api_id, api_lambdas_arns)
+        self.create_lambdas_permissions(api_id, api_lambdas_arns, '/*/*/*')
+        api_lambda_auth_arns = self.extract_api_gateway_lambda_auth_arns(
+            openapi_context)
+        self.create_lambdas_permissions(api_id, api_lambda_auth_arns, '/*/*')
 
         return self.describe_api_resources(api_id=api_id, meta=meta, name=name)
 
@@ -424,8 +427,14 @@ class ApiGatewayResource(BaseResource):
         self.connection.update_openapi(api_id, openapi_context)
         self.connection.deploy_api(api_id, deploy_stage)
 
-        api_lambdas_arns = self.extract_api_gateway_lambdas_arns(openapi_context)
-        self.create_lambdas_permissions(api_id, api_lambdas_arns)
+        api_lambdas_arns = self.extract_api_gateway_lambdas_arns(
+            openapi_context
+        )
+        self.create_lambdas_permissions(api_id, api_lambdas_arns, '/*/*/*')
+        api_lambda_auth_arns = self.extract_api_gateway_lambda_auth_arns(
+            openapi_context
+        )
+        self.create_lambdas_permissions(api_id, api_lambda_auth_arns, '/*/*')
 
         return self.describe_api_resources(api_id=api_id, meta=meta, name=name)
 
@@ -442,9 +451,15 @@ class ApiGatewayResource(BaseResource):
 
         return filtered_permissions
 
-    def create_lambdas_permissions(self, api_gateway_id, api_lambdas_arns):
+    def create_lambdas_permissions(
+        self,
+        api_gateway_id: str,
+        api_lambdas_arns: set[str],
+        route: str
+    ):
+
         api_source_arn = (f'arn:aws:execute-api:{self.region}:'
-                          f'{self.account_id}:{api_gateway_id}/*/*/*')
+                          f'{self.account_id}:{api_gateway_id}{route}')
         for lambda_arn in api_lambdas_arns:
             _id = f'{lambda_arn}-{api_source_arn}'
             statement_id = md5(_id.encode('utf-8')).hexdigest()
@@ -935,7 +950,12 @@ class ApiGatewayResource(BaseResource):
         openapi_context = self.describe_openapi(api_id, stage_name)
         api_lambdas_arns = self.extract_api_gateway_lambdas_arns(
             openapi_context)
-        self.remove_lambdas_permissions(api_id, api_lambdas_arns)
+        api_lambda_auth_arns = self.extract_api_gateway_lambda_auth_arns(
+            openapi_context)
+        self.remove_lambdas_permissions(
+            api_id,
+            {*api_lambdas_arns, *api_lambda_auth_arns}
+        )
         try:
             self.connection.remove_api(api_id)
             _LOG.info(f'API Gateway {api_id} was removed.')
@@ -1056,6 +1076,11 @@ class ApiGatewayResource(BaseResource):
                     continue
 
                 api_gateway_lambdas_arns.add(lambda_arn)
+        return api_gateway_lambdas_arns
+
+    @staticmethod
+    def extract_api_gateway_lambda_auth_arns(openapi_spec):
+        api_gateway_lambdas_arns = {*()}
 
         security_schemas = deep_get(openapi_spec, SECURITY_SCHEMAS_DEEP_KEY, {})
         for schema_data in security_schemas.values():
