@@ -386,15 +386,14 @@ def _look_for_configs(nested_files: list[str], resources_meta: dict[str, Any],
                     resource_type = resource['resource_type']
                 except KeyError:
                     raise AssertionError(
-                        "There is not 'resource_type' in {0}".format(
+                        "There is no 'resource_type' in {0}".format(
                             resource_name))
                 if resource_type not in RESOURCE_LIST:
                     raise KeyError(
-                        "You specified new resource type in configuration"
-                        " file {0}, but it doesn't have creation function."
-                        " Please, add new creation function or change "
-                        "resource name with existing one.".format(
-                            resource_type))
+                        f'Unsupported resource type found: "{resource_type}". '
+                        'Please double-check the correctness of the specified '
+                        'resource type. To add a new resource type please '
+                        'request the support team.')
                 res = _check_duplicated_resources(resources_meta,
                                                   resource_name, resource)
                 if res:

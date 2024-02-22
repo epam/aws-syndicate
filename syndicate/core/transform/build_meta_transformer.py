@@ -24,7 +24,7 @@ from syndicate.core.constants import \
      CLOUD_WATCH_RULE_TYPE, SQS_QUEUE_TYPE, API_GATEWAY_TYPE, SNS_TOPIC_TYPE,
      CLOUD_WATCH_ALARM_TYPE, KINESIS_STREAM_TYPE, COGNITO_FEDERATED_POOL_TYPE,
      SNS_PLATFORM_APPLICATION_TYPE, BATCH_COMPENV_TYPE, BATCH_JOBQUEUE_TYPE,
-     BATCH_JOBDEF_TYPE, LAMBDA_LAYER_TYPE)
+     BATCH_JOBDEF_TYPE, LAMBDA_LAYER_TYPE, EVENT_BRIDGE_RULE_TYPE)
 
 _LOG = get_user_logger()
 
@@ -44,6 +44,7 @@ class BuildMetaTransformer(ABC):
             DYNAMO_TABLE_TYPE: self._transform_dynamo_db_table,
             S3_BUCKET_TYPE: self._transform_s3_bucket,
             CLOUD_WATCH_RULE_TYPE: self._transform_cloud_watch_rule,
+            EVENT_BRIDGE_RULE_TYPE: self._transform_cloud_watch_rule,
             SQS_QUEUE_TYPE: self._transform_sqs_queue,
             API_GATEWAY_TYPE: self._transform_api_gateway,
             SNS_TOPIC_TYPE: self._transform_sns_topic,
