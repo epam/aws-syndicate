@@ -8,7 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix lambda authorization permissions
 
 # [1.15.4] - 2024-02-20
+### Changed
 - Java lambda examples have been actualized for 1.11.0 version
+### Added
+- AWS EventBridge Rule support has been added to the Java plugin 1.11.0 version
 
 # [1.15.3] - 2024-02-19
 - Removed obsolete documentation (/docs)

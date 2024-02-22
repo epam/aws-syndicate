@@ -18,11 +18,13 @@ package com.syndicate.deployment.model;
 
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.syndicate.deployment.annotations.events.DynamoDbTriggerEventSource;
+import com.syndicate.deployment.annotations.events.EventBridgeRuleSource;
 import com.syndicate.deployment.annotations.events.RuleEventSource;
 import com.syndicate.deployment.annotations.events.S3EventSource;
 import com.syndicate.deployment.annotations.events.SnsEventSource;
 import com.syndicate.deployment.annotations.events.SqsTriggerEventSource;
 import com.syndicate.deployment.model.events.DynamoDbTriggerEventSourceItem;
+import com.syndicate.deployment.model.events.EventBridgeRuleSourceItem;
 import com.syndicate.deployment.model.events.EventSourceItem;
 import com.syndicate.deployment.model.events.RuleEventSourceItem;
 import com.syndicate.deployment.model.events.S3EventSourceItem;
@@ -50,6 +52,22 @@ public enum EventSourceType {
                     .withResourceType(ResourceType.CLOUDWATCH_RULE).build();
         }
     },
+
+    EVENTBRIDGE_RULE_TRIGGER("eventbridge_rule_trigger") {
+        @Override
+        public EventSourceItem createEventSourceItem(Annotation eventSource) {
+            return new EventBridgeRuleSourceItem.Builder()
+                    .withTargetRule(((EventBridgeRuleSource) eventSource).targetRule()).build();
+        }
+
+        @Override
+        public DependencyItem createDependencyItem(Annotation eventSource) {
+            return new DependencyItem.Builder()
+                    .withResourceName(((EventBridgeRuleSource) eventSource).targetRule())
+                    .withResourceType(ResourceType.EVENTBRIDGE_RULE).build();
+        }
+    },
+
     DYNAMODB_TRIGGER("dynamodb_trigger") {
         @Override
         public EventSourceItem createEventSourceItem(Annotation eventSource) {
