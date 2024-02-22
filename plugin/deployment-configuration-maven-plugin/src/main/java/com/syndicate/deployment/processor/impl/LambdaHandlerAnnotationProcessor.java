@@ -18,6 +18,7 @@ package com.syndicate.deployment.processor.impl;
 
 import com.syndicate.deployment.annotations.environment.EnvironmentVariable;
 import com.syndicate.deployment.annotations.events.DynamoDbTriggerEventSource;
+import com.syndicate.deployment.annotations.events.EventBridgeRuleSource;
 import com.syndicate.deployment.annotations.events.RuleEventSource;
 import com.syndicate.deployment.annotations.events.S3EventSource;
 import com.syndicate.deployment.annotations.events.SnsEventSource;
@@ -53,6 +54,7 @@ public class LambdaHandlerAnnotationProcessor extends AbstractAnnotationProcesso
     static {
         ANNOTATIONS.put(DynamoDbTriggerEventSource.class, EventSourceType.DYNAMODB_TRIGGER);
         ANNOTATIONS.put(RuleEventSource.class, EventSourceType.CLOUDWATCH_RULE_TRIGGER);
+        ANNOTATIONS.put(EventBridgeRuleSource.class, EventSourceType.EVENTBRIDGE_RULE_TRIGGER);
         ANNOTATIONS.put(S3EventSource.class, EventSourceType.S3_TRIGGER);
         ANNOTATIONS.put(SnsEventSource.class, EventSourceType.SNS_TOPIC_TRIGGER);
         ANNOTATIONS.put(SqsTriggerEventSource.class, EventSourceType.SQS_TRIGGER);
