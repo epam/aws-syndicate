@@ -618,7 +618,8 @@ class ApiGatewayResource(BaseResource):
 
     def describe_openapi(self, api_id, stage_name):
         response = self.connection.describe_openapi(api_id, stage_name)
-        return json.loads(response['body'].read().decode("utf-8"))
+        return json.loads(response['body'].read().decode("utf-8")) \
+            if isinstance(response, dict) else None
 
     def _check_existing_methods(self, api_id, resource_id, resource_path,
                                 resource_meta,
@@ -948,6 +949,10 @@ class ApiGatewayResource(BaseResource):
         api_id = config['description']['id']
         stage_name = config["resource_meta"]["deploy_stage"]
         openapi_context = self.describe_openapi(api_id, stage_name)
+        if not openapi_context:
+            raise ClientError(f'API Gateway with an ID {api_id} '
+                              f'not found.',
+                              'Describe API Gateway')
         api_lambdas_arns = self.extract_api_gateway_lambdas_arns(
             openapi_context)
         api_lambda_auth_arns = self.extract_api_gateway_lambda_auth_arns(

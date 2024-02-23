@@ -28,8 +28,11 @@ from syndicate.core.constants import (API_GATEWAY_TYPE, ARTIFACTS_FOLDER,
                                       LAMBDA_CONFIG_FILE_NAME, LAMBDA_TYPE,
                                       RESOURCES_FILE_NAME, RESOURCE_LIST,
                                       IAM_ROLE, LAMBDA_LAYER_TYPE,
-                                      S3_PATH_NAME, LAMBDA_LAYER_CONFIG_FILE_NAME,
-                                      WEB_SOCKET_API_GATEWAY_TYPE)
+                                      S3_PATH_NAME,
+                                      LAMBDA_LAYER_CONFIG_FILE_NAME,
+                                      WEB_SOCKET_API_GATEWAY_TYPE,
+                                      OAS_V3_FILE_NAME,
+                                      API_GATEWAY_OAS_V3_TYPE)
 from syndicate.core.helper import (build_path, prettify_json,
                                    resolve_aliases_for_string,
                                    write_content_to_file)
@@ -183,10 +186,10 @@ def _check_duplicated_resources(initial_meta_dict, additional_item_name,
             initial_item_type = initial_item.get("resource_type")
             additional_item_type = additional_item.get("resource_type")
             raise AssertionError(
-                f"Error! Two resources with equal names were found! Name: "
-                f"'{additional_item_name}'. Please, rename one of them. First "
-                f"resource: '{initial_item_type}'. Second resource: "
-                f"'{additional_item_type}'"
+                f"Two resources with similar types and equal names were found! "
+                f"Name: '{additional_item_name}', first resource type: "
+                f"'{initial_item_type}', second resource type: "
+                f"'{additional_item_type}'. \nPlease, rename one of them!"
             )
 
 
@@ -351,7 +354,7 @@ def _look_for_configs(nested_files: list[str], resources_meta: dict[str, Any],
                 lambda_conf = res
             resources_meta[lambda_name] = lambda_conf
 
-        if each.endswith("openapi_spec.json"):
+        if each.endswith(OAS_V3_FILE_NAME):
             openapi_spec_path = os.path.join(path, each)
             _LOG.debug(f'Processing file: {openapi_spec_path}')
             with open(openapi_spec_path) as data_file:
@@ -362,7 +365,7 @@ def _look_for_configs(nested_files: list[str], resources_meta: dict[str, Any],
             deploy_stage = extract_deploy_stage_from_openapi_spec(openapi_spec)
             resource = {
                 "definition": openapi_spec,
-                "resource_type": "api_gateway_openapi",
+                "resource_type": API_GATEWAY_OAS_V3_TYPE,
                 "deploy_stage": deploy_stage
             }
             res = _check_duplicated_resources(
