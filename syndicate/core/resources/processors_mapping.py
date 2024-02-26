@@ -23,7 +23,7 @@ from syndicate.core.constants import \
     LAMBDA_LAYER_TYPE, BATCH_COMPENV_TYPE, BATCH_JOBQUEUE_TYPE, \
     BATCH_JOBDEF_TYPE, COGNITO_USER_POOL_TYPE, COGNITO_FEDERATED_POOL_TYPE, \
     DOCUMENTDB_CLUSTER_TYPE, DOCUMENTDB_INSTANCE_TYPE, DAX_CLUSTER_TYPE, \
-    FIREHOSE_TYPE, EVENT_BRIDGE_SCHEDULE_TYPE, API_GATEWAY_OPENAPI_TYPE
+    FIREHOSE_TYPE, EVENT_BRIDGE_SCHEDULE_TYPE, API_GATEWAY_OAS_V3_TYPE
 
 
 class ProcessorFacade:
@@ -51,7 +51,7 @@ class ProcessorFacade:
                 self.resources_provider.s3().create_s3_bucket,
             API_GATEWAY_TYPE:
                 self.resources_provider.api_gw().create_api_gateway,
-            API_GATEWAY_OPENAPI_TYPE:
+            API_GATEWAY_OAS_V3_TYPE:
                 self.resources_provider.api_gw().create_api_gateway_openapi,
             WEB_SOCKET_API_GATEWAY_TYPE:
                 self.resources_provider.api_gw().create_web_socket_api_gateway,
@@ -117,7 +117,7 @@ class ProcessorFacade:
                 self.resources_provider.s3().describe_bucket,
             API_GATEWAY_TYPE:
                 self.resources_provider.api_gw().describe_api_resources,
-            API_GATEWAY_OPENAPI_TYPE:
+            API_GATEWAY_OAS_V3_TYPE:
                 self.resources_provider.api_gw().describe_api_resources,
             WEB_SOCKET_API_GATEWAY_TYPE:
                 self.resources_provider.api_gw().describe_v2_api_gateway,
@@ -171,7 +171,7 @@ class ProcessorFacade:
                 self.resources_provider.cw_alarm().remove_alarms,
             API_GATEWAY_TYPE:
                 self.resources_provider.api_gw().remove_api_gateways,
-            API_GATEWAY_OPENAPI_TYPE:
+            API_GATEWAY_OAS_V3_TYPE:
                 self.resources_provider.api_gw().remove_api_gateways,
             WEB_SOCKET_API_GATEWAY_TYPE:
                 self.resources_provider.api_gw().remove_v2_api_gateway,
@@ -244,7 +244,7 @@ class ProcessorFacade:
                 self.resources_provider.lambda_resource().update_lambda,
             LAMBDA_LAYER_TYPE:
                 self.resources_provider.lambda_resource().update_lambda_layer,
-            API_GATEWAY_OPENAPI_TYPE:
+            API_GATEWAY_OAS_V3_TYPE:
                 self.resources_provider.api_gw().update_api_gateway_openapi,
             BATCH_JOBDEF_TYPE:
                 self.resources_provider.batch_jobdef().update_job_definition,
