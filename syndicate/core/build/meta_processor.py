@@ -186,7 +186,7 @@ def _check_duplicated_resources(initial_meta_dict, additional_item_name,
             initial_item_type = initial_item.get("resource_type")
             additional_item_type = additional_item.get("resource_type")
             raise AssertionError(
-                f"Two resources with similar types and equal names were found! "
+                f"Two resources with equal names were found! "
                 f"Name: '{additional_item_name}', first resource type: "
                 f"'{initial_item_type}', second resource type: "
                 f"'{additional_item_type}'. \nPlease, rename one of them!"
