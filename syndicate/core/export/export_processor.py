@@ -9,9 +9,7 @@ from syndicate.core.build.bundle_processor import load_deploy_output
 from syndicate.core.constants import OAS_V3_FILE_NAME, API_GATEWAY_TYPE
 from syndicate.core.export.configuration_exporter import OASV3Exporter
 from syndicate.core.helper import build_path
-# from syndicate.core import initialize_connection
 
-# initialize_connection()
 
 _LOG = get_logger('syndicate.core.export.export_processor')
 USER_LOG = get_user_logger()
