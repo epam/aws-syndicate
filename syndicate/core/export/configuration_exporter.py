@@ -13,10 +13,13 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+import os
 from abc import ABC, abstractmethod
 
 from syndicate.commons import deep_get
 from syndicate.commons.log_helper import get_user_logger
+from syndicate.core.constants import EXPORT_DIR_NAME
+from syndicate.core.helper import build_path
 
 USER_LOG = get_user_logger()
 
@@ -26,7 +29,20 @@ class ConfigurationExporter(ABC):
     def __init__(self):
         from syndicate.core import CONFIG, RESOURCES_PROVIDER
         self.config = CONFIG
+        self.project_path = self.config.project_path
         self.resources_provider = RESOURCES_PROVIDER
+
+    def prepare_output_directory(self, output_dir):
+        if not output_dir:
+            output_dir_path = build_path(
+                self.project_path, EXPORT_DIR_NAME)
+        elif not os.path.isabs(output_dir):
+            output_dir_path = build_path(
+                os.getcwd(), output_dir)
+        else:
+            output_dir_path = output_dir
+        os.makedirs(output_dir_path, exist_ok=True)
+        return output_dir_path
 
     @staticmethod
     def _remove_prefix_suffix_from_string(string: str,

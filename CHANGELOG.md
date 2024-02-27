@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [1.15.8] - 2024-02-27
+- Implemented Cognito User Pools ARNs resolving for OpenAPI specification via the key `x-syndicate-cognito-userpool-names` of the `x-amazon-apigateway-authorizer` extension
+
 # [1.15.7] - 2024-02-23
 - Implemented the feature "export api gateway OpenAPI spec"
 

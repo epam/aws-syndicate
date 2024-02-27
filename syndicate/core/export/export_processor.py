@@ -5,13 +5,13 @@ import sys
 import click
 
 from syndicate.commons.log_helper import get_logger, get_user_logger
-from syndicate.core import CONFIG
 from syndicate.core.build.bundle_processor import load_deploy_output
-from syndicate.core.constants import EXPORT_DIR_NAME, OAS_V3_FILE_NAME, \
-    API_GATEWAY_TYPE
+from syndicate.core.constants import OAS_V3_FILE_NAME, API_GATEWAY_TYPE
 from syndicate.core.export.configuration_exporter import OASV3Exporter
 from syndicate.core.helper import build_path
+# from syndicate.core import initialize_connection
 
+# initialize_connection()
 
 _LOG = get_logger('syndicate.core.export.export_processor')
 USER_LOG = get_user_logger()
@@ -38,15 +38,7 @@ def export_specification(deploy_name, bundle_name, output_directory,
                              f'not found in the deploy name "{deploy_name}".')
     _LOG.info(f'Meta for the resource type "{resource_key}" resolved '
               f'successfully')
-    if not output_directory:
-        output_dir_path = build_path(
-            CONFIG.project_path, EXPORT_DIR_NAME)
-    elif not os.path.isabs(output_directory):
-        output_dir_path = build_path(
-            os.getcwd(), output_directory)
-    else:
-        output_dir_path = output_directory
-    os.makedirs(output_dir_path, exist_ok=True)
+    output_dir_path = processor.prepare_output_directory(output_directory)
     for arn, meta in resource_meta.items():
         resource_id, specification = processor.export_configuration(arn, meta)
         if not specification:
