@@ -20,7 +20,7 @@ from hashlib import md5
 from botocore.exceptions import ClientError
 
 from syndicate.commons import deep_get
-from syndicate.commons.log_helper import get_logger
+from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.constants import (
     SOURCE_ARN_DEEP_KEY, SECURITY_SCHEMAS_DEEP_KEY,
     API_GW_DEFAULT_THROTTLING_RATE_LIMIT,
@@ -37,6 +37,7 @@ from syndicate.core.resources.lambda_resource import LambdaResource
 API_REQUIRED_PARAMS = ['resources', 'deploy_stage']
 
 _LOG = get_logger('syndicate.core.resources.api_gateway_resource')
+USER_LOG = get_user_logger()
 
 SUPPORTED_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS',
                      'HEAD', 'ANY']
@@ -44,6 +45,9 @@ _CORS_HEADER_NAME = 'Access-Control-Allow-Origin'
 _CORS_HEADER_VALUE = "'*'"
 _COGNITO_AUTHORIZER_TYPE = 'COGNITO_USER_POOLS'
 _CUSTOM_AUTHORIZER_TYPE = 'CUSTOM'
+
+X_SDCT_EXTENSION_KEY = 'x-syndicate-cognito-userpool-names'
+PROVIDER_ARNS_KEY = 'providerARNs'
 
 POLICY_STATEMENT_SINGLETON = 'policy_statement_singleton'
 
@@ -406,6 +410,8 @@ class ApiGatewayResource(BaseResource):
         openapi_context = meta.get('definition')
         deploy_stage = meta.get('deploy_stage')
 
+        self._resolve_cup_ids(openapi_context)
+
         api_id = self.connection.create_openapi(openapi_context)
         self.connection.deploy_api(api_id, deploy_stage)
 
@@ -424,6 +430,8 @@ class ApiGatewayResource(BaseResource):
         openapi_context = meta.get('definition')
         deploy_stage = meta.get('deploy_stage')
 
+        self._resolve_cup_ids(openapi_context)
+
         self.connection.update_openapi(api_id, openapi_context)
         self.connection.deploy_api(api_id, deploy_stage)
 
@@ -437,6 +445,53 @@ class ApiGatewayResource(BaseResource):
         self.create_lambdas_permissions(api_id, api_lambda_auth_arns, '/*/*')
 
         return self.describe_api_resources(api_id=api_id, meta=meta, name=name)
+
+    def _resolve_cup_ids(self, openapi_context):
+        _LOG.debug('Going to resolve Cognito User Pools ARNs')
+        authorizer = deep_get(openapi_context,
+                              ['components', 'securitySchemes',
+                               'authorizer', 'x-amazon-apigateway-authorizer'])
+
+        if authorizer:
+            pools_names = provider_arns = None
+            if authorizer.get('type') == _COGNITO_AUTHORIZER_TYPE.lower():
+                pools_names = authorizer.get(X_SDCT_EXTENSION_KEY)
+                provider_arns = authorizer.get(PROVIDER_ARNS_KEY)
+            new_provider_arns = []
+            if pools_names:
+                for pool_name in pools_names:
+                    _LOG.debug(f'Resolving ARN for Cognito User Pool by name '
+                               f'{pool_name}')
+                    pool_id = self.cognito_res.get_user_pool_id(pool_name)
+                    if pool_id:
+                        new_provider_arns.append(
+                            f'arn:aws:cognito-idp:{self.region}:'
+                            f'{self.account_id}:userpool/{pool_id}')
+                    else:
+                        USER_LOG.warn(f'Can\'t resolve Cognito User Pool ID '
+                                      f'by name "{pool_name}"! For more '
+                                      f'details see syndicate logs.')
+            elif provider_arns:
+                for arn in provider_arns:
+                    pool_id = arn.split('/')[-1]
+                    _LOG.debug(f'Resolving ARN for Cognito User Pool by ID '
+                               f'{pool_id}')
+                    if self.cognito_res.is_user_pool_exists(pool_id):
+                        new_provider_arns.append(arn)
+                    else:
+                        USER_LOG.warn(f'Cognito User Pool with ID {pool_id} '
+                                      f'not found.')
+
+            if new_provider_arns:
+                _LOG.debug(f'Going to apply the next provider ARNs '
+                           f'{new_provider_arns} to API Gateway '
+                           f'{deep_get(openapi_context, ["info", "title"])}')
+                authorizer[PROVIDER_ARNS_KEY] = new_provider_arns
+            else:
+                raise AssertionError(
+                    f'Cognito User Pools can\'t be resolved by ' + 'names: '
+                    f'{pools_names}' if pools_names else
+                    f'ARNs: {provider_arns}')
 
     def get_lambda_permissions_for_api(self, lambda_arn, api_gateway_id):
         permissions = self.lambda_res.get_existing_permissions(lambda_arn)

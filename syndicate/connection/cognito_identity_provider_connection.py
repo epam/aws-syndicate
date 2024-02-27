@@ -105,9 +105,20 @@ class CognitoIdentityProviderConnection(object):
         return response['UserPoolClient'].get('ClientId')
 
     def if_pool_exists_by_name(self, user_pool_name):
+        ids = []
         for pool in self.client.list_user_pools(MaxResults=60)['UserPools']:
             if pool.get('Name') == user_pool_name:
-                return pool['Id']
+                ids.append(pool['Id'])
+        if len(ids) == 1:
+            return ids[0]
+        if len(ids) > 1:
+            _LOG.warn(f'Cognito User Pool can\'t be identified unambiguously '
+                      f'because there is more than one resource with the name '
+                      f'"{user_pool_name}" in the region {self.region}. '
+                      f'Determined IDs: "{ids}"')
+        else:
+            _LOG.warn(f'Cognito User Pool with the name "{user_pool_name}" '
+                      f'not found in the region {self.region}')
 
     def describe_user_pool(self, user_pool_id):
         return self.client.describe_user_pool(UserPoolId=user_pool_id)
