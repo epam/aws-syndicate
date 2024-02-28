@@ -137,6 +137,7 @@ class S3Connection(object):
         :param location: region
         """
         param = dict(Bucket=bucket_name)
+        param['ObjectOwnership'] = 'ObjectWriter'
         if acl:
             param['ACL'] = acl
         if not location:
@@ -447,3 +448,10 @@ class S3Connection(object):
             PublicAccessBlockConfiguration=public_access_block_configuration
         )
         _LOG.info(f'Public access block was set')
+
+    def put_bucket_acl(self, bucket_name: str, acl: str):
+        self.client.put_bucket_acl(
+            Bucket=bucket_name,
+            ACL=acl
+        )
+        _LOG.info(f'ACL was set')

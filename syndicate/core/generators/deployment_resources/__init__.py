@@ -65,3 +65,5 @@ from syndicate.core.generators.deployment_resources.eventbridge_rule_generator \
     import EventBridgeRuleGenerator
 from syndicate.core.generators.deployment_resources.\
     web_socket_api_gateway_generator import WebSocketApiGatewayGenerator
+from syndicate.core.generators.deployment_resources.swagger_ui_generator import \
+    SwaggerUIGenerator

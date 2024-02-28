@@ -27,6 +27,7 @@ SQS_QUEUE_TYPE = 'sqs_queue'
 API_GATEWAY_TYPE = 'api_gateway'
 API_GATEWAY_OAS_V3_TYPE = 'api_gateway_oas_v3'
 WEB_SOCKET_API_GATEWAY_TYPE = 'web_socket_api_gateway'
+SWAGGER_UI_TYPE = 'swagger_ui'
 COGNITO_FEDERATED_POOL_TYPE = 'cognito_federated_pool'
 COGNITO_USER_POOL_TYPE = 'cognito_idp'
 SNS_TOPIC_TYPE = 'sns_topic'
@@ -179,3 +180,6 @@ LAMBDA_ARCHITECTURE_LIST = ['x86_64', 'arm64']
 
 API_GW_DEFAULT_THROTTLING_RATE_LIMIT = 10000
 API_GW_DEFAULT_THROTTLING_BURST_LIMIT = 5000
+
+S3_BUCKET_ACL_LIST = ['private', 'public-read',
+                      'public-read-write', 'authenticated-read']
