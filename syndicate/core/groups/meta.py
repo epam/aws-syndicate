@@ -172,10 +172,12 @@ def dynamodb_autoscaling(ctx, **kwargs):
               help="The channel ACL to be applied to the bucket. If not "
                    "specified, sets the default value to 'private'")
 @click.option('--block_public_acls', type=bool, required=False,
+              is_eager=True,
               help='Specifies whether Amazon S3 should block public access '
                    'control lists (ACLs) for this bucket and objects in this '
                    'bucket. Default value is True')
 @click.option('--ignore_public_acls', type=bool, required=False,
+              is_eager=True,
               help='Specifies whether Amazon S3 should ignore public ACLs for '
                    'this bucket and objects in this bucket. Default value '
                    'is True')

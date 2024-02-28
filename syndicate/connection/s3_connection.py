@@ -454,4 +454,4 @@ class S3Connection(object):
             Bucket=bucket_name,
             ACL=acl
         )
-        _LOG.info(f'ACL was set')
+        _LOG.info(f'ACL was set as \'{acl}\'')
