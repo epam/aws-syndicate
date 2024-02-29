@@ -147,6 +147,7 @@ class S3Resource(BaseResource):
             website_endpoint = (f'http://{name}.s3-website.'
                                 f'{self.s3_conn.region}.amazonaws.com')
             USER_LOG.info(f'Bucket website endpoint: {website_endpoint}')
+
         rules = meta.get('LifecycleConfiguration')
         if rules:
             self.s3_conn.add_bucket_rule(name, rules)

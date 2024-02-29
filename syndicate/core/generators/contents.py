@@ -456,6 +456,56 @@ class TestSuccess({camel_lambda_name}LambdaTestCase):
 
 """
 
+S3_BUCKET_PUBLIC_READ_POLICY = {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Sid": "PublicReadGetObject",
+                "Effect": "Allow",
+                "Principal": "*",
+                "Action": [
+                    "s3:GetObject"
+                ],
+                "Resource": []
+            }
+        ]
+    }
+
+SWAGGER_UI_INDEX_FILE_CONTENT = \
+"""
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="SwaggerUI"
+    />
+    <title>SwaggerUI</title>
+    <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@4.5.0/swagger-ui.css" />
+  </head>
+  <body>
+  <div id="swagger-ui"></div>
+  <script src="https://unpkg.com/swagger-ui-dist@4.5.0/swagger-ui-bundle.js" crossorigin></script>
+  <script src="https://unpkg.com/swagger-ui-dist@4.5.0/swagger-ui-standalone-preset.js" crossorigin></script>
+  <script>
+    window.onload = () => {
+      window.ui = SwaggerUIBundle({
+        url: './spec_file_name',
+        dom_id: '#swagger-ui',
+        presets: [
+          SwaggerUIBundle.presets.apis,
+          SwaggerUIStandalonePreset
+        ],
+        layout: "StandaloneLayout",
+      });
+    };
+  </script>
+  </body>
+</html>
+"""
+
 
 def _stringify(dict_content):
     return json.dumps(dict_content, indent=2)
@@ -574,3 +624,16 @@ def _generate_lambda_role_config(role_name, stringify=True):
         }
     }
     return _stringify(role_content) if stringify else role_content
+
+
+def _generate_swagger_ui_deployment_resources(resource_name, path_to_spec,
+                                              target_bucket):
+    return _stringify(
+        {
+            resource_name: {
+                "resource_type": "swagger_ui",
+                "path_to_spec": path_to_spec,
+                "target_bucket": target_bucket
+            }
+        }
+    )

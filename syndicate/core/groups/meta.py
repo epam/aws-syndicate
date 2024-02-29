@@ -8,7 +8,7 @@ from syndicate.core.constants import S3_BUCKET_ACL_LIST
 from syndicate.core.generators.deployment_resources import *
 from syndicate.core.generators.lambda_function import PROJECT_PATH_PARAM
 from syndicate.core.helper import OrderedGroup, OptionRequiredIf, \
-    check_file_extension, validate_incompatible_options
+    validate_incompatible_options
 from syndicate.core.helper import ValidRegionParamType
 from syndicate.core.helper import check_bundle_bucket_name
 from syndicate.core.helper import resolve_project_path, timeit
@@ -306,26 +306,6 @@ def api_gateway_resource_method(ctx, **kwargs):
     _generate(generator)
     click.echo(f"Method '{kwargs['method']}' was added to API gateway "
                f"resource '{kwargs['path']}' successfully")
-
-
-@meta.command(name='swagger_ui')
-@click.option('--resource_name', required=True, type=str,
-              help="Swagger UI name")
-@click.option('--path_to_spec', required=True, type=str,
-              callback=partial(check_file_extension, extensions=['.json']),
-              help="Path to OpenAPI specification file")
-@click.option('--target_bucket', required=True, type=str,
-              callback=check_bundle_bucket_name,
-              help="S3 bucket name for Swagger UI deployment")
-@click.pass_context
-@timeit()
-def swagger_ui(ctx, **kwargs):
-    """Generates Swagger UI deployment resources template"""
-    kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
-    generator = SwaggerUIGenerator(**kwargs)
-    _generate(generator)
-    click.echo(f"Swagger UI '{kwargs['resource_name']}' was "
-               f"added successfully")
 
 
 @meta.command(name='iam_policy')

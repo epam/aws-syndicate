@@ -14,6 +14,7 @@
     limitations under the License.
 """
 import os
+from functools import partial
 
 import click
 from syndicate.core.conf.generator import generate_configuration_files
@@ -21,12 +22,14 @@ from syndicate.core.generators.lambda_function import (
     generate_lambda_function)
 from syndicate.core.generators.project import (generate_project_structure,
                                                PROJECT_PROCESSORS)
+from syndicate.core.generators.swagger_ui import generate_swagger_ui
 from syndicate.core.groups.meta import meta
 from syndicate.core.helper import (timeit, OrderedGroup,
                                    check_bundle_bucket_name,
                                    resolve_project_path,
                                    check_lambdas_names, DictParamType,
-                                   check_suffix, check_prefix)
+                                   check_suffix, check_prefix,
+                                   check_file_extension)
 
 GENERATE_GROUP_NAME = 'generate'
 GENERATE_PROJECT_COMMAND_NAME = 'project'
@@ -175,6 +178,39 @@ def config(name, config_path, project_path, region, access_key, secret_key,
                                  serial_number=serial_number,
                                  tags=tags,
                                  iam_permissions_boundary=iam_permissions_boundary)
+
+
+@generate.command(name='swagger_ui')
+@click.option('--name', required=True, type=str,
+              help="Swagger UI name")
+@click.option('--path_to_spec', required=True, type=str,
+              callback=partial(check_file_extension, extensions=['.json']),
+              help="Path to OpenAPI specification file")
+@click.option('--target_bucket', required=True, type=str,
+              callback=check_bundle_bucket_name,
+              help="S3 bucket name for Swagger UI deployment")
+@click.option('--project_path', nargs=1,
+              help="Path to the project folder. Default value: the one "
+                   "from the current config if it exists. "
+                   "Otherwise - the current working directory",
+              callback=resolve_project_path)
+@timeit()
+def swagger_ui(name, path_to_spec, target_bucket, project_path):
+    """
+    Generates required environment for Swagger UI
+    """
+    if not os.access(project_path, os.F_OK):
+        click.echo(f"The provided path {project_path} doesn't exist")
+        return
+    elif not os.access(project_path, os.W_OK) or not os.access(project_path,
+                                                               os.X_OK):
+        click.echo(f"Incorrect permissions for the provided path "
+                   f"'{project_path}'")
+        return
+    generate_swagger_ui(name=name,
+                        spec_path=path_to_spec,
+                        target_bucket=target_bucket,
+                        project_path=project_path)
 
 
 generate.add_command(meta)

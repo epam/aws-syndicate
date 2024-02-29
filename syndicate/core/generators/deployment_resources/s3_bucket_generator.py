@@ -1,4 +1,5 @@
 from syndicate.commons.log_helper import get_logger
+from syndicate.core.generators.contents import S3_BUCKET_PUBLIC_READ_POLICY
 from syndicate.core.generators.deployment_resources.base_generator import \
     BaseDeploymentResourceGenerator
 from syndicate.core.constants import S3_BUCKET_TYPE
@@ -22,20 +23,7 @@ class S3Generator(BaseDeploymentResourceGenerator):
         }
     }
 
-    PUBLIC_READ_POLICY = {
-        "Version": "2012-10-17",
-        "Statement": [
-            {
-                "Sid": "PublicReadGetObject",
-                "Effect": "Allow",
-                "Principal": "*",
-                "Action": [
-                    "s3:GetObject"
-                ],
-                "Resource": []
-            }
-        ]
-    }
+    PUBLIC_READ_POLICY = S3_BUCKET_PUBLIC_READ_POLICY
 
     def __init__(self, **kwargs):
         self.static_website_hosting = kwargs.get('static_website_hosting')

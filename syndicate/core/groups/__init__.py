@@ -16,4 +16,5 @@
 RUNTIME_JAVA = 'java'
 RUNTIME_NODEJS = 'nodejs'
 RUNTIME_PYTHON = 'python'
+RUNTIME_SWAGGER_UI = 'swagger_ui'
 RUNTIME = 'runtime'
