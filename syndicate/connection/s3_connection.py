@@ -13,6 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+import io
 from json import dumps
 
 from boto3 import resource
@@ -48,6 +49,11 @@ class S3Connection(object):
 
     def download_file(self, bucket_name, key, file_path):
         self.resource.Bucket(bucket_name).download_file(key, file_path)
+
+    def download_to_file(self, bucket_name, key):
+        buffer = io.BytesIO()
+        self.resource.Bucket(bucket_name).download_fileobj(key, buffer)
+        return buffer
 
     def upload_file(self, storage, file_name, bucket_name, folder=''):
         """ Upload specific file to s3.

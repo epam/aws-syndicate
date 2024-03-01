@@ -472,8 +472,7 @@ S3_BUCKET_PUBLIC_READ_POLICY = {
     }
 
 SWAGGER_UI_INDEX_FILE_CONTENT = \
-"""
-<!DOCTYPE html>
+"""<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />

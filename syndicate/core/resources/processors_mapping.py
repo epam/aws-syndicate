@@ -16,14 +16,15 @@
 
 from syndicate.core.constants import \
     API_GATEWAY_TYPE, WEB_SOCKET_API_GATEWAY_TYPE, CLOUD_WATCH_ALARM_TYPE, \
-    CLOUD_WATCH_RULE_TYPE, EVENT_BRIDGE_RULE_TYPE, DYNAMO_TABLE_TYPE,\
-    EBS_TYPE, EC2_INSTANCE_TYPE, IAM_POLICY, IAM_ROLE, KINESIS_STREAM_TYPE,\
+    CLOUD_WATCH_RULE_TYPE, EVENT_BRIDGE_RULE_TYPE, DYNAMO_TABLE_TYPE, \
+    EBS_TYPE, EC2_INSTANCE_TYPE, IAM_POLICY, IAM_ROLE, KINESIS_STREAM_TYPE, \
     LAMBDA_TYPE, S3_BUCKET_TYPE, SNS_PLATFORM_APPLICATION_TYPE, \
     SNS_TOPIC_TYPE, SQS_QUEUE_TYPE, STATE_ACTIVITY_TYPE, STEP_FUNCTION_TYPE, \
     LAMBDA_LAYER_TYPE, BATCH_COMPENV_TYPE, BATCH_JOBQUEUE_TYPE, \
     BATCH_JOBDEF_TYPE, COGNITO_USER_POOL_TYPE, COGNITO_FEDERATED_POOL_TYPE, \
     DOCUMENTDB_CLUSTER_TYPE, DOCUMENTDB_INSTANCE_TYPE, DAX_CLUSTER_TYPE, \
-    FIREHOSE_TYPE, EVENT_BRIDGE_SCHEDULE_TYPE, API_GATEWAY_OAS_V3_TYPE
+    FIREHOSE_TYPE, EVENT_BRIDGE_SCHEDULE_TYPE, API_GATEWAY_OAS_V3_TYPE, \
+    SWAGGER_UI_TYPE
 
 
 class ProcessorFacade:
@@ -96,7 +97,9 @@ class ProcessorFacade:
             FIREHOSE_TYPE:
                 self.resources_provider.firehose().create_stream,
             EVENT_BRIDGE_SCHEDULE_TYPE:
-                self.resources_provider.eventbridge_scheduler().create_schedule
+                self.resources_provider.eventbridge_scheduler().create_schedule,
+            SWAGGER_UI_TYPE: self.resources_provider.swagger_ui().
+            create_update_swagger_ui
         }
 
     def describe_handlers(self):
@@ -231,7 +234,9 @@ class ProcessorFacade:
             FIREHOSE_TYPE:
                 self.resources_provider.firehose().delete_streams,
             EVENT_BRIDGE_SCHEDULE_TYPE:
-                self.resources_provider.eventbridge_scheduler().remove_schedule
+                self.resources_provider.eventbridge_scheduler().remove_schedule,
+            SWAGGER_UI_TYPE: self.resources_provider.swagger_ui().
+            remove_swagger_ui
         }
 
     def update_handlers(self):
@@ -255,7 +260,9 @@ class ProcessorFacade:
                 self.resources_provider.eventbridge_scheduler()
                     .update_schedule,
             DYNAMO_TABLE_TYPE:
-                self.resources_provider.dynamodb().update_tables
+                self.resources_provider.dynamodb().update_tables,
+            SWAGGER_UI_TYPE: self.resources_provider.swagger_ui().
+            create_update_swagger_ui
         }
 
     def resource_configuration_processor(self):

@@ -58,7 +58,8 @@ NODE_REQ_FILE_NAME = 'package.json'
 LOCAL_REQ_FILE_NAME = 'local_requirements.txt'
 RESOURCES_FILE_NAME = 'deployment_resources.json'
 OAS_V3_FILE_NAME = 'oas_v3.json'
-
+SWAGGER_UI_SPEC_NAME_TEMPLATE = '{name}_spec.json'
+SWAGGER_UI_ARTIFACT_NAME_TEMPLATE = 'swagger_ui_{name}.zip'
 # layer.zip
 # │ python/PIL
 # └ python/Pillow-5.3.0.dist-info
@@ -105,6 +106,7 @@ CLEAN_RESOURCE_TYPE_PRIORITY = {
     IAM_POLICY: 2,
     DAX_CLUSTER_TYPE: 3,
     DYNAMO_TABLE_TYPE: 4,
+    SWAGGER_UI_TYPE: 4,
     S3_BUCKET_TYPE: 5,
     CLOUD_WATCH_RULE_TYPE: 6,
     EVENT_BRIDGE_RULE_TYPE: 6,
@@ -141,7 +143,8 @@ UPDATE_RESOURCE_TYPE_PRIORITY = {
     LAMBDA_TYPE: 5,
     API_GATEWAY_OAS_V3_TYPE: 6,
     BATCH_JOBDEF_TYPE: 7,
-    BATCH_COMPENV_TYPE: 8
+    BATCH_COMPENV_TYPE: 8,
+    SWAGGER_UI_TYPE: 9
 }
 
 RESOURCE_LIST = list(DEPLOY_RESOURCE_TYPE_PRIORITY.keys())

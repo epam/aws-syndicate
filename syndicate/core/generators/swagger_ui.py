@@ -19,6 +19,7 @@ from pathlib import Path, PurePath
 
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core import ProjectState
+from syndicate.core.constants import SWAGGER_UI_SPEC_NAME_TEMPLATE
 from syndicate.core.generators import _mkdir, _touch, _write_content_to_file
 from syndicate.core.generators.contents import SWAGGER_UI_INDEX_FILE_CONTENT, \
      _generate_swagger_ui_deployment_resources
@@ -69,7 +70,8 @@ def generate_swagger_ui(name, spec_path, target_bucket, project_path):
                                  target_bucket=target_bucket)
 
     _create_index_file(src_path=src_path,
-                       spec_file_name=f'{name}_spec.json')
+                       spec_file_name=SWAGGER_UI_SPEC_NAME_TEMPLATE.format(
+                           name=name))
 
     USER_LOG.info(f'Swagger UI \'{name}\' resource files saved to '
                   f'\'{src_path}\'')

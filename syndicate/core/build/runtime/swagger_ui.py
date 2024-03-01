@@ -19,6 +19,8 @@ import shutil
 import zipfile
 
 from syndicate.commons.log_helper import get_logger
+from syndicate.core.constants import SWAGGER_UI_SPEC_NAME_TEMPLATE, \
+    SWAGGER_UI_ARTIFACT_NAME_TEMPLATE
 from syndicate.core.helper import build_path
 
 FILE_DEPLOYMENT_RESOURCES = 'deployment_resources.json'
@@ -59,11 +61,17 @@ def assemble_swagger_ui(project_path, bundles_dir):
                     f'Specification file not found for Swagger UI '
                     f'\'{item}\' in specified path {spec_path}.')
 
-            zip_file_path = build_path(src_path, item, f'{item}.zip')
+            swagger_conf[item]['artifact_path'] = os.path.basename(bundles_dir)
+            with open(conf_file_path, "w") as file:
+                json.dump(swagger_conf, file)
+
+            artifact_name = SWAGGER_UI_ARTIFACT_NAME_TEMPLATE.format(name=item)
+            spec_name = SWAGGER_UI_SPEC_NAME_TEMPLATE.format(name=item)
+            zip_file_path = build_path(src_path, item, artifact_name)
             with zipfile.ZipFile(zip_file_path, 'w') as zipf:
-                zipf.write(index_file_path)
-                zipf.write(spec_path)
+                zipf.write(index_file_path, INDEX_FILE_NAME)
+                zipf.write(spec_path, spec_name)
             shutil.move(zip_file_path, build_path(bundles_dir,
-                                                  f'{item}.zip'))
+                                                  artifact_name))
 
             _LOG.info(f'Swagger UI {item} was processed successfully')
