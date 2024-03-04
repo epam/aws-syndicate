@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [1.15.9] - 2024-03-04
+- Implemented S3 bucket deployment with configuration for static website hosting
+- Added new resource type `swagger_ui`
+
 # [1.15.8] - 2024-02-27
 - Implemented Cognito User Pools ARNs resolving for OpenAPI specification via the key `x-syndicate-cognito-userpool-names` of the `x-amazon-apigateway-authorizer` extension
 

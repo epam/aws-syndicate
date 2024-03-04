@@ -338,6 +338,9 @@ class ResourceProvider:
                     s3_conn=self._conn_provider.s3(),
                     deploy_target_bucket=self.config.deploy_target_bucket,
                     region=self.config.region,
-                    account_id=self.config.account_id
+                    account_id=self.config.account_id,
+                    extended_prefix_mode=self.config.extended_prefix_mode,
+                    prefix=self.config.resources_prefix,
+                    suffix=self.config.resources_suffix
                 )
             return self._swagger_ui_resource

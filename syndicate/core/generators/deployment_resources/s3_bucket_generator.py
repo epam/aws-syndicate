@@ -23,8 +23,6 @@ class S3Generator(BaseDeploymentResourceGenerator):
         }
     }
 
-    PUBLIC_READ_POLICY = S3_BUCKET_PUBLIC_READ_POLICY
-
     def __init__(self, **kwargs):
         self.static_website_hosting = kwargs.get('static_website_hosting')
         super().__init__(**kwargs)
@@ -32,9 +30,7 @@ class S3Generator(BaseDeploymentResourceGenerator):
     def _generate_resource_configuration(self) -> dict:
         result = super()._generate_resource_configuration()
         if self.static_website_hosting:
-            self.PUBLIC_READ_POLICY['Statement'][0]['Resource'] = \
-                [f"arn:aws:s3:::{self.resource_name}/*"]
-            result['policy'] = self.PUBLIC_READ_POLICY
+            result['policy'] = S3_BUCKET_PUBLIC_READ_POLICY
             result['acl'] = 'public-read'
             result['public_access_block'] = {
                 'block_public_acls': False,

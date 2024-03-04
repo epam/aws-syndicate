@@ -165,7 +165,9 @@ class ProcessorFacade:
             FIREHOSE_TYPE:
                 self.resources_provider.firehose().describe_stream,
             EVENT_BRIDGE_SCHEDULE_TYPE:
-                self.resources_provider.eventbridge_scheduler().describe_schedule
+                self.resources_provider.eventbridge_scheduler().describe_schedule,
+            SWAGGER_UI_TYPE: self.resources_provider.swagger_ui().
+            describe_swagger_ui
         }
 
     def remove_handlers(self):

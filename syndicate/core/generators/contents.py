@@ -466,7 +466,9 @@ S3_BUCKET_PUBLIC_READ_POLICY = {
                 "Action": [
                     "s3:GetObject"
                 ],
-                "Resource": []
+                "Resource": [
+                    "arn:aws:s3:::{bucket_name}/*"
+                ]
             }
         ]
     }
@@ -502,8 +504,7 @@ SWAGGER_UI_INDEX_FILE_CONTENT = \
     };
   </script>
   </body>
-</html>
-"""
+</html>"""
 
 
 def _stringify(dict_content):
