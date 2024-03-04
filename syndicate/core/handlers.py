@@ -623,9 +623,8 @@ def assemble_node(bundle_name, project_path):
                    'Default value: $ProjectName_%Y%m%d.%H%M%S')
 @click.option('--project_path', '-path', nargs=1,
               callback=resolve_path_callback, required=True,
-              help='The path to the NodeJS project. The code is '
-                   'packed to a zip archive, where the external libraries are '
-                   'found, which are described in the package.json file')
+              help='The path to the project. Related files will be packed '
+                   'into a zip archive.')
 @timeit(action_name=ASSEMBLE_SWAGGER_UI_ACTION)
 def assemble_swagger_ui(bundle_name, project_path):
     """
@@ -636,11 +635,11 @@ def assemble_swagger_ui(bundle_name, project_path):
         :param project_path: path to project folder
         :return:
         """
-    click.echo(f'Command assemble python: project_path: {project_path} ')
+    click.echo(f'Command assemble Swagger UI: project_path: {project_path} ')
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
                        runtime=RUNTIME_SWAGGER_UI)
-    click.echo('Python artifacts were prepared successfully.')
+    click.echo('Swagger UI artifacts were prepared successfully.')
 
 
 RUNTIME_LANG_TO_BUILD_MAPPING = {
