@@ -22,7 +22,7 @@ from syndicate.core.build.runtime.nodejs import assemble_node_lambdas
 from syndicate.core.build.runtime.python import assemble_python_lambdas
 
 RUNTIME_JAVA_8 = 'java8'
-RUNTIME_NODEJS = 'nodejs14.x'
+RUNTIME_NODEJS = 'nodejs20.x'
 RUNTIME_PYTHON = 'pythonX'
 
 SUPPORTED_RUNTIMES = [

@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+- # [1.14.4] - 2024-03-05
+- update available NodeJS lambda versions from 10.x/12.x/14.x to 16.x/18.x/20.x
+- upgrade default NodeJS lambda version from 14.x to 20.x
+
 - # [1.14.3] - 2024-02-09
 ### Added
 - added missed import into the Java lambda template
