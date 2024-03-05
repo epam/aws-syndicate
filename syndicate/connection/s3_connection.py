@@ -13,6 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+import io
 from json import dumps
 
 from boto3 import resource
@@ -49,6 +50,9 @@ class S3Connection(object):
     def download_file(self, bucket_name, key, file_path):
         self.resource.Bucket(bucket_name).download_file(key, file_path)
 
+    def download_to_file(self, bucket_name, key, file):
+        self.resource.Bucket(bucket_name).download_fileobj(key, file)
+
     def upload_file(self, storage, file_name, bucket_name, folder=''):
         """ Upload specific file to s3.
 
@@ -61,15 +65,17 @@ class S3Connection(object):
         self.client.upload_file(storage + file_name, bucket_name,
                                 folder + file_name)
 
-    def upload_single_file(self, path, key, bucket):
+    def upload_single_file(self, path, key, bucket, extra_args=None):
         """ Uploads file just like method above, but allows to specify
         object key as argument
 
         :param path: path to actual file on os
         :param key: object key, as it will be uploaded to bucket
         :param bucket: just bucket name
+        :param extra_args: Extra arguments that may be passed to the client
+        operation
         """
-        self.client.upload_file(path, bucket, key)
+        self.client.upload_file(path, bucket, key, ExtraArgs=extra_args)
 
     def put_object(self, file_obj, key, bucket,
                    content_type, content_encoding=None):
@@ -120,6 +126,15 @@ class S3Connection(object):
             else:
                 raise e
 
+    def get_bucket_website(self, bucket_name):
+        try:
+            return self.client.get_bucket_website(Bucket=bucket_name)
+        except ClientError as e:
+            if 'NoSuchWebsiteConfiguration' or 'NoSuchBucket' in str(e):
+                pass  # valid exception
+            else:
+                raise e
+
     def is_file_exists(self, bucket_name, key):
         """ Check if file exists.
 
@@ -137,6 +152,7 @@ class S3Connection(object):
         :param location: region
         """
         param = dict(Bucket=bucket_name)
+        param['ObjectOwnership'] = 'ObjectWriter'
         if acl:
             param['ACL'] = acl
         if not location:
@@ -447,3 +463,10 @@ class S3Connection(object):
             PublicAccessBlockConfiguration=public_access_block_configuration
         )
         _LOG.info(f'Public access block was set')
+
+    def put_bucket_acl(self, bucket_name: str, acl: str):
+        self.client.put_bucket_acl(
+            Bucket=bucket_name,
+            ACL=acl
+        )
+        _LOG.info(f'ACL was set as \'{acl}\'')

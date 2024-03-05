@@ -659,3 +659,21 @@ def zip_ext(name: str) -> str:
     if not name.endswith(_zip):
         name = name + _zip
     return name
+
+
+def check_file_extension(ctx, param, value, extensions):
+    for extension in extensions:
+        if value.lower().endswith(extension):
+            return value
+    raise BadParameter(f'Only files with extensions {extensions} are '
+                       f'supported.')
+
+
+def validate_incompatible_options(ctx, param, value, incompatible_options):
+    if value:
+        conflict_options = [option for option in incompatible_options if
+                            ctx.params.get(option)]
+        if conflict_options:
+            raise BadParameter(f'Parameter \'{param.name}\' is incompatible '
+                               f'with {conflict_options}')
+        return value
