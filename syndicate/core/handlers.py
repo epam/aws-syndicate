@@ -20,6 +20,7 @@ import sys
 import click
 from tabulate import tabulate
 
+from syndicate.core.export.export_processor import export_specification
 from syndicate.core.transform.transform_processor import generate_build_meta
 from syndicate.core import CONF_PATH, initialize_connection, \
     initialize_project_state, initialize_signal_handling
@@ -69,8 +70,7 @@ from syndicate.core.constants import TEST_ACTION, BUILD_ACTION, \
     STATUS_ACTION, WARMUP_ACTION, PROFILER_ACTION, ASSEMBLE_JAVA_MVN_ACTION, \
     ASSEMBLE_PYTHON_ACTION, ASSEMBLE_NODE_ACTION, ASSEMBLE_ACTION, \
     PACKAGE_META_ACTION, CREATE_DEPLOY_TARGET_BUCKET_ACTION, UPLOAD_ACTION, \
-    COPY_BUNDLE_ACTION
-
+    COPY_BUNDLE_ACTION, EXPORT_ACTION
 
 INIT_COMMAND_NAME = 'init'
 SYNDICATE_PACKAGE_NAME = 'aws-syndicate'
@@ -337,10 +337,12 @@ def update(bundle_name, deploy_name, replace_output,
               help='If specified provided types will be excluded')
 @click.option('--rollback', is_flag=True,
               help='Remove failed deployed resources')
+@click.option('--preserve_state', is_flag=True,
+              help='Preserve deploy output json file after resources removal')
 @timeit(action_name=CLEAN_ACTION)
 def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
           clean_only_resources_path, clean_externals, excluded_resources,
-          excluded_resources_path, excluded_types, rollback):
+          excluded_resources_path, excluded_types, rollback, preserve_state):
     """
     Cleans the application infrastructure
     """
@@ -374,7 +376,9 @@ def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
             clean_only_resources=clean_only_resources,
             clean_only_types=clean_only_types,
             excluded_resources=excluded_resources,
-            excluded_types=excluded_types, clean_externals=clean_externals)
+            excluded_types=excluded_types, clean_externals=clean_externals,
+            preserve_state=preserve_state
+        )
     else:
         remove_deployment_resources(deploy_name=deploy_name,
                                     bundle_name=bundle_name,
@@ -382,7 +386,8 @@ def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
                                     clean_only_types=clean_only_types,
                                     excluded_resources=excluded_resources,
                                     excluded_types=excluded_types,
-                                    clean_externals=clean_externals)
+                                    clean_externals=clean_externals,
+                                    preserve_state=preserve_state)
     click.echo('AWS resources were removed.')
 
 
@@ -764,6 +769,49 @@ def copy_bundle(ctx, bundle_name, src_account_id, src_bucket_region,
     click.echo('Bundle was downloaded successfully')
     ctx.invoke(upload, bundle_name=bundle_name, force=force_upload)
     click.echo('Bundle was copied successfully')
+
+
+@syndicate.command(name=EXPORT_ACTION)
+@click.option('--resource_type',
+              type=click.Choice(['api_gateway']), required=True,
+              help='The type of resource to export configuration')
+@click.option('--dsl',
+              type=click.Choice(['oas_v3']), default='oas_v3',
+              help='DSL of output specification')
+@click.option('--deploy_name', '-d', nargs=1, callback=resolve_default_value,
+              help='Name of the deploy. This parameter allows the framework '
+                   'to decide,which exactly output file should be used. If '
+                   'not specified, resolves the latest deploy name')
+@click.option('--bundle_name',
+              callback=resolve_default_value,
+              help='Name of the bundle to export from. '
+                   'Default value: name of the latest built bundle')
+@click.option('--output_dir',
+              help='The directory where an exported configuration will be '
+                   'saved. If not specified, the directory with the name '
+                   '"export" will be created in the project root directory to '
+                   'store export files')
+def export(resource_type, dsl, deploy_name, bundle_name, output_dir):
+    """
+    Exports a configuration of the specified resource type to the file in a
+    specified DSL
+
+    param: resource_type: the type of the resource
+    param: dsl: the DSL of the output configuration
+    param: deploy_name: the name of the deployment
+    param: bundle_name: the name of the bundle to export from
+    param: output_dir: the directory where an exported specification will be
+    saved
+    """
+    export_specification(deploy_name=deploy_name,
+                         bundle_name=bundle_name,
+                         output_directory=output_dir,
+                         resource_type=resource_type,
+                         dsl=dsl)
+    if resource_type == 'api_gateway' and dsl == 'oas_v3':
+        click.secho('Please note the AWS API Gateway-specific extensions are '
+                    'used to define the API in OAS v3 that starting with '
+                    '"x-amazon"', fg='yellow')
 
 
 syndicate.add_command(generate)

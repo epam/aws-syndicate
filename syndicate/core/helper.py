@@ -534,7 +534,10 @@ class DictParamType(click.types.StringParamType):
 def check_bundle_bucket_name(ctx, param, value):
     try:
         from syndicate.core.resources.s3_resource import validate_bucket_name
-        validate_bucket_name(value)
+        bucket_name = value
+        if '/' in value:
+            bucket_name = value.split('/', 1)[0]
+        validate_bucket_name(bucket_name)
         return value
     except ValueError as e:
         raise BadParameter(e.__str__())

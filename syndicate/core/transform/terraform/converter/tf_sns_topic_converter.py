@@ -16,7 +16,8 @@
 import json
 import uuid
 
-from syndicate.core.resources.lambda_resource import CLOUD_WATCH_RULE_TRIGGER
+from syndicate.core.resources.lambda_resource import CLOUD_WATCH_RULE_TRIGGER, \
+    EVENT_BRIDGE_RULE_TRIGGER
 from syndicate.core.transform.terraform.converter.tf_resource_converter import \
     TerraformResourceConverter
 from syndicate.core.transform.terraform.tf_helper import deploy_regions
@@ -61,7 +62,8 @@ class SNSTopicConverter(TerraformResourceConverter):
         if event_sources:
             for event_source in event_sources:
                 event_source_res_type = event_source.get('resource_type')
-                if event_source_res_type == CLOUD_WATCH_RULE_TRIGGER:
+                if event_source_res_type in [CLOUD_WATCH_RULE_TRIGGER,
+                                             EVENT_BRIDGE_RULE_TRIGGER]:
                     target_rule = event_source.get('target_rule')
                     target_rule = f'{target_rule}_{region}' if region else target_rule
                     rule_exp = build_cloud_watch_event_rule_name_ref(

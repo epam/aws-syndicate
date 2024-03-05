@@ -42,12 +42,12 @@ def meta(ctx, project_path):
               help="The node type for the nodes in the cluster")
 @click.option('--iam_role_name', required=True, type=str,
               help="Role name to access DynamoDB tables")
-@click.option('--subnet_group_name', type=str,
+@click.option('--subnet_group_name', required=True, type=str,
               help='The name of the subnet group to be used for the '
                    'replication group')
 @click.option('--subnet_ids', type=str, multiple=True,
-              help='Subnet ids to create a subnet group from. If specified, '
-                   'you must not specify \'--subnet_group_name\'')
+              help='Subnet ids to create a subnet group from. Don\'t specify '
+                   'in case of using existing subnet group')
 @click.option('--cluster_endpoint_encryption_type',
               type=click.Choice(['NONE', 'TLS']), default='TLS',
               help='The encryption type of the cluster\'s endpoint. '
@@ -59,10 +59,6 @@ def meta(ctx, project_path):
 def dax_cluster(ctx, **kwargs):
     """Generated dax cluster deployment resource template"""
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
-    if kwargs.get('subnet_group_name') and kwargs.get('subnet_ids'):
-        raise click.UsageError(
-            'You must specify either only \'--subnet_group_name\' '
-            'or only \'--subnet_ids\'')
     generator = DaxClusterGenerator(**kwargs)
     _generate(generator)
     click.echo(f'Dax cluster \'{kwargs["resource_name"]}\' was '
@@ -424,7 +420,7 @@ def step_function_activity(ctx, **kwargs):
 @click.option('--security_group_ids', type=str, multiple=True,
               help="Security group ids")
 @click.option('--security_group_names', type=str, multiple=True,
-              help="Security group ids")  # ???
+              help="Security group names")
 @click.option('--availability_zone', type=str,
               help="Instance availability zone")
 @click.option('--subnet_id', type=str, cls=OptionRequiredIf,
