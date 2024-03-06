@@ -119,6 +119,9 @@ def lambda_function(name, runtime, project_path):
 @click.option('--secret_key',
               help='AWS secret key that is used to deploy the application. '
                    'Retrieved from session by default')
+@click.option('--session_token',
+              help='AWS session token that is used to deploy the application. '
+                   'Retrieved from session by default')
 @click.option('--config_path',
               help='Path to store generated configuration file')
 @click.option('--project_path',
@@ -158,8 +161,9 @@ def lambda_function(name, runtime, project_path):
               help='Common permissions boundary arn to add to all the roles')
 @timeit()
 def config(name, config_path, project_path, region, access_key, secret_key,
-           bundle_bucket_name, prefix, suffix, extended_prefix, use_temp_creds,
-           access_role, serial_number, tags, iam_permissions_boundary):
+           session_token, bundle_bucket_name, prefix, suffix,
+           extended_prefix, use_temp_creds, access_role, serial_number,
+           tags, iam_permissions_boundary):
     """
     Creates Syndicate configuration files
     """
@@ -169,6 +173,7 @@ def config(name, config_path, project_path, region, access_key, secret_key,
                                  region=region,
                                  access_key=access_key,
                                  secret_key=secret_key,
+                                 session_token=session_token,
                                  bundle_bucket_name=bundle_bucket_name,
                                  prefix=prefix,
                                  suffix=suffix,
