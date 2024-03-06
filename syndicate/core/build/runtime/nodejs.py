@@ -110,4 +110,4 @@ def _check_npm_is_installed():
     if result:
         raise AssertionError(
             'NPM is not installed. There is no ability to build '
-            'NodeJS bundle. Please, install npm are retry to build bundle.')
+            'NodeJS bundle. Please, install npm and retry to build bundle.')
