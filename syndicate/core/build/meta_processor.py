@@ -32,7 +32,7 @@ from syndicate.core.constants import (API_GATEWAY_TYPE, ARTIFACTS_FOLDER,
                                       LAMBDA_LAYER_CONFIG_FILE_NAME,
                                       WEB_SOCKET_API_GATEWAY_TYPE,
                                       OAS_V3_FILE_NAME,
-                                      API_GATEWAY_OAS_V3_TYPE)
+                                      API_GATEWAY_OAS_V3_TYPE, SWAGGER_UI_TYPE)
 from syndicate.core.helper import (build_path, prettify_json,
                                    resolve_aliases_for_string,
                                    write_content_to_file)
@@ -270,6 +270,16 @@ def _populate_s3_path_ebs(meta, bundle_name):
         meta[S3_PATH_NAME] = build_path(bundle_name, deployment_package)
 
 
+def _populate_s3_path_swagger_ui(meta, bundle_name):
+    deployment_package = meta.get('deployment_package')
+    if not deployment_package:
+        raise AssertionError('Swagger UI config must contain '
+                             'deployment_package. Existing configuration'
+                             ': {0}'.format(prettify_json(meta)))
+    else:
+        meta[S3_PATH_NAME] = build_path(bundle_name, deployment_package)
+
+
 def populate_s3_paths(overall_meta, bundle_name):
     for name, meta in overall_meta.items():
         resource_type = meta.get('resource_type')
@@ -324,7 +334,8 @@ RUNTIME_PATH_RESOLVER = {
 S3_PATH_MAPPING = {
     LAMBDA_TYPE: _populate_s3_path_lambda,
     EBS_TYPE: _populate_s3_path_ebs,
-    LAMBDA_LAYER_TYPE: _populate_s3_path_lambda_layer
+    LAMBDA_LAYER_TYPE: _populate_s3_path_lambda_layer,
+    SWAGGER_UI_TYPE: _populate_s3_path_swagger_ui
 }
 
 
