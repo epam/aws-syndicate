@@ -23,7 +23,7 @@ from syndicate.core.build.runtime.python import assemble_python_lambdas
 from syndicate.core.build.runtime.swagger_ui import assemble_swagger_ui
 
 RUNTIME_JAVA_8 = 'java8'
-RUNTIME_NODEJS = 'nodejs14.x'
+RUNTIME_NODEJS = 'nodejs20.x'
 RUNTIME_PYTHON = 'pythonX'
 RUNTIME_SWAGGER_UI = 'swagger_ui'
 
