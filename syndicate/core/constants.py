@@ -27,6 +27,7 @@ SQS_QUEUE_TYPE = 'sqs_queue'
 API_GATEWAY_TYPE = 'api_gateway'
 API_GATEWAY_OAS_V3_TYPE = 'api_gateway_oas_v3'
 WEB_SOCKET_API_GATEWAY_TYPE = 'web_socket_api_gateway'
+SWAGGER_UI_TYPE = 'swagger_ui'
 COGNITO_FEDERATED_POOL_TYPE = 'cognito_federated_pool'
 COGNITO_USER_POOL_TYPE = 'cognito_idp'
 SNS_TOPIC_TYPE = 'sns_topic'
@@ -57,7 +58,8 @@ NODE_REQ_FILE_NAME = 'package.json'
 LOCAL_REQ_FILE_NAME = 'local_requirements.txt'
 RESOURCES_FILE_NAME = 'deployment_resources.json'
 OAS_V3_FILE_NAME = 'oas_v3.json'
-
+SWAGGER_UI_SPEC_NAME_TEMPLATE = '{name}_spec.json'
+SWAGGER_UI_ARTIFACT_NAME_TEMPLATE = 'swagger_ui_{name}.zip'
 # layer.zip
 # │ python/PIL
 # └ python/Pillow-5.3.0.dist-info
@@ -85,6 +87,7 @@ DEPLOY_RESOURCE_TYPE_PRIORITY = {
     API_GATEWAY_TYPE: 16,
     API_GATEWAY_OAS_V3_TYPE: 17,
     WEB_SOCKET_API_GATEWAY_TYPE: 18,
+    SWAGGER_UI_TYPE: 19,
     COGNITO_FEDERATED_POOL_TYPE: 19,
     EBS_TYPE: 20,
     EC2_INSTANCE_TYPE: 21,
@@ -103,6 +106,7 @@ CLEAN_RESOURCE_TYPE_PRIORITY = {
     IAM_POLICY: 2,
     DAX_CLUSTER_TYPE: 3,
     DYNAMO_TABLE_TYPE: 4,
+    SWAGGER_UI_TYPE: 4,
     S3_BUCKET_TYPE: 5,
     CLOUD_WATCH_RULE_TYPE: 6,
     EVENT_BRIDGE_RULE_TYPE: 6,
@@ -139,7 +143,8 @@ UPDATE_RESOURCE_TYPE_PRIORITY = {
     LAMBDA_TYPE: 5,
     API_GATEWAY_OAS_V3_TYPE: 6,
     BATCH_JOBDEF_TYPE: 7,
-    BATCH_COMPENV_TYPE: 8
+    BATCH_COMPENV_TYPE: 8,
+    SWAGGER_UI_TYPE: 9
 }
 
 RESOURCE_LIST = list(DEPLOY_RESOURCE_TYPE_PRIORITY.keys())
@@ -157,6 +162,7 @@ PROFILER_ACTION = 'profiler'
 ASSEMBLE_JAVA_MVN_ACTION = 'assemble_java_mvn'
 ASSEMBLE_PYTHON_ACTION = 'assemble_python'
 ASSEMBLE_NODE_ACTION = 'assemble_node'
+ASSEMBLE_SWAGGER_UI_ACTION = 'assemble_swagger_ui'
 ASSEMBLE_ACTION = 'assemble'
 PACKAGE_META_ACTION = 'package_meta'
 CREATE_DEPLOY_TARGET_BUCKET_ACTION = 'create_deploy_target_bucket'
@@ -179,3 +185,6 @@ LAMBDA_ARCHITECTURE_LIST = ['x86_64', 'arm64']
 
 API_GW_DEFAULT_THROTTLING_RATE_LIMIT = 10000
 API_GW_DEFAULT_THROTTLING_BURST_LIMIT = 5000
+
+S3_BUCKET_ACL_LIST = ['private', 'public-read',
+                      'public-read-write', 'authenticated-read']

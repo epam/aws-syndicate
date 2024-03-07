@@ -63,10 +63,12 @@ TAGS_CFG = 'tags'
 PYTHON_LANGUAGE_NAME = 'python'
 NODEJS_LANGUAGE_NAME = 'nodejs'
 JAVA_LANGUAGE_NAME = 'java'
+SWAGGER_UI_NAME = 'swagger_ui'
 
 ALLOWED_RUNTIME_LANGUAGES = [PYTHON_LANGUAGE_NAME,
                              JAVA_LANGUAGE_NAME,
-                             NODEJS_LANGUAGE_NAME]
+                             NODEJS_LANGUAGE_NAME,
+                             SWAGGER_UI_NAME]
 
 REQUIRED_PARAM_ERROR = 'The required key {} is missing'
 UNKNOWN_PARAM_MESSAGE = 'Unknown parameter(s) in the configuration file: {}'

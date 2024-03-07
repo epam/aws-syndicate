@@ -1,11 +1,14 @@
 import json
 import os
+from functools import partial
 
 import click
 
+from syndicate.core.constants import S3_BUCKET_ACL_LIST
 from syndicate.core.generators.deployment_resources import *
 from syndicate.core.generators.lambda_function import PROJECT_PATH_PARAM
-from syndicate.core.helper import OrderedGroup, OptionRequiredIf
+from syndicate.core.helper import OrderedGroup, OptionRequiredIf, \
+    validate_incompatible_options
 from syndicate.core.helper import ValidRegionParamType
 from syndicate.core.helper import check_bundle_bucket_name
 from syndicate.core.helper import resolve_project_path, timeit
@@ -165,25 +168,37 @@ def dynamodb_autoscaling(ctx, **kwargs):
 @click.option('--location', type=ValidRegionParamType(),
               help="The region where the bucket is created, the default value "
                    "is the region set in syndicate config")
-@click.option('--acl', type=click.Choice(['private', 'public-read',
-                                          'public-read-write',
-                                          'authenticated-read']),
+@click.option('--acl', type=click.Choice(S3_BUCKET_ACL_LIST),
               help="The channel ACL to be applied to the bucket. If not "
                    "specified, sets the default value to 'private'")
 @click.option('--block_public_acls', type=bool, required=False,
+              is_eager=True,
               help='Specifies whether Amazon S3 should block public access '
                    'control lists (ACLs) for this bucket and objects in this '
                    'bucket. Default value is True')
 @click.option('--ignore_public_acls', type=bool, required=False,
+              is_eager=True,
               help='Specifies whether Amazon S3 should ignore public ACLs for '
                    'this bucket and objects in this bucket. Default value '
                    'is True')
 @click.option('--block_public_policy', type=bool, required=False,
+              is_eager=True,
               help='Specifies whether Amazon S3 should block public bucket '
                    'policies for this bucket. Default value is True')
 @click.option('--restrict_public_buckets', type=bool, required=False,
+              is_eager=True,
               help='Specifies whether Amazon S3 should restrict public bucket '
                    'policies for this bucket. Default value is True')
+@click.option('--static_website_hosting', type=bool, required=False,
+              callback=partial(validate_incompatible_options,
+                               incompatible_options=['block_public_acls',
+                                                     'ignore_public_acls',
+                                                     'restrict_public_buckets',
+                                                     'block_public_policy']),
+              help='Specifies whether the S3 bucket should be configured for '
+                   'static WEB site hosting. If specified public read access '
+                   'will be configured for all S3 bucket objects! Default '
+                   'value is False')
 @click.pass_context
 @timeit()
 def s3_bucket(ctx, **kwargs):

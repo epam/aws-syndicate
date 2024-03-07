@@ -27,7 +27,8 @@ from syndicate.core import CONF_PATH, initialize_connection, \
 from syndicate.core.build.artifact_processor import (RUNTIME_NODEJS,
                                                      assemble_artifacts,
                                                      RUNTIME_JAVA_8,
-                                                     RUNTIME_PYTHON)
+                                                     RUNTIME_PYTHON,
+                                                     RUNTIME_SWAGGER_UI)
 from syndicate.core.build.bundle_processor import (create_bundles_bucket,
                                                    load_bundle,
                                                    upload_bundle_to_s3,
@@ -46,7 +47,8 @@ from syndicate.core.build.warmup_processor import (process_deploy_resources,
                                                    process_inputted_api_gw_id)
 from syndicate.core.conf.validator import (JAVA_LANGUAGE_NAME,
                                            PYTHON_LANGUAGE_NAME,
-                                           NODEJS_LANGUAGE_NAME)
+                                           NODEJS_LANGUAGE_NAME,
+                                           SWAGGER_UI_NAME)
 from syndicate.core.decorators import (check_deploy_name_for_duplicates,
                                        check_deploy_bucket_exists)
 from syndicate.core.groups.generate import (generate,
@@ -70,7 +72,7 @@ from syndicate.core.constants import TEST_ACTION, BUILD_ACTION, \
     STATUS_ACTION, WARMUP_ACTION, PROFILER_ACTION, ASSEMBLE_JAVA_MVN_ACTION, \
     ASSEMBLE_PYTHON_ACTION, ASSEMBLE_NODE_ACTION, ASSEMBLE_ACTION, \
     PACKAGE_META_ACTION, CREATE_DEPLOY_TARGET_BUCKET_ACTION, UPLOAD_ACTION, \
-    COPY_BUNDLE_ACTION, EXPORT_ACTION
+    COPY_BUNDLE_ACTION, EXPORT_ACTION, ASSEMBLE_SWAGGER_UI_ACTION
 
 INIT_COMMAND_NAME = 'init'
 SYNDICATE_PACKAGE_NAME = 'aws-syndicate'
@@ -612,10 +614,39 @@ def assemble_node(bundle_name, project_path):
     click.echo('NodeJS artifacts were prepared successfully.')
 
 
+@syndicate.command(name=ASSEMBLE_SWAGGER_UI_ACTION)
+@timeit()
+@click.option('--bundle_name', '-b', nargs=1,
+              callback=generate_default_bundle_name,
+              help='Name of the bundle, to which the build artifacts are '
+                   'gathered and later used for the deployment. '
+                   'Default value: $ProjectName_%Y%m%d.%H%M%S')
+@click.option('--project_path', '-path', nargs=1,
+              callback=resolve_path_callback, required=True,
+              help='The path to the project. Related files will be packed '
+                   'into a zip archive.')
+@timeit(action_name=ASSEMBLE_SWAGGER_UI_ACTION)
+def assemble_swagger_ui(bundle_name, project_path):
+    """
+        Builds Swagger UI artifacts
+
+        \f
+        :param bundle_name: name of the bundle
+        :param project_path: path to project folder
+        :return:
+        """
+    click.echo(f'Command assemble Swagger UI: project_path: {project_path} ')
+    assemble_artifacts(bundle_name=bundle_name,
+                       project_path=project_path,
+                       runtime=RUNTIME_SWAGGER_UI)
+    click.echo('Swagger UI artifacts were prepared successfully.')
+
+
 RUNTIME_LANG_TO_BUILD_MAPPING = {
     JAVA_LANGUAGE_NAME: assemble_java_mvn,
     PYTHON_LANGUAGE_NAME: assemble_python,
-    NODEJS_LANGUAGE_NAME: assemble_node
+    NODEJS_LANGUAGE_NAME: assemble_node,
+    SWAGGER_UI_NAME: assemble_swagger_ui
 }
 
 
