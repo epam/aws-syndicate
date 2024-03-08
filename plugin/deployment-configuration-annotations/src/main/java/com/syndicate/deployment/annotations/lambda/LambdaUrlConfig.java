@@ -16,10 +16,8 @@
 
 package com.syndicate.deployment.annotations.lambda;
 
-import com.syndicate.deployment.annotations.DeploymentResource;
-import com.syndicate.deployment.model.Architecture;
-import com.syndicate.deployment.model.ArtifactExtension;
-import com.syndicate.deployment.model.DeploymentRuntime;
+import com.syndicate.deployment.model.lambda.url.AuthType;
+import com.syndicate.deployment.model.lambda.url.InvokeMode;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -27,27 +25,14 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Created by Oleksandr Onsha on 2019-11-29
+ * Created by Roman Ivanov on 2023-11-07
  */
-@DeploymentResource
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
-public @interface LambdaLayer {
+public @interface LambdaUrlConfig {
 
-	String layerName();
+    AuthType authType() default AuthType.NONE;
 
-	String description() default  "";
-
-	String layerFileName() default "";
-
-	String[] libraries() default {};
-
-	String licence() default "";
-
-	ArtifactExtension artifactExtension() default ArtifactExtension.ZIP;
-
-	DeploymentRuntime runtime() default DeploymentRuntime.JAVA11;
-
-	Architecture[] architectures() default {};
+    InvokeMode invokeMode() default InvokeMode.BUFFERED;
 
 }
