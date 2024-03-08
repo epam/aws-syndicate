@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [1.15.12] - 2024-03-08
+- AWS Java Lambada runtime default value changed from Java 8 to Java 11 for Syndicate Java Plugin
+- Java Lambda examples actualized to use Java 11 for compiler
+- Project templates changed to use Java 11 by default
+
 # [1.15.11] - 2024-03-07
 - Updated available NodeJS lambda versions from 10.x/12.x/14.x to 16.x/18.x/20.x
 - Upgraded default NodeJS lambda version from 14.x to 20.x
