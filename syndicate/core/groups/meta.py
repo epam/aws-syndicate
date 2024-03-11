@@ -4,11 +4,14 @@ from functools import partial
 
 import click
 
-from syndicate.core.constants import S3_BUCKET_ACL_LIST
+from syndicate.core.constants import S3_BUCKET_ACL_LIST, \
+    API_GW_AUTHORIZER_TYPES, CUSTOM_AUTHORIZER_KEY
 from syndicate.core.generators.deployment_resources import *
+from syndicate.core.generators.deployment_resources.api_gateway_generator import \
+    ApiGatewayAuthorizerGenerator
 from syndicate.core.generators.lambda_function import PROJECT_PATH_PARAM
 from syndicate.core.helper import OrderedGroup, OptionRequiredIf, \
-    validate_incompatible_options
+    validate_incompatible_options, validate_authorizer_name_option
 from syndicate.core.helper import ValidRegionParamType
 from syndicate.core.helper import check_bundle_bucket_name
 from syndicate.core.helper import resolve_project_path, timeit
@@ -246,6 +249,32 @@ def web_socket_api_gateway(ctx, **kwargs):
                f"added successfully")
 
 
+@meta.command(name='api_gateway_authorizer')
+@click.option('--api_name', required=True, type=str,
+              help="Api gateway name to add index to")
+@click.option('--name', required=True, type=str,
+              help="Authorizer name")
+@click.option('--type', type=click.Choice(API_GW_AUTHORIZER_TYPES),
+              required=True, help="Authorizer type. 'TOKEN' for a Lambda "
+                                  "function using a single authorization "
+                                  "token submitted in a custom header, "
+                                  "'REQUEST' for a Lambda function using "
+                                  "incoming request parameters, and "
+                                  "'COGNITO_USER_POOLS' for using an Amazon "
+                                  "Cognito user pool")
+@click.option('--provider_name', type=str, required=True,
+              help="Identity provider name")
+@click.pass_context
+@timeit()
+def api_gateway_authorizer(ctx, **kwargs):
+    """Adds authorizer to an existing api gateway"""
+    kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
+    generator = ApiGatewayAuthorizerGenerator(**kwargs)
+    _generate(generator)
+    click.echo(f"Authorizer '{kwargs['name']}' was added to API gateway "
+               f"'{kwargs['api_name']}' successfully")
+
+
 @meta.command(name='api_gateway_resource')
 @click.option('--api_name', required=True, type=str,
               help="Api gateway name to add index to")
@@ -283,10 +312,14 @@ def api_gateway_resource(ctx, **kwargs):
 @click.option('--lambda_region', type=ValidRegionParamType(),
               help="The region where the lambda is located. If not specified, "
                    "sets the default value from syndicate config")
-@click.option('--authorization_type',
-              type=click.Choice(["AWS_IAM", "CUSTOM", "COGNITO_USER_POOLS"]),
+@click.option('--authorization_type', is_eager=True,
+              type=click.Choice(["NONE", "AWS_IAM", CUSTOM_AUTHORIZER_KEY]),
               help="The method's authorization type. If not specified, sets "
                    "the default value to 'NONE'")
+@click.option('--authorizer_name', type=str,
+              callback=validate_authorizer_name_option,
+              help="The method's authorizer name can be used only with "
+                   "'--authorization_type' 'CUSTOM'")
 @click.option('--api_key_required', type=bool,
               help="Specifies whether the method requires a valid API key. "
                    "If not specified, the default value is set to False")
