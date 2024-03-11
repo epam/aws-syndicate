@@ -8,7 +8,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Implemented meta generation for  API gateway authorizer
 - Fixed a mechanism of linking API gateway resource methods with an authorizer
 
-
 # [1.15.12] - 2024-03-08
 - AWS Java Lambada runtime default value changed from Java 8 to Java 11 for Syndicate Java Plugin
 - Java Lambda examples actualized to use Java 11 for compiler
