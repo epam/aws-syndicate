@@ -373,7 +373,7 @@ def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
         excluded_resources = tuple(
             set(excluded_resources + tuple(excluded_resources_list)))
     if rollback:
-        remove_failed_deploy_resources(
+        result = remove_failed_deploy_resources(
             deploy_name=deploy_name, bundle_name=bundle_name,
             clean_only_resources=clean_only_resources,
             clean_only_types=clean_only_types,
@@ -382,15 +382,17 @@ def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
             preserve_state=preserve_state
         )
     else:
-        remove_deployment_resources(deploy_name=deploy_name,
-                                    bundle_name=bundle_name,
-                                    clean_only_resources=clean_only_resources,
-                                    clean_only_types=clean_only_types,
-                                    excluded_resources=excluded_resources,
-                                    excluded_types=excluded_types,
-                                    clean_externals=clean_externals,
-                                    preserve_state=preserve_state)
+        result = remove_deployment_resources(
+            deploy_name=deploy_name,
+            bundle_name=bundle_name,
+            clean_only_resources=clean_only_resources,
+            clean_only_types=clean_only_types,
+            excluded_resources=excluded_resources,
+            excluded_types=excluded_types,
+            clean_externals=clean_externals,
+            preserve_state=preserve_state)
     click.echo('AWS resources were removed.')
+    return result
 
 
 @syndicate.command(name=SYNC_ACTION)
