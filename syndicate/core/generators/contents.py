@@ -69,12 +69,13 @@ JAVA_ROOT_POM_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
     <version>1.0.0</version>
 
     <properties>
-        <maven-shade-plugin.version>3.2.0</maven-shade-plugin.version>
-        <deployment-configuration-annotations.version>1.11.0</deployment-configuration-annotations.version>
-        <maven.compiler.source>1.8</maven.compiler.source>
-        <maven.compiler.target>1.8</maven.compiler.target>
+        <maven-shade-plugin.version>3.5.2</maven-shade-plugin.version>
+        <syndicate.java.plugin.version>1.11.0</syndicate.java.plugin.version>
+        <maven.compiler.source>11</maven.compiler.source>
+        <maven.compiler.target>11</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <src.dir>jsrc/main/java</src.dir>
+        <resources.dir>jsrc/main/resources</resources.dir>
     </properties>
 
     <dependencies>
@@ -88,17 +89,22 @@ JAVA_ROOT_POM_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
         <dependency>
             <groupId>net.sf.aws-syndicate</groupId>
             <artifactId>deployment-configuration-annotations</artifactId>
-            <version>${deployment-configuration-annotations.version}</version>
+            <version>${syndicate.java.plugin.version}</version>
         </dependency>
     </dependencies>
 
     <build>
         <sourceDirectory>${src.dir}</sourceDirectory>
+        <resources>
+            <resource>
+                <directory>${resources.dir}</directory>
+            </resource>
+        </resources>        
         <plugins>
             <plugin>
                 <groupId>net.sf.aws-syndicate</groupId>
                 <artifactId>deployment-configuration-maven-plugin</artifactId>
-                <version>${deployment-configuration-annotations.version}</version>
+                <version>${syndicate.java.plugin.version}</version>
                 <configuration>
                     <packages>
                         <!--packages to scan-->

@@ -47,7 +47,7 @@ public @interface LambdaHandler {
      */
     String methodName() default "";
 
-    DeploymentRuntime runtime() default DeploymentRuntime.JAVA8;
+    DeploymentRuntime runtime() default DeploymentRuntime.JAVA11;
 
     Architecture architecture() default Architecture.X86_64;
 

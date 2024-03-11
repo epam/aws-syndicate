@@ -26,7 +26,7 @@ from syndicate.core import CONF_PATH, initialize_connection, \
     initialize_project_state, initialize_signal_handling
 from syndicate.core.build.artifact_processor import (RUNTIME_NODEJS,
                                                      assemble_artifacts,
-                                                     RUNTIME_JAVA_8,
+                                                     RUNTIME_JAVA,
                                                      RUNTIME_PYTHON,
                                                      RUNTIME_SWAGGER_UI)
 from syndicate.core.build.bundle_processor import (create_bundles_bucket,
@@ -550,7 +550,7 @@ def assemble_java_mvn(bundle_name, project_path):
     click.echo(f'Command compile java project path: {project_path}')
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
-                       runtime=RUNTIME_JAVA_8)
+                       runtime=RUNTIME_JAVA)
     click.echo('Java artifacts were prepared successfully.')
 
 
