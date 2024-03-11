@@ -311,9 +311,9 @@ RUNTIME_PATH_RESOLVER = {
     'python3.9': _populate_s3_path_python_node,
     'python3.10': _populate_s3_path_python_node,
     'python3.11': _populate_s3_path_python_node,
-    'java8': _populate_s3_path_java,
-    'java8.al2': _populate_s3_path_java,
     'java11': _populate_s3_path_java,
+    'java17': _populate_s3_path_java,
+    'java21': _populate_s3_path_java,
     'nodejs16.x': _populate_s3_path_python_node,
     'nodejs18.x': _populate_s3_path_python_node,
     'nodejs20.x': _populate_s3_path_python_node

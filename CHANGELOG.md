@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - AWS Java Lambada runtime default value changed from Java 8 to Java 11 for Syndicate Java Plugin
 - Java Lambda examples actualized to use Java 11 for compiler
 - Project templates changed to use Java 11 by default
+- Added support of Lambda runtime Java 17 and Java 21 
 
 # [1.15.11] - 2024-03-07
 - Updated available NodeJS lambda versions from 10.x/12.x/14.x to 16.x/18.x/20.x
