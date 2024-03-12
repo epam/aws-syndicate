@@ -333,6 +333,8 @@ def timeit(action_name=None):
             te = time()
             _LOG.info('Stage %s, elapsed time: %s', func.__name__,
                       str(timedelta(seconds=te - ts)))
+            result_action_name = result.get('operation') if \
+                isinstance(result, dict) else None
             if action_name:
                 username = getpass.getuser()
                 duration = round(te - ts, 3)
@@ -345,7 +347,7 @@ def timeit(action_name=None):
                 deploy_name = kwargs.get('deploy_name')
                 from syndicate.core import PROJECT_STATE
                 PROJECT_STATE.log_execution_event(
-                    operation=action_name,
+                    operation=result_action_name or action_name,
                     initiator=username,
                     bundle_name=bundle_name,
                     deploy_name=deploy_name,
