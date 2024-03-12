@@ -43,7 +43,8 @@ def get_project_log_file_path() -> str:
     if sdct_conf:
         logs_path = os.path.join(sdct_conf, LOG_FOLDER_NAME)
     else:
-        logs_path = os.path.join(Path.home(), LOG_USER_HOME_FOLDER_NAME)
+        logs_folder_path = os.environ.get('SDCT_LOGS') or Path.home()
+        logs_path = os.path.join(logs_folder_path, LOG_USER_HOME_FOLDER_NAME)
 
     try:
         os.makedirs(logs_path, exist_ok=True)
