@@ -1,3 +1,10 @@
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](http://www.apache.org/licenses/LICENSE-2.0.txt)
+
+[![PyPI - Version](https://img.shields.io/pypi/v/aws-syndicate.svg)](https://pypi.org/project/aws-syndicate)
+[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/aws-syndicate.svg)](https://pypi.org/project/aws-syndicate)
+
+[![Maven Central](https://maven-badges.herokuapp.com/maven-central/net.sf.aws-syndicate/deployment-configuration-processor/badge.svg)](https://maven-badges.herokuapp.com/maven-central/net.sf.aws-syndicate/deployment-configuration-processor)
+
 # Syndicate
 
 aws-syndicate is an Amazon Web Services deployment framework written in Python,

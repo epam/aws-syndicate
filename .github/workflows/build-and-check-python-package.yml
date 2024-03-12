@@ -1,0 +1,136 @@
+---
+name: build-and-check-python-package
+
+
+on:
+  workflow_call:
+    inputs:
+      path:
+        description: Where to look for the Python package to inspect.
+        required: false
+        type: string
+        default: .
+    outputs:
+      dist:
+        description: The location of the built packages.
+        value: ${{ jobs.build-package.outputs.dist }}
+
+
+jobs:
+  build-package:
+    name: Build and Verify package
+    runs-on: ubuntu-latest
+    outputs:
+      dist: ${{ steps.setter.outputs.dist }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        id: python-bavp
+        with:
+          python-version: '3.10'
+
+      - name: Create venv for tools
+        run: ${{ steps.python-bavp.outputs.python-path }} -Im venv /tmp/bavp
+        shell: bash
+
+      - name: Install dependencies
+        run: >
+          /tmp/bavp/bin/python
+          -Im pip
+          --disable-pip-version-check
+          --no-python-version-warning
+          install build check-wheel-contents==0.6.0 twine==4.0.2 wheel==0.42.0 wheel-filename==1.4.1
+        shell: bash
+
+      - name: Build package
+        run: |
+          SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct)
+          /tmp/bavp/bin/python -m build --outdir /tmp/bavp/dist
+        shell: bash
+
+      - name: Set output
+        id: setter
+        run: echo "dist=/tmp/bavp/dist" >>$GITHUB_OUTPUT
+        shell: bash
+        working-directory: ${{ inputs.path }}
+
+      - run: ls -l /tmp/bavp/dist
+        shell: bash
+        working-directory: ${{ inputs.path }}
+
+      - name: Upload built artifacts.
+        uses: actions/upload-artifact@v4
+        with:
+          name: Packages
+          path: /tmp/bavp/dist/*
+
+      - run: /tmp/bavp/bin/check-wheel-contents /tmp/bavp/dist/*.whl
+        shell: bash
+        working-directory: ${{ inputs.path }}
+
+      - name: Check PyPI README
+        shell: bash
+        working-directory: ${{ inputs.path }}
+        run: >
+          /tmp/bavp/bin/python
+          -m twine check
+          --strict
+          /tmp/bavp/dist/*
+
+      - name: Show wheel and SDist contents hierarchically, including metadata.
+        shell: bash
+        working-directory: ${{ inputs.path }}
+        run: |
+          cd /tmp/bavp/dist
+          mkdir -p out/sdist
+          mkdir -p out/wheels
+          /tmp/bavp/bin/python -m wheel unpack --dest out/wheels *.whl
+          tar xf *.tar.gz -C out/sdist
+          
+          echo -e '\n<details><summary>SDist contents</summary>\n' >> $GITHUB_STEP_SUMMARY
+          (cd /tmp/bavp/dist/out/sdist && tree -Da --timefmt="%Y-%m-%dT%H:%M:%SZ" * | sed 's/^/    /' | tee -a $GITHUB_STEP_SUMMARY)
+          echo -e '\n</details>\n' >> $GITHUB_STEP_SUMMARY
+          
+          echo -e '\n<details><summary>Wheel contents</summary>\n' >> $GITHUB_STEP_SUMMARY
+          (cd /tmp/bavp/dist/out/wheels && tree -Da --timefmt="%Y-%m-%dT%H:%M:%SZ" * | sed 's/^/    /' | tee -a $GITHUB_STEP_SUMMARY)
+          echo -e '\n</details>\n' >> $GITHUB_STEP_SUMMARY
+          
+          echo ----- Metadata Follows -----
+          echo -e '\n<details><summary>Metadata</summary>\n' >> $GITHUB_STEP_SUMMARY
+          cat out/sdist/*/PKG-INFO | sed 's/^/    /' | tee -a $GITHUB_STEP_SUMMARY
+          echo -e '\n</details>\n' >> $GITHUB_STEP_SUMMARY
+          echo ----- End of Metadata  -----
+
+      - name: Upload metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: Package Metadata
+          path: /tmp/bavp/dist/out/sdist/*/PKG-INFO
+
+      - name: Extract PyPI README
+        shell: bash
+        working-directory: /tmp/bavp/dist/out/sdist/
+        run: |
+          cat */PKG-INFO | python -c '
+          import email.parser
+          import sys
+          
+          em = email.parser.Parser().parsestr(sys.stdin.read())
+          suffix = {
+              "text/markdown": "md",
+              "text/x-rst": "rst",
+          }[em["Description-Content-Type"]]
+          with open(f"PyPI-README.{suffix}", "w") as f:
+              f.write(em.get_payload())
+          '
+
+      - name: Upload PyPI README
+        uses: actions/upload-artifact@v4
+        with:
+          name: PyPI README
+          path: /tmp/bavp/dist/out/sdist/PyPI-README.*
