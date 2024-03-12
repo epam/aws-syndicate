@@ -22,7 +22,7 @@ from tabulate import tabulate
 
 from syndicate.core.export.export_processor import export_specification
 from syndicate.core.transform.transform_processor import generate_build_meta
-from syndicate.core import CONF_PATH, initialize_connection, \
+from syndicate.core import initialize_connection, \
     initialize_project_state, initialize_signal_handling
 from syndicate.core.build.artifact_processor import (RUNTIME_NODEJS,
                                                      assemble_artifacts,
@@ -90,6 +90,7 @@ def _not_require_config(all_params):
 @click.group(name='syndicate')
 @click.version_option()
 def syndicate():
+    from syndicate.core import CONF_PATH
     if CONF_PATH:
         click.echo('Configuration used: ' + CONF_PATH)
         initialize_connection()
