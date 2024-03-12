@@ -32,7 +32,7 @@ from syndicate.core.constants import (API_GATEWAY_TYPE, ARTIFACTS_FOLDER,
                                       LAMBDA_LAYER_CONFIG_FILE_NAME,
                                       WEB_SOCKET_API_GATEWAY_TYPE,
                                       OAS_V3_FILE_NAME,
-                                      API_GATEWAY_OAS_V3_TYPE)
+                                      API_GATEWAY_OAS_V3_TYPE, SWAGGER_UI_TYPE)
 from syndicate.core.helper import (build_path, prettify_json,
                                    resolve_aliases_for_string,
                                    write_content_to_file)
@@ -270,6 +270,16 @@ def _populate_s3_path_ebs(meta, bundle_name):
         meta[S3_PATH_NAME] = build_path(bundle_name, deployment_package)
 
 
+def _populate_s3_path_swagger_ui(meta, bundle_name):
+    deployment_package = meta.get('deployment_package')
+    if not deployment_package:
+        raise AssertionError('Swagger UI config must contain '
+                             'deployment_package. Existing configuration'
+                             ': {0}'.format(prettify_json(meta)))
+    else:
+        meta[S3_PATH_NAME] = build_path(bundle_name, deployment_package)
+
+
 def populate_s3_paths(overall_meta, bundle_name):
     for name, meta in overall_meta.items():
         resource_type = meta.get('resource_type')
@@ -307,24 +317,23 @@ def extract_deploy_stage_from_openapi_spec(openapi_spec: dict) -> str:
 
 
 RUNTIME_PATH_RESOLVER = {
-    'python3.6': _populate_s3_path_python_node,
-    'python3.7': _populate_s3_path_python_node,
     'python3.8': _populate_s3_path_python_node,
     'python3.9': _populate_s3_path_python_node,
     'python3.10': _populate_s3_path_python_node,
     'python3.11': _populate_s3_path_python_node,
-    'java8': _populate_s3_path_java,
-    'java8.al2': _populate_s3_path_java,
     'java11': _populate_s3_path_java,
-    'nodejs10.x': _populate_s3_path_python_node,
-    'nodejs14.x': _populate_s3_path_python_node,
-    'nodejs12.x': _populate_s3_path_python_node
+    'java17': _populate_s3_path_java,
+    'java21': _populate_s3_path_java,
+    'nodejs16.x': _populate_s3_path_python_node,
+    'nodejs18.x': _populate_s3_path_python_node,
+    'nodejs20.x': _populate_s3_path_python_node
 }
 
 S3_PATH_MAPPING = {
     LAMBDA_TYPE: _populate_s3_path_lambda,
     EBS_TYPE: _populate_s3_path_ebs,
-    LAMBDA_LAYER_TYPE: _populate_s3_path_lambda_layer
+    LAMBDA_LAYER_TYPE: _populate_s3_path_lambda_layer,
+    SWAGGER_UI_TYPE: _populate_s3_path_swagger_ui
 }
 
 

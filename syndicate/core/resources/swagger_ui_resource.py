@@ -22,7 +22,7 @@ from zipfile import ZipFile
 from syndicate.commons import deep_get
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.constants import SWAGGER_UI_ARTIFACT_NAME_TEMPLATE, \
-    ARTIFACTS_FOLDER, SWAGGER_UI_SPEC_NAME_TEMPLATE
+    ARTIFACTS_FOLDER, SWAGGER_UI_SPEC_NAME_TEMPLATE, S3_PATH_NAME
 from syndicate.core.helper import build_path, unpack_kwargs
 from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import build_description_obj
@@ -55,14 +55,6 @@ class SwaggerUIResource(BaseResource):
 
     @unpack_kwargs
     def _create_update_swagger_ui_from_meta(self, name, meta, context=None):
-        pure_name = name
-        if self.extended_prefix_mode:
-            if self.prefix:
-                pure_name = name[len(self.prefix):]
-            if self.suffix:
-                pure_name = pure_name[:-len(self.suffix)]
-        artifact_file_name = SWAGGER_UI_ARTIFACT_NAME_TEMPLATE.format(
-            name=pure_name)
         artifact_dir = PurePath(self.conf_path, ARTIFACTS_FOLDER,
                                 name).as_posix()
         target_bucket = meta.get('target_bucket')
@@ -72,16 +64,16 @@ class SwaggerUIResource(BaseResource):
         if not self.s3_conn.is_bucket_exists(target_bucket):
             raise AssertionError(f'Target bucket \'{target_bucket}\' for '
                                  f'Swagger UI \'{name}\' doesn\'t exists')
-        bundle_path = meta.get('artifact_path')
-        if not bundle_path:
-            raise AssertionError(f'Can\'t resolve bundle name')
+        artifact_path = meta.get(S3_PATH_NAME)
+        if not artifact_path:
+            raise AssertionError(f'Can\'t resolve Swagger UI artifact path')
         if '/' in self.deploy_target_bucket:
             deploy_bucket_name = self.deploy_target_bucket.split('/', 1)[0]
             artifact_src_path = self.deploy_target_bucket.split('/', 1)[1] + \
-                bundle_path + '/' + artifact_file_name
+                artifact_path
         else:
             deploy_bucket_name = self.deploy_target_bucket
-            artifact_src_path = bundle_path + '/' + artifact_file_name
+            artifact_src_path = artifact_path
 
         _LOG.info(f'Downloading an artifact for Swagger UI \'{name}\'')
         with io.BytesIO() as artifact:
@@ -116,7 +108,7 @@ class SwaggerUIResource(BaseResource):
     def describe_swagger_ui(self, name, meta):
         target_bucket = meta.get('target_bucket')
         arn = (f'arn:aws-syndicate:{self.region}:{self.account_id}:'
-               f'{target_bucket}')
+               f'{name}')
         spec_file_name = SWAGGER_UI_SPEC_NAME_TEMPLATE.format(
             name=name)
         website_hosting = self.s3_conn.get_bucket_website(target_bucket)
@@ -149,6 +141,14 @@ class SwaggerUIResource(BaseResource):
     def _remove_swagger_ui(self, arn, config):
         resource_name = arn.split(':')[-1]
         target_bucket = deep_get(config, ['resource_meta', 'target_bucket'])
+
+        pure_name = resource_name
+        if self.extended_prefix_mode:
+            if self.prefix:
+                pure_name = pure_name[len(self.prefix):]
+            if self.suffix:
+                pure_name = pure_name[:-len(self.suffix)]
+
         if not self.s3_conn.is_bucket_exists(target_bucket):
             USER_LOG.info(f'Target bucket with name \'{target_bucket}\' not '
                           f'found')
@@ -157,7 +157,6 @@ class SwaggerUIResource(BaseResource):
                                        file_name=INDEX_FILE_NAME)
             self.s3_conn.remove_object(
                 bucket_name=target_bucket,
-                file_name=SWAGGER_UI_ARTIFACT_NAME_TEMPLATE.format(
-                    name=resource_name))
+                file_name=SWAGGER_UI_SPEC_NAME_TEMPLATE.format(
+                    name=pure_name))
             USER_LOG.info(f'Swagger UI \'{resource_name}\' removed')
-

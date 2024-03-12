@@ -22,20 +22,20 @@ from syndicate.core.build.runtime.nodejs import assemble_node_lambdas
 from syndicate.core.build.runtime.python import assemble_python_lambdas
 from syndicate.core.build.runtime.swagger_ui import assemble_swagger_ui
 
-RUNTIME_JAVA_8 = 'java8'
-RUNTIME_NODEJS = 'nodejs14.x'
+RUNTIME_JAVA = 'javaX'
+RUNTIME_NODEJS = 'nodejs20.x'
 RUNTIME_PYTHON = 'pythonX'
 RUNTIME_SWAGGER_UI = 'swagger_ui'
 
 SUPPORTED_RUNTIMES = [
-    RUNTIME_JAVA_8,
+    RUNTIME_JAVA,
     RUNTIME_NODEJS,
     RUNTIME_PYTHON,
     RUNTIME_SWAGGER_UI
 ]
 
 RUNTIME_TO_BUILDER_MAPPING = {
-    RUNTIME_JAVA_8: assemble_java_mvn_lambdas,
+    RUNTIME_JAVA: assemble_java_mvn_lambdas,
     RUNTIME_NODEJS: assemble_node_lambdas,
     RUNTIME_PYTHON: assemble_python_lambdas,
     RUNTIME_SWAGGER_UI: assemble_swagger_ui

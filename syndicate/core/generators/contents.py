@@ -15,6 +15,7 @@
 """
 import json
 
+from syndicate.core.build.artifact_processor import RUNTIME_NODEJS
 from syndicate.core.conf.validator import (
     LAMBDAS_ALIASES_NAME_CFG, LOGS_EXPIRATION
 )
@@ -68,12 +69,13 @@ JAVA_ROOT_POM_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
     <version>1.0.0</version>
 
     <properties>
-        <maven-shade-plugin.version>3.2.0</maven-shade-plugin.version>
-        <deployment-configuration-annotations.version>1.11.0</deployment-configuration-annotations.version>
-        <maven.compiler.source>1.8</maven.compiler.source>
-        <maven.compiler.target>1.8</maven.compiler.target>
+        <maven-shade-plugin.version>3.5.2</maven-shade-plugin.version>
+        <syndicate.java.plugin.version>1.11.0</syndicate.java.plugin.version>
+        <maven.compiler.source>11</maven.compiler.source>
+        <maven.compiler.target>11</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <src.dir>jsrc/main/java</src.dir>
+        <resources.dir>jsrc/main/resources</resources.dir>
     </properties>
 
     <dependencies>
@@ -87,17 +89,22 @@ JAVA_ROOT_POM_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
         <dependency>
             <groupId>net.sf.aws-syndicate</groupId>
             <artifactId>deployment-configuration-annotations</artifactId>
-            <version>${deployment-configuration-annotations.version}</version>
+            <version>${syndicate.java.plugin.version}</version>
         </dependency>
     </dependencies>
 
     <build>
         <sourceDirectory>${src.dir}</sourceDirectory>
+        <resources>
+            <resource>
+                <directory>${resources.dir}</directory>
+            </resource>
+        </resources>        
         <plugins>
             <plugin>
                 <groupId>net.sf.aws-syndicate</groupId>
                 <artifactId>deployment-configuration-maven-plugin</artifactId>
-                <version>${deployment-configuration-annotations.version}</version>
+                <version>${syndicate.java.plugin.version}</version>
                 <configuration>
                     <packages>
                         <!--packages to scan-->
@@ -542,7 +549,7 @@ def _generate_nodejs_node_lambda_config(lambda_name, lambda_relative_path):
         'func_name': 'index.handler',
         'resource_type': 'lambda',
         'iam_role_name': LAMBDA_ROLE_NAME_PATTERN.format(lambda_name),
-        'runtime': 'nodejs14.x',
+        'runtime': RUNTIME_NODEJS,
         'memory': 128,
         'timeout': 100,
         'lambda_path': lambda_relative_path,

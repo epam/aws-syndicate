@@ -26,7 +26,7 @@ from syndicate.core import initialize_connection, \
     initialize_project_state, initialize_signal_handling
 from syndicate.core.build.artifact_processor import (RUNTIME_NODEJS,
                                                      assemble_artifacts,
-                                                     RUNTIME_JAVA_8,
+                                                     RUNTIME_JAVA,
                                                      RUNTIME_PYTHON,
                                                      RUNTIME_SWAGGER_UI)
 from syndicate.core.build.bundle_processor import (create_bundles_bucket,
@@ -374,7 +374,7 @@ def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
         excluded_resources = tuple(
             set(excluded_resources + tuple(excluded_resources_list)))
     if rollback:
-        remove_failed_deploy_resources(
+        result = remove_failed_deploy_resources(
             deploy_name=deploy_name, bundle_name=bundle_name,
             clean_only_resources=clean_only_resources,
             clean_only_types=clean_only_types,
@@ -383,15 +383,17 @@ def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
             preserve_state=preserve_state
         )
     else:
-        remove_deployment_resources(deploy_name=deploy_name,
-                                    bundle_name=bundle_name,
-                                    clean_only_resources=clean_only_resources,
-                                    clean_only_types=clean_only_types,
-                                    excluded_resources=excluded_resources,
-                                    excluded_types=excluded_types,
-                                    clean_externals=clean_externals,
-                                    preserve_state=preserve_state)
+        result = remove_deployment_resources(
+            deploy_name=deploy_name,
+            bundle_name=bundle_name,
+            clean_only_resources=clean_only_resources,
+            clean_only_types=clean_only_types,
+            excluded_resources=excluded_resources,
+            excluded_types=excluded_types,
+            clean_externals=clean_externals,
+            preserve_state=preserve_state)
     click.echo('AWS resources were removed.')
+    return result
 
 
 @syndicate.command(name=SYNC_ACTION)
@@ -551,7 +553,7 @@ def assemble_java_mvn(bundle_name, project_path):
     click.echo(f'Command compile java project path: {project_path}')
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
-                       runtime=RUNTIME_JAVA_8)
+                       runtime=RUNTIME_JAVA)
     click.echo('Java artifacts were prepared successfully.')
 
 

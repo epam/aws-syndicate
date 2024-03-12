@@ -36,7 +36,8 @@ from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.conf.processor import path_resolver
 from syndicate.core.conf.validator import ConfigValidator, ALL_REGIONS
 from syndicate.core.constants import (BUILD_META_FILE_NAME,
-                                      DEFAULT_SEP, DATE_FORMAT_ISO_8601)
+                                      DEFAULT_SEP, DATE_FORMAT_ISO_8601,
+                                      CUSTOM_AUTHORIZER_KEY)
 from syndicate.core.project_state.project_state import MODIFICATION_LOCK, \
     WARMUP_LOCK, ProjectState
 from syndicate.core.project_state.sync_processor import sync_project_state
@@ -332,6 +333,8 @@ def timeit(action_name=None):
             te = time()
             _LOG.info('Stage %s, elapsed time: %s', func.__name__,
                       str(timedelta(seconds=te - ts)))
+            result_action_name = result.get('operation') if \
+                isinstance(result, dict) else None
             if action_name:
                 username = getpass.getuser()
                 duration = round(te - ts, 3)
@@ -344,7 +347,7 @@ def timeit(action_name=None):
                 deploy_name = kwargs.get('deploy_name')
                 from syndicate.core import PROJECT_STATE
                 PROJECT_STATE.log_execution_event(
-                    operation=action_name,
+                    operation=result_action_name or action_name,
                     initiator=username,
                     bundle_name=bundle_name,
                     deploy_name=deploy_name,
@@ -676,4 +679,17 @@ def validate_incompatible_options(ctx, param, value, incompatible_options):
         if conflict_options:
             raise BadParameter(f'Parameter \'{param.name}\' is incompatible '
                                f'with {conflict_options}')
+        return value
+
+
+def validate_authorizer_name_option(ctx, param, value):
+    if value:
+        authorization_type = ctx.params.get('authorization_type')
+        if not authorization_type:
+            raise BadParameter(f'Parameter \'{param.name}\' can\'t be used '
+                               f'without \'authorization_type\' parameter')
+        if authorization_type != CUSTOM_AUTHORIZER_KEY:
+            raise BadParameter(f'Parameter \'{param.name}\' can\'t be used '
+                               f'with \'authorization_type\' '
+                               f'\'{authorization_type}\'')
         return value
