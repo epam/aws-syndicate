@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [1.15.15] - 2024-03-13
+- Fixed displaying help messages without configured SDCT_CONF environment variable
+- Implemented generation of lambda layer meta, the command `syndicate generate lambda_layer`
+
 # [1.15.14] - 2024-03-11
 - Fixed an issue related to clean resources after a partial clean
 
