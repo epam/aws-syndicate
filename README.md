@@ -25,9 +25,8 @@ descriptions.
 
 #### 1.2.1 Prerequisites
 
-1) [Python 3.7](https://www.python.org/downloads/ "Python 3.7") or
-   higher version;
-2) Package manager [PIP 9.0](https://pypi.org/project/pip/ "PIP 9.0")
+1) [Python 3.10](https://www.python.org/downloads/ "Python 3.10") version;
+2) Package manager [PIP 22.0](https://pypi.org/project/pip/ "PIP 22.0")
    or higher version;
 3) [Apache Maven 3.3.9](https://maven.apache.org/download.cgi "Apache Maven 3.3.9")
 or higher version (for Java projects).
@@ -162,23 +161,23 @@ syndicate generate config
     --name                      $configuration_name   [required]
     --region                    $region_name          [required]
     --bundle_bucket_name        $s3_bucket_name       [required]
-    --access_key                $access_key           [required]
-    --secret_key                $secret_key           [required]
+    --access_key                $access_key  
+    --secret_key                $secret_key   
     --config_path               $path_to_store_config
     --project_path              $relative_path_to_project
     --prefix                    $prefix
     --suffix                    $suffix
+    --extended_prefix           $extended_prefix_mode
     --use_temp_creds            $use_temp_creds #Specify,if use mfa or access_role
     --access_role               $role_name
     --serial_number             $serial_number
     --tags                      $KEY:VALUE
-    --iam_permissions_boundary  $ARN
-    --session_token             $aws_session_token
+    --iam_permissions_boundary  $ARN  
 ```
 
 All the provided information is validated.
 
-*Note:* you may not specify `--access_key` and `--secret_key` params. It this
+*Note:* you may not specify `--access_key` and `--secret_key` params. In this
 case Syndicate will try to find your credentials by the path `~/.aws`.
 
 *Note:* You can force Syndicate to generate temporary credentials and use them
@@ -211,8 +210,6 @@ syndicate generate config --name dev --region eu-central-1 --bundle_bucket_name 
 ```
 
 For more details please execute `syndicate generate config --help`
-
-*Note:* You can find a detailed structure of the syndicate.yml file [here](docs/wiki_syndicate.yml.md)
 
 ### 2.3 Creating lambda files
 
@@ -367,25 +364,15 @@ The aws-syndicate/examples folder contains structure examples for different
 runtimes. Go to any example you like best and set the environment
 variable `SDCT_CONF=$path_to_the_selected_example`.
 
-Add your account details to `sdct.conf`/`syndicate.yml` file - account id,
+Add your account details to `syndicate.yml` file - account id,
 secret access key, access key and bucket name for deployment.
-To `sdct_aliases.conf`/`syndicate_aliases.yml` add your account id, region
+To `syndicate_aliases.yml` add your account id, region
 name (eu-central-1, us-west-1, etc.) and other values in the file that start
 with a `$` sign.
 
-The demo application consists of the following infrastructure:
-
-* 2 IAM roles
-* 3 IAM policies
-* 1 DynamoDB table
-* 1 S3 bucket
-* 2 lambdas
-* 1 API Gateway
-
 Documentation
 ------------
-You can find a detailed
-documentation [here](https://github.com/epam/aws-syndicate/blob/master/docs/01_sdct_quick_start.pdf)
+Documentation you can find [here](https://github.com/epam/aws-syndicate/wiki)
 
 Getting Help
 ------------
@@ -399,10 +386,10 @@ with some of existing templates.
 Default label for bugs, improvements and feature requests is `To-Think-About`,
 it defines that ticket requires additional information about what should be done
 in scope of this issue.
-`To-Do` label should be added only for tickets with clear and reviwed issue
+`To-Do` label should be added only for tickets with clear and reviewed issue
 scope.
 
-But before creating new issues - check existing, it may cover you problem or
+But before creating new issues - check existing, they may cover your problem or
 question. For increasing issue priority - just add "+1" comment.
 
 Would like to contribute?

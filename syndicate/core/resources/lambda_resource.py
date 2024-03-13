@@ -58,6 +58,7 @@ _SNAP_START_CONFIGURATIONS = [_APPLY_SNAP_START_VERSIONS,
 
 DYNAMO_DB_TRIGGER = 'dynamodb_trigger'
 CLOUD_WATCH_RULE_TRIGGER = 'cloudwatch_rule_trigger'
+EVENT_BRIDGE_RULE_TRIGGER = 'eventbridge_rule_trigger'
 S3_TRIGGER = 's3_trigger'
 SNS_TOPIC_TRIGGER = 'sns_topic_trigger'
 KINESIS_TRIGGER = 'kinesis_trigger'
@@ -975,6 +976,7 @@ class LambdaResource(BaseResource):
     CREATE_TRIGGER = {
         DYNAMO_DB_TRIGGER: _create_dynamodb_trigger_from_meta,
         CLOUD_WATCH_RULE_TRIGGER: _create_cloud_watch_trigger_from_meta,
+        EVENT_BRIDGE_RULE_TRIGGER: _create_cloud_watch_trigger_from_meta,
         S3_TRIGGER: _create_s3_trigger_from_meta,
         SNS_TOPIC_TRIGGER: _create_sns_topic_trigger_from_meta,
         KINESIS_TRIGGER: _create_kinesis_stream_trigger_from_meta,

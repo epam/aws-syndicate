@@ -4,11 +4,79 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [1.15.15] - 2024-03-13
+- Fixed displaying help messages without configured SDCT_CONF environment variable
+- Implemented generation of lambda layer meta, the command `syndicate generate lambda_layer`
+
+# [1.15.14] - 2024-03-11
+- Fixed an issue related to clean resources after a partial clean
+
+# [1.15.13] - 2024-03-11
+- Implemented meta generation for  API gateway authorizer
+- Fixed a mechanism of linking API gateway resource methods with an authorizer
+
+# [1.15.12] - 2024-03-08
+- AWS Java Lambada runtime default value changed from Java 8 to Java 11 for Syndicate Java Plugin
+- Java Lambda examples actualized to use Java 11 for compiler
+- Project templates changed to use Java 11 by default
+- Added support of Lambda runtime Java 17 and Java 21 
+
+# [1.15.11] - 2024-03-07
+- Updated available NodeJS lambda versions from 10.x/12.x/14.x to 16.x/18.x/20.x
+- Upgraded default NodeJS lambda version from 14.x to 20.x
+
+# [1.15.10] - 2024-03-06
+- Add ability to generate syndicate configs with temporary set of credentials
+
+# [1.15.9] - 2024-03-04
+- Implemented S3 bucket deployment with configuration for static website hosting
+- Added new resource type `swagger_ui`
+
+# [1.15.8] - 2024-02-27
+- Implemented Cognito User Pools ARNs resolving for OpenAPI specification via the key `x-syndicate-cognito-userpool-names` of the `x-amazon-apigateway-authorizer` extension
+
+# [1.15.7] - 2024-02-23
+- Implemented the feature "export api gateway OpenAPI spec"
+
+# [1.15.6] - 2024-02-22
+- Added support of Eventbridge rule
+- Fixed DAX cluster deployment error when DAX Role is deploying on the fly
+- Fixed Dax cluster meta generation error in case of specifying subnet group name and subnets IDs
+- Fixed the help message for the parameter '--security_group_names' of the command `syndicate generate meta ec2_instance`
+- The parameter "minv_cpus" was removed from a meta template generated for the Fargate type of AWS Batch Compute environment
+- Fixed AWS Batch Compute environment deployment issue in case of specifying the parameter `--allocation_strategy`
+- Changed an error message in case of unsupported resource type
+
+
+# [1.15.5] - 2024-02-21
+- Fix lambda authorization permissions
+
+# [1.15.4] - 2024-02-20
+### Changed
+- Java lambda examples have been actualized for 1.11.0 version
+### Added
+- AWS EventBridge Rule support has been added to the Java plugin 1.11.0 version
+
+# [1.15.3] - 2024-02-19
+- Removed obsolete documentation (/docs)
+
+# [1.15.2] - 2024-02-16
+- Actualized information in the file readme.md
+- Actualized Python project examples
+
+# [1.15.1] - 2024-02-15
+- Refactor handling of duplicate resources for method `_check_duplicated_resources`
+
+# [1.15.0] - 2024-02-14
+- syndicate clean: add `--preserve_state` parameter to keep deploy output json file
+- syndicate generate config: validate composite deploy_target_bucket (bucket+prefix)
+- change location of the OpenAPI Specification to a separate `openapi_spec.json` file
+
 - # [1.14.3] - 2024-02-09
 ### Added
 - added missed import into the Java lambda template
 
-- # [1.14.2] - 2024-02-06
+# [1.14.2] - 2024-02-06
 - Add `api_source_arn` when creating permission for lambda authorizer.
 - Change in `syndicate generate` command default value for `lambdas_alias_name`
 from `prod` to `dev`.

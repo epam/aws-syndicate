@@ -33,6 +33,8 @@ class CfSnsConverter(CfResourceConverter):
         super().__init__(template, config, resources_provider)
         self.create_trigger = {
             'cloudwatch_rule_trigger':
+                self._create_cloud_watch_trigger_from_meta,
+            'eventbridge_rule_trigger':
                 self._create_cloud_watch_trigger_from_meta
         }
 

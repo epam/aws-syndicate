@@ -47,6 +47,7 @@ from syndicate.core.resources.batch_jobqueue_resource import (
 from syndicate.core.resources.batch_jobdef_resource import (
     BatchJobDefinitionResource)
 from syndicate.core.resources.group_tagging_api_resource import TagsApiResource
+from syndicate.core.resources.swagger_ui_resource import SwaggerUIResource
 
 
 class ResourceProvider:
@@ -94,6 +95,7 @@ class ResourceProvider:
         _tags_api_resource = None
         _dax_cluster_resource = None
         _eventbridge_scheduler_resource = None
+        _swagger_ui_resource = None
 
         def __init__(self, config, credentials) -> None:
             self.credentials = credentials
@@ -329,3 +331,16 @@ class ResourceProvider:
                     connection=self._conn_provider.groups_tagging_api()
                 )
             return self._tags_api_resource
+
+        def swagger_ui(self):
+            if not self._swagger_ui_resource:
+                self._swagger_ui_resource = SwaggerUIResource(
+                    s3_conn=self._conn_provider.s3(),
+                    deploy_target_bucket=self.config.deploy_target_bucket,
+                    region=self.config.region,
+                    account_id=self.config.account_id,
+                    extended_prefix_mode=self.config.extended_prefix_mode,
+                    prefix=self.config.resources_prefix,
+                    suffix=self.config.resources_suffix
+                )
+            return self._swagger_ui_resource

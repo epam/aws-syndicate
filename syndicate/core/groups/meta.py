@@ -1,11 +1,17 @@
 import json
 import os
+from functools import partial
 
 import click
 
+from syndicate.core.constants import S3_BUCKET_ACL_LIST, \
+    API_GW_AUTHORIZER_TYPES, CUSTOM_AUTHORIZER_KEY
 from syndicate.core.generators.deployment_resources import *
+from syndicate.core.generators.deployment_resources.api_gateway_generator import \
+    ApiGatewayAuthorizerGenerator
 from syndicate.core.generators.lambda_function import PROJECT_PATH_PARAM
-from syndicate.core.helper import OrderedGroup, OptionRequiredIf
+from syndicate.core.helper import OrderedGroup, OptionRequiredIf, \
+    validate_incompatible_options, validate_authorizer_name_option
 from syndicate.core.helper import ValidRegionParamType
 from syndicate.core.helper import check_bundle_bucket_name
 from syndicate.core.helper import resolve_project_path, timeit
@@ -42,12 +48,12 @@ def meta(ctx, project_path):
               help="The node type for the nodes in the cluster")
 @click.option('--iam_role_name', required=True, type=str,
               help="Role name to access DynamoDB tables")
-@click.option('--subnet_group_name', type=str,
+@click.option('--subnet_group_name', required=True, type=str,
               help='The name of the subnet group to be used for the '
                    'replication group')
 @click.option('--subnet_ids', type=str, multiple=True,
-              help='Subnet ids to create a subnet group from. If specified, '
-                   'you must not specify \'--subnet_group_name\'')
+              help='Subnet ids to create a subnet group from. Don\'t specify '
+                   'in case of using existing subnet group')
 @click.option('--cluster_endpoint_encryption_type',
               type=click.Choice(['NONE', 'TLS']), default='TLS',
               help='The encryption type of the cluster\'s endpoint. '
@@ -59,10 +65,6 @@ def meta(ctx, project_path):
 def dax_cluster(ctx, **kwargs):
     """Generated dax cluster deployment resource template"""
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
-    if kwargs.get('subnet_group_name') and kwargs.get('subnet_ids'):
-        raise click.UsageError(
-            'You must specify either only \'--subnet_group_name\' '
-            'or only \'--subnet_ids\'')
     generator = DaxClusterGenerator(**kwargs)
     _generate(generator)
     click.echo(f'Dax cluster \'{kwargs["resource_name"]}\' was '
@@ -169,25 +171,37 @@ def dynamodb_autoscaling(ctx, **kwargs):
 @click.option('--location', type=ValidRegionParamType(),
               help="The region where the bucket is created, the default value "
                    "is the region set in syndicate config")
-@click.option('--acl', type=click.Choice(['private', 'public-read',
-                                          'public-read-write',
-                                          'authenticated-read']),
+@click.option('--acl', type=click.Choice(S3_BUCKET_ACL_LIST),
               help="The channel ACL to be applied to the bucket. If not "
                    "specified, sets the default value to 'private'")
 @click.option('--block_public_acls', type=bool, required=False,
+              is_eager=True,
               help='Specifies whether Amazon S3 should block public access '
                    'control lists (ACLs) for this bucket and objects in this '
                    'bucket. Default value is True')
 @click.option('--ignore_public_acls', type=bool, required=False,
+              is_eager=True,
               help='Specifies whether Amazon S3 should ignore public ACLs for '
                    'this bucket and objects in this bucket. Default value '
                    'is True')
 @click.option('--block_public_policy', type=bool, required=False,
+              is_eager=True,
               help='Specifies whether Amazon S3 should block public bucket '
                    'policies for this bucket. Default value is True')
 @click.option('--restrict_public_buckets', type=bool, required=False,
+              is_eager=True,
               help='Specifies whether Amazon S3 should restrict public bucket '
                    'policies for this bucket. Default value is True')
+@click.option('--static_website_hosting', type=bool, required=False,
+              callback=partial(validate_incompatible_options,
+                               incompatible_options=['block_public_acls',
+                                                     'ignore_public_acls',
+                                                     'restrict_public_buckets',
+                                                     'block_public_policy']),
+              help='Specifies whether the S3 bucket should be configured for '
+                   'static WEB site hosting. If specified public read access '
+                   'will be configured for all S3 bucket objects! Default '
+                   'value is False')
 @click.pass_context
 @timeit()
 def s3_bucket(ctx, **kwargs):
@@ -235,6 +249,32 @@ def web_socket_api_gateway(ctx, **kwargs):
                f"added successfully")
 
 
+@meta.command(name='api_gateway_authorizer')
+@click.option('--api_name', required=True, type=str,
+              help="Api gateway name to add index to")
+@click.option('--name', required=True, type=str,
+              help="Authorizer name")
+@click.option('--type', type=click.Choice(API_GW_AUTHORIZER_TYPES),
+              required=True, help="Authorizer type. 'TOKEN' for a Lambda "
+                                  "function using a single authorization "
+                                  "token submitted in a custom header, "
+                                  "'REQUEST' for a Lambda function using "
+                                  "incoming request parameters, and "
+                                  "'COGNITO_USER_POOLS' for using an Amazon "
+                                  "Cognito user pool")
+@click.option('--provider_name', type=str, required=True,
+              help="Identity provider name")
+@click.pass_context
+@timeit()
+def api_gateway_authorizer(ctx, **kwargs):
+    """Adds authorizer to an existing api gateway"""
+    kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
+    generator = ApiGatewayAuthorizerGenerator(**kwargs)
+    _generate(generator)
+    click.echo(f"Authorizer '{kwargs['name']}' was added to API gateway "
+               f"'{kwargs['api_name']}' successfully")
+
+
 @meta.command(name='api_gateway_resource')
 @click.option('--api_name', required=True, type=str,
               help="Api gateway name to add index to")
@@ -272,10 +312,14 @@ def api_gateway_resource(ctx, **kwargs):
 @click.option('--lambda_region', type=ValidRegionParamType(),
               help="The region where the lambda is located. If not specified, "
                    "sets the default value from syndicate config")
-@click.option('--authorization_type',
-              type=click.Choice(["AWS_IAM", "CUSTOM", "COGNITO_USER_POOLS"]),
+@click.option('--authorization_type', is_eager=True,
+              type=click.Choice(["NONE", "AWS_IAM", CUSTOM_AUTHORIZER_KEY]),
               help="The method's authorization type. If not specified, sets "
                    "the default value to 'NONE'")
+@click.option('--authorizer_name', type=str,
+              callback=validate_authorizer_name_option,
+              help="The method's authorizer name can be used only with "
+                   "'--authorization_type' 'CUSTOM'")
 @click.option('--api_key_required', type=bool,
               help="Specifies whether the method requires a valid API key. "
                    "If not specified, the default value is set to False")
@@ -424,7 +468,7 @@ def step_function_activity(ctx, **kwargs):
 @click.option('--security_group_ids', type=str, multiple=True,
               help="Security group ids")
 @click.option('--security_group_names', type=str, multiple=True,
-              help="Security group ids")  # ???
+              help="Security group names")
 @click.option('--availability_zone', type=str,
               help="Instance availability zone")
 @click.option('--subnet_id', type=str, cls=OptionRequiredIf,

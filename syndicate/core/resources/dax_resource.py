@@ -15,7 +15,9 @@
 """
 from time import time
 
+from syndicate.commons import deep_get
 from syndicate.commons.log_helper import get_logger, get_user_logger
+from syndicate.connection.helper import retry
 from syndicate.core.helper import unpack_kwargs
 from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import build_description_obj
@@ -33,6 +35,7 @@ class DaxResource(BaseResource):
         return self.create_pool(self._create_cluster_from_meta, args)
 
     @unpack_kwargs
+    @retry
     def _create_cluster_from_meta(self, name, meta):
         role_name = meta['iam_role_name']
         role_arn = self.iam_conn.check_if_role_exists(role_name)
@@ -90,8 +93,15 @@ class DaxResource(BaseResource):
     @unpack_kwargs
     def _remove_cluster(self, arn, config):
         cluster_name = config['resource_name']
+        subnet_group_name = deep_get(config,
+                                     ['resource_meta', 'subnet_group_name']) \
+            if deep_get(config, ['resource_meta', 'subnet_ids']) else None
         try:
             self.dax_conn.delete_cluster(cluster_name)
+            if subnet_group_name:
+                # TODO Delete the subnet group if it was created via this
+                #  deployment
+                pass
         except self.dax_conn.client.exceptions.InvalidClusterStateFault as e:
             USER_LOG.warning(e.response['Error']['Message'] +
                              ' Remove it manually!')

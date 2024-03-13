@@ -20,7 +20,7 @@ from hashlib import md5
 from botocore.exceptions import ClientError
 
 from syndicate.commons import deep_get
-from syndicate.commons.log_helper import get_logger
+from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.constants import (
     SOURCE_ARN_DEEP_KEY, SECURITY_SCHEMAS_DEEP_KEY,
     API_GW_DEFAULT_THROTTLING_RATE_LIMIT,
@@ -37,6 +37,7 @@ from syndicate.core.resources.lambda_resource import LambdaResource
 API_REQUIRED_PARAMS = ['resources', 'deploy_stage']
 
 _LOG = get_logger('syndicate.core.resources.api_gateway_resource')
+USER_LOG = get_user_logger()
 
 SUPPORTED_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS',
                      'HEAD', 'ANY']
@@ -44,6 +45,9 @@ _CORS_HEADER_NAME = 'Access-Control-Allow-Origin'
 _CORS_HEADER_VALUE = "'*'"
 _COGNITO_AUTHORIZER_TYPE = 'COGNITO_USER_POOLS'
 _CUSTOM_AUTHORIZER_TYPE = 'CUSTOM'
+
+X_SDCT_EXTENSION_KEY = 'x-syndicate-cognito-userpool-names'
+PROVIDER_ARNS_KEY = 'providerARNs'
 
 POLICY_STATEMENT_SINGLETON = 'policy_statement_singleton'
 
@@ -360,7 +364,7 @@ class ApiGatewayResource(BaseResource):
                 uri = f'arn:aws:apigateway:{self.region}:lambda:path/' \
                       f'2015-03-31/functions/{lambda_arn}/invocations'
                 api_source_arn = (f'arn:aws:execute-api:{self.region}:'
-                                  f'{self.account_id}:{api_id}/*/*/*')
+                                  f'{self.account_id}:{api_id}/*/*')
                 self.lambda_res.add_invocation_permission(
                     statement_id=api_id,
                     name=lambda_arn,
@@ -406,12 +410,17 @@ class ApiGatewayResource(BaseResource):
         openapi_context = meta.get('definition')
         deploy_stage = meta.get('deploy_stage')
 
+        self._resolve_cup_ids(openapi_context)
+
         api_id = self.connection.create_openapi(openapi_context)
         self.connection.deploy_api(api_id, deploy_stage)
 
         api_lambdas_arns = self.extract_api_gateway_lambdas_arns(
             openapi_context)
-        self.create_lambdas_permissions(api_id, api_lambdas_arns)
+        self.create_lambdas_permissions(api_id, api_lambdas_arns, '/*/*/*')
+        api_lambda_auth_arns = self.extract_api_gateway_lambda_auth_arns(
+            openapi_context)
+        self.create_lambdas_permissions(api_id, api_lambda_auth_arns, '/*/*')
 
         return self.describe_api_resources(api_id=api_id, meta=meta, name=name)
 
@@ -421,13 +430,68 @@ class ApiGatewayResource(BaseResource):
         openapi_context = meta.get('definition')
         deploy_stage = meta.get('deploy_stage')
 
+        self._resolve_cup_ids(openapi_context)
+
         self.connection.update_openapi(api_id, openapi_context)
         self.connection.deploy_api(api_id, deploy_stage)
 
-        api_lambdas_arns = self.extract_api_gateway_lambdas_arns(openapi_context)
-        self.create_lambdas_permissions(api_id, api_lambdas_arns)
+        api_lambdas_arns = self.extract_api_gateway_lambdas_arns(
+            openapi_context
+        )
+        self.create_lambdas_permissions(api_id, api_lambdas_arns, '/*/*/*')
+        api_lambda_auth_arns = self.extract_api_gateway_lambda_auth_arns(
+            openapi_context
+        )
+        self.create_lambdas_permissions(api_id, api_lambda_auth_arns, '/*/*')
 
         return self.describe_api_resources(api_id=api_id, meta=meta, name=name)
+
+    def _resolve_cup_ids(self, openapi_context):
+        _LOG.debug('Going to resolve Cognito User Pools ARNs')
+        authorizer = deep_get(openapi_context,
+                              ['components', 'securitySchemes',
+                               'authorizer', 'x-amazon-apigateway-authorizer'])
+
+        if authorizer:
+            pools_names = provider_arns = None
+            if authorizer.get('type') == _COGNITO_AUTHORIZER_TYPE.lower():
+                pools_names = authorizer.get(X_SDCT_EXTENSION_KEY)
+                provider_arns = authorizer.get(PROVIDER_ARNS_KEY)
+            new_provider_arns = []
+            if pools_names:
+                for pool_name in pools_names:
+                    _LOG.debug(f'Resolving ARN for Cognito User Pool by name '
+                               f'{pool_name}')
+                    pool_id = self.cognito_res.get_user_pool_id(pool_name)
+                    if pool_id:
+                        new_provider_arns.append(
+                            f'arn:aws:cognito-idp:{self.region}:'
+                            f'{self.account_id}:userpool/{pool_id}')
+                    else:
+                        USER_LOG.warn(f'Can\'t resolve Cognito User Pool ID '
+                                      f'by name "{pool_name}"! For more '
+                                      f'details see syndicate logs.')
+            elif provider_arns:
+                for arn in provider_arns:
+                    pool_id = arn.split('/')[-1]
+                    _LOG.debug(f'Resolving ARN for Cognito User Pool by ID '
+                               f'{pool_id}')
+                    if self.cognito_res.is_user_pool_exists(pool_id):
+                        new_provider_arns.append(arn)
+                    else:
+                        USER_LOG.warn(f'Cognito User Pool with ID {pool_id} '
+                                      f'not found.')
+
+            if new_provider_arns:
+                _LOG.debug(f'Going to apply the next provider ARNs '
+                           f'{new_provider_arns} to API Gateway '
+                           f'{deep_get(openapi_context, ["info", "title"])}')
+                authorizer[PROVIDER_ARNS_KEY] = new_provider_arns
+            else:
+                raise AssertionError(
+                    f'Cognito User Pools can\'t be resolved by ' + 'names: '
+                    f'{pools_names}' if pools_names else
+                    f'ARNs: {provider_arns}')
 
     def get_lambda_permissions_for_api(self, lambda_arn, api_gateway_id):
         permissions = self.lambda_res.get_existing_permissions(lambda_arn)
@@ -442,9 +506,15 @@ class ApiGatewayResource(BaseResource):
 
         return filtered_permissions
 
-    def create_lambdas_permissions(self, api_gateway_id, api_lambdas_arns):
+    def create_lambdas_permissions(
+        self,
+        api_gateway_id: str,
+        api_lambdas_arns: set[str],
+        route: str
+    ):
+
         api_source_arn = (f'arn:aws:execute-api:{self.region}:'
-                          f'{self.account_id}:{api_gateway_id}/*/*/*')
+                          f'{self.account_id}:{api_gateway_id}{route}')
         for lambda_arn in api_lambdas_arns:
             _id = f'{lambda_arn}-{api_source_arn}'
             statement_id = md5(_id.encode('utf-8')).hexdigest()
@@ -594,7 +664,7 @@ class ApiGatewayResource(BaseResource):
         if not response:
             return
         response['resources'] = self.connection.get_resources(api_id)
-        _LOG.info('Created %s API Gateway.', name)
+        _LOG.info('Described %s API Gateway.', name)
         arn = 'arn:aws:apigateway:{0}::/restapis/{1}'.format(self.region,
                                                              api_id)
         return {
@@ -603,7 +673,8 @@ class ApiGatewayResource(BaseResource):
 
     def describe_openapi(self, api_id, stage_name):
         response = self.connection.describe_openapi(api_id, stage_name)
-        return json.loads(response['body'].read().decode("utf-8"))
+        return json.loads(response['body'].read().decode("utf-8")) \
+            if isinstance(response, dict) else None
 
     def _check_existing_methods(self, api_id, resource_id, resource_path,
                                 resource_meta,
@@ -908,12 +979,6 @@ class ApiGatewayResource(BaseResource):
             # wait for success deletion
             time.sleep(60)
 
-    def remove_api_gateways_openapi(self, args):
-        for arg in args:
-            self._remove_api_gateway_openapi(**arg)
-            # wait for success deletion
-            time.sleep(60)
-
     def _remove_invocation_permissions_from_lambdas(self, config):
         api_id = config['description']['id']
         _LOG.info(fr'Removing invocation permissions for api {api_id}')
@@ -937,23 +1002,20 @@ class ApiGatewayResource(BaseResource):
 
     def _remove_api_gateway(self, arn, config):
         api_id = config['description']['id']
-        self._remove_invocation_permissions_from_lambdas(config)
-        try:
-            self.connection.remove_api(api_id)
-            _LOG.info(f'API Gateway {api_id} was removed.')
-        except ClientError as e:
-            if e.response['Error']['Code'] == 'NotFoundException':
-                _LOG.warn('API Gateway %s is not found', api_id)
-            else:
-                raise e
-
-    def _remove_api_gateway_openapi(self, arn, config):
-        api_id = config['description']['id']
         stage_name = config["resource_meta"]["deploy_stage"]
         openapi_context = self.describe_openapi(api_id, stage_name)
+        if not openapi_context:
+            raise ClientError(f'API Gateway with an ID {api_id} '
+                              f'not found.',
+                              'Describe API Gateway')
         api_lambdas_arns = self.extract_api_gateway_lambdas_arns(
             openapi_context)
-        self.remove_lambdas_permissions(api_id, api_lambdas_arns)
+        api_lambda_auth_arns = self.extract_api_gateway_lambda_auth_arns(
+            openapi_context)
+        self.remove_lambdas_permissions(
+            api_id,
+            {*api_lambdas_arns, *api_lambda_auth_arns}
+        )
         try:
             self.connection.remove_api(api_id)
             _LOG.info(f'API Gateway {api_id} was removed.')
@@ -961,7 +1023,7 @@ class ApiGatewayResource(BaseResource):
             if e.response['Error']['Code'] == 'NotFoundException':
                 _LOG.warning('API Gateway %s is not found', api_id)
             else:
-                raise e
+                raise
 
     @unpack_kwargs
     def _create_model_from_metadata(self, api_id, models):
@@ -1074,6 +1136,11 @@ class ApiGatewayResource(BaseResource):
                     continue
 
                 api_gateway_lambdas_arns.add(lambda_arn)
+        return api_gateway_lambdas_arns
+
+    @staticmethod
+    def extract_api_gateway_lambda_auth_arns(openapi_spec):
+        api_gateway_lambdas_arns = {*()}
 
         security_schemas = deep_get(openapi_spec, SECURITY_SCHEMAS_DEEP_KEY, {})
         for schema_data in security_schemas.values():

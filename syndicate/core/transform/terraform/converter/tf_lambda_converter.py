@@ -344,6 +344,7 @@ class LambdaConverter(TerraformResourceConverter):
     CREATE_TRIGGER = {
         'dynamodb_trigger': _create_dynamodb_trigger_from_meta,
         'cloudwatch_rule_trigger': _create_cloud_watch_trigger_from_meta,
+        'eventbridge_rule_trigger': _create_cloud_watch_trigger_from_meta,
         's3_trigger': _create_s3_trigger_from_meta,
         'sns_topic_trigger': _create_sns_topic_trigger_from_meta,
         'kinesis_trigger': _create_kinesis_stream_trigger_from_meta,
