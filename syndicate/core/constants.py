@@ -64,6 +64,7 @@ SWAGGER_UI_ARTIFACT_NAME_TEMPLATE = 'swagger_ui_{name}.zip'
 # │ python/PIL
 # └ python/Pillow-5.3.0.dist-info
 PYTHON_LAMBDA_LAYER_PATH = 'python'
+NODE_LAMBDA_LAYER_PATH = 'nodejs'
 
 DEFAULT_SEP = '/'
 
