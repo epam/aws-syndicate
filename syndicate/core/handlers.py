@@ -76,10 +76,12 @@ from syndicate.core.constants import TEST_ACTION, BUILD_ACTION, \
 
 INIT_COMMAND_NAME = 'init'
 SYNDICATE_PACKAGE_NAME = 'aws-syndicate'
+HELP_PARAMETER_KEY = '--help'
 commands_without_config = (
     INIT_COMMAND_NAME,
     GENERATE_PROJECT_COMMAND_NAME,
-    GENERATE_CONFIG_COMMAND_NAME
+    GENERATE_CONFIG_COMMAND_NAME,
+    HELP_PARAMETER_KEY
 )
 
 

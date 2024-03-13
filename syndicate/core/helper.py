@@ -611,6 +611,34 @@ def check_lambdas_names(ctx, param, value):
     return value
 
 
+def check_lambda_layer_name(ctr, param, value):
+    pattern = r'^[a-zA-Z0-9][a-zA-Z0-9-_]{0,63}$'
+    errors = []
+    if len(value) > 64:
+        errors.append('The length of lambda layer name must be less or equal '
+                      'to 64 character')
+    if not value[0].isalpha():
+        errors.append('The first character of the lambda layer name must be '
+                      'a letter')
+    if not re.match(pattern, value):
+        errors.append('The lambda layer name must contain only lowercase '
+                      'letters, numbers, underscores and hyphens')
+    if errors:
+        raise BadParameter(f'The lambda layer name is invalid. Details:\n'
+                           f'{errors}')
+    return value
+
+
+def check_lambda_existence(ctr, param, value):
+    from syndicate.core import PROJECT_STATE
+    lambdas = PROJECT_STATE.lambdas
+    for lambda_name in value:
+        if lambda_name not in lambdas:
+            raise BadParameter(f'Lambda with name \'{lambda_name}\' not found. '
+                               f'Please check the lambda name and try again')
+    return value
+
+
 def handle_interruption(_num: SIGINT, _frame):
     """ Meant to handle interruption signal, by releasing any given lock """
     _naming, _lock_types = 'PROJECT_STATE', (MODIFICATION_LOCK, WARMUP_LOCK)
