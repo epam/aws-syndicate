@@ -671,14 +671,10 @@ def _generate_lambda_role_config(role_name, stringify=True):
     return _stringify(role_content) if stringify else role_content
 
 
-def _generate_swagger_ui_deployment_resources(resource_name, path_to_spec,
-                                              target_bucket):
-    return _stringify(
-        {
-            resource_name: {
-                "resource_type": "swagger_ui",
-                "path_to_spec": path_to_spec,
-                "target_bucket": target_bucket
-            }
-        }
-    )
+def _generate_swagger_ui_config(resource_name, path_to_spec, target_bucket):
+    return _stringify({
+            "name": resource_name,
+            "resource_type": "swagger_ui",
+            "path_to_spec": path_to_spec,
+            "target_bucket": target_bucket
+        })

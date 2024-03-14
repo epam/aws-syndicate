@@ -152,7 +152,7 @@ def generate_configuration_files(name, config_path, region,
     _USER_LOG.info(
         'Syndicate initialization has been completed. \n'
         f'Set SDCT_CONF:{os.linesep}'
-        f'Unix: export SDCT_CONF={config_folder_path}{os.linesep}'
+        f'Unix: export SDCT_CONF="{config_folder_path}{os.linesep}"'
         f'Windows: setx SDCT_CONF {config_folder_path}')
 
 

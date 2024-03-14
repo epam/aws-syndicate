@@ -32,7 +32,8 @@ from syndicate.core.constants import (API_GATEWAY_TYPE, ARTIFACTS_FOLDER,
                                       LAMBDA_LAYER_CONFIG_FILE_NAME,
                                       WEB_SOCKET_API_GATEWAY_TYPE,
                                       OAS_V3_FILE_NAME,
-                                      API_GATEWAY_OAS_V3_TYPE, SWAGGER_UI_TYPE)
+                                      API_GATEWAY_OAS_V3_TYPE, SWAGGER_UI_TYPE,
+                                      SWAGGER_UI_CONFIG_FILE_NAME)
 from syndicate.core.helper import (build_path, prettify_json,
                                    resolve_aliases_for_string,
                                    write_content_to_file)
@@ -349,19 +350,22 @@ def _look_for_configs(nested_files: list[str], resources_meta: dict[str, Any],
     :param bundle_name: A string name of the bundle
     """
     for each in nested_files:
-        if each.endswith(LAMBDA_CONFIG_FILE_NAME) or each.endswith(LAMBDA_LAYER_CONFIG_FILE_NAME):
-            lambda_config_path = os.path.join(path, each)
-            _LOG.debug('Processing file: {0}'.format(lambda_config_path))
-            with open(lambda_config_path) as data_file:
-                lambda_conf = load(data_file)
+        if each.endswith(LAMBDA_CONFIG_FILE_NAME) or \
+                each.endswith(LAMBDA_LAYER_CONFIG_FILE_NAME) or \
+                each.endswith(SWAGGER_UI_CONFIG_FILE_NAME):
+            resource_config_path = os.path.join(path, each)
+            _LOG.debug(f'Processing file: {resource_config_path}')
+            with open(resource_config_path) as data_file:
+                resource_conf = load(data_file)
 
-            lambda_name = lambda_conf['name']
-            _LOG.debug('Found lambda: {0}'.format(lambda_name))
-            res = _check_duplicated_resources(resources_meta, lambda_name,
-                                              lambda_conf)
+            resource_name = resource_conf['name']
+            resource_type = resource_conf['resource_type']
+            _LOG.debug(f'Found {resource_type}: {resource_name}')
+            res = _check_duplicated_resources(resources_meta, resource_name,
+                                              resource_conf)
             if res:
-                lambda_conf = res
-            resources_meta[lambda_name] = lambda_conf
+                resource_conf = res
+            resources_meta[resource_name] = resource_conf
 
         if each.endswith(OAS_V3_FILE_NAME):
             openapi_spec_path = os.path.join(path, each)

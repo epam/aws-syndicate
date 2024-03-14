@@ -60,6 +60,7 @@ RESOURCES_FILE_NAME = 'deployment_resources.json'
 OAS_V3_FILE_NAME = 'oas_v3.json'
 SWAGGER_UI_SPEC_NAME_TEMPLATE = '{name}_spec.json'
 SWAGGER_UI_ARTIFACT_NAME_TEMPLATE = 'swagger_ui_{name}.zip'
+SWAGGER_UI_CONFIG_FILE_NAME = 'swagger_ui_config.json'
 # layer.zip
 # │ python/PIL
 # └ python/Pillow-5.3.0.dist-info
