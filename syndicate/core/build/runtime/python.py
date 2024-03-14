@@ -309,7 +309,8 @@ def install_requirements_for_platform(requirements_txt: Union[str, Path],
     fp = open(requirements_txt, 'r')
     it = (
         line.split(' #')[0].strip() for line in
-        filter(lambda line: not line.strip().startswith('#'), fp)
+        filter(lambda line: not line.strip().startswith('#') and line not in (
+            '\n', '\r\n'), fp)
     )
     failed_requirements = []
     for requirement in it:
