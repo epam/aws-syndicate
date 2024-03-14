@@ -239,7 +239,8 @@ def config(name, config_path, project_path, region, access_key, secret_key,
               help="Swagger UI name")
 @click.option('--path_to_spec', required=True, type=str,
               callback=partial(check_file_extension, extensions=['.json']),
-              help="Path to OpenAPI specification file")
+              help="Path to OpenAPI specification file. Path that is relative "
+                   "to the project path can be specified.")
 @click.option('--target_bucket', required=True, type=str,
               callback=check_bundle_bucket_name,
               help="S3 bucket name for Swagger UI deployment")
