@@ -45,6 +45,7 @@ _LOG = get_logger(__name__)
 USER_LOG = get_user_logger()
 
 _PY_EXT = "*.py"
+EMPTY_LINE_CHARS = ('\n', '\r\n')
 
 
 def assemble_python_lambdas(project_path, bundles_dir):
@@ -309,8 +310,8 @@ def install_requirements_for_platform(requirements_txt: Union[str, Path],
     fp = open(requirements_txt, 'r')
     it = (
         line.split(' #')[0].strip() for line in
-        filter(lambda line: not line.strip().startswith('#') and line not in (
-            '\n', '\r\n'), fp)
+        filter(lambda line: not line.strip().startswith('#')
+                            and line not in EMPTY_LINE_CHARS, fp)
     )
     failed_requirements = []
     for requirement in it:
