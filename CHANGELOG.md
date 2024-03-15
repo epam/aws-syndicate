@@ -5,6 +5,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 # [1.15.19] - 2024-03-15
+- Fixed inconsistency of the project state in case of several deployments
+
+# [1.15.19] - 2024-03-15
 - Fixed skipping deploy|update|clean resources with filtering by name when prefix and/or suffix specified in syndicate configuration.
 
 # [1.15.18] - 2024-03-14

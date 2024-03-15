@@ -25,7 +25,8 @@ from syndicate.core.build.bundle_processor import (create_deploy_output,
                                                    load_failed_deploy_output,
                                                    load_meta_resources,
                                                    remove_deploy_output,
-                                                   remove_failed_deploy_output)
+                                                   remove_failed_deploy_output,
+                                                   load_latest_deploy_output)
 from syndicate.core.build.helper import _json_serial
 from syndicate.core.build.meta_processor import (resolve_meta,
                                                  populate_s3_paths,
@@ -289,6 +290,9 @@ def create_deployment_resources(deploy_name, bundle_name,
                                 excluded_resources=None,
                                 excluded_types=None,
                                 replace_output=False):
+    latest_deploy_output = load_latest_deploy_output()
+    _LOG.debug(f'Latest deploy output:\n {latest_deploy_output}')
+
     resources = load_meta_resources(bundle_name)
     # validate_deployment_packages(resources)
     _LOG.debug('{0} file was loaded successfully'.format(BUILD_META_FILE_NAME))
@@ -349,7 +353,7 @@ def create_deployment_resources(deploy_name, bundle_name,
     USER_LOG.info('Going to create deploy output')
     create_deploy_output(bundle_name=bundle_name,
                          deploy_name=deploy_name,
-                         output=output,
+                         output={**output, **latest_deploy_output},
                          success=success,
                          replace_output=replace_output)
     USER_LOG.info('Deploy output for {0} was created.'.format(deploy_name))
