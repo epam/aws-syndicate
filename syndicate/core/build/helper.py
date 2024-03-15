@@ -26,13 +26,16 @@ def build_py_package_name(lambda_name, lambda_version):
     return '{0}-{1}.zip'.format(lambda_name, lambda_version)
 
 
-def zip_dir(basedir, name):
+def zip_dir(basedir, name, archive_subfolder=None):
     assert os.path.isdir(basedir)
     with closing(zipfile.ZipFile(name, "w", zipfile.ZIP_DEFLATED)) as z:
         for root, dirs, files in os.walk(basedir, followlinks=True):
+            archive_root = os.path.join(
+                archive_subfolder, os.path.relpath(root, basedir)) \
+                if archive_subfolder else os.path.relpath(root, basedir)
             for fn in files:
                 absfn = os.path.join(root, fn)
-                zfn = absfn[len(basedir) + len(os.sep):]
+                zfn = os.path.join(archive_root, fn)
                 z.write(absfn, zfn)
 
 

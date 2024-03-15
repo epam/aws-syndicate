@@ -53,6 +53,16 @@ class CognitoUserPoolResource(BaseResource):
             arn: build_description_obj(response, name, meta)
         }
 
+    def is_user_pool_exists(self, pool_id):
+        try:
+            return True if self.connection.describe_user_pool(pool_id) else \
+                False
+        except ClientError as e:
+            if e.response['Error']['Code'] == 'ResourceNotFoundException':
+                _LOG.warn(f'Cognito user pool {pool_id} is not found!')
+            else:
+                raise e
+
     @unpack_kwargs
     def _create_cognito_user_pool_from_meta(self, name, meta):
         """ Create Cognito user pool for authentication.

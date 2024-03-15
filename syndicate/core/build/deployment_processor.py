@@ -25,7 +25,8 @@ from syndicate.core.build.bundle_processor import (create_deploy_output,
                                                    load_failed_deploy_output,
                                                    load_meta_resources,
                                                    remove_deploy_output,
-                                                   remove_failed_deploy_output)
+                                                   remove_failed_deploy_output,
+                                                   load_latest_deploy_output)
 from syndicate.core.build.helper import _json_serial
 from syndicate.core.build.meta_processor import (resolve_meta,
                                                  populate_s3_paths,
@@ -34,7 +35,8 @@ from syndicate.core.build.meta_processor import (resolve_meta,
 from syndicate.core.constants import (BUILD_META_FILE_NAME,
                                       CLEAN_RESOURCE_TYPE_PRIORITY,
                                       DEPLOY_RESOURCE_TYPE_PRIORITY,
-                                      UPDATE_RESOURCE_TYPE_PRIORITY)
+                                      UPDATE_RESOURCE_TYPE_PRIORITY,
+                                      PARTIAL_CLEAN_ACTION)
 from syndicate.core.helper import exit_on_exception, prettify_json
 
 
@@ -288,6 +290,9 @@ def create_deployment_resources(deploy_name, bundle_name,
                                 excluded_resources=None,
                                 excluded_types=None,
                                 replace_output=False):
+    latest_deploy_output = load_latest_deploy_output()
+    _LOG.debug(f'Latest deploy output:\n {latest_deploy_output}')
+
     resources = load_meta_resources(bundle_name)
     # validate_deployment_packages(resources)
     _LOG.debug('{0} file was loaded successfully'.format(BUILD_META_FILE_NAME))
@@ -296,6 +301,11 @@ def create_deployment_resources(deploy_name, bundle_name,
     _LOG.debug('Names were resolved')
     resources = populate_s3_paths(resources, bundle_name)
     _LOG.debug('Artifacts s3 paths were resolved')
+
+    deploy_only_resources = _resolve_names(deploy_only_resources)
+    excluded_resources = _resolve_names(excluded_resources)
+    _LOG.info(
+        'Prefixes and suffixes of any resource names have been resolved.')
 
     # TODO make filter chain
     if deploy_only_resources:
@@ -343,7 +353,7 @@ def create_deployment_resources(deploy_name, bundle_name,
     USER_LOG.info('Going to create deploy output')
     create_deploy_output(bundle_name=bundle_name,
                          deploy_name=deploy_name,
-                         output=output,
+                         output={**output, **latest_deploy_output},
                          success=success,
                          replace_output=replace_output)
     USER_LOG.info('Deploy output for {0} was created.'.format(deploy_name))
@@ -367,6 +377,10 @@ def update_deployment_resources(bundle_name, deploy_name, replace_output=False,
         'Please pay attention that only the '
         'following resources types are supported for update: {}'.format(
             list(PROCESSOR_FACADE.update_handlers().keys())))
+
+    update_only_resources = _resolve_names(update_only_resources)
+    _LOG.info(
+        'Prefixes and suffixes of any resource names have been resolved.')
 
     # TODO make filter chain
     resources = dict((k, v) for (k, v) in resources.items() if
@@ -421,21 +435,16 @@ def remove_deployment_resources(deploy_name, bundle_name,
                                 clean_only_types=None,
                                 excluded_resources=None,
                                 excluded_types=None,
-                                clean_externals=None):
-    from syndicate.core import CONFIG
+                                clean_externals=None,
+                                preserve_state=None):
     output = new_output = load_deploy_output(bundle_name, deploy_name)
     _LOG.info('Output file was loaded successfully')
-    preset_name_resolution = functools.partial(resolve_resource_name,
-                                               prefix=CONFIG.resources_prefix,
-                                               suffix=CONFIG.resources_suffix)
-    resolve_n_unify_names = lambda collection: set(
-        collection + tuple(map(preset_name_resolution, collection)))
 
-    clean_only_resources = resolve_n_unify_names(clean_only_resources
-                                                          or tuple())
-    excluded_resources = resolve_n_unify_names(excluded_resources
-                                                        or tuple())
-    _LOG.info('Prefixes and suffixes of any resource names have been resolved.')
+    clean_only_resources = _resolve_names(clean_only_resources)
+    excluded_resources = _resolve_names(excluded_resources)
+    _LOG.info(
+        'Prefixes and suffixes of any resource names have been resolved.')
+
     dependencies = tuple(map(bool, (clean_only_resources, clean_only_types,
                                     excluded_types, excluded_resources)))
 
@@ -467,16 +476,14 @@ def remove_deployment_resources(deploy_name, bundle_name,
     USER_LOG.info('Going to clean AWS resources')
     clean_resources(resources_list)
     # remove new_output from bucket
-    if output == new_output:
-        remove_deploy_output(bundle_name, deploy_name)
-    else:
-        for key, value in new_output.items():
-            output.pop(key)
-        create_deploy_output(bundle_name=bundle_name,
-                             deploy_name=deploy_name,
-                             output=output,
-                             success=True,
-                             replace_output=True)
+    return _post_remove_output_handling(
+        deploy_name=deploy_name,
+        bundle_name=bundle_name,
+        preserve_state=preserve_state,
+        output=output,
+        new_output=new_output,
+        is_regular_output=True
+    )
 
 
 @exit_on_exception
@@ -492,6 +499,11 @@ def continue_deployment_resources(deploy_name, bundle_name,
     resources = resolve_meta(load_meta_resources(bundle_name))
     _LOG.debug('Names were resolved')
     _LOG.debug(prettify_json(resources))
+
+    deploy_only_resources = _resolve_names(deploy_only_resources)
+    excluded_resources = _resolve_names(excluded_resources)
+    _LOG.info(
+        'Prefixes and suffixes of any resource names have been resolved.')
 
     # TODO make filter chain
     if deploy_only_resources:
@@ -541,39 +553,70 @@ def remove_failed_deploy_resources(deploy_name, bundle_name,
                                    clean_only_types=None,
                                    excluded_resources=None,
                                    excluded_types=None,
-                                   clean_externals=None):
-    output = load_failed_deploy_output(bundle_name, deploy_name)
+                                   clean_externals=None,
+                                   preserve_state=None):
+    output = new_output = load_failed_deploy_output(bundle_name, deploy_name)
     _LOG.info('Failed output file was loaded successfully')
+
+    clean_only_resources = _resolve_names(clean_only_resources)
+    excluded_resources = _resolve_names(excluded_resources)
+    _LOG.info(
+        'Prefixes and suffixes of any resource names have been resolved.')
 
     # TODO make filter chain
     if clean_only_resources:
-        output = dict((k, v) for (k, v) in output.items() if
-                      v['resource_name'] in clean_only_resources)
+        new_output = dict((k, v) for (k, v) in new_output.items() if
+                          v['resource_name'] in clean_only_resources)
 
     if excluded_resources:
-        output = dict((k, v) for (k, v) in output.items() if
-                      v['resource_name'] not in excluded_resources)
+        new_output = dict((k, v) for (k, v) in new_output.items() if
+                          v['resource_name'] not in excluded_resources)
 
     if clean_only_types:
-        output = dict((k, v) for (k, v) in output.items() if
-                      v['resource_meta']['resource_type'] in clean_only_types)
+        new_output = dict((k, v) for (k, v) in new_output.items() if
+                          v['resource_meta'][
+                              'resource_type'] in clean_only_types)
 
     if excluded_types:
-        output = dict((k, v) for (k, v) in output.items() if
-                      v['resource_meta'][
-                          'resource_type'] not in excluded_types)
+        new_output = dict((k, v) for (k, v) in new_output.items() if
+                          v['resource_meta'][
+                              'resource_type'] not in excluded_types)
 
     if not clean_externals:
-        output = dict((k, v) for (k, v) in output.items() if
-                      not v['resource_meta'].get('external'))
+        new_output = dict((k, v) for (k, v) in new_output.items() if
+                          not v['resource_meta'].get('external'))
     # sort resources with priority
-    resources_list = list(output.items())
+    resources_list = list(new_output.items())
     resources_list.sort(key=cmp_to_key(_compare_clean_resources))
 
     _LOG.info('Going to clean AWS resources')
     clean_resources(resources_list)
-    # remove output from bucket
-    remove_failed_deploy_output(bundle_name, deploy_name)
+
+    return _post_remove_output_handling(
+        deploy_name=deploy_name,
+        bundle_name=bundle_name,
+        preserve_state=preserve_state,
+        output=output,
+        new_output=new_output,
+        is_regular_output=False
+    )
+
+
+def _post_remove_output_handling(deploy_name, bundle_name, preserve_state,
+                                 output, new_output, is_regular_output):
+    if output == new_output:
+        if not preserve_state:
+            # remove output from bucket
+            remove_failed_deploy_output(bundle_name, deploy_name)
+    else:
+        for key, value in new_output.items():
+            output.pop(key)
+        create_deploy_output(bundle_name=bundle_name,
+                             deploy_name=deploy_name,
+                             output=output,
+                             success=is_regular_output,
+                             replace_output=True)
+        return {'operation': PARTIAL_CLEAN_ACTION}
 
 
 def _apply_dynamic_changes(resources, output):
@@ -653,3 +696,14 @@ def _compare_res(first_res_priority, second_res_priority):
         return 1
     else:
         return 0
+
+
+def _resolve_names(names):
+    from syndicate.core import CONFIG
+    preset_name_resolution = functools.partial(resolve_resource_name,
+                                               prefix=CONFIG.resources_prefix,
+                                               suffix=CONFIG.resources_suffix)
+    resolve_n_unify_names = lambda collection: set(
+        collection + tuple(map(preset_name_resolution, collection)))
+
+    return resolve_n_unify_names(names or tuple())

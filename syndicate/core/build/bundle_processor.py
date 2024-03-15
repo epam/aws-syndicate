@@ -63,6 +63,7 @@ def create_deploy_output(bundle_name, deploy_name, output, success,
         _LOG.info('Output file with name {} has been {}'.format(
             key, 'replaced' if replace_output else 'created'))
 
+
 def remove_deploy_output(bundle_name, deploy_name):
     from syndicate.core import CONFIG, CONN
     key = _build_output_key(bundle_name=bundle_name,
@@ -127,6 +128,15 @@ def load_failed_deploy_output(bundle_name, deploy_name):
     else:
         raise AssertionError('Deploy name {0} does not exist.'
                              ' Cannot find output file.'.format(deploy_name))
+
+
+def load_latest_deploy_output():
+    from syndicate.core import PROJECT_STATE
+    if not PROJECT_STATE.latest_deploy:
+        return {}
+    deploy_name = PROJECT_STATE.latest_deploy.get('deploy_name')
+    bundle_name = PROJECT_STATE.latest_deploy.get('bundle_name')
+    return load_deploy_output(bundle_name, deploy_name)
 
 
 def load_meta_resources(bundle_name):

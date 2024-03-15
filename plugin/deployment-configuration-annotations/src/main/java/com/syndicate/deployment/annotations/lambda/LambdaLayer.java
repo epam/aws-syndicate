@@ -46,7 +46,7 @@ public @interface LambdaLayer {
 
 	ArtifactExtension artifactExtension() default ArtifactExtension.ZIP;
 
-	DeploymentRuntime runtime() default DeploymentRuntime.JAVA8;
+	DeploymentRuntime runtime() default DeploymentRuntime.JAVA11;
 
 	Architecture[] architectures() default {};
 

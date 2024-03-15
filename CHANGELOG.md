@@ -4,56 +4,53 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-- # [1.14.3] - 2024-02-09
-### Added
-- added missed import into the Java lambda template
+# [1.11.0] - 2024-03-15
 
-- # [1.14.2] - 2024-02-06
-- Add `api_source_arn` when creating permission for lambda authorizer.
-- Change in `syndicate generate` command default value for `lambdas_alias_name`
-from `prod` to `dev`.
-
-# [1.14.1] - 2024-02-05
-- Improve the CloudWatch log groups `POSSIBLE_RETENTION_DAYS` constant to
-support all values.
-- Update and fix retry decorator. If the maximum number of retries is reached,
-an `Exception` is thrown with a detailed description of the function that failed
-and the reason.
-- Refactor the Lambda SQS Trigger Creation process to check for existing event
-source mapping, and update or create as needed.
-
-# [1.14.0] - 2024-02-05
-- Implemented API GateWay `Throttling` settings management
-
-# [1.13.2] - 2024-02-05
-- Added CloudWatch logs expiration management support to the Syndicate Java plugin 1.11.0
-
-# [1.13.1] - 2024-02-01
-- Lambda parameter `architecture` changed to `architectures`, and the value of the key changed to a list of string
-- Change the Java plugin @LambdaHandler annotation processor to produce the parameter `architectures` instead of `architecture`
-
-# [1.13.0] - 2024-01-31
-- Add support for OpenAPI v3 deploy, update and clean-up in API Gateway
-- Implement permission setting for lambda functions in OpenAPI v3 implementations
-
-# [1.12.2] - 2024-01-31
-- Added validation for the configuration parameter `iam_suffix`
-- Added warning to logs in case of unknown parameters in the configuration file
-
-# [1.12.1] - 2024-01-30
-- Fixed API Gateway deployment with the default value(300) of the `Cache time to live` parameter if the specified value is `0`
-
-# [1.12.0] - 2024-01-30
-### Added
+- Added new resource type `swagger_ui`
+- Added support of Eventbridge rule
+- Added generation of lambda layer meta, the command `syndicate generate lambda_layer`
+- Added an ability to build and deploy lambda layers with `nodejs` runtime
+- Added lambda function processor architecture type management
+- Added lambda layers compatible processor architecture types management
 - The @LambdaHandler annotation for Java plugin improved to support the lambda 'architecture' management
 - The @LambdaLayer annotation for Java plugin improved to support the lambda 'architectures' management
-- The Java example 'java-layer-url' extended to use Lambda architecture management
-### Changed
-- The deployment-configuration-processor version bumped to 1.11.0
-
-# [1.11.0] - 2024-01-26
-- Implemented lambda function processor architecture type management
-- Implemented lambda layers compatible processor architecture types management
+- Added meta generation for  API gateway authorizer
+- Added `api_source_arn` when creating permission for lambda authorizer.
+- Added API Gateway `Throttling` settings management
+- Added the feature "export api gateway OpenAPI spec"
+- Added support for OpenAPI v3 deploy, update and clean-up in API Gateway
+- Added lambda functions resource-based policy adjustment when integration with API Gateway defined with OpenAPI v3 spec
+- Added Cognito User Pools ARNs resolving for OpenAPI specification via the key `x-syndicate-cognito-userpool-names` of the `x-amazon-apigateway-authorizer` extension
+- Added S3 bucket deployment with configuration for static website hosting
+- Added CloudWatch logs expiration management
+- Added validation for the configuration parameter `iam_suffix`
+- Added warning to logs in case of unknown parameters in the configuration file
+- Added the parameter `--preserve_state` to the `syndicate clean` command to keep the deployment output file
+- Added validation of composite deploy_target_bucket (bucket_name+prefix) to the command `syndicate generate config`
+- Added ability to generate syndicate configs with temporary set of credentials
+- Improved the Lambda SQS Trigger Creation process to check for existing event
+source mapping, and update or create if needed.
+- Change in `syndicate generate config` command default value for `lambdas_alias_name`
+from `prod` to `dev`
+- Fixed inconsistency of the project state in case of several deployments
+- Fixed skipping deploy|update|clean resources with filtering by name when prefix and/or suffix specified in syndicate configuration
+- Fixed a bug when an empty requirements.txt file with a newline would cause the project to fail to build
+- Fixed API Gateway deployment with the default value(300) of the `Cache time to live` parameter if the specified value is `0`
+- Fixed lambda authorization permissions
+- Fixed AWS Batch Compute environment deployment issue in case of specifying the parameter `--allocation_strategy`
+- Fixed DAX cluster deployment error when DAX Role is deploying on the fly
+- Fixed Dax cluster meta generation error in case of specifying subnet group name and subnets IDs
+- Fixed the help message for the parameter `--security_group_names` of the command `syndicate generate meta ec2_instance`
+- Fixed a mechanism of linking API gateway resource methods with an authorizer
+- Fixed an issue related to clean resources after a partial clean
+- Fixed displaying help messages without configured SDCT_CONF environment variable
+- Upgraded default Java Lambada runtime from Java 8 to Java 11
+- Added support of Lambda runtime Java 17 and Java 21
+- Upgraded default NodeJS lambda runtime version from 14.x to 20.x
+- Updated available NodeJS lambda runtime versions from 10.x/12.x/14.x to 16.x/18.x/20.x
+- Actualized Java project examples
+- Actualized Python project examples
+- Removed obsolete documentation (/docs)
 
 # [1.10.2] - 2024-01-19
 - Add a feature in `syndicate update` command to update `logs_expiration`

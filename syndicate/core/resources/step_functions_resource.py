@@ -184,7 +184,8 @@ class StepFunctionResource(BaseResource):
                           name, rule_name)
 
     CREATE_TRIGGER = {
-        'cloudwatch_rule_trigger': _create_cloud_watch_trigger_from_meta
+        'cloudwatch_rule_trigger': _create_cloud_watch_trigger_from_meta,
+        'eventbridge_rule_trigger': _create_cloud_watch_trigger_from_meta
     }
 
     @unpack_kwargs

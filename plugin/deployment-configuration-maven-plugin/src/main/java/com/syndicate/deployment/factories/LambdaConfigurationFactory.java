@@ -16,10 +16,10 @@
 
 package com.syndicate.deployment.factories;
 
-import com.syndicate.deployment.annotations.LambdaUrlConfig;
 import com.syndicate.deployment.annotations.lambda.LambdaConcurrency;
 import com.syndicate.deployment.annotations.lambda.LambdaHandler;
 import com.syndicate.deployment.annotations.lambda.LambdaProvisionedConcurrency;
+import com.syndicate.deployment.annotations.lambda.LambdaUrlConfig;
 import com.syndicate.deployment.annotations.resources.DeadLetterConfiguration;
 import com.syndicate.deployment.model.Architecture;
 import com.syndicate.deployment.model.DependencyItem;

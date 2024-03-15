@@ -34,21 +34,27 @@ from syndicate.core.generators.contents import (
     CANCEL_MESSAGE, _generate_package_nodejs_lambda,
     _generate_package_lock_nodejs_lambda, JAVA_LAMBDA_HANDLER_CLASS,
     SRC_MAIN_JAVA, FILE_POM, PYTHON_LAMBDA_HANDLER_TEMPLATE, INIT_CONTENT,
-    ABSTRACT_LAMBDA_CONTENT, EXCEPTION_CONTENT, LOG_HELPER_CONTENT)
+    ABSTRACT_LAMBDA_CONTENT, EXCEPTION_CONTENT, LOG_HELPER_CONTENT,
+    _generate_python_node_layer_config, REQUIREMENTS_FILE_CONTENT,
+    LOCAL_REQUIREMENTS_FILE_CONTENT, _generate_node_layer_package_file,
+    _generate_node_layer_package_lock_file)
 from syndicate.core.groups import (RUNTIME_JAVA, RUNTIME_NODEJS,
-                                   RUNTIME_PYTHON)
+                                   RUNTIME_PYTHON, RUNTIME_PYTHON_LAYER,
+                                   RUNTIME_NODEJS_LAYER)
 
 _LOG = get_logger('syndicate.core.generators.lambda_function')
 USER_LOG = get_user_logger()
 
 FOLDER_LAMBDAS = 'lambdas'
 FOLDER_COMMONS = 'commons'
+FOLDER_LAYERS = 'layers'
 
 FILE_DEPLOYMENT_RESOURCES = 'deployment_resources.json'
 FILE_INIT_PYTHON = '__init__.py'
 FILE_LAMBDA_CONFIG = 'lambda_config.json'
 FILE_PACKAGE_LOCK = 'package-lock.json'
 FILE_PACKAGE = 'package.json'
+FILE_LAYER_CONFIG = 'lambda_layer_config.json'
 
 FILE_REQUIREMENTS = 'requirements.txt'
 FILE_LOCAL_REQUIREMENTS = 'local_requirements.txt'
@@ -63,6 +69,9 @@ LAMBDAS_PATH_PARAM = 'lambdas_path'
 LAMBDA_NAMES_PARAM = 'lambda_names'
 PROJECT_NAME_PARAM = 'project_name'
 PROJECT_PATH_PARAM = 'project_path'
+LAYER_NAME_PARAM = 'layer_name'
+LAYERS_PATH_PARAM = 'layers_path'
+RUNTIME_PARAM = 'runtime'
 
 PYTHON_LAMBDA_FILES = [
     FILE_INIT_PYTHON, FILE_LOCAL_REQUIREMENTS,
@@ -71,12 +80,24 @@ PYTHON_LAMBDA_FILES = [
     FILE_LAMBDA_CONFIG  # content
 ]  # + handler content
 
+PYTHON_LAYER_FILES = [
+    FILE_LOCAL_REQUIREMENTS,
+    FILE_REQUIREMENTS,
+    FILE_LAYER_CONFIG
+]
+
 NODEJS_LAMBDA_FILES = [
     FILE_PACKAGE,
     FILE_PACKAGE_LOCK,
     FILE_LAMBDA_CONFIG,
     FILE_LAMBDA_HANDLER_NODEJS,
     FILE_DEPLOYMENT_RESOURCES
+]
+
+NODEJS_LAYER_FILES = [
+    FILE_PACKAGE,
+    FILE_PACKAGE_LOCK,
+    FILE_LAYER_CONFIG
 ]
 
 
@@ -128,6 +149,49 @@ def generate_lambda_function(project_path, runtime,
         generated_lambdas = ', '.join(lambda_names)
         USER_LOG.info(f'The following lambdas have been successfully '
                       f'added to the project: {generated_lambdas}')
+
+
+def generate_lambda_layer(name, runtime, project_path, lambda_names=None):
+    if not os.path.exists(project_path):
+        USER_LOG.info(f'Project "{project_path}" you '
+                      f'have provided does not exist')
+        return
+
+    if not ProjectState.check_if_project_state_exists(
+            project_path=project_path):
+        USER_LOG.info(f'Seems that the path {project_path} is not a project')
+        return
+    project_state = ProjectState(project_path=project_path)
+    src_path = os.path.join(project_path, BUILD_MAPPINGS[runtime])
+
+    common_module_generator = COMMON_MODULE_PROCESSORS.get(runtime + '_layer')
+    if not common_module_generator:
+        raise AssertionError(f'The layer runtime {runtime} is not currently '
+                             f'supported to bootstrap the project')
+    common_module_generator(src_path=src_path)
+    project_state.add_project_build_mapping(runtime=runtime)
+
+    processor = LAYERS_PROCESSORS.get(runtime)
+    if not processor:
+        raise RuntimeError(f'Wrong layer runtime {runtime}')
+
+    layers_path = os.path.join(src_path, FOLDER_LAMBDAS, FOLDER_LAYERS)
+
+    processor(layer_name=name, layers_path=layers_path, runtime=runtime)
+
+    project_state.save()
+
+    USER_LOG.info(f'Layer \'{name}\' has been successfully '
+                  f'added to the project.')
+
+    if lambda_names:
+        _LOG.debug(f'Going to link layer {name} with lambdas: {lambda_names}')
+        project_lambdas = project_state.lambdas
+        _link_layer_to_lambdas(lambda_names=lambda_names,
+                               layer_name=name,
+                               layer_runtime=runtime,
+                               existent_lambdas=project_lambdas,
+                               lambda_path=src_path)
 
 
 def _generate_python_lambdas(**kwargs):
@@ -325,10 +389,110 @@ def _generate_nodejs_lambdas(**kwargs):
         _LOG.info(f'Lambda {lambda_name} created')
 
 
+def _generate_python_layer(**kwargs):
+    layer_name = kwargs.get(LAYER_NAME_PARAM)
+    layers_path = kwargs.get(LAYERS_PATH_PARAM)
+    runtime = kwargs.get(RUNTIME_PARAM)
+
+    layer_folder = os.path.join(layers_path, layer_name)
+    answer = _mkdir(
+        path=layer_folder,
+        fault_message=f'\nLayer \'{layer_name}\' already exists.\n'
+                      f'Override? [y/n]: ')
+
+    if not answer:
+        USER_LOG.info(f'Creation of the layer \'{layer_name}\' skipped')
+        return
+
+    for file in PYTHON_LAYER_FILES:
+        _touch(Path(layer_folder, file))
+
+    layer_config = _generate_python_node_layer_config(layer_name, runtime)
+    _write_content_to_file(os.path.join(layer_folder, FILE_LAYER_CONFIG),
+                           layer_config)
+
+    _write_content_to_file(os.path.join(layer_folder, FILE_REQUIREMENTS),
+                           REQUIREMENTS_FILE_CONTENT)
+
+    _write_content_to_file(os.path.join(layer_folder, FILE_LOCAL_REQUIREMENTS),
+                           LOCAL_REQUIREMENTS_FILE_CONTENT)
+
+
+def _generate_nodejs_layer(**kwargs):
+    layer_name = kwargs.get(LAYER_NAME_PARAM)
+    layers_path = kwargs.get(LAYERS_PATH_PARAM)
+    runtime = kwargs.get(RUNTIME_PARAM)
+
+    layer_folder = os.path.join(layers_path, layer_name)
+    answer = _mkdir(
+        path=layer_folder,
+        fault_message=f'\nLayer \'{layer_name}\' already exists.\n'
+                      f'Override? [y/n]: ')
+
+    if not answer:
+        USER_LOG.info(f'Creation of the layer \'{layer_name}\' skipped')
+        return
+
+    for file in NODEJS_LAYER_FILES:
+        _touch(Path(layer_folder, file))
+
+    layer_config = _generate_python_node_layer_config(layer_name, runtime)
+    _write_content_to_file(os.path.join(layer_folder, FILE_LAYER_CONFIG),
+                           layer_config)
+
+    _write_content_to_file(os.path.join(layer_folder, FILE_PACKAGE),
+                           _generate_node_layer_package_file(layer_name))
+
+    _write_content_to_file(os.path.join(layer_folder, FILE_PACKAGE_LOCK),
+                           _generate_node_layer_package_lock_file(layer_name))
+
+
+def _link_layer_to_lambdas(lambda_names, layer_name, layer_runtime,
+                           existent_lambdas, lambda_path):
+    for lambda_name in lambda_names:
+        if lambda_name not in existent_lambdas:
+            USER_LOG.warn(f'The layer \'{layer_name}\' can\'t be linked with '
+                          f'lambda function \'{lambda_name}\' due to an '
+                          f'absence the function in the project.')
+            continue
+
+        lambda_runtime = existent_lambdas[lambda_name][RUNTIME_PARAM]
+        if lambda_runtime != layer_runtime:
+            USER_LOG.warn(f'The layer \'{layer_name}\' with runtime '
+                          f'\'{layer_runtime}\' can\'t be linked with lambda '
+                          f'\'{lambda_name}\' with runtime '
+                          f'\'{lambda_runtime}\'')
+            continue
+
+        config_file_path = Path(lambda_path, FOLDER_LAMBDAS,
+                                lambda_name, FILE_LAMBDA_CONFIG)
+        if not os.path.isfile(config_file_path):
+            USER_LOG.warn(f'The layer \'{layer_name}\' can\'t be linked with '
+                          f'lambda function \'{lambda_name}\' due to an '
+                          f'absence the function config file.')
+            continue
+
+        lambda_config = json.loads(_read_content_from_file(config_file_path))
+        layers = lambda_config.get('layers')
+        if isinstance(layers, list):
+            layers.append(layer_name)
+        else:
+            layers = [layer_name]
+        lambda_config['layers'] = list(set(layers))
+        _write_content_to_file(config_file_path, json.dumps(lambda_config))
+        USER_LOG.info(f'The layer \'{layer_name}\' was linked with '
+                      f'\'{lambda_name}\'')
+
+
 LAMBDAS_PROCESSORS = {
     RUNTIME_JAVA: _generate_java_lambdas,
     RUNTIME_NODEJS: _generate_nodejs_lambdas,
     RUNTIME_PYTHON: _generate_python_lambdas,
+}
+
+LAYERS_PROCESSORS = {
+    RUNTIME_NODEJS: _generate_nodejs_layer,
+    RUNTIME_PYTHON: _generate_python_layer
 }
 
 
@@ -372,10 +536,18 @@ def resolve_lambda_path(project: Path, runtime: str, source: str) -> Path:
     return project/Path(source, _lambda)
 
 
+def _common_python_nodejs_layer_module(src_path):
+    layer_path = os.path.join(src_path, FOLDER_LAMBDAS, FOLDER_LAYERS)
+    _mkdir(path=layer_path, exist_ok=True)
+
+
 COMMON_MODULE_PROCESSORS = {
     RUNTIME_JAVA: _common_java_module,
     RUNTIME_NODEJS: _common_nodejs_module,
-    RUNTIME_PYTHON: _common_python_module
+    RUNTIME_PYTHON: _common_python_module,
+    RUNTIME_PYTHON_LAYER: _common_python_nodejs_layer_module,
+    RUNTIME_NODEJS_LAYER: _common_python_nodejs_layer_module
+
 }
 
 TESTS_MODULE_PROCESSORS = {
