@@ -23,8 +23,11 @@ import com.fasterxml.jackson.annotation.JsonValue;
  */
 public enum DeploymentRuntime {
 
+    @Deprecated(forRemoval = true)
     JAVA8("java8"),
     JAVA11("java11"),
+    JAVA17("java17"),
+    JAVA21("java21"),
     PYTHON("python2.7"),
     NODEJS43("nodejs4.3"),
     NODEJS("nodejs");

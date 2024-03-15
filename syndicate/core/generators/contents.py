@@ -15,11 +15,13 @@
 """
 import json
 
+from syndicate.core.build.artifact_processor import RUNTIME_NODEJS
 from syndicate.core.conf.validator import (
     LAMBDAS_ALIASES_NAME_CFG, LOGS_EXPIRATION
 )
 from syndicate.core.generators import (_alias_variable,
                                        FILE_LAMBDA_HANDLER_NODEJS)
+from syndicate.core.groups import DEFAULT_RUNTIME_VERSION
 
 POLICY_LAMBDA_BASIC_EXECUTION = "lambda-basic-execution"
 
@@ -34,6 +36,7 @@ JAVA_LAMBDA_HANDLER_CLASS = """package {java_package_name};
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.syndicate.deployment.annotations.lambda.LambdaHandler;
+import com.syndicate.deployment.model.RetentionSetting;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -41,7 +44,8 @@ import java.util.Map;
 @LambdaHandler(lambdaName = "{lambda_name}",
 	roleName = "{lambda_role_name}",
 	isPublishVersion = true,
-	aliasName = "${lambdas_alias_name}"
+	aliasName = "${lambdas_alias_name}",
+	logsExpiration = RetentionSetting.SYNDICATE_ALIASES_SPECIFIED
 )
 public class {lambda_class_name} implements RequestHandler<Object, Map<String, Object>> {
 
@@ -66,12 +70,13 @@ JAVA_ROOT_POM_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
     <version>1.0.0</version>
 
     <properties>
-        <maven-shade-plugin.version>3.2.0</maven-shade-plugin.version>
-        <deployment-configuration-annotations.version>1.10.0</deployment-configuration-annotations.version>
-        <maven.compiler.source>1.8</maven.compiler.source>
-        <maven.compiler.target>1.8</maven.compiler.target>
+        <maven-shade-plugin.version>3.5.2</maven-shade-plugin.version>
+        <syndicate.java.plugin.version>1.11.0</syndicate.java.plugin.version>
+        <maven.compiler.source>11</maven.compiler.source>
+        <maven.compiler.target>11</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <src.dir>jsrc/main/java</src.dir>
+        <resources.dir>jsrc/main/resources</resources.dir>
     </properties>
 
     <dependencies>
@@ -85,17 +90,22 @@ JAVA_ROOT_POM_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
         <dependency>
             <groupId>net.sf.aws-syndicate</groupId>
             <artifactId>deployment-configuration-annotations</artifactId>
-            <version>${deployment-configuration-annotations.version}</version>
+            <version>${syndicate.java.plugin.version}</version>
         </dependency>
     </dependencies>
 
     <build>
         <sourceDirectory>${src.dir}</sourceDirectory>
+        <resources>
+            <resource>
+                <directory>${resources.dir}</directory>
+            </resource>
+        </resources>        
         <plugins>
             <plugin>
                 <groupId>net.sf.aws-syndicate</groupId>
                 <artifactId>deployment-configuration-maven-plugin</artifactId>
-                <version>${deployment-configuration-annotations.version}</version>
+                <version>${syndicate.java.plugin.version}</version>
                 <configuration>
                     <packages>
                         <!--packages to scan-->
@@ -378,81 +388,134 @@ def get_logger(log_name, level=log_level):
 """
 
 PYTHON_TESTS_INIT_CONTENT = \
-"""import sys
-from pathlib import Path
-
-SOURCE_FOLDER = 'src'
-
-
-class ImportFromSourceContext:
-    \"\"\"Context object to import lambdas and packages. It's necessary because
-    root path is not the path to the syndicate project but the path where
-    lambdas are accumulated - SOURCE_FOLDER \"\"\"
-
-    def __init__(self, source_folder=SOURCE_FOLDER):
-        self.source_folder = source_folder
-        self.assert_source_path_exists()
-
-    @property
-    def project_path(self) -> Path:
-        return Path(__file__).parent.parent
-
-    @property
-    def source_path(self) -> Path:
-        return Path(self.project_path, self.source_folder)
-
-    def assert_source_path_exists(self):
-        source_path = self.source_path
-        if not source_path.exists():
-            print(f'Source path "{source_path}" does not exist.',
-                  file=sys.stderr)
-            sys.exit(1)
-
-    def _add_source_to_path(self):
-        source_path = str(self.source_path)
-        if source_path not in sys.path:
-            sys.path.append(source_path)
-
-    def _remove_source_from_path(self):
-        source_path = str(self.source_path)
-        if source_path in sys.path:
-            sys.path.remove(source_path)
-
-    def __enter__(self):
-        self._add_source_to_path()
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self._remove_source_from_path()
-
-"""
+    """import sys
+    from pathlib import Path
+    
+    SOURCE_FOLDER = 'src'
+    
+    
+    class ImportFromSourceContext:
+        \"\"\"Context object to import lambdas and packages. It's necessary because
+        root path is not the path to the syndicate project but the path where
+        lambdas are accumulated - SOURCE_FOLDER \"\"\"
+    
+        def __init__(self, source_folder=SOURCE_FOLDER):
+            self.source_folder = source_folder
+            self.assert_source_path_exists()
+    
+        @property
+        def project_path(self) -> Path:
+            return Path(__file__).parent.parent
+    
+        @property
+        def source_path(self) -> Path:
+            return Path(self.project_path, self.source_folder)
+    
+        def assert_source_path_exists(self):
+            source_path = self.source_path
+            if not source_path.exists():
+                print(f'Source path "{source_path}" does not exist.',
+                      file=sys.stderr)
+                sys.exit(1)
+    
+        def _add_source_to_path(self):
+            source_path = str(self.source_path)
+            if source_path not in sys.path:
+                sys.path.append(source_path)
+    
+        def _remove_source_from_path(self):
+            source_path = str(self.source_path)
+            if source_path in sys.path:
+                sys.path.remove(source_path)
+    
+        def __enter__(self):
+            self._add_source_to_path()
+    
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            self._remove_source_from_path()
+    
+    """
 
 PYTHON_TESTS_INIT_LAMBDA_TEMPLATE = \
-"""import unittest
-import importlib
-from tests import ImportFromSourceContext
-
-with ImportFromSourceContext():
-    LAMBDA_HANDLER = importlib.import_module('lambdas.{lambda_name}.handler')
-
-
-class {camel_lambda_name}LambdaTestCase(unittest.TestCase):
-    \"\"\"Common setups for this lambda\"\"\"
-
-    def setUp(self) -> None:
-        self.HANDLER = LAMBDA_HANDLER.{camel_lambda_name}()
-
-"""
+    """import unittest
+    import importlib
+    from tests import ImportFromSourceContext
+    
+    with ImportFromSourceContext():
+        LAMBDA_HANDLER = importlib.import_module('lambdas.{lambda_name}.handler')
+    
+    
+    class {camel_lambda_name}LambdaTestCase(unittest.TestCase):
+        \"\"\"Common setups for this lambda\"\"\"
+    
+        def setUp(self) -> None:
+            self.HANDLER = LAMBDA_HANDLER.{camel_lambda_name}()
+    
+    """
 
 PYTHON_TESTS_BASIC_TEST_CASE_TEMPLATE = \
-"""from tests.{test_lambda_folder} import {camel_lambda_name}LambdaTestCase
+    """from tests.{test_lambda_folder} import {camel_lambda_name}LambdaTestCase
+    
+    
+    class TestSuccess({camel_lambda_name}LambdaTestCase):
+    
+        def test_success(self):
+            self.assertEqual(self.HANDLER.handle_request(dict(), dict()), 200)
+    
+    """
 
+S3_BUCKET_PUBLIC_READ_POLICY = {
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "PublicReadGetObject",
+            "Effect": "Allow",
+            "Principal": "*",
+            "Action": [
+                "s3:GetObject"
+            ],
+            "Resource": [
+                "arn:aws:s3:::{bucket_name}/*"
+            ]
+        }
+    ]
+}
 
-class TestSuccess({camel_lambda_name}LambdaTestCase):
+SWAGGER_UI_INDEX_FILE_CONTENT = \
+    """<!DOCTYPE html>
+    <html lang="en">
+      <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta
+          name="description"
+          content="SwaggerUI"
+        />
+        <title>SwaggerUI</title>
+        <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@4.5.0/swagger-ui.css" />
+      </head>
+      <body>
+      <div id="swagger-ui"></div>
+      <script src="https://unpkg.com/swagger-ui-dist@4.5.0/swagger-ui-bundle.js" crossorigin></script>
+      <script src="https://unpkg.com/swagger-ui-dist@4.5.0/swagger-ui-standalone-preset.js" crossorigin></script>
+      <script>
+        window.onload = () => {
+          window.ui = SwaggerUIBundle({
+            url: './spec_file_name',
+            dom_id: '#swagger-ui',
+            presets: [
+              SwaggerUIBundle.presets.apis,
+              SwaggerUIStandalonePreset
+            ],
+            layout: "StandaloneLayout",
+          });
+        };
+      </script>
+      </body>
+    </html>"""
 
-    def test_success(self):
-        self.assertEqual(self.HANDLER.handle_request(dict(), dict()), 200)
-
-"""
+REQUIREMENTS_FILE_CONTENT = '# list of requirements'
+LOCAL_REQUIREMENTS_FILE_CONTENT = '# local requirements'
 
 
 def _stringify(dict_content):
@@ -483,6 +546,40 @@ def _generate_python_node_lambda_config(lambda_name, lambda_relative_path):
     })
 
 
+def _generate_python_node_layer_config(layer_name, runtime):
+    return _stringify({
+        "name": layer_name,
+        "resource_type": "lambda_layer",
+        "runtimes": [
+            DEFAULT_RUNTIME_VERSION.get(runtime)
+        ],
+        "deployment_package": f"{layer_name}_layer.zip"
+    })
+
+
+def _generate_node_layer_package_file(layer_name):
+    return _stringify({
+        "name": layer_name,
+        "version": "1.0.0",
+        "description": "",
+        "main": "index.js",
+        "scripts": {},
+        "author": "",
+        "license": "ISC",
+        "dependencies": {}
+    })
+
+
+def _generate_node_layer_package_lock_file(layer_name):
+    return _stringify({
+            "name": layer_name,
+            "version": "1.0.0",
+            "lockfileVersion": 1,
+            "requires": True,
+            "dependencies": {}
+        })
+
+
 def _generate_nodejs_node_lambda_config(lambda_name, lambda_relative_path):
     return _stringify({
         'version': '1.0',
@@ -490,7 +587,7 @@ def _generate_nodejs_node_lambda_config(lambda_name, lambda_relative_path):
         'func_name': 'index.handler',
         'resource_type': 'lambda',
         'iam_role_name': LAMBDA_ROLE_NAME_PATTERN.format(lambda_name),
-        'runtime': 'nodejs14.x',
+        'runtime': RUNTIME_NODEJS,
         'memory': 128,
         'timeout': 100,
         'lambda_path': lambda_relative_path,
@@ -572,3 +669,12 @@ def _generate_lambda_role_config(role_name, stringify=True):
         }
     }
     return _stringify(role_content) if stringify else role_content
+
+
+def _generate_swagger_ui_config(resource_name, path_to_spec, target_bucket):
+    return _stringify({
+            "name": resource_name,
+            "resource_type": "swagger_ui",
+            "path_to_spec": path_to_spec,
+            "target_bucket": target_bucket
+        })

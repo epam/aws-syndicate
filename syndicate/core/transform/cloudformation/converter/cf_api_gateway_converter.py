@@ -25,6 +25,8 @@ from syndicate.connection.api_gateway_connection import \
      RESPONSE_PARAM_ALLOW_HEADERS,
      RESPONSE_PARAM_ALLOW_METHODS,
      RESPONSE_PARAM_ALLOW_ORIGIN)
+from syndicate.core.constants import API_GW_DEFAULT_THROTTLING_RATE_LIMIT, \
+    API_GW_DEFAULT_THROTTLING_BURST_LIMIT
 from syndicate.core.resources.api_gateway_resource import (ApiGatewayResource,
                                                            SUPPORTED_METHODS,
                                                            API_REQUIRED_PARAMS)
@@ -407,6 +409,10 @@ class CfApiGatewayConverter(CfResourceConverter):
             'cache_size') if cache_cluster_configuration else None
         cache_cluster_size = \
             str(cache_size_value) if cache_size_value else None
+        throttling_cluster_configuration = meta.get(
+            'cluster_throttling_configuration')
+        throttling_cluster_enabled = throttling_cluster_configuration.get(
+            'throttling_enabled') if throttling_cluster_configuration else None
         deployment = apigateway.Deployment(
             to_logic_name('ApiGatewayDeployment', rest_api.title))
         stage = apigateway.StageDescription()
@@ -416,8 +422,13 @@ class CfApiGatewayConverter(CfResourceConverter):
             stage.CacheClusterSize = cache_cluster_size
         if cache_cluster_enabled:
             cache_ttl_sec = cache_cluster_configuration.get('cache_ttl_sec')
-            if cache_ttl_sec:
+            if cache_ttl_sec is not None:
                 stage.CacheTtlInSeconds = cache_ttl_sec
+        if throttling_cluster_enabled:
+            stage.ThrottlingRateLimit = throttling_cluster_configuration.get(
+                'throttling_rate_limit', API_GW_DEFAULT_THROTTLING_RATE_LIMIT)
+            stage.ThrottlingBurstLimit = throttling_cluster_configuration.get(
+                'throttling_burst_limit', API_GW_DEFAULT_THROTTLING_BURST_LIMIT)
         deployment.StageDescription = stage
         deployment.RestApiId = Ref(rest_api)
         deployment.StageName = stage_name

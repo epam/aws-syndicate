@@ -4,10 +4,67 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [1.11.0] - 2024-03-15
+
+- Added new resource type `swagger_ui`
+- Added support of Eventbridge rule
+- Added generation of lambda layer meta, the command `syndicate generate lambda_layer`
+- Added an ability to build and deploy lambda layers with `nodejs` runtime
+- Added lambda function processor architecture type management
+- Added lambda layers compatible processor architecture types management
+- The @LambdaHandler annotation for Java plugin improved to support the lambda 'architecture' management
+- The @LambdaLayer annotation for Java plugin improved to support the lambda 'architectures' management
+- Added meta generation for  API gateway authorizer
+- Added `api_source_arn` when creating permission for lambda authorizer.
+- Added API Gateway `Throttling` settings management
+- Added the feature "export api gateway OpenAPI spec"
+- Added support for OpenAPI v3 deploy, update and clean-up in API Gateway
+- Added lambda functions resource-based policy adjustment when integration with API Gateway defined with OpenAPI v3 spec
+- Added Cognito User Pools ARNs resolving for OpenAPI specification via the key `x-syndicate-cognito-userpool-names` of the `x-amazon-apigateway-authorizer` extension
+- Added S3 bucket deployment with configuration for static website hosting
+- Added CloudWatch logs expiration management
+- Added validation for the configuration parameter `iam_suffix`
+- Added warning to logs in case of unknown parameters in the configuration file
+- Added the parameter `--preserve_state` to the `syndicate clean` command to keep the deployment output file
+- Added validation of composite deploy_target_bucket (bucket_name+prefix) to the command `syndicate generate config`
+- Added ability to generate syndicate configs with temporary set of credentials
+- Improved the Lambda SQS Trigger Creation process to check for existing event
+source mapping, and update or create if needed.
+- Change in `syndicate generate config` command default value for `lambdas_alias_name`
+from `prod` to `dev`
+- Fixed inconsistency of the project state in case of several deployments
+- Fixed skipping deploy|update|clean resources with filtering by name when prefix and/or suffix specified in syndicate configuration
+- Fixed a bug when an empty requirements.txt file with a newline would cause the project to fail to build
+- Fixed API Gateway deployment with the default value(300) of the `Cache time to live` parameter if the specified value is `0`
+- Fixed lambda authorization permissions
+- Fixed AWS Batch Compute environment deployment issue in case of specifying the parameter `--allocation_strategy`
+- Fixed DAX cluster deployment error when DAX Role is deploying on the fly
+- Fixed Dax cluster meta generation error in case of specifying subnet group name and subnets IDs
+- Fixed the help message for the parameter `--security_group_names` of the command `syndicate generate meta ec2_instance`
+- Fixed a mechanism of linking API gateway resource methods with an authorizer
+- Fixed an issue related to clean resources after a partial clean
+- Fixed displaying help messages without configured SDCT_CONF environment variable
+- Upgraded default Java Lambada runtime from Java 8 to Java 11
+- Added support of Lambda runtime Java 17 and Java 21
+- Upgraded default NodeJS lambda runtime version from 14.x to 20.x
+- Updated available NodeJS lambda runtime versions from 10.x/12.x/14.x to 16.x/18.x/20.x
+- Actualized Java project examples
+- Actualized Python project examples
+- Removed obsolete documentation (/docs)
+
+# [1.10.2] - 2024-01-19
+- Add a feature in `syndicate update` command to update `logs_expiration`
+parameter in `cloudWatch` logs group. For setting `logs_expiration`, refer to
+`syndicate_aliases`.
+
+# [1.10.1] - 2024-01-17
+- Change from `error` to `warning` if integer not provided in allowed values for
+`logs_expiration` values and set default to `30`.
+
 # [1.10.0] - 2024-01-16
 - Add parameter `logs_expiration` to `syndicate_aliases.yml` and `lambda_config.json`. 
-The default value is set to "30 days". To ensure the logs never expire, set the
-value to: `logs_expiration: 0`.
+The default value is set to "30 days". To ensure the logs expire after 10 years,
+set the value to: `logs_expiration: 0`.
 
 # [1.9.9] - 2024-01-15
 - Fix dynamodb table capacity mode recognition during update

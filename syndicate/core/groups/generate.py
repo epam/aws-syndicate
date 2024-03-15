@@ -14,19 +14,27 @@
     limitations under the License.
 """
 import os
+from functools import partial
 
 import click
 from syndicate.core.conf.generator import generate_configuration_files
+from syndicate.core.constants import SYNDICATE_WIKI_PAGE, \
+    JAVA_LAMBDAS_WIKI_PAGE, SYNDICATE_PROJECT_EXAMPLES_PAGE
 from syndicate.core.generators.lambda_function import (
-    generate_lambda_function)
+    generate_lambda_function, generate_lambda_layer)
 from syndicate.core.generators.project import (generate_project_structure,
                                                PROJECT_PROCESSORS)
+from syndicate.core.generators.swagger_ui import generate_swagger_ui
+from syndicate.core.groups import RUNTIME_JAVA
 from syndicate.core.groups.meta import meta
 from syndicate.core.helper import (timeit, OrderedGroup,
                                    check_bundle_bucket_name,
                                    resolve_project_path,
                                    check_lambdas_names, DictParamType,
-                                   check_suffix, check_prefix)
+                                   check_suffix, check_prefix,
+                                   check_file_extension,
+                                   check_lambda_layer_name,
+                                   check_lambda_existence)
 
 GENERATE_GROUP_NAME = 'generate'
 GENERATE_PROJECT_COMMAND_NAME = 'project'
@@ -96,6 +104,50 @@ def lambda_function(name, runtime, project_path):
                              lambda_names=name)
 
 
+@generate.command(name='lambda_layer')
+@click.option('--name', type=str, required=True,
+              callback=check_lambda_layer_name,
+              help='The lambda layer name')
+@click.option('--runtime', required=True,
+              type=click.Choice(PROJECT_PROCESSORS),
+              help='Lambda layer\'s runtime.')
+@click.option('--link_with_lambda', required=False,
+              type=str, multiple=True, callback=check_lambda_existence,
+              help='(multiple) Lambda function name to link the layer with.')
+@click.option('--project_path', nargs=1,
+              help="Path to the project folder. Default value: the one "
+                   "from the current config if it exists. "
+                   "Otherwise - the current working directory",
+              callback=resolve_project_path)
+@timeit()
+def lambda_layer(name, runtime, link_with_lambda, project_path):
+    """
+    Generates required environment for lambda function's layer
+    """
+    if runtime == RUNTIME_JAVA:
+        click.echo('Generation of lambda layer for Java runtime is currently '
+                   'unsupported. \nA layer for lambda with Java runtime can '
+                   'be added to the project by using the annotation '
+                   '\'@LambdaLayer\'. \nMore details can be found on the '
+                   'aws-syndicate wiki page or in the project examples:\n'
+                   f'{SYNDICATE_WIKI_PAGE + JAVA_LAMBDAS_WIKI_PAGE}'
+                   f'\n{SYNDICATE_PROJECT_EXAMPLES_PAGE + runtime}')
+        return
+    if not os.access(project_path, os.F_OK):
+        click.echo(f"The provided path {project_path} doesn't exist")
+        return
+    elif not os.access(project_path, os.W_OK) or not os.access(project_path,
+                                                               os.X_OK):
+        click.echo(f"Incorrect permissions for the provided path "
+                   f"'{project_path}'")
+        return
+    click.echo(f'Project path: {project_path}')
+    generate_lambda_layer(name=name,
+                          runtime=runtime,
+                          lambda_names=link_with_lambda,
+                          project_path=project_path)
+
+
 @generate.command(name=GENERATE_CONFIG_COMMAND_NAME)
 @click.option('--name',
               required=True,
@@ -115,6 +167,9 @@ def lambda_function(name, runtime, project_path):
                    'Retrieved from session by default')
 @click.option('--secret_key',
               help='AWS secret key that is used to deploy the application. '
+                   'Retrieved from session by default')
+@click.option('--session_token',
+              help='AWS session token that is used to deploy the application. '
                    'Retrieved from session by default')
 @click.option('--config_path',
               help='Path to store generated configuration file')
@@ -155,8 +210,9 @@ def lambda_function(name, runtime, project_path):
               help='Common permissions boundary arn to add to all the roles')
 @timeit()
 def config(name, config_path, project_path, region, access_key, secret_key,
-           bundle_bucket_name, prefix, suffix, extended_prefix, use_temp_creds,
-           access_role, serial_number, tags, iam_permissions_boundary):
+           session_token, bundle_bucket_name, prefix, suffix,
+           extended_prefix, use_temp_creds, access_role, serial_number,
+           tags, iam_permissions_boundary):
     """
     Creates Syndicate configuration files
     """
@@ -166,6 +222,7 @@ def config(name, config_path, project_path, region, access_key, secret_key,
                                  region=region,
                                  access_key=access_key,
                                  secret_key=secret_key,
+                                 session_token=session_token,
                                  bundle_bucket_name=bundle_bucket_name,
                                  prefix=prefix,
                                  suffix=suffix,
@@ -175,6 +232,40 @@ def config(name, config_path, project_path, region, access_key, secret_key,
                                  serial_number=serial_number,
                                  tags=tags,
                                  iam_permissions_boundary=iam_permissions_boundary)
+
+
+@generate.command(name='swagger_ui')
+@click.option('--name', required=True, type=str,
+              help="Swagger UI name")
+@click.option('--path_to_spec', required=True, type=str,
+              callback=partial(check_file_extension, extensions=['.json']),
+              help="Path to OpenAPI specification file. Path that is relative "
+                   "to the project path can be specified.")
+@click.option('--target_bucket', required=True, type=str,
+              callback=check_bundle_bucket_name,
+              help="S3 bucket name for Swagger UI deployment")
+@click.option('--project_path', nargs=1,
+              help="Path to the project folder. Default value: the one "
+                   "from the current config if it exists. "
+                   "Otherwise - the current working directory",
+              callback=resolve_project_path)
+@timeit()
+def swagger_ui(name, path_to_spec, target_bucket, project_path):
+    """
+    Generates required environment for Swagger UI
+    """
+    if not os.access(project_path, os.F_OK):
+        click.echo(f"The provided path {project_path} doesn't exist")
+        return
+    elif not os.access(project_path, os.W_OK) or not os.access(project_path,
+                                                               os.X_OK):
+        click.echo(f"Incorrect permissions for the provided path "
+                   f"'{project_path}'")
+        return
+    generate_swagger_ui(name=name,
+                        spec_path=path_to_spec,
+                        target_bucket=target_bucket,
+                        project_path=project_path)
 
 
 generate.add_command(meta)

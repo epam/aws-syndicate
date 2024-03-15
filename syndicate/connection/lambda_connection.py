@@ -59,8 +59,9 @@ class LambdaConnection(object):
         _LOG.debug('Opened new Lambda connection.')
 
     def create_lambda(self, lambda_name, func_name,
-                      role, s3_bucket, s3_key, runtime='python3.7', memory=128,
-                      timeout=300, vpc_sub_nets=None, vpc_security_group=None,
+                      role, s3_bucket, s3_key, runtime='python3.10',
+                      memory=128, timeout=300, architectures=None,
+                      vpc_sub_nets=None, vpc_security_group=None,
                       env_vars=None, dl_target_arn=None, tracing_mode=None,
                       publish_version=False, layers=None,
                       ephemeral_storage=512, snap_start: str = None):
@@ -68,6 +69,7 @@ class LambdaConnection(object):
         :type lambda_name: str
         :type func_name: str
         :param func_name: name of the entry point function
+        :param architectures: list function architecture type ['x86_64'|'arm64']
         :type role: str
         :param role: aws arn of role
         :type s3_bucket: str
@@ -111,7 +113,37 @@ class LambdaConnection(object):
             params['SnapStart'] = {
                 'ApplyOn': snap_start
             }
+        if architectures:
+            params['Architectures'] = architectures
         return self.client.create_function(**params)
+
+    def get_existing_permissions(self, lambda_arn):
+        try:
+            # Retrieve the policy associated with the specified Lambda function
+            policy = self.client.get_policy(FunctionName=lambda_arn)
+            permissions = json.loads(policy['Policy']).get('Statement', [])
+
+            return permissions
+        except self.client.exceptions.ResourceNotFoundException:
+            _LOG.debug(
+                f'Can`t get permissions for lambda {lambda_arn}. '
+                f'Lambda does not exist.'
+            )
+            return []
+
+    def remove_permissions(self, lambda_arn, permissions_sids):
+        for permission_sid in permissions_sids:
+            try:
+                self.client.remove_permission(
+                    FunctionName=lambda_arn,
+                    StatementId=permission_sid
+                )
+                _LOG.debug(f"Permissions deleted: {permission_sid},"
+                           f" from lambda: {lambda_arn}")
+            except self.client.exceptions.ClientError as e:
+                _LOG.error(f"Can't delete permission: {permission_sid},"
+                           f" from lambda: {lambda_arn}. Error: {e}")
+                continue
 
     def set_url_config(self, function_name: str, qualifier: str = None,
                        auth_type: str = IAM_AUTH_TYPE, cors: dict = None,
@@ -617,7 +649,7 @@ class LambdaConnection(object):
         )
 
     def create_layer(self, layer_name, s3_bucket, s3_key, runtimes,
-                     description=None,
+                     description=None, architectures=None,
                      layer_license=None):
         kwargs = {'LayerName': layer_name, 'CompatibleRuntimes': runtimes,
                   'Content': {'S3Bucket': s3_bucket, 'S3Key': s3_key}}
@@ -625,6 +657,8 @@ class LambdaConnection(object):
             kwargs['Description'] = description
         if layer_license:
             kwargs['LicenseInfo'] = layer_license
+        if architectures:
+            kwargs['CompatibleArchitectures'] = architectures
         return self.client.publish_layer_version(**kwargs)
 
     def get_lambda_layer_arn(self, name):

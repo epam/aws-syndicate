@@ -13,6 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+import datetime
 import os
 import sys
 
@@ -22,23 +23,19 @@ from boto3.session import Session
 
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.connection.sts_connection import STSConnection
-from syndicate.core.conf.processor import (PROJECT_PATH_CFG,
-                                           CONFIG_FILE_NAME,
-                                           ALIASES_FILE_NAME,
-                                           ACCOUNT_ID_CFG, REGION_CFG,
-                                           DEPLOY_TARGET_BUCKET_CFG,
-                                           AWS_ACCESS_KEY_ID_CFG,
-                                           AWS_SECRET_ACCESS_KEY_CFG,
-                                           RESOURCES_PREFIX_CFG,
-                                           RESOURCES_SUFFIX_CFG,
-                                           TAGS_CFG,
-                                           IAM_PERMISSIONS_BOUNDARY_CFG)
+from syndicate.core.conf.processor import (
+    PROJECT_PATH_CFG, CONFIG_FILE_NAME, ALIASES_FILE_NAME,
+    ACCOUNT_ID_CFG, REGION_CFG, DEPLOY_TARGET_BUCKET_CFG,
+    AWS_ACCESS_KEY_ID_CFG, AWS_SECRET_ACCESS_KEY_CFG, RESOURCES_PREFIX_CFG,
+    RESOURCES_SUFFIX_CFG, TAGS_CFG, IAM_PERMISSIONS_BOUNDARY_CFG,
+    TEMP_AWS_ACCESS_KEY_ID_CFG, TEMP_AWS_SECRET_ACCESS_KEY_CFG,
+    TEMP_AWS_SESSION_TOKEN_CFG)
 from syndicate.core.conf.validator import (LAMBDAS_ALIASES_NAME_CFG,
                                            USE_TEMP_CREDS_CFG,
                                            SERIAL_NUMBER_CFG,
                                            ACCESS_ROLE_CFG,
                                            EXTENDED_PREFIX_MODE_CFG,
-                                           LOGS_EXPIRATION)
+                                           LOGS_EXPIRATION, EXPIRATION_CFG)
 from syndicate.core.constants import DEFAULT_LOGS_EXPIRATION
 from syndicate.core.generators import _mkdir
 
@@ -49,10 +46,10 @@ _USER_LOG = get_user_logger()
 def generate_configuration_files(name, config_path, region,
                                  access_key, secret_key,
                                  bundle_bucket_name, prefix, suffix,
-                                 extended_prefix, project_path=None,
-                                 use_temp_creds=None, access_role=None,
-                                 serial_number=None, tags=None,
-                                 iam_permissions_boundary=None):
+                                 extended_prefix, session_token=None,
+                                 project_path=None, use_temp_creds=None,
+                                 access_role=None, serial_number=None,
+                                 tags=None, iam_permissions_boundary=None):
     if not access_key and not secret_key:
         _USER_LOG.warn("Access_key and secret_key weren't passed. "
                        "Attempting to load them")
@@ -63,7 +60,8 @@ def generate_configuration_files(name, config_path, region,
     try:
         sts = STSConnection(region=region,
                             aws_access_key_id=access_key,
-                            aws_secret_access_key=secret_key)
+                            aws_secret_access_key=secret_key,
+                            aws_session_token=session_token)
         caller_identity = sts.get_caller_identity()
         account_id = str(caller_identity['Account'])
     except ClientError:
@@ -109,8 +107,6 @@ def generate_configuration_files(name, config_path, region,
         ACCOUNT_ID_CFG: account_id,
         REGION_CFG: region,
         DEPLOY_TARGET_BUCKET_CFG: bundle_bucket_name,
-        AWS_ACCESS_KEY_ID_CFG: access_key,
-        AWS_SECRET_ACCESS_KEY_CFG: secret_key,
         PROJECT_PATH_CFG: project_path,
         RESOURCES_PREFIX_CFG: prefix,
         RESOURCES_SUFFIX_CFG: suffix,
@@ -121,6 +117,21 @@ def generate_configuration_files(name, config_path, region,
         TAGS_CFG: tags,
         IAM_PERMISSIONS_BOUNDARY_CFG: iam_permissions_boundary
     }
+    if session_token:
+        config_content.update({
+            TEMP_AWS_ACCESS_KEY_ID_CFG: access_key,
+            TEMP_AWS_SECRET_ACCESS_KEY_CFG: secret_key,
+            TEMP_AWS_SESSION_TOKEN_CFG: session_token,
+            EXPIRATION_CFG: (
+                    datetime.datetime.now(datetime.timezone.utc) +
+                    datetime.timedelta(minutes=50)
+            )
+        })
+    else:
+        config_content.update({
+            AWS_ACCESS_KEY_ID_CFG: access_key,
+            AWS_SECRET_ACCESS_KEY_CFG: secret_key
+        })
     config_content = {key: value for key, value in config_content.items()
                       if value is not None}
 
@@ -131,7 +142,7 @@ def generate_configuration_files(name, config_path, region,
     aliases_content = {
         ACCOUNT_ID_CFG: account_id,
         REGION_CFG: region,
-        LAMBDAS_ALIASES_NAME_CFG: 'prod',
+        LAMBDAS_ALIASES_NAME_CFG: 'dev',
         LOGS_EXPIRATION: DEFAULT_LOGS_EXPIRATION,
     }
     aliases_file_path = os.path.join(config_folder_path, ALIASES_FILE_NAME)
@@ -141,7 +152,7 @@ def generate_configuration_files(name, config_path, region,
     _USER_LOG.info(
         'Syndicate initialization has been completed. \n'
         f'Set SDCT_CONF:{os.linesep}'
-        f'Unix: export SDCT_CONF={config_folder_path}{os.linesep}'
+        f'Unix: export SDCT_CONF="{config_folder_path}{os.linesep}"'
         f'Windows: setx SDCT_CONF {config_folder_path}')
 
 

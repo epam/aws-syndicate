@@ -26,9 +26,11 @@ import yaml
 
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.constants import BUILD_ACTION, \
-    DEPLOY_ACTION, UPDATE_ACTION, CLEAN_ACTION, PACKAGE_META_ACTION
+    DEPLOY_ACTION, UPDATE_ACTION, CLEAN_ACTION, PACKAGE_META_ACTION, \
+    PARTIAL_CLEAN_ACTION
 from syndicate.core.constants import DATE_FORMAT_ISO_8601
-from syndicate.core.groups import RUNTIME_JAVA, RUNTIME_NODEJS, RUNTIME_PYTHON
+from syndicate.core.groups import RUNTIME_JAVA, RUNTIME_NODEJS, RUNTIME_PYTHON, \
+    RUNTIME_SWAGGER_UI
 
 CAPITAL_LETTER_REGEX = '[A-Z][^A-Z]*'
 
@@ -51,7 +53,8 @@ INDEX_FILE = 'index.js'
 BUILD_MAPPINGS = {
     RUNTIME_JAVA: 'jsrc/main/java',
     RUNTIME_PYTHON: 'src',
-    RUNTIME_NODEJS: 'app'
+    RUNTIME_NODEJS: 'app',
+    RUNTIME_SWAGGER_UI: 'swagger_src'
 }
 
 OPERATION_LOCK_MAPPINGS = {
@@ -349,7 +352,7 @@ class ProjectState:
 
     def log_execution_event(self, **kwargs):
         operation = kwargs.get('operation')
-        if operation == DEPLOY_ACTION:
+        if operation in [DEPLOY_ACTION, PARTIAL_CLEAN_ACTION]:
             params = kwargs.copy()
             params.pop('operation')
             self._set_latest_deploy_info(**params)

@@ -58,6 +58,7 @@ _SNAP_START_CONFIGURATIONS = [_APPLY_SNAP_START_VERSIONS,
 
 DYNAMO_DB_TRIGGER = 'dynamodb_trigger'
 CLOUD_WATCH_RULE_TRIGGER = 'cloudwatch_rule_trigger'
+EVENT_BRIDGE_RULE_TRIGGER = 'eventbridge_rule_trigger'
 S3_TRIGGER = 's3_trigger'
 SNS_TOPIC_TRIGGER = 'sns_topic_trigger'
 KINESIS_TRIGGER = 'kinesis_trigger'
@@ -85,6 +86,13 @@ class LambdaResource(BaseResource):
 
     def qualifier_alias_resolver(self, lambda_def):
         return lambda_def['Alias']
+
+    def get_existing_permissions(self, lambda_arn):
+        return self.lambda_conn.get_existing_permissions(lambda_arn)
+
+    def remove_permissions(self, lambda_arn, permissions_sids):
+        return self.lambda_conn.remove_permissions(lambda_arn,
+                                                   permissions_sids)
 
     def qualifier_version_resolver(self, lambda_def):
         latest_version_number = lambda_def['Configuration']['Version']
@@ -310,7 +318,8 @@ class LambdaResource(BaseResource):
             publish_version=publish_version,
             layers=lambda_layers_arns,
             ephemeral_storage=ephemeral_storage,
-            snap_start=self._resolve_snap_start(meta=meta)
+            snap_start=self._resolve_snap_start(meta=meta),
+            architectures=meta.get('architectures')
         )
         _LOG.debug('Lambda created %s', name)
         # AWS sometimes returns None after function creation, needs for
@@ -494,6 +503,22 @@ class LambdaResource(BaseResource):
         waiter = self.lambda_conn.get_waiter('function_updated_v2')
         waiter.wait(FunctionName=name)
         _LOG.info(f'Waiting has finished')
+
+        log_group_name = name
+        possible_retention = meta.get('logs_expiration', DEFAULT_LOGS_EXPIRATION)
+        try:
+            retention = int(possible_retention)
+        except (TypeError, ValueError):
+            _LOG.warning(
+                f"Can't parse logs_expiration `{possible_retention} as int."
+                f" Set default {DEFAULT_LOGS_EXPIRATION}"
+            )
+            retention = DEFAULT_LOGS_EXPIRATION
+        if retention is not None:
+            self.cw_logs_conn.update_log_group_retention_days(
+                group_name=log_group_name,
+                retention_in_days=retention
+            )
 
         response = self.lambda_conn.get_function(name)
         _LOG.info(f'Lambda describe result: {response}')
@@ -797,8 +822,20 @@ class LambdaResource(BaseResource):
                                                      self.account_id,
                                                      target_queue)
 
-        self.lambda_conn.add_event_source(lambda_arn, queue_arn,
-                                          trigger_meta['batch_size'])
+        event_source = next(iter(self.lambda_conn.list_event_sources(
+            event_source_arn=queue_arn, function_name=lambda_arn)), None)
+        if event_source:
+            _LOG.info(f'Lambda event source mapping for source arn '
+                      f'{queue_arn} and lambda arn {lambda_arn} was found. '
+                      f'Updating it')
+            self.lambda_conn.update_event_source(
+                event_source['UUID'], function_name=lambda_arn,
+                batch_size=trigger_meta['batch_size'])
+        else:
+            self.lambda_conn.add_event_source(
+                lambda_arn, queue_arn, trigger_meta['batch_size']
+            )
+
         _LOG.info('Lambda %s subscribed to SQS queue %s', lambda_name,
                   target_queue)
 
@@ -939,6 +976,7 @@ class LambdaResource(BaseResource):
     CREATE_TRIGGER = {
         DYNAMO_DB_TRIGGER: _create_dynamodb_trigger_from_meta,
         CLOUD_WATCH_RULE_TRIGGER: _create_cloud_watch_trigger_from_meta,
+        EVENT_BRIDGE_RULE_TRIGGER: _create_cloud_watch_trigger_from_meta,
         S3_TRIGGER: _create_s3_trigger_from_meta,
         SNS_TOPIC_TRIGGER: _create_sns_topic_trigger_from_meta,
         KINESIS_TRIGGER: _create_kinesis_stream_trigger_from_meta,
@@ -1013,6 +1051,8 @@ class LambdaResource(BaseResource):
             args['description'] = meta['description']
         if meta.get('license'):
             args['layer_license'] = meta['license']
+        if meta.get('architectures'):
+            args['architectures'] = meta['architectures']
         response = self.lambda_conn.create_layer(**args)
 
         _LOG.info(

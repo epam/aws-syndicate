@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonValue;
 public enum ResourceType {
 
     CLOUDWATCH_RULE("cloudwatch_rule"),
+    EVENTBRIDGE_RULE("eventbridge_rule"),
     LAMBDA("lambda"),
     DYNAMODB_TABLE("dynamodb_table"),
     S3_BUCKET("s3_bucket"),

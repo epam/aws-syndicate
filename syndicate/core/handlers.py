@@ -20,13 +20,15 @@ import sys
 import click
 from tabulate import tabulate
 
+from syndicate.core.export.export_processor import export_specification
 from syndicate.core.transform.transform_processor import generate_build_meta
-from syndicate.core import CONF_PATH, initialize_connection, \
+from syndicate.core import initialize_connection, \
     initialize_project_state, initialize_signal_handling
 from syndicate.core.build.artifact_processor import (RUNTIME_NODEJS,
                                                      assemble_artifacts,
-                                                     RUNTIME_JAVA_8,
-                                                     RUNTIME_PYTHON)
+                                                     RUNTIME_JAVA,
+                                                     RUNTIME_PYTHON,
+                                                     RUNTIME_SWAGGER_UI)
 from syndicate.core.build.bundle_processor import (create_bundles_bucket,
                                                    load_bundle,
                                                    upload_bundle_to_s3,
@@ -45,7 +47,8 @@ from syndicate.core.build.warmup_processor import (process_deploy_resources,
                                                    process_inputted_api_gw_id)
 from syndicate.core.conf.validator import (JAVA_LANGUAGE_NAME,
                                            PYTHON_LANGUAGE_NAME,
-                                           NODEJS_LANGUAGE_NAME)
+                                           NODEJS_LANGUAGE_NAME,
+                                           SWAGGER_UI_NAME)
 from syndicate.core.decorators import (check_deploy_name_for_duplicates,
                                        check_deploy_bucket_exists)
 from syndicate.core.groups.generate import (generate,
@@ -69,15 +72,16 @@ from syndicate.core.constants import TEST_ACTION, BUILD_ACTION, \
     STATUS_ACTION, WARMUP_ACTION, PROFILER_ACTION, ASSEMBLE_JAVA_MVN_ACTION, \
     ASSEMBLE_PYTHON_ACTION, ASSEMBLE_NODE_ACTION, ASSEMBLE_ACTION, \
     PACKAGE_META_ACTION, CREATE_DEPLOY_TARGET_BUCKET_ACTION, UPLOAD_ACTION, \
-    COPY_BUNDLE_ACTION
-
+    COPY_BUNDLE_ACTION, EXPORT_ACTION, ASSEMBLE_SWAGGER_UI_ACTION
 
 INIT_COMMAND_NAME = 'init'
 SYNDICATE_PACKAGE_NAME = 'aws-syndicate'
+HELP_PARAMETER_KEY = '--help'
 commands_without_config = (
     INIT_COMMAND_NAME,
     GENERATE_PROJECT_COMMAND_NAME,
-    GENERATE_CONFIG_COMMAND_NAME
+    GENERATE_CONFIG_COMMAND_NAME,
+    HELP_PARAMETER_KEY
 )
 
 
@@ -88,6 +92,7 @@ def _not_require_config(all_params):
 @click.group(name='syndicate')
 @click.version_option()
 def syndicate():
+    from syndicate.core import CONF_PATH
     if CONF_PATH:
         click.echo('Configuration used: ' + CONF_PATH)
         initialize_connection()
@@ -337,10 +342,12 @@ def update(bundle_name, deploy_name, replace_output,
               help='If specified provided types will be excluded')
 @click.option('--rollback', is_flag=True,
               help='Remove failed deployed resources')
+@click.option('--preserve_state', is_flag=True,
+              help='Preserve deploy output json file after resources removal')
 @timeit(action_name=CLEAN_ACTION)
 def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
           clean_only_resources_path, clean_externals, excluded_resources,
-          excluded_resources_path, excluded_types, rollback):
+          excluded_resources_path, excluded_types, rollback, preserve_state):
     """
     Cleans the application infrastructure
     """
@@ -369,21 +376,26 @@ def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
         excluded_resources = tuple(
             set(excluded_resources + tuple(excluded_resources_list)))
     if rollback:
-        remove_failed_deploy_resources(
+        result = remove_failed_deploy_resources(
             deploy_name=deploy_name, bundle_name=bundle_name,
             clean_only_resources=clean_only_resources,
             clean_only_types=clean_only_types,
             excluded_resources=excluded_resources,
-            excluded_types=excluded_types, clean_externals=clean_externals)
+            excluded_types=excluded_types, clean_externals=clean_externals,
+            preserve_state=preserve_state
+        )
     else:
-        remove_deployment_resources(deploy_name=deploy_name,
-                                    bundle_name=bundle_name,
-                                    clean_only_resources=clean_only_resources,
-                                    clean_only_types=clean_only_types,
-                                    excluded_resources=excluded_resources,
-                                    excluded_types=excluded_types,
-                                    clean_externals=clean_externals)
+        result = remove_deployment_resources(
+            deploy_name=deploy_name,
+            bundle_name=bundle_name,
+            clean_only_resources=clean_only_resources,
+            clean_only_types=clean_only_types,
+            excluded_resources=excluded_resources,
+            excluded_types=excluded_types,
+            clean_externals=clean_externals,
+            preserve_state=preserve_state)
     click.echo('AWS resources were removed.')
+    return result
 
 
 @syndicate.command(name=SYNC_ACTION)
@@ -543,7 +555,7 @@ def assemble_java_mvn(bundle_name, project_path):
     click.echo(f'Command compile java project path: {project_path}')
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
-                       runtime=RUNTIME_JAVA_8)
+                       runtime=RUNTIME_JAVA)
     click.echo('Java artifacts were prepared successfully.')
 
 
@@ -607,10 +619,39 @@ def assemble_node(bundle_name, project_path):
     click.echo('NodeJS artifacts were prepared successfully.')
 
 
+@syndicate.command(name=ASSEMBLE_SWAGGER_UI_ACTION)
+@timeit()
+@click.option('--bundle_name', '-b', nargs=1,
+              callback=generate_default_bundle_name,
+              help='Name of the bundle, to which the build artifacts are '
+                   'gathered and later used for the deployment. '
+                   'Default value: $ProjectName_%Y%m%d.%H%M%S')
+@click.option('--project_path', '-path', nargs=1,
+              callback=resolve_path_callback, required=True,
+              help='The path to the project. Related files will be packed '
+                   'into a zip archive.')
+@timeit(action_name=ASSEMBLE_SWAGGER_UI_ACTION)
+def assemble_swagger_ui(bundle_name, project_path):
+    """
+        Builds Swagger UI artifacts
+
+        \f
+        :param bundle_name: name of the bundle
+        :param project_path: path to project folder
+        :return:
+        """
+    click.echo(f'Command assemble Swagger UI: project_path: {project_path} ')
+    assemble_artifacts(bundle_name=bundle_name,
+                       project_path=project_path,
+                       runtime=RUNTIME_SWAGGER_UI)
+    click.echo('Swagger UI artifacts were prepared successfully.')
+
+
 RUNTIME_LANG_TO_BUILD_MAPPING = {
     JAVA_LANGUAGE_NAME: assemble_java_mvn,
     PYTHON_LANGUAGE_NAME: assemble_python,
-    NODEJS_LANGUAGE_NAME: assemble_node
+    NODEJS_LANGUAGE_NAME: assemble_node,
+    SWAGGER_UI_NAME: assemble_swagger_ui
 }
 
 
@@ -764,6 +805,49 @@ def copy_bundle(ctx, bundle_name, src_account_id, src_bucket_region,
     click.echo('Bundle was downloaded successfully')
     ctx.invoke(upload, bundle_name=bundle_name, force=force_upload)
     click.echo('Bundle was copied successfully')
+
+
+@syndicate.command(name=EXPORT_ACTION)
+@click.option('--resource_type',
+              type=click.Choice(['api_gateway']), required=True,
+              help='The type of resource to export configuration')
+@click.option('--dsl',
+              type=click.Choice(['oas_v3']), default='oas_v3',
+              help='DSL of output specification')
+@click.option('--deploy_name', '-d', nargs=1, callback=resolve_default_value,
+              help='Name of the deploy. This parameter allows the framework '
+                   'to decide,which exactly output file should be used. If '
+                   'not specified, resolves the latest deploy name')
+@click.option('--bundle_name',
+              callback=resolve_default_value,
+              help='Name of the bundle to export from. '
+                   'Default value: name of the latest built bundle')
+@click.option('--output_dir',
+              help='The directory where an exported configuration will be '
+                   'saved. If not specified, the directory with the name '
+                   '"export" will be created in the project root directory to '
+                   'store export files')
+def export(resource_type, dsl, deploy_name, bundle_name, output_dir):
+    """
+    Exports a configuration of the specified resource type to the file in a
+    specified DSL
+
+    param: resource_type: the type of the resource
+    param: dsl: the DSL of the output configuration
+    param: deploy_name: the name of the deployment
+    param: bundle_name: the name of the bundle to export from
+    param: output_dir: the directory where an exported specification will be
+    saved
+    """
+    export_specification(deploy_name=deploy_name,
+                         bundle_name=bundle_name,
+                         output_directory=output_dir,
+                         resource_type=resource_type,
+                         dsl=dsl)
+    if resource_type == 'api_gateway' and dsl == 'oas_v3':
+        click.secho('Please note the AWS API Gateway-specific extensions are '
+                    'used to define the API in OAS v3 that starting with '
+                    '"x-amazon"', fg='yellow')
 
 
 syndicate.add_command(generate)

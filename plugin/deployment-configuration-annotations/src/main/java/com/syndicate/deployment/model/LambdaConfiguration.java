@@ -61,6 +61,9 @@ public class LambdaConfiguration {
     @JsonProperty("runtime")
     private DeploymentRuntime runtime;
 
+    @JsonProperty("architectures")
+    private Architecture[] architectures;
+
     @JsonProperty("iam_role_name")
     private String role;
 
@@ -105,6 +108,9 @@ public class LambdaConfiguration {
 
     @JsonProperty("layers")
     private String[] layers;
+
+    @JsonProperty("logs_expiration")
+    private String logsExpiration;
 
     @JsonProperty("snap_start")
     private LambdaSnapStart snapStart;
@@ -161,6 +167,10 @@ public class LambdaConfiguration {
 
     public DeploymentRuntime getRuntime() {
         return runtime;
+    }
+
+    public Architecture[] getArchitectures() {
+        return architectures;
     }
 
     public String getRole() {
@@ -252,6 +262,10 @@ public class LambdaConfiguration {
         this.layers = layers;
     }
 
+    public void setLogsExpiration(String logsExpiration) {
+        this.logsExpiration = logsExpiration;
+    }
+
     public LambdaSnapStart getSnapStart() {
         return snapStart;
     }
@@ -325,6 +339,12 @@ public class LambdaConfiguration {
         public Builder withRuntime(DeploymentRuntime deploymentRuntime) {
             Objects.requireNonNull(deploymentRuntime, "DeploymentRuntime cannot be null");
             configuration.runtime = deploymentRuntime;
+            return this;
+        }
+
+        public Builder withArchitectures(Architecture[] architectures) {
+            Objects.requireNonNull(architectures, "Architecture cannot be null");
+            configuration.architectures = architectures;
             return this;
         }
 
@@ -429,6 +449,11 @@ public class LambdaConfiguration {
             return this;
         }
 
+        public Builder withLogsExpirations(String logsExpirations) {
+            configuration.logsExpiration = logsExpirations;
+            return this;
+        }
+
         public LambdaConfiguration build() {
             Objects.requireNonNull(configuration.name, "Name cannot be null");
             Objects.requireNonNull(configuration.path, "Path cannot be null");
@@ -437,6 +462,7 @@ public class LambdaConfiguration {
             Objects.requireNonNull(configuration.packageName, "Package name cannot be null");
             Objects.requireNonNull(configuration.resourceType, "ResourceType cannot be null");
             Objects.requireNonNull(configuration.runtime, "DeploymentRuntime cannot be null");
+            Objects.requireNonNull(configuration.architectures, "Architecture cannot be null");
             Objects.requireNonNull(configuration.role, "Role cannot be null");
             if (configuration.memory <= 0) {
                 throw new InvalidParameterException("Memory cannot be negative or 0");
@@ -468,6 +494,7 @@ public class LambdaConfiguration {
                 ", concurrentExecutions=" + concurrentExecutions +
                 ", resourceType=" + resourceType +
                 ", runtime=" + runtime +
+                ", architectures=" + Arrays.toString(architectures) +
                 ", role='" + role + '\'' +
                 ", memory=" + memory +
                 ", timeout=" + timeout +

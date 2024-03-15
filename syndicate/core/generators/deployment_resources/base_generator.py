@@ -101,6 +101,17 @@ class BaseConfigurationGenerator:
                   f"these files: '{paths}'")
         return paths
 
+    @staticmethod
+    def _validate_lambda_existence(lambda_name):
+        from syndicate.core import PROJECT_STATE
+        _LOG.info(f"Validating existence of lambda: {lambda_name}")
+
+        if lambda_name not in PROJECT_STATE.lambdas:
+            message = f"Lambda '{lambda_name}' wasn't found"
+            _LOG.error(f"Validation error: {message}")
+            raise ValueError(message)
+        _LOG.info(f"Validation successfully finished, lambda exists")
+
     def write(self):
         """The main method to write resouces"""
         raise NotImplementedError()
