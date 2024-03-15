@@ -4,8 +4,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [1.15.18] - 2024-03-15
+# [1.15.19] - 2024-03-15
 - Fixed skipping deploy|update|clean resources with filtering by name when prefix and/or suffix specified in syndicate configuration.
+
+# [1.15.18] - 2024-03-14
+- Fixed a bug when an empty requirements.txt file with a newline would cause the project to fail to build
 
 # [1.15.17] - 2024-03-14
 - Added a possibility of usage relative path to swagger_ui OpenAPI specification file
