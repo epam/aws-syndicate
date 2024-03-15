@@ -298,6 +298,11 @@ def create_deployment_resources(deploy_name, bundle_name,
     resources = populate_s3_paths(resources, bundle_name)
     _LOG.debug('Artifacts s3 paths were resolved')
 
+    deploy_only_resources = _resolve_names(deploy_only_resources)
+    excluded_resources = _resolve_names(excluded_resources)
+    _LOG.info(
+        'Prefixes and suffixes of any resource names have been resolved.')
+
     # TODO make filter chain
     if deploy_only_resources:
         resources = dict((k, v) for (k, v) in resources.items() if
@@ -369,6 +374,10 @@ def update_deployment_resources(bundle_name, deploy_name, replace_output=False,
         'following resources types are supported for update: {}'.format(
             list(PROCESSOR_FACADE.update_handlers().keys())))
 
+    update_only_resources = _resolve_names(update_only_resources)
+    _LOG.info(
+        'Prefixes and suffixes of any resource names have been resolved.')
+
     # TODO make filter chain
     resources = dict((k, v) for (k, v) in resources.items() if
                      v['resource_type'] in
@@ -424,20 +433,14 @@ def remove_deployment_resources(deploy_name, bundle_name,
                                 excluded_types=None,
                                 clean_externals=None,
                                 preserve_state=None):
-    from syndicate.core import CONFIG
     output = new_output = load_deploy_output(bundle_name, deploy_name)
     _LOG.info('Output file was loaded successfully')
-    preset_name_resolution = functools.partial(resolve_resource_name,
-                                               prefix=CONFIG.resources_prefix,
-                                               suffix=CONFIG.resources_suffix)
-    resolve_n_unify_names = lambda collection: set(
-        collection + tuple(map(preset_name_resolution, collection)))
 
-    clean_only_resources = resolve_n_unify_names(clean_only_resources
-                                                          or tuple())
-    excluded_resources = resolve_n_unify_names(excluded_resources
-                                                        or tuple())
-    _LOG.info('Prefixes and suffixes of any resource names have been resolved.')
+    clean_only_resources = _resolve_names(clean_only_resources)
+    excluded_resources = _resolve_names(excluded_resources)
+    _LOG.info(
+        'Prefixes and suffixes of any resource names have been resolved.')
+
     dependencies = tuple(map(bool, (clean_only_resources, clean_only_types,
                                     excluded_types, excluded_resources)))
 
@@ -493,6 +496,11 @@ def continue_deployment_resources(deploy_name, bundle_name,
     _LOG.debug('Names were resolved')
     _LOG.debug(prettify_json(resources))
 
+    deploy_only_resources = _resolve_names(deploy_only_resources)
+    excluded_resources = _resolve_names(excluded_resources)
+    _LOG.info(
+        'Prefixes and suffixes of any resource names have been resolved.')
+
     # TODO make filter chain
     if deploy_only_resources:
         resources = dict((k, v) for (k, v) in resources.items() if
@@ -545,6 +553,11 @@ def remove_failed_deploy_resources(deploy_name, bundle_name,
                                    preserve_state=None):
     output = new_output = load_failed_deploy_output(bundle_name, deploy_name)
     _LOG.info('Failed output file was loaded successfully')
+
+    clean_only_resources = _resolve_names(clean_only_resources)
+    excluded_resources = _resolve_names(excluded_resources)
+    _LOG.info(
+        'Prefixes and suffixes of any resource names have been resolved.')
 
     # TODO make filter chain
     if clean_only_resources:
@@ -679,3 +692,14 @@ def _compare_res(first_res_priority, second_res_priority):
         return 1
     else:
         return 0
+
+
+def _resolve_names(names):
+    from syndicate.core import CONFIG
+    preset_name_resolution = functools.partial(resolve_resource_name,
+                                               prefix=CONFIG.resources_prefix,
+                                               suffix=CONFIG.resources_suffix)
+    resolve_n_unify_names = lambda collection: set(
+        collection + tuple(map(preset_name_resolution, collection)))
+
+    return resolve_n_unify_names(names or tuple())
