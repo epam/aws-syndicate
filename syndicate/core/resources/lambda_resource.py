@@ -780,7 +780,8 @@ class LambdaResource(BaseResource):
         validate_params(lambda_name, trigger_meta,
                         DYNAMODB_TRIGGER_REQUIRED_PARAMS)
         table_name = trigger_meta['target_table']
-        batch_window = trigger_meta.get('batch_window')
+        batch_size, batch_window = self._resolve_batch_size_batch_window(
+            trigger_meta)
         filters = trigger_meta.get('filters')
 
         if not self.dynamodb_conn.is_stream_enabled(table_name):
@@ -796,11 +797,11 @@ class LambdaResource(BaseResource):
                       f'Updating it')
             self.lambda_conn.update_event_source(
                 event_source['UUID'], function_name=lambda_arn,
-                batch_size=trigger_meta['batch_size'],
+                batch_size=batch_size,
                 batch_window=batch_window, filters=filters)
         else:
             self.lambda_conn.add_event_source(
-                lambda_arn, stream, batch_size=trigger_meta['batch_size'],
+                lambda_arn, stream, batch_size=batch_size,
                 batch_window=batch_window, start_position='LATEST',
                 filters=filters
             )
@@ -813,6 +814,8 @@ class LambdaResource(BaseResource):
                                       trigger_meta):
         validate_params(lambda_name, trigger_meta, SQS_TRIGGER_REQUIRED_PARAMS)
         target_queue = trigger_meta['target_queue']
+        batch_size, batch_window = self._resolve_batch_size_batch_window(
+            trigger_meta)
 
         if not self.sqs_conn.get_queue_url(target_queue, self.account_id):
             _LOG.debug(f'Queue {target_queue} does not exist')
@@ -830,10 +833,11 @@ class LambdaResource(BaseResource):
                       f'Updating it')
             self.lambda_conn.update_event_source(
                 event_source['UUID'], function_name=lambda_arn,
-                batch_size=trigger_meta['batch_size'])
+                batch_size=batch_size,
+                batch_window=batch_window)
         else:
             self.lambda_conn.add_event_source(
-                lambda_arn, queue_arn, trigger_meta['batch_size']
+                lambda_arn, queue_arn, batch_size, batch_window
             )
 
         _LOG.info('Lambda %s subscribed to SQS queue %s', lambda_name,
@@ -1107,3 +1111,15 @@ class LambdaResource(BaseResource):
             snap_start = None
 
         return snap_start
+
+    @staticmethod
+    def _resolve_batch_size_batch_window(trigger_meta):
+        batch_size = trigger_meta.get('batch_size')
+        batch_window = trigger_meta.get('batch_window')
+        if batch_size:
+            if batch_size > 10 and not batch_window:
+                batch_window = 1
+                _LOG.info("The parameter 'batch_window' is set to the minimum "
+                          f"default value ({batch_window}) because "
+                          f"'batch_size' is greater than 10")
+        return batch_size, batch_window

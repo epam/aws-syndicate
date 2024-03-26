@@ -285,7 +285,7 @@ class LambdaConnection(object):
                 return all_aliases.get(name)
             next_marker = response.get('NextMarker')
 
-    def add_event_source(self, func_name, stream_arn, batch_size=15,
+    def add_event_source(self, func_name, stream_arn, batch_size=10,
                          batch_window: Optional[int] = None,
                          start_position=None,
                          filters: Optional[List] = None):

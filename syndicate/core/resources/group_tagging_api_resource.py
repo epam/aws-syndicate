@@ -17,7 +17,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.connection import ResourceGroupsTaggingAPIConnection
-from syndicate.core.constants import LAMBDA_TYPE
+from syndicate.core.constants import LAMBDA_TYPE, SWAGGER_UI_TYPE
 from syndicate.core.resources.helper import chunks
 
 _LOG = get_logger('syndicate.core.resources.group_tagging_api_resource')
@@ -47,6 +47,8 @@ class TagsApiResource:
         _LOG.info(f'Extracting and processing arns from output')
         for arn, meta in output.items():
             resource_type = meta['resource_meta']['resource_type']
+            if resource_type == SWAGGER_UI_TYPE:
+                continue
             processor_func = self.resource_type_to_preprocessor_mapping.get(
                 resource_type)
             if processor_func:
