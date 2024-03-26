@@ -141,9 +141,8 @@ class S3Connection(object):
         :type bucket_name: str
         :type key: str
         """
-        keys = self.list_keys(bucket_name)
-        if key in keys:
-            return True
+        return True if self.retrieve_object_metadata(bucket_name, key) else \
+            False
 
     def create_bucket(self, bucket_name, acl=None, location=None):
         """
@@ -394,6 +393,16 @@ class S3Connection(object):
                     'VersionId': i['VersionId']
                 } for i in delete_markers])
         return bucket_objects
+
+    def retrieve_object_metadata(self, bucket_name, key):
+        try:
+            return self.client.head_object(Bucket=bucket_name, Key=key)
+        except ClientError as e:
+            if 'HeadObject' in str(e):
+                pass  # valid exception
+            else:
+                raise e
+            return
 
     def delete_objects(self, bucket_name, objects, mfa=None,
                        request_payer=None):

@@ -136,7 +136,18 @@ def load_latest_deploy_output():
         return {}
     deploy_name = PROJECT_STATE.latest_deploy.get('deploy_name')
     bundle_name = PROJECT_STATE.latest_deploy.get('bundle_name')
-    return load_deploy_output(bundle_name, deploy_name)
+    try:
+        return load_deploy_output(bundle_name, deploy_name)
+    except Exception as e:
+        if 'Cannot find output file' in str(e):
+            raise AssertionError(
+                "Deployment output file not found. It might be because the "
+                "previous deployment failed. If this is the case deployment "
+                "can be continued by using the command  'syndicate deploy "
+                "--continue_deploy' or failed deployed resources can be "
+                "removed with the command 'syndicate clean --rollback'")
+        else:
+            raise e
 
 
 def load_meta_resources(bundle_name):
