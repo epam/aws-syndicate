@@ -4,21 +4,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [1.11.4] - 2024-03-25
+# [1.11.1] - 2024-03-26
 - Added clarification error message in case of deployment after failed deploy
 - Fixed generation of tests when generating meta for a new lambda function
-
-# [1.11.3] - 2024-03-25
 - Fixed a deployment error when `sqs|stream` lambda trigger `batch_size` value is greater than 10
-
-# [1.11.2] - 2024-03-25
 - Fixed an error in case of an attempt to tag a resource of type `swagger_ui`
-
-# [1.11.1] - 2024-03-19
-- removed redundant dependencies from the Java plugin
+- Removed redundant dependencies from the Java plugin
 
 # [1.11.0] - 2024-03-15
-
 - Added new resource type `swagger_ui`
 - Added support of Eventbridge rule
 - Added generation of lambda layer meta, the command `syndicate generate lambda_layer`
