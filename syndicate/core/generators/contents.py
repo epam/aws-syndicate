@@ -584,7 +584,7 @@ def _generate_nodejs_node_lambda_config(lambda_name, lambda_relative_path):
     return _stringify({
         'version': '1.0',
         'name': lambda_name,
-        'func_name': 'index.handler',
+        'func_name': f'lambdas/{lambda_name}/index.handler',
         'resource_type': 'lambda',
         'iam_role_name': LAMBDA_ROLE_NAME_PATTERN.format(lambda_name),
         'runtime': RUNTIME_NODEJS,
