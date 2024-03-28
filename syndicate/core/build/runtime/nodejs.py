@@ -14,25 +14,42 @@
     limitations under the License.
 """
 import concurrent
+import glob
 import json
 import os
 import shutil
 import threading
 from concurrent.futures.thread import ThreadPoolExecutor
+from distutils.dir_util import copy_tree
 from pathlib import Path
 
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.build.helper import build_py_package_name, zip_dir
+from syndicate.core.conf.processor import path_resolver
 from syndicate.core.constants import (LAMBDA_CONFIG_FILE_NAME,
                                       NODE_REQ_FILE_NAME,
                                       LAMBDA_LAYER_CONFIG_FILE_NAME,
-                                      NODE_LAMBDA_LAYER_PATH)
+                                      NODE_LAMBDA_LAYER_PATH, DEFAULT_SEP,
+                                      LOCAL_REQ_FILE_NAME)
+from syndicate.core.groups import RUNTIME_NODEJS
 from syndicate.core.helper import (build_path, unpack_kwargs,
                                    execute_command_by_path, without_zip_ext,
                                    zip_ext)
+from syndicate.core.project_state.project_state import BUILD_MAPPINGS
 from syndicate.core.resources.helper import validate_params
 
 _LOG = get_logger('nodejs_runtime_assembler')
+
+
+_JS_EXT = "*.js"
+DEPENDENCIES_FOLDER = 'node_modules'
+
+
+def _copy_js_files(search_path, destination_path):
+    files = glob.iglob(build_path(search_path, _JS_EXT))
+    for js_file in files:
+        if os.path.isfile(js_file):
+            shutil.copy2(js_file, destination_path)
 
 
 def assemble_node_lambdas(project_path, bundles_dir):
@@ -74,8 +91,10 @@ def _build_node_artifact(item, root, target_folder):
     lambda_version = lambda_config_dict['version']
     artifact_name = lambda_name + '-' + lambda_version
     package_name = build_py_package_name(lambda_name, lambda_version)
+    artifact_path = str(Path(target_folder, artifact_name))
 
-    install_requirements(root, target_folder, artifact_name, package_name)
+    copy_tree(root, str(Path(artifact_path, 'lambdas', lambda_name)))
+    install_requirements(root, target_folder, artifact_path, package_name)
 
 
 @unpack_kwargs
@@ -86,13 +105,19 @@ def build_node_lambda_layer(layer_root: str, target_folder: str):
     validate_params(layer_root, layer_config, ['name', 'deployment_package'])
     artifact_name = without_zip_ext(layer_config['deployment_package'])
     package_name = zip_ext(layer_config['deployment_package'])
-    install_requirements(layer_root, target_folder, artifact_name,
+    artifact_path = str(Path(target_folder, artifact_name))
+
+    copy_tree(layer_root, artifact_path)
+    install_requirements(layer_root, target_folder, artifact_path,
                          package_name, is_layer=True)
 
 
-def install_requirements(root: str, target_folder: str, artifact_name: str,
+def install_requirements(root: str, target_folder: str, artifact_path: str,
                          package_name: str, is_layer=False):
-    artifact_path = Path(target_folder, artifact_name)
+    """
+    artifact_path: str - Absolute archive path
+    root: str - lambda folder (src/lambdas/{$lambda_name})
+    """
     _LOG.info(f'Artifacts path: {artifact_path}')
     os.makedirs(artifact_path, exist_ok=True)
     if not os.path.exists(artifact_path):
@@ -104,19 +129,35 @@ def install_requirements(root: str, target_folder: str, artifact_name: str,
     try:
         if os.path.exists(req_path):
             command = 'npm install'
+            # this command creates 'node_modules' folder in lambda folder
             execute_command_by_path(command=command, path=root)
             _LOG.debug('3-rd party dependencies were installed successfully')
+            try:
+                copy_tree(str(Path(root, DEPENDENCIES_FOLDER)),
+                          str(Path(artifact_path, DEPENDENCIES_FOLDER)))
+            except Exception as e:
+                _LOG.exception(f'Error occurred while lambda files coping: {e}')
+
+        # install local requirements
+        local_requirements_path = Path(root, LOCAL_REQ_FILE_NAME)
+        if os.path.exists(local_requirements_path):
+            _LOG.info('Going to install local dependencies')
+            _copy_local_req(artifact_path, local_requirements_path, root)
+            _LOG.info('Local dependencies were installed successfully')
 
         if is_layer:
-            zip_dir(root, str(build_path(target_folder, package_name)),
+            zip_dir(artifact_path,
+                    str(build_path(target_folder, package_name)),
                     NODE_LAMBDA_LAYER_PATH)
         else:
-            zip_dir(root, build_path(target_folder, package_name))
+            zip_dir(artifact_path,
+                    build_path(target_folder, package_name))
+
         lock = threading.RLock()
         lock.acquire()
         try:
             # remove unused folder/files
-            node_modules_path = os.path.join(root, 'node_modules')
+            node_modules_path = os.path.join(root, DEPENDENCIES_FOLDER)
             if os.path.exists(node_modules_path):
                 shutil.rmtree(node_modules_path)
             # todo Investigate deleting package_lock file
@@ -141,3 +182,29 @@ def _check_npm_is_installed():
         raise AssertionError(
             'NPM is not installed. There is no ability to build '
             'NodeJS bundle. Please, install npm and retry to build bundle.')
+
+
+def _copy_local_req(artifact_path, local_req_path, root):
+    from syndicate.core import CONFIG
+    with open(local_req_path) as f:
+        local_req_list = f.readlines()
+    local_req_list = [path_resolver(r.strip()) for r in local_req_list]
+    _LOG.info(f'Installing local dependencies: {local_req_list}')
+    # copy folders
+    for lrp in local_req_list:
+        _LOG.info(f'Processing local dependency: {lrp}')
+        copy_tree(str(Path(CONFIG.project_path,
+                           BUILD_MAPPINGS[RUNTIME_NODEJS],
+                           lrp)),
+                  str(Path(artifact_path, lrp)))
+        _LOG.debug('Dependency was copied successfully')
+
+        folders = [r for r in lrp.split(DEFAULT_SEP) if r]
+        # process folder from root project
+        folders.insert(0, '')
+        for folder in folders:
+            src_path = Path(CONFIG.project_path,
+                            BUILD_MAPPINGS[RUNTIME_NODEJS], folder)
+            dst_path = Path(artifact_path, folder)
+            _copy_js_files(str(src_path), str(dst_path))
+        _LOG.debug('JavaScript files from packages were copied successfully')
