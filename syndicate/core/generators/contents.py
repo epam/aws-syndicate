@@ -662,10 +662,7 @@ def _generate_lambda_role_config(role_name, stringify=True):
             "custom_policies": [
                 POLICY_LAMBDA_BASIC_EXECUTION
             ],
-            "resource_type": "iam_role",
-            "allowed_accounts": [
-                "${account_id}"
-            ]
+            "resource_type": "iam_role"
         }
     }
     return _stringify(role_content) if stringify else role_content
