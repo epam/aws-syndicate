@@ -128,14 +128,19 @@ def _build_args(name, meta, context, pass_context=False):
 
 def update_failed_output(res_name, res_meta, resource_type, output):
     from syndicate.core import PROCESSOR_FACADE
-    describe_func = PROCESSOR_FACADE.describe_handlers()[resource_type]
-    failed_resource_output = describe_func(res_name, res_meta)
-    if failed_resource_output:
-        if isinstance(failed_resource_output, list):
-            for item in failed_resource_output:
-                output.update(item)
-        else:
-            output.update(failed_resource_output)
+
+    try:
+        describe_func = PROCESSOR_FACADE.describe_handlers()[resource_type]
+        failed_resource_output = describe_func(res_name, res_meta)
+        if failed_resource_output:
+            if isinstance(failed_resource_output, list):
+                for item in failed_resource_output:
+                    output.update(item)
+            else:
+                output.update(failed_resource_output)
+    except Exception as e:
+        _LOG.warning(f'Unable to describe {resource_type} '
+                     f'resource with name {res_name}. Exception: {e}')
     return output
 
 

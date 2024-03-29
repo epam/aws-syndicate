@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 # [1.11.3] - 2024-03-28
 - Added support of Python 3.12 lambda runtime
 
+# [1.11.2] - 2024-03-28
+- fix issue with syndicate not uploading deploy output on fail
+
 # [1.11.1] - 2024-03-26
 - Added clarification error message in case of deployment after failed deploy
 - Fixed generation of tests when generating meta for a new lambda function
