@@ -39,7 +39,11 @@ def validate_bucket_name(bucket_name: str):
     bucket_name = bucket_name.strip()
     _LOG.info(f"Starting validating bucket name '{bucket_name}'")
     error = None
-    if not bucket_name or not 3 <= len(bucket_name) <= 63:
+
+    raw_bucket_name, _ = (bucket_name.split('/', 1)
+                          if bucket_name and '/' in bucket_name
+                          else (bucket_name, None))
+    if not raw_bucket_name or not 3 <= len(raw_bucket_name) <= 63:
         error = 'Bucket name must be between 3 and 63 characters long'
     else:
         invalid_characters = re.search('[^a-z0-9.-]', bucket_name)
