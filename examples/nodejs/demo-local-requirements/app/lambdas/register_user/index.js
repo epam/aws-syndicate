@@ -10,6 +10,7 @@ const authService = new AuthenticationService();
 // event example
 // event = { "username": "John123", "password": "VerY_SeCurEd!0", "email": "John123@liamg.com" }
 exports.handler = async (event) => {
+    await authService.initializeClientId();
     const { username, password, email } = event;
     try {
         await authService.signUp(username, email, password);

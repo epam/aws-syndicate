@@ -12,7 +12,7 @@ class AuthenticationService {
         const data = await this.cognitoIdentity.listUserPoolClients(params).promise();
 
         if (data.UserPoolClients && data.UserPoolClients.length > 0) {
-            this._clientId = data.UserPoolClients[0].ClientId;
+            this.clientId = data.UserPoolClients[0].ClientId;
         } else {
             throw new Error("Application Authentication Service is not configured properly.");
         }
@@ -31,7 +31,7 @@ class AuthenticationService {
             await this.cognitoIdentity.signUp(params).promise();
             const confirmParams = {
                 Username: username,
-                UserPoolId: this.userPoolId
+                UserPoolId: poolId
             };
             const confirmedResult = await this.cognitoIdentity.adminConfirmSignUp(confirmParams).promise();
             return { signUpResult: confirmedResult };
