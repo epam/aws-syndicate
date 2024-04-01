@@ -1,0 +1,12 @@
+{
+  "name": "register_user",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {},
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "aws-sdk": "^2.1011.0"
+  }
+}

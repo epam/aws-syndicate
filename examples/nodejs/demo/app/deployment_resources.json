@@ -1,0 +1,43 @@
+{
+  "LambdaBasicExecution": {
+    "resource_type": "iam_policy",
+    "policy_content": {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Action": [
+            "logs:CreateLogGroup",
+            "logs:CreateLogStream",
+            "logs:PutLogEvents"
+          ],
+          "Resource": "*",
+          "Effect": "Allow"
+        }
+      ]
+    }
+  },
+  "PutObjectToDynamoPolicy": {
+    "resource_type": "iam_policy",
+    "policy_content": {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Action": [
+            "dynamodb:PutItem"
+          ],
+          "Resource": "*",
+          "Effect": "Allow"
+        }
+      ]
+    }
+  },
+  "Users": {
+    "resource_type": "dynamodb_table",
+    "hash_key_name": "id",
+    "hash_key_type": "S",
+    "read_capacity": 1,
+    "write_capacity": 1,
+    "global_indexes": [],
+    "autoscaling": []
+  }
+}

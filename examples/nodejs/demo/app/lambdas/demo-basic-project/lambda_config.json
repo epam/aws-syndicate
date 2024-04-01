@@ -1,0 +1,18 @@
+{
+  "version": "1.0",
+  "name": "demo-basic-project",
+  "func_name": "lambdas/demo-basic-project/index.handler",
+  "resource_type": "lambda",
+  "iam_role_name": "PutObjectToDynamoRole",
+  "runtime": "nodejs20.x",
+  "memory": 128,
+  "timeout": 100,
+  "lambda_path": "lambdas\\demo-basic-project",
+  "dependencies": [],
+  "event_sources": [],
+  "env_variables": {},
+  "publish_version": true,
+  "alias": "${lambdas_alias_name}",
+  "url_config": {},
+  "ephemeral_storage": 512
+}

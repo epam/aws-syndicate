@@ -1,0 +1,21 @@
+{
+  "version": "1.0",
+  "name": "register_user",
+  "func_name": "lambdas/register_user/index.handler",
+  "resource_type": "lambda",
+  "iam_role_name": "register_user-role",
+  "runtime": "nodejs20.x",
+  "memory": 128,
+  "timeout": 100,
+  "lambda_path": "lambdas\\register_user",
+  "dependencies": [],
+  "event_sources": [],
+  "env_variables": {
+    "userpool_id": "${userpool_id}",
+    "region": "${region}"
+  },
+  "publish_version": true,
+  "alias": "${lambdas_alias_name}",
+  "url_config": {},
+  "ephemeral_storage": 512
+}
