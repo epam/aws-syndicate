@@ -1,0 +1,49 @@
+{
+  "lambda-basic-execution": {
+    "resource_type": "iam_policy",
+    "policy_content": {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Action": [
+            "logs:CreateLogGroup",
+            "logs:CreateLogStream",
+            "logs:PutLogEvents",
+            "cognito-idp:DescribeUserPool",
+            "cognito-idp:GetUser",
+            "cognito-idp:ListUsers",
+            "cognito-idp:AdminCreateUser",
+            "cognito-idp:AdminInitiateAuth",
+            "cognito-idp:GetIdentityProviderByIdentifier",
+            "cognito-idp:ListUserPools",
+            "cognito-idp:ListUserPoolClients",
+            "cognito-idp:AdminRespondToAuthChallenge",
+            "cognito-idp:AdminConfirmSignUp"
+          ],
+          "Resource": "*",
+          "Effect": "Allow"
+        }
+      ]
+    }
+  },
+  "${userpool_name}": {
+    "resource_type": "cognito_idp",
+    "password_policy": {
+      "require_uppercase": true,
+      "require_numbers": true
+    },
+    "auto_verified_attributes": [],
+    "sms_configuration": {},
+    "username_attributes": [],
+    "client": {
+      "client_name": "client-app",
+      "generate_secret": false,
+      "explicit_auth_flows": [
+        "ALLOW_ADMIN_USER_PASSWORD_AUTH",
+        "ALLOW_CUSTOM_AUTH",
+        "ALLOW_USER_SRP_AUTH",
+        "ALLOW_REFRESH_TOKEN_AUTH"
+      ]
+    }
+  }
+}

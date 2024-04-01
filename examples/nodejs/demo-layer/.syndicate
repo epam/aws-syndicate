@@ -1,0 +1,6 @@
+name: demo-layer
+build_projects_mapping:
+  nodejs: app
+lambdas:
+  demo-layer-project:
+    runtime: nodejs

@@ -1,0 +1,20 @@
+{
+  "version": "1.0",
+  "name": "demo-layer-project",
+  "func_name": "lambdas/demo-layer-project/index.handler",
+  "resource_type": "lambda",
+  "iam_role_name": "demo-layer-project-role",
+  "runtime": "nodejs20.x",
+  "memory": 128,
+  "timeout": 100,
+  "lambda_path": "lambdas\\demo-layer-project",
+  "dependencies": [],
+  "event_sources": [],
+  "env_variables": {
+    "bucket_name": "${bucket_name}"
+  },
+  "publish_version": true,
+  "alias": "${lambdas_alias_name}",
+  "url_config": {},
+  "ephemeral_storage": 512
+}
