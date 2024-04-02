@@ -16,5 +16,8 @@
   "publish_version": true,
   "alias": "${lambdas_alias_name}",
   "url_config": {},
-  "ephemeral_storage": 512
+  "ephemeral_storage": 512,
+  "layers": [
+    "demo_layer"
+  ]
 }
