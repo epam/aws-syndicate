@@ -21,7 +21,7 @@ from syndicate.connection.helper import apply_methods_decorator, retry
 _LOG = get_logger('syndicate.connection.dax_connection')
 
 
-@apply_methods_decorator(retry)
+@apply_methods_decorator(retry())
 class DaxConnection:
     """DynamoDB DAX connection clas"""
 
@@ -91,6 +91,7 @@ class DaxConnection:
             _LOG.warning(f'Subnet group \'{subnet_group_name}\' not found')
             return
 
+    @retry(retry_timeout=120, retry_timeout_step=10)
     def delete_subnet_group(self, subnet_group_name: str):
         try:
             self.client.delete_subnet_group(

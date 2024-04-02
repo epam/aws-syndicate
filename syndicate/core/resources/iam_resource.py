@@ -86,7 +86,7 @@ class IamResource(BaseResource):
             else:
                 raise e
 
-    @retry
+    @retry()
     def _remove_instance_profile(self, profile_name):
         try:
             self.iam_conn.remove_instance_profile(profile_name)

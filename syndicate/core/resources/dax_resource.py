@@ -35,7 +35,6 @@ class DaxResource(BaseResource):
         return self.create_pool(self._create_cluster_from_meta, args)
 
     @unpack_kwargs
-    @retry
     def _create_cluster_from_meta(self, name, meta):
         role_name = meta['iam_role_name']
         role_arn = self.iam_conn.check_if_role_exists(role_name)
@@ -98,10 +97,14 @@ class DaxResource(BaseResource):
             if deep_get(config, ['resource_meta', 'subnet_ids']) else None
         try:
             self.dax_conn.delete_cluster(cluster_name)
-            if subnet_group_name:
-                # TODO Delete the subnet group if it was created via this
-                #  deployment
-                pass
         except self.dax_conn.client.exceptions.InvalidClusterStateFault as e:
             USER_LOG.warning(e.response['Error']['Message'] +
                              ' Remove it manually!')
+        if subnet_group_name:
+            self._remove_subnet_group(subnet_group_name)
+
+    def _remove_subnet_group(self, subnet_group_name):
+        USER_LOG.info(f"Deleting subnet group '{subnet_group_name}'. "
+                      f"Please wait it may take up to 10 minutes.")
+        self.dax_conn.delete_subnet_group(subnet_group_name)
+        _LOG.info(f"Subnet group '{subnet_group_name}' removed successfully.")

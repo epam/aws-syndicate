@@ -34,7 +34,7 @@ def get_lambda_log_group_name(lambda_name):
     return '/aws/lambda/' + lambda_name
 
 
-@apply_methods_decorator(retry)
+@apply_methods_decorator(retry())
 class LogsConnection(object):
     """ CloudWatch Log connection class."""
 
@@ -151,7 +151,7 @@ class LogsConnection(object):
         return groups
 
 
-@apply_methods_decorator(retry)
+@apply_methods_decorator(retry())
 class EventConnection(object):
     """ CloudWatch Event connection class."""
 
@@ -374,7 +374,7 @@ def _find_statement_id_in_event_bus_policy(account_id, event_bus):
                     return statement['Sid']
 
 
-@apply_methods_decorator(retry)
+@apply_methods_decorator(retry())
 class MetricConnection(object):
     """ CloudWatch Log connection class."""
 

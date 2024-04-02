@@ -29,7 +29,7 @@ def get_account_role_arn(account_number):
     return "arn:aws:iam::{0}:root".format(account_number)
 
 
-@apply_methods_decorator(retry)
+@apply_methods_decorator(retry())
 class IAMConnection(object):
     """ IAM connection class."""
 
