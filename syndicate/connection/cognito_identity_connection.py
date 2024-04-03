@@ -22,7 +22,7 @@ from syndicate.connection.iam_connection import IAMConnection
 _LOG = get_logger('syndicate.connection.cognito_identity_connection')
 
 
-@apply_methods_decorator(retry)
+@apply_methods_decorator(retry())
 class CognitoIdentityConnection(object):
     """ Cognito identity connection class."""
 

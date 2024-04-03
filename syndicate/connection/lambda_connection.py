@@ -46,7 +46,7 @@ def _str_list_to_list(param, param_name):
     return result
 
 
-@apply_methods_decorator(retry)
+@apply_methods_decorator(retry())
 class LambdaConnection(object):
     """ Lambda connection class."""
 

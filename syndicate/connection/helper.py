@@ -41,70 +41,73 @@ def apply_methods_decorator(decorator):
     return decorate
 
 
-def retry(handler_func):
+def retry(retry_timeout=DEFAULT_RETRY_TIMEOUT_SEC,
+          retry_timeout_step=DEFAULT_RETRY_TIMEOUT_STEP):
     """ Decorator for retry on specified exceptions.
 
     :type handler_func: func
     :param handler_func: function which will be decorated
+    :param retry_timeout: retry timeout in seconds
+    :param retry_timeout_step: step of the retry
     """
 
-    @wraps(handler_func)
-    def wrapper(*args, **kwargs):
-        """ Wrapper func."""
-        retry_exceptions = [
-            'ThrottlingException',
-            'LimitExceededException',
-            'ProvisionedThroughputExceededException',
-            'TooManyRequestsException',
-            'ConflictException',
-            'An error occurred (InvalidParameterValueException) when calling '
-            'the CreateEventSourceMapping operation',
-            'An error occurred (InvalidParameterValueException) when calling '
-            'the CreateCluster operation',
-            'An error occurred (SubnetGroupInUseFault) when calling '
-            'the DeleteSubnetGroup operation',
-            'The role defined for the function cannot be assumed by Lambda',
-            'An error occurred (ResourceConflictException) when calling'
-            ' the AddPermission operation: The statement id',
-            'NoSuchUpload',
-            'Throttling',
-            'Please add Lambda as a Trusted Entity',
-            'UpdateFunctionConfiguration',
-            'PutScalingPolicy',
-            'RegisterScalableTarget',
-            'TopicArn can not be None',
-            'DeleteRole',
-            'Max attempts exceeded',
-            'UpdateGatewayResponse',
-            'Cannot delete, found existing JobQueue relationship',
-            'Cannot delete, resource is being modified',
-        ]
-        last_ex = None
-        for each in range(1, DEFAULT_RETRY_TIMEOUT_SEC,
-                          DEFAULT_RETRY_TIMEOUT_STEP):
-            try:
-                return handler_func(*args, **kwargs)
-            except ClientError as e:
-                retry_flag = False
-                for exc in retry_exceptions:
-                    if exc in str(e):
-                        _LOG.debug('Retry on {0}. Error: {1}'.format(
-                            handler_func.__name__, str(e)))
-                        _LOG.debug('Parameters: {0}, {1}'.format(str(args),
-                                                                 str(kwargs)))
-                        # set to debug, we need it only in the logs file
-                        _LOG.debug(
-                            'Traceback:\n {0}'.format(traceback.format_exc()))
-                        retry_flag = True
-                if not retry_flag:
-                    raise e
-                last_ex = e
-                sleep(each)
+    def decorator(handler_func):
+        @wraps(handler_func)
+        def wrapper(*args, **kwargs):
+            """ Wrapper func."""
+            retry_exceptions = [
+                'ThrottlingException',
+                'LimitExceededException',
+                'ProvisionedThroughputExceededException',
+                'TooManyRequestsException',
+                'ConflictException',
+                'An error occurred (InvalidParameterValueException) when '
+                'calling the CreateEventSourceMapping operation',
+                'An error occurred (InvalidParameterValueException) when '
+                'calling the CreateCluster operation',
+                'An error occurred (SubnetGroupInUseFault) when calling '
+                'the DeleteSubnetGroup operation',
+                'The role defined for the function cannot be assumed by Lambda',
+                'An error occurred (ResourceConflictException) when calling'
+                ' the AddPermission operation: The statement id',
+                'NoSuchUpload',
+                'Throttling',
+                'Please add Lambda as a Trusted Entity',
+                'UpdateFunctionConfiguration',
+                'PutScalingPolicy',
+                'RegisterScalableTarget',
+                'TopicArn can not be None',
+                'DeleteRole',
+                'Max attempts exceeded',
+                'UpdateGatewayResponse',
+                'Cannot delete, found existing JobQueue relationship',
+                'Cannot delete, resource is being modified',
+            ]
+            last_ex = None
+            for each in range(1, retry_timeout, retry_timeout_step):
+                try:
+                    return handler_func(*args, **kwargs)
+                except ClientError as e:
+                    retry_flag = False
+                    for exc in retry_exceptions:
+                        if exc in str(e):
+                            _LOG.debug('Retry on {0}. Error: {1}'.format(
+                                handler_func.__name__, str(e)))
+                            _LOG.debug('Parameters: {0}, {1}'.format(str(args),
+                                                                     str(kwargs)))
+                            # set to debug, we need it only in the logs file
+                            _LOG.debug(
+                                'Traceback:\n {0}'.format(traceback.format_exc()))
+                            retry_flag = True
+                    if not retry_flag:
+                        raise e
+                    last_ex = e
+                    sleep(each)
 
-        if last_ex:
-            raise Exception(
-                f"Maximum retries reached for function "
-                f"{handler_func.__name__} due to {type(last_ex).__name__}: "
-                f"{str(last_ex)}") from last_ex
-
-    return wrapper
+            if last_ex:
+                raise Exception(
+                    f"Maximum retries reached for function "
+                    f"{handler_func.__name__} due to {type(last_ex).__name__}: "
+                    f"{str(last_ex)}") from last_ex
+        return wrapper
+    return decorator

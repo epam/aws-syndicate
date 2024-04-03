@@ -7,7 +7,7 @@ from syndicate.connection.helper import apply_methods_decorator, retry
 _LOG = get_logger('syndicate.connection.eventbridge_scheduler_connection')
 
 
-@apply_methods_decorator(retry)
+@apply_methods_decorator(retry())
 class EventBridgeSchedulerConnection(object):
     """ EventBridge Scheduler Connection class."""
 
