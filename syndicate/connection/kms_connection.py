@@ -21,7 +21,7 @@ from syndicate.connection.helper import apply_methods_decorator, retry
 _LOG = get_logger('syndicate.connection.kms_connection')
 
 
-@apply_methods_decorator(retry)
+@apply_methods_decorator(retry())
 class KMSConnection(object):
     def __init__(self, region=None, aws_access_key_id=None,
                  aws_secret_access_key=None, aws_session_token=None):

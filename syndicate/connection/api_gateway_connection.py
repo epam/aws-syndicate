@@ -38,7 +38,7 @@ REQ_VALIDATOR_PARAM_NAME = 'name'
 _LOG = get_logger('syndicate.connection.api_gateway_connection')
 
 
-@apply_methods_decorator(retry)
+@apply_methods_decorator(retry())
 class ApiGatewayConnection(object):
     """ API Gateway connection class."""
 

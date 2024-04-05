@@ -254,7 +254,7 @@ class LambdaResource(BaseResource):
             return False
 
     @unpack_kwargs
-    @retry
+    @retry()
     def _create_lambda_from_meta(self, name, meta):
         from syndicate.core import CONFIG
         _LOG.debug('Creating lambda %s', name)
@@ -773,7 +773,7 @@ class LambdaResource(BaseResource):
         else:
             return self.lambda_conn.get_function(name)
 
-    @retry
+    @retry()
     def _create_dynamodb_trigger_from_meta(self, lambda_name, lambda_arn,
                                            role_name,
                                            trigger_meta):
@@ -809,7 +809,7 @@ class LambdaResource(BaseResource):
         _LOG.info('Lambda %s subscribed to dynamodb table %s', lambda_name,
                   table_name)
 
-    @retry
+    @retry()
     def _create_sqs_trigger_from_meta(self, lambda_name, lambda_arn, role_name,
                                       trigger_meta):
         validate_params(lambda_name, trigger_meta, SQS_TRIGGER_REQUIRED_PARAMS)
@@ -843,7 +843,7 @@ class LambdaResource(BaseResource):
         _LOG.info('Lambda %s subscribed to SQS queue %s', lambda_name,
                   target_queue)
 
-    @retry
+    @retry()
     def _create_cloud_watch_trigger_from_meta(self, lambda_name, lambda_arn,
                                               role_name,
                                               trigger_meta):
@@ -870,7 +870,7 @@ class LambdaResource(BaseResource):
             _LOG.info(f'Lambda {lambda_name} is already bound '
                       f'to cloudwatch rule {rule_name} as a target')
 
-    @retry
+    @retry()
     def _create_s3_trigger_from_meta(self, lambda_name, lambda_arn, role_name,
                                      trigger_meta):
         validate_params(lambda_name, trigger_meta, S3_TRIGGER_REQUIRED_PARAMS)
@@ -901,7 +901,7 @@ class LambdaResource(BaseResource):
         _LOG.info('Lambda %s subscribed to S3 bucket %s', lambda_name,
                   target_bucket)
 
-    @retry
+    @retry()
     def _create_sns_topic_trigger_from_meta(self, lambda_name, lambda_arn,
                                             role_name,
                                             trigger_meta):
@@ -915,7 +915,7 @@ class LambdaResource(BaseResource):
         _LOG.info('Lambda %s subscribed to sns topic %s', lambda_name,
                   trigger_meta['target_topic'])
 
-    @retry
+    @retry()
     def _create_kinesis_stream_trigger_from_meta(self, lambda_name, lambda_arn,
                                                  role_name, trigger_meta):
         validate_params(lambda_name, trigger_meta,
@@ -971,7 +971,7 @@ class LambdaResource(BaseResource):
         _LOG.info('Lambda %s subscribed to kinesis stream %s', lambda_name,
                   stream_name)
 
-    @retry
+    @retry()
     def _add_kinesis_event_source(self, lambda_name, stream_arn, trigger_meta):
         self.lambda_conn.add_event_source(lambda_name, stream_arn,
                                           trigger_meta['batch_size'],
@@ -991,7 +991,7 @@ class LambdaResource(BaseResource):
         self.create_pool(self._remove_lambda, args)
 
     @unpack_kwargs
-    @retry
+    @retry()
     def _remove_lambda(self, arn, config):
         lambda_name = config['resource_name']
         try:
@@ -1073,7 +1073,7 @@ class LambdaResource(BaseResource):
         return self.create_pool(self._remove_lambda_layers, args)
 
     @unpack_kwargs
-    @retry
+    @retry()
     def _remove_lambda_layers(self, arn, config):
         layer_name = config['resource_name']
         _LOG.info('The latest lambda layer {0} version {1} was found.'.format(

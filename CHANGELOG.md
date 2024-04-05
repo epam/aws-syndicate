@@ -4,8 +4,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [1.11.6] - 2024-04-05
+# [1.11.8] - 2024-04-05
 - Clarified the error message when copying NodeJS dependencies folder
+
+# [1.11.7] - 2024-04-03
+- Fixed deploy target bucket key compound appending to artifact src in swagger ui resource
+
+# [1.11.6] - 2024-04-02
+- Implemented subnet group deletion with deletion of the related DAX if the syndicate deployed it
 
 # [1.11.5] - 2024-03-29
 - Added an ability to build lambdas and lambda layers with local requirements (for `nodejs` runtime)

@@ -22,7 +22,7 @@ from syndicate.connection.helper import apply_methods_decorator, retry
 _LOG = get_logger('syndicate.connection.beanstalk_connection')
 
 
-@apply_methods_decorator(retry)
+@apply_methods_decorator(retry())
 class BeanstalkConnection(object):
     """ Elastic Beanstalk connection class."""
 
