@@ -21,6 +21,7 @@ import shutil
 import threading
 from concurrent.futures.thread import ThreadPoolExecutor
 from distutils.dir_util import copy_tree
+from distutils.errors import DistutilsFileError
 from pathlib import Path
 
 from syndicate.commons.log_helper import get_logger
@@ -135,6 +136,8 @@ def install_requirements(root: str, target_folder: str, artifact_path: str,
             try:
                 copy_tree(str(Path(root, DEPENDENCIES_FOLDER)),
                           str(Path(artifact_path, DEPENDENCIES_FOLDER)))
+            except DistutilsFileError:
+                _LOG.info('No dependencies folder - nothing to copy.')
             except Exception as e:
                 _LOG.exception(f'Error occurred while lambda files coping: {e}')
 
@@ -142,7 +145,7 @@ def install_requirements(root: str, target_folder: str, artifact_path: str,
         local_requirements_path = Path(root, LOCAL_REQ_FILE_NAME)
         if os.path.exists(local_requirements_path):
             _LOG.info('Going to install local dependencies')
-            _copy_local_req(artifact_path, local_requirements_path, root)
+            _copy_local_req(artifact_path, local_requirements_path)
             _LOG.info('Local dependencies were installed successfully')
 
         if is_layer:
@@ -184,7 +187,7 @@ def _check_npm_is_installed():
             'NodeJS bundle. Please, install npm and retry to build bundle.')
 
 
-def _copy_local_req(artifact_path, local_req_path, root):
+def _copy_local_req(artifact_path, local_req_path):
     from syndicate.core import CONFIG
     with open(local_req_path) as f:
         local_req_list = f.readlines()
