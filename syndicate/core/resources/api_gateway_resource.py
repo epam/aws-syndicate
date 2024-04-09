@@ -76,6 +76,7 @@ _REQUEST_VALIDATORS = {
 
 _DISABLE_THROTTLING_VALUE = -1
 
+
 class ApiGatewayResource(BaseResource):
 
     def __init__(self, apigw_conn: ApiGatewayConnection,
@@ -1116,6 +1117,15 @@ class ApiGatewayResource(BaseResource):
         if not api_id:
             _LOG.warning('V2 api id not found in output. Skipping')
             return
+
+        lambda_arns = []
+        routes = self.apigw_v2.get_routes(api_id)
+        for route in routes['Items']:
+            lambda_arns.append(self.apigw_v2.get_integration(
+                api_id, route['Target'].replace('integrations/', '')))
+
+        self.remove_lambdas_permissions(
+            api_id, {*[arn for arn in lambda_arns if arn is not None]})
         self.apigw_v2.delete_api(api_id)
         return
 

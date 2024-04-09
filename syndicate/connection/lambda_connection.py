@@ -510,7 +510,6 @@ class LambdaConnection(object):
             params['FilterCriteria'] = {'Filters': filters}
         return self.client.update_event_source_mapping(**params)
 
-
     def get_function(self, lambda_name, qualifier=None):
         """ Get function info if it is exists,
         else - ResourceNotFoundException.

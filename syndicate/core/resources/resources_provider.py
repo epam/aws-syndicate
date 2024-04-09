@@ -108,7 +108,10 @@ class ResourceProvider:
             if not self._cw_alarm_resource:
                 self._cw_alarm_resource = CloudWatchAlarmResource(
                     cw_conn=self._conn_provider.cw_metric(region=region),
-                    sns_conn=self._conn_provider.sns()
+                    sns_conn=self._conn_provider.sns(),
+                    lambda_conn=self._conn_provider.lambda_conn(),
+                    lambda_res=self.lambda_resource(),
+                    account_id=self.config.account_id
                 )
             return self._cw_alarm_resource
 
