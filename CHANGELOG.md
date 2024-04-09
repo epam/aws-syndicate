@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 # [1.11.9] - 2024-04-09
 - Changed the error log message to the warning when updating log group retention period
 - Made a bunch of changes to the CloudWatch Alarm resource:
-  * added the ability to add ALARM actions for Lambdas and System Manager; 
+  * added the ability to add ALARM actions for Lambdas and System Manager (incident manager); 
   * added new parameters to the resource description in the deployment_resources: `description`, `datapoints`, `dimensions` and `evaluate_low_sample_count_percentile`;
   * added new parameters to the `syndicate generate meta cloudwatch_alarm` command: `description`, `datapoints` and `evaluate_low_sample_count_percentile`; 
   * added more values to the `comparison_operator` parameter: `LessThanLowerOrGreaterThanUpperThreshold`, `LessThanLowerThreshold`, `GreaterThanUpperThreshold`
