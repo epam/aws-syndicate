@@ -30,9 +30,13 @@ _LOG = get_logger('syndicate.core.resources.alarm_resource')
 
 class CloudWatchAlarmResource(BaseResource):
 
-    def __init__(self, cw_conn, sns_conn) -> None:
+    def __init__(self, cw_conn, sns_conn, lambda_conn,
+                 lambda_res, account_id) -> None:
         self.client = cw_conn
         self.sns_conn = sns_conn
+        self.lambda_conn = lambda_conn
+        self.lambda_res = lambda_res
+        self.account_id = account_id
 
     def create_alarm(self, args):
         """ Create alarm in pool in sub processes.
@@ -58,26 +62,36 @@ class CloudWatchAlarmResource(BaseResource):
         validate_params(name, meta, CLOUDWATCH_ALARM_REQUIRED_PARAMS)
 
         if self.client.is_alarm_exists(name):
-            _LOG.warn('%s alarm exists.', name)
+            _LOG.warning(f'{name} alarm exists.')
             return self.describe_alarm(name, meta)
 
         params = dict(alarm_name=name, metric_name=meta['metric_name'],
                       namespace=meta['namespace'], period=meta['period'],
                       evaluation_periods=meta['evaluation_periods'],
                       threshold=meta['threshold'], statistic=meta['statistic'],
-                      comparison_operator=meta['comparison_operator'])
+                      comparison_operator=meta['comparison_operator'],
+                      description=meta.get('description'),
+                      dimensions=meta.get('dimensions'),
+                      datapoints=meta.get('datapoints'), alarm_actions=[],
+                      evaluate_low_sample_count_percentile=meta.get(
+                          'evaluate_low_sample_count_percentile'))
 
-        sns_topics = meta.get('sns_topics')
-        sns_topic_arns = []
-        if sns_topics:
+        if sns_topics := meta.get('sns_topics'):
             for each in sns_topics:
-                arn = self.sns_conn.get_topic_arn(each)
-                sns_topic_arns.append(arn)
-            if sns_topic_arns:
-                params['alarm_actions'] = sns_topic_arns
+                if arn := self.sns_conn.get_topic_arn(each):
+                    params['alarm_actions'].append(arn)
+        if lambdas := meta.get('lambdas'):
+            for each in lambdas:
+                arn = self.lambda_res.build_lambda_arn(each)
+                if self.lambda_conn.get_function(arn):
+                    params['alarm_actions'].append(arn)
+        if response_plans := meta.get('ssm_response_plan'):
+            for each in response_plans:
+                params['alarm_actions'].append(
+                    f'arn:aws:ssm-incidents::{self.account_id}:responseplan/{each}')
 
         self.client.put_metric_alarm(**params)
-        _LOG.info('Created alarm {0}.'.format(name))
+        _LOG.info(f'Created alarm {name}.')
         return self.describe_alarm(name, meta)
 
     def remove_alarms(self, args):

@@ -740,6 +740,7 @@ def batch_jobqueue(ctx, **kwargs):
               help="The metric's name")
 @click.option('--namespace', type=str, required=True,
               help="The namespace for the metric associated with the alarm")
+@click.option('--description', type=str, help="The description for the alarm")
 @click.option('--period', type=click.IntRange(min=1),
               help="The period in seconds over which the specified statistic "
                    "is applied. Valid values are 10, 30 and any multiple"
@@ -754,7 +755,10 @@ def batch_jobqueue(ctx, **kwargs):
               type=click.Choice(['GreaterThanOrEqualToThreshold',
                                  'GreaterThanThreshold',
                                  'LessThanThreshold',
-                                 'LessThanOrEqualToThreshold']),
+                                 'LessThanOrEqualToThreshold',
+                                 'LessThanLowerOrGreaterThanUpperThreshold',
+                                 'LessThanLowerThreshold',
+                                 'GreaterThanUpperThreshold']),
               help="An arithmetic operator to use when comparing the specified"
                    " statistic and threshold. The specified statistic value is"
                    " used as the first operand. Default value is "
@@ -765,8 +769,26 @@ def batch_jobqueue(ctx, **kwargs):
                    "other than percentile. For percentile statistic use "
                    "'ExtendedStatistic'. Default value is 'SampleCount'")
 @click.option('--sns_topics', type=str, multiple=True,
-              help="The sns topics to execute when the alarm goes to an OK "
+              help="The sns topics to execute when the alarm goes to an ALARM "
                    "state from any other state")
+@click.option('--lambdas', type=str, multiple=True,
+              help="The lambdas to execute when the alarm goes to an ALARM "
+                   "state from any other state. Use `:` after lambda name to "
+                   "specify alias or version")
+@click.option('--ssm_response_plan', type=str, multiple=True,
+              help="The response plan name to execute when the alarm goes to "
+                   "an ALARM state from any other state")
+@click.option('--evaluate_low_sample_count_percentile',
+              type=click.Choice(["evaluate", "ignore"]),
+              help="Only for percentiles-based alarms. Use 'ignore' and the "
+                   "alarm state remains unchanged during periods with "
+                   "insufficient data points for statistical significance. If "
+                   "'evaluate' is specified (or parameter is omitted), the "
+                   "alarm is always assessed and "
+                   "may change state regardless of data point availability")
+@click.option('--datapoints', type=click.IntRange(min=1),
+              help="The number of datapoints that must be breaching to "
+                   "trigger the alarm")
 @click.pass_context
 @timeit()
 def cloudwatch_alarm(ctx, **kwargs):

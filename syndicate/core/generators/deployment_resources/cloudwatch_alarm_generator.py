@@ -13,12 +13,17 @@ class CloudWatchAlarmGenerator(BaseDeploymentResourceGenerator):
     CONFIGURATION = {
         "metric_name": None,
         "namespace": None,
+        "description": None,
         "period": 1200,  # seconds
         "evaluation_periods": 1,
         "threshold": 1.0,
         "comparison_operator": "GreaterThanOrEqualToThreshold",
         "statistic": "SampleCount",
         "sns_topics": list,
+        "lambdas": list,
+        "ssm_response_plan": list,
+        "evaluate_low_sample_count_percentile": None,
+        "datapoints": None
     }
 
     def _generate_resource_configuration(self) -> dict:
