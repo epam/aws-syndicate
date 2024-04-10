@@ -91,15 +91,17 @@ def retry(retry_timeout=DEFAULT_RETRY_TIMEOUT_SEC,
                     retry_flag = False
                     for exc in retry_exceptions:
                         if exc in str(e):
-                            _LOG.debug('Retry on {0}. Error: {1}'.format(
-                                handler_func.__name__, str(e)))
-                            _LOG.debug('Parameters: {0}, {1}'.format(str(args),
-                                                                     str(kwargs)))
+                            _LOG.error(f'Retry on {handler_func.__name__}. '
+                                       f'Error: {str(e)}')
+                            _LOG.debug(
+                                f'Parameters: {str(args)}, {str(kwargs)}')
                             # set to debug, we need it only in the logs file
                             _LOG.debug(
-                                'Traceback:\n {0}'.format(traceback.format_exc()))
+                                f'Traceback:\n {traceback.format_exc()}')
                             retry_flag = True
                     if not retry_flag:
+                        _LOG.error(f'Error occurred: {e}')
+                        _LOG.error(f'Traceback:\n {traceback.format_exc()}')
                         raise e
                     last_ex = e
                     sleep(each)
