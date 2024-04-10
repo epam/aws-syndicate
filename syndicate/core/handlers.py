@@ -93,13 +93,13 @@ def _not_require_config(all_params):
 @click.version_option()
 def syndicate():
     from syndicate.core import CONF_PATH
-    if CONF_PATH:
+    if _not_require_config(sys.argv):
+        pass
+    elif CONF_PATH:
         click.echo('Configuration used: ' + CONF_PATH)
         initialize_connection()
         initialize_project_state()
         initialize_signal_handling()
-    elif _not_require_config(sys.argv):
-        pass
     else:
         click.echo('Environment variable SDCT_CONF is not set! '
                    'Please verify that you have provided path to '
