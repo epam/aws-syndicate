@@ -62,7 +62,7 @@ from syndicate.core.helper import (create_bundle_callback,
                                    resolve_default_value, ValidRegionParamType,
                                    generate_default_bundle_name,
                                    resolve_and_verify_bundle_callback,
-                                   param_to_lower)
+                                   param_to_lower, add_verbose_option)
 from syndicate.core.project_state.project_state import (MODIFICATION_LOCK,
                                                         WARMUP_LOCK)
 from syndicate.core.project_state.status_processor import project_state_status
@@ -157,6 +157,7 @@ def test(suite, test_folder_name, errors_allowed):
               help='Flag to override existing bundle with the same name')
 @click.option('--errors_allowed', is_flag=True, default=False,
               help='Flag to continue bundle building if some tests fail')
+@add_verbose_option
 @click.pass_context
 @check_deploy_bucket_exists
 @timeit(action_name=BUILD_ACTION)
@@ -222,6 +223,7 @@ def transform(bundle_name, dsl, output_dir):
               help='Flag to continue failed deploy')
 @click.option('--replace_output', is_flag=True, default=False,
               help='Flag to replace the existing deploy output')
+@add_verbose_option
 @check_deploy_name_for_duplicates
 @check_deploy_bucket_exists
 @timeit(action_name=DEPLOY_ACTION)
@@ -277,6 +279,7 @@ def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
                    'while deploy')
 @click.option('--replace_output', nargs=1, is_flag=True, default=False,
               help='The flag to replace the existing deploy output file')
+@add_verbose_option
 @check_deploy_name_for_duplicates
 @check_deploy_bucket_exists
 @timeit(action_name=UPDATE_ACTION)
@@ -344,6 +347,7 @@ def update(bundle_name, deploy_name, replace_output,
               help='Remove failed deployed resources')
 @click.option('--preserve_state', is_flag=True,
               help='Preserve deploy output json file after resources removal')
+@add_verbose_option
 @timeit(action_name=CLEAN_ACTION)
 def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
           clean_only_resources_path, clean_externals, excluded_resources,
