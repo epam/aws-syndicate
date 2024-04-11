@@ -18,7 +18,7 @@ import os
 import re
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path, PurePath
 from typing import Union
 
@@ -41,6 +41,7 @@ STATE_BUILD_PROJECT_MAPPING = 'build_projects_mapping'
 STATE_LOG_EVENTS = 'events'
 STATE_LATEST_DEPLOY = 'latest_deploy'
 LOCK_LOCKED = 'locked'
+LOCK_LOCKED_TILL = 'locked_till'
 LOCK_LAST_MODIFICATION_DATE = 'last_modification_date'
 LOCK_INITIATOR = 'initiator'
 
@@ -133,7 +134,7 @@ class ProjectState:
         from syndicate.core import CONN, CONFIG
         bucket_name = CONFIG.deploy_target_bucket
         key_compound = PurePath(CONFIG.deploy_target_bucket_key_compound,
-                                    PROJECT_STATE_FILE).as_posix()
+                                PROJECT_STATE_FILE).as_posix()
         s3 = CONN.s3()
         s3.put_object(file_obj=yaml.dump(dict_to_save, sort_keys=False),
                       key=key_compound,
@@ -241,6 +242,14 @@ class ProjectState:
         lock = self.locks.get(lock_name)
         if not lock:
             return True
+        elif bool(lock.get(LOCK_LOCKED)) and \
+                (locked_till := lock.get(LOCK_LOCKED_TILL)):
+            locked_till_datetime = datetime.strptime(
+                locked_till, DATE_FORMAT_ISO_8601)
+            if datetime.timestamp(locked_till_datetime) <= time.time():
+                lock[LOCK_LOCKED_TILL] = None
+                lock[LOCK_LOCKED] = False
+                return True
         return not bool(lock.get(LOCK_LOCKED))
 
     def acquire_lock(self, lock_name):
@@ -381,13 +390,23 @@ class ProjectState:
         self.__save_events()
 
     def __modify_lock_state(self, lock_name, locked):
+        from syndicate.core import CONFIG
+        locked_till = CONFIG.lock_lifetime_minutes
+
         locks = self.locks
         lock = locks.get(lock_name)
-        timestamp = datetime.fromtimestamp(time.time()) \
-            .strftime(DATE_FORMAT_ISO_8601)
-        modified_lock = {LOCK_LOCKED: locked,
-                         LOCK_LAST_MODIFICATION_DATE: timestamp,
-                         LOCK_INITIATOR: getpass.getuser()}
+        modification_datetime = datetime.fromtimestamp(time.time())
+        timestamp = modification_datetime.strftime(DATE_FORMAT_ISO_8601)
+        locked_till_timestamp = (modification_datetime +
+                                 timedelta(minutes=locked_till)).strftime(
+            DATE_FORMAT_ISO_8601)
+
+        modified_lock = {
+            LOCK_LOCKED: locked,
+            LOCK_LAST_MODIFICATION_DATE: timestamp,
+            LOCK_LOCKED_TILL: locked_till_timestamp if locked else None,
+            LOCK_INITIATOR: getpass.getuser()
+        }
         if lock:
             lock.update(modified_lock)
         else:
@@ -424,7 +443,7 @@ class ProjectState:
         moving from older versions
         :type config: syndicate.core.conf.processor.ConfigHolder
         """
-        from syndicate.core.generators.lambda_function import\
+        from syndicate.core.generators.lambda_function import \
             resolve_lambda_path
         absolute_path = config.project_path
         project_path = Path(absolute_path)
@@ -475,4 +494,3 @@ class ProjectState:
                     lambda_list.append(item.name)
 
         return lambda_list
-
