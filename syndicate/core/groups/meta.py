@@ -11,7 +11,8 @@ from syndicate.core.generators.deployment_resources.api_gateway_generator import
     ApiGatewayAuthorizerGenerator
 from syndicate.core.generators.lambda_function import PROJECT_PATH_PARAM
 from syndicate.core.helper import OrderedGroup, OptionRequiredIf, \
-    validate_incompatible_options, validate_authorizer_name_option
+    validate_incompatible_options, validate_authorizer_name_option, \
+    verbose_option
 from syndicate.core.helper import ValidRegionParamType
 from syndicate.core.helper import check_bundle_bucket_name
 from syndicate.core.helper import resolve_project_path, timeit
@@ -60,6 +61,7 @@ def meta(ctx, project_path):
                    'The default value is \'TLS\'')
 @click.option('--parameter_group_name', type=str,
               help='The parameter group to be associated with the DAX cluster')
+@verbose_option
 @click.pass_context
 @timeit()
 def dax_cluster(ctx, **kwargs):
@@ -92,6 +94,7 @@ def dax_cluster(ctx, **kwargs):
 @click.option('--write_capacity', type=int,
               help="The maximum number of writing processes consumed per"
                    "second. If not specified, sets the default value to 1")
+@verbose_option
 @click.pass_context
 @timeit()
 def dynamodb(ctx, **kwargs):
@@ -117,6 +120,7 @@ def dynamodb(ctx, **kwargs):
 @click.option('--index_sort_key_type', type=dynamodb_type_param,
               cls=OptionRequiredIf, required_if='index_sort_key_name',
               help="Sort key type")
+@verbose_option
 @click.pass_context
 @timeit()
 def dynamodb_global_index(ctx, **kwargs):
@@ -154,6 +158,7 @@ def dynamodb_global_index(ctx, **kwargs):
               help="The name of the role, which performs autoscaling. If not "
                    "specified, sets the value to default service linked role: "
                    "'AWSServiceRoleForApplicationAutoScaling_DynamoDBTable'")
+@verbose_option
 @click.pass_context
 @timeit()
 def dynamodb_autoscaling(ctx, **kwargs):
@@ -202,6 +207,7 @@ def dynamodb_autoscaling(ctx, **kwargs):
                    'static WEB site hosting. If specified public read access '
                    'will be configured for all S3 bucket objects! Default '
                    'value is False')
+@verbose_option
 @click.pass_context
 @timeit()
 def s3_bucket(ctx, **kwargs):
@@ -222,6 +228,7 @@ def s3_bucket(ctx, **kwargs):
               type=click.IntRange(min=0, max=10 * 1024 * 1024),
               help="Compression size for api gateway. If not specified, "
                    "compression will be disabled")
+@verbose_option
 @click.pass_context
 @timeit()
 def api_gateway(ctx, **kwargs):
@@ -238,6 +245,7 @@ def api_gateway(ctx, **kwargs):
               help="Api gateway name")
 @click.option('--deploy_stage', required=True, type=str,
               help="The stage to deploy the API")
+@verbose_option
 @click.pass_context
 @timeit()
 def web_socket_api_gateway(ctx, **kwargs):
@@ -264,6 +272,7 @@ def web_socket_api_gateway(ctx, **kwargs):
                                   "Cognito user pool")
 @click.option('--provider_name', type=str, required=True,
               help="Identity provider name")
+@verbose_option
 @click.pass_context
 @timeit()
 def api_gateway_authorizer(ctx, **kwargs):
@@ -283,6 +292,7 @@ def api_gateway_authorizer(ctx, **kwargs):
 @click.option('--enable_cors', type=bool,
               help="Enables CORS on the resourcemethod. If not specified, sets"
                    "the default value to False")
+@verbose_option
 @click.pass_context
 @timeit()
 def api_gateway_resource(ctx, **kwargs):
@@ -323,6 +333,7 @@ def api_gateway_resource(ctx, **kwargs):
 @click.option('--api_key_required', type=bool,
               help="Specifies whether the method requires a valid API key. "
                    "If not specified, the default value is set to False")
+@verbose_option
 @click.pass_context
 @timeit()
 def api_gateway_resource_method(ctx, **kwargs):
@@ -348,6 +359,7 @@ def api_gateway_resource_method(ctx, **kwargs):
                                        'content. If not specified, template '
                                        'value will be set',
               type=click.File(mode='r'))
+@verbose_option
 @click.pass_context
 @timeit()
 def iam_policy(ctx, **kwargs):
@@ -381,6 +393,7 @@ def iam_policy(ctx, **kwargs):
 @click.option('--permissions_boundary', type=str,
               help="The name or the ARN of permissions boundary policy to "
                    "attach to this role")
+@verbose_option
 @click.pass_context
 @timeit()
 def iam_role(ctx, **kwargs):
@@ -397,6 +410,7 @@ def iam_role(ctx, **kwargs):
               help="Kinesis stream name")
 @click.option('--shard_count', type=int, required=True,
               help="Number of shards that the stream uses")
+@verbose_option
 @click.pass_context
 @timeit()
 def kinesis_stream(ctx, **kwargs):
@@ -413,6 +427,7 @@ def kinesis_stream(ctx, **kwargs):
               help="SNS topic name")
 @click.option('--region', type=ValidRegionParamType(allowed_all=True),
               required=True, help="Where the topic should be deployed")
+@verbose_option
 @click.pass_context
 @timeit()
 def sns_topic(ctx, **kwargs):
@@ -429,6 +444,7 @@ def sns_topic(ctx, **kwargs):
               help="Step function name")
 @click.option('--iam_role', type=str, required=True,
               help="IAM role to use for this state machine")
+@verbose_option
 @click.pass_context
 @timeit()
 def step_function(ctx, **kwargs):
@@ -443,6 +459,7 @@ def step_function(ctx, **kwargs):
 @meta.command(name='step_function_activity')
 @click.option('--resource_name', type=str, required=True,
               help="Step function activity name")
+@verbose_option
 @click.pass_context
 @timeit()
 def step_function_activity(ctx, **kwargs):
@@ -479,6 +496,7 @@ def step_function_activity(ctx, **kwargs):
                    "directory which is set up in the env variable 'SDCT_CONF'")
 @click.option('--iam_role', type=str,
               help="Instance IAM role")
+@verbose_option
 @click.pass_context
 @timeit()
 def ec2_instance(ctx, **kwargs):
@@ -534,6 +552,7 @@ def ec2_instance(ctx, **kwargs):
                    "calling AWS KMS again")
 @click.option('--content_based_deduplication', type=bool,
               help="Enables content-based deduplication")
+@verbose_option
 @click.pass_context
 @timeit()
 def sqs_queue(ctx, **kwargs):
@@ -556,6 +575,7 @@ def sqs_queue(ctx, **kwargs):
                    "value is the one from syndicate config")
 @click.option('--attributes', type=(str, str), multiple=True,
               help="SNS application attributes")
+@verbose_option
 @click.pass_context
 @timeit()
 def sns_application(ctx, **kwargs):
@@ -587,6 +607,7 @@ def sns_application(ctx, **kwargs):
                    "value is email", multiple=True)
 @click.option('--custom_attributes', type=(str, str), multiple=True,
               help="A list of custom attributes: (name type)")
+@verbose_option
 @click.pass_context
 @timeit()
 def cognito_user_pool(ctx, **kwargs):
@@ -617,6 +638,7 @@ def cognito_user_pool(ctx, **kwargs):
               help="A list of OpenID Connect providers")
 @click.option('--provider_name', type=str,
               help="Developer provider name")
+@verbose_option
 @click.pass_context
 @timeit()
 def cognito_federated_pool(ctx, **kwargs):
@@ -672,6 +694,7 @@ def cognito_federated_pool(ctx, **kwargs):
 @click.option('--instance_role', type=str,
               help="The Amazon ECS instance profile applied to Amazon EC2 "
                    "instances in a compute environment")
+@verbose_option
 @click.pass_context
 @timeit()
 def batch_compenv(ctx, **kwargs):
@@ -701,6 +724,7 @@ def batch_compenv(ctx, **kwargs):
 @click.option('--job_role_arn', type=str,
               help='The ARN of the IAM role that the container can assume for '
                    'AWS permissions')
+@verbose_option
 @click.pass_context
 @timeit()
 def batch_jobdef(ctx, **kwargs):
@@ -722,6 +746,7 @@ def batch_jobdef(ctx, **kwargs):
 @click.option('--compute_environment_order', type=(int, str), multiple=True,
               help="The set of compute environments mapped to a job queue and "
                    "their order relative to each other. (order, compute_env)")
+@verbose_option
 @click.pass_context
 @timeit()
 def batch_jobqueue(ctx, **kwargs):
@@ -789,6 +814,7 @@ def batch_jobqueue(ctx, **kwargs):
 @click.option('--datapoints', type=click.IntRange(min=1),
               help="The number of datapoints that must be breaching to "
                    "trigger the alarm")
+@verbose_option
 @click.pass_context
 @timeit()
 def cloudwatch_alarm(ctx, **kwargs):
@@ -814,6 +840,7 @@ def cloudwatch_alarm(ctx, **kwargs):
 @click.option('--region', type=ValidRegionParamType(allowed_all=True),
               help="The region where the rule is deployed. Default value is "
                    "the one from syndicate config")
+@verbose_option
 @click.pass_context
 @timeit()
 def cloudwatch_event_rule(ctx, **kwargs):
@@ -839,6 +866,7 @@ def cloudwatch_event_rule(ctx, **kwargs):
 @click.option('--region', type=ValidRegionParamType(allowed_all=True),
               help="The region where the rule is deployed. Default value is "
                    "the one from syndicate config")
+@verbose_option
 @click.pass_context
 @timeit()
 def eventbridge_rule(ctx, **kwargs):
@@ -868,6 +896,7 @@ def eventbridge_rule(ctx, **kwargs):
               help="A list of Amazon EC2 Availability Zones that instances in "
                    "the cluster can be created in. "
                    "If not specified default is used")
+@verbose_option
 @click.pass_context
 @timeit()
 def documentdb_cluster(ctx, **kwargs):
@@ -892,6 +921,7 @@ def documentdb_cluster(ctx, **kwargs):
               help="The Amazon EC2 Availability Zone that the instance is "
                    "created in. If not specified a random zone it the "
                    "endpoint's region is set")
+@verbose_option
 @click.pass_context
 @timeit()
 def documentdb_instance(ctx, **kwargs):

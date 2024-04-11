@@ -34,7 +34,7 @@ from syndicate.core.helper import (timeit, OrderedGroup,
                                    check_suffix, check_prefix,
                                    check_file_extension,
                                    check_lambda_layer_name,
-                                   check_lambda_existence)
+                                   check_lambda_existence, verbose_option)
 
 GENERATE_GROUP_NAME = 'generate'
 GENERATE_PROJECT_COMMAND_NAME = 'project'
@@ -52,6 +52,7 @@ def generate():
 @click.option('--name', nargs=1, required=True, help='The project name')
 @click.option('--path', nargs=1,
               help=PROJECT_PATH_HELP)
+@verbose_option
 @timeit()
 def project(name, path):
     """
@@ -83,6 +84,7 @@ def project(name, path):
                    "from the current config if it exists. "
                    "Otherwise - the current working directory",
               callback=resolve_project_path)
+@verbose_option
 @timeit()
 def lambda_function(name, runtime, project_path):
     """
@@ -119,6 +121,7 @@ def lambda_function(name, runtime, project_path):
                    "from the current config if it exists. "
                    "Otherwise - the current working directory",
               callback=resolve_project_path)
+@verbose_option
 @timeit()
 def lambda_layer(name, runtime, link_with_lambda, project_path):
     """
@@ -208,6 +211,7 @@ def lambda_layer(name, runtime, link_with_lambda, project_path):
                    'resources during deployment')
 @click.option('--iam_permissions_boundary', type=str,
               help='Common permissions boundary arn to add to all the roles')
+@verbose_option
 @timeit()
 def config(name, config_path, project_path, region, access_key, secret_key,
            session_token, bundle_bucket_name, prefix, suffix,
@@ -249,6 +253,7 @@ def config(name, config_path, project_path, region, access_key, secret_key,
                    "from the current config if it exists. "
                    "Otherwise - the current working directory",
               callback=resolve_project_path)
+@verbose_option
 @timeit()
 def swagger_ui(name, path_to_spec, target_bucket, project_path):
     """

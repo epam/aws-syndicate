@@ -33,7 +33,7 @@ import click
 from click import BadParameter
 from tqdm import tqdm
 
-from syndicate.commons.log_helper import get_logger, get_user_logger, LOG_LEVEL
+from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.conf.processor import path_resolver
 from syndicate.core.conf.validator import ConfigValidator, ALL_REGIONS
 from syndicate.core.constants import (BUILD_META_FILE_NAME,
@@ -726,23 +726,25 @@ def validate_authorizer_name_option(ctx, param, value):
 
 
 def set_debug_log_level(ctx, param, value):
-    if value and LOG_LEVEL != logging.DEBUG:
+    if value:
         loggers = [logging.getLogger(name) for name in
                    logging.root.manager.loggerDict if
                    name.startswith('syndicate')]
         for logger in loggers:
-            logger.setLevel(logging.DEBUG)
-            if logger.name == 'syndicate':
-                logger.addHandler(logging.StreamHandler())
+            if not logger.isEnabledFor(logging.DEBUG):
+                logger.setLevel(logging.DEBUG)
+                if logger.name == 'syndicate':
+                    logger.addHandler(logging.StreamHandler())
         user_logger = logging.getLogger('user-syndicate')
-        user_logger.setLevel(logging.DEBUG)
+        if not user_logger.isEnabledFor(logging.DEBUG):
+            user_logger.setLevel(logging.DEBUG)
         _LOG.debug('The logs level was set to DEBUG')
 
 
-def add_verbose_option(func):
+def verbose_option(func):
     @click.option('--verbose', '-v', is_flag=True,
                   callback=set_debug_log_level, expose_value=False,
-                  hidden=True, help="Enables logging verbose mode.")
+                  is_eager=True, help="Enable logging verbose mode.")
     @wraps(func)
     def wrapper(*args, **kwargs):
         return func(*args, **kwargs)
