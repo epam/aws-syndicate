@@ -40,7 +40,6 @@ STATE_LAMBDAS = 'lambdas'
 STATE_BUILD_PROJECT_MAPPING = 'build_projects_mapping'
 STATE_LOG_EVENTS = 'events'
 STATE_LATEST_DEPLOY = 'latest_deploy'
-LOCK_LOCKED = 'locked'
 LOCK_LOCKED_TILL = 'locked_till'
 LOCK_LAST_MODIFICATION_DATE = 'last_modification_date'
 LOCK_INITIATOR = 'initiator'
@@ -242,15 +241,15 @@ class ProjectState:
         lock = self.locks.get(lock_name)
         if not lock:
             return True
-        elif bool(lock.get(LOCK_LOCKED)) and \
-                (locked_till := lock.get(LOCK_LOCKED_TILL)):
+        elif not lock.get(LOCK_LOCKED_TILL):
+            return True
+        elif locked_till := lock.get(LOCK_LOCKED_TILL):
             locked_till_datetime = datetime.strptime(
                 locked_till, DATE_FORMAT_ISO_8601)
             if datetime.timestamp(locked_till_datetime) <= time.time():
                 lock[LOCK_LOCKED_TILL] = None
-                lock[LOCK_LOCKED] = False
                 return True
-        return not bool(lock.get(LOCK_LOCKED))
+        return False
 
     def acquire_lock(self, lock_name):
         self.__modify_lock_state(lock_name, True)
@@ -402,7 +401,6 @@ class ProjectState:
             DATE_FORMAT_ISO_8601)
 
         modified_lock = {
-            LOCK_LOCKED: locked,
             LOCK_LAST_MODIFICATION_DATE: timestamp,
             LOCK_LOCKED_TILL: locked_till_timestamp if locked else None,
             LOCK_INITIATOR: getpass.getuser()

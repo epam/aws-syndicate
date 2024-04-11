@@ -20,7 +20,7 @@ from tabulate import tabulate
 
 from syndicate.core.project_state.project_state import (
     OPERATION_LOCK_MAPPINGS, MODIFICATION_LOCK, WARMUP_LOCK,
-    LOCK_LAST_MODIFICATION_DATE, LOCK_LOCKED, LOCK_LOCKED_TILL)
+    LOCK_LAST_MODIFICATION_DATE, LOCK_LOCKED_TILL)
 from syndicate.core.project_state.sync_processor import sync_project_state
 from syndicate.core.constants import DATE_FORMAT_ISO_8601
 
@@ -150,7 +150,7 @@ def locks_summary(project_state):
     for lock_name, lock_info in all_locks.items():
         display_name = LOCKS.get(lock_name)
         if lock_info:
-            state = 'Acquired' if lock_info.get(LOCK_LOCKED) else 'Released'
+            state = 'Acquired' if lock_info.get(LOCK_LOCKED_TILL) else 'Released'
             last_mod_date = lock_info.get(LOCK_LAST_MODIFICATION_DATE)
             last_mod_date = format_time(last_mod_date)
             locked_till_date = lock_info.get(LOCK_LOCKED_TILL)
