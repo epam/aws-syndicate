@@ -729,15 +729,13 @@ def set_debug_log_level(ctx, param, value):
     if value:
         loggers = [logging.getLogger(name) for name in
                    logging.root.manager.loggerDict if
-                   name.startswith('syndicate')]
+                   name.startswith('syndicate') or
+                   name.startswith('user-syndicate')]
         for logger in loggers:
             if not logger.isEnabledFor(logging.DEBUG):
                 logger.setLevel(logging.DEBUG)
                 if logger.name == 'syndicate':
                     logger.addHandler(logging.StreamHandler())
-        user_logger = logging.getLogger('user-syndicate')
-        if not user_logger.isEnabledFor(logging.DEBUG):
-            user_logger.setLevel(logging.DEBUG)
         _LOG.debug('The logs level was set to DEBUG')
 
 
