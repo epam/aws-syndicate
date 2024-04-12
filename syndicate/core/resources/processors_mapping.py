@@ -24,7 +24,7 @@ from syndicate.core.constants import \
     BATCH_JOBDEF_TYPE, COGNITO_USER_POOL_TYPE, COGNITO_FEDERATED_POOL_TYPE, \
     DOCUMENTDB_CLUSTER_TYPE, DOCUMENTDB_INSTANCE_TYPE, DAX_CLUSTER_TYPE, \
     FIREHOSE_TYPE, EVENT_BRIDGE_SCHEDULE_TYPE, API_GATEWAY_OAS_V3_TYPE, \
-    SWAGGER_UI_TYPE
+    SWAGGER_UI_TYPE, EC2_LAUNCH_TEMPLATE_TYPE
 
 
 class ProcessorFacade:
@@ -80,6 +80,8 @@ class ProcessorFacade:
                 self.resources_provider.kinesis().create_kinesis_stream,
             EC2_INSTANCE_TYPE:
                 self.resources_provider.ec2().create_ec2,
+            EC2_LAUNCH_TEMPLATE_TYPE:
+                self.resources_provider.ec2().create_launch_template,
             BATCH_COMPENV_TYPE:
                 self.resources_provider.batch_compenv()
                     .create_compute_environment,
@@ -167,7 +169,9 @@ class ProcessorFacade:
             EVENT_BRIDGE_SCHEDULE_TYPE:
                 self.resources_provider.eventbridge_scheduler().describe_schedule,
             SWAGGER_UI_TYPE: self.resources_provider.swagger_ui().
-            describe_swagger_ui
+            describe_swagger_ui,
+            EC2_LAUNCH_TEMPLATE_TYPE:
+                self.resources_provider.ec2().describe_launch_template
         }
 
     def remove_handlers(self):
@@ -196,6 +200,8 @@ class ProcessorFacade:
                 self.resources_provider.ebs().remove_ebs_apps,
             EC2_INSTANCE_TYPE:
                 self.resources_provider.ec2().remove_ec2_instances,
+            EC2_LAUNCH_TEMPLATE_TYPE:
+                self.resources_provider.ec2().remove_launch_templates,
             IAM_ROLE:
                 self.resources_provider.iam().remove_roles,
             IAM_POLICY:

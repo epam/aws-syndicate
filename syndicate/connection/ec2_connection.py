@@ -58,7 +58,7 @@ class EC2Connection(object):
                              aws_session_token=aws_session_token)
         _LOG.debug('Opened new EC2 connection.')
 
-    def describe_security_groups(self, name=None, vpc_id=None):
+    def describe_security_groups(self, name=None, sg_id=None, vpc_id=None):
         filters = []
         if name:
             if isinstance(name, list):
@@ -67,6 +67,14 @@ class EC2Connection(object):
                 filters.append({'Name': 'group-name', 'Values': [name]})
             else:
                 _LOG.warn('Unacceptable name type: %s', type(name))
+        if sg_id:
+            if isinstance(sg_id, list):
+                filters.append({'Name': 'group-id', 'Values': sg_id})
+            elif isinstance(sg_id, str):
+                filters.append({'Name': 'group-id', 'Values': [sg_id]})
+            else:
+                _LOG.warn(
+                    f'Unacceptable security group id type: {type(sg_id)}')
         if vpc_id:
             filters.append({'Name': 'vpc-id', 'Values': [vpc_id]})
         return self.client.describe_security_groups(Filters=filters)[
@@ -354,6 +362,81 @@ class EC2Connection(object):
         if public_ip:
             params['PublicIp'] = public_ip
         return self.client.associate_address(**params)
+
+    def create_launch_template(self, name, lt_data, version_description=None,
+                               tag_specifications=None):
+        params = dict()
+        params['LaunchTemplateName'] = name
+        params['LaunchTemplateData'] = lt_data
+        if version_description is not None:
+            params['VersionDescription'] = version_description
+        if tag_specifications is not None:
+            params['TagSpecifications'] = tag_specifications
+        return self.client.create_launch_template(**params)
+
+    def describe_launch_templates(self, lt_name=None, lt_id=None):
+        result_list = list()
+        params = dict()
+        if lt_name is not None and lt_id is not None:
+            _LOG.warn('Both the launch template name and ID are specified. '
+                      'The request will be made by ID.')
+            if isinstance(lt_id, list):
+                params['LaunchTemplateIds'] = lt_id
+            elif isinstance(lt_id, str):
+                params['LaunchTemplateIds'] = [lt_id]
+            else:
+                _LOG.warn(
+                    f'Unsupported launch template ID type {type(lt_id)}')
+
+        elif lt_name is not None:
+            if isinstance(lt_name, list):
+                params['LaunchTemplateNames'] = lt_name
+            elif isinstance(lt_name, str):
+                params['LaunchTemplateNames'] = [lt_name]
+            else:
+                _LOG.warn(
+                    f'Unsupported launch template name type {type(lt_name)}')
+
+        elif lt_id is not None:
+            if isinstance(lt_id, list):
+                params['LaunchTemplateIds'] = lt_id
+            elif isinstance(lt_id, str):
+                params['LaunchTemplateIds'] = [lt_id]
+            else:
+                _LOG.warn(
+                    f'Unsupported launch template ID type {type(lt_id)}')
+
+        response = self.client.describe_launch_templates(**params) if params \
+            else self.client.describe_launch_templates()
+        token = response.get('NextToken')
+        result_list.extend(response['LaunchTemplates'])
+        while token:
+            if params:
+                params['NextToken'] = token
+                response = self.client.describe_launch_templates(**params)
+            else:
+                response = self.client.describe_launch_templates()
+            token = response.get('NextToken')
+            result_list.extend(response['LaunchTemplates'])
+        return result_list
+
+    def delete_launch_template(self, lt_name=None, lt_id=None):
+        params = dict()
+        if lt_name is not None and lt_id is not None:
+            _LOG.warn('Both the launch template name and ID are specified. '
+                      'The request will be made by ID.')
+            params['LaunchTemplateId'] = lt_id
+
+        elif lt_name is not None:
+            params['LaunchTemplateName'] = lt_name
+
+        elif lt_id is not None:
+            params['LaunchTemplateId'] = lt_id
+        else:
+            raise AssertionError(
+                'Either the launch template name or ID must be provided for '
+                'removing the launch template.')
+        self.client.delete_launch_template(**params)
 
 
 class InstanceTypes:

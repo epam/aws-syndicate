@@ -13,13 +13,15 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+import base64
 import os
 from time import sleep
 
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.ec2_connection import InstanceTypes
 from syndicate.core import ClientError
-from syndicate.core.helper import unpack_kwargs
+from syndicate.core.helper import unpack_kwargs, \
+    dict_keys_to_capitalized_camel_case
 from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import build_description_obj, chunks
 
@@ -188,3 +190,112 @@ class Ec2Resource(BaseResource):
                 instance_ids=existing_instances_list)
         _LOG.info('EC2 instances %s were removed.',
                   str(existing_instances_list))
+
+    def describe_launch_template(self, name, meta, response=None):
+        if not response:
+            response = self.ec2_conn.describe_launch_templates(lt_name=name)
+        else:
+            response = [response['LaunchTemplate']]
+        lt_id = response[0]['LaunchTemplateId']
+        return {
+            lt_id: build_description_obj(response, name, meta)
+        }
+
+    def create_launch_template(self, args):
+        return self.create_pool(self._create_launch_template_from_meta, args)
+
+    @unpack_kwargs
+    def _create_launch_template_from_meta(self, name, meta):
+        from syndicate.core import CONFIG
+        lt_data = meta['launch_template_data']
+        lt_imds = lt_data.pop('imds_support', None)
+        image_id = lt_data.get('image_id')
+        if image_id:
+            image_data = self.ec2_conn.describe_image(image_id=image_id)
+            if not image_data:
+                raise AssertionError(f'Image id {image_id} is invalid')
+
+        if lt_imds:
+            metadata_options = {'http_tokens': 'required'} \
+                if lt_imds == 'v2.0' else {'http_tokens': 'optional'}
+            lt_data['metadata_options'] = metadata_options
+
+        key_name = lt_data.get('key_name')
+        if key_name and not self.ec2_conn.if_key_pair_exists(key_name):
+            raise AssertionError(f'There is no key pair with name: {key_name}')
+
+        security_groups_names = lt_data.get('security_groups')
+        if security_groups_names:
+            sg_meta = self.ec2_conn.describe_security_groups(
+                security_groups_names)
+            described_sec_groups_names = [security_group['GroupName']
+                                          for security_group in sg_meta]
+            for security_group_name in security_groups_names:
+                if security_group_name not in described_sec_groups_names:
+                    raise AssertionError(
+                        f'Security group {security_group_name} does not exist')
+
+        security_group_ids = lt_data.get('security_group_ids')
+        if security_group_ids:
+            sg_meta = self.ec2_conn.describe_security_groups(
+                sg_id=security_group_ids)
+            described_sec_group_ids = [security_group['GroupId']
+                                       for security_group in sg_meta]
+            for security_group_id in security_group_ids:
+                if security_group_id not in described_sec_group_ids:
+                    raise AssertionError(f'Security group with ID '
+                                         f'{security_group_id} does not exist')
+
+        iam_role_name = lt_data.pop('iam_role', None)
+        if iam_role_name:
+            instance_profiles = self.iam_conn.get_instance_profiles_for_role(
+                role_name=iam_role_name)
+            if instance_profiles:
+                iam_profile_meta = instance_profiles[0]
+                lt_data['iam_instance_profile'] = {
+                    'arn': iam_profile_meta['Arn'],
+                    'name': iam_profile_meta['InstanceProfileName']
+                }
+
+        user_data_file_path = lt_data.pop('userdata_file', None)
+        user_data_content = None
+        if user_data_file_path:
+            if not os.path.isabs(user_data_file_path):
+                user_data_file_path = os.path.join(CONFIG.project_path,
+                                                   user_data_file_path)
+            if not os.path.isfile(user_data_file_path):
+                _LOG.warn(f'There is no user data found by path '
+                          f'{user_data_file_path}. ')
+            else:
+                with open(user_data_file_path, 'r') as userdata_file:
+                    user_data_content = userdata_file.read()
+            if user_data_content:
+                user_data_b = \
+                    base64.b64encode(user_data_content.encode("ascii"))
+                user_data = user_data_b.decode('ascii')
+                lt_data['user_data'] = user_data
+
+        response = self.ec2_conn.create_launch_template(
+            name=name,
+            lt_data=dict_keys_to_capitalized_camel_case(lt_data),
+            version_description=meta.get('version_description'),
+            tag_specifications=dict_keys_to_capitalized_camel_case(
+                meta['tag_specifications']) if
+            meta.get('tag_specifications') else None
+        )
+        return self.describe_launch_template(name, meta, response)
+
+    def remove_launch_templates(self, args):
+        return self.create_pool(self._remove_launch_template, args)
+
+    @unpack_kwargs
+    def _remove_launch_template(self, arn, config):
+        try:
+            self.ec2_conn.delete_launch_template(lt_id=arn)
+            _LOG.info(f"Launch template with ID '{arn}' removed "
+                      f"successfully")
+        except ClientError as e:
+            if 'InvalidLaunchTemplateId' in str(e):
+                _LOG.warn(f"Launch template with ID '{arn}' not found")
+            else:
+                raise e
