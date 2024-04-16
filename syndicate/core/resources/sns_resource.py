@@ -16,7 +16,7 @@
 from botocore.exceptions import ClientError
 
 from syndicate.commons.log_helper import get_logger
-from syndicate.core.conf.processor import ALL_REGIONS
+from syndicate.core.conf.validator import ALL_REGIONS
 from syndicate.core.helper import unpack_kwargs
 from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import (build_description_obj,

@@ -35,7 +35,8 @@ from syndicate.core.conf.validator import (LAMBDAS_ALIASES_NAME_CFG,
                                            SERIAL_NUMBER_CFG,
                                            ACCESS_ROLE_CFG,
                                            EXTENDED_PREFIX_MODE_CFG,
-                                           LOGS_EXPIRATION, EXPIRATION_CFG)
+                                           LOGS_EXPIRATION, EXPIRATION_CFG,
+                                           LOCK_LIFETIME_MINUTES_CFG)
 from syndicate.core.constants import DEFAULT_LOGS_EXPIRATION
 from syndicate.core.generators import _mkdir
 
@@ -49,7 +50,8 @@ def generate_configuration_files(name, config_path, region,
                                  extended_prefix, session_token=None,
                                  project_path=None, use_temp_creds=None,
                                  access_role=None, serial_number=None,
-                                 tags=None, iam_permissions_boundary=None):
+                                 tags=None, iam_permissions_boundary=None,
+                                 lock_lifetime_minutes=None):
     if not access_key and not secret_key:
         _USER_LOG.warn("Access_key and secret_key weren't passed. "
                        "Attempting to load them")
@@ -115,7 +117,8 @@ def generate_configuration_files(name, config_path, region,
         ACCESS_ROLE_CFG: access_role,
         SERIAL_NUMBER_CFG: serial_number,
         TAGS_CFG: tags,
-        IAM_PERMISSIONS_BOUNDARY_CFG: iam_permissions_boundary
+        IAM_PERMISSIONS_BOUNDARY_CFG: iam_permissions_boundary,
+        LOCK_LIFETIME_MINUTES_CFG: lock_lifetime_minutes
     }
     if session_token:
         config_content.update({

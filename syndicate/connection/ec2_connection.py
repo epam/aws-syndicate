@@ -46,7 +46,7 @@ def preserve_default_permission(group_id, permissions):
                     permission.pop('UserIdGroupPairs')
 
 
-@apply_methods_decorator(retry)
+@apply_methods_decorator(retry())
 class EC2Connection(object):
     """ EC2 connection class."""
 

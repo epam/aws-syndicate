@@ -34,7 +34,7 @@ def get_lambda_log_group_name(lambda_name):
     return '/aws/lambda/' + lambda_name
 
 
-@apply_methods_decorator(retry)
+@apply_methods_decorator(retry())
 class LogsConnection(object):
     """ CloudWatch Log connection class."""
 
@@ -115,12 +115,11 @@ class LogsConnection(object):
             res = self.client.describe_log_groups(
                 logGroupNamePrefix=log_group_name)
         except Exception as e:
-            _LOG.error(
-                f"Error on describing log group: {log_group_name}. Error: {str(e)}")
+            _LOG.warning(f"Error on describing log group: {log_group_name}. "
+                         f"Error: {str(e)}")
             return
         if not res.get('logGroups'):
-            _LOG.error(
-                f"Log group does not exist: {log_group_name}.")
+            _LOG.warning(f"Log group does not exist: {log_group_name}.")
             return
         self.client.put_retention_policy(
             logGroupName=log_group_name,
@@ -151,7 +150,7 @@ class LogsConnection(object):
         return groups
 
 
-@apply_methods_decorator(retry)
+@apply_methods_decorator(retry())
 class EventConnection(object):
     """ CloudWatch Event connection class."""
 
@@ -199,8 +198,8 @@ class EventConnection(object):
         self.client.put_rule(Name=name, EventPattern=dumps(event_pattern),
                              State=state, Description=name)
 
-    def create_api_call_rule(self, name, aws_service=None, operations=None, custom_pattern=None,
-                             state='ENABLED'):
+    def create_api_call_rule(self, name, aws_service=None, operations=None,
+                             custom_pattern=None, state='ENABLED'):
         """ To select ANY operation do not set 'operations' param.
 
         :type aws_service:
@@ -231,8 +230,8 @@ class EventConnection(object):
                 event_pattern['detail']['eventName'] = operations
         else:
             raise AssertionError(
-                'aws_service or custom_pattern should be specified for rule with "api_call" type! '
-                'Resource: {0}'.format(name))
+                f'aws_service or custom_pattern should be specified for rule '
+                f'with "api_call" type! Resource: {name}')
 
         self.client.put_rule(Name=name, EventPattern=dumps(event_pattern),
                              State=state, Description=name)
@@ -252,7 +251,7 @@ class EventConnection(object):
             return rule['Arn']
 
     def add_rule_target(self, rule_name: str, target_arn: str,
-                        input_: Optional[dict]=None):
+                        input_: Optional[dict] = None):
         """Add to CloudWatch rule targets for invocations
         :type rule_name: str
         :type target_arn: str
@@ -374,7 +373,7 @@ def _find_statement_id_in_event_bus_policy(account_id, event_bus):
                     return statement['Sid']
 
 
-@apply_methods_decorator(retry)
+@apply_methods_decorator(retry())
 class MetricConnection(object):
     """ CloudWatch Log connection class."""
 
@@ -426,7 +425,9 @@ class MetricConnection(object):
                          evaluation_periods, threshold, comparison_operator,
                          statistic, actions_enabled=None, ok_actions=None,
                          alarm_actions=None, insufficient_data_actions=None,
-                         extended_statistic=None, dimensions=None, unit=None):
+                         extended_statistic=None, dimensions=None, unit=None,
+                         description=None, datapoints=None,
+                         evaluate_low_sample_count_percentile=None):
         """
         :type alarm_name: str
         :type metric_name: str
@@ -452,7 +453,14 @@ class MetricConnection(object):
         'Megabits'|'Gigabits'|'Terabits'|'Percent'|'Count'|'Bytes/Second'|
         'Kilobytes/Second'|'Megabytes/Second'|'Gigabytes/Second'|
         'Terabytes/Second'|'Bits/Second'|'Kilobits/Second'|'Megabits/Second'|
-        'Gigabits/Second'|'Terabits/Second'|'Count/Second'|'None',
+        'Gigabits/Second'|'Terabits/Second'|'Count/Second'|'None'
+        :type description: str
+        :param description: the description for the alarm
+        :type datapoints: int
+        :param datapoints: number of datapoints that must be breaching to
+        trigger the alarm
+        :type evaluate_low_sample_count_percentile: str
+        :param evaluate_low_sample_count_percentile: 'evaluate'|'ignore'
         """
         params = dict(AlarmName=alarm_name, MetricName=metric_name,
                       Namespace=namespace, Period=period, Threshold=threshold,
@@ -473,6 +481,13 @@ class MetricConnection(object):
             params['Unit'] = unit
         if dimensions:
             params['Dimensions'] = dimensions
+        if description:
+            params['AlarmDescription'] = description
+        if evaluate_low_sample_count_percentile:
+            params['EvaluateLowSampleCountPercentile'] = \
+                evaluate_low_sample_count_percentile
+        if datapoints:
+            params['DatapointsToAlarm'] = datapoints
         self.client.put_metric_alarm(**params)
 
     def remove_alarms(self, alarm_names):

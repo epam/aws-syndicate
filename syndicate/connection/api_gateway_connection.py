@@ -38,7 +38,7 @@ REQ_VALIDATOR_PARAM_NAME = 'name'
 _LOG = get_logger('syndicate.connection.api_gateway_connection')
 
 
-@apply_methods_decorator(retry)
+@apply_methods_decorator(retry())
 class ApiGatewayConnection(object):
     """ API Gateway connection class."""
 
@@ -847,3 +847,15 @@ class ApiGatewayV2Connection:
             )
             route_id = response['RouteId']
         return route_id
+
+    def get_routes(self, api_id: str):
+        return self.client.get_routes(ApiId=api_id)
+
+    def get_integration(self, api_id: str, integration_id: str):
+        integration = self.client.get_integration(ApiId=api_id,
+                                                  IntegrationId=integration_id)
+
+        if integration.get('IntegrationMethod') == 'POST' and \
+                integration.get('IntegrationUri'):
+            return integration['IntegrationUri'].split('functions/')[-1].\
+                replace('/invocations', '')

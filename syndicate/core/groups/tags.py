@@ -15,7 +15,7 @@
 """
 import click
 from syndicate.core.build.bundle_processor import load_deploy_output
-
+from syndicate.core.helper import verbose_option
 
 TAGS_GROUP_NAME = 'tags'
 
@@ -37,6 +37,7 @@ def tags(ctx):
 
 
 @tags.command(name='apply')
+@verbose_option
 @click.pass_context
 def apply(ctx):
     """Assign tags from config to deployed resources"""
@@ -45,6 +46,7 @@ def apply(ctx):
 
 
 @tags.command(name='remove')
+@verbose_option
 @click.pass_context
 def remove(ctx):
     """Remove tags from config from deployed resources"""

@@ -24,7 +24,7 @@ from syndicate.core.helper import dict_keys_to_camel_case
 _LOG = get_logger('syndicate.connection.batch_connection')
 
 
-@apply_methods_decorator(retry)
+@apply_methods_decorator(retry())
 class BatchConnection(object):
     """ AWS Batch connection class. """
 

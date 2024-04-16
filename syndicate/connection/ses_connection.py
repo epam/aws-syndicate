@@ -21,7 +21,7 @@ from syndicate.connection.helper import apply_methods_decorator, retry
 _LOG = get_logger('syndicate.connection.ses_connection')
 
 
-@apply_methods_decorator(retry)
+@apply_methods_decorator(retry())
 class SESConnection(object):
     """SES connection class."""
 

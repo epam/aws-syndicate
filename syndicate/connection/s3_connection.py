@@ -26,7 +26,7 @@ from syndicate.connection.helper import apply_methods_decorator, retry
 _LOG = get_logger('syndicate.connection.s3_connection')
 
 
-@apply_methods_decorator(retry)
+@apply_methods_decorator(retry())
 class S3Connection(object):
     """ S3 connection class."""
 

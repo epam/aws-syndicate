@@ -25,7 +25,7 @@ _LOG = get_logger('syndicate.connection.sqs_connection')
 FIFO_REGIONS = ['us-east-1', 'us-east-2', 'us-west-2', 'eu-west-1']
 
 
-@apply_methods_decorator(retry)
+@apply_methods_decorator(retry())
 class SqsConnection(object):
     def __init__(self, region=None, aws_access_key_id=None,
                  aws_secret_access_key=None, aws_session_token=None):

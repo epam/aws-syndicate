@@ -57,6 +57,7 @@ EXPIRATION_CFG = 'expiration'
 SESSION_DURATION_CFG = 'session_duration'
 ACCESS_ROLE_CFG = 'access_role'
 IAM_PERMISSIONS_BOUNDARY_CFG = 'iam_permissions_boundary'
+LOCK_LIFETIME_MINUTES_CFG = 'lock_lifetime_minutes'
 
 TAGS_CFG = 'tags'
 
@@ -159,6 +160,10 @@ class ConfigValidator:
             IAM_PERMISSIONS_BOUNDARY_CFG: {
                 REQUIRED: False,
                 VALIDATOR: self._validate_iam_permissions_boundary
+            },
+            LOCK_LIFETIME_MINUTES_CFG: {
+                REQUIRED: False,
+                VALIDATOR: self._validate_lock_lifetime_minutes
             }
         }
 
@@ -323,7 +328,8 @@ class ConfigValidator:
                                   f'characters')
         return errors
 
-    def _validate_iam_permissions_boundary(self, key, value):
+    @staticmethod
+    def _validate_iam_permissions_boundary(key, value):
         errors = []
         if not isinstance(value, str):
             return [f'\'{key}\' must have a string type']
@@ -395,6 +401,13 @@ class ConfigValidator:
             return [f'\'{key}\' must a an integer']
         if value < 900:
             return [f'\'{key}\' must begin from 900 seconds']
+
+    @staticmethod
+    def _validate_lock_lifetime_minutes(key, value):
+        if not isinstance(value, int):
+            return [f'\'{key}\' must a an integer']
+        if not 0 <= value <= 300:
+            return [f'\'{key}\' value must be between 0 and 300 minutes']
 
     @staticmethod
     def _assert_value_is_str(key, value):

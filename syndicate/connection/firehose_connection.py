@@ -7,7 +7,7 @@ from syndicate.connection.helper import apply_methods_decorator, retry
 _LOG = get_logger('syndicate.connection.firehose_connection')
 
 
-@apply_methods_decorator(retry)
+@apply_methods_decorator(retry())
 class FirehoseConnection(object):
     """ Firehose connection class."""
 

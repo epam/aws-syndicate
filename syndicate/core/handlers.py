@@ -62,7 +62,7 @@ from syndicate.core.helper import (create_bundle_callback,
                                    resolve_default_value, ValidRegionParamType,
                                    generate_default_bundle_name,
                                    resolve_and_verify_bundle_callback,
-                                   param_to_lower)
+                                   param_to_lower, verbose_option)
 from syndicate.core.project_state.project_state import (MODIFICATION_LOCK,
                                                         WARMUP_LOCK)
 from syndicate.core.project_state.status_processor import project_state_status
@@ -93,13 +93,13 @@ def _not_require_config(all_params):
 @click.version_option()
 def syndicate():
     from syndicate.core import CONF_PATH
-    if CONF_PATH:
+    if _not_require_config(sys.argv):
+        pass
+    elif CONF_PATH:
         click.echo('Configuration used: ' + CONF_PATH)
         initialize_connection()
         initialize_project_state()
         initialize_signal_handling()
-    elif _not_require_config(sys.argv):
-        pass
     else:
         click.echo('Environment variable SDCT_CONF is not set! '
                    'Please verify that you have provided path to '
@@ -120,6 +120,7 @@ def syndicate():
 @click.option('--errors_allowed', is_flag=True,
               help='Flag to return successful response even if some tests '
                    'fail')
+@verbose_option
 @timeit(action_name=TEST_ACTION)
 def test(suite, test_folder_name, errors_allowed):
     """Discovers and runs tests inside python project configuration path."""
@@ -157,6 +158,7 @@ def test(suite, test_folder_name, errors_allowed):
               help='Flag to override existing bundle with the same name')
 @click.option('--errors_allowed', is_flag=True, default=False,
               help='Flag to continue bundle building if some tests fail')
+@verbose_option
 @click.pass_context
 @check_deploy_bucket_exists
 @timeit(action_name=BUILD_ACTION)
@@ -187,6 +189,7 @@ def build(ctx, bundle_name, force_upload, errors_allowed):
               help='Type of the IaC provider')
 @click.option('--output_dir',
               help='The directory where a transformed template will be saved')
+@verbose_option
 @timeit()
 def transform(bundle_name, dsl, output_dir):
     """
@@ -222,6 +225,7 @@ def transform(bundle_name, dsl, output_dir):
               help='Flag to continue failed deploy')
 @click.option('--replace_output', is_flag=True, default=False,
               help='Flag to replace the existing deploy output')
+@verbose_option
 @check_deploy_name_for_duplicates
 @check_deploy_bucket_exists
 @timeit(action_name=DEPLOY_ACTION)
@@ -277,6 +281,7 @@ def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
                    'while deploy')
 @click.option('--replace_output', nargs=1, is_flag=True, default=False,
               help='The flag to replace the existing deploy output file')
+@verbose_option
 @check_deploy_name_for_duplicates
 @check_deploy_bucket_exists
 @timeit(action_name=UPDATE_ACTION)
@@ -344,6 +349,7 @@ def update(bundle_name, deploy_name, replace_output,
               help='Remove failed deployed resources')
 @click.option('--preserve_state', is_flag=True,
               help='Preserve deploy output json file after resources removal')
+@verbose_option
 @timeit(action_name=CLEAN_ACTION)
 def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
           clean_only_resources_path, clean_externals, excluded_resources,
@@ -399,6 +405,7 @@ def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
 
 
 @syndicate.command(name=SYNC_ACTION)
+@verbose_option
 @check_deploy_bucket_exists
 @timeit()
 def sync():
@@ -414,6 +421,7 @@ def sync():
               help='Show event logs of the project')
 @click.option('--resources', 'category', flag_value='resources',
               help='Show a summary of the project resources')
+@verbose_option
 @check_deploy_bucket_exists
 @timeit()
 def status(category):
@@ -447,6 +455,7 @@ def status(category):
               help='Name of authentication header.')
 @click.option('--header_value', '-hvalue',
               nargs=1, help='Authentication header value.')
+@verbose_option
 @check_deploy_bucket_exists
 @timeit(action_name=WARMUP_ACTION)
 def warmup(bundle_name, deploy_name, api_gw_id, stage_name, lambda_auth,
@@ -508,6 +517,7 @@ def warmup(bundle_name, deploy_name, api_gw_id, stage_name, lambda_auth,
               help='Date until which collect lambda metrics. The '
                    '\'--from_date\' parameter required. Example of the date '
                    'format: 2022-02-02T02:02:02Z')
+@verbose_option
 @check_deploy_bucket_exists
 def profiler(bundle_name, deploy_name, from_date, to_date):
     """
@@ -542,6 +552,7 @@ def profiler(bundle_name, deploy_name, from_date, to_date):
                    'path for an mvn clean install. The artifacts are copied '
                    'to a folder, which is be later used as the deployment '
                    'bundle (the bundle path: bundles/${bundle_name})')
+@verbose_option
 @timeit(action_name=ASSEMBLE_JAVA_MVN_ACTION)
 def assemble_java_mvn(bundle_name, project_path):
     """
@@ -573,6 +584,7 @@ def assemble_java_mvn(bundle_name, project_path):
                    'found, which are described in the requirements.txt file, '
                    'and internal project dependencies according to the '
                    'described in local_requirements.txt file')
+@verbose_option
 @timeit(action_name=ASSEMBLE_PYTHON_ACTION)
 def assemble_python(bundle_name, project_path):
     """
@@ -602,6 +614,7 @@ def assemble_python(bundle_name, project_path):
               help='The path to the NodeJS project. The code is '
                    'packed to a zip archive, where the external libraries are '
                    'found, which are described in the package.json file')
+@verbose_option
 @timeit(action_name=ASSEMBLE_NODE_ACTION)
 def assemble_node(bundle_name, project_path):
     """
@@ -630,6 +643,7 @@ def assemble_node(bundle_name, project_path):
               callback=resolve_path_callback, required=True,
               help='The path to the project. Related files will be packed '
                    'into a zip archive.')
+@verbose_option
 @timeit(action_name=ASSEMBLE_SWAGGER_UI_ACTION)
 def assemble_swagger_ui(bundle_name, project_path):
     """
@@ -659,6 +673,7 @@ RUNTIME_LANG_TO_BUILD_MAPPING = {
 @click.option('--bundle_name', '-b', callback=generate_default_bundle_name,
               help='Bundle\'s name to build the lambdas in. '
                    'Default value: $ProjectName_%Y%m%d.%H%M%S')
+@verbose_option
 @click.pass_context
 @timeit(action_name=ASSEMBLE_ACTION)
 def assemble(ctx, bundle_name):
@@ -693,6 +708,7 @@ def assemble(ctx, bundle_name):
 @click.option('--bundle_name', '-b', required=True,
               callback=verify_bundle_callback,
               help='Bundle\'s name to package the current meta in')
+@verbose_option
 @timeit(action_name=PACKAGE_META_ACTION)
 def package_meta(bundle_name):
     """
@@ -710,6 +726,7 @@ def package_meta(bundle_name):
 
 
 @syndicate.command(name=CREATE_DEPLOY_TARGET_BUCKET_ACTION)
+@verbose_option
 @timeit()
 def create_deploy_target_bucket():
     """
@@ -730,6 +747,7 @@ def create_deploy_target_bucket():
 @click.option('--force_upload', '-F', is_flag=True,
               help='Flag to override existing bundle with the same name as '
                    'provided')
+@verbose_option
 @check_deploy_bucket_exists
 @timeit(action_name=UPLOAD_ACTION)
 def upload(bundle_name, force_upload=False):
@@ -774,6 +792,7 @@ def upload(bundle_name, force_upload=False):
 @click.option('--force_upload', '-F', is_flag=True, default=False,
               help='Flag. Used if the bundle with the same name as provided '
                    'already exists in a target account')
+@verbose_option
 @timeit()
 @click.pass_context
 def copy_bundle(ctx, bundle_name, src_account_id, src_bucket_region,
@@ -827,6 +846,7 @@ def copy_bundle(ctx, bundle_name, src_account_id, src_bucket_region,
                    'saved. If not specified, the directory with the name '
                    '"export" will be created in the project root directory to '
                    'store export files')
+@verbose_option
 def export(resource_type, dsl, deploy_name, bundle_name, output_dir):
     """
     Exports a configuration of the specified resource type to the file in a

@@ -21,6 +21,7 @@ import os
 import re
 import subprocess
 import sys
+import logging
 from datetime import datetime, timedelta
 from functools import wraps
 from pathlib import Path
@@ -722,3 +723,27 @@ def validate_authorizer_name_option(ctx, param, value):
                                f'with \'authorization_type\' '
                                f'\'{authorization_type}\'')
         return value
+
+
+def set_debug_log_level(ctx, param, value):
+    if value:
+        loggers = [logging.getLogger(name) for name in
+                   logging.root.manager.loggerDict if
+                   name.startswith('syndicate') or
+                   name.startswith('user-syndicate')]
+        for logger in loggers:
+            if not logger.isEnabledFor(logging.DEBUG):
+                logger.setLevel(logging.DEBUG)
+                if logger.name == 'syndicate':
+                    logger.addHandler(logging.StreamHandler())
+        _LOG.debug('The logs level was set to DEBUG')
+
+
+def verbose_option(func):
+    @click.option('--verbose', '-v', is_flag=True,
+                  callback=set_debug_log_level, expose_value=False,
+                  is_eager=True, help="Enable logging verbose mode.")
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        return func(*args, **kwargs)
+    return wrapper

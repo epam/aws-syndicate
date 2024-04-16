@@ -26,7 +26,7 @@ def build_py_package_name(lambda_name, lambda_version):
     return '{0}-{1}.zip'.format(lambda_name, lambda_version)
 
 
-def zip_dir(basedir, name, archive_subfolder=None):
+def zip_dir(basedir: str, name: str, archive_subfolder: str = None):
     assert os.path.isdir(basedir)
     with closing(zipfile.ZipFile(name, "w", zipfile.ZIP_DEFLATED)) as z:
         for root, dirs, files in os.walk(basedir, followlinks=True):

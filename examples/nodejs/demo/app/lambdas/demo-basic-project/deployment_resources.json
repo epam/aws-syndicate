@@ -1,0 +1,14 @@
+{
+  "PutObjectToDynamoRole": {
+    "predefined_policies": [],
+    "principal_service": "lambda",
+    "custom_policies": [
+      "PutObjectToDynamoPolicy",
+      "LambdaBasicExecution"
+    ],
+    "resource_type": "iam_role",
+    "allowed_accounts": [
+      "${account_id}"
+    ]
+  }
+}

@@ -92,7 +92,7 @@ def _build_index_definition(index):
     return index_def
 
 
-@apply_methods_decorator(retry)
+@apply_methods_decorator(retry())
 class DynamoConnection(object):
     """ DynamoDB class."""
 

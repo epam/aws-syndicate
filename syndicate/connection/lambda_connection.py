@@ -46,7 +46,7 @@ def _str_list_to_list(param, param_name):
     return result
 
 
-@apply_methods_decorator(retry)
+@apply_methods_decorator(retry())
 class LambdaConnection(object):
     """ Lambda connection class."""
 
@@ -509,7 +509,6 @@ class LambdaConnection(object):
         if filters is not None:
             params['FilterCriteria'] = {'Filters': filters}
         return self.client.update_event_source_mapping(**params)
-
 
     def get_function(self, lambda_name, qualifier=None):
         """ Get function info if it is exists,

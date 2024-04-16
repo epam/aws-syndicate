@@ -15,6 +15,7 @@
 """
 import io
 import os
+import posixpath
 from pathlib import PurePath
 from shutil import rmtree
 from zipfile import ZipFile
@@ -35,11 +36,14 @@ USER_LOG = get_user_logger()
 
 class SwaggerUIResource(BaseResource):
 
-    def __init__(self, s3_conn, deploy_target_bucket, region,
+    def __init__(self, s3_conn, deploy_target_bucket,
+                 deploy_target_bucket_key_compound, region,
                  account_id, extended_prefix_mode, prefix, suffix) -> None:
         from syndicate.core import CONF_PATH
         self.s3_conn = s3_conn
         self.deploy_target_bucket = deploy_target_bucket
+        self.deploy_target_bucket_key_compound = \
+            deploy_target_bucket_key_compound
         self.region = region
         self.account_id = account_id
         self.extended_prefix_mode = extended_prefix_mode
@@ -67,18 +71,13 @@ class SwaggerUIResource(BaseResource):
         artifact_path = meta.get(S3_PATH_NAME)
         if not artifact_path:
             raise AssertionError(f'Can\'t resolve Swagger UI artifact path')
-        if '/' in self.deploy_target_bucket:
-            deploy_bucket_name = self.deploy_target_bucket.split('/', 1)[0]
-            artifact_src_path = self.deploy_target_bucket.split('/', 1)[1] + \
-                artifact_path
-        else:
-            deploy_bucket_name = self.deploy_target_bucket
-            artifact_src_path = artifact_path
+        artifact_src_path = posixpath.join(
+            self.deploy_target_bucket_key_compound, artifact_path)
 
         _LOG.info(f'Downloading an artifact for Swagger UI \'{name}\'')
         with io.BytesIO() as artifact:
             self.s3_conn.download_to_file(
-                    bucket_name=deploy_bucket_name,
+                    bucket_name=self.deploy_target_bucket,
                     key=artifact_src_path,
                     file=artifact)
             extract_to = build_path(artifact_dir, name)
