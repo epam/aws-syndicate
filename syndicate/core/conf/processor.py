@@ -27,12 +27,12 @@ from syndicate.core.conf.validator import \
     (PROJECT_PATH_CFG, REGION_CFG, DEPLOY_TARGET_BUCKET_CFG,
      ACCOUNT_ID_CFG, PROJECTS_MAPPING_CFG, AWS_ACCESS_KEY_ID_CFG,
      RESOURCES_PREFIX_CFG, RESOURCES_SUFFIX_CFG, AWS_SECRET_ACCESS_KEY_CFG,
-     ALL_REGIONS, ALLOWED_RUNTIME_LANGUAGES, ConfigValidator,
-     USE_TEMP_CREDS_CFG, SERIAL_NUMBER_CFG,
+     ConfigValidator, USE_TEMP_CREDS_CFG, SERIAL_NUMBER_CFG,
      TEMP_AWS_ACCESS_KEY_ID_CFG, TEMP_AWS_SECRET_ACCESS_KEY_CFG,
      TEMP_AWS_SESSION_TOKEN_CFG, EXPIRATION_CFG, TAGS_CFG,
      IAM_PERMISSIONS_BOUNDARY_CFG, LAMBDAS_ALIASES_NAME_CFG,
-     AWS_SESSION_TOKEN_CFG, EXTENDED_PREFIX_MODE_CFG)
+     AWS_SESSION_TOKEN_CFG, EXTENDED_PREFIX_MODE_CFG,
+     LOCK_LIFETIME_MINUTES_CFG)
 from syndicate.core.constants import (DEFAULT_SEP, IAM_POLICY, IAM_ROLE,
                                       S3_BUCKET_TYPE)
 
@@ -45,6 +45,8 @@ LEGACY_ALIASES_FILE_NAME = 'sdct_aliases.conf'
 _LOG = get_logger('core.conf.config_holder')
 
 GLOBAL_AWS_SERVICES = {IAM_ROLE, IAM_POLICY, S3_BUCKET_TYPE}
+
+DEFAULT_LOCK_TIME_IN_MINUTES = 20
 
 
 class ConfigHolder:
@@ -209,8 +211,8 @@ class ConfigHolder:
 
     @property
     def deploy_target_bucket(self) -> str:
-        return self._resolve_bucket_view_attribute('name',
-            self._resolve_variable(DEPLOY_TARGET_BUCKET_CFG)
+        return self._resolve_bucket_view_attribute(
+            'name', self._resolve_variable(DEPLOY_TARGET_BUCKET_CFG)
         )
 
     @property
@@ -322,6 +324,11 @@ class ConfigHolder:
         tags = self._resolve_variable(TAGS_CFG) or {}
         tags = {k: str(v) for k, v in tags.items()}
         return tags
+
+    @property
+    def lock_lifetime_minutes(self) -> int:
+        return self._resolve_variable(LOCK_LIFETIME_MINUTES_CFG) or \
+            DEFAULT_LOCK_TIME_IN_MINUTES
 
     def resolve_alias(self, name):
         if self._aliases.get(name):

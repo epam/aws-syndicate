@@ -211,12 +211,15 @@ def lambda_layer(name, runtime, link_with_lambda, project_path):
                    'resources during deployment')
 @click.option('--iam_permissions_boundary', type=str,
               help='Common permissions boundary arn to add to all the roles')
+@click.option('--lock_lifetime_minutes', type=click.IntRange(min=0, max=300),
+              help='Project lock lifetime in minutes (see section "locks" '
+                   'in ".syndicate"). The default value is 20 minutes.')
 @verbose_option
 @timeit()
 def config(name, config_path, project_path, region, access_key, secret_key,
            session_token, bundle_bucket_name, prefix, suffix,
            extended_prefix, use_temp_creds, access_role, serial_number,
-           tags, iam_permissions_boundary):
+           tags, iam_permissions_boundary, lock_lifetime_minutes):
     """
     Creates Syndicate configuration files
     """
@@ -235,7 +238,8 @@ def config(name, config_path, project_path, region, access_key, secret_key,
                                  access_role=access_role,
                                  serial_number=serial_number,
                                  tags=tags,
-                                 iam_permissions_boundary=iam_permissions_boundary)
+                                 iam_permissions_boundary=iam_permissions_boundary,
+                                 lock_lifetime_minutes=lock_lifetime_minutes)
 
 
 @generate.command(name='swagger_ui')
