@@ -206,6 +206,55 @@ class Ec2Resource(BaseResource):
 
     @unpack_kwargs
     def _create_launch_template_from_meta(self, name, meta):
+        lt_data = self._prepare_launch_template_data(meta)
+        response = self.ec2_conn.create_launch_template(
+            name=name,
+            lt_data=dict_keys_to_capitalized_camel_case(lt_data),
+            version_description=meta.get('version_description'),
+            tag_specifications=dict_keys_to_capitalized_camel_case(
+                meta['tag_specifications']) if
+            meta.get('tag_specifications') else None
+        )
+        return self.describe_launch_template(name, meta, response)
+
+    def remove_launch_templates(self, args):
+        return self.create_pool(self._remove_launch_template, args)
+
+    @unpack_kwargs
+    def _remove_launch_template(self, arn, config):
+        try:
+            self.ec2_conn.delete_launch_template(lt_id=arn)
+            _LOG.info(f"Launch template with ID '{arn}' removed "
+                      f"successfully")
+        except ClientError as e:
+            if 'InvalidLaunchTemplateId.NotFound' in str(e):
+                _LOG.warn(f"Launch template with ID '{arn}' not found")
+            else:
+                raise e
+
+    def update_launch_template(self, args):
+        return self.create_pool(self._update_launch_template_from_meta, args)
+
+    @unpack_kwargs
+    def _update_launch_template_from_meta(self, name, meta, context):
+        lt_data = self._prepare_launch_template_data(meta)
+        lt_description = self.ec2_conn.describe_launch_templates(lt_name=name)
+        if not lt_description:
+            raise AssertionError(
+                f"Launch template with name '{name}' not found")
+        lt_latest_version = lt_description[0]['LatestVersionNumber']
+        self.ec2_conn.create_launch_template_version(
+            lt_name=name,
+            source_version=str(lt_latest_version),
+            lt_data=dict_keys_to_capitalized_camel_case(lt_data),
+            version_description=meta.get('version_description')
+        )
+        response = self.ec2_conn.modify_launch_template(
+            lt_name=name,
+            default_version=str(lt_latest_version + 1))
+        return self.describe_launch_template(name, meta, response)
+
+    def _prepare_launch_template_data(self, meta):
         from syndicate.core import CONFIG
         lt_data = meta['launch_template_data']
         lt_imds = lt_data.pop('imds_support', None)
@@ -258,8 +307,8 @@ class Ec2Resource(BaseResource):
                 }
 
         user_data_file_path = lt_data.pop('userdata_file', None)
-        user_data_content = None
         if user_data_file_path:
+            user_data_content = None
             if not os.path.isabs(user_data_file_path):
                 user_data_file_path = os.path.join(CONFIG.project_path,
                                                    user_data_file_path)
@@ -275,27 +324,4 @@ class Ec2Resource(BaseResource):
                 user_data = user_data_b.decode('ascii')
                 lt_data['user_data'] = user_data
 
-        response = self.ec2_conn.create_launch_template(
-            name=name,
-            lt_data=dict_keys_to_capitalized_camel_case(lt_data),
-            version_description=meta.get('version_description'),
-            tag_specifications=dict_keys_to_capitalized_camel_case(
-                meta['tag_specifications']) if
-            meta.get('tag_specifications') else None
-        )
-        return self.describe_launch_template(name, meta, response)
-
-    def remove_launch_templates(self, args):
-        return self.create_pool(self._remove_launch_template, args)
-
-    @unpack_kwargs
-    def _remove_launch_template(self, arn, config):
-        try:
-            self.ec2_conn.delete_launch_template(lt_id=arn)
-            _LOG.info(f"Launch template with ID '{arn}' removed "
-                      f"successfully")
-        except ClientError as e:
-            if 'InvalidLaunchTemplateId' in str(e):
-                _LOG.warn(f"Launch template with ID '{arn}' not found")
-            else:
-                raise e
+        return lt_data

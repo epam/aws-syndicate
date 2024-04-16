@@ -208,3 +208,5 @@ SYNDICATE_WIKI_PAGE = 'https://github.com/epam/aws-syndicate/wiki/'
 SYNDICATE_PROJECT_EXAMPLES_PAGE = 'https://github.com/epam/aws-syndicate/tree/master/examples/'
 
 JAVA_LAMBDAS_WIKI_PAGE = '3.-Lambda-Requirements-for-Automatic-Articfacts-Build#32-java-lambdas'
+
+EC2_LAUNCH_TEMPLATE_SUPPORTED_IMDS_VERSIONS = ['v1.0', 'v2.0']

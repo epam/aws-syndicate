@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Generator, Optional, List, Iterable
 
 import botocore
+from botocore.exceptions import ClientError
 from boto3 import client
 
 from syndicate.commons.log_helper import get_logger
@@ -374,6 +375,34 @@ class EC2Connection(object):
             params['TagSpecifications'] = tag_specifications
         return self.client.create_launch_template(**params)
 
+    def create_launch_template_version(self, lt_name=None, lt_id=None,
+                                       source_version=None, lt_data=None,
+                                       version_description=None):
+        params = dict()
+        if source_version is not None:
+            params['SourceVersion'] = source_version
+        if lt_data is not None:
+            params['LaunchTemplateData'] = lt_data
+        if version_description is not None:
+            params['VersionDescription'] = version_description
+
+        if lt_name is not None and lt_id is not None:
+            _LOG.warn('Both the launch template name and ID are specified. '
+                      'The request will be made by ID.')
+            params['LaunchTemplateId'] = lt_id
+
+        elif lt_name is not None:
+            params['LaunchTemplateName'] = lt_name
+
+        elif lt_id is not None:
+            params['LaunchTemplateId'] = lt_id
+
+        else:
+            _LOG.error('A launch template version can not be created without '
+                       'the name or ID of the launch template.')
+            return
+        return self.client.create_launch_template_version(**params)
+
     def describe_launch_templates(self, lt_name=None, lt_id=None):
         result_list = list()
         params = dict()
@@ -405,19 +434,27 @@ class EC2Connection(object):
             else:
                 _LOG.warn(
                     f'Unsupported launch template ID type {type(lt_id)}')
-
-        response = self.client.describe_launch_templates(**params) if params \
-            else self.client.describe_launch_templates()
-        token = response.get('NextToken')
-        result_list.extend(response['LaunchTemplates'])
-        while token:
-            if params:
-                params['NextToken'] = token
-                response = self.client.describe_launch_templates(**params)
-            else:
-                response = self.client.describe_launch_templates()
+        try:
+            response = self.client.describe_launch_templates(**params) if (
+                params) else self.client.describe_launch_templates()
             token = response.get('NextToken')
             result_list.extend(response['LaunchTemplates'])
+            while token:
+                if params:
+                    params['NextToken'] = token
+                    response = self.client.describe_launch_templates(**params)
+                else:
+                    response = self.client.describe_launch_templates()
+                token = response.get('NextToken')
+                result_list.extend(response['LaunchTemplates'])
+        except ClientError as e:
+            if ('InvalidLaunchTemplateName.NotFoundException' in str(e) or
+                    'InvalidLaunchTemplateId.NotFound' in str(e)):
+                dynamic_message = f"by name '{lt_name}'" if lt_name else \
+                    f"by ID '{lt_id}'"
+                _LOG.warn(f"Launch template not found by {dynamic_message}")
+            else:
+                raise e
         return result_list
 
     def delete_launch_template(self, lt_name=None, lt_id=None):
@@ -437,6 +474,28 @@ class EC2Connection(object):
                 'Either the launch template name or ID must be provided for '
                 'removing the launch template.')
         self.client.delete_launch_template(**params)
+
+    def modify_launch_template(self, default_version, lt_name=None,
+                               lt_id=None):
+        params = dict()
+        params['DefaultVersion'] = default_version
+
+        if lt_name is not None and lt_id is not None:
+            _LOG.warn('Both the launch template name and ID are specified. '
+                      'The request will be made by ID.')
+            params['LaunchTemplateId'] = lt_id
+
+        elif lt_name is not None:
+            params['LaunchTemplateName'] = lt_name
+
+        elif lt_id is not None:
+            params['LaunchTemplateId'] = lt_id
+
+        else:
+            _LOG.error('A launch template modification can not be done '
+                       'without the name or ID of the launch template.')
+            return
+        return self.client.modify_launch_template(**params)
 
 
 class InstanceTypes:

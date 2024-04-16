@@ -270,7 +270,9 @@ class ProcessorFacade:
             DYNAMO_TABLE_TYPE:
                 self.resources_provider.dynamodb().update_tables,
             SWAGGER_UI_TYPE: self.resources_provider.swagger_ui().
-            create_update_swagger_ui
+            create_update_swagger_ui,
+            EC2_LAUNCH_TEMPLATE_TYPE:
+                self.resources_provider.ec2().update_launch_template,
         }
 
     def resource_configuration_processor(self):
