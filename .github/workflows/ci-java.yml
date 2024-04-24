@@ -1,0 +1,95 @@
+---
+name: Java CI
+
+on:
+  pull_request:
+    branches:
+      - master
+      - develop
+    paths:
+      - 'plugin/**'
+  push:
+    branches:
+      - master
+    paths:
+      - 'plugin/**'
+  release:
+    types:
+      - published
+    paths:
+      - 'plugin/**'
+  workflow_dispatch:
+
+jobs:
+  maven:
+    uses: ./.github/workflows/maven.yml
+    if: github.repository_owner == 'epam'
+
+  release-snapshot-to-maven-central:
+    name: Publish SNAPSHOT package to MavenCentral
+    environment: release-snapshot
+    if: github.repository_owner == 'epam' && github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    needs: build-java
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Maven Central Repository
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'corretto'
+          server-id: ossrh
+          server-username: OSS_SONATYPE_USERNAME
+          server-password: OSS_SONATYPE_TOKEN
+          cache: 'maven'
+          settings-path: ${{ github.workspace }}
+      - name: Set SNAPSHOT in version
+        run: |
+          syndicate_plugin_version=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout --file ./plugin/pom.xml | xargs) 
+          mvn versions:set -DnewVersion="${syndicate_plugin_version}-SNAPSHOT" --file ./plugin/pom.xml
+          mvn versions:commit --file ./plugin/pom.xml
+      - name: Build with Maven
+        run: mvn -B package --file ./plugin/pom.xml
+      - name: Deploy development version binaries (Snapshots)
+        env:
+          OSS_SONATYPE_USERNAME: ${{ vars.OSSRH_USERNAME  }}
+          OSS_SONATYPE_TOKEN: ${{ secrets.OSSRH_TOKEN }}
+        run: |
+          echo Checking variables ${{ secrets.OSSRH_USERNAME }}
+          cat $GITHUB_WORKSPACE/settings.xml
+          mvn clean deploy -B --file ./plugin/pom.xml --settings $GITHUB_WORKSPACE/settings.xml
+
+  # Upload to MavenCentral on every GitHub Release
+  release-to-maven-central:
+    name: Publish released package to MavenCentral
+    environment: release-maven-central
+    if: github.repository_owner == 'epam' && github.event.action == 'published'
+    runs-on: ubuntu-latest
+    needs: build-java
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Maven Central Repository
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'corretto'
+          server-id: ossrh
+          server-username: MAVEN_USERNAME
+          server-password: MAVEN_PASSWORD
+          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
+          gpg-passphrase: GPG_PASSPHRASE
+          cache: 'maven'
+      - name: Build with Maven
+        run: mvn -B package --file ./plugin/pom.xml
+      - name: Publish to Maven Central
+        run: |
+          # -U force updates just to make sure we are using latest dependencies
+          # -B Batch mode (do not ask for user input), just in case
+          # -P activate profile
+          mvn -U -B clean deploy -P release --file ./plugin/pom.xml
+        env:
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+          MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+          MAVEN_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
