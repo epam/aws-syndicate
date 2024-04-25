@@ -136,7 +136,8 @@ def _check_duplicated_resources(initial_meta_dict, additional_item_name,
                     'api_method_integration_responses'] = initial_integration_resp
             # join items dependencies
             dependencies_dict = {each['resource_name']: each
-                                 for each in additional_item.get('dependencies') or []}
+                                 for each in
+                                 additional_item.get('dependencies') or []}
             for each in initial_item.get('dependencies') or []:
                 if each['resource_name'] not in dependencies_dict:
                     additional_item['dependencies'].append(each)
@@ -173,7 +174,8 @@ def _check_duplicated_resources(initial_meta_dict, additional_item_name,
             if 'policy_statement_singleton' not in additional_item and _pst:
                 additional_item['policy_statement_singleton'] = _pst
 
-            additional_item['route_selection_expression'] = initial_item.get('route_selection_expression')
+            additional_item['route_selection_expression'] = initial_item.get(
+                'route_selection_expression')
 
             additional_item = _merge_api_gw_list_typed_configurations(
                 initial_item,
@@ -309,7 +311,8 @@ def extract_deploy_stage_from_openapi_spec(openapi_spec: dict) -> str:
         server_url = server_url.replace(f'{{{var_name}}}', default_value)
 
     # Extract the first path segment
-    path_segments = [segment for segment in urlparse(server_url).path.split('/')
+    path_segments = [segment for segment in
+                     urlparse(server_url).path.split('/')
                      if segment]
     if not path_segments:
         raise ValueError("No path segments found in server URL.")
@@ -402,15 +405,18 @@ def _look_for_configs(nested_files: list[str], resources_meta: dict[str, Any],
                 try:
                     resource_type = resource['resource_type']
                 except KeyError:
-                    raise AssertionError(
-                        "There is no 'resource_type' in {0}".format(
-                            resource_name))
+                    error_message = ("There is no 'resource_type' "
+                                     "in {0}").format(resource_name)
+                    _LOG.error(error_message)
+                    raise AssertionError(error_message)
                 if resource_type not in RESOURCE_LIST:
-                    raise KeyError(
+                    error_message = (
                         f'Unsupported resource type found: "{resource_type}". '
-                        'Please double-check the correctness of the specified '
-                        'resource type. To add a new resource type please '
-                        'request the support team.')
+                        f'Please double-check the correctness of the specified '
+                        f'resource type. To add a new resource type please '
+                        f'request the support team.')
+                    _LOG.error(error_message)
+                    raise KeyError(error_message)
                 res = _check_duplicated_resources(resources_meta,
                                                   resource_name, resource)
                 if res:
@@ -419,7 +425,8 @@ def _look_for_configs(nested_files: list[str], resources_meta: dict[str, Any],
 
 
 # todo validate all required configs
-def create_resource_json(project_path: str, bundle_name: str) -> dict[str, Any]:
+def create_resource_json(project_path: str, bundle_name: str) -> dict[
+    str, Any]:
     """ Create resource catalog json with all resource metadata in project.
 
     :param project_path: path to the project
