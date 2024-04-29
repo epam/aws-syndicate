@@ -17,6 +17,8 @@ import uuid
 from json import dumps, loads
 
 from boto3 import client
+from botocore.exceptions import ClientError
+
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import apply_methods_decorator, retry
 
@@ -213,7 +215,15 @@ class SNSConnection(object):
 
     def list_subscriptions_by_topic(self, topic_arn):
         subscriptions = []
-        response = self.client.list_subscriptions_by_topic(TopicArn=topic_arn)
+        try:
+            response = self.client.list_subscriptions_by_topic(
+                TopicArn=topic_arn)
+        except ClientError as e:
+            if e.response['Error']['Code'] == 'NotFound':
+                _LOG.warn(f'SNS topic \'{topic_arn}\' is not found')
+                return subscriptions
+            else:
+                raise e
         subscriptions.extend(response.get('Subscriptions'))
         token = response.get('NextToken')
         while token:
