@@ -1,0 +1,27 @@
+---
+name: Build and Run Tests by Maven
+
+on:
+  workflow_call:
+
+jobs:
+  build-java:
+    name: "maven-compile (${{ matrix.os }}, JDK-${{ matrix.jdk }}), Distribution ${{ matrix.distribution }}"
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest, windows-latest, macos-latest ]
+        jdk: [ 17, 21 ]
+        distribution: [ corretto, oracle ]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up JDK ${{ matrix.jdk }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ matrix.jdk }}
+          distribution: ${{ matrix.distribution }}
+          cache: "maven"
+      - name: Build with Maven
+        run: mvn -B package --file ./plugin/pom.xml
