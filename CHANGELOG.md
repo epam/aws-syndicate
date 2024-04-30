@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add error log in case of invalid resource type
 - Fixed an error in case of an attempt to delete a nonexistent IAM Policy
 - Fixed an error in case of an attempt to delete a nonexistent SNS Topic
+- Fixed an error related to `UpdateEventSourceMapping operation` during SQS trigger deployment
 
 # [1.11.3] - 2024-04-16
 - Added support of Python 3.12 lambda runtime

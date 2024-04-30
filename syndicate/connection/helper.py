@@ -64,6 +64,8 @@ def retry(retry_timeout=DEFAULT_RETRY_TIMEOUT_SEC,
                 'An error occurred (InvalidParameterValueException) when '
                 'calling the CreateEventSourceMapping operation',
                 'An error occurred (InvalidParameterValueException) when '
+                'calling the UpdateEventSourceMapping operation',
+                'An error occurred (InvalidParameterValueException) when '
                 'calling the CreateCluster operation',
                 'An error occurred (SubnetGroupInUseFault) when calling '
                 'the DeleteSubnetGroup operation',
