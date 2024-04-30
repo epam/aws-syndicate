@@ -64,6 +64,8 @@ def retry(retry_timeout=DEFAULT_RETRY_TIMEOUT_SEC,
                 'An error occurred (InvalidParameterValueException) when '
                 'calling the CreateEventSourceMapping operation',
                 'An error occurred (InvalidParameterValueException) when '
+                'calling the UpdateEventSourceMapping operation',
+                'An error occurred (InvalidParameterValueException) when '
                 'calling the CreateCluster operation',
                 'An error occurred (SubnetGroupInUseFault) when calling '
                 'the DeleteSubnetGroup operation',
@@ -91,8 +93,8 @@ def retry(retry_timeout=DEFAULT_RETRY_TIMEOUT_SEC,
                     retry_flag = False
                     for exc in retry_exceptions:
                         if exc in str(e):
-                            _LOG.error(f'Retry on {handler_func.__name__}. '
-                                       f'Error: {str(e)}')
+                            _LOG.warning(f'Retry on {handler_func.__name__}. '
+                                         f'Error: {str(e)}')
                             _LOG.debug(
                                 f'Parameters: {str(args)}, {str(kwargs)}')
                             # set to debug, we need it only in the logs file

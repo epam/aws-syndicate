@@ -19,9 +19,12 @@ from syndicate.core.build.validator.dynamodb_validator import \
     validate_dynamodb, validate_dax_cluster
 from syndicate.core.build.validator.batch_jobdef_validator import validate_batch_jobdef
 from syndicate.core.build.validator.lambda_validator import validate_lambda
+from syndicate.core.build.validator.ec2_launch_template_validator import \
+    validate_launch_template
 from syndicate.core.constants import \
     (LAMBDA_CONFIG_FILE_NAME, LAMBDA_TYPE, DYNAMO_TABLE_TYPE,
-     BATCH_COMPENV_TYPE, BATCH_JOBDEF_TYPE, DAX_CLUSTER_TYPE)
+     BATCH_COMPENV_TYPE, BATCH_JOBDEF_TYPE, DAX_CLUSTER_TYPE,
+     EC2_LAUNCH_TEMPLATE_TYPE)
 
 ALL_TYPES = 'all_types'
 
@@ -50,5 +53,6 @@ VALIDATOR_BY_TYPE_MAPPING = {
     DAX_CLUSTER_TYPE: validate_dax_cluster,
     BATCH_COMPENV_TYPE: validate_batch_compenv,
     BATCH_JOBDEF_TYPE: validate_batch_jobdef,
-    LAMBDA_TYPE: validate_lambda
+    LAMBDA_TYPE: validate_lambda,
+    EC2_LAUNCH_TEMPLATE_TYPE: validate_launch_template
 }

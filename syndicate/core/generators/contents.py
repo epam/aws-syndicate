@@ -194,6 +194,7 @@ NODEJS_LAMBDA_HANDLER_TEMPLATE = """exports.handler = async (event) => {
 
 GITIGNORE_CONTENT = """.syndicate
 logs/
+.syndicate-config-*/
 """
 
 CHANGELOG_TEMPLATE = """# Changelog
