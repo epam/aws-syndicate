@@ -5,10 +5,13 @@ from functools import partial
 import click
 
 from syndicate.core.constants import S3_BUCKET_ACL_LIST, \
-    API_GW_AUTHORIZER_TYPES, CUSTOM_AUTHORIZER_KEY
+    API_GW_AUTHORIZER_TYPES, CUSTOM_AUTHORIZER_KEY, \
+    EC2_LAUNCH_TEMPLATE_SUPPORTED_IMDS_VERSIONS
 from syndicate.core.generators.deployment_resources import *
 from syndicate.core.generators.deployment_resources.api_gateway_generator import \
     ApiGatewayAuthorizerGenerator
+from syndicate.core.generators.deployment_resources.ec2_launch_template_generator import \
+    EC2LaunchTemplateGenerator
 from syndicate.core.generators.lambda_function import PROJECT_PATH_PARAM
 from syndicate.core.helper import OrderedGroup, OptionRequiredIf, \
     validate_incompatible_options, validate_authorizer_name_option, \
@@ -505,6 +508,41 @@ def ec2_instance(ctx, **kwargs):
     generator = EC2InstanceGenerator(**kwargs)
     _generate(generator)
     click.echo(f"EC2 instance '{kwargs['resource_name']}' was added"
+               f"successfully")
+
+
+@meta.command(name='ec2_launch_template')
+@click.option('--resource_name', type=str, required=True,
+              help="Launch template name")
+@click.option('--image_id', type=str, required=True,
+              help="The ID of the AMI")
+@click.option('--key_name', type=str,
+              help="The name of the key pair")
+@click.option('--instance_type', type=str,
+              help="Instance type")
+@click.option('--security_group_ids', type=str, multiple=True,
+              help="Security group ids")
+@click.option('--security_group_names', type=str, multiple=True,
+              help="Security group names")
+@click.option('--userdata_file', type=str,
+              help="File path to userdata (can be specified as a relative "
+                   "path to the project path)")
+@click.option('--iam_role', type=str,
+              help="Instance IAM role")
+@click.option('--imds_version', type=click.Choice(
+    EC2_LAUNCH_TEMPLATE_SUPPORTED_IMDS_VERSIONS),
+              help="IMDS version")
+@click.option('--version_description', type=str,
+              help="A description for the version of the launch template")
+@verbose_option
+@click.pass_context
+@timeit()
+def ec2_launch_template(ctx, **kwargs):
+    """Generates ec2_launch_template deployment resource template"""
+    kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
+    generator = EC2LaunchTemplateGenerator(**kwargs)
+    _generate(generator)
+    click.echo(f"ec2_launch_template '{kwargs['resource_name']}' was added "
                f"successfully")
 
 

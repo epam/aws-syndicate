@@ -1006,9 +1006,7 @@ class ApiGatewayResource(BaseResource):
         stage_name = config["resource_meta"]["deploy_stage"]
         openapi_context = self.describe_openapi(api_id, stage_name)
         if not openapi_context:
-            raise ClientError(f'API Gateway with an ID {api_id} '
-                              f'not found.',
-                              'Describe API Gateway')
+            return
         api_lambdas_arns = self.extract_api_gateway_lambdas_arns(
             openapi_context)
         api_lambda_auth_arns = self.extract_api_gateway_lambda_auth_arns(
