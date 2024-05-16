@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 # [1.11.5] - 2024-05-09
 - Syndicate Java plugin patched to version 1.11.1 to exclude extra dependencies
+- Fixed an error related to export OpenAPI specification in extended prefix mode
 
 # [1.11.4] - 2024-04-30
 - Added support of EC2 Launch Templates(`ec2_launch_template`)
