@@ -48,9 +48,9 @@ class ConfigurationExporter(ABC):
     def _remove_prefix_suffix_from_string(string: str,
                                           prefix: str,
                                           suffix: str) -> str:
-        if string.startswith(prefix):
+        if string.startswith(prefix) and prefix:
             string = string[len(prefix):]
-        if string.endswith(suffix):
+        if string.endswith(suffix) and suffix:
             string = string[:-len(suffix)]
         return string
 
