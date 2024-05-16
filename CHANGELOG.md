@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [1.11.5] - 2024-05-09
+- Syndicate Java plugin patched to version 1.11.1 to exclude extra dependencies
+- Fixed an error related to export OpenAPI specification in extended prefix mode
+
 # [1.11.4] - 2024-04-30
 - Added support of EC2 Launch Templates(`ec2_launch_template`)
 - Change log level (for non-last exceptions) in retry decorator from error to warning
