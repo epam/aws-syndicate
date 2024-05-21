@@ -449,11 +449,17 @@ class ApiGatewayResource(BaseResource):
 
     def _resolve_cup_ids(self, openapi_context):
         _LOG.debug('Going to resolve Cognito User Pools ARNs')
-        authorizer = deep_get(openapi_context,
-                              ['components', 'securitySchemes',
-                               'authorizer', 'x-amazon-apigateway-authorizer'])
+        security_schemes = \
+            openapi_context.get('components', {}).get('securitySchemes', {})
 
-        if authorizer:
+        authorizers = [
+            value['x-amazon-apigateway-authorizer']
+            for _, value in security_schemes.items()
+            if (value.get('x-amazon-apigateway-authtype') ==
+                _COGNITO_AUTHORIZER_TYPE.lower()
+                and 'x-amazon-apigateway-authorizer' in value)]
+
+        for authorizer in authorizers:
             pools_names = provider_arns = None
             if authorizer.get('type') == _COGNITO_AUTHORIZER_TYPE.lower():
                 pools_names = authorizer.get(X_SDCT_EXTENSION_KEY)

@@ -76,17 +76,13 @@ class ApiGatewayConnection(object):
 
     def create_openapi(self, openapi_context):
         # Create a new API Gateway with the OpenAPI definition
-        try:
-            response = self.client.import_rest_api(
-                body=json.dumps(openapi_context),
-                failOnWarnings=False
-            )
-            api_id = response['id']
-            _LOG.debug(f"API Gateway created successfully with ID: {api_id}")
-            return api_id
-        except self.client.exceptions.ClientError as e:
-            _LOG.error(f"An error occurred: {e}")
-            return None
+        response = self.client.import_rest_api(
+            body=json.dumps(openapi_context),
+            failOnWarnings=False
+        )
+        api_id = response['id']
+        _LOG.debug(f"API Gateway created successfully with ID: {api_id}")
+        return api_id
 
     def describe_openapi(self, api_id, stage_name):
         try:
@@ -105,16 +101,13 @@ class ApiGatewayConnection(object):
 
     def update_openapi(self, api_id, openapi_context):
         # Update the API Gateway with the OpenAPI definition
-        try:
-            self.client.put_rest_api(
-                restApiId=api_id,
-                mode='overwrite',
-                body=json.dumps(openapi_context),
-                failOnWarnings=False
-            )
-            _LOG.debug("API Gateway updated successfully.")
-        except self.client.exceptions.ClientError as e:
-            _LOG.error(f"An error occurred: {e}")
+        self.client.put_rest_api(
+            restApiId=api_id,
+            mode='overwrite',
+            body=json.dumps(openapi_context),
+            failOnWarnings=False
+        )
+        _LOG.debug("API Gateway updated successfully.")
 
     def remove_api(self, api_id):
         """
