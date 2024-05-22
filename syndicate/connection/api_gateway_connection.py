@@ -96,7 +96,8 @@ class ApiGatewayConnection(object):
             )
             return response
         except self.client.exceptions.NotFoundException:
-            _LOG.error(f"Not found api with id: {api_id}")
+            _LOG.warning(f"Not found api with id: {api_id} "
+                         f"and stage name: {stage_name}")
             return None
 
     def update_openapi(self, api_id, openapi_context):

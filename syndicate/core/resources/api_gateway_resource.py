@@ -1011,16 +1011,15 @@ class ApiGatewayResource(BaseResource):
         api_id = config['description']['id']
         stage_name = config["resource_meta"]["deploy_stage"]
         openapi_context = self.describe_openapi(api_id, stage_name)
-        if not openapi_context:
-            return
-        api_lambdas_arns = self.extract_api_gateway_lambdas_arns(
-            openapi_context)
-        api_lambda_auth_arns = self.extract_api_gateway_lambda_auth_arns(
-            openapi_context)
-        self.remove_lambdas_permissions(
-            api_id,
-            {*api_lambdas_arns, *api_lambda_auth_arns}
-        )
+        if openapi_context:
+            api_lambdas_arns = self.extract_api_gateway_lambdas_arns(
+                openapi_context)
+            api_lambda_auth_arns = self.extract_api_gateway_lambda_auth_arns(
+                openapi_context)
+            self.remove_lambdas_permissions(
+                api_id,
+                {*api_lambdas_arns, *api_lambda_auth_arns}
+            )
         try:
             self.connection.remove_api(api_id)
             _LOG.info(f'API Gateway {api_id} was removed.')
