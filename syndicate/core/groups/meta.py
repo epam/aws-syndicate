@@ -15,7 +15,7 @@ from syndicate.core.generators.deployment_resources.ec2_launch_template_generato
 from syndicate.core.generators.lambda_function import PROJECT_PATH_PARAM
 from syndicate.core.helper import OrderedGroup, OptionRequiredIf, \
     validate_incompatible_options, validate_authorizer_name_option, \
-    verbose_option
+    verbose_option, validate_api_gw_path
 from syndicate.core.helper import ValidRegionParamType
 from syndicate.core.helper import check_bundle_bucket_name
 from syndicate.core.helper import resolve_project_path, timeit
@@ -290,7 +290,7 @@ def api_gateway_authorizer(ctx, **kwargs):
 @meta.command(name='api_gateway_resource')
 @click.option('--api_name', required=True, type=str,
               help="Api gateway name to add index to")
-@click.option('--path', required=True, type=click.Path(readable=False),
+@click.option('--path', required=True, callback=validate_api_gw_path,
               help="Resource path to create")
 @click.option('--enable_cors', type=bool,
               help="Enables CORS on the resourcemethod. If not specified, sets"
@@ -310,7 +310,7 @@ def api_gateway_resource(ctx, **kwargs):
 @meta.command(name='api_gateway_resource_method')
 @click.option('--api_name', required=True, type=str,
               help="Api gateway name to add index to")
-@click.option('--path', required=True, type=click.Path(readable=False),
+@click.option('--path', required=True, callback=validate_api_gw_path,
               help="Resource path to create")
 @click.option('--method', required=True,
               type=click.Choice(['POST', 'GET', 'DELETE', 'PUT', 'HEAD',
