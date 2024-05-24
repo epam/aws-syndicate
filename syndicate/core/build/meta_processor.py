@@ -210,8 +210,8 @@ def _merge_api_gw_list_typed_configurations(initial_resource,
 def _populate_s3_path_python_node(meta, bundle_name):
     name = meta.get('name')
     version = meta.get('version')
-    prefix = meta.get('prefix')
-    suffix = meta.get('suffix')
+    prefix = meta.pop('prefix', None)
+    suffix = meta.pop('suffix', None)
     if not name or not version:
         raise AssertionError('Lambda config must contain name and version. '
                              'Existing configuration'
@@ -457,8 +457,8 @@ def create_resource_json(project_path: str, bundle_name: str) -> dict[
 def _resolve_names_in_meta(resources_dict, old_value, new_value):
     if isinstance(resources_dict, dict):
         for k, v in resources_dict.items():
-            # if k == old_value:
-            #     resources_dict[new_value] = resources_dict.pop(k)
+            if k in ['prefix', 'suffix']:
+                continue
             if isinstance(v, str) and old_value == v:
                 resources_dict[k] = v.replace(old_value, new_value)
             elif isinstance(v, str) and old_value in v and v.startswith('arn'):
