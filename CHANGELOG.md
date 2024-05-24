@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed quietness of errors while deploying/updating API Gateway via OpenAPI specification
 - Fixed API GW deletion when openapi specification is invalid
 - Fixed issue with the command `generate meta api_gateway_resource`
+- Fixed lambda function deployment fails in case of matching any resource name with prefix or/and suffix
 
 # [1.11.5] - 2024-05-09
 - Syndicate Java plugin patched to version 1.11.1 to exclude extra dependencies
