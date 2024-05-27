@@ -5,9 +5,13 @@ on:
   push:
     branches: ["master"]
     tags: ["*"]
+    paths:
+      - '**.py'
   release:
     types:
       - published
+    paths:
+      - '**.py'
   workflow_dispatch:
 
 permissions:
