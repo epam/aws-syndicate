@@ -449,11 +449,17 @@ class ApiGatewayResource(BaseResource):
 
     def _resolve_cup_ids(self, openapi_context):
         _LOG.debug('Going to resolve Cognito User Pools ARNs')
-        authorizer = deep_get(openapi_context,
-                              ['components', 'securitySchemes',
-                               'authorizer', 'x-amazon-apigateway-authorizer'])
+        security_schemes = \
+            openapi_context.get('components', {}).get('securitySchemes', {})
 
-        if authorizer:
+        authorizers = [
+            value['x-amazon-apigateway-authorizer']
+            for _, value in security_schemes.items()
+            if (value.get('x-amazon-apigateway-authtype') ==
+                _COGNITO_AUTHORIZER_TYPE.lower()
+                and 'x-amazon-apigateway-authorizer' in value)]
+
+        for authorizer in authorizers:
             pools_names = provider_arns = None
             if authorizer.get('type') == _COGNITO_AUTHORIZER_TYPE.lower():
                 pools_names = authorizer.get(X_SDCT_EXTENSION_KEY)
@@ -1005,16 +1011,15 @@ class ApiGatewayResource(BaseResource):
         api_id = config['description']['id']
         stage_name = config["resource_meta"]["deploy_stage"]
         openapi_context = self.describe_openapi(api_id, stage_name)
-        if not openapi_context:
-            return
-        api_lambdas_arns = self.extract_api_gateway_lambdas_arns(
-            openapi_context)
-        api_lambda_auth_arns = self.extract_api_gateway_lambda_auth_arns(
-            openapi_context)
-        self.remove_lambdas_permissions(
-            api_id,
-            {*api_lambdas_arns, *api_lambda_auth_arns}
-        )
+        if openapi_context:
+            api_lambdas_arns = self.extract_api_gateway_lambdas_arns(
+                openapi_context)
+            api_lambda_auth_arns = self.extract_api_gateway_lambda_auth_arns(
+                openapi_context)
+            self.remove_lambdas_permissions(
+                api_id,
+                {*api_lambdas_arns, *api_lambda_auth_arns}
+            )
         try:
             self.connection.remove_api(api_id)
             _LOG.info(f'API Gateway {api_id} was removed.')

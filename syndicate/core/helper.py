@@ -725,6 +725,25 @@ def validate_authorizer_name_option(ctx, param, value):
         return value
 
 
+def validate_api_gw_path(ctx, param, value):
+    pattern = (r'^/[a-zA-Z0-9-._~+]+(?:(?:/*)?[a-zA-Z0-9-._~]*\{?[a-zA-Z0-9-.'
+               r'_~]+\}?)*$')
+    _LOG.debug(f"The parameter '--{param.name}' value is '{value}'")
+    if os.name == 'nt' and Path(value).is_absolute():
+        raise BadParameter(
+            f"Your terminal resolves the parameter '--{param.name}' value as "
+            f"a filesystem path. Please pass the parameter '--{param.name}' "
+            f"value without starting slash ('/')")
+    if not value.startswith('/'):
+        value = '/' + value
+    if not re.match(pattern, value):
+        raise BadParameter(
+            f"A valid API gateway path must begin with a '/' and can contain "
+            f"alphanumeric characters, hyphens, periods, underscores or "
+            "dynamic parameters wrapped in '{}'")
+    return value
+
+
 def set_debug_log_level(ctx, param, value):
     if value:
         loggers = [logging.getLogger(name) for name in
