@@ -1,6 +1,6 @@
 click==7.1.2
-botocore==1.29.80
-boto3==1.26.80
+botocore==1.34.113
+boto3==1.34.113
 tqdm==4.65.2
 colorama==0.4.5
 requests==2.31.0

@@ -447,6 +447,10 @@ def sns_topic(ctx, **kwargs):
               help="Step function name")
 @click.option('--iam_role', type=str, required=True,
               help="IAM role to use for this state machine")
+@click.option('--publish_version', type=bool, default=False,
+              help="Defines whether to publish the step function version")
+@click.option('--alias', type=str,
+              help="Step function alias name")
 @verbose_option
 @click.pass_context
 @timeit()

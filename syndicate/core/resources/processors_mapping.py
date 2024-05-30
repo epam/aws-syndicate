@@ -273,6 +273,8 @@ class ProcessorFacade:
             create_update_swagger_ui,
             EC2_LAUNCH_TEMPLATE_TYPE:
                 self.resources_provider.ec2().update_launch_template,
+            STEP_FUNCTION_TYPE:
+                self.resources_provider.step_functions().update_state_machine
         }
 
     def resource_configuration_processor(self):
