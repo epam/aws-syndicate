@@ -279,6 +279,7 @@ class ResourceProvider:
                     iam_conn=self._conn_provider.iam(),
                     cw_events_conn=self._conn_provider.cw_events(),
                     lambda_conn=self._conn_provider.lambda_conn(),
+                    lambda_res=self.lambda_resource(),
                     region=self.config.region,
                     account_id=self.config.account_id
                 )
