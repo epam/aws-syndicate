@@ -316,6 +316,12 @@ def create_deployment_resources(deploy_name, bundle_name,
     _LOG.info(
         'Prefixes and suffixes of any resource names have been resolved.')
 
+    expected_external_resources = {key: value for key, value in
+                                   resources.items() if value.get('external')}
+    if expected_external_resources:
+        _compare_external_resources(expected_external_resources)
+        _LOG.info('External resources were matched successfully')
+
     resources = _filter_resources(
         resources_meta=resources,
         resource_names=deploy_only_resources,
@@ -325,12 +331,6 @@ def create_deployment_resources(deploy_name, bundle_name,
     )
 
     _LOG.debug('Going to create: {0}'.format(prettify_json(resources)))
-
-    expected_external_resources = {key: value for key, value in
-                                   resources.items() if value.get('external')}
-    if expected_external_resources:
-        _compare_external_resources(expected_external_resources)
-        _LOG.info('External resources were matched successfully')
 
     # sort resources with priority
     resources_list = list(resources.items())
