@@ -241,10 +241,18 @@ def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
         deploy_resources_list = json.load(open(deploy_only_resources_path))
         deploy_only_resources = tuple(
             set(deploy_only_resources + tuple(deploy_resources_list)))
+        if deploy_only_resources:
+            click.echo(
+                f'Resources to update: {list(deploy_only_resources)}')
+
     if excluded_resources_path and os.path.exists(excluded_resources_path):
         excluded_resources_list = json.load(open(excluded_resources_path))
         excluded_resources = tuple(
             set(excluded_resources + tuple(excluded_resources_list)))
+        if excluded_resources:
+            click.echo(
+                f'Resources to update: {list(excluded_resources)}')
+
     if continue_deploy:
         deploy_success = continue_deployment_resources(deploy_name,
                                                        bundle_name,
@@ -275,43 +283,55 @@ def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
 @click.option('--update_only_types', '-types', multiple=True,
               help='Types of the resources to update')
 @click.option('--update_only_resources', '-resources', multiple=True,
-              help='Names of the resources to deploy')
+              help='Names of the resources to update')
 @click.option('--update_only_resources_path', '-path', nargs=1,
               help='Path to file containing names of the resources to skip '
                    'while deploy')
+@click.option('--excluded_resources', '-exresources', multiple=True,
+              help='Names of the resources to skip while update.')
+@click.option('--excluded_resources_path', '-expath', nargs=1,
+              help='Path to file containing names of the resources to skip '
+                   'while update')
+@click.option('--excluded_types', '-extypes', multiple=True,
+              help='Types of the resources to skip while update')
 @click.option('--replace_output', nargs=1, is_flag=True, default=False,
               help='The flag to replace the existing deploy output file')
 @verbose_option
 @check_deploy_name_for_duplicates
 @check_deploy_bucket_exists
 @timeit(action_name=UPDATE_ACTION)
-def update(bundle_name, deploy_name, replace_output,
-           update_only_resources,
-           update_only_resources_path,
-           update_only_types=[]):
+def update(bundle_name, deploy_name, replace_output, update_only_resources,
+           update_only_resources_path, update_only_types, excluded_resources,
+           excluded_resources_path, excluded_types):
     """
     Updates infrastructure from the provided bundle
     """
-    click.echo('Bundle name: {}'.format(bundle_name))
-    if update_only_types:
-        click.echo('Types to update: {}'.format(list(update_only_types)))
-    if update_only_resources:
-        click.echo(
-            'Resources to update: {}'.format(list(update_only_resources)))
-    if update_only_resources_path:
-        click.echo('Path to list of resources to update: {}'.format(
-            update_only_resources_path))
+    click.echo(f'Bundle name: {bundle_name}')
 
     if update_only_resources_path and os.path.exists(
             update_only_resources_path):
         update_resources_list = json.load(open(update_only_resources_path))
         update_only_resources = tuple(
             set(update_only_resources + tuple(update_resources_list)))
+        if update_only_resources:
+            click.echo(
+                f'Resources to update: {list(update_only_resources)}')
+
+    if excluded_resources_path and os.path.exists(excluded_resources_path):
+        excluded_resources_list = json.load(open(excluded_resources_path))
+        excluded_resources = tuple(
+            set(excluded_resources + tuple(excluded_resources_list)))
+        if excluded_resources:
+            click.echo(
+                f'Resources excluded from update: {list(excluded_resources)}')
+
     success = update_deployment_resources(
         bundle_name=bundle_name,
         deploy_name=deploy_name,
         update_only_types=update_only_types,
         update_only_resources=update_only_resources,
+        excluded_resources=excluded_resources,
+        excluded_types=excluded_types,
         replace_output=replace_output)
     if success:
         click.echo('Update of resources has been successfully completed')
