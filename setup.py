@@ -40,7 +40,8 @@ setup(
         'requests-aws-sign==0.1.6',
         'requests==2.31.0',
         'tabulate==0.9.0',
-        'troposphere==4.1.0'
+        'troposphere==4.1.0',
+        'setuptools>65.5.0,<=70.0.0'
     ],
     entry_points='''
         [console_scripts]
