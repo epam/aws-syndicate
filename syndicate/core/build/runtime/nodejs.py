@@ -20,8 +20,7 @@ import os
 import shutil
 import threading
 from concurrent.futures.thread import ThreadPoolExecutor
-from distutils.dir_util import copy_tree
-from distutils.errors import DistutilsFileError
+
 from pathlib import Path
 
 from syndicate.commons.log_helper import get_logger
@@ -94,7 +93,7 @@ def _build_node_artifact(item, root, target_folder):
     package_name = build_py_package_name(lambda_name, lambda_version)
     artifact_path = str(Path(target_folder, artifact_name))
 
-    copy_tree(root, str(Path(artifact_path, 'lambdas', lambda_name)))
+    shutil.copytree(root, str(Path(artifact_path, 'lambdas', lambda_name)))
     install_requirements(root, target_folder, artifact_path, package_name)
 
 
@@ -108,7 +107,7 @@ def build_node_lambda_layer(layer_root: str, target_folder: str):
     package_name = zip_ext(layer_config['deployment_package'])
     artifact_path = str(Path(target_folder, artifact_name))
 
-    copy_tree(layer_root, artifact_path)
+    shutil.copytree(layer_root, artifact_path)
     install_requirements(layer_root, target_folder, artifact_path,
                          package_name, is_layer=True)
 
@@ -134,9 +133,9 @@ def install_requirements(root: str, target_folder: str, artifact_path: str,
             execute_command_by_path(command=command, path=root)
             _LOG.debug('3-rd party dependencies were installed successfully')
             try:
-                copy_tree(str(Path(root, DEPENDENCIES_FOLDER)),
-                          str(Path(artifact_path, DEPENDENCIES_FOLDER)))
-            except DistutilsFileError:
+                shutil.copytree(str(Path(root, DEPENDENCIES_FOLDER)),
+                                str(Path(artifact_path, DEPENDENCIES_FOLDER)))
+            except FileNotFoundError:
                 _LOG.info('No dependencies folder - nothing to copy.')
             except Exception as e:
                 _LOG.exception(f'Error occurred while lambda files coping: {e}')
@@ -196,10 +195,9 @@ def _copy_local_req(artifact_path, local_req_path):
     # copy folders
     for lrp in local_req_list:
         _LOG.info(f'Processing local dependency: {lrp}')
-        copy_tree(str(Path(CONFIG.project_path,
-                           BUILD_MAPPINGS[RUNTIME_NODEJS],
-                           lrp)),
-                  str(Path(artifact_path, lrp)))
+        shutil.copytree(str(Path(CONFIG.project_path,
+                                 BUILD_MAPPINGS[RUNTIME_NODEJS], lrp)),
+                        str(Path(artifact_path, lrp)))
         _LOG.debug('Dependency was copied successfully')
 
         folders = [r for r in lrp.split(DEFAULT_SEP) if r]
