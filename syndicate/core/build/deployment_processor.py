@@ -195,8 +195,9 @@ def continue_deploy_resources(resources, failed_output):
     updated_output = {}
     deploy_result = True
     res_type = None
+    args = []
+
     try:
-        args = []
         resource_type = None
         for res_name, res_meta in resources:
             res_type = res_meta['resource_type']
@@ -237,25 +238,42 @@ def continue_deploy_resources(resources, failed_output):
                 })
                 resource_type = res_type
         if args:
-            func = PROCESSOR_FACADE.resource_configuration_processor() \
-                .get(resource_type)
-            if func:
-                response = func(args)
-                if response:
-                    updated_output.update(
-                        json.loads(
-                            json.dumps(response, default=_json_serial)))
-            else:
-                # function to update resource is not present
-                # move existing output- for resources to new output
-                __move_output_content(args, failed_output, updated_output)
+            for arg in args:
+                handlers_mapping = PROCESSOR_FACADE.create_handlers()
+                func = handlers_mapping[resource_type]
+                try:
+                    if func:
+                        response = func(arg.get('meta'))
+                        if response:
+                            updated_output.update(
+                                json.loads(
+                                    json.dumps(response, default=_json_serial)))
+                    else:
+                        __move_output_content(
+                            args, failed_output, updated_output
+                        )
+                except Exception as e:
+                    _LOG.exception(
+                        'Error occurred while {0} resource creating: {1}'.
+                        format(res_type, str(e)))
+                    deploy_result = False
+
+                    return deploy_result, update_failed_output(
+                        arg['name'], arg['meta'], res_type,
+                        updated_output
+                    )
+
+        return deploy_result, updated_output
+
     except Exception as e:
         _LOG.exception(
             'Error occurred while {0} resource creating: {1}'.format(
                 res_type, str(e)))
         deploy_result = False
 
-    return deploy_result, updated_output
+        return deploy_result, update_failed_output(
+            args[0]['name'], args[0]['meta'], res_type, updated_output
+        )
 
 
 def __move_output_content(args, failed_output, updated_output):
@@ -419,8 +437,19 @@ def remove_deployment_resources(deploy_name, bundle_name,
                                 excluded_types=None,
                                 clean_externals=None,
                                 preserve_state=None):
-    output = new_output = load_deploy_output(bundle_name, deploy_name)
-    _LOG.info('Output file was loaded successfully')
+
+    is_regular_output = True
+    try:
+        output = new_output = load_deploy_output(bundle_name, deploy_name)
+        _LOG.info('Output file was loaded successfully')
+    except AssertionError:
+        try:
+            output = new_output = load_failed_deploy_output(
+                bundle_name, deploy_name
+            )
+            is_regular_output = False
+        except AssertionError as e:
+            return e
 
     clean_only_resources = _resolve_names(clean_only_resources)
     excluded_resources = _resolve_names(excluded_resources)
@@ -454,7 +483,7 @@ def remove_deployment_resources(deploy_name, bundle_name,
         preserve_state=preserve_state,
         output=output,
         new_output=new_output,
-        is_regular_output=True
+        is_regular_output=is_regular_output
     )
 
 
@@ -511,53 +540,6 @@ def continue_deployment_resources(deploy_name, bundle_name,
                          success=success,
                          replace_output=replace_output)
     return success
-
-
-@exit_on_exception
-def remove_failed_deploy_resources(deploy_name, bundle_name,
-                                   clean_only_resources=None,
-                                   clean_only_types=None,
-                                   excluded_resources=None,
-                                   excluded_types=None,
-                                   clean_externals=None,
-                                   preserve_state=None):
-    output = new_output = load_failed_deploy_output(bundle_name, deploy_name)
-    _LOG.info('Failed output file was loaded successfully')
-
-    clean_only_resources = _resolve_names(clean_only_resources)
-    excluded_resources = _resolve_names(excluded_resources)
-    _LOG.info(
-        'Prefixes and suffixes of any resource names have been resolved.')
-
-    if clean_externals:
-        new_output = {
-            k: v for k, v in new_output.items() if
-            v['resource_meta'].get('external')
-        }
-
-    new_output = _filter_resources(
-        resources_meta=new_output,
-        resources_meta_type=DEPLOYMENT_OUTPUT,
-        resource_names=clean_only_resources,
-        resource_types=clean_only_types,
-        exclude_names=excluded_resources,
-        exclude_types=excluded_types
-    )
-    # sort resources with priority
-    resources_list = list(new_output.items())
-    resources_list.sort(key=cmp_to_key(_compare_clean_resources))
-
-    _LOG.info('Going to clean AWS resources')
-    clean_resources(resources_list)
-
-    return _post_remove_output_handling(
-        deploy_name=deploy_name,
-        bundle_name=bundle_name,
-        preserve_state=preserve_state,
-        output=output,
-        new_output=new_output,
-        is_regular_output=False
-    )
 
 
 def _post_remove_output_handling(deploy_name, bundle_name, preserve_state,

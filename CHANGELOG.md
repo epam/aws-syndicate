@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [1.12.1] - 2024-06-10
+- Added ability for `clean` command to automatically resolve if `--rollback` is needed.
+- Fixed an issue related to `log group already exists` error while deploying or updating `lambda`.
+
 # [1.12.0] - 2024-06-05
 - Fixed an issue related to ARNs resolving in case of empty resource name
 - Fixed an issue related to improper filtering of resources in case of different types of filter usage

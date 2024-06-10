@@ -35,8 +35,7 @@ from syndicate.core.build.bundle_processor import (create_bundles_bucket,
                                                    if_bundle_exist)
 from syndicate.core.build.deployment_processor import (
     continue_deployment_resources, create_deployment_resources,
-    remove_deployment_resources, remove_failed_deploy_resources,
-    update_deployment_resources)
+    remove_deployment_resources, update_deployment_resources)
 from syndicate.core.build.meta_processor import create_meta
 from syndicate.core.build.profiler_processor import (get_metric_statistics,
                                                      process_metrics)
@@ -365,15 +364,13 @@ def update(bundle_name, deploy_name, replace_output, update_only_resources,
               help='If specified provided resource path will be excluded')
 @click.option('--excluded_types', '-extypes', multiple=True,
               help='If specified provided types will be excluded')
-@click.option('--rollback', is_flag=True,
-              help='Remove failed deployed resources')
 @click.option('--preserve_state', is_flag=True,
               help='Preserve deploy output json file after resources removal')
 @verbose_option
 @timeit(action_name=CLEAN_ACTION)
 def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
           clean_only_resources_path, clean_externals, excluded_resources,
-          excluded_resources_path, excluded_types, rollback, preserve_state):
+          excluded_resources_path, excluded_types, preserve_state):
     """
     Cleans the application infrastructure
     """
@@ -401,25 +398,16 @@ def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
         excluded_resources_list = json.load(open(excluded_resources_path))
         excluded_resources = tuple(
             set(excluded_resources + tuple(excluded_resources_list)))
-    if rollback:
-        result = remove_failed_deploy_resources(
-            deploy_name=deploy_name, bundle_name=bundle_name,
-            clean_only_resources=clean_only_resources,
-            clean_only_types=clean_only_types,
-            excluded_resources=excluded_resources,
-            excluded_types=excluded_types, clean_externals=clean_externals,
-            preserve_state=preserve_state
-        )
-    else:
-        result = remove_deployment_resources(
-            deploy_name=deploy_name,
-            bundle_name=bundle_name,
-            clean_only_resources=clean_only_resources,
-            clean_only_types=clean_only_types,
-            excluded_resources=excluded_resources,
-            excluded_types=excluded_types,
-            clean_externals=clean_externals,
-            preserve_state=preserve_state)
+
+    result = remove_deployment_resources(
+        deploy_name=deploy_name,
+        bundle_name=bundle_name,
+        clean_only_resources=clean_only_resources,
+        clean_only_types=clean_only_types,
+        excluded_resources=excluded_resources,
+        excluded_types=excluded_types,
+        clean_externals=clean_externals,
+        preserve_state=preserve_state)
     click.echo('AWS resources were removed.')
     return result
 

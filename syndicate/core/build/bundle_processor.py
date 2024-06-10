@@ -143,9 +143,9 @@ def load_latest_deploy_output():
             raise AssertionError(
                 "Deployment output file not found. It might be because the "
                 "previous deployment failed. If this is the case deployment "
-                "can be continued by using the command  'syndicate deploy "
+                "can be continued by using the command 'syndicate deploy "
                 "--continue_deploy' or failed deployed resources can be "
-                "removed with the command 'syndicate clean --rollback'")
+                "removed with the command 'syndicate clean'")
         else:
             raise e
 
