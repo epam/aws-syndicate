@@ -385,7 +385,13 @@ class LambdaResource(BaseResource):
                     event_sources_meta
                 ))
                 func = self.CREATE_TRIGGER[trigger_type]
-                func(self, name, arn, role_name, event_sources_by_type)
+                # process s3 event sources in batch
+                if trigger_type == S3_TRIGGER:
+                    func(self, name, arn, role_name, event_sources_by_type)
+                # process other event sources one by one
+                else:
+                    for event_source in event_sources_by_type:
+                        func(self, name, arn, role_name, event_source)
 
         if meta.get('max_retries') is not None:
             _LOG.debug('Setting lambda event invoke config')
@@ -592,7 +598,13 @@ class LambdaResource(BaseResource):
                     event_sources_meta
                 ))
                 func = self.CREATE_TRIGGER[trigger_type]
-                func(self, name, _arn, role_name, event_sources_by_type)
+                # process s3 event sources in batch
+                if trigger_type == S3_TRIGGER:
+                    func(self, name, _arn, role_name, event_sources_by_type)
+                # process other event sources one by one
+                else:
+                    for event_source in event_sources_by_type:
+                        func(self, name, _arn, role_name, event_source)
 
         if meta.get('max_retries') is not None:
             _LOG.debug('Updating lambda event invoke config')
