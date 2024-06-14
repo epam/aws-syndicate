@@ -171,7 +171,7 @@ def build(ctx, bundle_name, force_upload, errors_allowed):
                    f'name or delete the bundle')
         return
     ctx.invoke(test, errors_allowed=errors_allowed)
-    ctx.invoke(assemble, bundle_name=bundle_name)
+    ctx.invoke(assemble, bundle_name=bundle_name, force_upload=force_upload)
     ctx.invoke(package_meta, bundle_name=bundle_name)
     ctx.invoke(upload, bundle_name=bundle_name, force_upload=force_upload)
 
@@ -224,6 +224,10 @@ def transform(bundle_name, dsl, output_dir):
               help='Flag to continue failed deploy')
 @click.option('--replace_output', is_flag=True, default=False,
               help='Flag to replace the existing deploy output')
+@click.option('--rollback_on_error', is_flag=True, default=False,
+              help='Flag to automatically clean deployed resources if the'
+                   ' deployment is unsuccessful. Cannot be used with'
+                   ' --continue_deploy flag.')
 @verbose_option
 @check_deploy_name_for_duplicates
 @check_deploy_bucket_exists
@@ -231,7 +235,7 @@ def transform(bundle_name, dsl, output_dir):
 def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
            deploy_only_resources_path, excluded_resources,
            excluded_resources_path, excluded_types, continue_deploy,
-           replace_output):
+           replace_output, rollback_on_error):
     """
     Deploys the application infrastructure
     """
@@ -259,7 +263,8 @@ def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
                                                        deploy_only_types,
                                                        excluded_resources,
                                                        excluded_types,
-                                                       replace_output)
+                                                       replace_output
+                                                       )
 
     else:
         deploy_success = create_deployment_resources(deploy_name, bundle_name,
@@ -267,9 +272,12 @@ def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
                                                      deploy_only_types,
                                                      excluded_resources,
                                                      excluded_types,
-                                                     replace_output)
+                                                     replace_output,
+                                                     rollback_on_error
+                                                     )
     click.echo('Backend resources were deployed{0}.'.format(
         '' if deploy_success else ' with errors. See deploy output file'))
+    return deploy_success
 
 
 @syndicate.command(name=UPDATE_ACTION)
@@ -562,7 +570,7 @@ def profiler(bundle_name, deploy_name, from_date, to_date):
                    'bundle (the bundle path: bundles/${bundle_name})')
 @verbose_option
 @timeit(action_name=ASSEMBLE_JAVA_MVN_ACTION)
-def assemble_java_mvn(bundle_name, project_path):
+def assemble_java_mvn(bundle_name, project_path, force_upload):
     """
     Builds Java lambdas
 
@@ -574,7 +582,9 @@ def assemble_java_mvn(bundle_name, project_path):
     click.echo(f'Command compile java project path: {project_path}')
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
-                       runtime=RUNTIME_JAVA)
+                       runtime=RUNTIME_JAVA,
+                       force_upload=force_upload
+                       )
     click.echo('Java artifacts were prepared successfully.')
 
 
@@ -594,7 +604,7 @@ def assemble_java_mvn(bundle_name, project_path):
                    'described in local_requirements.txt file')
 @verbose_option
 @timeit(action_name=ASSEMBLE_PYTHON_ACTION)
-def assemble_python(bundle_name, project_path):
+def assemble_python(bundle_name, project_path, force_upload):
     """
     Builds Python lambdas
 
@@ -606,7 +616,9 @@ def assemble_python(bundle_name, project_path):
     click.echo(f'Command assemble python: project_path: {project_path} ')
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
-                       runtime=RUNTIME_PYTHON)
+                       runtime=RUNTIME_PYTHON,
+                       force_upload=force_upload
+                       )
     click.echo('Python artifacts were prepared successfully.')
 
 
@@ -624,7 +636,7 @@ def assemble_python(bundle_name, project_path):
                    'found, which are described in the package.json file')
 @verbose_option
 @timeit(action_name=ASSEMBLE_NODE_ACTION)
-def assemble_node(bundle_name, project_path):
+def assemble_node(bundle_name, project_path, force_upload):
     """
     Builds NodeJS lambdas
 
@@ -636,7 +648,9 @@ def assemble_node(bundle_name, project_path):
     click.echo(f'Command assemble node: project_path: {project_path} ')
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
-                       runtime=RUNTIME_NODEJS)
+                       runtime=RUNTIME_NODEJS,
+                       force_upload=force_upload
+                       )
     click.echo('NodeJS artifacts were prepared successfully.')
 
 
@@ -653,7 +667,7 @@ def assemble_node(bundle_name, project_path):
                    'into a zip archive.')
 @verbose_option
 @timeit(action_name=ASSEMBLE_SWAGGER_UI_ACTION)
-def assemble_swagger_ui(bundle_name, project_path):
+def assemble_swagger_ui(**kwargs):
     """
         Builds Swagger UI artifacts
 
@@ -662,6 +676,8 @@ def assemble_swagger_ui(bundle_name, project_path):
         :param project_path: path to project folder
         :return:
         """
+    bundle_name = kwargs.get('bundle_name')
+    project_path = kwargs.get('project_path')
     click.echo(f'Command assemble Swagger UI: project_path: {project_path} ')
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
@@ -684,7 +700,7 @@ RUNTIME_LANG_TO_BUILD_MAPPING = {
 @verbose_option
 @click.pass_context
 @timeit(action_name=ASSEMBLE_ACTION)
-def assemble(ctx, bundle_name):
+def assemble(ctx, bundle_name, force_upload):
     """
     Builds the application artifacts
 
@@ -705,7 +721,7 @@ def assemble(ctx, bundle_name):
             func = RUNTIME_LANG_TO_BUILD_MAPPING.get(key)
             if func:
                 ctx.invoke(func, bundle_name=bundle_name,
-                           project_path=value)
+                           project_path=value, force_upload=force_upload)
             else:
                 click.echo(f'Build tool is not supported: {key}')
     else:

@@ -25,14 +25,12 @@ from syndicate.core.build.bundle_processor import (create_deploy_output,
                                                    load_deploy_output,
                                                    load_failed_deploy_output,
                                                    load_meta_resources,
-                                                   remove_deploy_output,
                                                    remove_failed_deploy_output,
                                                    load_latest_deploy_output)
 from syndicate.core.build.helper import _json_serial
 from syndicate.core.build.meta_processor import (resolve_meta,
                                                  populate_s3_paths,
                                                  resolve_resource_name)
-
 from syndicate.core.constants import (BUILD_META_FILE_NAME,
                                       CLEAN_RESOURCE_TYPE_PRIORITY,
                                       DEPLOY_RESOURCE_TYPE_PRIORITY,
@@ -42,7 +40,6 @@ from syndicate.core.helper import exit_on_exception, prettify_json
 
 BUILD_META = 'build_meta'
 DEPLOYMENT_OUTPUT = 'deployment_output'
-
 
 _LOG = get_logger('syndicate.core.build.deployment_processor')
 USER_LOG = get_user_logger()
@@ -192,88 +189,52 @@ def clean_resources(output):
 # todo implement saving failed output
 def continue_deploy_resources(resources, failed_output):
     from syndicate.core import PROCESSOR_FACADE
-    updated_output = {}
+    handler_mappings = PROCESSOR_FACADE.create_handlers()
+
+    resources_to_deploy = []
     deploy_result = True
-    res_type = None
     args = []
 
-    try:
-        resource_type = None
-        for res_name, res_meta in resources:
+    failed_resource_names = {data['resource_name'] for data in
+                             failed_output.values()}
+
+    for resource_name, resource_meta in resources:
+        if resource_name not in failed_resource_names:
+            resources_to_deploy.append((resource_name, resource_meta))
+
+    if resources_to_deploy:
+        for resource in resources_to_deploy:
+            res_name, res_meta = resource
             res_type = res_meta['resource_type']
-
-            if resource_type is None:
-                resource_type = res_type
-
-            if res_type == resource_type:
-                resource_output = __find_output_by_resource_name(
-                    failed_output, res_name)
-                args.append(
-                    {
-                        'name': res_name,
-                        'meta': res_meta,
-                        'current_configurations': resource_output
-                    })
-                continue
-            elif res_type != resource_type:
-                func = PROCESSOR_FACADE.resource_configuration_processor() \
-                    .get(resource_type)
+            func = handler_mappings[res_type]
+            try:
                 if func:
+                    args.append(_build_args(
+                        name=res_name,
+                        meta=res_meta,
+                        context={}
+                    ))
                     response = func(args)
+                    del args[:]
                     if response:
-                        updated_output.update(
+                        failed_output.update(
                             json.loads(
                                 json.dumps(response, default=_json_serial)))
-                else:
-                    # function to update resource is not present
-                    # move existing output for resources to new output
-                    __move_output_content(args, failed_output, updated_output)
-                del args[:]
-                resource_output = __find_output_by_resource_name(
-                    failed_output, res_name)
-                args.append({
-                    'name': res_name,
-                    'meta': res_meta,
-                    'current_configurations': resource_output
-                })
-                resource_type = res_type
-        if args:
-            for arg in args:
-                handlers_mapping = PROCESSOR_FACADE.create_handlers()
-                func = handlers_mapping[resource_type]
-                try:
-                    if func:
-                        response = func(arg.get('meta'))
-                        if response:
-                            updated_output.update(
-                                json.loads(
-                                    json.dumps(response, default=_json_serial)))
                     else:
-                        __move_output_content(
-                            args, failed_output, updated_output
-                        )
-                except Exception as e:
-                    _LOG.exception(
-                        'Error occurred while {0} resource creating: {1}'.
-                        format(res_type, str(e)))
-                    deploy_result = False
+                        _LOG.warning(f"Handler for resource type: {res_type}"
+                                     f" did not returned any response")
+                else:
+                    _LOG.warning(f"Handler for the `{res_name}` resource of"
+                                 f" {res_type} type was not found. Resource"
+                                 f" has not been deployed.")
+            except Exception as e:
+                _LOG.exception(
+                    'Error occurred while {0} resource creating: {1}'.
+                    format(res_type, str(e)))
+                deploy_result = False
+                return deploy_result, failed_output
 
-                    return deploy_result, update_failed_output(
-                        arg['name'], arg['meta'], res_type,
-                        updated_output
-                    )
-
-        return deploy_result, updated_output
-
-    except Exception as e:
-        _LOG.exception(
-            'Error occurred while {0} resource creating: {1}'.format(
-                res_type, str(e)))
-        deploy_result = False
-
-        return deploy_result, update_failed_output(
-            args[0]['name'], args[0]['meta'], res_type, updated_output
-        )
+    return deploy_result, failed_output
 
 
 def __move_output_content(args, failed_output, updated_output):
@@ -316,7 +277,22 @@ def create_deployment_resources(deploy_name, bundle_name,
                                 deploy_only_types=None,
                                 excluded_resources=None,
                                 excluded_types=None,
-                                replace_output=False):
+                                replace_output=False,
+                                rollback_on_error=False):
+
+    from syndicate.core import PROJECT_STATE
+    latest_deploy_name = PROJECT_STATE.latest_deploy.get('deploy_name')
+    latest_bundle_name = PROJECT_STATE.latest_deploy.get('bundle_name')
+    latest_deploy_status = PROJECT_STATE.latest_deploy.get('operation_status')
+
+    if latest_deploy_status is False:
+        message = (f"Your last deployment with deploy name: "
+                   f"{latest_deploy_name} and deploy bundle: "
+                   f"{latest_bundle_name} was failed, you cannot execute"
+                   f" `deploy` command now, please clean resources or use "
+                   f"`syndicate deploy --continue_deploy`.")
+        raise AssertionError(message)
+
     latest_deploy_output = load_latest_deploy_output()
     _LOG.debug(f'Latest deploy output:\n {latest_deploy_output}')
 
@@ -356,7 +332,34 @@ def create_deployment_resources(deploy_name, bundle_name,
 
     _LOG.info('Going to deploy AWS resources')
     success, output = deploy_resources(resources_list)
-    if success:
+
+    if not success:
+        if rollback_on_error is True:
+            USER_LOG.info(
+                "Deployment failed, `rollback_on_error` is enabled,"
+                " going to clean resources that have been deployed during"
+                " deployment process.")
+            output_resources_list = list(output.items())
+            output_resources_list.sort(
+                key=cmp_to_key(_compare_clean_resources))
+
+            if latest_deploy_output:
+                deploy_output_names = list(latest_deploy_output.keys())
+                rollback_resources_list =\
+                    [resource for resource in output_resources_list if
+                     resource[0] not in deploy_output_names]
+                clean_resources(rollback_resources_list)
+            else:
+                clean_resources(output_resources_list)
+
+        else:
+            USER_LOG.info('Going to create deploy output')
+            create_deploy_output(bundle_name=bundle_name,
+                                 deploy_name=deploy_name,
+                                 output={**output, **latest_deploy_output},
+                                 success=success,
+                                 replace_output=replace_output)
+    else:
         USER_LOG.info('AWS resources were deployed successfully')
 
         # apply dynamic changes that uses ARNs
@@ -367,12 +370,12 @@ def create_deployment_resources(deploy_name, bundle_name,
         _LOG.info('Going to apply common tags')
         _apply_tags(output)
 
-    USER_LOG.info('Going to create deploy output')
-    create_deploy_output(bundle_name=bundle_name,
-                         deploy_name=deploy_name,
-                         output={**output, **latest_deploy_output},
-                         success=success,
-                         replace_output=replace_output)
+        USER_LOG.info('Going to create deploy output')
+        create_deploy_output(bundle_name=bundle_name,
+                             deploy_name=deploy_name,
+                             output={**output, **latest_deploy_output},
+                             success=success,
+                             replace_output=replace_output)
     USER_LOG.info('Deploy output for {0} was created.'.format(deploy_name))
     return success
 
@@ -494,12 +497,30 @@ def continue_deployment_resources(deploy_name, bundle_name,
                                   excluded_resources=None,
                                   excluded_types=None,
                                   replace_output=False):
-    output = load_failed_deploy_output(bundle_name, deploy_name)
+    from syndicate.core import PROJECT_STATE
+    latest_deploy_name = PROJECT_STATE.latest_deploy.get('deploy_name')
+    latest_bundle_name = PROJECT_STATE.latest_deploy.get('bundle_name')
+    latest_deploy_status = PROJECT_STATE.latest_deploy.get('operation_status')
+
+    if latest_deploy_status is True:
+        raise AssertionError(f"Your last deployment with deploy name:"
+                             f" {latest_deploy_name} and deploy bundle:"
+                             f" {latest_bundle_name} was successful,"
+                             f" you cannot execute the `continue deploy` "
+                             f"command.")
+
+    failed_output = load_failed_deploy_output(
+        bundle_name=latest_bundle_name, deploy_name=latest_deploy_name
+    )
     _LOG.info('Failed output file was loaded successfully')
 
-    resources = resolve_meta(load_meta_resources(bundle_name))
+    resources = load_meta_resources(bundle_name)
+    _LOG.debug('{0} file was loaded successfully'.format(BUILD_META_FILE_NAME))
+
+    resources = resolve_meta(resources)
     _LOG.debug('Names were resolved')
-    _LOG.debug(prettify_json(resources))
+    resources = populate_s3_paths(resources, bundle_name)
+    _LOG.debug('Artifacts s3 paths were resolved')
 
     deploy_only_resources = _resolve_names(deploy_only_resources)
     excluded_resources = _resolve_names(excluded_resources)
@@ -520,7 +541,8 @@ def continue_deployment_resources(deploy_name, bundle_name,
     resources_list = list(resources.items())
     resources_list.sort(key=cmp_to_key(compare_deploy_resources))
 
-    success, updated_output = continue_deploy_resources(resources_list, output)
+    success, updated_output = continue_deploy_resources(
+        resources=resources_list, failed_output=failed_output)
     _LOG.info('AWS resources were deployed successfully')
     if success:
         # apply dynamic changes that uses ARNs
@@ -529,7 +551,7 @@ def continue_deployment_resources(deploy_name, bundle_name,
         _LOG.info('Dynamic changes were applied successfully')
 
         _LOG.info('Going to apply common tags')
-        _apply_tags(output)
+        _apply_tags(updated_output)
 
     # remove failed output from bucket
     remove_failed_deploy_output(bundle_name, deploy_name)
