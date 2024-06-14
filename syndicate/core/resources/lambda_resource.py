@@ -1030,7 +1030,7 @@ class LambdaResource(BaseResource):
         lambda_name = config['resource_name']
         try:
             self.lambda_conn.delete_lambda(lambda_name)
-            self.lambda_conn.remove_trigger(lambda_name)
+            self.lambda_conn.remove_trigger(arn)
             group_names = self.cw_logs_conn.get_log_group_names()
             for each in group_names:
                 if lambda_name == each.split('/')[-1]:
