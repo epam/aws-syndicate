@@ -23,7 +23,6 @@ from syndicate.core.transform.terraform.tf_resource_name_builder import \
 from syndicate.core.transform.terraform.tf_resource_reference_builder import \
     build_sqs_queue_id_ref
 
-FIFO_REGIONS = ['us-east-1', 'us-east-2', 'us-west-2', 'eu-west-1']
 FIFO_SUFFIX = '.fifo'
 
 
@@ -44,9 +43,6 @@ class SQSQueueConverter(TerraformResourceConverter):
             fifo_queue = resource.get('fifo_queue')
             queue_name = self.build_resource_name(is_fifo=fifo_queue,
                                                   name=name)
-            if fifo_queue and region not in FIFO_REGIONS:
-                raise AssertionError('FIFO queue is not available in {0}.'
-                                     .format(region))
 
             self.create_sqs_queue_in_region(name=queue_name,
                                             resource=resource,

@@ -24,11 +24,6 @@ from syndicate.core.resources.helper import build_description_obj
 
 _LOG = get_logger('core.resources.sqs_resource')
 
-AVAILABLE_REGIONS = ['us-east-2', 'us-east-1', 'us-west-1', 'us-west-2',
-                     'ap-south-1', 'ap-northeast-2', 'ap-southeast-1',
-                     'ap-southeast-2', 'ap-northeast-1', 'ca-central-1',
-                     'eu-central-1', 'eu-west-2', 'sa-east-1', 'eu-west-1']
-FIFO_REGIONS = ['us-east-1', 'us-east-2', 'us-west-2', 'eu-west-1']
 FIFO_SUFFIX = '.fifo'
 
 
@@ -113,9 +108,6 @@ class SqsResource(BaseResource):
         vis_timeout = meta.get('visibility_timeout')
         kms_master_key_id = meta.get('kms_master_key_id')
         kms_data_reuse_period = meta.get('kms_data_key_reuse_period_seconds')
-        if is_fifo and region not in FIFO_REGIONS:
-            raise AssertionError('FIFO queue is not available in {0}.'
-                                 .format(region))
         content_deduplication = meta.get('content_based_deduplication')
         params = dict(queue_name=resource_name,
                       delay_seconds=delay_sec,

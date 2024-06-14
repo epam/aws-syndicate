@@ -22,7 +22,6 @@ from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import apply_methods_decorator, retry
 
 _LOG = get_logger('syndicate.connection.sqs_connection')
-FIFO_REGIONS = ['us-east-1', 'us-east-2', 'us-west-2', 'eu-west-1']
 
 
 @apply_methods_decorator(retry())
@@ -48,10 +47,6 @@ class SqsConnection(object):
                      content_based_deduplication=None):
         attributes = dict()
         if fifo_queue:
-            if self.region not in FIFO_REGIONS:
-                raise AssertionError(
-                    'FIFO queue is not supported for {0} region.'
-                    ' Available in : {1}'.format(self.region, FIFO_REGIONS))
             attributes['FifoQueue'] = str(fifo_queue)
         params = dict(QueueName=queue_name)
         if delay_seconds:
