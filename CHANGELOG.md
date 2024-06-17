@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed an issue related to ARNs resolving in case of empty resource name
 - Fixed an issue related to improper filtering of resources in case of different types of filter usage
 - Fixed an error related to SQS FIFO Queue availability regions
+- Fixed an issue when only the last s3 trigger was configured for the lambda
 
 # [1.11.6] - 2024-05-24
 - Added support of custom authorizer names in Open API specification security schemes

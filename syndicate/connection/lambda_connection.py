@@ -383,13 +383,11 @@ class LambdaConnection(object):
         """
         triggers = self.triggers_list(lambda_name)
         for trigger in triggers:
-            trigger_name = trigger['FunctionArn'].split(':')[-1]
-            if trigger_name == lambda_name:
-                try:
-                    self.client.delete_event_source_mapping(
-                        UUID=trigger['UUID'])
-                except ClientError:
-                    _LOG.error('Failed to delete trigger.', exc_info=True)
+            try:
+                self.client.delete_event_source_mapping(
+                    UUID=trigger['UUID'])
+            except ClientError:
+                _LOG.error('Failed to delete trigger.', exc_info=True)
 
     def remove_lambdas(self):
         """ Removes all specified lambdas.

@@ -374,10 +374,24 @@ class LambdaResource(BaseResource):
         _LOG.debug('arn value: ' + str(arn))
 
         if meta.get('event_sources'):
-            for trigger_meta in meta.get('event_sources'):
-                trigger_type = trigger_meta['resource_type']
+            event_sources_meta = meta['event_sources']
+            trigger_resource_types = set(
+                event_source['resource_type']
+                for event_source in event_sources_meta
+            )
+            for trigger_type in trigger_resource_types:
+                event_sources_by_type = list(filter(
+                    lambda x: x['resource_type'] == trigger_type,
+                    event_sources_meta
+                ))
                 func = self.CREATE_TRIGGER[trigger_type]
-                func(self, name, arn, role_name, trigger_meta)
+                # process s3 event sources in batch
+                if trigger_type == S3_TRIGGER:
+                    func(self, name, arn, role_name, event_sources_by_type)
+                # process other event sources one by one
+                else:
+                    for event_source in event_sources_by_type:
+                        func(self, name, arn, role_name, event_source)
 
         if meta.get('max_retries') is not None:
             _LOG.debug('Setting lambda event invoke config')
@@ -569,14 +583,28 @@ class LambdaResource(BaseResource):
                     function_name=name, qualifier=alias_name)
 
         if meta.get('event_sources'):
+            event_sources_meta = meta['event_sources']
             if alias_name:
                 _arn = self.build_lambda_arn_with_alias(response, alias_name)
             else:
                 _arn = response['Configuration']['FunctionArn']
-            for trigger_meta in meta.get('event_sources'):
-                trigger_type = trigger_meta['resource_type']
+            trigger_resource_types = set(
+                event_source['resource_type']
+                for event_source in event_sources_meta
+            )
+            for trigger_type in trigger_resource_types:
+                event_sources_by_type = list(filter(
+                    lambda x: x['resource_type'] == trigger_type,
+                    event_sources_meta
+                ))
                 func = self.CREATE_TRIGGER[trigger_type]
-                func(self, name, _arn, role_name, trigger_meta)
+                # process s3 event sources in batch
+                if trigger_type == S3_TRIGGER:
+                    func(self, name, _arn, role_name, event_sources_by_type)
+                # process other event sources one by one
+                else:
+                    for event_source in event_sources_by_type:
+                        func(self, name, _arn, role_name, event_source)
 
         if meta.get('max_retries') is not None:
             _LOG.debug('Updating lambda event invoke config')
@@ -871,35 +899,41 @@ class LambdaResource(BaseResource):
                       f'to cloudwatch rule {rule_name} as a target')
 
     @retry()
-    def _create_s3_trigger_from_meta(self, lambda_name, lambda_arn, role_name,
-                                     trigger_meta):
-        validate_params(lambda_name, trigger_meta, S3_TRIGGER_REQUIRED_PARAMS)
-        target_bucket = trigger_meta['target_bucket']
+    def _create_s3_triggers_from_meta(self, lambda_name, lambda_arn, role_name,
+                                      s3_event_sources):
+        target_buckets = set(event_source['target_bucket']
+                             for event_source in s3_event_sources)
 
-        if not self.s3_conn.is_bucket_exists(target_bucket):
-            _LOG.error(
-                f'S3 bucket {target_bucket} event source for lambda '
-                f'{lambda_name} was not created.')
-            return
+        for target_bucket in target_buckets:
+            event_sources_by_bucket = list(filter(
+                lambda x: x['target_bucket'] == target_bucket,
+                s3_event_sources
+            ))
 
-        bucket_arn = 'arn:aws:s3:::{0}'.format(target_bucket)
+            for event_source in event_sources_by_bucket:
+                validate_params(lambda_name, event_source,
+                                S3_TRIGGER_REQUIRED_PARAMS)
 
-        self.lambda_conn.add_invocation_permission(lambda_arn,
-                                                   's3.amazonaws.com',
-                                                   bucket_arn)
-        _LOG.debug('Waiting for activation of invoke-permission of %s',
-                   bucket_arn)
+            if not self.s3_conn.is_bucket_exists(target_bucket):
+                _LOG.error(f'S3 bucket {target_bucket} doesn\'t exist. '
+                           f'Event source for lambda {lambda_name} '
+                           f'was not created.')
+                continue
 
-        time.sleep(5)
+            bucket_arn = f'arn:aws:s3:::{target_bucket}'
+            self.lambda_conn.add_invocation_permission(
+                lambda_arn, 's3.amazonaws.com', bucket_arn,
+                f'allow-execution-from-{target_bucket}-s3-bucket',
+                exists_ok=True)
+            _LOG.debug(f'Waiting for activation of invoke-permission '
+                       f'of {bucket_arn}')
+            time.sleep(5)
 
-        self.s3_conn.configure_event_source_for_lambda(target_bucket,
-                                                       lambda_arn,
-                                                       trigger_meta[
-                                                           's3_events'],
-                                                       trigger_meta.get(
-                                                           'filter_rules'))
-        _LOG.info('Lambda %s subscribed to S3 bucket %s', lambda_name,
-                  target_bucket)
+            self.s3_conn.configure_event_source_for_lambda(
+                target_bucket, lambda_arn, event_sources_by_bucket)
+            _LOG.info(f'Lambda {lambda_name} subscribed to '
+                      f'{len(event_sources_by_bucket)} event(s) in '
+                      f'S3 bucket {target_bucket}')
 
     @retry()
     def _create_sns_topic_trigger_from_meta(self, lambda_name, lambda_arn,
@@ -981,7 +1015,7 @@ class LambdaResource(BaseResource):
         DYNAMO_DB_TRIGGER: _create_dynamodb_trigger_from_meta,
         CLOUD_WATCH_RULE_TRIGGER: _create_cloud_watch_trigger_from_meta,
         EVENT_BRIDGE_RULE_TRIGGER: _create_cloud_watch_trigger_from_meta,
-        S3_TRIGGER: _create_s3_trigger_from_meta,
+        S3_TRIGGER: _create_s3_triggers_from_meta,
         SNS_TOPIC_TRIGGER: _create_sns_topic_trigger_from_meta,
         KINESIS_TRIGGER: _create_kinesis_stream_trigger_from_meta,
         SQS_TRIGGER: _create_sqs_trigger_from_meta
@@ -996,7 +1030,7 @@ class LambdaResource(BaseResource):
         lambda_name = config['resource_name']
         try:
             self.lambda_conn.delete_lambda(lambda_name)
-            self.lambda_conn.remove_trigger(lambda_name)
+            self.lambda_conn.remove_trigger(arn)
             group_names = self.cw_logs_conn.get_log_group_names()
             for each in group_names:
                 if lambda_name == each.split('/')[-1]:
