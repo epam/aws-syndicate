@@ -842,6 +842,7 @@ class LambdaResource(BaseResource):
                                       trigger_meta):
         validate_params(lambda_name, trigger_meta, SQS_TRIGGER_REQUIRED_PARAMS)
         target_queue = trigger_meta['target_queue']
+        enable_batch_report_failures = trigger_meta.get("enable_batch_report_failures", False)
         batch_size, batch_window = self._resolve_batch_size_batch_window(
             trigger_meta)
 
@@ -862,10 +863,12 @@ class LambdaResource(BaseResource):
             self.lambda_conn.update_event_source(
                 event_source['UUID'], function_name=lambda_arn,
                 batch_size=batch_size,
-                batch_window=batch_window)
+                batch_window=batch_window,
+                enable_batch_report_failures=enable_batch_report_failures)
         else:
             self.lambda_conn.add_event_source(
-                lambda_arn, queue_arn, batch_size, batch_window
+                lambda_arn, queue_arn, batch_size, batch_window,
+                enable_batch_report_failures=enable_batch_report_failures
             )
 
         _LOG.info('Lambda %s subscribed to SQS queue %s', lambda_name,
