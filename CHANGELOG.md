@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [1.12.1] - 2024-06-17
+- Fixed an issue when only the last s3 trigger was configured for the lambda
+
 # [1.12.0] - 2024-06-07
 - Added support of Python 3.12
 - Fixed an issue related to ARNs resolving in case of empty resource name
