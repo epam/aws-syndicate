@@ -15,7 +15,7 @@
 """
 from troposphere import sqs, GetAtt
 
-from syndicate.core.resources.sqs_resource import FIFO_REGIONS, SqsResource
+from syndicate.core.resources.sqs_resource import SqsResource
 from .cf_resource_converter import CfResourceConverter
 from ..cf_transform_utils import to_logic_name, sqs_queue_logic_name
 
@@ -37,11 +37,6 @@ class CfSqsConverter(CfResourceConverter):
         kms_data_reuse_period = meta.get('kms_data_key_reuse_period_seconds')
         content_deduplication = bool(meta.get('content_based_deduplication',
                                               False))
-
-        region = meta.get('region', self.config.region)
-        if is_fifo and region not in FIFO_REGIONS:
-            raise AssertionError('FIFO queue is not available in {0}.'
-                                 .format(region))
 
         queue = sqs.Queue(sqs_queue_logic_name(name))
         queue.QueueName = queue_name
