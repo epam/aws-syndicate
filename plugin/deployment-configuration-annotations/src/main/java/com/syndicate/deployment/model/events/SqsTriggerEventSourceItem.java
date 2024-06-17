@@ -32,6 +32,9 @@ public class SqsTriggerEventSourceItem extends EventSourceItem {
     @JsonProperty("batch_size")
     private int batchSize;
 
+    @JsonProperty("enable_batch_report_failures")
+    private boolean enableBatchReportFailures;
+
     private SqsTriggerEventSourceItem() {
     }
 
@@ -41,6 +44,10 @@ public class SqsTriggerEventSourceItem extends EventSourceItem {
 
     public int getBatchSize() {
         return batchSize;
+    }
+
+    public boolean isEnableBatchReportFailures() {
+        return enableBatchReportFailures;
     }
 
     public static class Builder {
@@ -63,6 +70,11 @@ public class SqsTriggerEventSourceItem extends EventSourceItem {
             triggerEventSourceItem.eventSourceType = EventSourceType.SQS_TRIGGER;
             return triggerEventSourceItem;
         }
+
+        public Builder withEnableBatchReportFailures(boolean enableBatchReportFailures) {
+            this.triggerEventSourceItem.enableBatchReportFailures = enableBatchReportFailures;
+            return this;
+        }
     }
 
     @Override
@@ -72,7 +84,7 @@ public class SqsTriggerEventSourceItem extends EventSourceItem {
 
         SqsTriggerEventSourceItem that = (SqsTriggerEventSourceItem) o;
 
-        return batchSize == that.batchSize && eventSourceType == that.eventSourceType && targetQueue.equals(that.targetQueue);
+        return batchSize == that.batchSize && eventSourceType == that.eventSourceType && targetQueue.equals(that.targetQueue) && enableBatchReportFailures == that.enableBatchReportFailures;
 
     }
 
@@ -81,6 +93,7 @@ public class SqsTriggerEventSourceItem extends EventSourceItem {
         int result = targetQueue.hashCode();
         result = 31 * result + eventSourceType.hashCode();
         result = 31 * result + batchSize;
+        result = 31 * result + Boolean.hashCode(enableBatchReportFailures);
         return result;
     }
 
