@@ -289,7 +289,7 @@ class LambdaConnection(object):
                          batch_window: Optional[int] = None,
                          start_position=None,
                          filters: Optional[List] = None,
-                         enable_batch_report_failures=None):
+                         function_response_types=None):
         """ Create event source for Lambda
         :type func_name: str
         :type stream_arn: str
@@ -297,7 +297,7 @@ class LambdaConnection(object):
         :param batch_size: max limit of Lambda event process in one time
         :param start_position: option for Lambda reading event mode
         :param filters: Optional[list]
-        :param enable_batch_report_failures: Optional[bool] enables batch item failures
+        :param function_response_types: Optional[list] list of function response types
         :return: response
         """
         params = dict(
@@ -310,8 +310,8 @@ class LambdaConnection(object):
             params['StartingPosition'] = start_position
         if filters:
             params['FilterCriteria'] = {'Filters': filters}
-        if enable_batch_report_failures is not None and enable_batch_report_failures:
-            params['FunctionResponseTypes'] = ['ReportBatchItemFailures']
+        if function_response_types:
+            params['FunctionResponseTypes'] = function_response_types
         response = self.client.create_event_source_mapping(**params)
         return response
 
@@ -502,7 +502,7 @@ class LambdaConnection(object):
 
     def update_event_source(self, uuid, function_name, batch_size,
                             batch_window=None, filters: Optional[List] = None,
-                            enable_batch_report_failures=None):
+                            function_response_types=None):
         params = dict(
             UUID=uuid, FunctionName=function_name, BatchSize=batch_size
         )
@@ -510,8 +510,8 @@ class LambdaConnection(object):
             params['MaximumBatchingWindowInSeconds'] = batch_window
         if filters is not None:
             params['FilterCriteria'] = {'Filters': filters}
-        if enable_batch_report_failures is not None and enable_batch_report_failures:
-            params['FunctionResponseTypes'] = ['ReportBatchItemFailures']
+        if function_response_types:
+            params['FunctionResponseTypes'] = function_response_types
         else:
             params['FunctionResponseTypes'] = []
         return self.client.update_event_source_mapping(**params)
