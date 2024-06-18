@@ -123,7 +123,7 @@ public enum EventSourceType {
             return new SqsTriggerEventSourceItem.Builder()
                     .withTargetQueue(sqsEventSource.targetQueue())
                     .withBatchSize(sqsEventSource.batchSize())
-                    .withEnableBatchReportFailures(sqsEventSource.enableBatchReportFailures())
+                    .withFunctionResponseTypes(sqsEventSource.functionResponseTypes())
                     .build();
         }
 
