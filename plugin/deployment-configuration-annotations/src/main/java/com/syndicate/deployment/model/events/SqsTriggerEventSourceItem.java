@@ -17,8 +17,10 @@
 package com.syndicate.deployment.model.events;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.syndicate.deployment.annotations.events.FunctionResponseType;
 import com.syndicate.deployment.model.EventSourceType;
 
+import java.util.Arrays;
 import java.util.Objects;
 
 /**
@@ -32,6 +34,9 @@ public class SqsTriggerEventSourceItem extends EventSourceItem {
     @JsonProperty("batch_size")
     private int batchSize;
 
+    @JsonProperty("function_response_types")
+    private FunctionResponseType[] functionResponseTypes;
+
     private SqsTriggerEventSourceItem() {
     }
 
@@ -41,6 +46,10 @@ public class SqsTriggerEventSourceItem extends EventSourceItem {
 
     public int getBatchSize() {
         return batchSize;
+    }
+
+    public FunctionResponseType[] getFunctionResponseTypes() {
+        return functionResponseTypes;
     }
 
     public static class Builder {
@@ -63,6 +72,11 @@ public class SqsTriggerEventSourceItem extends EventSourceItem {
             triggerEventSourceItem.eventSourceType = EventSourceType.SQS_TRIGGER;
             return triggerEventSourceItem;
         }
+
+        public Builder withFunctionResponseTypes(FunctionResponseType[] functionResponseTypes) {
+            this.triggerEventSourceItem.functionResponseTypes = functionResponseTypes;
+            return this;
+        }
     }
 
     @Override
@@ -72,7 +86,7 @@ public class SqsTriggerEventSourceItem extends EventSourceItem {
 
         SqsTriggerEventSourceItem that = (SqsTriggerEventSourceItem) o;
 
-        return batchSize == that.batchSize && eventSourceType == that.eventSourceType && targetQueue.equals(that.targetQueue);
+        return batchSize == that.batchSize && eventSourceType == that.eventSourceType && targetQueue.equals(that.targetQueue) && functionResponseTypes == that.functionResponseTypes;
 
     }
 
@@ -81,6 +95,7 @@ public class SqsTriggerEventSourceItem extends EventSourceItem {
         int result = targetQueue.hashCode();
         result = 31 * result + eventSourceType.hashCode();
         result = 31 * result + batchSize;
+        result = 31 * result + Arrays.hashCode(functionResponseTypes);
         return result;
     }
 
@@ -89,7 +104,7 @@ public class SqsTriggerEventSourceItem extends EventSourceItem {
         return "SqsTriggerEventSourceItem{" +
                 "targetQueue='" + targetQueue + '\'' +
                 ", batchSize=" + batchSize +
-                "} " + super.toString();
+                ", functionResponseTypes=" + Arrays.toString(functionResponseTypes) +
+                '}';
     }
-
 }
