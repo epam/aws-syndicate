@@ -363,7 +363,7 @@ class ProjectState:
 
         operation_status = kwargs.get('operation_status')
         rollback_on_error = kwargs.get('rollback_on_error')
-        if operation_status is None:
+        if not isinstance(operation_status, bool):
             kwargs.pop('operation_status')
 
         if operation in [DEPLOY_ACTION, PARTIAL_CLEAN_ACTION]:

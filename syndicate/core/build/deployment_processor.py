@@ -85,9 +85,9 @@ def _process_resources(resources, handlers_mapping, pass_context=False):
             elif current_res_type != resource_type:
                 USER_LOG.info(f'Processing {resource_type} resources')
                 func = handlers_mapping[resource_type]
-                response = func(args)  # todo exception may be raised here
-                if response:
-                    output.update(response)
+                response = func(args)
+                process_response(response=response, output=output)
+
                 del args[:]
                 args.append(_build_args(name=res_name,
                                         meta=res_meta,
@@ -97,17 +97,16 @@ def _process_resources(resources, handlers_mapping, pass_context=False):
         if args:
             USER_LOG.info(f'Processing {resource_type} resources')
             func = handlers_mapping[resource_type]
+
             response = func(args)
-            if response:
-                output.update(response)
+            process_response(response=response, output=output)
+
         return True, output
     except Exception as e:
         USER_LOG.exception('Error occurred while {0} '
                            'resource creating: {1}'.format(resource_type,
                                                            str(e)))
-        # args list always contains one item here
-        return False, update_failed_output(args[0]['name'], args[0]['meta'],
-                                           resource_type, output)
+        return False, output
 
 
 def _build_args(name, meta, context, pass_context=False):
@@ -214,12 +213,13 @@ def continue_deploy_resources(resources, failed_output):
                         meta=res_meta,
                         context={}
                     ))
+                    USER_LOG.info(f'Processing {res_type} resources')
                     response = func(args)
                     del args[:]
                     if response:
-                        failed_output.update(
-                            json.loads(
-                                json.dumps(response, default=_json_serial)))
+                        process_response(
+                            response=response, output=failed_output
+                        )
                     else:
                         _LOG.warning(f"Handler for resource type: {res_type}"
                                      f" did not returned any response")
@@ -235,6 +235,19 @@ def continue_deploy_resources(resources, failed_output):
                 return deploy_result, failed_output
 
     return deploy_result, failed_output
+
+
+def process_response(response, output: dict):
+
+    if isinstance(response, dict):
+        output.update(response)
+    elif isinstance(response, tuple):
+        result, exceptions = response
+        if result:
+            output.update(result)
+        raise Exception(exceptions[0])
+
+    return output
 
 
 def __move_output_content(args, failed_output, updated_output):
@@ -376,7 +389,9 @@ def create_deployment_resources(deploy_name, bundle_name,
                              output={**output, **latest_deploy_output},
                              success=success,
                              replace_output=replace_output)
-    USER_LOG.info('Deploy output for {0} was created.'.format(deploy_name))
+
+    if not (success is False and rollback_on_error is True):
+        USER_LOG.info('Deploy output for {0} was created.'.format(deploy_name))
     return success
 
 

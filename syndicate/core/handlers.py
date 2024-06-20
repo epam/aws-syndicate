@@ -275,8 +275,14 @@ def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
                                                      replace_output,
                                                      rollback_on_error
                                                      )
-    click.echo('Backend resources were deployed{0}.'.format(
-        '' if deploy_success else ' with errors. See deploy output file'))
+
+    message = 'Backend resources were deployed{suffix}.'.format(
+        suffix='' if deploy_success else (
+            ' with errors. Rollback is enabled, output file was not created'
+            if rollback_on_error else ' with errors. See deploy output file'
+        )
+    )
+    click.echo(message)
     return deploy_success
 
 
