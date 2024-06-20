@@ -582,12 +582,43 @@ class LambdaResource(BaseResource):
                 self.lambda_conn.delete_url_config(
                     function_name=name, qualifier=alias_name)
 
+        arn = self.build_lambda_arn_with_alias(response, alias_name) \
+            if publish_version or alias_name else \
+            response['Configuration']['FunctionArn']
+
+        # buckets = s3_client.list_buckets().get('Buckets', [])
+        # s3_triggers = {}
+        # for bucket in buckets:
+        #     try:
+        #         bucket_notification = s3_client.get_bucket_notification_configuration(
+        #             Bucket=bucket['Name'])
+        #     except ClientError as e:
+        #         continue
+        #     # TODO: save sqs and sns notifications configuration as well
+        #     if 'LambdaFunctionConfigurations' in bucket_notification:
+        #         lambda_configurations = \
+        #             bucket_notification['LambdaFunctionConfigurations']
+        #         for lambda_configuration in lambda_configurations:
+        #             # save triggers that are configured for other lambdas,
+        #             # disregard those configured for the current one
+        #             trigger_action = 'to_delete' if lambda_configuration['LambdaFunctionArn'] == arn else 'to_keep'
+        #             s3_triggers[bucket['Name']] = {
+        #                 trigger_action: s3_triggers.get(bucket['Name'],
+        #                                                 {}).get(trigger_action,
+        #                                                         []) + [
+        #                                     lambda_configuration]}
+        #
+        # for bucket in s3_triggers:
+        #     lambda_configurations = s3_triggers[bucket].get('to_keep', [])
+        #     s3_client.put_bucket_notification_configuration(
+        #         Bucket=bucket,
+        #         NotificationConfiguration={
+        #             'LambdaFunctionConfigurations': lambda_configurations
+        #         }
+        #     )
+
         if meta.get('event_sources'):
             event_sources_meta = meta['event_sources']
-            if alias_name:
-                _arn = self.build_lambda_arn_with_alias(response, alias_name)
-            else:
-                _arn = response['Configuration']['FunctionArn']
             trigger_resource_types = set(
                 event_source['resource_type']
                 for event_source in event_sources_meta
@@ -600,11 +631,11 @@ class LambdaResource(BaseResource):
                 func = self.CREATE_TRIGGER[trigger_type]
                 # process s3 event sources in batch
                 if trigger_type == S3_TRIGGER:
-                    func(self, name, _arn, role_name, event_sources_by_type)
+                    func(self, name, arn, role_name, event_sources_by_type)
                 # process other event sources one by one
                 else:
                     for event_source in event_sources_by_type:
-                        func(self, name, _arn, role_name, event_source)
+                        func(self, name, arn, role_name, event_source)
 
         if meta.get('max_retries') is not None:
             _LOG.debug('Updating lambda event invoke config')
