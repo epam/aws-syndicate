@@ -139,10 +139,7 @@ def load_latest_deploy_output():
     latest_deploy_status = PROJECT_STATE.latest_deploy.get('operation_status')
 
     if latest_deploy_status is True:
-        try:
-            return load_deploy_output(bundle_name, deploy_name)
-        except Exception as e:
-            raise e
+        return load_deploy_output(bundle_name, deploy_name)
     else:
         message = ("Deployment output file not found. It is because the "
                    "previous deployment failed. This problem can be resolved"

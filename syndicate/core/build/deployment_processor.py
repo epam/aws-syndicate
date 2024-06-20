@@ -65,6 +65,7 @@ def get_dependencies(name, meta, resources_dict, resources):
 
 
 # todo implement resources sorter according to priority
+# todo add dependency resolving
 def _process_resources(resources, handlers_mapping, pass_context=False):
     output = {}
     args = []
@@ -201,40 +202,40 @@ def continue_deploy_resources(resources, failed_output):
         if resource_name not in failed_resource_names:
             resources_to_deploy.append((resource_name, resource_meta))
 
-    if resources_to_deploy:
-        for resource in resources_to_deploy:
-            res_name, res_meta = resource
-            res_type = res_meta['resource_type']
-            func = handler_mappings[res_type]
-            try:
-                if func:
-                    args.append(_build_args(
-                        name=res_name,
-                        meta=res_meta,
-                        context={}
-                    ))
-                    USER_LOG.info(f'Processing {res_type} resources')
-                    response = func(args)
-                    del args[:]
-                    if response:
-                        process_response(
-                            response=response, output=failed_output
-                        )
-                    else:
-                        _LOG.warning(f"Handler for resource type: {res_type}"
-                                     f" did not returned any response")
-                else:
-                    _LOG.warning(f"Handler for the `{res_name}` resource of"
-                                 f" {res_type} type was not found. Resource"
-                                 f" has not been deployed.")
-            except Exception as e:
-                _LOG.exception(
-                    'Error occurred while {0} resource creating: {1}'.
-                    format(res_type, str(e)))
-                deploy_result = False
-                return deploy_result, failed_output
+    if not resources_to_deploy:
+        return deploy_result, failed_output
 
-    return deploy_result, failed_output
+    for resource in resources_to_deploy:
+        res_name, res_meta = resource
+        res_type = res_meta['resource_type']
+        func = handler_mappings[res_type]
+        try:
+            if func:
+                args.append(_build_args(
+                    name=res_name,
+                    meta=res_meta,
+                    context={}
+                ))
+                USER_LOG.info(f'Processing {res_type} resources')
+                response = func(args)
+                del args[:]
+                if response:
+                    process_response(
+                        response=response, output=failed_output
+                    )
+                else:
+                    _LOG.warning(f"Handler for resource type: {res_type}"
+                                 f" did not returned any response")
+            else:
+                _LOG.warning(f"Handler for the `{res_name}` resource of"
+                             f" {res_type} type was not found. Resource"
+                             f" has not been deployed.")
+        except Exception as e:
+            _LOG.exception(
+                'Error occurred while {0} resource creating: {1}'.
+                format(res_type, str(e)))
+            deploy_result = False
+            return deploy_result, failed_output
 
 
 def process_response(response, output: dict):
@@ -301,9 +302,9 @@ def create_deployment_resources(deploy_name, bundle_name,
     if latest_deploy_status is False:
         message = (f"Your last deployment with deploy name: "
                    f"{latest_deploy_name} and deploy bundle: "
-                   f"{latest_bundle_name} was failed, you cannot execute"
-                   f" `deploy` command now, please clean resources or use "
-                   f"`syndicate deploy --continue_deploy`.")
+                   f"{latest_bundle_name} failed, you can either clean "
+                   f"resources with `syndicate clean` or continue deployment"
+                   f" with `syndicate deploy --continue_deploy`.")
         raise AssertionError(message)
 
     latest_deploy_output = load_latest_deploy_output()
