@@ -184,7 +184,9 @@ class S3Connection(object):
 
     def configure_event_source_for_lambda(self, bucket, lambda_arn,
                                           event_sources):
-        """
+        """ Create event notification in the bucket that triggers the lambda
+        Note: two identical events can't be configured for two separate lambdas
+
         :type bucket: str
         :type lambda_arn: str
         :type event_sources: list[dict]
@@ -202,7 +204,24 @@ class S3Connection(object):
             - filter_rules (optional): list[dict] - list of S3 event filters:
                 {'Name': 'prefix'|'suffix', 'Value': 'string'}
         """
-        config = {'LambdaFunctionConfigurations': []}
+        config = self.client.get_bucket_notification_configuration(
+            Bucket=bucket)
+
+        config.pop('ResponseMetadata')
+
+        # for some reason filter rule's name value is in uppercase when
+        # should be in lower according to the documentation
+        try:
+            lambda_configs = config['LambdaFunctionConfigurations']
+            for lambda_config in lambda_configs:
+                filter_rules = lambda_config['Filter']['Key']['FilterRules']
+                for filter_rule in filter_rules:
+                    filter_rule['Name'] = filter_rule['Name'].lower()
+        except KeyError:
+            pass
+
+        if 'LambdaFunctionConfigurations' not in config:
+            config['LambdaFunctionConfigurations'] = []
 
         for event_source in event_sources:
             params = {
@@ -217,6 +236,13 @@ class S3Connection(object):
                         }
                     }
                 })
+            # add event notification to remote if it is not already present
+            for remote_event_source in config['LambdaFunctionConfigurations']:
+                remote_event_source_copy = remote_event_source.copy()
+                remote_event_source_copy.pop('Id')
+                if remote_event_source_copy == params:
+                    break
+            else:
                 config['LambdaFunctionConfigurations'].append(params)
 
         self.client.put_bucket_notification_configuration(
