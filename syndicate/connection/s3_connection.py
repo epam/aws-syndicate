@@ -217,7 +217,7 @@ class S3Connection(object):
                         }
                     }
                 })
-                config['LambdaFunctionConfigurations'].append(params)
+            config['LambdaFunctionConfigurations'].append(params)
 
         self.client.put_bucket_notification_configuration(
             Bucket=bucket,
