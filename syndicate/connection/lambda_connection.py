@@ -289,7 +289,7 @@ class LambdaConnection(object):
                          batch_window: Optional[int] = None,
                          start_position=None,
                          filters: Optional[List] = None,
-                         function_response_types=None):
+                         function_response_types: Optional[List] = None):
         """ Create event source for Lambda
         :type func_name: str
         :type stream_arn: str
@@ -297,7 +297,8 @@ class LambdaConnection(object):
         :param batch_size: max limit of Lambda event process in one time
         :param start_position: option for Lambda reading event mode
         :param filters: Optional[list]
-        :param function_response_types: Optional[list] list of function response types
+        :param function_response_types: Optional[list] list of function
+               response types
         :return: response
         """
         params = dict(
@@ -502,7 +503,7 @@ class LambdaConnection(object):
 
     def update_event_source(self, uuid, function_name, batch_size,
                             batch_window=None, filters: Optional[List] = None,
-                            function_response_types=None):
+                            function_response_types: Optional[List] = None):
         params = dict(
             UUID=uuid, FunctionName=function_name, BatchSize=batch_size
         )
