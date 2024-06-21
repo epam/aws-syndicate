@@ -25,7 +25,7 @@ _LOG = get_logger('syndicate.connection.cognito_identity_provider_connection')
 class CognitoIdentityProviderConnection(object):
     """ Cognito identity provider connection class."""
 
-    def __init__(self, region=None, aws_access_key_id=None,
+    def __init__(self, client_config, region=None, aws_access_key_id=None,
                  aws_secret_access_key=None, aws_session_token=None):
         self.region = region
         self.aws_access_key_id = aws_access_key_id
@@ -34,7 +34,8 @@ class CognitoIdentityProviderConnection(object):
         self.client = client('cognito-idp', region,
                              aws_access_key_id=aws_access_key_id,
                              aws_secret_access_key=aws_secret_access_key,
-                             aws_session_token=aws_session_token)
+                             aws_session_token=aws_session_token,
+                             config=client_config)
         _LOG.debug('Opened new Cognito identity connection.')
 
     def create_user_pool(self, pool_name, auto_verified_attributes=None,
@@ -106,9 +107,34 @@ class CognitoIdentityProviderConnection(object):
 
     def if_pool_exists_by_name(self, user_pool_name):
         ids = []
-        for pool in self.client.list_user_pools(MaxResults=60)['UserPools']:
-            if pool.get('Name') == user_pool_name:
-                ids.append(pool['Id'])
+        paginator = self.client.get_paginator('list_user_pools')
+        response = paginator.paginate(
+            PaginationConfig={
+                'MaxItems': 60,
+                'PageSize': 10
+            }
+        )
+        for page in response:
+            ids.extend(
+                [user_pool['Id'] for user_pool in page['UserPools'] if
+                 user_pool['Name'] == user_pool_name]
+            )
+        next_token = response.resume_token
+        while next_token:
+            response = paginator.paginate(
+                PaginationConfig={
+                    'MaxItems': 60,
+                    'PageSize': 10,
+                    'StartingToken': next_token
+                }
+            )
+            for page in response:
+                ids.extend(
+                    [user_pool['Id'] for user_pool in page['UserPools'] if
+                     user_pool['Name'] == user_pool_name]
+                )
+            next_token = response.resume_token
+
         if len(ids) == 1:
             return ids[0]
         if len(ids) > 1:
