@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 # [1.12.0] - 2024-06-20
 - Added support of Python 3.12
 - Added possibility to configure `FunctionResponseTypes` for lambda functions
+- Updated maven plugin version to 1.12.0 with support of `FunctionResponseTypes`
 - Fixed an issue related to ARNs resolving in case of empty resource name
 - Fixed an issue related to improper filtering of resources in case of different types of filter usage
 - Fixed an error related to SQS FIFO Queue availability regions
