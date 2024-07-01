@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed an error related to SQS FIFO Queue availability regions
 - Fixed an issue related to deploying SQS Queue with configured redrive_policy
 - Fixed an issue when only the last s3 trigger was configured for the lambda
+- Added `force_upload` action to all assemble commands
 
 # [1.11.6] - 2024-05-24
 - Added support of custom authorizer names in Open API specification security schemes
