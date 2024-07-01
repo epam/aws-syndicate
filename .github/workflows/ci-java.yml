@@ -25,12 +25,39 @@ jobs:
     uses: ./.github/workflows/maven.yml
     if: github.repository_owner == 'epam'
 
+  check-modified-files:
+    runs-on: ubuntu-latest
+    outputs:
+      files_modified: ${{ steps.check_files.outputs.run_publish_steps }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Check modified files
+        id: check_files
+        run: |
+          git fetch origin master
+          changed_files=$(git diff --name-only origin/master)
+          echo "Changed files: ${changed_files}"
+          checked_directory="plugin/"
+          for file in ${changed_files}
+          do
+            if [[ ${file} == ${checked_directory}* ]]
+            then
+              echo "Target directory was modified."
+              echo "::set-output name=run_publish_steps::true"
+              exit 0
+            fi
+          done
+          echo "Target directory was not modified."
+          echo "::set-output name=run_publish_steps::false"
+        shell: bash
+
   release-snapshot-to-maven-central:
     name: Publish SNAPSHOT package to MavenCentral
     environment: release-snapshot
-    if: github.repository_owner == 'epam' && github.event_name == 'push' && github.ref == 'refs/heads/master'
+    if: github.repository_owner == 'epam' && github.event_name == 'push' && github.ref == 'refs/heads/master' && needs.check-modified-files.outputs.files_modified == 'true'
     runs-on: ubuntu-latest
-    needs: maven
+    needs: [maven, check-modified-files]
 
     steps:
       - uses: actions/checkout@v4
@@ -59,32 +86,6 @@ jobs:
           echo Checking variables ${{ secrets.OSSRH_USERNAME }}
           cat $GITHUB_WORKSPACE/settings.xml
           mvn clean deploy -B --file ./plugin/pom.xml --settings $GITHUB_WORKSPACE/settings.xml
-
-  check-modified-files:
-    runs-on: ubuntu-latest
-    outputs:
-      files_modified: ${{ steps.check_files.outputs.run_publish_steps }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-      - name: Check modified files
-        id: check_files
-        run: |
-          git fetch origin master
-          changed_files=$(git diff --name-only origin/master)
-          checked_directory="plugin/"
-          for file in ${changed_files}
-          do
-            if [[ ${file} == ${checked_directory}* ]]
-            then
-              echo "Target directory was modified."
-              echo "::set-output name=run_publish_steps::true"
-              exit 0
-            fi
-          done
-          echo "Target directory was not modified."
-          echo "::set-output name=run_publish_steps::false"
-        shell: bash
 
   # Upload to MavenCentral on every GitHub Release
   release-to-maven-central:
