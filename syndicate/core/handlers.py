@@ -574,6 +574,11 @@ def profiler(bundle_name, deploy_name, from_date, to_date):
                    'path for an mvn clean install. The artifacts are copied '
                    'to a folder, which is be later used as the deployment '
                    'bundle (the bundle path: bundles/${bundle_name})')
+@click.option('--force_upload', '-fu', nargs=1,
+              callback=resolve_path_callback, required=True,
+              help='Identifier that indicates whether a locally existing'
+                   ' bundle should be deleted and a new one created using'
+                   ' the same path.')
 @verbose_option
 @timeit(action_name=ASSEMBLE_JAVA_MVN_ACTION)
 def assemble_java_mvn(bundle_name, project_path, force_upload):
@@ -583,6 +588,7 @@ def assemble_java_mvn(bundle_name, project_path, force_upload):
     \f
     :param bundle_name: name of the bundle
     :param project_path: path to project folder
+    :force_upload: force upload identification
     :return:
     """
     click.echo(f'Command compile java project path: {project_path}')
@@ -608,6 +614,11 @@ def assemble_java_mvn(bundle_name, project_path, force_upload):
                    'found, which are described in the requirements.txt file, '
                    'and internal project dependencies according to the '
                    'described in local_requirements.txt file')
+@click.option('--force_upload', '-fu', nargs=1,
+              callback=resolve_path_callback, required=True,
+              help='Identifier that indicates whether a locally existing'
+                   ' bundle should be deleted and a new one created using'
+                   ' the same path.')
 @verbose_option
 @timeit(action_name=ASSEMBLE_PYTHON_ACTION)
 def assemble_python(bundle_name, project_path, force_upload):
@@ -617,6 +628,7 @@ def assemble_python(bundle_name, project_path, force_upload):
     \f
     :param bundle_name: name of the bundle
     :param project_path: path to project folder
+    :force_upload: force upload identification
     :return:
     """
     click.echo(f'Command assemble python: project_path: {project_path} ')
@@ -640,6 +652,11 @@ def assemble_python(bundle_name, project_path, force_upload):
               help='The path to the NodeJS project. The code is '
                    'packed to a zip archive, where the external libraries are '
                    'found, which are described in the package.json file')
+@click.option('--force_upload', '-fu', nargs=1,
+              callback=resolve_path_callback, required=True,
+              help='Identifier that indicates whether a locally existing'
+                   ' bundle should be deleted and a new one created using'
+                   ' the same path.')
 @verbose_option
 @timeit(action_name=ASSEMBLE_NODE_ACTION)
 def assemble_node(bundle_name, project_path, force_upload):
@@ -649,6 +666,7 @@ def assemble_node(bundle_name, project_path, force_upload):
     \f
     :param bundle_name: name of the bundle
     :param project_path: path to project folder
+    :force_upload: force upload identification
     :return:
     """
     click.echo(f'Command assemble node: project_path: {project_path} ')
