@@ -1036,21 +1036,22 @@ class LambdaResource(BaseResource):
                 bucket_notifications = self.s3_conn.get_bucket_notification(
                     bucket_name=bucket['Name'])
             except ClientError:
+                # no access to bucket, skip
                 continue
             if 'LambdaFunctionConfigurations' in bucket_notifications:
                 bucket_notifications.pop('ResponseMetadata')
-                lambda_configs = bucket_notifications[
-                    'LambdaFunctionConfigurations']
+                lambda_configs = \
+                    bucket_notifications['LambdaFunctionConfigurations']
                 if lambda_arn in [lambda_config['LambdaFunctionArn']
                                   for lambda_config in lambda_configs]:
                     saved_configs = [
                         lambda_config for lambda_config in lambda_configs
                         if lambda_config['LambdaFunctionArn'] != lambda_arn
                     ]
-                    bucket_notifications[
-                        'LambdaFunctionConfigurations'] = saved_configs
-                    bucket_to_notifications[
-                        bucket['Name']] = bucket_notifications
+                    bucket_notifications['LambdaFunctionConfigurations'] = \
+                        saved_configs
+                    bucket_to_notifications[bucket['Name']] = \
+                        bucket_notifications
 
         for bucket in bucket_to_notifications:
             self.s3_conn.put_bucket_notification(
