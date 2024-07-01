@@ -586,19 +586,8 @@ class LambdaResource(BaseResource):
             if publish_version or alias_name else \
             response['Configuration']['FunctionArn']
 
-        # delete lambda triggers that were removed from meta
-        triggers_to_delete = set(self.DELETE_TRIGGER.keys())
-        if meta.get('event_sources'):
-            trigger_resource_types = set(
-                event_source['resource_type']
-                for event_source in meta.get('event_sources')
-            )
-            # do not process triggers which types are present in meta as they
-            # will be overridden
-            triggers_to_delete -= trigger_resource_types
-        for trigger_type in triggers_to_delete:
-            func = self.DELETE_TRIGGER[trigger_type]
-            func(self, name, arn)
+        # delete lambda triggers before update for clean configuration
+        self.delete_all_lambda_triggers(arn)
 
         if meta.get('event_sources'):
             event_sources_meta = meta['event_sources']
@@ -1035,7 +1024,11 @@ class LambdaResource(BaseResource):
         SQS_TRIGGER: _create_sqs_trigger_from_meta
     }
 
-    def _remove_lambda_from_s3_triggers(self, lambda_name, lambda_arn):
+    def delete_all_lambda_triggers(self, arn):
+        self.lambda_conn.remove_trigger(arn)
+        self._remove_lambda_from_s3_triggers(arn)
+
+    def _remove_lambda_from_s3_triggers(self, lambda_arn):
         buckets = self.s3_conn.get_list_buckets() or []
         bucket_to_notifications = {}
         for bucket in buckets:
@@ -1064,16 +1057,6 @@ class LambdaResource(BaseResource):
                 bucket_name=bucket,
                 notification_configuration=bucket_to_notifications[bucket]
             )
-
-    DELETE_TRIGGER = {
-        # DYNAMO_DB_TRIGGER: None,
-        # CLOUD_WATCH_RULE_TRIGGER: None,
-        # EVENT_BRIDGE_RULE_TRIGGER: None,
-        S3_TRIGGER: _remove_lambda_from_s3_triggers,
-        # SNS_TOPIC_TRIGGER: None,
-        # KINESIS_TRIGGER: None,
-        # SQS_TRIGGER: None
-    }
 
     def remove_lambdas(self, args):
         self.create_pool(self._remove_lambda, args)
