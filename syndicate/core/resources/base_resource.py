@@ -27,6 +27,7 @@ class BaseResource:
         :type parameters: iterable
         :type job: func
         """
+        exceptions = []
         executor = ThreadPoolExecutor(
             workers) if workers else ThreadPoolExecutor()
         try:
@@ -38,9 +39,13 @@ class BaseResource:
             concurrent.futures.wait(futures, return_when=ALL_COMPLETED)
             responses = {}
             for future in futures:
-                result = future.result()
-                if result:
-                    responses.update(result)
-            return responses
+                try:
+                    result = future.result()
+                    if result:
+                        responses.update(result)
+                except Exception as e:
+                    exceptions.append(e)
+
+            return (responses, exceptions) if exceptions else responses
         finally:
             executor.shutdown(wait=True)

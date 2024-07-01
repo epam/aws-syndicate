@@ -182,37 +182,46 @@ class S3Connection(object):
     def delete_bucket(self, bucket_name):
         self.client.delete_bucket(Bucket=bucket_name)
 
-    def configure_event_source_for_lambda(self, bucket, lambda_arn, events,
-                                          filter_rules=None):
+    def configure_event_source_for_lambda(self, bucket, lambda_arn,
+                                          event_sources):
         """
         :type bucket: str
         :type lambda_arn: str
-        :type events: list
-        :type filter_rules: list
-        :param events: 's3:ReducedRedundancyLostObject'|'s3:ObjectCreated:*'|
-        's3:ObjectCreated:Put'|'s3:ObjectCreated:Post'|'s3:ObjectCreated:Copy'|
-        's3:ObjectCreated:CompleteMultipartUpload'|'s3:ObjectRemoved:*'|
-        's3:ObjectRemoved:Delete'|'s3:ObjectRemoved:DeleteMarkerCreated'
+        :type event_sources: list[dict]
+        :param event_sources:
+            - s3_events: list[str] - list of S3 event types:
+                's3:ReducedRedundancyLostObject'
+                's3:ObjectCreated:*'
+                's3:ObjectCreated:Put'
+                's3:ObjectCreated:Post'
+                's3:ObjectCreated:Copy'
+                's3:ObjectCreated:CompleteMultipartUpload'
+                's3:ObjectRemoved:*'
+                's3:ObjectRemoved:Delete'
+                's3:ObjectRemoved:DeleteMarkerCreated'
+            - filter_rules (optional): list[dict] - list of S3 event filters:
+                {'Name': 'prefix'|'suffix', 'Value': 'string'}
         """
-        params = {
-            'LambdaFunctionConfigurations': [
-                {
-                    'LambdaFunctionArn': lambda_arn,
-                    'Events': events
-                }
-            ]
-        }
-        if filter_rules:
-            params['LambdaFunctionConfigurations'][0].update({
-                "Filter": {
-                    'Key': {
-                        'FilterRules': filter_rules
+        config = {'LambdaFunctionConfigurations': []}
+
+        for event_source in event_sources:
+            params = {
+                'LambdaFunctionArn': lambda_arn,
+                'Events': event_source['s3_events']
+            }
+            if event_source.get('filter_rules'):
+                params.update({
+                    "Filter": {
+                        'Key': {
+                            'FilterRules': event_source['filter_rules']
+                        }
                     }
-                }
-            })
+                })
+            config['LambdaFunctionConfigurations'].append(params)
+
         self.client.put_bucket_notification_configuration(
             Bucket=bucket,
-            NotificationConfiguration=params)
+            NotificationConfiguration=config)
 
     def get_list_buckets(self):
         response = self.client.list_buckets()

@@ -115,8 +115,6 @@ jobs:
           # -U force updates just to make sure we are using latest dependencies
           # -B Batch mode (do not ask for user input), just in case
           # -P activate profile
-          GPG_TTY=$(tty)
-          export GPG_TTY
           mvn -U -B clean deploy -P release --file ./plugin/pom.xml
         env:
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
