@@ -14,6 +14,7 @@
     limitations under the License.
 """
 import os
+import shutil
 
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.build.helper import resolve_bundle_directory
@@ -44,7 +45,7 @@ RUNTIME_TO_BUILDER_MAPPING = {
 _LOG = get_logger('syndicate.core.build.artifact_processor')
 
 
-def assemble_artifacts(bundle_name, project_path, runtime):
+def assemble_artifacts(bundle_name, project_path, runtime, force_upload=None):
     if runtime not in SUPPORTED_RUNTIMES:
         raise AssertionError(
             'Runtime {} is not supported. '
@@ -52,6 +53,17 @@ def assemble_artifacts(bundle_name, project_path, runtime):
                                                      SUPPORTED_RUNTIMES))
 
     bundle_dir = resolve_bundle_directory(bundle_name=bundle_name)
+
+    if force_upload is True:
+        _LOG.warning(f"Force upload is True, going to check if bundle"
+                     f" directory already exists.")
+        normalized_bundle_dir = os.path.normpath(bundle_dir)
+        if os.path.exists(normalized_bundle_dir):
+            _LOG.warning(f"Bundle with name: {bundle_name} already exists by"
+                         f" path `{normalized_bundle_dir}`, going to remove"
+                         f" this bundle locally.")
+            shutil.rmtree(normalized_bundle_dir)
+
     os.makedirs(bundle_dir, exist_ok=True)
     _LOG.debug('Target directory: {0}'.format(bundle_dir))
 

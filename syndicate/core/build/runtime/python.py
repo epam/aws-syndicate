@@ -24,7 +24,6 @@ import sys
 from concurrent.futures import FIRST_EXCEPTION
 from concurrent.futures import FIRST_EXCEPTION
 from concurrent.futures.thread import ThreadPoolExecutor
-from distutils.dir_util import copy_tree
 from itertools import chain
 from pathlib import Path
 from typing import Union, Optional, List, Set
@@ -178,7 +177,7 @@ def _build_python_artifact(root, config_file, target_folder, project_path):
             [Path(root, item) for item in os.listdir(root)]):
         _LOG.info(f'Copying package {package} to lambda\'s artifacts packages '
                   f'dir: {packages_dir}')
-        copy_tree(str(package), str(packages_dir / package.name))
+        shutil.copytree(str(package), str(packages_dir / package.name))
         _LOG.info('Copied successfully')
 
     # copy lambda's handler to artifacts folder
@@ -345,8 +344,8 @@ def _install_local_req(artifact_path, local_req_path, project_path):
     # copy folders
     for lrp in local_req_list:
         _LOG.info(f'Processing local dependency: {lrp}')
-        copy_tree(str(Path(CONFIG.project_path, project_path, lrp)),
-                  str(Path(artifact_path, lrp)))
+        shutil.copytree(str(Path(CONFIG.project_path, project_path, lrp)),
+                        str(Path(artifact_path, lrp)))
         _LOG.debug('Dependency was copied successfully')
 
         folders = [r for r in lrp.split(DEFAULT_SEP) if r]
