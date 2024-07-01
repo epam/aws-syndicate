@@ -34,7 +34,7 @@ setup(
         'click==7.1.2',
         'botocore==1.29.80',
         'boto3==1.26.80',
-        'tqdm==4.65.2',
+        'tqdm==4.66.3',
         'colorama==0.4.5',
         'pyyaml==6.0.1',
         'requests-aws-sign==0.1.6',
