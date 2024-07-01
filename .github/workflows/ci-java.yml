@@ -44,12 +44,12 @@ jobs:
             if [[ ${file} == ${checked_directory}* ]]
             then
               echo "Target directory was modified."
-              echo "::set-output name=run_publish_steps::true"
+              echo "run_publish_steps=true" >> $GITHUB_OUTPUT
               exit 0
             fi
           done
           echo "Target directory was not modified."
-          echo "::set-output name=run_publish_steps::false"
+          echo "run_publish_steps=false" >> $GITHUB_OUTPUT
         shell: bash
 
   release-snapshot-to-maven-central:
