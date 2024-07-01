@@ -586,36 +586,19 @@ class LambdaResource(BaseResource):
             if publish_version or alias_name else \
             response['Configuration']['FunctionArn']
 
-        # buckets = s3_client.list_buckets().get('Buckets', [])
-        # s3_triggers = {}
-        # for bucket in buckets:
-        #     try:
-        #         bucket_notification = s3_client.get_bucket_notification_configuration(
-        #             Bucket=bucket['Name'])
-        #     except ClientError as e:
-        #         continue
-        #     # TODO: save sqs and sns notifications configuration as well
-        #     if 'LambdaFunctionConfigurations' in bucket_notification:
-        #         lambda_configurations = \
-        #             bucket_notification['LambdaFunctionConfigurations']
-        #         for lambda_configuration in lambda_configurations:
-        #             # save triggers that are configured for other lambdas,
-        #             # disregard those configured for the current one
-        #             trigger_action = 'to_delete' if lambda_configuration['LambdaFunctionArn'] == arn else 'to_keep'
-        #             s3_triggers[bucket['Name']] = {
-        #                 trigger_action: s3_triggers.get(bucket['Name'],
-        #                                                 {}).get(trigger_action,
-        #                                                         []) + [
-        #                                     lambda_configuration]}
-        #
-        # for bucket in s3_triggers:
-        #     lambda_configurations = s3_triggers[bucket].get('to_keep', [])
-        #     s3_client.put_bucket_notification_configuration(
-        #         Bucket=bucket,
-        #         NotificationConfiguration={
-        #             'LambdaFunctionConfigurations': lambda_configurations
-        #         }
-        #     )
+        # delete lambda triggers that were removed from meta
+        triggers_to_delete = set(self.DELETE_TRIGGER.keys())
+        if meta.get('event_sources'):
+            trigger_resource_types = set(
+                event_source['resource_type']
+                for event_source in meta.get('event_sources')
+            )
+            # do not process triggers which types are present in meta as they
+            # will be overridden
+            triggers_to_delete -= trigger_resource_types
+        for trigger_type in triggers_to_delete:
+            func = self.DELETE_TRIGGER[trigger_type]
+            func(self, name, arn)
 
         if meta.get('event_sources'):
             event_sources_meta = meta['event_sources']
@@ -1050,6 +1033,46 @@ class LambdaResource(BaseResource):
         SNS_TOPIC_TRIGGER: _create_sns_topic_trigger_from_meta,
         KINESIS_TRIGGER: _create_kinesis_stream_trigger_from_meta,
         SQS_TRIGGER: _create_sqs_trigger_from_meta
+    }
+
+    def _remove_lambda_from_s3_triggers(self, lambda_name, lambda_arn):
+        buckets = self.s3_conn.get_list_buckets() or []
+        bucket_to_notifications = {}
+        for bucket in buckets:
+            try:
+                bucket_notifications = self.s3_conn.get_bucket_notification(
+                    bucket_name=bucket['Name'])
+            except ClientError:
+                continue
+            if 'LambdaFunctionConfigurations' in bucket_notifications:
+                bucket_notifications.pop('ResponseMetadata')
+                lambda_configs = bucket_notifications[
+                    'LambdaFunctionConfigurations']
+                if lambda_arn in [lambda_config['LambdaFunctionArn']
+                                  for lambda_config in lambda_configs]:
+                    saved_configs = [
+                        lambda_config for lambda_config in lambda_configs
+                        if lambda_config['LambdaFunctionArn'] != lambda_arn
+                    ]
+                    bucket_notifications[
+                        'LambdaFunctionConfigurations'] = saved_configs
+                    bucket_to_notifications[
+                        bucket['Name']] = bucket_notifications
+
+        for bucket in bucket_to_notifications:
+            self.s3_conn.put_bucket_notification(
+                bucket_name=bucket,
+                notification_configuration=bucket_to_notifications[bucket]
+            )
+
+    DELETE_TRIGGER = {
+        # DYNAMO_DB_TRIGGER: None,
+        # CLOUD_WATCH_RULE_TRIGGER: None,
+        # EVENT_BRIDGE_RULE_TRIGGER: None,
+        S3_TRIGGER: _remove_lambda_from_s3_triggers,
+        # SNS_TOPIC_TRIGGER: None,
+        # KINESIS_TRIGGER: None,
+        # SQS_TRIGGER: None
     }
 
     def remove_lambdas(self, args):

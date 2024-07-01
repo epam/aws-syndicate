@@ -346,6 +346,12 @@ class S3Connection(object):
             Bucket=bucket_name
         )
 
+    def put_bucket_notification(self, bucket_name, notification_configuration):
+        self.client.put_bucket_notification_configuration(
+            Bucket=bucket_name,
+            NotificationConfiguration=notification_configuration
+        )
+
     def remove_bucket_notification(self, bucket_name):
         self.client.put_bucket_notification_configuration(
             Bucket=bucket_name,
