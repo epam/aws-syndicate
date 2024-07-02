@@ -53,22 +53,12 @@ jobs:
            echo "dist=/tmp/bavp/dist" >>$GITHUB_OUTPUT
         shell: bash
 
-  echo-output:
-    needs: [check-modified-files]
-    runs-on: ubuntu-latest
-    steps:
-      - run: |
-          echo "Owner: ${{ github.repository_owner }}"
-          echo "Event: ${{ github.event_name }}"
-          echo "Modified: ${{ needs.check-modified-files.outputs.files_modified }}"
-
   release-snapshot-to-maven-central:
     name: Publish SNAPSHOT package to MavenCentral
     environment: release-snapshot
     needs: [maven, check-modified-files]
     runs-on: ubuntu-latest
-#    if: github.repository_owner == 'epam' && github.event_name == 'push' && github.ref == 'refs/heads/master' && needs.check-modified-files.outputs.files_modified == 'true'
-    if: github.repository_owner == 'epam' && github.event_name == 'pull_request' && needs.check-modified-files.outputs.files_modified == 'true'
+    if: github.repository_owner == 'epam' && github.event_name == 'push' && github.ref == 'refs/heads/master' && needs.check-modified-files.outputs.files_modified == 'true'
 
     steps:
       - uses: actions/checkout@v4
