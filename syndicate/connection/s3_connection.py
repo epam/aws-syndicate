@@ -204,24 +204,22 @@ class S3Connection(object):
             - filter_rules (optional): list[dict] - list of S3 event filters:
                 {'Name': 'prefix'|'suffix', 'Value': 'string'}
         """
-        config = self.client.get_bucket_notification_configuration(
-            Bucket=bucket)
+        config = self.get_bucket_notification(bucket_name=bucket)
 
         config.pop('ResponseMetadata')
 
-        # for some reason filter rule's name value is in uppercase when
-        # should be in lower according to the documentation
-        try:
-            lambda_configs = config['LambdaFunctionConfigurations']
-            for lambda_config in lambda_configs:
-                filter_rules = lambda_config['Filter']['Key']['FilterRules']
-                for filter_rule in filter_rules:
-                    filter_rule['Name'] = filter_rule['Name'].lower()
-        except KeyError:
-            pass
-
         if 'LambdaFunctionConfigurations' not in config:
             config['LambdaFunctionConfigurations'] = []
+
+        # for some reason filter rule's name value is in uppercase when
+        # should be in lower according to the documentation
+        for lambda_config in config['LambdaFunctionConfigurations']:
+            try:
+                filter_rules = lambda_config['Filter']['Key']['FilterRules']
+            except KeyError:
+                continue
+            for filter_rule in filter_rules:
+                filter_rule['Name'] = filter_rule['Name'].lower()
 
         for event_source in event_sources:
             params = {
@@ -245,9 +243,8 @@ class S3Connection(object):
             else:
                 config['LambdaFunctionConfigurations'].append(params)
 
-        self.client.put_bucket_notification_configuration(
-            Bucket=bucket,
-            NotificationConfiguration=config)
+        self.put_bucket_notification(
+            bucket_name=bucket, notification_configuration=config)
 
     def get_list_buckets(self):
         response = self.client.list_buckets()
@@ -342,9 +339,15 @@ class S3Connection(object):
         return bucket_objects
 
     def get_bucket_notification(self, bucket_name):
-        return self.client.get_bucket_notification_configuration(
-            Bucket=bucket_name
-        )
+        try:
+            return self.client.get_bucket_notification_configuration(
+                Bucket=bucket_name
+            )
+        except ClientError as e:
+            if 'AccessDenied' in str(e):
+                _LOG.warning(f'{e}. Bucket name - \'{bucket_name}\'.')
+            else:
+                raise e
 
     def put_bucket_notification(self, bucket_name, notification_configuration):
         self.client.put_bucket_notification_configuration(

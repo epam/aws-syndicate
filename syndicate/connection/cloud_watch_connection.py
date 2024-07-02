@@ -283,6 +283,11 @@ class EventConnection(object):
         """
         return self.client.list_targets_by_rule(Rule=rule_name)
 
+    def list_rules_by_target(self, target_arn):
+        response = self.client.list_rule_names_by_target(TargetArn=target_arn)
+        rule_names = response.get('RuleNames', [])
+        return rule_names
+
     def list_rules(self):
         """ Get list of rules for region."""
         rules = []

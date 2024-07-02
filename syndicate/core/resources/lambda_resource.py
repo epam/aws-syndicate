@@ -94,6 +94,23 @@ class LambdaResource(BaseResource):
         return self.lambda_conn.remove_permissions(lambda_arn,
                                                    permissions_sids)
 
+    def remove_permissions_by_resource_name(self, lambda_arn, resource_name):
+        """ Remove permissions to invoke lambda by resource name
+
+        :param lambda_arn: lambda name, arn or full arn
+        :param resource_name: resource name, arn or full arn
+        """
+        lambda_permissions = self.get_existing_permissions(lambda_arn)
+        for statement in lambda_permissions:
+            try:
+                source_arn = statement['Condition']['ArnLike']['AWS:SourceArn']
+            except KeyError:
+                continue
+            if resource_name in source_arn:
+                self.lambda_conn.remove_one_permission(
+                    function_name=lambda_arn,
+                    statement_id=statement['Sid'])
+
     def qualifier_version_resolver(self, lambda_def):
         latest_version_number = lambda_def['Configuration']['Version']
         if 'LATEST' in latest_version_number:
@@ -586,8 +603,8 @@ class LambdaResource(BaseResource):
             if publish_version or alias_name else \
             response['Configuration']['FunctionArn']
 
-        # delete lambda triggers before update for clean configuration
-        self.delete_all_lambda_triggers(arn)
+        # delete lambda triggers before update for clean triggers configuration
+        self.delete_all_lambda_triggers(name, arn)
 
         if meta.get('event_sources'):
             event_sources_meta = meta['event_sources']
@@ -1024,22 +1041,62 @@ class LambdaResource(BaseResource):
         SQS_TRIGGER: _create_sqs_trigger_from_meta
     }
 
-    def delete_all_lambda_triggers(self, arn):
-        self.lambda_conn.remove_trigger(arn)
-        self._remove_lambda_from_s3_triggers(arn)
+    def delete_all_lambda_triggers(self, lambda_name, lambda_arn):
+        # event sources (sqs, dynamodb streams, kinesis, kafka, amazon mq)
+        self.lambda_conn.remove_trigger(lambda_arn)
 
-    def _remove_lambda_from_s3_triggers(self, lambda_arn):
+        self._remove_s3_triggers(lambda_name, lambda_arn)
+        self._remove_cloud_watch_triggers(lambda_name, lambda_arn)
+        self._remove_sns_triggers(lambda_name, lambda_arn)
+
+    def _remove_sns_triggers(self, lambda_name, lambda_arn):
+        subscriptions = self.sns_conn.list_subscriptions()
+
+        for subscription in subscriptions:
+            topic_name = subscription['TopicArn'].split(':')[-1]
+            if subscription['Protocol'] == 'lambda' \
+                    and subscription['Endpoint'] == lambda_arn:
+                self.sns_conn.unsubscribe_arn(
+                    subscription_arn=subscription['SubscriptionArn'])
+                _LOG.info(f'Lambda {lambda_name} unsubscribed '
+                          f'from topic {topic_name}')
+
+                # remove sns permission to invoke lambda
+                # to remove this trigger from lambda triggers section
+                self.remove_permissions_by_resource_name(
+                    lambda_arn, subscription['TopicArn'])
+
+    def _remove_cloud_watch_triggers(self, lambda_name, lambda_arn):
+        rule_names = self.cw_events_conn.list_rules_by_target(lambda_arn)
+
+        for rule_name in rule_names:
+            targets = self.cw_events_conn.list_targets_by_rule(rule_name)
+
+            # remove target so that this rule won't trigger lambda
+            for target in targets:
+                if target['Arn'] == lambda_arn:
+                    self.cw_events_conn.remove_targets(
+                        rule_name=rule_name,
+                        target_ids=[target['Id']]
+                    )
+                    _LOG.info(f'Lambda {lambda_name} unsubscribed from '
+                              f'cloudwatch rule {rule_name}')
+
+            # remove event bridge permission to invoke lambda
+            # to remove this trigger from lambda triggers section
+            self.remove_permissions_by_resource_name(
+                lambda_arn, rule_name)
+
+    def _remove_s3_triggers(self, lambda_name, lambda_arn):
         buckets = self.s3_conn.get_list_buckets() or []
         bucket_to_notifications = {}
         for bucket in buckets:
-            try:
-                bucket_notifications = self.s3_conn.get_bucket_notification(
-                    bucket_name=bucket['Name'])
-            except ClientError:
-                # no access to bucket, skip
+            bucket_notifications = self.s3_conn.get_bucket_notification(
+                bucket_name=bucket['Name'])
+            if not bucket_notifications:
                 continue
+            bucket_notifications.pop('ResponseMetadata')
             if 'LambdaFunctionConfigurations' in bucket_notifications:
-                bucket_notifications.pop('ResponseMetadata')
                 lambda_configs = \
                     bucket_notifications['LambdaFunctionConfigurations']
                 if lambda_arn in [lambda_config['LambdaFunctionArn']
@@ -1058,6 +1115,8 @@ class LambdaResource(BaseResource):
                 bucket_name=bucket,
                 notification_configuration=bucket_to_notifications[bucket]
             )
+            _LOG.info(f'Removed {bucket} s3 bucket trigger from '
+                       f'lambda {lambda_name} ')
 
     def remove_lambdas(self, args):
         self.create_pool(self._remove_lambda, args)

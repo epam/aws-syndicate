@@ -256,3 +256,12 @@ class SNSConnection(object):
         """
         self.client.delete_platform_application(
             PlatformApplicationArn=application_arn)
+
+    def list_subscriptions(self):
+        paginator = self.client.get_paginator('list_subscriptions')
+
+        subscriptions = []
+        for page in paginator.paginate():
+            subscriptions.extend(page['Subscriptions'])
+
+        return subscriptions
