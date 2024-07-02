@@ -92,7 +92,7 @@ jobs:
         run: mvn -B package --file ./plugin/pom.xml
       - name: Deploy development version binaries (Snapshots)
         env:
-          OSS_SONATYPE_USERNAME: ${{ vars.OSSRH_USERNAME  }}
+          OSS_SONATYPE_USERNAME: ${{ secrets.OSSRH_USERNAME  }}
           OSS_SONATYPE_TOKEN: ${{ secrets.OSSRH_TOKEN }}
         run: |
           echo Checking variables ${{ secrets.OSSRH_USERNAME }}
