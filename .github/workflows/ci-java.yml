@@ -55,7 +55,8 @@ jobs:
   release-snapshot-to-maven-central:
     name: Publish SNAPSHOT package to MavenCentral
     environment: release-snapshot
-    if: github.repository_owner == 'epam' && github.event_name == 'push' && github.ref == 'refs/heads/master' && needs.check-modified-files.outputs.files_modified == 'true'
+#    if: github.repository_owner == 'epam' && github.event_name == 'push' && github.ref == 'refs/heads/master' && needs.check-modified-files.outputs.files_modified == 'true'
+    if: github.repository_owner == 'epam' && github.event_name == 'push' && needs.check-modified-files.outputs.files_modified == 'true'
     runs-on: ubuntu-latest
     needs: [maven, check-modified-files]
 
