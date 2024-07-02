@@ -73,6 +73,7 @@ jobs:
           settings-path: ${{ github.workspace }}
       - name: Set SNAPSHOT in version
         run: |
+          gpg --version
           syndicate_plugin_version=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout --file ./plugin/pom.xml | xargs) 
           mvn versions:set -DnewVersion="${syndicate_plugin_version}-SNAPSHOT" --file ./plugin/pom.xml
           mvn versions:commit --file ./plugin/pom.xml
@@ -115,6 +116,7 @@ jobs:
           # -U force updates just to make sure we are using latest dependencies
           # -B Batch mode (do not ask for user input), just in case
           # -P activate profile
+          gpg --version
           mvn -U -B clean deploy -P release --file ./plugin/pom.xml
         env:
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
