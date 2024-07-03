@@ -19,7 +19,11 @@ package com.syndicate.deployment.annotations.events;
 import com.syndicate.deployment.annotations.EventSource;
 import com.syndicate.deployment.model.EventSourceType;
 
-import java.lang.annotation.*;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Repeatable;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
 /**
  * Created by Vladyslav Tereshchenko on 8/9/2018.
