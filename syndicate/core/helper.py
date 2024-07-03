@@ -347,6 +347,8 @@ def timeit(action_name=None):
 
                 bundle_name = kwargs.get('bundle_name')
                 deploy_name = kwargs.get('deploy_name')
+                rollback_on_error = kwargs.get('rollback_on_error')
+                operation_status = result
                 from syndicate.core import PROJECT_STATE
                 PROJECT_STATE.log_execution_event(
                     operation=result_action_name or action_name,
@@ -355,7 +357,10 @@ def timeit(action_name=None):
                     deploy_name=deploy_name,
                     time_start=start_date_formatted,
                     time_end=end_date_formatted,
-                    duration_sec=duration)
+                    duration_sec=duration,
+                    operation_status=operation_status,
+                    rollback_on_error=rollback_on_error
+                )
             return result
 
         return timed

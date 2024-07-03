@@ -360,19 +360,33 @@ class ProjectState:
 
     def log_execution_event(self, **kwargs):
         operation = kwargs.get('operation')
+
+        operation_status = kwargs.get('operation_status')
+        rollback_on_error = kwargs.get('rollback_on_error')
+        if not isinstance(operation_status, bool):
+            kwargs.pop('operation_status')
+
         if operation in [DEPLOY_ACTION, PARTIAL_CLEAN_ACTION]:
             params = kwargs.copy()
             params.pop('operation')
-            self._set_latest_deploy_info(**params)
+
+            if not(operation_status is False and rollback_on_error is True):
+                params.pop('rollback_on_error')
+                self._set_latest_deploy_info(**params)
+
         if operation == CLEAN_ACTION:
             self._delete_latest_deploy_info()
 
-        kwargs = {key: value for key, value in kwargs.items() if value}
+        kwargs = {
+            key: value for key, value in kwargs.items() if value is not None
+        }
         self.events.insert(0, kwargs)
         self.__save_events()
 
     def _set_latest_deploy_info(self, **kwargs):
-        kwargs = {key: value for key, value in kwargs.items() if value}
+        kwargs = {
+            key: value for key, value in kwargs.items() if value is not None
+        }
         self.latest_deploy = kwargs
 
     def _delete_latest_deploy_info(self):

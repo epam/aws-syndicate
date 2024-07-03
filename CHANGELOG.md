@@ -4,14 +4,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [1.12.0] - 2024-06-20
-- Added support of Python 3.12
+# [1.12.1] - 2024-07-03
 - Added possibility to configure `FunctionResponseTypes` for lambda functions
 - Updated maven plugin version to 1.12.0 with support of `FunctionResponseTypes`
+
+# [1.12.0] - 2024-06-20
+- Added ability for `clean` command to automatically resolve if `--rollback` is needed.
+- Fixed an issue related to `log group already exists` error while deploying or updating `lambda`.
+- Updated `syndicate deploy --continue_deploy` command, now it can save output and actually continue deployment resources.
+- Implemented `rollback_on_error` flag for `syndicate deploy` command. Is flag is `True`, all resources that have been deployed during deployment process, would be cleaned.
+- Fixed an issue related to deploying multiple resources with same type, now it catches an `Exception` in case of a deployment error of one of the resources and returns it along with the outputs.
+- Fixed `deploy` command responses.
+- Added support of Python 3.12
 - Fixed an issue related to ARNs resolving in case of empty resource name
 - Fixed an issue related to improper filtering of resources in case of different types of filter usage
 - Fixed an error related to SQS FIFO Queue availability regions
+- Fixed an issue related to deploying SQS Queue with configured redrive_policy
 - Fixed an issue when only the last s3 trigger was configured for the lambda
+- Added `force_upload` action to all assemble commands
 
 # [1.11.6] - 2024-05-24
 - Added support of custom authorizer names in Open API specification security schemes

@@ -67,6 +67,8 @@ def retry(retry_timeout=DEFAULT_RETRY_TIMEOUT_SEC,
                 'calling the UpdateEventSourceMapping operation',
                 'An error occurred (InvalidParameterValueException) when '
                 'calling the CreateCluster operation',
+                'An error occurred (InvalidParameterValue) when '
+                'calling the CreateQueue operation',
                 'An error occurred (SubnetGroupInUseFault) when calling '
                 'the DeleteSubnetGroup operation',
                 'The role defined for the function cannot be assumed by Lambda',
