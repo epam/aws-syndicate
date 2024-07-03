@@ -16,7 +16,6 @@
 import concurrent
 import copy
 import functools
-import json
 from concurrent.futures import ALL_COMPLETED, ThreadPoolExecutor
 from functools import cmp_to_key
 
@@ -27,7 +26,6 @@ from syndicate.core.build.bundle_processor import (create_deploy_output,
                                                    load_meta_resources,
                                                    remove_failed_deploy_output,
                                                    load_latest_deploy_output)
-from syndicate.core.build.helper import _json_serial
 from syndicate.core.build.meta_processor import (resolve_meta,
                                                  populate_s3_paths,
                                                  resolve_resource_name)
@@ -45,33 +43,33 @@ _LOG = get_logger('syndicate.core.build.deployment_processor')
 USER_LOG = get_user_logger()
 
 
-def get_dependencies(name, meta, resources_dict, resources):
-    """ Get dependencies from resources that needed to create them too.
-
-    :type name: str
-    :type meta: dict
-    :type resources_dict: dict
-    :param resources:
-    :param resources_dict: resources that will be created {name: meta}
-    """
-    resources_dict[name] = meta
-    if meta.get('dependencies'):
-        for dependency in meta.get('dependencies'):
-            dep_name = dependency['resource_name']
-            dep_meta = resources[dep_name]
-            resources_dict[dep_name] = dep_meta
-            if dep_meta.get('dependencies'):
-                get_dependencies(dep_name, dep_meta, resources_dict, resources)
-
-
-# todo implement resources sorter according to priority
-# todo add dependency resolving
-def _process_resources(resources, handlers_mapping, pass_context=False):
-    output = {}
+def _process_resources(resources, handlers_mapping, pass_context=False,
+                       overall_resources=None, output=None):
+    overall_resources = overall_resources or resources
+    output = output or {}
     args = []
     resource_type = None
     try:
         for res_name, res_meta in resources:
+            if res_meta.get('processed'):
+                continue
+
+            dependencies = [item['resource_name'] for item in
+                            res_meta.get('dependencies', [])]
+            depends_on_resources = [item for item in overall_resources if
+                                    (item[0] in dependencies and
+                                     item[-1]['resource_type'] in
+                                     handlers_mapping)]
+            _LOG.debug(f"'{res_meta['resource_type']}' '{res_name}' "
+                       f"depends on resources: '{depends_on_resources}'")
+
+            if depends_on_resources:
+                _LOG.info(f"Processing '{res_meta['resource_type']}' "
+                          f"'{res_name}' dependencies "
+                          f"'{res_meta['dependencies']}'")
+                _process_resources(depends_on_resources, handlers_mapping,
+                                   pass_context, overall_resources, output)
+
             current_res_type = res_meta['resource_type']
 
             if resource_type is None:
@@ -88,6 +86,7 @@ def _process_resources(resources, handlers_mapping, pass_context=False):
                 func = handlers_mapping[resource_type]
                 response = func(args)
                 process_response(response=response, output=output)
+                res_meta['processed'] = True
 
                 del args[:]
                 args.append(_build_args(name=res_name,
@@ -95,12 +94,16 @@ def _process_resources(resources, handlers_mapping, pass_context=False):
                                         context=output,
                                         pass_context=pass_context))
                 resource_type = current_res_type
-        if args:
-            USER_LOG.info(f'Processing {resource_type} resources')
-            func = handlers_mapping[resource_type]
 
-            response = func(args)
-            process_response(response=response, output=output)
+        if args:
+            res_meta = args[0]['meta']
+            if not res_meta.get('processed'):
+                USER_LOG.info(f'Processing {resource_type} resources')
+                func = handlers_mapping[resource_type]
+
+                response = func(args)
+                process_response(response=response, output=output)
+                res_meta['processed'] = True
 
         return True, output
     except Exception as e:
@@ -436,10 +439,9 @@ def update_deployment_resources(bundle_name, deploy_name, replace_output=False,
         prettify_json(resources)))
     resources_list = list(resources.items())
     resources_list.sort(key=cmp_to_key(_compare_update_resources))
-    success, output = _process_resources(
-        resources=resources_list,
-        handlers_mapping=PROCESSOR_FACADE.update_handlers(),
-        pass_context=True)
+
+    success, output = update_resources(resources_list)
+
     create_deploy_output(bundle_name=bundle_name,
                          deploy_name=deploy_name,
                          output=output,
