@@ -22,6 +22,7 @@ from botocore.exceptions import ClientError
 
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import apply_methods_decorator, retry
+from syndicate.core.decorators import threading_lock
 
 _LOG = get_logger('syndicate.connection.s3_connection')
 
@@ -182,10 +183,12 @@ class S3Connection(object):
     def delete_bucket(self, bucket_name):
         self.client.delete_bucket(Bucket=bucket_name)
 
+    @threading_lock
     def configure_event_source_for_lambda(self, bucket, lambda_arn,
                                           event_sources):
         """ Create event notification in the bucket that triggers the lambda
-        Note: two identical events can't be configured for two separate lambdas
+        Note: two identical events can't be configured for two
+        separate lambdas in one bucket
 
         :type bucket: str
         :type lambda_arn: str

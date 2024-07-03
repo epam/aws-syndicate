@@ -24,6 +24,7 @@ from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.connection.helper import retry
 from syndicate.core.build.meta_processor import S3_PATH_NAME
 from syndicate.core.constants import DEFAULT_LOGS_EXPIRATION
+from syndicate.core.decorators import threading_lock
 from syndicate.core.helper import (unpack_kwargs,
                                    exit_on_exception)
 from syndicate.core.resources.base_resource import BaseResource
@@ -1002,9 +1003,10 @@ class LambdaResource(BaseResource):
 
     @retry()
     def _add_kinesis_event_source(self, lambda_name, stream_arn, trigger_meta):
-        self.lambda_conn.add_event_source(lambda_name, stream_arn,
-                                          trigger_meta['batch_size'],
-                                          trigger_meta['starting_position'])
+        self.lambda_conn.add_event_source(
+            func_name=lambda_name, stream_arn=stream_arn,
+            batch_size=trigger_meta['batch_size'],
+            start_position=trigger_meta['starting_position'])
 
     CREATE_TRIGGER = {
         DYNAMO_DB_TRIGGER: _create_dynamodb_trigger_from_meta,
@@ -1059,12 +1061,11 @@ class LambdaResource(BaseResource):
 
             # remove event bridge permission to invoke lambda
             # to remove this trigger from lambda triggers section
-            self.remove_permissions_by_resource_name(
-                lambda_arn, rule_name)
+            self.remove_permissions_by_resource_name(lambda_arn, rule_name)
 
+    @threading_lock
     def _remove_s3_triggers(self, lambda_name, lambda_arn):
         buckets = self.s3_conn.get_list_buckets() or []
-        bucket_to_notifications = {}
         for bucket in buckets:
             bucket_notifications = self.s3_conn.get_bucket_notification(
                 bucket_name=bucket['Name'])
@@ -1082,16 +1083,18 @@ class LambdaResource(BaseResource):
                     ]
                     bucket_notifications['LambdaFunctionConfigurations'] = \
                         saved_configs
-                    bucket_to_notifications[bucket['Name']] = \
-                        bucket_notifications
+                    self.s3_conn.put_bucket_notification(
+                        bucket_name=bucket['Name'],
+                        notification_configuration=bucket_notifications
+                    )
 
-        for bucket in bucket_to_notifications:
-            self.s3_conn.put_bucket_notification(
-                bucket_name=bucket,
-                notification_configuration=bucket_to_notifications[bucket]
-            )
-            _LOG.info(f'Removed {bucket} s3 bucket trigger from '
-                       f'lambda {lambda_name} ')
+                    # remove s3 permission to invoke lambda
+                    # to remove this trigger from lambda triggers section
+                    self.remove_permissions_by_resource_name(
+                        lambda_arn, bucket['Name'])
+
+                    _LOG.info(f'Lambda {lambda_name} unsubscribed from '
+                              f's3 bucket {bucket["Name"]}')
 
     def remove_lambdas(self, args):
         self.create_pool(self._remove_lambda, args)
@@ -1102,7 +1105,7 @@ class LambdaResource(BaseResource):
         lambda_name = config['resource_name']
         try:
             self.lambda_conn.delete_lambda(lambda_name)
-            self.lambda_conn.remove_trigger(arn)
+            self.delete_all_lambda_triggers(lambda_name, arn)
             group_names = self.cw_logs_conn.get_log_group_names()
             for each in group_names:
                 if lambda_name == each.split('/')[-1]:
