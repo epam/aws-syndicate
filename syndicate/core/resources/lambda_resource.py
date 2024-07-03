@@ -576,7 +576,7 @@ class LambdaResource(BaseResource):
             response['Configuration']['FunctionArn']
 
         # delete lambda triggers before update for clean triggers configuration
-        self.delete_all_lambda_triggers(name, arn)
+        self.remove_all_lambda_triggers(name, arn)
 
         if meta.get('event_sources'):
             event_sources_meta = meta['event_sources']
@@ -1018,7 +1018,7 @@ class LambdaResource(BaseResource):
         SQS_TRIGGER: _create_sqs_trigger_from_meta
     }
 
-    def delete_all_lambda_triggers(self, lambda_name, lambda_arn):
+    def remove_all_lambda_triggers(self, lambda_name, lambda_arn):
         # event sources (sqs, dynamodb streams, kinesis, kafka, amazon mq)
         self.lambda_conn.remove_trigger(lambda_arn)
 
@@ -1107,7 +1107,7 @@ class LambdaResource(BaseResource):
         lambda_name = config['resource_name']
         try:
             self.lambda_conn.delete_lambda(lambda_name)
-            self.delete_all_lambda_triggers(lambda_name, arn)
+            self.remove_all_lambda_triggers(lambda_name, arn)
             group_names = self.cw_logs_conn.get_log_group_names()
             for each in group_names:
                 if lambda_name == each.split('/')[-1]:
