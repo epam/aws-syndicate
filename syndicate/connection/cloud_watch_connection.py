@@ -149,6 +149,18 @@ class LogsConnection(object):
             token = response.get('nextToken')
         return groups
 
+    def get_log_group_by_lambda_name(self, lambda_name: str):
+        group = None
+        response = self.client.describe_log_groups(
+            logGroupNamePattern=lambda_name
+        )
+        group_data = response.get("logGroups")
+
+        if group_data:
+            group = group_data[0]
+
+        return group
+
 
 @apply_methods_decorator(retry())
 class EventConnection(object):

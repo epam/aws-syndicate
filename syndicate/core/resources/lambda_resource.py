@@ -344,22 +344,7 @@ class LambdaResource(BaseResource):
         waiter = self.lambda_conn.get_waiter('function_exists')
         waiter.wait(FunctionName=name)
 
-        log_group_name = name
-        possible_retention = meta.get('logs_expiration', DEFAULT_LOGS_EXPIRATION)
-        try:
-            retention = int(possible_retention)
-        except (TypeError, ValueError):
-            _LOG.warning(
-                f"Can't parse logs_expiration `{possible_retention} as int."
-                f" Set default {DEFAULT_LOGS_EXPIRATION}"
-            )
-            retention = DEFAULT_LOGS_EXPIRATION
-
-        if retention:
-            self.cw_logs_conn.create_log_group_with_retention_days(
-                group_name=log_group_name,
-                retention_in_days=retention
-            )
+        self._resolve_log_group(lambda_name=name, meta=meta)
 
         lambda_def = self.__describe_lambda_by_version(
             name) if publish_version else self.lambda_conn.get_function(name)
@@ -535,21 +520,7 @@ class LambdaResource(BaseResource):
         waiter.wait(FunctionName=name)
         _LOG.info(f'Waiting has finished')
 
-        log_group_name = name
-        possible_retention = meta.get('logs_expiration', DEFAULT_LOGS_EXPIRATION)
-        try:
-            retention = int(possible_retention)
-        except (TypeError, ValueError):
-            _LOG.warning(
-                f"Can't parse logs_expiration `{possible_retention} as int."
-                f" Set default {DEFAULT_LOGS_EXPIRATION}"
-            )
-            retention = DEFAULT_LOGS_EXPIRATION
-        if retention is not None:
-            self.cw_logs_conn.update_log_group_retention_days(
-                group_name=log_group_name,
-                retention_in_days=retention
-            )
+        self._resolve_log_group(lambda_name=name, meta=meta)
 
         response = self.lambda_conn.get_function(name)
         _LOG.info(f'Lambda describe result: {response}')
@@ -862,6 +833,8 @@ class LambdaResource(BaseResource):
                                       trigger_meta):
         validate_params(lambda_name, trigger_meta, SQS_TRIGGER_REQUIRED_PARAMS)
         target_queue = trigger_meta['target_queue']
+        function_response_types = trigger_meta.get(
+            "function_response_types", [])
         batch_size, batch_window = self._resolve_batch_size_batch_window(
             trigger_meta)
 
@@ -882,10 +855,12 @@ class LambdaResource(BaseResource):
             self.lambda_conn.update_event_source(
                 event_source['UUID'], function_name=lambda_arn,
                 batch_size=batch_size,
-                batch_window=batch_window)
+                batch_window=batch_window,
+                function_response_types=function_response_types)
         else:
             self.lambda_conn.add_event_source(
-                lambda_arn, queue_arn, batch_size, batch_window
+                lambda_arn, queue_arn, batch_size, batch_window,
+                function_response_types=function_response_types
             )
 
         _LOG.info('Lambda %s subscribed to SQS queue %s', lambda_name,
@@ -1254,3 +1229,35 @@ class LambdaResource(BaseResource):
                           f"default value ({batch_window}) because "
                           f"'batch_size' is greater than 10")
         return batch_size, batch_window
+
+    def _resolve_log_group(self, lambda_name: str, meta: dict):
+
+        log_group = self.cw_logs_conn.get_log_group_by_lambda_name(
+            lambda_name=lambda_name
+        )
+        if log_group:
+            log_group_name = log_group.get("logGroupName")
+            _LOG.info(f"CloudWatch log group with name: {log_group_name}"
+                      f" for lambda: {lambda_name} already exists.")
+
+        if not log_group:
+            _LOG.info(f"Cloud Watch log group for lambda: {lambda_name} does"
+                      f" not exists. Creating new log group with name:"
+                      f" aws/lambda/{lambda_name}")
+
+            possible_retention = meta.get(
+                'logs_expiration', DEFAULT_LOGS_EXPIRATION)
+            try:
+                retention = int(possible_retention)
+            except (TypeError, ValueError):
+                _LOG.warning(
+                    f"Can't parse logs_expiration `{possible_retention}"
+                    f" as int. Set default {DEFAULT_LOGS_EXPIRATION}"
+                )
+                retention = DEFAULT_LOGS_EXPIRATION
+
+            if retention:
+                self.cw_logs_conn.create_log_group_with_retention_days(
+                    group_name=lambda_name,
+                    retention_in_days=retention
+                )
