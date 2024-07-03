@@ -1075,8 +1075,10 @@ class LambdaResource(BaseResource):
             if 'LambdaFunctionConfigurations' in bucket_notifications:
                 lambda_configs = \
                     bucket_notifications['LambdaFunctionConfigurations']
-                if lambda_arn in [lambda_config['LambdaFunctionArn']
-                                  for lambda_config in lambda_configs]:
+                lambda_config_arns = [lambda_config['LambdaFunctionArn']
+                                      for lambda_config in lambda_configs]
+                if lambda_arn in lambda_config_arns:
+                    # exclude current lambda from the s3 event config
                     saved_configs = [
                         lambda_config for lambda_config in lambda_configs
                         if lambda_config['LambdaFunctionArn'] != lambda_arn
