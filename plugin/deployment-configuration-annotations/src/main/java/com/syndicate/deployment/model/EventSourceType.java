@@ -122,7 +122,9 @@ public enum EventSourceType {
             SqsTriggerEventSource sqsEventSource = (SqsTriggerEventSource) eventSource;
             return new SqsTriggerEventSourceItem.Builder()
                     .withTargetQueue(sqsEventSource.targetQueue())
-                    .withBatchSize(sqsEventSource.batchSize()).build();
+                    .withBatchSize(sqsEventSource.batchSize())
+                    .withFunctionResponseTypes(sqsEventSource.functionResponseTypes())
+                    .build();
         }
 
         @Override
