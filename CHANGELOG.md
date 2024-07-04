@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 # [1.12.1] - 2024-07-03
 - Added possibility to configure `FunctionResponseTypes` for lambda functions
 - Updated maven plugin version to 1.12.0 with support of `FunctionResponseTypes`
+- Fix lambda triggers deletion when removed from meta
 
 # [1.12.0] - 2024-06-20
 - Added ability for `clean` command to automatically resolve if `--rollback` is needed.
