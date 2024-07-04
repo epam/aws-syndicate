@@ -95,13 +95,13 @@ class LambdaResource(BaseResource):
         return self.lambda_conn.remove_permissions(lambda_arn,
                                                    permissions_sids)
 
-    def remove_permissions_by_resource_name(self, lambda_arn, resource_name):
+    def remove_permissions_by_resource_name(self, lambda_name, resource_name):
         """ Remove permissions to invoke lambda by resource name
 
-        :param lambda_arn: lambda name, arn or full arn
+        :param lambda_name: lambda name, arn or full arn
         :param resource_name: resource name, arn or full arn
         """
-        lambda_permissions = self.get_existing_permissions(lambda_arn)
+        lambda_permissions = self.get_existing_permissions(lambda_name)
         for statement in lambda_permissions:
             try:
                 source_arn = statement['Condition']['ArnLike']['AWS:SourceArn']
@@ -109,7 +109,7 @@ class LambdaResource(BaseResource):
                 continue
             if resource_name in source_arn:
                 self.lambda_conn.remove_one_permission(
-                    function_name=lambda_arn,
+                    function_name=lambda_name,
                     statement_id=statement['Sid'])
 
     def qualifier_version_resolver(self, lambda_def):
