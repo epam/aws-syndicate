@@ -44,8 +44,55 @@ USER_LOG = get_user_logger()
 
 
 def _process_resources(resources, handlers_mapping, pass_context=False,
-                       overall_resources=None, output=None,
-                       current_resource_type=None, run_count=0):
+                       output=None):
+    output = output or {}
+    args = []
+    resource_type = None
+    try:
+        for res_name, res_meta in resources:
+            current_res_type = res_meta['resource_type']
+
+            if resource_type is None:
+                resource_type = current_res_type
+
+            if current_res_type == resource_type:
+                args.append(_build_args(name=res_name,
+                                        meta=res_meta,
+                                        context=output,
+                                        pass_context=pass_context))
+                continue
+            elif current_res_type != resource_type:
+                USER_LOG.info(f'Processing {resource_type} resources')
+                func = handlers_mapping[resource_type]
+                response = func(args)
+                process_response(response=response, output=output)
+
+                del args[:]
+                args.append(_build_args(name=res_name,
+                                        meta=res_meta,
+                                        context=output,
+                                        pass_context=pass_context))
+                resource_type = current_res_type
+        if args:
+            USER_LOG.info(f'Processing {resource_type} resources')
+            func = handlers_mapping[resource_type]
+
+            response = func(args)
+            process_response(response=response, output=output)
+
+        return True, output
+    except Exception as e:
+        USER_LOG.exception('Error occurred while {0} '
+                           'resource creating: {1}'.format(resource_type,
+                                                           str(e)))
+        return False, output
+
+
+def _process_resources_with_dependencies(resources, handlers_mapping,
+                                         pass_context=False,
+                                         overall_resources=None, output=None,
+                                         current_resource_type=None,
+                                         run_count=0):
     overall_resources = overall_resources or resources
     output = output or {}
     try:
@@ -80,7 +127,7 @@ def _process_resources(resources, handlers_mapping, pass_context=False,
                     f"Processing '{resource_type}' '{res_name}' dependencies "
                     f"{prettify_json(res_meta['dependencies'])}")
 
-                _process_resources(
+                success, output = _process_resources_with_dependencies(
                     resources=depends_on_resources,
                     handlers_mapping=handlers_mapping,
                     pass_context=pass_context,
@@ -88,6 +135,9 @@ def _process_resources(resources, handlers_mapping, pass_context=False,
                     output=output,
                     current_resource_type=current_resource_type,
                     run_count=run_count)
+
+                if not success:
+                    return False, output
 
             args.append(_build_args(name=res_name,
                                     meta=res_meta,
@@ -150,11 +200,37 @@ def update_failed_output(res_name, res_meta, resource_type, output):
     return output
 
 
-def deploy_resources(resources):
+def deploy_resources(resources, output=None):
     from syndicate.core import PROCESSOR_FACADE
+    process_with_dependency = False
+
+    for _, res_meta in resources:
+        res_priority = DEPLOY_RESOURCE_TYPE_PRIORITY[res_meta['resource_type']]
+        dependencies = res_meta.get('dependencies', [])
+        dep_priorities = [
+            DEPLOY_RESOURCE_TYPE_PRIORITY[item['resource_type']] for item in
+            dependencies]
+
+        if dep_priorities:
+            if max(dep_priorities) >= res_priority:
+                process_with_dependency = True
+                break
+
+    if process_with_dependency:
+        USER_LOG.warn(
+            'Resource dependency with higher deployment priority from a '
+            'resource with equal or lower deployment priority detected. '
+            'Deployment may take a little bit more time than usual.')
+
+        return _process_resources_with_dependencies(
+            resources=resources,
+            handlers_mapping=PROCESSOR_FACADE.create_handlers(),
+            output=output)
+
     return _process_resources(
         resources=resources,
-        handlers_mapping=PROCESSOR_FACADE.create_handlers())
+        handlers_mapping=PROCESSOR_FACADE.create_handlers(),
+        output=output)
 
 
 def update_resources(resources):
@@ -191,19 +267,18 @@ def clean_resources(output):
         func(args)
 
 
-# todo implement saving failed output
 def continue_deploy_resources(resources, failed_output):
-    deployed_resource_names = {data['resource_name'] for data in
-                               failed_output.values()}
+    new_output = {}
+    for arn, meta in failed_output.items():
+        for resource_name, resource_meta in resources:
+            if resource_name == meta['resource_name']:
+                new_output[arn] = meta
+                resources.remove((resource_name, resource_meta))
 
-    for resource_name, resource_meta in resources:
-        if resource_name in deployed_resource_names:
-            resource_meta['processed'] = True
-
-    if len(deployed_resource_names) == len(resources):
+    if len(new_output) == len(resources):
         return True, failed_output
 
-    return deploy_resources(resources)
+    return deploy_resources(resources, new_output)
 
 
 def process_response(response, output: dict):
