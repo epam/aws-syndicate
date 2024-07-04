@@ -44,72 +44,74 @@ USER_LOG = get_user_logger()
 
 
 def _process_resources(resources, handlers_mapping, pass_context=False,
-                       overall_resources=None, output=None):
+                       overall_resources=None, output=None,
+                       current_resource_type=None, run_count=0):
     overall_resources = overall_resources or resources
     output = output or {}
-    args = []
-    resource_type = None
     try:
         for res_name, res_meta in resources:
+            args = []
+            resource_type = res_meta['resource_type']
             if res_meta.get('processed'):
+                _LOG.debug(f"Processing of '{resource_type}' '{res_name}' "
+                           f"skipped. Resource already processed")
                 continue
+
+            if run_count >= len(overall_resources):
+                raise RecursionError(
+                    "An infinite loop detected in resource dependencies")
+
+            run_count += 1
 
             dependencies = [item['resource_name'] for item in
                             res_meta.get('dependencies', [])]
-            depends_on_resources = [item for item in overall_resources if
-                                    (item[0] in dependencies and
-                                     item[-1]['resource_type'] in
-                                     handlers_mapping)]
-            _LOG.debug(f"'{res_meta['resource_type']}' '{res_name}' "
-                       f"depends on resources: '{depends_on_resources}'")
+            _LOG.debug(f"'{resource_type}' '{res_name}' depends on resources: "
+                       f"{dependencies}")
+            # Order of items in depends_on_resources is important!
+            depends_on_resources = []
+            for dep_res_name in dependencies:
+                for overall_res_name, overall_res_meta in overall_resources:
+                    if overall_res_name == dep_res_name:
+                        depends_on_resources.append((overall_res_name,
+                                                    overall_res_meta))
 
             if depends_on_resources:
-                _LOG.info(f"Processing '{res_meta['resource_type']}' "
-                          f"'{res_name}' dependencies "
-                          f"'{res_meta['dependencies']}'")
-                _process_resources(depends_on_resources, handlers_mapping,
-                                   pass_context, overall_resources, output)
+                _LOG.info(
+                    f"Processing '{resource_type}' '{res_name}' dependencies "
+                    f"{prettify_json(res_meta['dependencies'])}")
 
-            current_res_type = res_meta['resource_type']
+                _process_resources(
+                    resources=depends_on_resources,
+                    handlers_mapping=handlers_mapping,
+                    pass_context=pass_context,
+                    overall_resources=overall_resources,
+                    output=output,
+                    current_resource_type=current_resource_type,
+                    run_count=run_count)
 
-            if resource_type is None:
-                resource_type = current_res_type
-
-            if current_res_type == resource_type:
-                args.append(_build_args(name=res_name,
-                                        meta=res_meta,
-                                        context=output,
-                                        pass_context=pass_context))
-                continue
-            elif current_res_type != resource_type:
+            args.append(_build_args(name=res_name,
+                                    meta=res_meta,
+                                    context=output,
+                                    pass_context=pass_context))
+            if current_resource_type != resource_type:
                 USER_LOG.info(f'Processing {resource_type} resources')
-                func = handlers_mapping[resource_type]
-                response = func(args)
-                process_response(response=response, output=output)
-                res_meta['processed'] = True
+                current_resource_type = resource_type
+            func = handlers_mapping[resource_type]
+            response = func(args)
+            process_response(response=response, output=output)
 
-                del args[:]
-                args.append(_build_args(name=res_name,
-                                        meta=res_meta,
-                                        context=output,
-                                        pass_context=pass_context))
-                resource_type = current_res_type
-
-        if args:
-            res_meta = args[0]['meta']
-            if not res_meta.get('processed'):
-                USER_LOG.info(f'Processing {resource_type} resources')
-                func = handlers_mapping[resource_type]
-
-                response = func(args)
-                process_response(response=response, output=output)
-                res_meta['processed'] = True
+            res_meta['processed'] = True
+            overall_res_index = overall_resources.index(
+                (res_name, res_meta))
+            overall_resources[overall_res_index][-1]['processed'] = True
 
         return True, output
     except Exception as e:
-        USER_LOG.exception('Error occurred while {0} '
-                           'resource creating: {1}'.format(resource_type,
-                                                           str(e)))
+        if 'An infinite loop' in str(e):
+            USER_LOG.error(e.args[0])
+        else:
+            USER_LOG.exception(f"Error occurred while '{resource_type}' "
+                               f"resource creating: {str(e)}")
         return False, output
 
 
@@ -191,54 +193,17 @@ def clean_resources(output):
 
 # todo implement saving failed output
 def continue_deploy_resources(resources, failed_output):
-    from syndicate.core import PROCESSOR_FACADE
-    handler_mappings = PROCESSOR_FACADE.create_handlers()
-
-    resources_to_deploy = []
-    deploy_result = True
-    args = []
-
-    failed_resource_names = {data['resource_name'] for data in
-                             failed_output.values()}
+    deployed_resource_names = {data['resource_name'] for data in
+                               failed_output.values()}
 
     for resource_name, resource_meta in resources:
-        if resource_name not in failed_resource_names:
-            resources_to_deploy.append((resource_name, resource_meta))
+        if resource_name in deployed_resource_names:
+            resource_meta['processed'] = True
 
-    if not resources_to_deploy:
-        return deploy_result, failed_output
+    if len(deployed_resource_names) == len(resources):
+        return True, failed_output
 
-    for resource in resources_to_deploy:
-        res_name, res_meta = resource
-        res_type = res_meta['resource_type']
-        func = handler_mappings[res_type]
-        try:
-            if func:
-                args.append(_build_args(
-                    name=res_name,
-                    meta=res_meta,
-                    context={}
-                ))
-                USER_LOG.info(f'Processing {res_type} resources')
-                response = func(args)
-                del args[:]
-                if response:
-                    process_response(
-                        response=response, output=failed_output
-                    )
-                else:
-                    _LOG.warning(f"Handler for resource type: {res_type}"
-                                 f" did not returned any response")
-            else:
-                _LOG.warning(f"Handler for the `{res_name}` resource of"
-                             f" {res_type} type was not found. Resource"
-                             f" has not been deployed.")
-        except Exception as e:
-            _LOG.exception(
-                'Error occurred while {0} resource creating: {1}'.
-                format(res_type, str(e)))
-            deploy_result = False
-            return deploy_result, failed_output
+    return deploy_resources(resources)
 
 
 def process_response(response, output: dict):
