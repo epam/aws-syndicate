@@ -248,6 +248,13 @@ class SnsResource(BaseResource):
             self.connection_provider.sns(region).unsubscribe(
                     subscription_arn)
 
+    def unsubscribe_arn(self, subscription_arn):
+        self.connection_provider.sns().unsubscribe(
+            subscription_arn=subscription_arn)
+
+    def list_subscriptions(self):
+        return self.connection_provider.sns().list_subscriptions()
+
     @unpack_kwargs
     def _create_platform_application_from_meta(self, name, meta, region):
         required_parameters = ['platform', 'attributes']
