@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [1.12.1] - 2024-07-03
+- Added possibility to configure `FunctionResponseTypes` for lambda functions
+- Updated maven plugin version to 1.12.0 with support of `FunctionResponseTypes`
+- Fix lambda triggers deletion when removed from meta
+- Fix resources dependencies resolving
+- Fix losing successfully deployed resources from the output file during deployment with the option `--continue_deploy`
+
 # [1.12.0] - 2024-06-20
 - Added ability for `clean` command to automatically resolve if `--rollback` is needed.
 - Fixed an issue related to `log group already exists` error while deploying or updating `lambda`.
@@ -17,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed an error related to SQS FIFO Queue availability regions
 - Fixed an issue related to deploying SQS Queue with configured redrive_policy
 - Fixed an issue when only the last s3 trigger was configured for the lambda
+- Added `force_upload` action to all assemble commands
 
 # [1.11.6] - 2024-05-24
 - Added support of custom authorizer names in Open API specification security schemes

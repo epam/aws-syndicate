@@ -86,6 +86,7 @@ def retry(retry_timeout=DEFAULT_RETRY_TIMEOUT_SEC,
                 'UpdateGatewayResponse',
                 'Cannot delete, found existing JobQueue relationship',
                 'Cannot delete, resource is being modified',
+                'Please try again'
             ]
             last_ex = None
             for each in range(1, retry_timeout, retry_timeout_step):

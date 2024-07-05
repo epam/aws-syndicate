@@ -22,6 +22,7 @@ from botocore.exceptions import ClientError
 
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import apply_methods_decorator, retry
+from syndicate.core.decorators import threading_lock
 
 _LOG = get_logger('syndicate.connection.s3_connection')
 
@@ -182,9 +183,13 @@ class S3Connection(object):
     def delete_bucket(self, bucket_name):
         self.client.delete_bucket(Bucket=bucket_name)
 
+    @threading_lock
     def configure_event_source_for_lambda(self, bucket, lambda_arn,
                                           event_sources):
-        """
+        """ Create event notification in the bucket that triggers the lambda
+        Note: two identical events can't be configured for two
+        separate lambdas in one bucket
+
         :type bucket: str
         :type lambda_arn: str
         :type event_sources: list[dict]
@@ -202,7 +207,22 @@ class S3Connection(object):
             - filter_rules (optional): list[dict] - list of S3 event filters:
                 {'Name': 'prefix'|'suffix', 'Value': 'string'}
         """
-        config = {'LambdaFunctionConfigurations': []}
+        config = self.get_bucket_notification(bucket_name=bucket)
+
+        config.pop('ResponseMetadata')
+
+        if 'LambdaFunctionConfigurations' not in config:
+            config['LambdaFunctionConfigurations'] = []
+
+        # for some reason filter rule's name value is in uppercase when
+        # should be in lower according to the documentation
+        for lambda_config in config['LambdaFunctionConfigurations']:
+            try:
+                filter_rules = lambda_config['Filter']['Key']['FilterRules']
+            except KeyError:
+                continue
+            for filter_rule in filter_rules:
+                filter_rule['Name'] = filter_rule['Name'].lower()
 
         for event_source in event_sources:
             params = {
@@ -217,11 +237,17 @@ class S3Connection(object):
                         }
                     }
                 })
+            # add event notification to remote if it is not already present
+            for remote_event_source in config['LambdaFunctionConfigurations']:
+                remote_event_source_copy = remote_event_source.copy()
+                remote_event_source_copy.pop('Id')
+                if remote_event_source_copy == params:
+                    break
+            else:
                 config['LambdaFunctionConfigurations'].append(params)
 
-        self.client.put_bucket_notification_configuration(
-            Bucket=bucket,
-            NotificationConfiguration=config)
+        self.put_bucket_notification(
+            bucket_name=bucket, notification_configuration=config)
 
     def get_list_buckets(self):
         response = self.client.list_buckets()
@@ -316,8 +342,20 @@ class S3Connection(object):
         return bucket_objects
 
     def get_bucket_notification(self, bucket_name):
-        return self.client.get_bucket_notification_configuration(
-            Bucket=bucket_name
+        try:
+            return self.client.get_bucket_notification_configuration(
+                Bucket=bucket_name
+            )
+        except ClientError as e:
+            if 'AccessDenied' in str(e):
+                _LOG.warning(f'{e}. Bucket name - \'{bucket_name}\'.')
+            else:
+                raise e
+
+    def put_bucket_notification(self, bucket_name, notification_configuration):
+        self.client.put_bucket_notification_configuration(
+            Bucket=bucket_name,
+            NotificationConfiguration=notification_configuration
         )
 
     def remove_bucket_notification(self, bucket_name):
