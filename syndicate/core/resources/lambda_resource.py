@@ -64,13 +64,14 @@ S3_TRIGGER = 's3_trigger'
 SNS_TOPIC_TRIGGER = 'sns_topic_trigger'
 KINESIS_TRIGGER = 'kinesis_trigger'
 SQS_TRIGGER = 'sqs_trigger'
+NOT_AVAILABLE = 'N/A'
 
 
 class LambdaResource(BaseResource):
 
     def __init__(self, lambda_conn, s3_conn, cw_logs_conn, sns_conn,
                  iam_conn, dynamodb_conn, sqs_conn, kinesis_conn,
-                 cw_events_conn, region, account_id,
+                 cw_events_conn, cognito_idp_conn, region, account_id,
                  deploy_target_bucket) -> None:
         self.lambda_conn = lambda_conn
         self.s3_conn = s3_conn
@@ -81,9 +82,14 @@ class LambdaResource(BaseResource):
         self.sqs_conn = sqs_conn
         self.kinesis_conn = kinesis_conn
         self.cw_events_conn = cw_events_conn
+        self.cognito_idp_conn = cognito_idp_conn
         self.region = region
         self.account_id = account_id
         self.deploy_target_bucket = deploy_target_bucket
+
+        self.dynamic_params_resolvers = {
+            ('cognito_idp', 'id'): self.cognito_idp_conn.if_pool_exists_by_name
+        }
 
     def qualifier_alias_resolver(self, lambda_def):
         return lambda_def['Alias']
@@ -319,6 +325,9 @@ class LambdaResource(BaseResource):
 
         ephemeral_storage = meta.get('ephemeral_storage', 512)
 
+        if meta.get('env_variables'):
+            self._resolve_env_variables(meta.get('env_variables'))
+
         self.lambda_conn.create_lambda(
             lambda_name=name,
             func_name=meta['func_name'],
@@ -500,6 +509,9 @@ class LambdaResource(BaseResource):
                         'Could not link lambda layer {} to lambda {} '
                         'due to layer absence!'.format(layer_name, name))
                 lambda_layers_arns.append(layer_arn)
+
+        if env_vars:
+            self._resolve_env_variables(env_vars)
 
         _LOG.info(f'Updating lambda {name} configuration')
         self.lambda_conn.update_lambda_configuration(
@@ -1265,4 +1277,55 @@ class LambdaResource(BaseResource):
                 self.cw_logs_conn.create_log_group_with_retention_days(
                     group_name=lambda_name,
                     retention_in_days=retention
+                )
+
+    def _resolve_env_variables(self, env_vars):
+        required_params = ['resource_name', 'resource_type', 'parameter']
+
+        for key, value in env_vars.items():
+            if isinstance(value, dict):
+                resource_name = value.get('resource_name')
+                resource_type = value.get('resource_type')
+                parameter = value.get('parameter')
+
+                if not all([resource_name, resource_type, parameter]):
+                    missed_params = [p for p in required_params if
+                                     value.get(p) is None]
+                    env_vars[key] = NOT_AVAILABLE
+                    USER_LOG.warn(
+                        f"Unable to resolve value for environment variable "
+                        f"'{key}' because of missing parameter/s. Required "
+                        f"parameters: {required_params}; missed parameters/s "
+                        f"{missed_params}."
+                        f"The environment variable '{key}' will be configured "
+                        f"with the value '{NOT_AVAILABLE}'."
+                    )
+                    continue
+
+                _LOG.debug(
+                    f"Going to resolve the value for the environment variable "
+                    f"'{key}' by the parameter '{parameter}' of the resource "
+                    f"type '{resource_type}' with the name '{resource_name}'.")
+
+                resolver = self.dynamic_params_resolvers.get(
+                    (resource_type, parameter)
+                )
+
+                if resolver is None:
+                    USER_LOG.warn(
+                        f"Currently resolving parameter '{parameter}' for the "
+                        f"resource type '{resource_type}' is not supported.")
+                    env_vars[key] = NOT_AVAILABLE
+                else:
+                    env_vars[key] = (resolver(resource_name) or NOT_AVAILABLE)
+
+                if env_vars[key] == NOT_AVAILABLE:
+                    USER_LOG.warn(
+                        f"Unable to resolve parameter '{parameter}' for the "
+                        f"resource type '{resource_type}' with name "
+                        f"'{resource_name}'.")
+
+                _LOG.debug(
+                    f"The environment variable '{key}' will be configured "
+                    f"with the value '{env_vars[key]}'."
                 )
