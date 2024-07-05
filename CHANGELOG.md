@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [1.12.1] - 2024-07-05
+# [1.13.0] - 2024-07-05
 - Added possibility to configure `FunctionResponseTypes` for lambda functions
 - Updated maven plugin version to 1.12.0 with support of `FunctionResponseTypes`
 - Added possibility to set up Cognito user pool ID in lambda function environment variable
