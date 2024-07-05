@@ -321,11 +321,11 @@ class ApiGatewayResource(BaseResource):
         api_resources = meta['resources']
         # whether to put a wildcard in lambda resource-based policy permissions
         resources_permission_singleton = meta.get(POLICY_STATEMENT_SINGLETON)
-        # api_gw_describe = self.describe_api_resources(name, meta)
-        # if api_gw_describe:
-        #     _LOG.info(f'Api gateway with name \'{name}\' exists. Returning')
-        #     return api_gw_describe
-        # _LOG.info(f'Api gateway with name \'{name}\' does not exist. Creating')
+        api_gw_describe = self.describe_api_resources(name, meta)
+        if api_gw_describe:
+            _LOG.info(f'Api gateway with name \'{name}\' exists. Returning')
+            return api_gw_describe
+        _LOG.info(f'Api gateway with name \'{name}\' does not exist. Creating')
         api_item = self.connection.create_rest_api(
             api_name=name,
             binary_media_types=meta.get('binary_media_types'))
@@ -413,6 +413,12 @@ class ApiGatewayResource(BaseResource):
 
         self._resolve_cup_ids(openapi_context)
 
+        api_gw_describe = self.describe_api_resources(name, meta)
+        if api_gw_describe:
+            _LOG.info(f'Api gateway with name \'{name}\' exists. Returning')
+            return api_gw_describe
+
+        _LOG.info(f'Api gateway with name \'{name}\' does not exist. Creating')
         api_id = self.connection.create_openapi(openapi_context)
         self.connection.deploy_api(api_id, deploy_stage)
 
