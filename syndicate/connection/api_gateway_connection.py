@@ -121,10 +121,17 @@ class ApiGatewayConnection(object):
         :type api_name: str
         """
         apis = self.get_all_apis()
-        if apis:
-            for each in apis:
-                if each['name'] == api_name:
-                    return each
+        target_apis = [api for api in apis if api['name'] == api_name]
+        if len(target_apis) == 1:
+            return target_apis[0]
+        if len(target_apis) > 1:
+            _LOG.warn(f"API Gateway can\'t be identified unambiguously "
+                      f"because there is more than one resource with the name "
+                      f"'{api_name}' in the region {self.region}. Determined "
+                      f"APIs: {[api['name'] for api in target_apis]}")
+        else:
+            _LOG.warn(f'API Gateway with the name "{api_name}" '
+                      f'not found in the region {self.region}')
 
     def get_api_id(self, api_name):
         """

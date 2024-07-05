@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix lambda triggers deletion when removed from meta
 - Fix resources dependencies resolving
 - Fix losing successfully deployed resources from the output file during deployment with the option `--continue_deploy`
+- Fix API Gateway duplication in case of existing API Gateway with the same name
 
 # [1.12.0] - 2024-06-20
 - Added ability for `clean` command to automatically resolve if `--rollback` is needed.
