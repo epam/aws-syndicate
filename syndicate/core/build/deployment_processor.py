@@ -269,13 +269,14 @@ def clean_resources(output):
 
 def continue_deploy_resources(resources, failed_output):
     new_output = {}
+    project_resources_amount = len(resources)
     for arn, meta in failed_output.items():
         for resource_name, resource_meta in resources:
             if resource_name == meta['resource_name']:
                 new_output[arn] = meta
                 resources.remove((resource_name, resource_meta))
 
-    if len(new_output) == len(resources):
+    if len(new_output) == project_resources_amount:
         return True, failed_output
 
     return deploy_resources(resources, new_output)
