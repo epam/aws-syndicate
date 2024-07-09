@@ -88,7 +88,10 @@ class LambdaResource(BaseResource):
         self.deploy_target_bucket = deploy_target_bucket
 
         self.dynamic_params_resolvers = {
-            ('cognito_idp', 'id'): self.cognito_idp_conn.if_pool_exists_by_name
+            ('cognito_idp', 'id'):
+                self.cognito_idp_conn.if_pool_exists_by_name,
+            ('cognito_idp', 'client_id'):
+                self.cognito_idp_conn.if_cup_client_exist
         }
 
     def qualifier_alias_resolver(self, lambda_def):
