@@ -267,19 +267,18 @@ def clean_resources(output):
         func(args)
 
 
-def continue_deploy_resources(resources, failed_output):
-    new_output = {}
-    project_resources_amount = len(resources)
+def continue_deploy_resources(resources, failed_output,
+                              project_resources_amount):
+
+    if len(failed_output) == project_resources_amount:
+        return True, failed_output
+
     for arn, meta in failed_output.items():
         for resource_name, resource_meta in resources:
             if resource_name == meta['resource_name']:
-                new_output[arn] = meta
                 resources.remove((resource_name, resource_meta))
 
-    if len(new_output) == project_resources_amount:
-        return True, failed_output
-
-    return deploy_resources(resources, new_output)
+    return deploy_resources(resources, failed_output)
 
 
 def process_response(response, output: dict):
@@ -575,6 +574,7 @@ def continue_deployment_resources(deploy_name, bundle_name,
 
     resources = load_meta_resources(bundle_name)
     _LOG.debug('{0} file was loaded successfully'.format(BUILD_META_FILE_NAME))
+    project_resources_amount = len(resources)
 
     resources = resolve_meta(resources)
     _LOG.debug('Names were resolved')
@@ -601,7 +601,8 @@ def continue_deployment_resources(deploy_name, bundle_name,
     resources_list.sort(key=cmp_to_key(compare_deploy_resources))
 
     success, updated_output = continue_deploy_resources(
-        resources=resources_list, failed_output=failed_output)
+        resources=resources_list, failed_output=failed_output,
+        project_resources_amount=project_resources_amount)
     _LOG.info('AWS resources were deployed successfully')
     if success:
         # apply dynamic changes that uses ARNs
