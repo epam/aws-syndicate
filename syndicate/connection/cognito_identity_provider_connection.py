@@ -105,6 +105,48 @@ class CognitoIdentityProviderConnection(object):
         response = self.client.create_user_pool_client(**params)
         return response['UserPoolClient'].get('ClientId')
 
+    def list_user_pool_clients(self, cup_id):
+
+        response = self.client.list_user_pool_clients(
+            UserPoolId=cup_id,
+            MaxResults=5
+        )
+
+        client_ids = [cup_client['ClientId'] for
+                      cup_client in response['UserPoolClients']]
+        next_token = response.get('NextToken')
+
+        while next_token:
+            response = self.client.list_user_pool_clients(
+                UserPoolId=cup_id,
+                MaxResults=5,
+                NextToken=next_token
+            )
+            client_ids.extend([cup_client['ClientId'] for
+                               cup_client in response['UserPoolClients']])
+            next_token = response.get('NextToken')
+
+        return client_ids
+
+    def if_cup_client_exist(self, cup_name):
+
+        cup_id = self.if_pool_exists_by_name(cup_name)
+        if not cup_id:
+            return
+
+        client_ids = self.list_user_pool_clients(cup_id)
+
+        if len(client_ids) == 1:
+            return client_ids[0]
+        if len(client_ids) > 1:
+            _LOG.warn(f'Client ID of Cognito User Pool "{cup_name}" can\'t be '
+                      f'identified unambiguously because there is more than '
+                      f'one client in the Cognito User Pool. Determined IDs: '
+                      f'"{client_ids}"')
+        else:
+            _LOG.warn(f'Clients not found in the Cognito User Pool with the '
+                      f'name "{cup_name}"')
+
     def if_pool_exists_by_name(self, user_pool_name):
         ids = []
         paginator = self.client.get_paginator('list_user_pools')
