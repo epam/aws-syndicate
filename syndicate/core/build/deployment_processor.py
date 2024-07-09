@@ -271,6 +271,8 @@ def continue_deploy_resources(resources, failed_output,
                               project_resources_amount):
 
     if len(failed_output) == project_resources_amount:
+        USER_LOG.info('Skipping deployment because all project resources '
+                      'already deployed')
         return True, failed_output
 
     for arn, meta in failed_output.items():
