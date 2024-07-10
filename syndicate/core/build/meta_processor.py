@@ -444,7 +444,8 @@ def create_resource_json(project_path: str, bundle_name: str) -> dict[
     # check if all dependencies were described
     common_validator = VALIDATOR_BY_TYPE_MAPPING[ALL_TYPES]
     for name, meta in meta_for_validation.items():
-        common_validator(resource_meta=meta, all_meta=meta_for_validation)
+        common_validator(resource_name=name,
+                         resource_meta=meta, all_meta=meta_for_validation)
 
         resource_type = meta['resource_type']
         type_validator = VALIDATOR_BY_TYPE_MAPPING.get(resource_type)
