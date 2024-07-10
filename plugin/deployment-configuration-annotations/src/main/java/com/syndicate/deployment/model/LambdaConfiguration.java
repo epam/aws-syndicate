@@ -89,7 +89,7 @@ public class LambdaConfiguration {
     private Set<EventSourceItem> eventSources;
 
     @JsonProperty("env_variables")
-    private Map<String, String> variables;
+    private Map<String, Object> variables;
 
     @JsonProperty("dl_resource_name")
     private String dlResourceName;
@@ -193,7 +193,7 @@ public class LambdaConfiguration {
         return eventSources;
     }
 
-    public Map<String, String> getVariables() {
+    public Map<String, Object> getVariables() {
         return variables;
     }
 
@@ -382,7 +382,7 @@ public class LambdaConfiguration {
             return this;
         }
 
-        public Builder withVariables(Map<String, String> variables) {
+        public Builder withVariables(Map<String, Object> variables) {
             Objects.requireNonNull(variables, "Variables cannot be null");
             configuration.variables = variables;
             return this;

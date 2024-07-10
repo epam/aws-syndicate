@@ -17,6 +17,7 @@
 package com.syndicate.deployment.processor.impl;
 
 import com.syndicate.deployment.annotations.environment.EnvironmentVariable;
+import com.syndicate.deployment.model.environment.ValueTransformer;
 import com.syndicate.deployment.annotations.events.DynamoDbTriggerEventSource;
 import com.syndicate.deployment.annotations.events.EventBridgeRuleSource;
 import com.syndicate.deployment.annotations.events.RuleEventSource;
@@ -79,7 +80,7 @@ public class LambdaHandlerAnnotationProcessor extends AbstractAnnotationProcesso
         for (DependsOn annotation : dependsOnAnnotations) {
             dependencies.add(DependencyItemFactory.createDependencyItem(annotation));
         }
-        Map<String, String> envVariables = getEnvVariables(lambdaClass);
+        Map<String, Object> envVariables = getEnvVariables(lambdaClass);
         LambdaConfiguration lambdaConfiguration = LambdaConfigurationFactory.createLambdaConfiguration(version, lambdaClass, lambdaHandler, dependencies,
                 events, envVariables, fileName, path);
         return new Pair<>(lambdaHandler.lambdaName(), lambdaConfiguration);
@@ -94,12 +95,20 @@ public class LambdaHandlerAnnotationProcessor extends AbstractAnnotationProcesso
         return lambdasClasses;
     }
 
-    private Map<String, String> getEnvVariables(Class<?> lambdaClass) {
-        Map<String, String> envVariables = new HashMap<>();
+    private Map<String, Object> getEnvVariables(Class<?> lambdaClass) {
+        Map<String, Object> envVariables = new HashMap<>();
         EnvironmentVariable[] environmentVariablesAnnotations = lambdaClass.getDeclaredAnnotationsByType(EnvironmentVariable.class);
         for (EnvironmentVariable annotation : environmentVariablesAnnotations) {
-            envVariables.put(annotation.key(), annotation.value());
+            envVariables.put(annotation.key(), getValue(annotation));
         }
         return envVariables;
+    }
+
+    private Object getValue(EnvironmentVariable annotation) {
+        return annotation.valueTransformer() == ValueTransformer.NONE
+                ? annotation.value()
+                : Map.of(annotation.valueTransformer().getSourceParameter(), annotation.value(),
+                "resource_type", annotation.valueTransformer().getResourceType(),
+                "parameter", annotation.valueTransformer().getParameter());
     }
 }

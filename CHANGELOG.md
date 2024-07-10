@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [1.13.2] - 2024-07-10
+- The Syndicate Java plugin version updated to 1.13.0 with changes:
+  - The ResourceType enum for the @DependsOn annotation extended with new type ResourceType.COGNITO_USER_POOL
+  - The @EnvironmentVariable annotation for the Syndicate Java plugin improved to support the value transformer
+  - A new value transformer type created ValueTransformer.USER_POOL_NAME_TO_USER_POOL_ID
+  - A new value transformer type created ValueTransformer.USER_POOL_NAME_TO_CLIENT_ID
+- The generate Java lambda template changed to use the Syndicate Java plugin version 1.13.0 
+
 # [1.13.1] - 2024-07-09
 - Changed datetime format for lock attributes in the `.syndicate` file to UTC format
 
