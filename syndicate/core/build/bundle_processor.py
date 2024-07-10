@@ -138,6 +138,19 @@ def load_latest_deploy_output():
     bundle_name = PROJECT_STATE.latest_deploy.get('bundle_name')
     latest_deploy_status = PROJECT_STATE.latest_deploy.get('operation_status')
 
+    # Temporary code for syndicate 1.11.6 > 1.12.0 update
+    if latest_deploy_status is None:
+        _LOG.warn("You came from a previous version and there is no"
+                  " operation_status field in the latest_deploy record in"
+                  " your .syndicate file, it will be determined automatically,"
+                  " the syndicate will analyze your previous deploy and"
+                  " determine the value of operation_status.")
+        try:
+            load_deploy_output(bundle_name, deploy_name)
+            latest_deploy_status = True
+        except AssertionError:
+            latest_deploy_status = False
+
     if latest_deploy_status is True:
         return load_deploy_output(bundle_name, deploy_name)
     else:
