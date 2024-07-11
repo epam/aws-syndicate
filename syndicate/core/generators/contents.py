@@ -41,7 +41,8 @@ import com.syndicate.deployment.model.RetentionSetting;
 import java.util.HashMap;
 import java.util.Map;
 
-@LambdaHandler(lambdaName = "{lambda_name}",
+@LambdaHandler(
+    lambdaName = "{lambda_name}",
 	roleName = "{lambda_role_name}",
 	isPublishVersion = true,
 	aliasName = "${lambdas_alias_name}",
@@ -71,7 +72,7 @@ JAVA_ROOT_POM_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
 
     <properties>
         <maven-shade-plugin.version>3.5.2</maven-shade-plugin.version>
-        <syndicate.java.plugin.version>1.11.1</syndicate.java.plugin.version>
+        <syndicate.java.plugin.version>1.13.0</syndicate.java.plugin.version>
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>

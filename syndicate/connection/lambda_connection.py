@@ -288,7 +288,8 @@ class LambdaConnection(object):
     def add_event_source(self, func_name, stream_arn, batch_size=10,
                          batch_window: Optional[int] = None,
                          start_position=None,
-                         filters: Optional[List] = None):
+                         filters: Optional[List] = None,
+                         function_response_types: Optional[List] = None):
         """ Create event source for Lambda
         :type func_name: str
         :type stream_arn: str
@@ -296,6 +297,8 @@ class LambdaConnection(object):
         :param batch_size: max limit of Lambda event process in one time
         :param start_position: option for Lambda reading event mode
         :param filters: Optional[list]
+        :param function_response_types: Optional[list] list of function
+               response types
         :return: response
         """
         params = dict(
@@ -308,7 +311,8 @@ class LambdaConnection(object):
             params['StartingPosition'] = start_position
         if filters:
             params['FilterCriteria'] = {'Filters': filters}
-
+        if function_response_types:
+            params['FunctionResponseTypes'] = function_response_types
         response = self.client.create_event_source_mapping(**params)
         return response
 
@@ -498,7 +502,8 @@ class LambdaConnection(object):
                                          Publish=publish_version)
 
     def update_event_source(self, uuid, function_name, batch_size,
-                            batch_window=None, filters: Optional[List] = None):
+                            batch_window=None, filters: Optional[List] = None,
+                            function_response_types: Optional[List] = None):
         params = dict(
             UUID=uuid, FunctionName=function_name, BatchSize=batch_size
         )
@@ -506,6 +511,10 @@ class LambdaConnection(object):
             params['MaximumBatchingWindowInSeconds'] = batch_window
         if filters is not None:
             params['FilterCriteria'] = {'Filters': filters}
+        if function_response_types:
+            params['FunctionResponseTypes'] = function_response_types
+        else:
+            params['FunctionResponseTypes'] = []
         return self.client.update_event_source_mapping(**params)
 
     def get_function(self, lambda_name, qualifier=None):
@@ -584,7 +593,7 @@ class LambdaConnection(object):
                                     env_vars=None, runtime=None,
                                     dead_letter_arn=None, kms_key_arn=None,
                                     layers=None, ephemeral_storage=None,
-                                    snap_start: str =None):
+                                    snap_start: str = None):
         params = dict(FunctionName=lambda_name)
         if ephemeral_storage:
             params['EphemeralStorage'] = {'Size': ephemeral_storage}

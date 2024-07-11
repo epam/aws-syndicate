@@ -15,6 +15,8 @@
 """
 from functools import lru_cache
 
+from botocore.config import Config
+
 from syndicate.connection.api_gateway_connection import ApiGatewayConnection, \
     ApiGatewayV2Connection
 from syndicate.connection.application_autoscaling_connection import (
@@ -51,6 +53,12 @@ from syndicate.connection.dax_connection import DaxConnection
 class ConnectionProvider(object):
     def __init__(self, credentials):
         self.credentials = credentials.copy()
+        self.client_config = Config(
+            retries={
+                'max_attempts': 10,
+                'mode': 'standard'
+            }
+        )
 
     @lru_cache(maxsize=None)
     def api_gateway(self, region=None):
@@ -95,10 +103,11 @@ class ConnectionProvider(object):
 
     @lru_cache(maxsize=None)
     def cognito_identity_provider(self, region=None):
-        credentials = self.credentials.copy()
+        params = self.credentials.copy()
         if region:
-            credentials['region'] = region
-        return CognitoIdentityProviderConnection(**credentials)
+            params['region'] = region
+        params['client_config'] = self.client_config
+        return CognitoIdentityProviderConnection(**params)
 
     @lru_cache(maxsize=None)
     def iam(self):

@@ -246,7 +246,7 @@ class ProjectState:
         elif locked_till := lock.get(LOCK_LOCKED_TILL):
             locked_till_datetime = datetime.strptime(
                 locked_till, DATE_FORMAT_ISO_8601)
-            if datetime.timestamp(locked_till_datetime) <= time.time():
+            if locked_till_datetime <= datetime.utcnow():
                 lock[LOCK_LOCKED_TILL] = None
                 return True
         return False
@@ -408,7 +408,7 @@ class ProjectState:
 
         locks = self.locks
         lock = locks.get(lock_name)
-        modification_datetime = datetime.fromtimestamp(time.time())
+        modification_datetime = datetime.utcnow()
         timestamp = modification_datetime.strftime(DATE_FORMAT_ISO_8601)
         locked_till_timestamp = (modification_datetime +
                                  timedelta(minutes=locked_till)).strftime(
