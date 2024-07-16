@@ -725,6 +725,11 @@ RUNTIME_LANG_TO_BUILD_MAPPING = {
 @click.option('--bundle_name', '-b', callback=generate_default_bundle_name,
               help='Bundle\'s name to build the lambdas in. '
                    'Default value: $ProjectName_%Y%m%d.%H%M%S')
+@click.option('--force_upload', '-fu', nargs=1,
+              callback=resolve_path_callback, default=False,
+              help='Identifier that indicates whether a locally existing'
+                   ' bundle should be deleted and a new one created using'
+                   ' the same path.')
 @verbose_option
 @click.pass_context
 @timeit(action_name=ASSEMBLE_ACTION)
