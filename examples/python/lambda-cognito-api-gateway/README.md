@@ -55,7 +55,7 @@ Response must contain just created `syndicate-demo-api`:
 
 ##### 7. Trigger deployed lambda using aws-cli:
    
-`aws lambda invoke --function-name put_dynamodb_item --payload '{"id": "10", "event": "some event"}' --cli-binary-format raw-in-base64-out response.json`
+`aws lambda invoke --function-name lambda_example --payload '{"username": "example@gmail.com", "password": "some text"}' --cli-binary-format raw-in-base64-out response.json`
 
 Response content will be stored in `response.json`:
 
