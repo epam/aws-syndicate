@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>demo-apigateway-cognito-group</groupId>
+    <artifactId>demo-apigateway-cognito</artifactId>
+    <version>1.0.0</version>
+
+    <properties>
+        <maven-shade-plugin.version>3.5.2</maven-shade-plugin.version>
+        <syndicate.java.plugin.version>1.13.0</syndicate.java.plugin.version>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <src.dir>jsrc/main/java</src.dir>
+        <resources.dir>jsrc/main/resources</resources.dir>
+    </properties>
+
+    <dependencies>
+        <!-- AWS dependencies-->
+        <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-lambda-java-core</artifactId>
+            <version>1.2.3</version>
+        </dependency>
+        <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-lambda-java-events</artifactId>
+            <version>3.12.0</version>
+        </dependency>
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>cognitoidentityprovider</artifactId>
+            <version>2.26.21</version>
+        </dependency>
+        <!-- JSON dependencies-->
+        <dependency>
+            <groupId>org.json</groupId>
+            <artifactId>json</artifactId>
+            <version>20240303</version>
+        </dependency>
+        <!--Syndicate annotations-->
+        <dependency>
+            <groupId>net.sf.aws-syndicate</groupId>
+            <artifactId>deployment-configuration-annotations</artifactId>
+            <version>${syndicate.java.plugin.version}</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <sourceDirectory>${src.dir}</sourceDirectory>
+        <resources>
+            <resource>
+                <directory>${resources.dir}</directory>
+            </resource>
+        </resources>        
+        <plugins>
+            <plugin>
+                <groupId>net.sf.aws-syndicate</groupId>
+                <artifactId>deployment-configuration-maven-plugin</artifactId>
+                <version>${syndicate.java.plugin.version}</version>
+                <configuration>
+                    <packages>
+                        <package>com.demoapigatewaycognito</package>
+                    </packages>
+                    <fileName>${project.name}-${project.version}.jar</fileName>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>generate-config</id>
+                        <phase>compile</phase>
+                        <inherited>false</inherited>
+                        <goals>
+                            <goal>gen-deployment-config</goal>
+                            <goal>assemble-lambda-layer-files</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>${maven-shade-plugin.version}</version>
+                <configuration>
+                    <filters>
+                        <filter>
+                            <artifact>*:*</artifact>
+                            <excludes>
+                                <exclude>META-INF/*.SF</exclude>
+                                <exclude>META-INF/*.DSA</exclude>
+                                <exclude>META-INF/*.RSA</exclude>
+                            </excludes>
+                        </filter>
+                    </filters>
+                    <createDependencyReducedPom>false</createDependencyReducedPom>
+                </configuration>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>
