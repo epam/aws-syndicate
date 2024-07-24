@@ -73,7 +73,8 @@ from syndicate.core.constants import TEST_ACTION, BUILD_ACTION, \
     STATUS_ACTION, WARMUP_ACTION, PROFILER_ACTION, ASSEMBLE_JAVA_MVN_ACTION, \
     ASSEMBLE_PYTHON_ACTION, ASSEMBLE_NODE_ACTION, ASSEMBLE_ACTION, \
     PACKAGE_META_ACTION, CREATE_DEPLOY_TARGET_BUCKET_ACTION, UPLOAD_ACTION, \
-    COPY_BUNDLE_ACTION, EXPORT_ACTION, ASSEMBLE_SWAGGER_UI_ACTION
+    COPY_BUNDLE_ACTION, EXPORT_ACTION, ASSEMBLE_SWAGGER_UI_ACTION, \
+    ABORTED_STATUS
 
 INIT_COMMAND_NAME = 'init'
 SYNDICATE_PACKAGE_NAME = 'aws-syndicate'
@@ -313,13 +314,16 @@ def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
               help='Types of the resources to skip while update')
 @click.option('--replace_output', nargs=1, is_flag=True, default=False,
               help='The flag to replace the existing deploy output file')
+@click.option('--force', nargs=1, is_flag=True, default=False,
+              help='The flag, to apply updates even if the latest deployment '
+                   'failed')
 @verbose_option
 @check_deploy_name_for_duplicates
 @check_deploy_bucket_exists
 @timeit(action_name=UPDATE_ACTION)
 def update(bundle_name, deploy_name, replace_output, update_only_resources,
            update_only_resources_path, update_only_types, excluded_resources,
-           excluded_resources_path, excluded_types):
+           excluded_resources_path, excluded_types, force):
     """
     Updates infrastructure from the provided bundle
     """
@@ -349,9 +353,12 @@ def update(bundle_name, deploy_name, replace_output, update_only_resources,
         update_only_resources=update_only_resources,
         excluded_resources=excluded_resources,
         excluded_types=excluded_types,
-        replace_output=replace_output)
-    if success:
+        replace_output=replace_output,
+        force=force)
+    if success is True:
         click.echo('Update of resources has been successfully completed')
+    elif success == ABORTED_STATUS:
+        click.echo('Update of resources has been aborted')
     else:
         click.echo('Something went wrong during resources update')
 

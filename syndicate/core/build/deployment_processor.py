@@ -33,7 +33,7 @@ from syndicate.core.constants import (BUILD_META_FILE_NAME,
                                       CLEAN_RESOURCE_TYPE_PRIORITY,
                                       DEPLOY_RESOURCE_TYPE_PRIORITY,
                                       UPDATE_RESOURCE_TYPE_PRIORITY,
-                                      PARTIAL_CLEAN_ACTION)
+                                      PARTIAL_CLEAN_ACTION, ABORTED_STATUS)
 from syndicate.core.helper import exit_on_exception, prettify_json
 
 BUILD_META = 'build_meta'
@@ -267,20 +267,19 @@ def clean_resources(output):
         func(args)
 
 
-def continue_deploy_resources(resources, failed_output,
-                              project_resources_amount):
+def continue_deploy_resources(resources, latest_deploy_output):
 
-    if len(failed_output) == project_resources_amount:
-        USER_LOG.info('Skipping deployment because all project resources '
-                      'already deployed')
-        return True, failed_output
-
-    for arn, meta in failed_output.items():
+    for arn, meta in latest_deploy_output.items():
         for resource_name, resource_meta in resources:
             if resource_name == meta['resource_name']:
                 resources.remove((resource_name, resource_meta))
 
-    return deploy_resources(resources, failed_output)
+    if not resources:
+        USER_LOG.info('Skipping deployment because all specified resources '
+                      'already deployed')
+        return True, latest_deploy_output
+
+    return deploy_resources(resources, latest_deploy_output)
 
 
 def process_response(response, output: dict):
@@ -339,21 +338,13 @@ def create_deployment_resources(deploy_name, bundle_name,
                                 replace_output=False,
                                 rollback_on_error=False):
 
-    from syndicate.core import PROJECT_STATE
-    latest_deploy_name = PROJECT_STATE.latest_deploy.get('deploy_name')
-    latest_bundle_name = PROJECT_STATE.latest_deploy.get('bundle_name')
-    latest_deploy_status = PROJECT_STATE.latest_deploy.get('operation_status')
-
-    if latest_deploy_status is False:
-        message = (f"Your last deployment with deploy name: "
-                   f"{latest_deploy_name} and deploy bundle: "
-                   f"{latest_bundle_name} failed, you can either clean "
-                   f"resources with `syndicate clean` or continue deployment"
-                   f" with `syndicate deploy --continue_deploy`.")
-        raise AssertionError(message)
-
-    latest_deploy_output = load_latest_deploy_output()
-    _LOG.debug(f'Latest deploy output:\n {latest_deploy_output}')
+    is_ld_output_regular, latest_deploy_output = load_latest_deploy_output()
+    if is_ld_output_regular is True:
+        _LOG.info(f'The latest deployment has status succeeded. '
+                  f'Loaded output:\n {prettify_json(latest_deploy_output)}')
+    elif is_ld_output_regular is False:
+        _LOG.info(f'The latest deployment has status failed. '
+                  f'Loaded output:\n {prettify_json(latest_deploy_output)}')
 
     resources = load_meta_resources(bundle_name)
     # validate_deployment_packages(resources)
@@ -391,6 +382,10 @@ def create_deployment_resources(deploy_name, bundle_name,
 
     _LOG.info('Going to deploy AWS resources')
     success, output = deploy_resources(resources_list)
+
+    # remove failed output from bucket
+    if is_ld_output_regular is False:
+        remove_failed_deploy_output(bundle_name, deploy_name)
 
     if not success:
         if rollback_on_error is True:
@@ -446,8 +441,34 @@ def update_deployment_resources(bundle_name, deploy_name, replace_output=False,
                                 update_only_types=None,
                                 update_only_resources=None,
                                 excluded_resources=None,
-                                excluded_types=None):
+                                excluded_types=None,
+                                force=False):
     from syndicate.core import PROCESSOR_FACADE
+    from syndicate.core import PROJECT_STATE
+    from click import confirm as click_confirm
+
+    if not PROJECT_STATE.latest_deploy:
+        USER_LOG.error("Deployment to update not found.")
+        return ABORTED_STATUS
+    else:
+        latest_deploy_status = PROJECT_STATE.latest_deploy.get(
+            'is_succeeded', True)
+
+    if not isinstance(latest_deploy_status, bool):
+        raise ValueError(
+            "The latest deployments' status can't be resolved because of "
+            "unexpected status. Please check the parameter 'is_succeeded' "
+            "value in the 'latest_deploy' section of the syndicate state "
+            "file. Expected value is 'true' or 'false'")
+
+    if latest_deploy_status is False:
+        if not force:
+            if not click_confirm("The latest deployment has status failed. "
+                                 "Do you want to proceed with updating?"):
+                return ABORTED_STATUS
+
+        _LOG.warn("Updating resources despite previous deployment failures")
+
     resources = load_meta_resources(bundle_name)
     _LOG.debug(prettify_json(resources))
 
@@ -456,7 +477,7 @@ def update_deployment_resources(bundle_name, deploy_name, replace_output=False,
     resources = populate_s3_paths(resources, bundle_name)
     _LOG.debug('Artifacts s3 paths were resolved')
 
-    _LOG.warn(
+    USER_LOG.warn(
         'Please pay attention that only the '
         'following resources types are supported for update: {}'.format(
             list(PROCESSOR_FACADE.update_handlers().keys())))
@@ -557,26 +578,17 @@ def continue_deployment_resources(deploy_name, bundle_name,
                                   excluded_resources=None,
                                   excluded_types=None,
                                   replace_output=False):
-    from syndicate.core import PROJECT_STATE
-    latest_deploy_name = PROJECT_STATE.latest_deploy.get('deploy_name')
-    latest_bundle_name = PROJECT_STATE.latest_deploy.get('bundle_name')
-    latest_deploy_status = PROJECT_STATE.latest_deploy.get('operation_status')
 
-    if latest_deploy_status is True:
-        raise AssertionError(f"Your last deployment with deploy name:"
-                             f" {latest_deploy_name} and deploy bundle:"
-                             f" {latest_bundle_name} was successful,"
-                             f" you cannot execute the `continue deploy` "
-                             f"command.")
-
-    failed_output = load_failed_deploy_output(
-        bundle_name=latest_bundle_name, deploy_name=latest_deploy_name
-    )
-    _LOG.info('Failed output file was loaded successfully')
+    is_ld_output_regular, latest_deploy_output = load_latest_deploy_output()
+    if is_ld_output_regular is True:
+        _LOG.info(f'The latest deployment has status succeeded. '
+                  f'Loaded output:\n {prettify_json(latest_deploy_output)}')
+    elif is_ld_output_regular is False:
+        _LOG.info(f'The latest deployment has status failed. '
+                  f'Loaded output:\n {prettify_json(latest_deploy_output)}')
 
     resources = load_meta_resources(bundle_name)
     _LOG.debug('{0} file was loaded successfully'.format(BUILD_META_FILE_NAME))
-    project_resources_amount = len(resources)
 
     resources = resolve_meta(resources)
     _LOG.debug('Names were resolved')
@@ -603,8 +615,7 @@ def continue_deployment_resources(deploy_name, bundle_name,
     resources_list.sort(key=cmp_to_key(compare_deploy_resources))
 
     success, updated_output = continue_deploy_resources(
-        resources=resources_list, failed_output=failed_output,
-        project_resources_amount=project_resources_amount)
+        resources=resources_list, latest_deploy_output=latest_deploy_output)
     _LOG.info('AWS resources were deployed successfully')
     if success:
         # apply dynamic changes that uses ARNs
@@ -616,7 +627,9 @@ def continue_deployment_resources(deploy_name, bundle_name,
         _apply_tags(updated_output)
 
     # remove failed output from bucket
-    remove_failed_deploy_output(bundle_name, deploy_name)
+    if is_ld_output_regular is False:
+        remove_failed_deploy_output(bundle_name, deploy_name)
+
     _LOG.info('Going to create deploy output')
     create_deploy_output(bundle_name=bundle_name,
                          deploy_name=deploy_name,

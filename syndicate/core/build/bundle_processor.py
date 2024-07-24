@@ -88,6 +88,8 @@ def remove_failed_deploy_output(bundle_name, deploy_name):
                             key).as_posix()
     if CONN.s3().is_file_exists(CONFIG.deploy_target_bucket,
                                 key_compound):
+        _LOG.debug(f"Going to remove failed output '{key_compound}' from the "
+                   f"bucket '{CONFIG.deploy_target_bucket}'")
         CONN.s3().remove_object(CONFIG.deploy_target_bucket, key_compound)
     else:
         _LOG.warn(
@@ -133,24 +135,22 @@ def load_failed_deploy_output(bundle_name, deploy_name):
 def load_latest_deploy_output():
     from syndicate.core import PROJECT_STATE
     if not PROJECT_STATE.latest_deploy:
-        return {}
+        return None, {}
     deploy_name = PROJECT_STATE.latest_deploy.get('deploy_name')
     bundle_name = PROJECT_STATE.latest_deploy.get('bundle_name')
-    latest_deploy_status = PROJECT_STATE.latest_deploy.get('operation_status')
+    latest_deploy_status = PROJECT_STATE.latest_deploy.get(
+        'is_succeeded', True)
 
     if latest_deploy_status is True:
-        return load_deploy_output(bundle_name, deploy_name)
+        return True, load_deploy_output(bundle_name, deploy_name)
+    elif latest_deploy_status is False:
+        return False, load_failed_deploy_output(bundle_name, deploy_name)
     else:
-        message = ("Deployment output file not found. It is because the "
-                   "previous deployment failed. This problem can be resolved"
-                   " in the following ways. First of all, you can execute"
-                   " command `syndicate clean`, after that fix the error that"
-                   " led to the failed deployment, create a new bundle and"
-                   " deploy it. Alternatively, you can fix the error that"
-                   " led to the failed deployment, create a new bundle, and"
-                   " execute command `syndicate deploy --continue_deploy`.")
-        _LOG.error(message)
-        raise AssertionError(message)
+        raise ValueError(
+            "The latest deployments' status can't be resolved because of "
+            "unexpected status. Please check the parameter 'is_succeeded' "
+            "value in the 'latest_deploy' section of the syndicate state "
+            "file. Expected value is 'true' or 'false'")
 
 
 def load_meta_resources(bundle_name):
