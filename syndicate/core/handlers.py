@@ -433,7 +433,11 @@ def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
         excluded_types=excluded_types,
         clean_externals=clean_externals,
         preserve_state=preserve_state)
-    click.echo('AWS resources were removed.')
+
+    if result == ABORTED_STATUS:
+        click.echo('Clean of resources has been aborted')
+    else:
+        click.echo('AWS resources were removed.')
     return result
 
 

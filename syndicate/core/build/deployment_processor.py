@@ -532,8 +532,9 @@ def remove_deployment_resources(deploy_name, bundle_name,
                 bundle_name, deploy_name
             )
             is_regular_output = False
-        except AssertionError as e:
-            return e
+        except AssertionError:
+            USER_LOG.error("Deployment to clean not found.")
+            return ABORTED_STATUS
 
     clean_only_resources = _resolve_names(clean_only_resources)
     excluded_resources = _resolve_names(excluded_resources)
