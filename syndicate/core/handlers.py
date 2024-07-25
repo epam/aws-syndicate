@@ -228,8 +228,7 @@ def transform(bundle_name, dsl, output_dir):
               help='Flag to replace the existing deploy output')
 @click.option('--rollback_on_error', is_flag=True, default=False,
               help='Flag to automatically clean deployed resources if the'
-                   ' deployment is unsuccessful. Cannot be used with'
-                   ' --continue_deploy flag.')
+                   ' deployment is unsuccessful')
 @verbose_option
 @check_deploy_name_for_duplicates
 @check_deploy_bucket_exists
