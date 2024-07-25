@@ -279,7 +279,7 @@ def continue_deploy_resources(resources, latest_deploy_output):
                       'already deployed')
         return True, latest_deploy_output
 
-    return deploy_resources(resources, latest_deploy_output)
+    return deploy_resources(resources)
 
 
 def process_response(response, output: dict):
@@ -331,6 +331,7 @@ def _compare_external_resources(expected_resources):
 
 @exit_on_exception
 def create_deployment_resources(deploy_name, bundle_name,
+                                continue_deploy=False,
                                 deploy_only_resources=None,
                                 deploy_only_types=None,
                                 excluded_resources=None,
@@ -381,7 +382,11 @@ def create_deployment_resources(deploy_name, bundle_name,
     resources_list.sort(key=cmp_to_key(compare_deploy_resources))
 
     _LOG.info('Going to deploy AWS resources')
-    success, output = deploy_resources(resources_list)
+    if continue_deploy:
+        success, output = continue_deploy_resources(resources_list,
+                                                    latest_deploy_output)
+    else:
+        success, output = deploy_resources(resources_list)
 
     # remove failed output from bucket
     if is_ld_output_regular is False:
@@ -570,74 +575,6 @@ def remove_deployment_resources(deploy_name, bundle_name,
         new_output=new_output,
         is_regular_output=is_regular_output
     )
-
-
-@exit_on_exception
-def continue_deployment_resources(deploy_name, bundle_name,
-                                  deploy_only_resources=None,
-                                  deploy_only_types=None,
-                                  excluded_resources=None,
-                                  excluded_types=None,
-                                  replace_output=False):
-
-    is_ld_output_regular, latest_deploy_output = load_latest_deploy_output()
-    if is_ld_output_regular is True:
-        _LOG.info(f'The latest deployment has status succeeded. '
-                  f'Loaded output:\n {prettify_json(latest_deploy_output)}')
-    elif is_ld_output_regular is False:
-        _LOG.info(f'The latest deployment has status failed. '
-                  f'Loaded output:\n {prettify_json(latest_deploy_output)}')
-
-    resources = load_meta_resources(bundle_name)
-    _LOG.debug('{0} file was loaded successfully'.format(BUILD_META_FILE_NAME))
-
-    resources = resolve_meta(resources)
-    _LOG.debug('Names were resolved')
-    resources = populate_s3_paths(resources, bundle_name)
-    _LOG.debug('Artifacts s3 paths were resolved')
-
-    deploy_only_resources = _resolve_names(deploy_only_resources)
-    excluded_resources = _resolve_names(excluded_resources)
-    _LOG.info(
-        'Prefixes and suffixes of any resource names have been resolved.')
-
-    resources = _filter_resources(
-        resources_meta=resources,
-        resource_names=deploy_only_resources,
-        resource_types=deploy_only_types,
-        exclude_names=excluded_resources,
-        exclude_types=excluded_types
-    )
-
-    _LOG.debug('Going to create: {0}'.format(prettify_json(resources)))
-
-    # sort resources with priority
-    resources_list = list(resources.items())
-    resources_list.sort(key=cmp_to_key(compare_deploy_resources))
-
-    success, updated_output = continue_deploy_resources(
-        resources=resources_list, latest_deploy_output=latest_deploy_output)
-    _LOG.info('AWS resources were deployed successfully')
-    if success:
-        # apply dynamic changes that uses ARNs
-        _LOG.info('Going to apply dynamic changes')
-        _apply_dynamic_changes(resources, updated_output)
-        _LOG.info('Dynamic changes were applied successfully')
-
-        _LOG.info('Going to apply common tags')
-        _apply_tags(updated_output)
-
-    # remove failed output from bucket
-    if is_ld_output_regular is False:
-        remove_failed_deploy_output(bundle_name, deploy_name)
-
-    _LOG.info('Going to create deploy output')
-    create_deploy_output(bundle_name=bundle_name,
-                         deploy_name=deploy_name,
-                         output=updated_output,
-                         success=success,
-                         replace_output=replace_output)
-    return success
 
 
 def _post_remove_output_handling(deploy_name, bundle_name, preserve_state,
