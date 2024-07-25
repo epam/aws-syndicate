@@ -16,7 +16,6 @@
 import json
 import os
 import sys
-from functools import partial
 
 import click
 from tabulate import tabulate
@@ -35,8 +34,8 @@ from syndicate.core.build.bundle_processor import (create_bundles_bucket,
                                                    upload_bundle_to_s3,
                                                    if_bundle_exist)
 from syndicate.core.build.deployment_processor import (
-    continue_deployment_resources, create_deployment_resources,
-    remove_deployment_resources, update_deployment_resources)
+    create_deployment_resources, remove_deployment_resources,
+    update_deployment_resources)
 from syndicate.core.build.meta_processor import create_meta
 from syndicate.core.build.profiler_processor import (get_metric_statistics,
                                                      process_metrics)
@@ -73,7 +72,8 @@ from syndicate.core.constants import TEST_ACTION, BUILD_ACTION, \
     STATUS_ACTION, WARMUP_ACTION, PROFILER_ACTION, ASSEMBLE_JAVA_MVN_ACTION, \
     ASSEMBLE_PYTHON_ACTION, ASSEMBLE_NODE_ACTION, ASSEMBLE_ACTION, \
     PACKAGE_META_ACTION, CREATE_DEPLOY_TARGET_BUCKET_ACTION, UPLOAD_ACTION, \
-    COPY_BUNDLE_ACTION, EXPORT_ACTION, ASSEMBLE_SWAGGER_UI_ACTION
+    COPY_BUNDLE_ACTION, EXPORT_ACTION, ASSEMBLE_SWAGGER_UI_ACTION, \
+    ABORTED_STATUS
 
 INIT_COMMAND_NAME = 'init'
 SYNDICATE_PACKAGE_NAME = 'aws-syndicate'
@@ -222,16 +222,13 @@ def transform(bundle_name, dsl, output_dir):
                    'while deploy')
 @click.option('--excluded_types', '-extypes', multiple=True,
               help='Types of the resources to skip while deploy')
-@click.option('--continue_deploy', is_flag=True, is_eager=True,
+@click.option('--continue_deploy', is_flag=True, default=False,
               help='Flag to continue failed deploy')
 @click.option('--replace_output', is_flag=True, default=False,
               help='Flag to replace the existing deploy output')
 @click.option('--rollback_on_error', is_flag=True, default=False,
-              callback=partial(validate_incompatible_options,
-                               incompatible_options=['continue_deploy']),
               help='Flag to automatically clean deployed resources if the'
-                   ' deployment is unsuccessful. Cannot be used with'
-                   ' --continue_deploy flag.')
+                   ' deployment is unsuccessful')
 @verbose_option
 @check_deploy_name_for_duplicates
 @check_deploy_bucket_exists
@@ -250,7 +247,7 @@ def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
             set(deploy_only_resources + tuple(deploy_resources_list)))
         if deploy_only_resources:
             click.echo(
-                f'Resources to update: {list(deploy_only_resources)}')
+                f'Resources to deploy: {list(deploy_only_resources)}')
 
     if excluded_resources_path and os.path.exists(excluded_resources_path):
         excluded_resources_list = json.load(open(excluded_resources_path))
@@ -258,27 +255,17 @@ def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
             set(excluded_resources + tuple(excluded_resources_list)))
         if excluded_resources:
             click.echo(
-                f'Resources to update: {list(excluded_resources)}')
+                f'Resources to deploy: {list(excluded_resources)}')
 
-    if continue_deploy:
-        deploy_success = continue_deployment_resources(deploy_name,
-                                                       bundle_name,
-                                                       deploy_only_resources,
-                                                       deploy_only_types,
-                                                       excluded_resources,
-                                                       excluded_types,
-                                                       replace_output
-                                                       )
-
-    else:
-        deploy_success = create_deployment_resources(deploy_name, bundle_name,
-                                                     deploy_only_resources,
-                                                     deploy_only_types,
-                                                     excluded_resources,
-                                                     excluded_types,
-                                                     replace_output,
-                                                     rollback_on_error
-                                                     )
+    deploy_success = create_deployment_resources(deploy_name, bundle_name,
+                                                 continue_deploy,
+                                                 deploy_only_resources,
+                                                 deploy_only_types,
+                                                 excluded_resources,
+                                                 excluded_types,
+                                                 replace_output,
+                                                 rollback_on_error
+                                                 )
 
     message = 'Backend resources were deployed{suffix}.'.format(
         suffix='' if deploy_success else (
@@ -313,13 +300,16 @@ def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
               help='Types of the resources to skip while update')
 @click.option('--replace_output', nargs=1, is_flag=True, default=False,
               help='The flag to replace the existing deploy output file')
+@click.option('--force', nargs=1, is_flag=True, default=False,
+              help='The flag, to apply updates even if the latest deployment '
+                   'failed')
 @verbose_option
 @check_deploy_name_for_duplicates
 @check_deploy_bucket_exists
 @timeit(action_name=UPDATE_ACTION)
 def update(bundle_name, deploy_name, replace_output, update_only_resources,
            update_only_resources_path, update_only_types, excluded_resources,
-           excluded_resources_path, excluded_types):
+           excluded_resources_path, excluded_types, force):
     """
     Updates infrastructure from the provided bundle
     """
@@ -349,9 +339,12 @@ def update(bundle_name, deploy_name, replace_output, update_only_resources,
         update_only_resources=update_only_resources,
         excluded_resources=excluded_resources,
         excluded_types=excluded_types,
-        replace_output=replace_output)
-    if success:
+        replace_output=replace_output,
+        force=force)
+    if success is True:
         click.echo('Update of resources has been successfully completed')
+    elif success == ABORTED_STATUS:
+        click.echo('Update of resources has been aborted')
     else:
         click.echo('Something went wrong during resources update')
 
@@ -426,7 +419,11 @@ def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
         excluded_types=excluded_types,
         clean_externals=clean_externals,
         preserve_state=preserve_state)
-    click.echo('AWS resources were removed.')
+
+    if result == ABORTED_STATUS:
+        click.echo('Clean of resources has been aborted')
+    else:
+        click.echo('AWS resources were removed.')
     return result
 
 

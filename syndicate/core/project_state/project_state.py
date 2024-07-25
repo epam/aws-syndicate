@@ -361,16 +361,16 @@ class ProjectState:
     def log_execution_event(self, **kwargs):
         operation = kwargs.get('operation')
 
-        operation_status = kwargs.get('operation_status')
+        is_succeeded = kwargs.get('is_succeeded')
         rollback_on_error = kwargs.get('rollback_on_error')
-        if not isinstance(operation_status, bool):
-            kwargs.pop('operation_status')
+        if not isinstance(is_succeeded, bool):
+            kwargs.pop('is_succeeded')
 
         if operation in [DEPLOY_ACTION, PARTIAL_CLEAN_ACTION]:
             params = kwargs.copy()
             params.pop('operation')
 
-            if not(operation_status is False and rollback_on_error is True):
+            if not (is_succeeded is False and rollback_on_error is True):
                 params.pop('rollback_on_error')
                 self._set_latest_deploy_info(**params)
 
