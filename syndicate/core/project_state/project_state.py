@@ -41,6 +41,7 @@ STATE_BUILD_PROJECT_MAPPING = 'build_projects_mapping'
 STATE_LOG_EVENTS = 'events'
 STATE_LATEST_DEPLOY = 'latest_deploy'
 LOCK_LOCKED_TILL = 'locked_till'
+LOCK_IS_LOCKED = 'is_locked'
 LOCK_LAST_MODIFICATION_DATE = 'last_modification_date'
 LOCK_INITIATOR = 'initiator'
 
@@ -241,13 +242,14 @@ class ProjectState:
         lock = self.locks.get(lock_name)
         if not lock:
             return True
-        elif not lock.get(LOCK_LOCKED_TILL):
+        elif not lock.get(LOCK_IS_LOCKED):
             return True
         elif locked_till := lock.get(LOCK_LOCKED_TILL):
             locked_till_datetime = datetime.strptime(
                 locked_till, DATE_FORMAT_ISO_8601)
             if locked_till_datetime <= datetime.utcnow():
                 lock[LOCK_LOCKED_TILL] = None
+                lock[LOCK_IS_LOCKED] = False
                 return True
         return False
 

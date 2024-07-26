@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added confirmation request mechanism for the `update` command in case the latest deployment failed
 - Added the flag `--force` for the `update` command to run an update without confirmation request in case the latest deployment failed
 - Added proper messages for commands `update` and `clean` if deployed resources are absent(output file not found)
+- Fixed lock resolving issue
 
 # [1.13.0] - 2024-07-10
 - Added possibility to configure `FunctionResponseTypes` for lambda functions
