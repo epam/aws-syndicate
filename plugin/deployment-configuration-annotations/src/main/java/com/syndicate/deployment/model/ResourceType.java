@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonValue;
  */
 public enum ResourceType {
 
+    COGNITO_USER_POOL("cognito_idp"),
     CLOUDWATCH_RULE("cloudwatch_rule"),
     EVENTBRIDGE_RULE("eventbridge_rule"),
     LAMBDA("lambda"),

@@ -16,6 +16,7 @@
 import json
 import os
 import sys
+from functools import partial
 
 import click
 from tabulate import tabulate
@@ -61,7 +62,8 @@ from syndicate.core.helper import (create_bundle_callback,
                                    resolve_default_value, ValidRegionParamType,
                                    generate_default_bundle_name,
                                    resolve_and_verify_bundle_callback,
-                                   param_to_lower, verbose_option)
+                                   param_to_lower, verbose_option,
+                                   validate_incompatible_options)
 from syndicate.core.project_state.project_state import (MODIFICATION_LOCK,
                                                         WARMUP_LOCK)
 from syndicate.core.project_state.status_processor import project_state_status
@@ -220,11 +222,13 @@ def transform(bundle_name, dsl, output_dir):
                    'while deploy')
 @click.option('--excluded_types', '-extypes', multiple=True,
               help='Types of the resources to skip while deploy')
-@click.option('--continue_deploy', is_flag=True,
+@click.option('--continue_deploy', is_flag=True, is_eager=True,
               help='Flag to continue failed deploy')
 @click.option('--replace_output', is_flag=True, default=False,
               help='Flag to replace the existing deploy output')
 @click.option('--rollback_on_error', is_flag=True, default=False,
+              callback=partial(validate_incompatible_options,
+                               incompatible_options=['continue_deploy']),
               help='Flag to automatically clean deployed resources if the'
                    ' deployment is unsuccessful. Cannot be used with'
                    ' --continue_deploy flag.')
@@ -721,6 +725,11 @@ RUNTIME_LANG_TO_BUILD_MAPPING = {
 @click.option('--bundle_name', '-b', callback=generate_default_bundle_name,
               help='Bundle\'s name to build the lambdas in. '
                    'Default value: $ProjectName_%Y%m%d.%H%M%S')
+@click.option('--force_upload', '-fu', nargs=1,
+              callback=resolve_path_callback, default=False,
+              help='Identifier that indicates whether a locally existing'
+                   ' bundle should be deleted and a new one created using'
+                   ' the same path.')
 @verbose_option
 @click.pass_context
 @timeit(action_name=ASSEMBLE_ACTION)

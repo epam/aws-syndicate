@@ -45,7 +45,7 @@ public final class LambdaConfigurationFactory {
 
     public static LambdaConfiguration createLambdaConfiguration(String version, Class<?> lambdaClass,
                                                                 LambdaHandler lambdaHandler, Set<DependencyItem> dependencies,
-                                                                Set<EventSourceItem> events, Map<String, String> variables,
+                                                                Set<EventSourceItem> events, Map<String, Object> variables,
                                                                 String packageName, String lambdaPath) {
         StringBuilder function = new StringBuilder(lambdaClass.getName());
         String methodName = lambdaHandler.methodName();

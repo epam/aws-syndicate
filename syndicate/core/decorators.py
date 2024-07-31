@@ -13,6 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+import threading
 from functools import wraps
 from pathlib import PurePath
 import click
@@ -20,6 +21,8 @@ import click
 from syndicate.commons.log_helper import get_logger
 
 _LOG = get_logger('syndicate.core.decorators')
+
+lock = threading.Lock()
 
 
 def check_deploy_name_for_duplicates(func):
@@ -72,3 +75,13 @@ def check_deploy_bucket_exists(func):
         return func(*args, **kwargs)
 
     return real_wrapper
+
+
+def threading_lock(func):
+    """ Synchronize access to a function with a threading lock
+    to avoid race condition."""
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        with lock:
+            return func(*args, **kwargs)
+    return wrapper

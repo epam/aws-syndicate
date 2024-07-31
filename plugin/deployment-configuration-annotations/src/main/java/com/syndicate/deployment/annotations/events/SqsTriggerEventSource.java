@@ -38,4 +38,5 @@ public @interface SqsTriggerEventSource {
 
     int batchSize();
 
+    FunctionResponseType[] functionResponseTypes() default {};
 }

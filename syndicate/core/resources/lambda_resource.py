@@ -24,6 +24,7 @@ from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.connection.helper import retry
 from syndicate.core.build.meta_processor import S3_PATH_NAME
 from syndicate.core.constants import DEFAULT_LOGS_EXPIRATION
+from syndicate.core.decorators import threading_lock
 from syndicate.core.helper import (unpack_kwargs,
                                    exit_on_exception)
 from syndicate.core.resources.base_resource import BaseResource
@@ -63,13 +64,14 @@ S3_TRIGGER = 's3_trigger'
 SNS_TOPIC_TRIGGER = 'sns_topic_trigger'
 KINESIS_TRIGGER = 'kinesis_trigger'
 SQS_TRIGGER = 'sqs_trigger'
+NOT_AVAILABLE = 'N/A'
 
 
 class LambdaResource(BaseResource):
 
     def __init__(self, lambda_conn, s3_conn, cw_logs_conn, sns_conn,
                  iam_conn, dynamodb_conn, sqs_conn, kinesis_conn,
-                 cw_events_conn, region, account_id,
+                 cw_events_conn, cognito_idp_conn, region, account_id,
                  deploy_target_bucket) -> None:
         self.lambda_conn = lambda_conn
         self.s3_conn = s3_conn
@@ -80,9 +82,17 @@ class LambdaResource(BaseResource):
         self.sqs_conn = sqs_conn
         self.kinesis_conn = kinesis_conn
         self.cw_events_conn = cw_events_conn
+        self.cognito_idp_conn = cognito_idp_conn
         self.region = region
         self.account_id = account_id
         self.deploy_target_bucket = deploy_target_bucket
+
+        self.dynamic_params_resolvers = {
+            ('cognito_idp', 'id'):
+                self.cognito_idp_conn.if_pool_exists_by_name,
+            ('cognito_idp', 'client_id'):
+                self.cognito_idp_conn.if_cup_client_exist
+        }
 
     def qualifier_alias_resolver(self, lambda_def):
         return lambda_def['Alias']
@@ -93,6 +103,23 @@ class LambdaResource(BaseResource):
     def remove_permissions(self, lambda_arn, permissions_sids):
         return self.lambda_conn.remove_permissions(lambda_arn,
                                                    permissions_sids)
+
+    def remove_permissions_by_resource_name(self, lambda_name, resource_name):
+        """ Remove permissions to invoke lambda by resource name
+
+        :param lambda_name: lambda name, arn or full arn
+        :param resource_name: resource name, arn or full arn
+        """
+        lambda_permissions = self.get_existing_permissions(lambda_name)
+        for statement in lambda_permissions:
+            try:
+                source_arn = statement['Condition']['ArnLike']['AWS:SourceArn']
+            except KeyError:
+                continue
+            if resource_name in source_arn:
+                self.lambda_conn.remove_one_permission(
+                    function_name=lambda_name,
+                    statement_id=statement['Sid'])
 
     def qualifier_version_resolver(self, lambda_def):
         latest_version_number = lambda_def['Configuration']['Version']
@@ -301,6 +328,9 @@ class LambdaResource(BaseResource):
 
         ephemeral_storage = meta.get('ephemeral_storage', 512)
 
+        if meta.get('env_variables'):
+            self._resolve_env_variables(meta.get('env_variables'))
+
         self.lambda_conn.create_lambda(
             lambda_name=name,
             func_name=meta['func_name'],
@@ -483,6 +513,9 @@ class LambdaResource(BaseResource):
                         'due to layer absence!'.format(layer_name, name))
                 lambda_layers_arns.append(layer_arn)
 
+        if env_vars:
+            self._resolve_env_variables(env_vars)
+
         _LOG.info(f'Updating lambda {name} configuration')
         self.lambda_conn.update_lambda_configuration(
             lambda_name=name, role=role_arn, handler=handler,
@@ -553,12 +586,15 @@ class LambdaResource(BaseResource):
                 self.lambda_conn.delete_url_config(
                     function_name=name, qualifier=alias_name)
 
+        arn = self.build_lambda_arn_with_alias(response, alias_name) \
+            if publish_version or alias_name else \
+            response['Configuration']['FunctionArn']
+
+        # delete lambda triggers before update for clean triggers configuration
+        self.remove_all_lambda_triggers(name, arn)
+
         if meta.get('event_sources'):
             event_sources_meta = meta['event_sources']
-            if alias_name:
-                _arn = self.build_lambda_arn_with_alias(response, alias_name)
-            else:
-                _arn = response['Configuration']['FunctionArn']
             trigger_resource_types = set(
                 event_source['resource_type']
                 for event_source in event_sources_meta
@@ -571,11 +607,11 @@ class LambdaResource(BaseResource):
                 func = self.CREATE_TRIGGER[trigger_type]
                 # process s3 event sources in batch
                 if trigger_type == S3_TRIGGER:
-                    func(self, name, _arn, role_name, event_sources_by_type)
+                    func(self, name, arn, role_name, event_sources_by_type)
                 # process other event sources one by one
                 else:
                     for event_source in event_sources_by_type:
-                        func(self, name, _arn, role_name, event_source)
+                        func(self, name, arn, role_name, event_source)
 
         if meta.get('max_retries') is not None:
             _LOG.debug('Updating lambda event invoke config')
@@ -813,6 +849,8 @@ class LambdaResource(BaseResource):
                                       trigger_meta):
         validate_params(lambda_name, trigger_meta, SQS_TRIGGER_REQUIRED_PARAMS)
         target_queue = trigger_meta['target_queue']
+        function_response_types = trigger_meta.get(
+            "function_response_types", [])
         batch_size, batch_window = self._resolve_batch_size_batch_window(
             trigger_meta)
 
@@ -833,10 +871,12 @@ class LambdaResource(BaseResource):
             self.lambda_conn.update_event_source(
                 event_source['UUID'], function_name=lambda_arn,
                 batch_size=batch_size,
-                batch_window=batch_window)
+                batch_window=batch_window,
+                function_response_types=function_response_types)
         else:
             self.lambda_conn.add_event_source(
-                lambda_arn, queue_arn, batch_size, batch_window
+                lambda_arn, queue_arn, batch_size, batch_window,
+                function_response_types=function_response_types
             )
 
         _LOG.info('Lambda %s subscribed to SQS queue %s', lambda_name,
@@ -978,9 +1018,10 @@ class LambdaResource(BaseResource):
 
     @retry()
     def _add_kinesis_event_source(self, lambda_name, stream_arn, trigger_meta):
-        self.lambda_conn.add_event_source(lambda_name, stream_arn,
-                                          trigger_meta['batch_size'],
-                                          trigger_meta['starting_position'])
+        self.lambda_conn.add_event_source(
+            func_name=lambda_name, stream_arn=stream_arn,
+            batch_size=trigger_meta['batch_size'],
+            start_position=trigger_meta['starting_position'])
 
     CREATE_TRIGGER = {
         DYNAMO_DB_TRIGGER: _create_dynamodb_trigger_from_meta,
@@ -992,6 +1033,86 @@ class LambdaResource(BaseResource):
         SQS_TRIGGER: _create_sqs_trigger_from_meta
     }
 
+    def remove_all_lambda_triggers(self, lambda_name, lambda_arn):
+        # event sources (sqs, dynamodb streams, kinesis, kafka, amazon mq)
+        self.lambda_conn.remove_trigger(lambda_arn)
+
+        self._remove_s3_triggers(lambda_name, lambda_arn)
+        self._remove_cloud_watch_triggers(lambda_name, lambda_arn)
+        self._remove_sns_triggers(lambda_name, lambda_arn)
+
+    def _remove_sns_triggers(self, lambda_name, lambda_arn):
+        subscriptions = self.sns_conn.list_subscriptions()
+
+        for subscription in subscriptions:
+            topic_name = subscription['TopicArn'].split(':')[-1]
+            if subscription['Protocol'] == 'lambda' \
+                    and subscription['Endpoint'] == lambda_arn:
+                self.sns_conn.unsubscribe_arn(
+                    subscription_arn=subscription['SubscriptionArn'])
+                _LOG.info(f'Lambda {lambda_name} unsubscribed '
+                          f'from topic {topic_name}')
+
+                # remove sns permission to invoke lambda
+                # to remove this trigger from lambda triggers section
+                self.remove_permissions_by_resource_name(
+                    lambda_arn, subscription['TopicArn'])
+
+    def _remove_cloud_watch_triggers(self, lambda_name, lambda_arn):
+        rule_names = self.cw_events_conn.list_rules_by_target(lambda_arn)
+
+        for rule_name in rule_names:
+            targets = self.cw_events_conn.list_targets_by_rule(rule_name)
+
+            # remove target so that this rule won't trigger lambda
+            for target in targets:
+                if target['Arn'] == lambda_arn:
+                    self.cw_events_conn.remove_targets(
+                        rule_name=rule_name,
+                        target_ids=[target['Id']]
+                    )
+                    _LOG.info(f'Lambda {lambda_name} unsubscribed from '
+                              f'cloudwatch rule {rule_name}')
+
+            # remove event bridge permission to invoke lambda
+            # to remove this trigger from lambda triggers section
+            self.remove_permissions_by_resource_name(lambda_arn, rule_name)
+
+    @threading_lock
+    def _remove_s3_triggers(self, lambda_name, lambda_arn):
+        buckets = self.s3_conn.get_list_buckets() or []
+        for bucket in buckets:
+            bucket_notifications = self.s3_conn.get_bucket_notification(
+                bucket_name=bucket['Name'])
+            if not bucket_notifications:
+                continue
+            bucket_notifications.pop('ResponseMetadata')
+            if 'LambdaFunctionConfigurations' in bucket_notifications:
+                lambda_configs = \
+                    bucket_notifications['LambdaFunctionConfigurations']
+                lambda_config_arns = [lambda_config['LambdaFunctionArn']
+                                      for lambda_config in lambda_configs]
+                if lambda_arn in lambda_config_arns:
+                    # exclude current lambda from the s3 event config
+                    saved_configs = [
+                        lambda_config for lambda_config in lambda_configs
+                        if lambda_config['LambdaFunctionArn'] != lambda_arn
+                    ]
+                    bucket_notifications['LambdaFunctionConfigurations'] = \
+                        saved_configs
+                    self.s3_conn.put_bucket_notification(
+                        bucket_name=bucket['Name'],
+                        notification_configuration=bucket_notifications
+                    )
+
+                    # remove s3 permission to invoke lambda
+                    # to remove this trigger from lambda triggers section
+                    self.remove_permissions_by_resource_name(
+                        lambda_arn, bucket['Name'])
+
+                    _LOG.info(f'Lambda {lambda_name} unsubscribed from '
+                              f's3 bucket {bucket["Name"]}')
+
     def remove_lambdas(self, args):
         self.create_pool(self._remove_lambda, args)
 
@@ -1001,7 +1122,7 @@ class LambdaResource(BaseResource):
         lambda_name = config['resource_name']
         try:
             self.lambda_conn.delete_lambda(lambda_name)
-            self.lambda_conn.remove_trigger(arn)
+            self.remove_all_lambda_triggers(lambda_name, arn)
             group_names = self.cw_logs_conn.get_log_group_names()
             for each in group_names:
                 if lambda_name == each.split('/')[-1]:
@@ -1159,4 +1280,55 @@ class LambdaResource(BaseResource):
                 self.cw_logs_conn.create_log_group_with_retention_days(
                     group_name=lambda_name,
                     retention_in_days=retention
+                )
+
+    def _resolve_env_variables(self, env_vars):
+        required_params = ['resource_name', 'resource_type', 'parameter']
+
+        for key, value in env_vars.items():
+            if isinstance(value, dict):
+                resource_name = value.get('resource_name')
+                resource_type = value.get('resource_type')
+                parameter = value.get('parameter')
+
+                if not all([resource_name, resource_type, parameter]):
+                    missed_params = [p for p in required_params if
+                                     value.get(p) is None]
+                    env_vars[key] = NOT_AVAILABLE
+                    USER_LOG.warn(
+                        f"Unable to resolve value for environment variable "
+                        f"'{key}' because of missing parameter/s. Required "
+                        f"parameters: {required_params}; missed parameters/s "
+                        f"{missed_params}."
+                        f"The environment variable '{key}' will be configured "
+                        f"with the value '{NOT_AVAILABLE}'."
+                    )
+                    continue
+
+                _LOG.debug(
+                    f"Going to resolve the value for the environment variable "
+                    f"'{key}' by the parameter '{parameter}' of the resource "
+                    f"type '{resource_type}' with the name '{resource_name}'.")
+
+                resolver = self.dynamic_params_resolvers.get(
+                    (resource_type, parameter)
+                )
+
+                if resolver is None:
+                    USER_LOG.warn(
+                        f"Currently resolving parameter '{parameter}' for the "
+                        f"resource type '{resource_type}' is not supported.")
+                    env_vars[key] = NOT_AVAILABLE
+                else:
+                    env_vars[key] = (resolver(resource_name) or NOT_AVAILABLE)
+
+                if env_vars[key] == NOT_AVAILABLE:
+                    USER_LOG.warn(
+                        f"Unable to resolve parameter '{parameter}' for the "
+                        f"resource type '{resource_type}' with name "
+                        f"'{resource_name}'.")
+
+                _LOG.debug(
+                    f"The environment variable '{key}' will be configured "
+                    f"with the value '{env_vars[key]}'."
                 )
