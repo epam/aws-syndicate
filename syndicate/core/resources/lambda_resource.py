@@ -22,6 +22,7 @@ from botocore.exceptions import ClientError
 
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.connection.helper import retry
+from syndicate.core.build.bundle_processor import _build_output_key
 from syndicate.core.build.meta_processor import S3_PATH_NAME
 from syndicate.core.constants import DEFAULT_LOGS_EXPIRATION
 from syndicate.core.decorators import threading_lock
@@ -69,13 +70,14 @@ NOT_AVAILABLE = 'N/A'
 
 class LambdaResource(BaseResource):
 
-    def __init__(self, lambda_conn, s3_conn, cw_logs_conn, sns_conn,
+    def __init__(self, lambda_conn, s3_conn, cw_logs_conn, sns_res, sns_conn,
                  iam_conn, dynamodb_conn, sqs_conn, kinesis_conn,
                  cw_events_conn, cognito_idp_conn, region, account_id,
                  deploy_target_bucket) -> None:
         self.lambda_conn = lambda_conn
         self.s3_conn = s3_conn
         self.cw_logs_conn = cw_logs_conn
+        self.sns_res = sns_res
         self.sns_conn = sns_conn
         self.iam_conn = iam_conn
         self.dynamodb_conn = dynamodb_conn
@@ -246,10 +248,7 @@ class LambdaResource(BaseResource):
         name = response['Configuration']['FunctionName']
         l_arn = self.build_lambda_arn(name=name)
         version = response['Configuration']['Version']
-        arn = '{0}:{1}'.format(l_arn, version)
-        # override version if alias exists
-        if alias:
-            arn = '{0}:{1}'.format(l_arn, alias)
+        arn = '{0}:{1}'.format(l_arn, alias or version)
         return arn
 
     def _setup_function_concurrency(self, name, meta):
@@ -440,7 +439,7 @@ class LambdaResource(BaseResource):
     @exit_on_exception
     @unpack_kwargs
     def _update_lambda(self, name, meta, context):
-        from syndicate.core import CONFIG
+        from syndicate.core import CONFIG, PROJECT_STATE
         _LOG.info('Updating lambda: {0}'.format(name))
         req_params = ['runtime', 'memory', 'timeout', 'func_name']
 
@@ -590,28 +589,29 @@ class LambdaResource(BaseResource):
             if publish_version or alias_name else \
             response['Configuration']['FunctionArn']
 
-        # delete lambda triggers before update for clean triggers configuration
-        self.remove_all_lambda_triggers(name, arn)
-
-        if meta.get('event_sources'):
-            event_sources_meta = meta['event_sources']
-            trigger_resource_types = set(
-                event_source['resource_type']
-                for event_source in event_sources_meta
-            )
-            for trigger_type in trigger_resource_types:
-                event_sources_by_type = list(filter(
-                    lambda x: x['resource_type'] == trigger_type,
-                    event_sources_meta
-                ))
-                func = self.CREATE_TRIGGER[trigger_type]
-                # process s3 event sources in batch
-                if trigger_type == S3_TRIGGER:
-                    func(self, name, arn, role_name, event_sources_by_type)
-                # process other event sources one by one
-                else:
-                    for event_source in event_sources_by_type:
-                        func(self, name, arn, role_name, event_source)
+        # load latest output to compare it with current event sources
+        deploy_name = PROJECT_STATE.latest_deploy.get('deploy_name')
+        bundle_name = PROJECT_STATE.latest_modification.get('bundle_name')
+        key = _build_output_key(bundle_name=bundle_name,
+                                deploy_name=deploy_name,
+                                is_regular_output=True)
+        key_compound = PurePath(CONFIG.deploy_target_bucket_key_compound,
+                                key).as_posix()
+        output_file = self.s3_conn.load_file_body(
+            CONFIG.deploy_target_bucket, key_compound)
+        latest_output = json.loads(output_file)
+        prev_event_sources_meta = None
+        for resource in latest_output:
+            if arn in resource:
+                resource_meta = latest_output[resource]['resource_meta']
+                prev_event_sources_meta = \
+                    resource_meta.get('event_sources', [])
+                break
+        event_sources_meta = meta.get('event_sources', [])
+        self.update_lambda_triggers(
+            name=name, arn=arn, role_name=role_name,
+            event_sources_meta=event_sources_meta,
+            prev_event_sources_meta=prev_event_sources_meta)
 
         if meta.get('max_retries') is not None:
             _LOG.debug('Updating lambda event invoke config')
@@ -652,6 +652,40 @@ class LambdaResource(BaseResource):
                                                            lambda_def=context)
         _LOG.info(f'Updating has finished for lambda {name}')
         return self.describe_lambda(name, meta, response)
+
+    def update_lambda_triggers(self, name, arn, role_name, event_sources_meta,
+                               prev_event_sources_meta):
+        # remove triggers that are absent or changed in new meta
+        for prev_event_source in prev_event_sources_meta:
+            for event_source in event_sources_meta:
+                if prev_event_source == event_source:
+                    break
+            else:
+                # trigger in the previous output not found in the current one
+                func = self.REMOVE_TRIGGER[prev_event_source['resource_type']]
+                func(self, lambda_name=name, lambda_arn=arn,
+                     trigger_meta=prev_event_source)
+
+        # create new triggers
+        new_triggers = [event_source for event_source in event_sources_meta
+                        if event_source not in prev_event_sources_meta]
+        trigger_resource_types = set(
+            event_source['resource_type']
+            for event_source in new_triggers
+        )
+        for trigger_type in trigger_resource_types:
+            event_sources_by_type = list(filter(
+                lambda x: x['resource_type'] == trigger_type, new_triggers
+            ))
+            func = self.CREATE_TRIGGER[trigger_type]
+            # process s3 event sources in batch
+            # TODO: apply threading lock instead?
+            if trigger_type == S3_TRIGGER:
+                func(self, name, arn, role_name, event_sources_by_type)
+            # process other event sources one by one
+            else:
+                for event_source in event_sources_by_type:
+                    func(self, name, arn, role_name, event_source)
 
     def _set_function_concurrency(self, name, meta):
         provisioned = self.lambda_conn. \
@@ -954,9 +988,9 @@ class LambdaResource(BaseResource):
         topic_name = trigger_meta['target_topic']
 
         region = trigger_meta.get('region')
-        self.sns_conn.create_sns_subscription_for_lambda(lambda_arn,
-                                                         topic_name,
-                                                         region)
+        self.sns_res.create_sns_subscription_for_lambda(lambda_arn,
+                                                        topic_name,
+                                                        region)
         _LOG.info('Lambda %s subscribed to sns topic %s', lambda_name,
                   trigger_meta['target_topic'])
 
@@ -1033,9 +1067,139 @@ class LambdaResource(BaseResource):
         SQS_TRIGGER: _create_sqs_trigger_from_meta
     }
 
+    @retry()
+    def _remove_cloud_watch_trigger(self, lambda_name, lambda_arn,
+                                    trigger_meta):
+        target_rule = trigger_meta['target_rule']
+        targets = self.cw_events_conn.list_targets_by_rule(target_rule)
+
+        for target in targets:
+            if target['Arn'] == lambda_arn:
+                # remove target so that this rule won't trigger lambda
+                self.cw_events_conn.remove_targets(
+                    rule_name=target_rule,
+                    target_ids=[target['Id']]
+                )
+                _LOG.info(f'Lambda {lambda_name} unsubscribed from '
+                          f'cloudwatch rule {target_rule}')
+                break
+
+        # remove event bridge permission to invoke lambda
+        # to remove this trigger from lambda triggers section
+        self.remove_permissions_by_resource_name(lambda_arn, target_rule)
+
+    @retry()
+    def _remove_sns_topic_trigger(self, lambda_name, lambda_arn, trigger_meta):
+        target_topic = trigger_meta['target_topic']
+        topic_arn = self.sns_conn.get_topic_arn(name=target_topic)
+        subscriptions = self.sns_conn.list_subscriptions_by_topic(
+            topic_arn=topic_arn)
+        for subscription in subscriptions:
+            if subscription['Protocol'] == 'lambda' \
+                    and subscription['Endpoint'] == lambda_arn:
+                # remove subscription so that this topic won't trigger lambda
+                self.sns_conn.unsubscribe(
+                    subscription_arn=subscription['SubscriptionArn'])
+                _LOG.info(f'Lambda {lambda_name} unsubscribed '
+                          f'from topic {target_topic}')
+
+                # remove sns permission to invoke lambda
+                # to remove this trigger from lambda triggers section
+                self.remove_permissions_by_resource_name(
+                    lambda_arn, subscription['TopicArn'])
+                break
+
+    @retry()
+    # allow only sequential s3 trigger deletion because it is done via 'put'
+    # operation which will override any other concurrent request otherwise
+    @threading_lock
+    def _remove_s3_trigger(self, lambda_name, lambda_arn, trigger_meta):
+        target_bucket = trigger_meta['target_bucket']
+        bucket_notifications = self.s3_conn.get_bucket_notification(
+            bucket_name=target_bucket)
+        if not bucket_notifications:
+            return
+        bucket_notifications.pop('ResponseMetadata')
+        if 'LambdaFunctionConfigurations' in bucket_notifications:
+            lambda_configs = \
+                bucket_notifications['LambdaFunctionConfigurations']
+            lambda_config_arns = [lambda_config['LambdaFunctionArn']
+                                  for lambda_config in lambda_configs]
+            if lambda_arn in lambda_config_arns:
+                # exclude current lambda from the s3 event config
+                saved_configs = [
+                    lambda_config for lambda_config in lambda_configs
+                    if lambda_config['LambdaFunctionArn'] != lambda_arn
+                ]
+                bucket_notifications['LambdaFunctionConfigurations'] = \
+                    saved_configs
+                # remove lambda from the event config so that this bucket won't
+                # trigger lambda by 'putting' the config without the lambda
+                # as there is no remove method in boto3
+                self.s3_conn.put_bucket_notification(
+                    bucket_name=target_bucket,
+                    notification_configuration=bucket_notifications
+                )
+
+                _LOG.info(f'Lambda {lambda_name} unsubscribed from '
+                          f's3 bucket {target_bucket}')
+
+                # remove s3 permission to invoke lambda
+                # to remove this trigger from lambda triggers section
+                self.remove_permissions_by_resource_name(
+                    lambda_arn, target_bucket)
+
+    @retry()
+    def _remove_sqs_trigger(self, lambda_name, lambda_arn, trigger_meta):
+        target_queue = trigger_meta['target_queue']
+        self._remove_event_source(
+            lambda_arn=lambda_arn, event_source_name=target_queue)
+        _LOG.info(f'Lambda {lambda_name} unsubscribed from '
+                  f'sqs queue {target_queue}')
+
+    @retry()
+    def _remove_dynamodb_trigger(self, lambda_name, lambda_arn, trigger_meta):
+        target_table = trigger_meta['target_table']
+        self._remove_event_source(
+            lambda_arn=lambda_arn, event_source_name=target_table)
+        _LOG.info(f'Lambda {lambda_name} unsubscribed from '
+                  f'dynamodb table {target_table}')
+
+    @retry()
+    def _remove_kinesis_stream_trigger(self, lambda_name, lambda_arn,
+                                       trigger_meta):
+        target_stream = trigger_meta['target_stream']
+        self._remove_event_source(
+            lambda_arn=lambda_arn, event_source_name=target_stream)
+        _LOG.info(f'Lambda {lambda_name} unsubscribed from '
+                  f'kinesis stream {target_stream}')
+
+    def _remove_event_source(self, lambda_arn, event_source_name):
+        """ Remove event source from lambda triggers.
+        SQS, DynamoDB, Kinezis, Kafka and MQ resources are considered
+        as event sources according to AWS """
+        uuid = None
+        event_sources = self.lambda_conn.triggers_list(lambda_name=lambda_arn)
+        for event_source in event_sources:
+            if event_source_name in event_source['EventSourceArn']:
+                uuid = event_source['UUID']
+                break
+        self.lambda_conn.remove_event_source(uuid=uuid)
+
+    REMOVE_TRIGGER = {
+        DYNAMO_DB_TRIGGER: _remove_dynamodb_trigger,
+        CLOUD_WATCH_RULE_TRIGGER: _remove_cloud_watch_trigger,
+        EVENT_BRIDGE_RULE_TRIGGER: _remove_cloud_watch_trigger,
+        S3_TRIGGER: _remove_s3_trigger,
+        SNS_TOPIC_TRIGGER: _remove_sns_topic_trigger,
+        KINESIS_TRIGGER: _remove_kinesis_stream_trigger,
+        SQS_TRIGGER: _remove_sqs_trigger
+    }
+
+    # TODO: rework
     def remove_all_lambda_triggers(self, lambda_name, lambda_arn):
         # event sources (sqs, dynamodb streams, kinesis, kafka, amazon mq)
-        self.lambda_conn.remove_trigger(lambda_arn)
+        self.lambda_conn.remove_event_sources(lambda_arn)
 
         self._remove_s3_triggers(lambda_name, lambda_arn)
         self._remove_cloud_watch_triggers(lambda_name, lambda_arn)
