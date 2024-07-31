@@ -16,7 +16,6 @@
 import concurrent
 import copy
 import functools
-import json
 from concurrent.futures import ALL_COMPLETED, ThreadPoolExecutor
 from functools import cmp_to_key
 
@@ -27,7 +26,6 @@ from syndicate.core.build.bundle_processor import (create_deploy_output,
                                                    load_meta_resources,
                                                    remove_failed_deploy_output,
                                                    load_latest_deploy_output)
-from syndicate.core.build.helper import _json_serial
 from syndicate.core.build.meta_processor import (resolve_meta,
                                                  populate_s3_paths,
                                                  resolve_resource_name)
@@ -45,29 +43,9 @@ _LOG = get_logger('syndicate.core.build.deployment_processor')
 USER_LOG = get_user_logger()
 
 
-def get_dependencies(name, meta, resources_dict, resources):
-    """ Get dependencies from resources that needed to create them too.
-
-    :type name: str
-    :type meta: dict
-    :type resources_dict: dict
-    :param resources:
-    :param resources_dict: resources that will be created {name: meta}
-    """
-    resources_dict[name] = meta
-    if meta.get('dependencies'):
-        for dependency in meta.get('dependencies'):
-            dep_name = dependency['resource_name']
-            dep_meta = resources[dep_name]
-            resources_dict[dep_name] = dep_meta
-            if dep_meta.get('dependencies'):
-                get_dependencies(dep_name, dep_meta, resources_dict, resources)
-
-
-# todo implement resources sorter according to priority
-# todo add dependency resolving
-def _process_resources(resources, handlers_mapping, pass_context=False):
-    output = {}
+def _process_resources(resources, handlers_mapping, pass_context=False,
+                       output=None):
+    output = output or {}
     args = []
     resource_type = None
     try:
@@ -110,6 +88,83 @@ def _process_resources(resources, handlers_mapping, pass_context=False):
         return False, output
 
 
+def _process_resources_with_dependencies(resources, handlers_mapping,
+                                         pass_context=False,
+                                         overall_resources=None, output=None,
+                                         current_resource_type=None,
+                                         run_count=0):
+    overall_resources = overall_resources or resources
+    output = output or {}
+    try:
+        for res_name, res_meta in resources:
+            args = []
+            resource_type = res_meta['resource_type']
+            if res_meta.get('processed'):
+                _LOG.debug(f"Processing of '{resource_type}' '{res_name}' "
+                           f"skipped. Resource already processed")
+                continue
+
+            if run_count >= len(overall_resources):
+                raise RecursionError(
+                    "An infinite loop detected in resource dependencies")
+
+            run_count += 1
+
+            dependencies = [item['resource_name'] for item in
+                            res_meta.get('dependencies', [])]
+            _LOG.debug(f"'{resource_type}' '{res_name}' depends on resources: "
+                       f"{dependencies}")
+            # Order of items in depends_on_resources is important!
+            depends_on_resources = []
+            for dep_res_name in dependencies:
+                for overall_res_name, overall_res_meta in overall_resources:
+                    if overall_res_name == dep_res_name:
+                        depends_on_resources.append((overall_res_name,
+                                                    overall_res_meta))
+
+            if depends_on_resources:
+                _LOG.info(
+                    f"Processing '{resource_type}' '{res_name}' dependencies "
+                    f"{prettify_json(res_meta['dependencies'])}")
+
+                success, output = _process_resources_with_dependencies(
+                    resources=depends_on_resources,
+                    handlers_mapping=handlers_mapping,
+                    pass_context=pass_context,
+                    overall_resources=overall_resources,
+                    output=output,
+                    current_resource_type=current_resource_type,
+                    run_count=run_count)
+
+                if not success:
+                    return False, output
+
+            args.append(_build_args(name=res_name,
+                                    meta=res_meta,
+                                    context=output,
+                                    pass_context=pass_context))
+            if current_resource_type != resource_type:
+                USER_LOG.info(f'Processing {resource_type} resources')
+                current_resource_type = resource_type
+            func = handlers_mapping[resource_type]
+            response = func(args)
+            process_response(response=response, output=output)
+
+            res_meta['processed'] = True
+            overall_res_index = overall_resources.index(
+                (res_name, res_meta))
+            overall_resources[overall_res_index][-1]['processed'] = True
+
+        return True, output
+    except Exception as e:
+        if 'An infinite loop' in str(e):
+            USER_LOG.error(e.args[0])
+        else:
+            USER_LOG.exception(f"Error occurred while '{resource_type}' "
+                               f"resource creating: {str(e)}")
+        return False, output
+
+
 def _build_args(name, meta, context, pass_context=False):
     """
     Builds parameters to pass to resource_type handler.
@@ -145,11 +200,37 @@ def update_failed_output(res_name, res_meta, resource_type, output):
     return output
 
 
-def deploy_resources(resources):
+def deploy_resources(resources, output=None):
     from syndicate.core import PROCESSOR_FACADE
+    process_with_dependency = False
+
+    for _, res_meta in resources:
+        res_priority = DEPLOY_RESOURCE_TYPE_PRIORITY[res_meta['resource_type']]
+        dependencies = res_meta.get('dependencies', [])
+        dep_priorities = [
+            DEPLOY_RESOURCE_TYPE_PRIORITY[item['resource_type']] for item in
+            dependencies]
+
+        if dep_priorities:
+            if max(dep_priorities) >= res_priority:
+                process_with_dependency = True
+                break
+
+    if process_with_dependency:
+        USER_LOG.warn(
+            'Resource dependency with higher deployment priority from a '
+            'resource with equal or lower deployment priority detected. '
+            'Deployment may take a little bit more time than usual.')
+
+        return _process_resources_with_dependencies(
+            resources=resources,
+            handlers_mapping=PROCESSOR_FACADE.create_handlers(),
+            output=output)
+
     return _process_resources(
         resources=resources,
-        handlers_mapping=PROCESSOR_FACADE.create_handlers())
+        handlers_mapping=PROCESSOR_FACADE.create_handlers(),
+        output=output)
 
 
 def update_resources(resources):
@@ -186,56 +267,20 @@ def clean_resources(output):
         func(args)
 
 
-# todo implement saving failed output
-def continue_deploy_resources(resources, failed_output):
-    from syndicate.core import PROCESSOR_FACADE
-    handler_mappings = PROCESSOR_FACADE.create_handlers()
+def continue_deploy_resources(resources, failed_output,
+                              project_resources_amount):
 
-    resources_to_deploy = []
-    deploy_result = True
-    args = []
+    if len(failed_output) == project_resources_amount:
+        USER_LOG.info('Skipping deployment because all project resources '
+                      'already deployed')
+        return True, failed_output
 
-    failed_resource_names = {data['resource_name'] for data in
-                             failed_output.values()}
+    for arn, meta in failed_output.items():
+        for resource_name, resource_meta in resources:
+            if resource_name == meta['resource_name']:
+                resources.remove((resource_name, resource_meta))
 
-    for resource_name, resource_meta in resources:
-        if resource_name not in failed_resource_names:
-            resources_to_deploy.append((resource_name, resource_meta))
-
-    if not resources_to_deploy:
-        return deploy_result, failed_output
-
-    for resource in resources_to_deploy:
-        res_name, res_meta = resource
-        res_type = res_meta['resource_type']
-        func = handler_mappings[res_type]
-        try:
-            if func:
-                args.append(_build_args(
-                    name=res_name,
-                    meta=res_meta,
-                    context={}
-                ))
-                USER_LOG.info(f'Processing {res_type} resources')
-                response = func(args)
-                del args[:]
-                if response:
-                    process_response(
-                        response=response, output=failed_output
-                    )
-                else:
-                    _LOG.warning(f"Handler for resource type: {res_type}"
-                                 f" did not returned any response")
-            else:
-                _LOG.warning(f"Handler for the `{res_name}` resource of"
-                             f" {res_type} type was not found. Resource"
-                             f" has not been deployed.")
-        except Exception as e:
-            _LOG.exception(
-                'Error occurred while {0} resource creating: {1}'.
-                format(res_type, str(e)))
-            deploy_result = False
-            return deploy_result, failed_output
+    return deploy_resources(resources, failed_output)
 
 
 def process_response(response, output: dict):
@@ -436,10 +481,9 @@ def update_deployment_resources(bundle_name, deploy_name, replace_output=False,
         prettify_json(resources)))
     resources_list = list(resources.items())
     resources_list.sort(key=cmp_to_key(_compare_update_resources))
-    success, output = _process_resources(
-        resources=resources_list,
-        handlers_mapping=PROCESSOR_FACADE.update_handlers(),
-        pass_context=True)
+
+    success, output = update_resources(resources_list)
+
     create_deploy_output(bundle_name=bundle_name,
                          deploy_name=deploy_name,
                          output=output,
@@ -532,6 +576,7 @@ def continue_deployment_resources(deploy_name, bundle_name,
 
     resources = load_meta_resources(bundle_name)
     _LOG.debug('{0} file was loaded successfully'.format(BUILD_META_FILE_NAME))
+    project_resources_amount = len(resources)
 
     resources = resolve_meta(resources)
     _LOG.debug('Names were resolved')
@@ -558,7 +603,8 @@ def continue_deployment_resources(deploy_name, bundle_name,
     resources_list.sort(key=cmp_to_key(compare_deploy_resources))
 
     success, updated_output = continue_deploy_resources(
-        resources=resources_list, failed_output=failed_output)
+        resources=resources_list, failed_output=failed_output,
+        project_resources_amount=project_resources_amount)
     _LOG.info('AWS resources were deployed successfully')
     if success:
         # apply dynamic changes that uses ARNs
