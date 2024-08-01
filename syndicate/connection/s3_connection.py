@@ -183,17 +183,15 @@ class S3Connection(object):
     def delete_bucket(self, bucket_name):
         self.client.delete_bucket(Bucket=bucket_name)
 
-    @threading_lock
-    def configure_event_source_for_lambda(self, bucket, lambda_arn,
-                                          event_sources):
+    def configure_event_source_for_lambda(self, bucket: str, lambda_arn: str,
+                                          event_source: dict):
         """ Create event notification in the bucket that triggers the lambda
         Note: two identical events can't be configured for two
         separate lambdas in one bucket
 
-        :type bucket: str
-        :type lambda_arn: str
-        :type event_sources: list[dict]
-        :param event_sources:
+        :param bucket:
+        :param lambda_arn:
+        :param event_source:
             - s3_events: list[str] - list of S3 event types:
                 's3:ReducedRedundancyLostObject'
                 's3:ObjectCreated:*'
@@ -208,7 +206,6 @@ class S3Connection(object):
                 {'Name': 'prefix'|'suffix', 'Value': 'string'}
         """
         config = self.get_bucket_notification(bucket_name=bucket)
-
         config.pop('ResponseMetadata')
 
         if 'LambdaFunctionConfigurations' not in config:
@@ -224,27 +221,26 @@ class S3Connection(object):
             for filter_rule in filter_rules:
                 filter_rule['Name'] = filter_rule['Name'].lower()
 
-        for event_source in event_sources:
-            params = {
-                'LambdaFunctionArn': lambda_arn,
-                'Events': event_source['s3_events']
-            }
-            if event_source.get('filter_rules'):
-                params.update({
-                    "Filter": {
-                        'Key': {
-                            'FilterRules': event_source['filter_rules']
-                        }
+        params = {
+            'LambdaFunctionArn': lambda_arn,
+            'Events': event_source['s3_events']
+        }
+        if event_source.get('filter_rules'):
+            params.update({
+                'Filter': {
+                    'Key': {
+                        'FilterRules': event_source['filter_rules']
                     }
-                })
-            # add event notification to remote if it is not already present
-            for remote_event_source in config['LambdaFunctionConfigurations']:
-                remote_event_source_copy = remote_event_source.copy()
-                remote_event_source_copy.pop('Id')
-                if remote_event_source_copy == params:
-                    break
-            else:
-                config['LambdaFunctionConfigurations'].append(params)
+                }
+            })
+        # add event notification to remote if it is not already present
+        for remote_event_source in config['LambdaFunctionConfigurations']:
+            remote_event_source_copy = remote_event_source.copy()
+            remote_event_source_copy.pop('Id')
+            if remote_event_source_copy == params:
+                break
+        else:
+            config['LambdaFunctionConfigurations'].append(params)
 
         self.put_bucket_notification(
             bucket_name=bucket, notification_configuration=config)
