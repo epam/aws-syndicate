@@ -1,0 +1,13 @@
+{
+  "name": "demo-cognito-project",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {},
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "uuid": "^9.0.1",
+    "aws-sdk": "^2.1011.0"
+  }
+}
