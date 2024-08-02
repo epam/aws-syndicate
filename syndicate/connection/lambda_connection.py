@@ -380,7 +380,7 @@ class LambdaConnection(object):
         """
         self.client.delete_function(FunctionName=func_name)
 
-    def remove_trigger(self, lambda_name):
+    def remove_event_sources(self, lambda_name):
         """ Remove trigger by name. Trigger has the same name as Lambda.
 
         :type lambda_name: str
@@ -407,7 +407,7 @@ class LambdaConnection(object):
                     'Failed to delete lambda %s', each['FunctionName'],
                     exc_info=True)
 
-    def delete_trigger(self, uuid):
+    def remove_event_source(self, uuid):
         """ Delete event source stream.
 
         :param uuid: str

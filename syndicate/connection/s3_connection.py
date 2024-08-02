@@ -20,9 +20,9 @@ from boto3 import resource
 from botocore.client import Config
 from botocore.exceptions import ClientError
 
+from syndicate.commons import deep_get
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import apply_methods_decorator, retry
-from syndicate.core.decorators import threading_lock
 
 _LOG = get_logger('syndicate.connection.s3_connection')
 
@@ -183,17 +183,15 @@ class S3Connection(object):
     def delete_bucket(self, bucket_name):
         self.client.delete_bucket(Bucket=bucket_name)
 
-    @threading_lock
-    def configure_event_source_for_lambda(self, bucket, lambda_arn,
-                                          event_sources):
+    def add_lambda_event_source(self, bucket: str, lambda_arn: str,
+                                event_source: dict):
         """ Create event notification in the bucket that triggers the lambda
         Note: two identical events can't be configured for two
         separate lambdas in one bucket
 
-        :type bucket: str
-        :type lambda_arn: str
-        :type event_sources: list[dict]
-        :param event_sources:
+        :param bucket:
+        :param lambda_arn:
+        :param event_source:
             - s3_events: list[str] - list of S3 event types:
                 's3:ReducedRedundancyLostObject'
                 's3:ObjectCreated:*'
@@ -208,7 +206,6 @@ class S3Connection(object):
                 {'Name': 'prefix'|'suffix', 'Value': 'string'}
         """
         config = self.get_bucket_notification(bucket_name=bucket)
-
         config.pop('ResponseMetadata')
 
         if 'LambdaFunctionConfigurations' not in config:
@@ -217,35 +214,81 @@ class S3Connection(object):
         # for some reason filter rule's name value is in uppercase when
         # should be in lower according to the documentation
         for lambda_config in config['LambdaFunctionConfigurations']:
-            try:
-                filter_rules = lambda_config['Filter']['Key']['FilterRules']
-            except KeyError:
-                continue
+            filter_rules = deep_get(
+                lambda_config, ['Filter', 'Key', 'FilterRules'], [])
             for filter_rule in filter_rules:
                 filter_rule['Name'] = filter_rule['Name'].lower()
 
-        for event_source in event_sources:
-            params = {
-                'LambdaFunctionArn': lambda_arn,
-                'Events': event_source['s3_events']
-            }
-            if event_source.get('filter_rules'):
-                params.update({
-                    "Filter": {
-                        'Key': {
-                            'FilterRules': event_source['filter_rules']
-                        }
+        params = {
+            'LambdaFunctionArn': lambda_arn,
+            'Events': event_source['s3_events']
+        }
+        if event_source.get('filter_rules'):
+            params.update({
+                'Filter': {
+                    'Key': {
+                        'FilterRules': event_source['filter_rules']
                     }
-                })
-            # add event notification to remote if it is not already present
-            for remote_event_source in config['LambdaFunctionConfigurations']:
-                remote_event_source_copy = remote_event_source.copy()
-                remote_event_source_copy.pop('Id')
-                if remote_event_source_copy == params:
-                    break
-            else:
-                config['LambdaFunctionConfigurations'].append(params)
+                }
+            })
+        # add event notification to remote if it is not already present
+        for remote_event_source in config['LambdaFunctionConfigurations']:
+            remote_event_source_copy = remote_event_source.copy()
+            remote_event_source_copy.pop('Id')
+            if remote_event_source_copy == params:
+                break
+        else:
+            config['LambdaFunctionConfigurations'].append(params)
 
+        self.put_bucket_notification(
+            bucket_name=bucket, notification_configuration=config)
+
+    def remove_lambda_event_source(self, bucket: str, lambda_arn: str,
+                                   event_source: dict):
+        """ Remove event notification in the bucket that triggers the lambda
+        Note: two identical events can't be configured for two
+        separate lambdas in one bucket
+
+        :param bucket:
+        :param lambda_arn:
+        :param event_source:
+            - s3_events: list[str] - list of S3 event types:
+                's3:ReducedRedundancyLostObject'
+                's3:ObjectCreated:*'
+                's3:ObjectCreated:Put'
+                's3:ObjectCreated:Post'
+                's3:ObjectCreated:Copy'
+                's3:ObjectCreated:CompleteMultipartUpload'
+                's3:ObjectRemoved:*'
+                's3:ObjectRemoved:Delete'
+                's3:ObjectRemoved:DeleteMarkerCreated'
+            - filter_rules (optional): list[dict] - list of S3 event filters:
+                {'Name': 'prefix'|'suffix', 'Value': 'string'}
+        """
+        config = self.get_bucket_notification(bucket_name=bucket)
+        config.pop('ResponseMetadata')
+
+        if 'LambdaFunctionConfigurations' not in config:
+            _LOG.info('No lambda event source to remove')
+            return
+
+        saved_lambda_configs = []
+        for lambda_config in config['LambdaFunctionConfigurations']:
+            # for some reason filter rule's name value is in uppercase when
+            # should be in lower according to the documentation
+            filter_rules = deep_get(
+                lambda_config, ['Filter', 'Key', 'FilterRules'], [])
+            for filter_rule in filter_rules:
+                filter_rule['Name'] = filter_rule['Name'].lower()
+
+            current_lambda = (lambda_config['LambdaFunctionArn'] == lambda_arn)
+            same_filters = filter_rules == event_source.get('filter_rules', [])
+            same_events = lambda_config['Events'] == event_source['s3_events']
+            # save config if something is different from current meta
+            if not current_lambda or not same_filters or not same_events:
+                saved_lambda_configs.append(lambda_config)
+
+        config['LambdaFunctionConfigurations'] = saved_lambda_configs
         self.put_bucket_notification(
             bucket_name=bucket, notification_configuration=config)
 

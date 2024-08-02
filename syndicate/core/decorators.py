@@ -83,5 +83,8 @@ def threading_lock(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
         with lock:
-            return func(*args, **kwargs)
+            _LOG.info('Lock acquired')
+            result = func(*args, **kwargs)
+        _LOG.info('Lock released')
+        return result
     return wrapper
