@@ -1154,18 +1154,19 @@ class LambdaResource(BaseResource):
 
     def update_lambda_triggers(self, name, arn, role_name, event_sources_meta):
         from syndicate.core import CONFIG, PROJECT_STATE
+
         # load latest output to compare it with current event sources
         deploy_name = PROJECT_STATE.latest_deploy.get('deploy_name')
         bundle_name = PROJECT_STATE.latest_modification.get('bundle_name')
-        key = _build_output_key(bundle_name=bundle_name,
-                                deploy_name=deploy_name,
-                                is_regular_output=True)
-        key_compound = PurePath(CONFIG.deploy_target_bucket_key_compound,
-                                key).as_posix()
+        key = _build_output_key(
+            bundle_name=bundle_name, deploy_name=deploy_name,
+            is_regular_output=True)
+        key_compound = PurePath(
+            CONFIG.deploy_target_bucket_key_compound, key).as_posix()
         output_file = self.s3_conn.load_file_body(
             CONFIG.deploy_target_bucket, key_compound)
         latest_output = json.loads(output_file)
-        prev_event_sources_meta = None
+        prev_event_sources_meta = []
         for resource in latest_output:
             if arn in resource:
                 resource_meta = latest_output[resource]['resource_meta']
