@@ -899,7 +899,7 @@ class LambdaResource(BaseResource):
                    f'of {bucket_arn}')
         time.sleep(5)
 
-        self.s3_conn.configure_event_source_for_lambda(
+        self.s3_conn.add_lambda_event_source(
             target_bucket, lambda_arn, trigger_meta)
         _LOG.info(f'Lambda {lambda_name} subscribed to '
                   f'S3 bucket {target_bucket}')

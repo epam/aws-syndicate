@@ -183,8 +183,8 @@ class S3Connection(object):
     def delete_bucket(self, bucket_name):
         self.client.delete_bucket(Bucket=bucket_name)
 
-    def configure_event_source_for_lambda(self, bucket: str, lambda_arn: str,
-                                          event_source: dict):
+    def add_lambda_event_source(self, bucket: str, lambda_arn: str,
+                                event_source: dict):
         """ Create event notification in the bucket that triggers the lambda
         Note: two identical events can't be configured for two
         separate lambdas in one bucket
