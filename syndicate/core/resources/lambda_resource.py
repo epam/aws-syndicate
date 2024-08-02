@@ -20,7 +20,6 @@ from typing import Optional
 
 from botocore.exceptions import ClientError
 
-from syndicate.commons import deep_get
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.connection.helper import retry
 from syndicate.core.build.bundle_processor import _build_output_key
@@ -1047,47 +1046,10 @@ class LambdaResource(BaseResource):
     def _remove_s3_trigger(self, lambda_name, lambda_arn, trigger_meta):
         target_bucket = trigger_meta['target_bucket']
         if self.s3_conn.is_bucket_exists(target_bucket):
-            bucket_notifications = self.s3_conn.get_bucket_notification(
-                bucket_name=target_bucket)
-            if bucket_notifications:
-                bucket_notifications.pop('ResponseMetadata')
-                if 'LambdaFunctionConfigurations' in bucket_notifications:
-                    lambda_configs = \
-                        bucket_notifications['LambdaFunctionConfigurations']
-
-                    saved_configs = []
-                    for lambda_config in lambda_configs:
-                        # for some reason filter rule's name value is in
-                        # uppercase when should be in lower according to the
-                        # documentation
-                        filter_rules = deep_get(
-                            lambda_config, ['Filter', 'Key', 'FilterRules'],
-                            [])
-                        for filter_rule in filter_rules:
-                            filter_rule['Name'] = filter_rule['Name'].lower()
-
-                        current_lambda = (lambda_config['LambdaFunctionArn'] ==
-                                          lambda_arn)
-                        same_filters = (filter_rules ==
-                                        trigger_meta.get('filter_rules', []))
-                        same_events = (lambda_config['Events'] ==
-                                       trigger_meta['s3_events'])
-                        # save config if something is different from meta
-                        if (not current_lambda or not same_filters
-                                or not same_events):
-                            saved_configs.append(lambda_config)
-
-                    bucket_notifications['LambdaFunctionConfigurations'] = \
-                        saved_configs
-                    # remove lambda from the event config so that this bucket
-                    # won't trigger lambda by 'putting' the config without the
-                    # current lambda as there is no remove method in boto3
-                    self.s3_conn.put_bucket_notification(
-                        bucket_name=target_bucket,
-                        notification_configuration=bucket_notifications
-                    )
-                    _LOG.info(f'Lambda {lambda_name} unsubscribed from '
-                              f's3 bucket {target_bucket}')
+            self.s3_conn.remove_lambda_event_source(
+                target_bucket, lambda_arn, trigger_meta)
+            _LOG.info(f'Lambda {lambda_name} unsubscribed from '
+                      f's3 bucket {target_bucket}')
 
         # remove s3 permission to invoke lambda
         # to remove this trigger from lambda triggers section
