@@ -1174,20 +1174,14 @@ class LambdaResource(BaseResource):
                 break
 
         # remove triggers that are absent or changed in new meta
-        triggers_to_remove = []
-        for prev_event_source in prev_event_sources_meta:
-            for event_source in event_sources_meta:
-                if prev_event_source == event_source:
-                    break
-            else:
-                # trigger in the previous output not found in the current one
-                triggers_to_remove.append(prev_event_source)
-        self.remove_lambda_triggers(name, arn, triggers_to_remove)
+        to_remove = [event_source for event_source in prev_event_sources_meta
+                     if event_source not in event_sources_meta]
+        self.remove_lambda_triggers(name, arn, to_remove)
 
         # create new triggers
-        new_triggers = [event_source for event_source in event_sources_meta
-                        if event_source not in prev_event_sources_meta]
-        self.create_lambda_triggers(name, arn, role_name, new_triggers)
+        to_create = [event_source for event_source in event_sources_meta
+                     if event_source not in prev_event_sources_meta]
+        self.create_lambda_triggers(name, arn, role_name, to_create)
 
     def remove_lambda_triggers(self, lambda_name, lambda_arn,
                                event_sources_meta):
