@@ -50,7 +50,41 @@ jobs:
           done
           echo "Target directory was not modified."
           echo "run_publish_steps=false" >>$GITHUB_OUTPUT
-           echo "dist=/tmp/bavp/dist" >>$GITHUB_OUTPUT
+          echo "dist=/tmp/bavp/dist" >>$GITHUB_OUTPUT
+        shell: bash
+
+  check-modified-release-files:
+    runs-on: ubuntu-latest
+    if: github.repository_owner == 'epam' && github.event.action == 'published'
+    outputs:
+      files_modified: ${{ steps.check_files.outputs.run_publish_steps }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check modified files
+        id: check_files
+        run: |
+          git fetch --tags
+          tags=$(git tag --sort=-creatordate | head -n 2)
+          previous_tag=$(echo "$tags" | tail -n 1)
+          echo "Previous tag: $previous_tag"
+          changed_files=$(git diff --name-only $previous_tag HEAD)
+          echo "Changed files: ${changed_files}"
+          checked_directory="plugin/"
+          for file in ${changed_files}
+          do
+            if [[ ${file} == ${checked_directory}* ]]
+            then
+              echo "Target directory was modified."
+              echo "run_publish_steps=true" >>$GITHUB_OUTPUT
+              exit 0
+            fi
+          done
+          echo "Target directory was not modified."
+          echo "run_publish_steps=false" >>$GITHUB_OUTPUT
+          echo "dist=/tmp/bavp/dist" >>$GITHUB_OUTPUT
         shell: bash
 
   release-snapshot-to-maven-central:
@@ -93,9 +127,9 @@ jobs:
   release-to-maven-central:
     name: Publish released package to MavenCentral
     environment: release-maven-central
-    needs: [maven, check-modified-files]
+    needs: [maven, check-modified-release-files]
     runs-on: ubuntu-latest
-    if: github.repository_owner == 'epam' && github.event.action == 'published' && needs.check-modified-files.outputs.files_modified == 'true'
+    if: github.repository_owner == 'epam' && github.event.action == 'published' && needs.check-modified-release-files.outputs.files_modified == 'true'
 
     steps:
       - uses: actions/checkout@v4
