@@ -42,6 +42,13 @@ DEPLOYMENT_OUTPUT = 'deployment_output'
 _LOG = get_logger('syndicate.core.build.deployment_processor')
 USER_LOG = get_user_logger()
 
+CURRENT_DEPLOYMENT_NAME = None
+
+
+def update_deployment_name(name):
+    global CURRENT_DEPLOYMENT_NAME
+    CURRENT_DEPLOYMENT_NAME = name
+
 
 def _process_resources(resources, handlers_mapping, pass_context=False,
                        output=None):
@@ -449,30 +456,25 @@ def update_deployment_resources(bundle_name, deploy_name, replace_output=False,
                                 excluded_types=None,
                                 force=False):
     from syndicate.core import PROCESSOR_FACADE
-    from syndicate.core import PROJECT_STATE
     from click import confirm as click_confirm
 
-    if not PROJECT_STATE.latest_deploy:
-        USER_LOG.error("Deployment to update not found.")
-        return ABORTED_STATUS
-    else:
-        latest_deploy_status = PROJECT_STATE.latest_deploy.get(
-            'is_succeeded', True)
+    try:
+        old_output = load_deploy_output(bundle_name, deploy_name)
+        _LOG.info('Output file was loaded successfully')
+    except AssertionError:
+        try:
+            old_output = load_failed_deploy_output(bundle_name, deploy_name)
+            if not force:
+                if not click_confirm(
+                        "The latest deployment has status failed. "
+                        "Do you want to proceed with updating?"):
+                    return ABORTED_STATUS
 
-    if not isinstance(latest_deploy_status, bool):
-        raise ValueError(
-            "The latest deployments' status can't be resolved because of "
-            "unexpected status. Please check the parameter 'is_succeeded' "
-            "value in the 'latest_deploy' section of the syndicate state "
-            "file. Expected value is 'true' or 'false'")
-
-    if latest_deploy_status is False:
-        if not force:
-            if not click_confirm("The latest deployment has status failed. "
-                                 "Do you want to proceed with updating?"):
-                return ABORTED_STATUS
-
-        _LOG.warn("Updating resources despite previous deployment failures")
+                _LOG.warn(
+                    'Updating resources despite previous deployment failures')
+        except AssertionError:
+            USER_LOG.error('Deployment to update not found.')
+            return ABORTED_STATUS
 
     resources = load_meta_resources(bundle_name)
     _LOG.debug(prettify_json(resources))
@@ -512,7 +514,7 @@ def update_deployment_resources(bundle_name, deploy_name, replace_output=False,
 
     create_deploy_output(bundle_name=bundle_name,
                          deploy_name=deploy_name,
-                         output=output,
+                         output={**output, **old_output},
                          success=success,
                          replace_output=replace_output)
     return success
