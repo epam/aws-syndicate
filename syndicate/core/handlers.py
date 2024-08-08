@@ -32,10 +32,11 @@ from syndicate.core.build.artifact_processor import (RUNTIME_NODEJS,
 from syndicate.core.build.bundle_processor import (create_bundles_bucket,
                                                    load_bundle,
                                                    upload_bundle_to_s3,
-                                                   if_bundle_exist)
+                                                   if_bundle_exist,
+                                                   update_bundle_name)
 from syndicate.core.build.deployment_processor import (
     create_deployment_resources, remove_deployment_resources,
-    update_deployment_resources)
+    update_deployment_resources, update_deployment_name)
 from syndicate.core.build.meta_processor import create_meta
 from syndicate.core.build.profiler_processor import (get_metric_statistics,
                                                      process_metrics)
@@ -61,8 +62,7 @@ from syndicate.core.helper import (create_bundle_callback,
                                    resolve_default_value, ValidRegionParamType,
                                    generate_default_bundle_name,
                                    resolve_and_verify_bundle_callback,
-                                   param_to_lower, verbose_option,
-                                   validate_incompatible_options)
+                                   param_to_lower, verbose_option)
 from syndicate.core.project_state.project_state import (MODIFICATION_LOCK,
                                                         WARMUP_LOCK)
 from syndicate.core.project_state.status_processor import project_state_status
@@ -240,6 +240,9 @@ def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
     """
     Deploys the application infrastructure
     """
+    update_bundle_name(bundle_name)
+    update_deployment_name(deploy_name)
+
     if deploy_only_resources_path and os.path.exists(
             deploy_only_resources_path):
         deploy_resources_list = json.load(open(deploy_only_resources_path))
@@ -314,6 +317,8 @@ def update(bundle_name, deploy_name, replace_output, update_only_resources,
     Updates infrastructure from the provided bundle
     """
     click.echo(f'Bundle name: {bundle_name}')
+    update_bundle_name(bundle_name)
+    update_deployment_name(deploy_name)
 
     if update_only_resources_path and os.path.exists(
             update_only_resources_path):
@@ -388,6 +393,10 @@ def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
     click.echo('Command clean')
     click.echo(f'Deploy name: {deploy_name}')
     separator = ', '
+
+    update_bundle_name(bundle_name)
+    update_deployment_name(deploy_name)
+
     if clean_only_types:
         click.echo(f'Clean only types: {separator.join(clean_only_types)}')
     if clean_only_resources:

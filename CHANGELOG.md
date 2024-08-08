@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Reworked lambda triggers update to compare local event sources meta with the previous remote one
 - Reworked lambda triggers deletion to not list every resource of the trigger type to remove it from lambda (**EPMCEOOS-6112**)
 - Fixed an issue related to bucket name resolving in the s3_bucket policy
+- Added logging of resource names that cause errors to improve error diagnostics
+- Fix the resource update issue that occurs when a deploy_name is specified without deployment output from the latest deployment
+- Fixed an issue where updating only certain resources caused the deployment output to be overwritten with only these 
+resources, instead of updating the existing meta
 
 # [1.13.0] - 2024-07-10
 - Added possibility to configure `FunctionResponseTypes` for lambda functions

@@ -198,7 +198,7 @@ def generate_default_bundle_name(ctx, param, value):
 
 def resolve_default_bundle_name(command_name):
     from syndicate.core import PROJECT_STATE
-    if command_name == 'clean':
+    if command_name in ('clean', 'update'):
         bundle_name = PROJECT_STATE.latest_deployed_bundle_name
     else:
         bundle_name = PROJECT_STATE.latest_bundle_name
@@ -212,7 +212,7 @@ def resolve_default_bundle_name(command_name):
 
 def resolve_default_deploy_name(command_name):
     from syndicate.core import PROJECT_STATE
-    if command_name == 'clean':
+    if command_name in ('clean', 'update'):
         deploy_name = PROJECT_STATE.latest_deployed_deploy_name
     else:
         deploy_name = PROJECT_STATE.default_deploy_name
