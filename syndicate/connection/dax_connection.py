@@ -69,11 +69,7 @@ class DaxConnection:
             return
 
     def delete_cluster(self, cluster_name):
-        try:
-            return self.client.delete_cluster(ClusterName=cluster_name)
-        except self.client.exceptions.ClusterNotFoundFault:
-            _LOG.warning(f'Dax cluster with name \'{cluster_name}\' not found')
-            return
+        return self.client.delete_cluster(ClusterName=cluster_name)
 
     def create_subnet_group(self, subnet_group_name, subnet_ids):
         params = dict(

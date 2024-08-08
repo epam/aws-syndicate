@@ -149,6 +149,8 @@ class SNSConnection(object):
 
         :type topic_arn: str
         """
+        # make get api call first, because the delete function is idempotent
+        self.client.get_topic_attributes(topic_arn)
         self.client.delete_topic(TopicArn=topic_arn)
 
     def remove_topic_by_name(self, topic_name):

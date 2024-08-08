@@ -48,13 +48,5 @@ class FirehoseConnection(object):
                 raise e
 
     def delete_delivery_stream(self, stream_name):
-        try:
-            return self.client.delete_delivery_stream(
-                DeliveryStreamName=stream_name)
-        except ClientError as e:
-            if 'ResourceNotFoundException' in str(e):
-                _LOG.warning(
-                    f'Cannot find delivery stream with name {stream_name}')
-                pass
-            else:
-                raise e
+        return self.client.delete_delivery_stream(
+            DeliveryStreamName=stream_name)

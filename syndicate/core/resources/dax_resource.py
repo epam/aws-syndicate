@@ -100,6 +100,8 @@ class DaxResource(BaseResource):
         except self.dax_conn.client.exceptions.InvalidClusterStateFault as e:
             USER_LOG.warning(e.response['Error']['Message'] +
                              ' Remove it manually!')
+        except self.dax_conn.client.exceptions.ClusterNotFoundFault:
+            _LOG.warning(f'Dax cluster with name \'{cluster_name}\' not found')
         if subnet_group_name:
             self._remove_subnet_group(subnet_group_name)
 

@@ -279,14 +279,7 @@ class IAMConnection(object):
 
         :type policy_arn: str
         """
-        try:
-            version = self.client.list_policy_versions(PolicyArn=policy_arn)
-        except ClientError as e:
-            if e.response['Error']['Code'] == 'NoSuchEntity':
-                _LOG.warn(f'Policy \'{policy_arn}\' not found')
-                return
-            else:
-                raise e
+        version = self.client.list_policy_versions(PolicyArn=policy_arn)
         policy_versions = version['Versions']
         if policy_versions:
             for each in policy_versions:
