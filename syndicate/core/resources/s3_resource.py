@@ -223,15 +223,18 @@ class S3Resource(BaseResource):
 
     @staticmethod
     def _populate_bucket_name_in_policy(policy, bucket_name):
-        statements = policy['Statement'] if policy.get('Statement') else []
+        statements = policy.get('Statement', [])
         for statement in statements:
-            resources = statement['Resource'] if statement.get('Resource') \
-                else []
-            new_resources = []
-            for resource in resources:
-                if 'bucket_name' in resource:
-                    new_resources.append(resource.format(bucket_name=
-                                                         bucket_name))
-                else:
-                    new_resources.append(resource)
-            statement['Resource'] = new_resources
+            resources = statement.get('Resource', [])
+            if isinstance(resources, str) and 'bucket_name' in resources:
+                statement['Resource'] = resources.format(bucket_name=
+                                                         bucket_name)
+            elif isinstance(resources, list):
+                new_resources = []
+                for resource in resources:
+                    if 'bucket_name' in resource:
+                        new_resources.append(resource.format(bucket_name=
+                                                             bucket_name))
+                    else:
+                        new_resources.append(resource)
+                statement['Resource'] = new_resources
