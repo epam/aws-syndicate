@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed lock resolving issue
 - Reworked lambda triggers update to compare local event sources meta with the previous remote one
 - Reworked lambda triggers deletion to not list every resource of the trigger type to remove it from lambda (**EPMCEOOS-6112**)
+- Fixed an issue related to bucket name resolving in the s3_bucket policy
 - Added logging of resource names that cause errors to improve error diagnostics
 - Fix the resource update issue that occurs when a deploy_name is specified by user (not default one) but deployment 
 output for the latest deployment is empty
