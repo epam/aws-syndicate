@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [1.14.0] - 2024-08-08
+# [1.14.0] - 2024-08-09
 - The key `operation_status` in `latest_deploy` section of the syndicate state file(.syndicate) renamed to `is_succeeded`
 - Changed deployment flow to work despite the latest deployment failed
 - Changed deployment flow with the flag `--continue_deploy` to work despite the latest deployment being absent or succeeded

@@ -447,14 +447,14 @@ def update_deployment_resources(bundle_name, deploy_name, replace_output=False,
     from syndicate.core import PROCESSOR_FACADE, PROJECT_STATE
     from click import confirm as click_confirm
 
+    latest_bundle = PROJECT_STATE.get_latest_deployed_or_updated_bundle(
+        bundle_name)
     try:
-        old_output = load_deploy_output(
-            PROJECT_STATE.latest_deployed_bundle_name, deploy_name)
+        old_output = load_deploy_output(latest_bundle, deploy_name)
         _LOG.info('Output file was loaded successfully')
     except AssertionError:
         try:
-            old_output = load_failed_deploy_output(
-                PROJECT_STATE.latest_deployed_bundle_name, deploy_name)
+            old_output = load_failed_deploy_output(latest_bundle, deploy_name)
             if not force:
                 if not click_confirm(
                         "The latest deployment has status failed. "
@@ -720,6 +720,8 @@ def _filter_resources(resources_meta, resources_meta_type=BUILD_META,
     if old_resources:
         for resource in copy.deepcopy(filtered):
             if resource not in old_resources:
+                _LOG.info(f'Skipping resource {resource} due to absence in '
+                          f'initial deployment output.')
                 filtered.pop(resource)
 
     return filtered

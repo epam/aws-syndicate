@@ -238,6 +238,23 @@ class ProjectState:
                        event.get('operation') in modification_ops), None)
         return latest
 
+    def get_latest_deployed_or_updated_bundle(self, bundle_name=None):
+        """
+        Retrieve the latest deployed or updated bundle. If `bundle_name`
+        is provided, it returns the latest event for that specific bundle.
+        If `bundle_name` is None, it returns the latest event across all
+        operations.
+        """
+        modification_ops = [DEPLOY_ACTION, UPDATE_ACTION]
+        filtered_events = (
+            event for event in self.events
+            if event.get('operation') in modification_ops and
+               (bundle_name is None or event.get('bundle_name') == bundle_name)
+        )
+        latest_event = next(filtered_events, None)
+        breakpoint()
+        return latest_event.get('bundle_name')
+
     def is_lock_free(self, lock_name):
         lock = self.locks.get(lock_name)
         if not lock:
