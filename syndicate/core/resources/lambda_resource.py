@@ -427,7 +427,7 @@ class LambdaResource(BaseResource):
     @exit_on_exception
     @unpack_kwargs
     def _update_lambda(self, name, meta, context):
-        from syndicate.core import CONFIG, PROJECT_STATE
+        from syndicate.core import CONFIG
         _LOG.info('Updating lambda: {0}'.format(name))
         req_params = ['runtime', 'memory', 'timeout', 'func_name']
 
