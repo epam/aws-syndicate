@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [1.14.0] - 2024-08-07
+# [1.14.0] - 2024-08-09
 - The key `operation_status` in `latest_deploy` section of the syndicate state file(.syndicate) renamed to `is_succeeded`
 - Changed deployment flow to work despite the latest deployment failed
 - Changed deployment flow with the flag `--continue_deploy` to work despite the latest deployment being absent or succeeded
@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix the resource update issue that occurs when a deploy_name is specified without deployment output from the latest deployment
 - Fixed an issue where updating only certain resources caused the deployment output to be overwritten with only these 
 resources, instead of updating the existing meta
+- Fixed deployment failure if resource name is the same as resource type
+- Fixed an issue related to resource name resolving if ARN is a list item
 
 # [1.13.0] - 2024-07-10
 - Added possibility to configure `FunctionResponseTypes` for lambda functions
