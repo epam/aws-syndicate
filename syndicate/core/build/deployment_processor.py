@@ -20,15 +20,11 @@ from concurrent.futures import ALL_COMPLETED, ThreadPoolExecutor
 from functools import cmp_to_key
 
 from syndicate.commons.log_helper import get_logger, get_user_logger
-from syndicate.core.build.bundle_processor import (create_deploy_output,
-                                                   load_deploy_output,
-                                                   load_failed_deploy_output,
-                                                   load_meta_resources,
-                                                   remove_failed_deploy_output,
-                                                   load_latest_deploy_output)
-from syndicate.core.build.meta_processor import (resolve_meta,
-                                                 populate_s3_paths,
-                                                 resolve_resource_name)
+from syndicate.core.build.bundle_processor import create_deploy_output, \
+    load_deploy_output, load_failed_deploy_output,load_meta_resources, \
+    remove_failed_deploy_output, load_latest_deploy_output
+from syndicate.core.build.meta_processor import resolve_meta, \
+    populate_s3_paths, resolve_resource_name, get_meta_from_output
 from syndicate.core.constants import (BUILD_META_FILE_NAME,
                                       CLEAN_RESOURCE_TYPE_PRIORITY,
                                       DEPLOY_RESOURCE_TYPE_PRIORITY,
@@ -41,13 +37,6 @@ DEPLOYMENT_OUTPUT = 'deployment_output'
 
 _LOG = get_logger('syndicate.core.build.deployment_processor')
 USER_LOG = get_user_logger()
-
-CURRENT_DEPLOYMENT_NAME = None
-
-
-def update_deployment_name(name):
-    global CURRENT_DEPLOYMENT_NAME
-    CURRENT_DEPLOYMENT_NAME = name
 
 
 def _process_resources(resources, handlers_mapping, pass_context=False,
@@ -455,15 +444,17 @@ def update_deployment_resources(bundle_name, deploy_name, replace_output=False,
                                 excluded_resources=None,
                                 excluded_types=None,
                                 force=False):
-    from syndicate.core import PROCESSOR_FACADE
+    from syndicate.core import PROCESSOR_FACADE, PROJECT_STATE
     from click import confirm as click_confirm
 
     try:
-        old_output = load_deploy_output(bundle_name, deploy_name)
+        old_output = load_deploy_output(
+            PROJECT_STATE.latest_deployed_bundle_name, deploy_name)
         _LOG.info('Output file was loaded successfully')
     except AssertionError:
         try:
-            old_output = load_failed_deploy_output(bundle_name, deploy_name)
+            old_output = load_failed_deploy_output(
+                PROJECT_STATE.latest_deployed_bundle_name, deploy_name)
             if not force:
                 if not click_confirm(
                         "The latest deployment has status failed. "
@@ -476,6 +467,7 @@ def update_deployment_resources(bundle_name, deploy_name, replace_output=False,
             USER_LOG.error('Deployment to update not found.')
             return ABORTED_STATUS
 
+    old_resources = get_meta_from_output(old_output)
     resources = load_meta_resources(bundle_name)
     _LOG.debug(prettify_json(resources))
 
@@ -502,7 +494,8 @@ def update_deployment_resources(bundle_name, deploy_name, replace_output=False,
         resource_names=update_only_resources,
         resource_types=update_only_types,
         exclude_names=excluded_resources,
-        exclude_types=excluded_types
+        exclude_types=excluded_types,
+        old_resources=old_resources  # to exclude resources that added after deployment
     )
 
     _LOG.debug('Going to update the following resources: {0}'.format(
@@ -688,7 +681,8 @@ def _resolve_names(names):
 
 def _filter_resources(resources_meta, resources_meta_type=BUILD_META,
                       resource_names=None, resource_types=None,
-                      exclude_names=None, exclude_types=None):
+                      exclude_names=None, exclude_types=None,
+                      old_resources=None):
     resource_names = set() if resource_names is None else set(resource_names)
     resource_types = set() if resource_types is None else set(resource_types)
     exclude_names = set() if exclude_names is None else set(exclude_names)
@@ -722,5 +716,10 @@ def _filter_resources(resources_meta, resources_meta_type=BUILD_META,
             if (v['resource_name'] in exclude_names
                     or v['resource_meta']['resource_type'] in exclude_types):
                 filtered.pop(k)
+
+    if old_resources:
+        for resource in copy.deepcopy(filtered):
+            if resource not in old_resources:
+                filtered.pop(resource)
 
     return filtered

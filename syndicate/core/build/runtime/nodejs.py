@@ -106,8 +106,9 @@ def build_node_lambda_layer(layer_root: str, target_folder: str):
     artifact_name = without_zip_ext(layer_config['deployment_package'])
     package_name = zip_ext(layer_config['deployment_package'])
     artifact_path = str(Path(target_folder, artifact_name))
+    modules_path = str(Path(artifact_path, DEPENDENCIES_FOLDER))
 
-    shutil.copytree(layer_root, artifact_path)
+    shutil.copytree(layer_root, modules_path)
     install_requirements(layer_root, target_folder, artifact_path,
                          package_name, is_layer=True)
 
@@ -133,8 +134,9 @@ def install_requirements(root: str, target_folder: str, artifact_path: str,
             execute_command_by_path(command=command, path=root)
             _LOG.debug('3-rd party dependencies were installed successfully')
             try:
-                shutil.copytree(str(Path(root, DEPENDENCIES_FOLDER)),
-                                str(Path(artifact_path, DEPENDENCIES_FOLDER)))
+                shutil.copytree(Path(root, DEPENDENCIES_FOLDER),
+                                Path(artifact_path, DEPENDENCIES_FOLDER),
+                                dirs_exist_ok=True)
             except FileNotFoundError:
                 _LOG.info('No dependencies folder - nothing to copy.')
             except Exception as e:

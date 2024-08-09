@@ -1027,11 +1027,12 @@ class ApiGatewayResource(BaseResource):
                 {*api_lambdas_arns, *api_lambda_auth_arns}
             )
         try:
-            self.connection.remove_api(api_id)
-            _LOG.info(f'API Gateway {api_id} was removed.')
+            if self.connection.get_api(api_id):
+                self.connection.remove_api(api_id)
+                _LOG.info(f'API Gateway {api_id} was removed.')
         except ClientError as e:
             if e.response['Error']['Code'] == 'NotFoundException':
-                _LOG.warning('API Gateway %s is not found', api_id)
+                _LOG.warning(f'API Gateway {api_id} is not found')
             else:
                 raise
 

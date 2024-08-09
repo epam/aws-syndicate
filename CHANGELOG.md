@@ -22,6 +22,8 @@ output for the latest deployment is empty
 - Fixed an issue where updating only certain resources caused the deployment output to be overwritten with only these 
 resources, instead of updating the existing meta
 - Improved logging for the deletion of a resource that does not exist in the account
+- Fixed Lambda Layer packaging for the NodeJS runtime
+- Fixed an issue where newly added resources (after deploy) were causing the update operation to fail
 
 # [1.13.0] - 2024-07-10
 - Added possibility to configure `FunctionResponseTypes` for lambda functions

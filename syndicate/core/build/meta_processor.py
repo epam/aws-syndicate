@@ -568,3 +568,17 @@ def _resolve_suffix_name(resource_name, resource_suffix):
     if resource_suffix:
         return resource_name + resolve_aliases_for_string(resource_suffix)
     return resource_name
+
+
+def get_meta_from_output(output: dict):
+    from syndicate.core import CONFIG
+    meta = {}
+    for arn, data in output.items():
+        resource_meta = data.get('resource_meta')
+        resource_name = data.get('resource_name')
+        resource_name = resource_name.replace(CONFIG.resources_suffix, '')
+        resource_name = resource_name.replace(CONFIG.resources_prefix, '')
+
+        meta.update({resource_name: resource_meta})
+
+    return meta

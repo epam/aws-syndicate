@@ -30,13 +30,6 @@ from syndicate.core.helper import build_path, unpack_kwargs
 
 _LOG = get_logger('syndicate.core.build.bundle_processor')
 
-CURRENT_BUNDLE_NAME = None
-
-
-def update_bundle_name(name):
-    global CURRENT_BUNDLE_NAME
-    CURRENT_BUNDLE_NAME = name
-
 
 def _build_output_key(bundle_name, deploy_name, is_regular_output):
     return '{0}/outputs/{1}{2}.json'.format(
