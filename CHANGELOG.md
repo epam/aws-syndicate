@@ -26,6 +26,7 @@ resources, instead of updating the existing meta
 - Improved logging for the deletion of a resource that does not exist in the account
 - Fixed Lambda Layer packaging for the NodeJS runtime
 - Fixed an issue where newly added resources (after deploy) were causing the update operation to fail
+- Fixed a synchronization issue that prevented the batch job queue from being deleted before its state was fully updated
 
 # [1.13.0] - 2024-07-10
 - Added possibility to configure `FunctionResponseTypes` for lambda functions
