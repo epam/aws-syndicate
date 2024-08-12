@@ -83,6 +83,8 @@ class ProjectState:
             self.project_path = project_path
             self.state_path = os.path.join(project_path, PROJECT_STATE_FILE)
         self.dct = dct if dct else self.__load_project_state_file()
+        self._current_deploy = None
+        self._current_bundle = None
 
     @staticmethod
     def generate(project_path, project_name):
@@ -205,6 +207,22 @@ class ProjectState:
         self.dct[STATE_LATEST_DEPLOY] = latest_deploy
 
     @property
+    def current_deploy(self):
+        return self._current_deploy
+
+    @current_deploy.setter
+    def current_deploy(self, current_deploy):
+        self._current_deploy = current_deploy
+
+    @property
+    def current_bundle(self):
+        return self._current_bundle
+
+    @current_bundle.setter
+    def current_bundle(self, current_bundle):
+        self._current_bundle = current_bundle
+
+    @property
     def latest_bundle_name(self):
         """Returns bundle_name from the one of the latest operations which
         can guarantee that the bundle is ready"""
@@ -238,21 +256,34 @@ class ProjectState:
                        event.get('operation') in modification_ops), None)
         return latest
 
-    def get_latest_deployed_or_updated_bundle(self, bundle_name=None):
+    def get_latest_deployed_or_updated_bundle(
+            self, bundle_name=None, latest_if_not_found=False):
         """
         Retrieve the latest deployed or updated bundle. If `bundle_name`
         is provided, it returns the latest event for that specific bundle.
         If `bundle_name` is None, it returns the latest event across all
         operations.
+        :latest_if_not_found: - If True, the method will retry fetching the
+        latest event without reference to the bundle name.
         """
         modification_ops = [DEPLOY_ACTION, UPDATE_ACTION]
         filtered_events = (
             event for event in self.events
-            if event.get('operation') in modification_ops and
-               (bundle_name is None or event.get('bundle_name') == bundle_name)
+            if self._is_event_matching(event, bundle_name, modification_ops)
         )
         latest_event = next(filtered_events, None)
+        if not latest_event and latest_if_not_found:
+            return self.get_latest_deployed_or_updated_bundle()
         return latest_event.get('bundle_name') if latest_event else None
+
+    @staticmethod
+    def _is_event_matching(event, bundle_name, modification_ops):
+        matches_operation = event.get('operation') in modification_ops
+        matches_bundle_name = bundle_name is None or event.get(
+            'bundle_name') == bundle_name
+        is_successful = event.get('is_succeeded') is True
+
+        return matches_operation and matches_bundle_name and is_successful
 
     def is_lock_free(self, lock_name):
         lock = self.locks.get(lock_name)

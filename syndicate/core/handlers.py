@@ -239,6 +239,9 @@ def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
     """
     Deploys the application infrastructure
     """
+    from syndicate.core import PROJECT_STATE
+    PROJECT_STATE.current_bundle = bundle_name
+
     if deploy_only_resources_path and os.path.exists(
             deploy_only_resources_path):
         deploy_resources_list = json.load(open(deploy_only_resources_path))
@@ -312,7 +315,9 @@ def update(bundle_name, deploy_name, replace_output, update_only_resources,
     """
     Updates infrastructure from the provided bundle
     """
+    from syndicate.core import PROJECT_STATE
     click.echo(f'Bundle name: {bundle_name}')
+    PROJECT_STATE.current_bundle = bundle_name
 
     if update_only_resources_path and os.path.exists(
             update_only_resources_path):
@@ -341,11 +346,16 @@ def update(bundle_name, deploy_name, replace_output, update_only_resources,
         replace_output=replace_output,
         force=force)
     if success is True:
+        update_success = True
         click.echo('Update of resources has been successfully completed')
     elif success == ABORTED_STATUS:
+        update_success = False
         click.echo('Update of resources has been aborted')
     else:
+        update_success = False
         click.echo('Something went wrong during resources update')
+
+    return update_success
 
 
 @syndicate.command(name=CLEAN_ACTION)
@@ -384,9 +394,11 @@ def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
     """
     Cleans the application infrastructure
     """
+    from syndicate.core import PROJECT_STATE
     click.echo('Command clean')
     click.echo(f'Deploy name: {deploy_name}')
     separator = ', '
+    PROJECT_STATE.current_bundle = bundle_name
 
     if clean_only_types:
         click.echo(f'Clean only types: {separator.join(clean_only_types)}')
@@ -421,10 +433,12 @@ def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
         preserve_state=preserve_state)
 
     if result == ABORTED_STATUS:
+        clean_success = False
         click.echo('Clean of resources has been aborted')
     else:
+        clean_success = True
         click.echo('AWS resources were removed.')
-    return result
+    return clean_success
 
 
 @syndicate.command(name=SYNC_ACTION)

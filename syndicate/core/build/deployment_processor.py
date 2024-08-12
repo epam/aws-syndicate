@@ -448,7 +448,10 @@ def update_deployment_resources(bundle_name, deploy_name, replace_output=False,
     from click import confirm as click_confirm
 
     latest_bundle = PROJECT_STATE.get_latest_deployed_or_updated_bundle(
-        bundle_name)
+        bundle_name, latest_if_not_found=True)
+    if not latest_bundle:
+        latest_bundle = PROJECT_STATE.latest_deployed_bundle_name()
+
     try:
         old_output = load_deploy_output(latest_bundle, deploy_name)
         _LOG.info('Output file was loaded successfully')

@@ -1138,7 +1138,11 @@ class LambdaResource(BaseResource):
 
         # load latest output to compare it with current event sources
         deploy_name = PROJECT_STATE.latest_deploy.get('deploy_name')
-        bundle_name = PROJECT_STATE.latest_modification.get('bundle_name')
+        bundle_name = PROJECT_STATE.get_latest_deployed_or_updated_bundle(
+            PROJECT_STATE.current_bundle, latest_if_not_found=True)
+        if not bundle_name:
+            bundle_name = PROJECT_STATE.latest_modification.get('bundle_name')
+
         key = _build_output_key(
             bundle_name=bundle_name, deploy_name=deploy_name,
             is_regular_output=True)
