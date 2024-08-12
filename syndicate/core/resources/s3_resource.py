@@ -130,7 +130,6 @@ class S3Resource(BaseResource):
 
         policy = meta.get('policy')
         if policy:
-            self._populate_bucket_name_in_policy(policy, name)
             self.s3_conn.add_bucket_policy(name, policy)
             _LOG.debug('Policy on {0} S3 bucket is set up.'.format(name))
 
@@ -220,21 +219,3 @@ class S3Resource(BaseResource):
         # TODO add files keys support to regex
         return bool(re.match(r'^arn:aws:s3:::[a-z0-9.-]{3,63}/?$',
                              maybe_arn))
-
-    @staticmethod
-    def _populate_bucket_name_in_policy(policy, bucket_name):
-        statements = policy.get('Statement', [])
-        for statement in statements:
-            resources = statement.get('Resource', [])
-            if isinstance(resources, str) and 'bucket_name' in resources:
-                statement['Resource'] = resources.format(bucket_name=
-                                                         bucket_name)
-            elif isinstance(resources, list):
-                new_resources = []
-                for resource in resources:
-                    if 'bucket_name' in resource:
-                        new_resources.append(resource.format(bucket_name=
-                                                             bucket_name))
-                    else:
-                        new_resources.append(resource)
-                statement['Resource'] = new_resources

@@ -458,7 +458,7 @@ def create_resource_json(project_path: str, bundle_name: str) -> dict[
 def _resolve_names_in_meta(resources_dict, old_value, new_value):
     if isinstance(resources_dict, dict):
         for k, v in resources_dict.items():
-            if k in ['prefix', 'suffix']:
+            if k in ['prefix', 'suffix', 'resource_type', 'principal_service']:
                 continue
             if isinstance(v, str) and old_value == v:
                 resources_dict[k] = v.replace(old_value, new_value)
@@ -470,6 +470,10 @@ def _resolve_names_in_meta(resources_dict, old_value, new_value):
         for item in resources_dict:
             if isinstance(item, dict):
                 _resolve_names_in_meta(item, old_value, new_value)
+            elif (isinstance(item, str) and old_value in item and
+                  item.startswith('arn')):
+                index = resources_dict.index(item)
+                resources_dict[index] = item.replace(old_value, new_value)
             elif isinstance(item, str):
                 if item == old_value:
                     index = resources_dict.index(old_value)
