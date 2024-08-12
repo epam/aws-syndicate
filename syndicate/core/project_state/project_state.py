@@ -252,7 +252,7 @@ class ProjectState:
                (bundle_name is None or event.get('bundle_name') == bundle_name)
         )
         latest_event = next(filtered_events, None)
-        return latest_event.get('bundle_name')
+        return latest_event.get('bundle_name') if latest_event else None
 
     def is_lock_free(self, lock_name):
         lock = self.locks.get(lock_name)
