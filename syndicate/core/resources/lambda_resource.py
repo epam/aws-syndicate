@@ -778,11 +778,17 @@ class LambdaResource(BaseResource):
 
     @retry()
     def _create_dynamodb_trigger_from_meta(self, lambda_name, lambda_arn,
-                                           role_name,
-                                           trigger_meta):
+                                           role_name, trigger_meta):
         validate_params(lambda_name, trigger_meta,
                         DYNAMODB_TRIGGER_REQUIRED_PARAMS)
         table_name = trigger_meta['target_table']
+
+        if not self.dynamodb_conn.describe_table(table_name):
+            _LOG.warning(f'DynamoDB table \'{table_name}\' does not exist '
+                         f'and could not be configured as a trigger '
+                         f'for lambda {lambda_name} ')
+            return
+
         batch_size, batch_window = self._resolve_batch_size_batch_window(
             trigger_meta)
         filters = trigger_meta.get('filters')
@@ -823,7 +829,9 @@ class LambdaResource(BaseResource):
             trigger_meta)
 
         if not self.sqs_conn.get_queue_url(target_queue, self.account_id):
-            _LOG.debug(f'Queue {target_queue} does not exist')
+            _LOG.warning(f'SQS queue \'{target_queue}\' does not exist '
+                         f'and could not be configured as a trigger '
+                         f'for lambda {lambda_name} ')
             return
 
         queue_arn = 'arn:aws:sqs:{0}:{1}:{2}'.format(self.region,
@@ -852,8 +860,7 @@ class LambdaResource(BaseResource):
 
     @retry()
     def _create_cloud_watch_trigger_from_meta(self, lambda_name, lambda_arn,
-                                              role_name,
-                                              trigger_meta):
+                                              role_name, trigger_meta):
         validate_params(lambda_name, trigger_meta,
                         CLOUD_WATCH_TRIGGER_REQUIRED_PARAMS)
         rule_name = trigger_meta['target_rule']
@@ -861,8 +868,10 @@ class LambdaResource(BaseResource):
         input_dict = trigger_meta.get('input')
         rule_arn = self.cw_events_conn.get_rule_arn(rule_name)
         if not rule_arn:
-            _LOG.error(f'No Arn of \'{rule_name}\' rule name could be found.')
-            return None
+            _LOG.warning(f'Event Bridge rule \'{rule_name}\' does not exist '
+                         f'and could not be configured as a trigger '
+                         f'for lambda {lambda_name} ')
+            return
 
         targets = self.cw_events_conn.list_targets_by_rule(rule_name)
         if lambda_arn not in map(lambda each: each.get('Arn'), targets):
@@ -887,9 +896,9 @@ class LambdaResource(BaseResource):
         target_bucket = trigger_meta['target_bucket']
 
         if not self.s3_conn.is_bucket_exists(target_bucket):
-            _LOG.error(f'S3 bucket {target_bucket} doesn\'t exist. '
-                       f'Event source for lambda {lambda_name} '
-                       f'was not created.')
+            _LOG.warning(f'S3 bucket {target_bucket} does not exist '
+                         f'and could not be configured as a trigger '
+                         f'for lambda {lambda_name} ')
             return
 
         bucket_arn = f'arn:aws:s3:::{target_bucket}'
@@ -906,10 +915,15 @@ class LambdaResource(BaseResource):
 
     @retry()
     def _create_sns_topic_trigger_from_meta(self, lambda_name, lambda_arn,
-                                            role_name,
-                                            trigger_meta):
+                                            role_name, trigger_meta):
         validate_params(lambda_name, trigger_meta, SNS_TRIGGER_REQUIRED_PARAMS)
         topic_name = trigger_meta['target_topic']
+
+        if not self.sns_conn.get_topic_arn(topic_name):
+            _LOG.warning(f'SNS topic {topic_name} does not exist '
+                         f'and could not be configured as a trigger '
+                         f'for lambda {lambda_name}')
+            return
 
         region = trigger_meta.get('region')
         self.sns_res.create_sns_subscription_for_lambda(lambda_arn,
@@ -925,8 +939,13 @@ class LambdaResource(BaseResource):
                         KINESIS_TRIGGER_REQUIRED_PARAMS)
 
         stream_name = trigger_meta['target_stream']
-
         stream_description = self.kinesis_conn.get_stream(stream_name)
+        if not stream_description:
+            _LOG.warning(f'Kinesis stream \'{stream_name}\' does not exist '
+                         f'and could not be configured as a trigger '
+                         f'for lambda {lambda_name} ')
+            return
+
         stream_arn = stream_description['StreamARN']
         stream_status = stream_description['StreamStatus']
         # additional waiting for stream
