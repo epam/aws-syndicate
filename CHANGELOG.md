@@ -23,6 +23,7 @@ output for the latest deployment is empty
 resources, instead of updating the existing meta
 - Fixed deployment failure if resource name is the same as resource type
 - Fixed an issue related to resource name resolving if ARN is a list item
+- Fixed an issue when a lambda deployment fails when a trigger defined in meta does not exist
 - Improved logging for the deletion of a resource that does not exist in the account
 - Fixed Lambda Layer packaging for the NodeJS runtime
 - Fixed an issue where newly added resources (after deploy) were causing the update operation to fail
