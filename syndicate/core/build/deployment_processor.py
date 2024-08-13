@@ -31,6 +31,8 @@ from syndicate.core.constants import (BUILD_META_FILE_NAME,
                                       UPDATE_RESOURCE_TYPE_PRIORITY,
                                       PARTIAL_CLEAN_ACTION, ABORTED_STATUS)
 from syndicate.core.helper import exit_on_exception, prettify_json
+from syndicate.core.build.helper import assert_bundle_bucket_exists, \
+    construct_deploy_s3_key_path
 
 BUILD_META = 'build_meta'
 DEPLOYMENT_OUTPUT = 'deployment_output'
@@ -229,8 +231,16 @@ def deploy_resources(resources, output=None):
         output=output)
 
 
-def update_resources(resources):
+def update_resources(resources, old_resources):
     from syndicate.core import PROCESSOR_FACADE
+    # exclude new resources that were added after deployment
+    to_remove = [i for i, res in enumerate(resources) if
+                 res[0] not in old_resources]
+    for i in reversed(to_remove):
+        _LOG.info(f'Skipping resource {resources[i][0]} due to absence in '
+                  f'initial deployment output.')
+        resources.pop(i)
+
     return _process_resources(
         resources=resources,
         handlers_mapping=PROCESSOR_FACADE.update_handlers(),
@@ -450,6 +460,7 @@ def update_deployment_resources(bundle_name, deploy_name, replace_output=False,
         bundle_name, latest_if_not_found=True)
     if not latest_bundle:
         latest_bundle = PROJECT_STATE.latest_deployed_bundle_name()
+    _LOG.debug(f'Latest bundle name: {latest_bundle}')
 
     try:
         old_output = load_deploy_output(latest_bundle, deploy_name)
@@ -497,16 +508,15 @@ def update_deployment_resources(bundle_name, deploy_name, replace_output=False,
         resource_names=update_only_resources,
         resource_types=update_only_types,
         exclude_names=excluded_resources,
-        exclude_types=excluded_types,
-        old_resources=old_resources  # to exclude resources that added after deployment
+        exclude_types=excluded_types
     )
 
-    _LOG.debug('Going to update the following resources: {0}'.format(
-        prettify_json(resources)))
+    _LOG.debug(
+        f'Going to update the following resources: {prettify_json(resources)}')
     resources_list = list(resources.items())
     resources_list.sort(key=cmp_to_key(_compare_update_resources))
 
-    success, output = update_resources(resources_list)
+    success, output = update_resources(resources_list, old_resources)
 
     create_deploy_output(bundle_name=bundle_name,
                          deploy_name=deploy_name,
@@ -684,8 +694,7 @@ def _resolve_names(names):
 
 def _filter_resources(resources_meta, resources_meta_type=BUILD_META,
                       resource_names=None, resource_types=None,
-                      exclude_names=None, exclude_types=None,
-                      old_resources=None):
+                      exclude_names=None, exclude_types=None):
     resource_names = set() if resource_names is None else set(resource_names)
     resource_types = set() if resource_types is None else set(resource_types)
     exclude_names = set() if exclude_names is None else set(exclude_names)
@@ -720,11 +729,15 @@ def _filter_resources(resources_meta, resources_meta_type=BUILD_META,
                     or v['resource_meta']['resource_type'] in exclude_types):
                 filtered.pop(k)
 
-    if old_resources:
-        for resource in copy.deepcopy(filtered):
-            if resource not in old_resources:
-                _LOG.info(f'Skipping resource {resource} due to absence in '
-                          f'initial deployment output.')
-                filtered.pop(resource)
-
     return filtered
+
+
+def is_deploy_exist(bundle_name, deploy_name):
+    from syndicate.core import CONN, CONFIG
+    assert_bundle_bucket_exists()
+    key_compound = construct_deploy_s3_key_path(bundle_name, deploy_name)
+    failed_key_compound = construct_deploy_s3_key_path(
+        bundle_name, deploy_name, is_failed=True)
+    bucket = CONFIG.deploy_target_bucket
+    return CONN.s3().get_keys_by_prefix(bucket, key_compound) or \
+        CONN.s3().get_keys_by_prefix(bucket, failed_key_compound)

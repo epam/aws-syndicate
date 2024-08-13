@@ -33,9 +33,9 @@ from syndicate.core.build.bundle_processor import (create_bundles_bucket,
                                                    load_bundle,
                                                    upload_bundle_to_s3,
                                                    if_bundle_exist)
-from syndicate.core.build.deployment_processor import (
-    create_deployment_resources, remove_deployment_resources,
-    update_deployment_resources)
+from syndicate.core.build.deployment_processor import is_deploy_exist, \
+    create_deployment_resources, remove_deployment_resources, \
+    update_deployment_resources
 from syndicate.core.build.meta_processor import create_meta
 from syndicate.core.build.profiler_processor import (get_metric_statistics,
                                                      process_metrics)
@@ -241,6 +241,11 @@ def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
     """
     from syndicate.core import PROJECT_STATE
     PROJECT_STATE.current_bundle = bundle_name
+    if not if_bundle_exist(bundle_name=bundle_name):
+        click.echo(
+            f'The bundle name \'{bundle_name}\' does not exist in deploy '
+            f'bucket. Please verify the bundle name and try again.')
+        return False
 
     if deploy_only_resources_path and os.path.exists(
             deploy_only_resources_path):
@@ -318,6 +323,11 @@ def update(bundle_name, deploy_name, replace_output, update_only_resources,
     from syndicate.core import PROJECT_STATE
     click.echo(f'Bundle name: {bundle_name}')
     PROJECT_STATE.current_bundle = bundle_name
+    if not if_bundle_exist(bundle_name=bundle_name):
+        click.echo(
+            f'The bundle name \'{bundle_name}\' does not exist in deploy '
+            f'bucket. Please verify the bundle name and try again.')
+        return False
 
     if update_only_resources_path and os.path.exists(
             update_only_resources_path):
@@ -399,6 +409,15 @@ def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
     click.echo(f'Deploy name: {deploy_name}')
     separator = ', '
     PROJECT_STATE.current_bundle = bundle_name
+    if not if_bundle_exist(bundle_name=bundle_name):
+        click.echo(
+            f'The bundle name \'{bundle_name}\' does not exist in deploy '
+            f'bucket. Please verify the bundle name and try again.')
+        return False
+    if not is_deploy_exist(bundle_name=bundle_name, deploy_name=deploy_name):
+        click.echo(f'The deploy name \'{deploy_name}\' is invalid. '
+                   f'Please verify the deploy name and try again.')
+        return False
 
     if clean_only_types:
         click.echo(f'Clean only types: {separator.join(clean_only_types)}')

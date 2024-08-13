@@ -423,7 +423,7 @@ class ProjectState:
                 params.pop('rollback_on_error')
                 self._set_latest_deploy_info(**params)
 
-        if operation == CLEAN_ACTION:
+        if operation == CLEAN_ACTION and is_succeeded is True:
             self._delete_latest_deploy_info()
 
         kwargs = {

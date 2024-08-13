@@ -28,6 +28,7 @@ resources, instead of updating the existing meta
 - Fixed Lambda Layer packaging for the NodeJS runtime
 - Fixed an issue where newly added resources (after deploy) were causing the update operation to fail
 - Fixed a synchronization issue that prevented the batch job queue from being deleted before its state was fully updated
+- Added validation for existence of bundle and deploy names
 
 # [1.13.0] - 2024-07-10
 - Added possibility to configure `FunctionResponseTypes` for lambda functions
