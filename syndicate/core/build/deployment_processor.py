@@ -446,7 +446,6 @@ def update_deployment_resources(bundle_name, deploy_name, replace_output=False,
                                 force=False):
     from syndicate.core import PROCESSOR_FACADE, PROJECT_STATE
     from click import confirm as click_confirm
-
     latest_bundle = PROJECT_STATE.get_latest_deployed_or_updated_bundle(
         bundle_name, latest_if_not_found=True)
     if not latest_bundle:
@@ -471,6 +470,7 @@ def update_deployment_resources(bundle_name, deploy_name, replace_output=False,
             return ABORTED_STATUS
 
     old_resources = get_meta_from_output(old_output)
+    old_resources = _resolve_names(tuple(old_resources.keys()))
     resources = load_meta_resources(bundle_name)
     _LOG.debug(prettify_json(resources))
 
