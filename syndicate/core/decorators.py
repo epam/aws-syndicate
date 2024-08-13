@@ -18,9 +18,10 @@ from functools import wraps
 from pathlib import PurePath
 import click
 
-from syndicate.commons.log_helper import get_logger
+from syndicate.commons.log_helper import get_logger, get_user_logger
 
 _LOG = get_logger('syndicate.core.decorators')
+USER_LOG = get_user_logger()
 
 lock = threading.Lock()
 
@@ -45,16 +46,17 @@ def check_deploy_name_for_duplicates(func):
 
             key_compound = PurePath(CONFIG.deploy_target_bucket_key_compound,
                                     output_file_name).as_posix()
-            exists = CONN.s3().is_file_exists(
-                CONFIG.deploy_target_bucket,
-                key=key_compound)
+            exists = CONN.s3().is_file_exists(CONFIG.deploy_target_bucket,
+                                              key=key_compound)
             if exists:
-                _LOG.warn(f'Output file already exists with name '
-                          f'{output_file_name}. If it should be replaced with '
-                          f'new one, use --replace_output flag.')
-                click.echo(f'Output file already exists with name '
-                           f'{output_file_name}. If it should be replaced '
-                           f'with new one, use --replace_output flag.')
+                msg = f'Output file already exists with name ' \
+                      f'{output_file_name}. If it should be replaced with ' \
+                      f'new one, use --replace_output flag.'
+                if kwargs.get('verbose'):
+                    USER_LOG.warn(msg)
+                else:
+                    _LOG.warn(msg)
+                    click.echo(msg)
                 return
         return func(*args, **kwargs)
 
@@ -68,9 +70,9 @@ def check_deploy_bucket_exists(func):
         from syndicate.core import CONFIG
         if not CONN.s3().is_bucket_exists(CONFIG.deploy_target_bucket):
             click.echo(
-                f'Cannot execute command: deploy target bucket does not exist.'
-                f' Please create it before executing commands that require '
-                f'files to be uploaded to the bucket.')
+                'Cannot execute command: deploy target bucket does not exist. '
+                'Please create it before executing commands that require '
+                'files to be uploaded to the bucket.')
             return
         return func(*args, **kwargs)
 
@@ -80,6 +82,7 @@ def check_deploy_bucket_exists(func):
 def threading_lock(func):
     """ Synchronize access to a function with a threading lock
     to avoid race condition."""
+
     @wraps(func)
     def wrapper(*args, **kwargs):
         with lock:
@@ -87,4 +90,5 @@ def threading_lock(func):
             result = func(*args, **kwargs)
         _LOG.info('Lock released')
         return result
+
     return wrapper
