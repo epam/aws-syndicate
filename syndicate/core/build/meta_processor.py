@@ -40,6 +40,8 @@ from syndicate.core.helper import (build_path, prettify_json,
 from syndicate.core.resources.helper import resolve_dynamic_identifier
 
 DEFAULT_IAM_SUFFIX_LENGTH = 5
+NAME_RESOLVING_BLACKLISTED_KEYS = ['prefix', 'suffix', 'resource_type', 'principal_service', 'integration_type',
+                                   'authorization_type']
 
 _LOG = get_logger('syndicate.core.build.meta_processor')
 
@@ -458,12 +460,12 @@ def create_resource_json(project_path: str, bundle_name: str) -> dict[
 def _resolve_names_in_meta(resources_dict, old_value, new_value):
     if isinstance(resources_dict, dict):
         for k, v in resources_dict.items():
-            if k in ['prefix', 'suffix', 'resource_type', 'principal_service']:
+            if k in NAME_RESOLVING_BLACKLISTED_KEYS:
                 continue
             if isinstance(v, str) and old_value == v:
                 resources_dict[k] = v.replace(old_value, new_value)
             elif isinstance(v, str) and old_value in v and v.startswith('arn'):
-                resources_dict[k] = v.replace(old_value, new_value)
+                resources_dict[k] = _resolve_name_in_arn(v, old_value, new_value)
             else:
                 _resolve_names_in_meta(v, old_value, new_value)
     elif isinstance(resources_dict, list):
@@ -473,12 +475,26 @@ def _resolve_names_in_meta(resources_dict, old_value, new_value):
             elif (isinstance(item, str) and old_value in item and
                   item.startswith('arn')):
                 index = resources_dict.index(item)
-                resources_dict[index] = item.replace(old_value, new_value)
+                resources_dict[index] = _resolve_name_in_arn(item, old_value, new_value)
             elif isinstance(item, str):
                 if item == old_value:
                     index = resources_dict.index(old_value)
                     del resources_dict[index]
                     resources_dict.append(new_value)
+
+
+def _resolve_name_in_arn(arn, old_value, new_value):
+    arn_parts = arn.split(':')
+    for part in arn_parts:
+        new_part = None
+        if part == old_value:
+            new_part = new_value
+        elif part.startswith(old_value) and part[len(old_value)] == '/':
+            new_part = part.replace(old_value, new_value)
+        if new_part:
+            index = arn_parts.index(part)
+            arn_parts[index] = new_part
+    return ':'.join(arn_parts)
 
 
 def create_meta(project_path, bundle_name):
