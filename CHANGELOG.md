@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 resources, instead of updating the existing meta
 - Fixed deployment failure if resource name is the same as resource type
 - Fixed an issue related to resource name resolving if ARN is a list item
+- Fixed an issue related to name resolving if one resource name contains another resource name.
 - Fixed an issue when a lambda deployment fails when a trigger defined in meta does not exist
 
 # [1.13.0] - 2024-07-10
