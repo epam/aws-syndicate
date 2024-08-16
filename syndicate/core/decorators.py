@@ -13,7 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-import os
+from logging import DEBUG
 import threading
 from functools import wraps
 from pathlib import PurePath
@@ -53,12 +53,11 @@ def check_deploy_name_for_duplicates(func):
                 msg = f'Output file already exists with name ' \
                       f'{output_file_name}. If it should be replaced with ' \
                       f'new one, use --replace_output flag.'
-                if kwargs.get('verbose') or \
-                        os.environ.get('SDCT_DEBUG', '').lower() == 'true':
-                    USER_LOG.warn(msg)
-                else:
+                if _LOG.level > DEBUG:
                     _LOG.warn(msg)
                     click.echo(msg)
+                else:
+                    USER_LOG.warn(msg)
                 return
         return func(*args, **kwargs)
 
