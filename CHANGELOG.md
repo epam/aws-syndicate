@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added proper messages for commands `update` and `clean` if deployed resources are absent(output file not found)
 - Added logging of resource names that cause errors to improve error diagnostics
 - Added enhanced logging of the `build` command execution
+- Added validation for existence of bundle and deploy names
 - Reworked lambda triggers update to compare local event sources meta with the previous remote one
 - Reworked lambda triggers deletion to not list every resource of the trigger type to remove it from lambda (**EPMCEOOS-6112**)
 - The key `operation_status` in `latest_deploy` section of the syndicate state file(.syndicate) renamed to `is_succeeded`
@@ -31,7 +32,7 @@ resources, instead of updating the existing meta
 - Fixed Lambda Layer packaging for the NodeJS runtime
 - Fixed an issue where newly added resources (after deploy) were causing the update operation to fail
 - Fixed a synchronization issue that prevented the batch job queue from being deleted before its state was fully updated
-- Added validation for existence of bundle and deploy names
+- Fixed an issue related to removing CloudWatch alarms that were used for Dynamodb autoscaling
 
 # [1.13.0] - 2024-07-10
 - Added possibility to configure `FunctionResponseTypes` for lambda functions

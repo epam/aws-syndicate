@@ -408,9 +408,7 @@ class DynamoDBResource(AbstractExternalResource, BaseResource):
                 for policy in policies:
                     if policy:
                         alarms = policy.get('Alarms', [])
-                        alarm_args.extend(map(lambda x: {
-                            'arn': x['AlarmARN'],
-                            'config': {'resource_name': x['AlarmName']}
-                        }, alarms))
+                        alarm_args.extend(map(
+                            lambda x: x['AlarmName'], alarms))
 
         self.cw_alarm_conn.remove_alarms(alarm_args)
