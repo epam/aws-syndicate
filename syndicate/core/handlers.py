@@ -19,7 +19,9 @@ import sys
 
 import click
 from tabulate import tabulate
+from logging import DEBUG
 
+from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.export.export_processor import export_specification
 from syndicate.core.transform.transform_processor import generate_build_meta
 from syndicate.core import initialize_connection, \
@@ -84,6 +86,9 @@ commands_without_config = (
     HELP_PARAMETER_KEY
 )
 
+_LOG = get_logger('syndicate.core.handlers')
+USER_LOG = get_user_logger()
+
 
 def _not_require_config(all_params):
     return any(item in commands_without_config for item in all_params)
@@ -130,8 +135,13 @@ def test(suite, test_folder_name, errors_allowed):
     project_path = CONFIG.project_path
     test_folder = os.path.join(project_path, test_folder_name)
     if not os.path.exists(test_folder):
-        click.echo(f'Tests not found, \'{test_folder_name}\' folder is missing'
-                   f' in \'{project_path}\'.')
+        msg = (f'Tests not found, \'{test_folder_name}\' folder is missing in '
+               f'\'{project_path}\'.')
+        if _LOG.level > DEBUG:
+            click.echo(msg)
+            _LOG.info(msg)
+        else:
+            USER_LOG.info(msg)
         return
     test_lib_command_mapping = {
         'unittest': f'{sys.executable} -m unittest discover {test_folder} -v',
@@ -140,12 +150,16 @@ def test(suite, test_folder_name, errors_allowed):
     }
 
     command = test_lib_command_mapping.get(suite)
-    result = subprocess.run(command.split(), cwd=project_path)
+    result = subprocess.run(command, cwd=project_path, shell=True,
+                            capture_output=True, text=True)
 
-    if not errors_allowed:
-        if result.returncode != 0:
+    if result.returncode != 0:
+        _LOG.error(f'{result.stdout}\n{result.stderr}\n{"-" * 70}')
+        if not errors_allowed:
             click.echo('Some tests failed. Exiting.')
-            sys.exit(1)
+            sys.exit(result.returncode)
+
+    _LOG.info(f'{result.stdout}\n{result.stderr}\n{"-" * 70}')
     click.echo('Tests passed.')
 
 

@@ -95,25 +95,17 @@ def prettify_json(obj):
     return json.dumps(obj, indent=4)
 
 
-def cli_command(handler_func):
-    @wraps(handler_func)
-    def wrapper(*args, **kwargs):
-        status_code = handler_func(*args, **kwargs)
-        if status_code != 0:
-            _LOG.error('Execution is failed')
-            sys.exit(1)
-
-    return wrapper
-
-
-@cli_command
 def execute_command_by_path(command, path):
-    return subprocess.call(command, shell=True, cwd=path)
+    result = subprocess.run(command, shell=True, cwd=path, capture_output=True,
+                            text=True)
 
-
-@cli_command
-def execute_command(command):
-    return subprocess.call(command, shell=True)
+    if result.returncode != 0:
+        msg = (f'While running the command "{command}" occurred an error:\n'
+               f'"{result.stdout}\n{result.stderr}"')
+        USER_LOG.error(msg)
+        sys.exit(result.returncode)
+    _LOG.info(f'Running the command "{command}"\n{result.stdout}'
+              f'\n{result.stderr}')
 
 
 def build_path(*paths):

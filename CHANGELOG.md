@@ -4,17 +4,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [1.14.0] - 2024-08-12
-- The key `operation_status` in `latest_deploy` section of the syndicate state file(.syndicate) renamed to `is_succeeded`
+# [1.14.0] - 2024-08-16
 - Changed deployment flow to work despite the latest deployment failed
 - Changed deployment flow with the flag `--continue_deploy` to work despite the latest deployment being absent or succeeded
 - Implemented rolling back on error mechanism(flag `--rollback_on_error`) for deployment flow with the flag `--continue_deploy`
 - Added confirmation request mechanism for the `update` command in case the latest deployment failed
 - Added the flag `--force` for the `update` command to run an update without confirmation request in case the latest deployment failed
 - Added proper messages for commands `update` and `clean` if deployed resources are absent(output file not found)
-- Fixed lock resolving issue
+- Added logging of resource names that cause errors to improve error diagnostics
+- Added enhanced logging of the `build` command execution
 - Reworked lambda triggers update to compare local event sources meta with the previous remote one
 - Reworked lambda triggers deletion to not list every resource of the trigger type to remove it from lambda (**EPMCEOOS-6112**)
+- The key `operation_status` in `latest_deploy` section of the syndicate state file(.syndicate) renamed to `is_succeeded`
+- Fixed lock resolving issue
 - Fixed an issue related to bucket name resolving in the s3_bucket policy
 - Added logging of resource names that cause errors to improve error diagnostics
 - Fix the resource update issue that occurs when a deploy_name is specified by user (not default one) but deployment 
@@ -23,6 +25,7 @@ output for the latest deployment is empty
 resources, instead of updating the existing meta
 - Fixed deployment failure if resource name is the same as resource type
 - Fixed an issue related to resource name resolving if ARN is a list item
+- Fixed an issue related to name resolving if one resource name contains another resource name.
 - Fixed an issue when a lambda deployment fails when a trigger defined in meta does not exist
 - Improved logging for the deletion of a resource that does not exist in the account
 - Fixed Lambda Layer packaging for the NodeJS runtime
