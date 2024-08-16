@@ -17,6 +17,7 @@ import os
 import zipfile
 from contextlib import closing
 from datetime import datetime, date
+from pathlib import PurePath
 
 from syndicate.core.constants import ARTIFACTS_FOLDER
 from syndicate.core.helper import build_path
@@ -54,3 +55,21 @@ def resolve_all_bundles_directory():
 
 def resolve_bundle_directory(bundle_name):
     return build_path(resolve_all_bundles_directory(), bundle_name)
+
+
+def assert_bundle_bucket_exists():
+    from syndicate.core import CONFIG, CONN
+    if not CONN.s3().is_bucket_exists(
+            CONFIG.deploy_target_bucket):
+        raise AssertionError(
+            f'Bundles bucket {CONFIG.deploy_target_bucket} does not exist. '
+            f'Please use \'create_deploy_target_bucket\' to create the bucket.'
+        )
+
+
+def construct_deploy_s3_key_path(bundle_name: str, deploy_name: str,
+                                 is_failed: bool = False) -> str:
+    from syndicate.core import CONFIG
+    file_name = f"{deploy_name}{'_failed' if is_failed else ''}.json"
+    return PurePath(CONFIG.deploy_target_bucket_key_compound, bundle_name,
+                    'outputs', file_name).as_posix()

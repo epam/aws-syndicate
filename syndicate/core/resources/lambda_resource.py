@@ -427,7 +427,7 @@ class LambdaResource(BaseResource):
     @exit_on_exception
     @unpack_kwargs
     def _update_lambda(self, name, meta, context):
-        from syndicate.core import CONFIG, PROJECT_STATE
+        from syndicate.core import CONFIG
         _LOG.info('Updating lambda: {0}'.format(name))
         req_params = ['runtime', 'memory', 'timeout', 'func_name']
 
@@ -1134,15 +1134,17 @@ class LambdaResource(BaseResource):
             func(self, name, arn, role_name, event_source)
 
     def update_lambda_triggers(self, name, arn, role_name, event_sources_meta):
-        from syndicate.core import CONFIG
-        from syndicate.core.build.bundle_processor import CURRENT_BUNDLE_NAME
-        from syndicate.core.build.deployment_processor import \
-            CURRENT_DEPLOYMENT_NAME
+        from syndicate.core import CONFIG, PROJECT_STATE
 
-        # load previous output to compare it with current event sources
+        # load latest output to compare it with current event sources
+        deploy_name = PROJECT_STATE.latest_deploy.get('deploy_name')
+        bundle_name = PROJECT_STATE.get_latest_deployed_or_updated_bundle(
+            PROJECT_STATE.current_bundle, latest_if_not_found=True)
+        if not bundle_name:
+            bundle_name = PROJECT_STATE.latest_modification.get('bundle_name')
+
         key = _build_output_key(
-            bundle_name=CURRENT_BUNDLE_NAME,
-            deploy_name=CURRENT_DEPLOYMENT_NAME,
+            bundle_name=bundle_name, deploy_name=deploy_name,
             is_regular_output=True)
         key_compound = PurePath(
             CONFIG.deploy_target_bucket_key_compound, key).as_posix()

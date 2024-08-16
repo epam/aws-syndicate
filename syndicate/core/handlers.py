@@ -34,11 +34,10 @@ from syndicate.core.build.artifact_processor import (RUNTIME_NODEJS,
 from syndicate.core.build.bundle_processor import (create_bundles_bucket,
                                                    load_bundle,
                                                    upload_bundle_to_s3,
-                                                   if_bundle_exist,
-                                                   update_bundle_name)
-from syndicate.core.build.deployment_processor import (
-    create_deployment_resources, remove_deployment_resources,
-    update_deployment_resources, update_deployment_name)
+                                                   if_bundle_exist)
+from syndicate.core.build.deployment_processor import is_deploy_exist, \
+    create_deployment_resources, remove_deployment_resources, \
+    update_deployment_resources
 from syndicate.core.build.meta_processor import create_meta
 from syndicate.core.build.profiler_processor import (get_metric_statistics,
                                                      process_metrics)
@@ -254,8 +253,13 @@ def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
     """
     Deploys the application infrastructure
     """
-    update_bundle_name(bundle_name)
-    update_deployment_name(deploy_name)
+    from syndicate.core import PROJECT_STATE
+    PROJECT_STATE.current_bundle = bundle_name
+    if not if_bundle_exist(bundle_name=bundle_name):
+        click.echo(
+            f'The bundle name \'{bundle_name}\' does not exist in deploy '
+            f'bucket. Please verify the bundle name and try again.')
+        return False
 
     if deploy_only_resources_path and os.path.exists(
             deploy_only_resources_path):
@@ -330,9 +334,14 @@ def update(bundle_name, deploy_name, replace_output, update_only_resources,
     """
     Updates infrastructure from the provided bundle
     """
+    from syndicate.core import PROJECT_STATE
     click.echo(f'Bundle name: {bundle_name}')
-    update_bundle_name(bundle_name)
-    update_deployment_name(deploy_name)
+    PROJECT_STATE.current_bundle = bundle_name
+    if not if_bundle_exist(bundle_name=bundle_name):
+        click.echo(
+            f'The bundle name \'{bundle_name}\' does not exist in deploy '
+            f'bucket. Please verify the bundle name and try again.')
+        return False
 
     if update_only_resources_path and os.path.exists(
             update_only_resources_path):
@@ -361,11 +370,16 @@ def update(bundle_name, deploy_name, replace_output, update_only_resources,
         replace_output=replace_output,
         force=force)
     if success is True:
+        update_success = True
         click.echo('Update of resources has been successfully completed')
     elif success == ABORTED_STATUS:
+        update_success = False
         click.echo('Update of resources has been aborted')
     else:
+        update_success = False
         click.echo('Something went wrong during resources update')
+
+    return update_success
 
 
 @syndicate.command(name=CLEAN_ACTION)
@@ -404,12 +418,20 @@ def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
     """
     Cleans the application infrastructure
     """
+    from syndicate.core import PROJECT_STATE
     click.echo('Command clean')
     click.echo(f'Deploy name: {deploy_name}')
     separator = ', '
-
-    update_bundle_name(bundle_name)
-    update_deployment_name(deploy_name)
+    PROJECT_STATE.current_bundle = bundle_name
+    if not if_bundle_exist(bundle_name=bundle_name):
+        click.echo(
+            f'The bundle name \'{bundle_name}\' does not exist in deploy '
+            f'bucket. Please verify the bundle name and try again.')
+        return False
+    if not is_deploy_exist(bundle_name=bundle_name, deploy_name=deploy_name):
+        click.echo(f'The deploy name \'{deploy_name}\' is invalid. '
+                   f'Please verify the deploy name and try again.')
+        return False
 
     if clean_only_types:
         click.echo(f'Clean only types: {separator.join(clean_only_types)}')
@@ -444,10 +466,12 @@ def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
         preserve_state=preserve_state)
 
     if result == ABORTED_STATUS:
+        clean_success = False
         click.echo('Clean of resources has been aborted')
     else:
+        clean_success = True
         click.echo('AWS resources were removed.')
-    return result
+    return clean_success
 
 
 @syndicate.command(name=SYNC_ACTION)

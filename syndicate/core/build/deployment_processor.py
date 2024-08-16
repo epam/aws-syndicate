@@ -20,34 +20,25 @@ from concurrent.futures import ALL_COMPLETED, ThreadPoolExecutor
 from functools import cmp_to_key
 
 from syndicate.commons.log_helper import get_logger, get_user_logger
-from syndicate.core.build.bundle_processor import (create_deploy_output,
-                                                   load_deploy_output,
-                                                   load_failed_deploy_output,
-                                                   load_meta_resources,
-                                                   remove_failed_deploy_output,
-                                                   load_latest_deploy_output)
-from syndicate.core.build.meta_processor import (resolve_meta,
-                                                 populate_s3_paths,
-                                                 resolve_resource_name)
+from syndicate.core.build.bundle_processor import create_deploy_output, \
+    load_deploy_output, load_failed_deploy_output,load_meta_resources, \
+    remove_failed_deploy_output, load_latest_deploy_output
+from syndicate.core.build.meta_processor import resolve_meta, \
+    populate_s3_paths, resolve_resource_name, get_meta_from_output
 from syndicate.core.constants import (BUILD_META_FILE_NAME,
                                       CLEAN_RESOURCE_TYPE_PRIORITY,
                                       DEPLOY_RESOURCE_TYPE_PRIORITY,
                                       UPDATE_RESOURCE_TYPE_PRIORITY,
                                       PARTIAL_CLEAN_ACTION, ABORTED_STATUS)
 from syndicate.core.helper import exit_on_exception, prettify_json
+from syndicate.core.build.helper import assert_bundle_bucket_exists, \
+    construct_deploy_s3_key_path
 
 BUILD_META = 'build_meta'
 DEPLOYMENT_OUTPUT = 'deployment_output'
 
 _LOG = get_logger('syndicate.core.build.deployment_processor')
 USER_LOG = get_user_logger()
-
-CURRENT_DEPLOYMENT_NAME = None
-
-
-def update_deployment_name(name):
-    global CURRENT_DEPLOYMENT_NAME
-    CURRENT_DEPLOYMENT_NAME = name
 
 
 def _process_resources(resources, handlers_mapping, pass_context=False,
@@ -240,8 +231,16 @@ def deploy_resources(resources, output=None):
         output=output)
 
 
-def update_resources(resources):
+def update_resources(resources, old_resources):
     from syndicate.core import PROCESSOR_FACADE
+    # exclude new resources that were added after deployment
+    to_remove = [i for i, res in enumerate(resources) if
+                 res[0] not in old_resources]
+    for i in reversed(to_remove):
+        _LOG.info(f'Skipping resource {resources[i][0]} due to absence in '
+                  f'initial deployment output.')
+        resources.pop(i)
+
     return _process_resources(
         resources=resources,
         handlers_mapping=PROCESSOR_FACADE.update_handlers(),
@@ -455,15 +454,20 @@ def update_deployment_resources(bundle_name, deploy_name, replace_output=False,
                                 excluded_resources=None,
                                 excluded_types=None,
                                 force=False):
-    from syndicate.core import PROCESSOR_FACADE
+    from syndicate.core import PROCESSOR_FACADE, PROJECT_STATE
     from click import confirm as click_confirm
+    latest_bundle = PROJECT_STATE.get_latest_deployed_or_updated_bundle(
+        bundle_name, latest_if_not_found=True)
+    if not latest_bundle:
+        latest_bundle = PROJECT_STATE.latest_deployed_bundle_name()
+    _LOG.debug(f'Latest bundle name: {latest_bundle}')
 
     try:
-        old_output = load_deploy_output(bundle_name, deploy_name)
+        old_output = load_deploy_output(latest_bundle, deploy_name)
         _LOG.info('Output file was loaded successfully')
     except AssertionError:
         try:
-            old_output = load_failed_deploy_output(bundle_name, deploy_name)
+            old_output = load_failed_deploy_output(latest_bundle, deploy_name)
             if not force:
                 if not click_confirm(
                         "The latest deployment has status failed. "
@@ -476,6 +480,8 @@ def update_deployment_resources(bundle_name, deploy_name, replace_output=False,
             USER_LOG.error('Deployment to update not found.')
             return ABORTED_STATUS
 
+    old_resources = get_meta_from_output(old_output)
+    old_resources = _resolve_names(tuple(old_resources.keys()))
     resources = load_meta_resources(bundle_name)
     _LOG.debug(prettify_json(resources))
 
@@ -505,12 +511,12 @@ def update_deployment_resources(bundle_name, deploy_name, replace_output=False,
         exclude_types=excluded_types
     )
 
-    _LOG.debug('Going to update the following resources: {0}'.format(
-        prettify_json(resources)))
+    _LOG.debug(
+        f'Going to update the following resources: {prettify_json(resources)}')
     resources_list = list(resources.items())
     resources_list.sort(key=cmp_to_key(_compare_update_resources))
 
-    success, output = update_resources(resources_list)
+    success, output = update_resources(resources_list, old_resources)
 
     create_deploy_output(bundle_name=bundle_name,
                          deploy_name=deploy_name,
@@ -724,3 +730,14 @@ def _filter_resources(resources_meta, resources_meta_type=BUILD_META,
                 filtered.pop(k)
 
     return filtered
+
+
+def is_deploy_exist(bundle_name, deploy_name):
+    from syndicate.core import CONN, CONFIG
+    assert_bundle_bucket_exists()
+    key_compound = construct_deploy_s3_key_path(bundle_name, deploy_name)
+    failed_key_compound = construct_deploy_s3_key_path(
+        bundle_name, deploy_name, is_failed=True)
+    bucket = CONFIG.deploy_target_bucket
+    return CONN.s3().get_keys_by_prefix(bucket, key_compound) or \
+        CONN.s3().get_keys_by_prefix(bucket, failed_key_compound)

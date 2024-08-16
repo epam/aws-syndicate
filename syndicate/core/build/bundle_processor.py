@@ -22,20 +22,13 @@ from botocore.exceptions import ClientError
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection import S3Connection
 from syndicate.core.build.helper import _json_serial, resolve_bundle_directory, \
-    resolve_all_bundles_directory
+    resolve_all_bundles_directory, assert_bundle_bucket_exists
 from syndicate.core.build.meta_processor import validate_deployment_packages
 from syndicate.core.constants import (ARTIFACTS_FOLDER, BUILD_META_FILE_NAME,
                                       DEFAULT_SEP)
 from syndicate.core.helper import build_path, unpack_kwargs
 
 _LOG = get_logger('syndicate.core.build.bundle_processor')
-
-CURRENT_BUNDLE_NAME = None
-
-
-def update_bundle_name(name):
-    global CURRENT_BUNDLE_NAME
-    CURRENT_BUNDLE_NAME = name
 
 
 def _build_output_key(bundle_name, deploy_name, is_regular_output):
@@ -172,7 +165,7 @@ def load_meta_resources(bundle_name):
 
 def if_bundle_exist(bundle_name):
     from syndicate.core import CONFIG, CONN
-    _assert_bundle_bucket_exists()
+    assert_bundle_bucket_exists()
     bundle_folder = bundle_name + DEFAULT_SEP
     key_compound = PurePath(CONFIG.deploy_target_bucket_key_compound,
                             bundle_folder).as_posix()
@@ -297,13 +290,3 @@ def _put_package_to_s3(path, path_to_package):
                             path).as_posix()
     CONN.s3().upload_single_file(path_to_package, key_compound,
                                  CONFIG.deploy_target_bucket)
-
-
-def _assert_bundle_bucket_exists():
-    from syndicate.core import CONFIG, CONN
-    if not CONN.s3().is_bucket_exists(
-            CONFIG.deploy_target_bucket):
-        raise AssertionError("Bundles bucket {0} does not exist."
-                             " Please use 'create_deploy_target_bucket' to "
-                             "create the bucket."
-                             .format(CONFIG.deploy_target_bucket))

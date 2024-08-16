@@ -43,14 +43,14 @@ class IamResource(BaseResource):
         policy_name = config['resource_name']
         try:
             self.iam_conn.remove_policy(arn)
-            _LOG.info('IAM policy %s was removed.', policy_name)
+            _LOG.info(f'IAM policy {policy_name} was removed.')
         except ClientError as e:
             error_code = e.response['Error']['Code']
             if error_code == 'NoSuchEntity':
-                _LOG.warn('IAM policy %s is not found', policy_name)
+                _LOG.warn(f'IAM policy {policy_name} is not found')
             elif error_code == 'DeleteConflict':
-                _LOG.warn('Cannot remove %s policy, it is attached.',
-                          policy_name)
+                _LOG.warn(
+                    f'Cannot remove {policy_name} policy, it is attached.')
             else:
                 raise e
 
