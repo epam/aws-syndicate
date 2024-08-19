@@ -93,7 +93,6 @@ class EventBridgeSchedulerResource(BaseResource):
         response = self.connection.describe_schedule(name, group_name)
         if response:
             _arn = response['Arn']
-            # TODO return error - already exists
             return self.describe_schedule(name, group_name, meta, _arn,
                                           response)
 
