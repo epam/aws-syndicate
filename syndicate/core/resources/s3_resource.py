@@ -216,6 +216,5 @@ class S3Resource(BaseResource):
 
     @staticmethod
     def is_bucket_arn(maybe_arn: str) -> bool:
-        # TODO add files keys support to regex
-        return bool(re.match(r'^arn:aws:s3:::[a-z0-9.-]{3,63}/?$',
-                             maybe_arn))
+        arn_regex = r'^arn:aws:s3:::[a-z0-9.-]{3,63}(?:/.*)?$'
+        return bool(re.match(arn_regex, maybe_arn))
