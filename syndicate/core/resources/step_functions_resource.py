@@ -158,9 +158,10 @@ class StepFunctionResource(BaseResource):
         if not arn:
             arn = self._build_sm_arn(name, self.region)
         response = self.sf_conn.describe_state_machine(arn)
-        return {
-            arn: build_description_obj(response, name, meta)
-        }
+        if response:
+            return {
+                arn: build_description_obj(response, name, meta)
+            }
 
     def _build_sm_arn(self, name, region):
         return f'arn:aws:states:{region}:{self.account_id}:stateMachine:{name}'
@@ -206,9 +207,10 @@ class StepFunctionResource(BaseResource):
     def describe_activity(self, name, meta):
         arn = self.build_activity_arn(name=name)
         response = self.sf_conn.describe_activity(arn=arn)
-        return {
-            arn: build_description_obj(response, name, meta)
-        }
+        if response:
+            return {
+                arn: build_description_obj(response, name, meta)
+            }
 
     def build_activity_arn(self, name):
         arn = 'arn:aws:states:{0}:{1}:activity:{2}'.format(self.region,

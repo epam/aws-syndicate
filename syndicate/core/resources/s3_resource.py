@@ -87,6 +87,8 @@ class S3Resource(BaseResource):
         acl_response = self.s3_conn.get_bucket_acl(name)
         location_response = self.s3_conn.get_bucket_location(name)
         bucket_policy = self.s3_conn.get_bucket_policy(name)
+        if not location_response:
+            return
         response = {
             'bucket_acl': acl_response,
             'location': location_response,

@@ -41,14 +41,19 @@ _LOG = get_logger('syndicate.core.build.deployment_processor')
 USER_LOG = get_user_logger()
 
 
-def _process_resources(resources, handlers_mapping, pass_context=False,
-                       output=None):
+def _process_resources(resources, handlers_mapping, describe_handlers=None,
+                       pass_context=False, output=None):
     output = output or {}
     args = []
     resource_type = None
+    resource_name = None
+    resource_meta = None
+    is_succeeded = True
     try:
         for res_name, res_meta in resources:
             current_res_type = res_meta['resource_type']
+            resource_name = res_name
+            resource_meta = res_meta
 
             if resource_type is None:
                 resource_type = current_res_type
@@ -78,25 +83,39 @@ def _process_resources(resources, handlers_mapping, pass_context=False,
             response = func(args)
             process_response(response=response, output=output)
 
-        return True, output
     except Exception as e:
         USER_LOG.exception('Error occurred while {0} '
                            'resource creating: {1}'.format(resource_type,
                                                            str(e)))
-        return False, output
+        is_succeeded = False
+
+    if not is_succeeded:
+        if all([resource_name, resource_meta, resource_type]):
+            func = describe_handlers[resource_type]
+            response = func(resource_name, resource_meta)
+            if response:
+                process_response(response=response, output=output)
+
+    return is_succeeded, output
 
 
 def _process_resources_with_dependencies(resources, handlers_mapping,
-                                         pass_context=False,
+                                         describe_handlers, pass_context=False,
                                          overall_resources=None, output=None,
                                          current_resource_type=None,
                                          run_count=0):
     overall_resources = overall_resources or resources
     output = output or {}
+    resource_type = None
+    resource_name = None
+    resource_meta = None
+    is_succeeded = True
     try:
         for res_name, res_meta in resources:
             args = []
             resource_type = res_meta['resource_type']
+            resource_name = res_name
+            resource_meta = res_meta
             if res_meta.get('processed'):
                 _LOG.debug(f"Processing of '{resource_type}' '{res_name}' "
                            f"skipped. Resource already processed")
@@ -128,6 +147,7 @@ def _process_resources_with_dependencies(resources, handlers_mapping,
                 success, output = _process_resources_with_dependencies(
                     resources=depends_on_resources,
                     handlers_mapping=handlers_mapping,
+                    describe_handlers=describe_handlers,
                     pass_context=pass_context,
                     overall_resources=overall_resources,
                     output=output,
@@ -153,14 +173,22 @@ def _process_resources_with_dependencies(resources, handlers_mapping,
                 (res_name, res_meta))
             overall_resources[overall_res_index][-1]['processed'] = True
 
-        return True, output
     except Exception as e:
         if 'An infinite loop' in str(e):
             USER_LOG.error(e.args[0])
         else:
             USER_LOG.exception(f"Error occurred while '{resource_type}' "
                                f"resource creating: {str(e)}")
-        return False, output
+        is_succeeded = False
+
+    if not is_succeeded:
+        if all([resource_name, resource_meta, resource_type]):
+            func = describe_handlers[resource_type]
+            response = func(resource_name, resource_meta)
+            if response:
+                process_response(response=response, output=output)
+
+    return is_succeeded, output
 
 
 def _build_args(name, meta, context, pass_context=False):
@@ -223,11 +251,13 @@ def deploy_resources(resources, output=None):
         return _process_resources_with_dependencies(
             resources=resources,
             handlers_mapping=PROCESSOR_FACADE.create_handlers(),
+            describe_handlers=PROCESSOR_FACADE.describe_handlers(),
             output=output)
 
     return _process_resources(
         resources=resources,
         handlers_mapping=PROCESSOR_FACADE.create_handlers(),
+        describe_handlers=PROCESSOR_FACADE.describe_handlers(),
         output=output)
 
 
@@ -523,6 +553,8 @@ def update_deployment_resources(bundle_name, deploy_name, replace_output=False,
                          output={**output, **old_output},
                          success=success,
                          replace_output=replace_output)
+    if success:
+        remove_failed_deploy_output(bundle_name, deploy_name)
     return success
 
 

@@ -68,6 +68,8 @@ class KinesisResource(BaseResource):
 
     def describe_kinesis_stream(self, name, meta):
         response = self.kin_conn.get_stream(name)
-        return {
-            response['StreamARN']: build_description_obj(response, name, meta)
-        }
+        if response:
+            return {
+                response['StreamARN']: build_description_obj(response, name,
+                                                             meta)
+            }

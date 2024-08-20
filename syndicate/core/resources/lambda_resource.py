@@ -203,6 +203,8 @@ class LambdaResource(BaseResource):
     def describe_lambda(self, name, meta, response=None):
         if not response:
             response = self.lambda_conn.get_function(lambda_name=name)
+        if not response:
+            return
         arn = self.build_lambda_arn_with_alias(response, meta.get('alias'))
 
         del response['Configuration']['FunctionArn']
@@ -1143,14 +1145,27 @@ class LambdaResource(BaseResource):
         if not bundle_name:
             bundle_name = PROJECT_STATE.latest_modification.get('bundle_name')
 
-        key = _build_output_key(
-            bundle_name=bundle_name, deploy_name=deploy_name,
-            is_regular_output=True)
-        key_compound = PurePath(
-            CONFIG.deploy_target_bucket_key_compound, key).as_posix()
+        regular_key_compound = PurePath(
+            CONFIG.deploy_target_bucket_key_compound,
+            _build_output_key(
+                bundle_name=bundle_name, deploy_name=deploy_name,
+                is_regular_output=True)).as_posix()
+
+        if self.s3_conn.is_file_exists(
+                CONFIG.deploy_target_bucket,
+                regular_key_compound):
+            key_compound = regular_key_compound
+        else:
+            key_compound = PurePath(
+                CONFIG.deploy_target_bucket_key_compound,
+                _build_output_key(
+                    bundle_name=bundle_name, deploy_name=deploy_name,
+                    is_regular_output=False)).as_posix()
+
         output_file = self.s3_conn.load_file_body(
             CONFIG.deploy_target_bucket, key_compound)
         latest_output = json.loads(output_file)
+
         prev_event_sources_meta = []
         for resource in latest_output:
             if arn in resource:
