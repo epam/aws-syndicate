@@ -46,14 +46,10 @@ def _process_resources(resources, handlers_mapping, describe_handlers=None,
     output = output or {}
     args = []
     resource_type = None
-    resource_name = None
-    resource_meta = None
     is_succeeded = True
     try:
         for res_name, res_meta in resources:
             current_res_type = res_meta['resource_type']
-            resource_name = res_name
-            resource_meta = res_meta
 
             if resource_type is None:
                 resource_type = current_res_type
@@ -90,9 +86,9 @@ def _process_resources(resources, handlers_mapping, describe_handlers=None,
         is_succeeded = False
 
     if not is_succeeded:
-        if all([resource_name, resource_meta, resource_type]):
-            func = describe_handlers[resource_type]
-            response = func(resource_name, resource_meta)
+        for item in args:
+            func = describe_handlers[item['meta']['resource_type']]
+            response = func(item['name'], item['meta'])
             if response:
                 process_response(response=response, output=output)
 
@@ -107,15 +103,12 @@ def _process_resources_with_dependencies(resources, handlers_mapping,
     overall_resources = overall_resources or resources
     output = output or {}
     resource_type = None
-    resource_name = None
-    resource_meta = None
     is_succeeded = True
     try:
         for res_name, res_meta in resources:
             args = []
             resource_type = res_meta['resource_type']
-            resource_name = res_name
-            resource_meta = res_meta
+
             if res_meta.get('processed'):
                 _LOG.debug(f"Processing of '{resource_type}' '{res_name}' "
                            f"skipped. Resource already processed")
@@ -182,9 +175,9 @@ def _process_resources_with_dependencies(resources, handlers_mapping,
         is_succeeded = False
 
     if not is_succeeded:
-        if all([resource_name, resource_meta, resource_type]):
-            func = describe_handlers[resource_type]
-            response = func(resource_name, resource_meta)
+        for item in args:
+            func = describe_handlers[item['meta']['resource_type']]
+            response = func(item['name'], item['meta'])
             if response:
                 process_response(response=response, output=output)
 
