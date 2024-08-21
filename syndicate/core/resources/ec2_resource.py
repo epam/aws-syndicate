@@ -196,10 +196,11 @@ class Ec2Resource(BaseResource):
             response = self.ec2_conn.describe_launch_templates(lt_name=name)
         else:
             response = [response['LaunchTemplate']]
-        lt_id = response[0]['LaunchTemplateId']
-        return {
-            lt_id: build_description_obj(response, name, meta)
-        }
+        if response:
+            lt_id = response[0]['LaunchTemplateId']
+            return {
+                lt_id: build_description_obj(response, name, meta)
+            }
 
     def create_launch_template(self, args):
         return self.create_pool(self._create_launch_template_from_meta, args)

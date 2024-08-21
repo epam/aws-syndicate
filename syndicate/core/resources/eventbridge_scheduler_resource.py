@@ -130,9 +130,10 @@ class EventBridgeSchedulerResource(BaseResource):
     def describe_schedule(self, name, group_name, meta, arn, response=None):
         if not response:
             response = self.connection.describe_schedule(name, group_name)
-        return {
-            arn: build_description_obj(response, name, meta)
-        }
+        if response:
+            return {
+                arn: build_description_obj(response, name, meta)
+            }
 
     def remove_schedule(self, args):
         return self.create_pool(self._remove_schedule, args)

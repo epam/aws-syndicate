@@ -47,6 +47,8 @@ class CloudWatchAlarmResource(BaseResource):
 
     def describe_alarm(self, name, meta):
         response = self.client.describe_alarms([name])[0]
+        if not response:
+            return
         arn = response['AlarmArn']
         return {
             arn: build_description_obj(response, name, meta)

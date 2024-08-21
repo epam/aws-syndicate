@@ -181,6 +181,8 @@ class IamResource(BaseResource):
     def describe_role(self, name, meta, response=None):
         if not response:
             response = self.iam_conn.get_role(role_name=name)
+        if not response:
+            return
         arn = response['Arn']
         del response['Arn']
         return {
