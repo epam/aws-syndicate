@@ -27,7 +27,7 @@ import yaml
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.constants import BUILD_ACTION, \
     DEPLOY_ACTION, UPDATE_ACTION, CLEAN_ACTION, PACKAGE_META_ACTION, \
-    PARTIAL_CLEAN_ACTION
+    ABORTED_STATUS, SUCCEEDED_STATUS, FAILED_STATUS
 from syndicate.core.constants import DATE_FORMAT_ISO_8601
 from syndicate.core.groups import RUNTIME_JAVA, RUNTIME_NODEJS, RUNTIME_PYTHON, \
     RUNTIME_SWAGGER_UI
@@ -281,9 +281,9 @@ class ProjectState:
         matches_operation = event.get('operation') in modification_ops
         matches_bundle_name = bundle_name is None or event.get(
             'bundle_name') == bundle_name
-        is_successful = event.get('is_succeeded') is True
+        status = event.get('status') != ABORTED_STATUS
 
-        return matches_operation and matches_bundle_name and is_successful
+        return matches_operation and matches_bundle_name and status
 
     def is_lock_free(self, lock_name):
         lock = self.locks.get(lock_name)
@@ -410,21 +410,28 @@ class ProjectState:
     def log_execution_event(self, **kwargs):
         operation = kwargs.get('operation')
 
-        is_succeeded = kwargs.get('is_succeeded')
+        status = kwargs.get('status')
         rollback_on_error = kwargs.get('rollback_on_error')
-        if not isinstance(is_succeeded, bool):
-            kwargs.pop('is_succeeded')
+        if status not in [True, False, ABORTED_STATUS]:
+            kwargs.pop('status', None)
 
-        if operation in [DEPLOY_ACTION, PARTIAL_CLEAN_ACTION]:
+        if operation in [DEPLOY_ACTION]:
             params = kwargs.copy()
             params.pop('operation')
+            params['is_succeeded'] = params.pop('status')
 
-            if not (is_succeeded is False and rollback_on_error is True):
+            if not (status is False and rollback_on_error is True):
                 params.pop('rollback_on_error')
                 self._set_latest_deploy_info(**params)
 
-        if operation == CLEAN_ACTION and is_succeeded is True:
+        if operation == CLEAN_ACTION and status is True:
             self._delete_latest_deploy_info()
+
+        match status:
+            case True:
+                kwargs['status'] = SUCCEEDED_STATUS
+            case False:
+                kwargs['status'] = FAILED_STATUS
 
         kwargs = {
             key: value for key, value in kwargs.items() if value is not None

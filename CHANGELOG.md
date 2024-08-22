@@ -34,6 +34,8 @@ resources, instead of updating the existing meta
 - Fixed a synchronization issue that prevented the batch job queue from being deleted before its state was fully updated
 - Fixed an issue related to removing CloudWatch alarms that were used for Dynamodb autoscaling
 - Fixed an issue with the absence of lambda's information in the output file in case deployment failed on the trigger configuration step
+- Fixed an issue related to losing state after partial clean
+- Fixed an issue related to the latest output resolving
 
 # [1.13.0] - 2024-07-10
 - Added possibility to configure `FunctionResponseTypes` for lambda functions
