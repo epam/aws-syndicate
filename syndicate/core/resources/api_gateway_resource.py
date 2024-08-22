@@ -277,34 +277,37 @@ class ApiGatewayResource(BaseResource):
                                 'value': 'true' if bool(
                                     encrypt_cache_data) else 'false'
                             })
-                    if throttling_enabled:
-                        _LOG.info(
-                            'Configuring throttling for {0}; rateLimit: {1}; '
-                            'burstLimit: {2}'.format(
-                                resource_path, throttling_rate_limit,
-                                throttling_burst_limit))
-                    else:
-                        _LOG.info('Throttling for {0} disabled.'.format(
-                            resource_path))
-                    patch_operations.append({
+                    if throttling_enabled is not None:
+                        if throttling_enabled:
+                            _LOG.info(
+                                'Configuring throttling for {0}; rateLimit: {1}; '
+                                'burstLimit: {2}'.format(
+                                    resource_path, throttling_rate_limit,
+                                    throttling_burst_limit))
+                        else:
+                            _LOG.info('Throttling for {0} disabled.'.format(
+                                resource_path))
+                        patch_operations.append({
                             'op': 'replace',
                             'path': '/{0}/{1}/throttling/rateLimit'
                                     ''.format(escaped_resource,
                                               method_name),
                             'value': str(throttling_rate_limit),
-                    })
-                    patch_operations.append({
+                        })
+                        patch_operations.append({
                             'op': 'replace',
                             'path': '/{0}/{1}/throttling/burstLimit'
                                     ''.format(escaped_resource,
                                               method_name),
                             'value': str(throttling_burst_limit),
-                    })
-                    self.connection.update_configuration(
-                        rest_api_id=api_id,
-                        stage_name=stage_name,
-                        patch_operations=patch_operations
-                    )
+                        })
+
+                    if patch_operations:
+                        self.connection.update_configuration(
+                            rest_api_id=api_id,
+                            stage_name=stage_name,
+                            patch_operations=patch_operations
+                        )
                     _LOG.info(
                         'Resource {0} was configured'.format(
                             resource_path))
