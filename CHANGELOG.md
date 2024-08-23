@@ -37,6 +37,9 @@ resources, instead of updating the existing meta
 - Fixed an issue related to losing state after partial clean
 - Fixed an issue related to the latest output resolving
 
+# [1.13.1] - 2024-08-05
+- Speed up deletion of s3 bucket with lots of objects
+
 # [1.13.0] - 2024-07-10
 - Added possibility to configure `FunctionResponseTypes` for lambda functions
 - Updated maven plugin version to 1.12.0 with support of `FunctionResponseTypes`

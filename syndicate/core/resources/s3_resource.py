@@ -184,25 +184,8 @@ class S3Resource(BaseResource):
     def _remove_bucket(self, arn, config):
         bucket_name = config['resource_name']
         try:
-            errors = []
-            keys = self.s3_conn.list_object_versions(bucket_name)
-            if keys:
-                for s3_keys in chunks(keys, 1000):
-                    errors.extend(self._delete_objects(bucket_name, s3_keys))
-
-            markers = self.s3_conn.list_object_markers(bucket_name)
-            if markers:
-                for s3_markers in chunks(markers, 1000):
-                    errors.extend(
-                        self._delete_objects(bucket_name, s3_markers))
-
-            if errors:
-                raise AssertionError('Error occurred while deleting S3 objects'
-                                     ' from {0} bucket. Not deleted keys: '
-                                     '{1}'.format(bucket_name, str(errors)))
-            else:
-                self.s3_conn.delete_bucket(bucket_name)
-                _LOG.info('S3 bucket {0} was removed.'.format(bucket_name))
+            self.s3_conn.remove_bucket(bucket_name=bucket_name)
+            _LOG.info('S3 bucket {0} was removed.'.format(bucket_name))
         except ClientError as e:
             if e.response['Error']['Code'] == 'NoSuchBucket':
                 _LOG.warn('S3 bucket {0} is not found'.format(bucket_name))
