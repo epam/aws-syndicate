@@ -41,6 +41,8 @@ USER_LOG = get_user_logger()
 
 SUPPORTED_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS',
                      'HEAD', 'ANY']
+SUPPORTED_STAGE_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS',
+                           'HEAD']
 _CORS_HEADER_NAME = 'Access-Control-Allow-Origin'
 _CORS_HEADER_VALUE = "'*'"
 _COGNITO_AUTHORIZER_TYPE = 'COGNITO_USER_POOLS'
@@ -75,6 +77,7 @@ _REQUEST_VALIDATORS = {
 }
 
 _DISABLE_THROTTLING_VALUE = -1
+OPERATION_REPLACE = 'replace'
 
 
 class ApiGatewayResource(BaseResource):
@@ -246,59 +249,60 @@ class ApiGatewayResource(BaseResource):
                         API_GW_DEFAULT_THROTTLING_BURST_LIMIT) if (
                         throttling_configuration and throttling_enabled) else \
                         _DISABLE_THROTTLING_VALUE
+
                     patch_operations = []
                     escaped_resource = self._escape_path(resource_path)
-                    if cache_ttl_setting is not None:
-                        _LOG.info(
-                            'Configuring cache for {0}; TTL: {1}'.format(
-                                resource_path, cache_ttl_setting))
-                        patch_operations = [
-                            {
-                                'op': 'replace',
-                                'path': '/{0}/{1}/caching/ttlInSeconds'.format(
-                                    escaped_resource,
-                                    method_name),
+                    methods_to_configure = SUPPORTED_STAGE_METHODS \
+                        if method_name == 'ANY' else [method_name]
+                    for method in methods_to_configure:
+                        if cache_ttl_setting is not None:
+                            _LOG.info(f'Configuring cache for {resource_path};'
+                                      f' TTL: {cache_ttl_setting}')
+                            patch_operations.append({
+                                'op': OPERATION_REPLACE,
+                                'path': f'/{escaped_resource}/{method}'
+                                        f'/caching/ttlInSeconds',
                                 'value': str(cache_ttl_setting),
-                            },
-                            {
-                                'op': 'replace',
-                                'path': '/{0}/{1}/caching/enabled'.format(
-                                    escaped_resource,
-                                    method_name),
+                            })
+                            patch_operations.append({
+                                'op': OPERATION_REPLACE,
+                                'path': f'/{escaped_resource}/{method}'
+                                        f'/caching/enabled',
                                 'value': 'True',
-                            }
-                        ]
+                            })
                         if encrypt_cache_data is not None:
                             patch_operations.append({
-                                'op': 'replace',
-                                'path': '/{0}/{1}/caching/dataEncrypted'.format(
-                                    escaped_resource,
-                                    method_name),
+                                'op': OPERATION_REPLACE,
+                                'path': f'/{escaped_resource}/{method}'
+                                        f'/caching/enabled',
+                                'value': 'True',
+                            })
+                            patch_operations.append({
+                                'op': OPERATION_REPLACE,
+                                'path': f'/{escaped_resource}/{method}'
+                                        f'/caching/dataEncrypted',
                                 'value': 'true' if bool(
                                     encrypt_cache_data) else 'false'
                             })
-                    if throttling_enabled is not None:
+
                         if throttling_enabled:
                             _LOG.info(
-                                'Configuring throttling for {0}; rateLimit: {1}; '
-                                'burstLimit: {2}'.format(
-                                    resource_path, throttling_rate_limit,
-                                    throttling_burst_limit))
+                                f'Configuring throttling for {resource_path}; '
+                                f'rateLimit: {throttling_rate_limit}; '
+                                f'burstLimit: {throttling_burst_limit}')
                         else:
-                            _LOG.info('Throttling for {0} disabled.'.format(
-                                resource_path))
+                            _LOG.info(
+                                f'Throttling for {resource_path} disabled.')
                         patch_operations.append({
-                            'op': 'replace',
-                            'path': '/{0}/{1}/throttling/rateLimit'
-                                    ''.format(escaped_resource,
-                                              method_name),
+                            'op': OPERATION_REPLACE,
+                            'path': f'/{escaped_resource}/{method}'
+                                    f'/throttling/rateLimit',
                             'value': str(throttling_rate_limit),
                         })
                         patch_operations.append({
-                            'op': 'replace',
-                            'path': '/{0}/{1}/throttling/burstLimit'
-                                    ''.format(escaped_resource,
-                                              method_name),
+                            'op': OPERATION_REPLACE,
+                            'path': f'/{escaped_resource}/{method}/'
+                                    f'throttling/burstLimit',
                             'value': str(throttling_burst_limit),
                         })
 
@@ -308,9 +312,7 @@ class ApiGatewayResource(BaseResource):
                             stage_name=stage_name,
                             patch_operations=patch_operations
                         )
-                    _LOG.info(
-                        'Resource {0} was configured'.format(
-                            resource_path))
+                    _LOG.info(f'Resource {resource_path} was configured')
 
     @unpack_kwargs
     def _create_api_gateway_from_meta(self, name, meta):
@@ -576,12 +578,12 @@ class ApiGatewayResource(BaseResource):
         patch_operations = []
         if not throttling_enabled:
             patch_operations.append({
-                'op': 'replace',
+                'op': OPERATION_REPLACE,
                 'path': '/*/*/throttling/rateLimit',
                 'value': str(_DISABLE_THROTTLING_VALUE),
             })
             patch_operations.append({
-                'op': 'replace',
+                'op': OPERATION_REPLACE,
                 'path': '/*/*/throttling/burstLimit',
                 'value': str(_DISABLE_THROTTLING_VALUE),
             })
@@ -596,13 +598,13 @@ class ApiGatewayResource(BaseResource):
                 'encrypt_cache_data')
             if cluster_cache_ttl_sec is not None:
                 patch_operations.append({
-                    'op': 'replace',
+                    'op': OPERATION_REPLACE,
                     'path': '/*/*/caching/ttlInSeconds',
                     'value': str(cluster_cache_ttl_sec),
                 })
             if encrypt_cache_data is not None:
                 patch_operations.append({
-                    'op': 'replace',
+                    'op': OPERATION_REPLACE,
                     'path': '/*/*/caching/dataEncrypted',
                     'value': 'true' if bool(encrypt_cache_data) else 'false'
                 })
@@ -613,21 +615,21 @@ class ApiGatewayResource(BaseResource):
             throttling_burst_limit = throttling_cluster_configuration.get(
                 'throttling_burst_limit', API_GW_DEFAULT_THROTTLING_BURST_LIMIT)
             patch_operations.append({
-                'op': 'replace',
+                'op': OPERATION_REPLACE,
                 'path': '/*/*/throttling/rateLimit',
                 'value': str(throttling_rate_limit),
             })
             patch_operations.append({
-                'op': 'replace',
+                'op': OPERATION_REPLACE,
                 'path': '/*/*/throttling/burstLimit',
                 'value': str(throttling_burst_limit),
             })
         if any([root_cache_enabled, throttling_enabled]):
             self.connection.update_configuration(
-                    rest_api_id=api_id,
-                    stage_name=deploy_stage,
-                    patch_operations=patch_operations
-                )
+                rest_api_id=api_id,
+                stage_name=deploy_stage,
+                patch_operations=patch_operations
+            )
         # customize settings for endpoints
         self.configure_resources(api_id, deploy_stage, api_resources)
 

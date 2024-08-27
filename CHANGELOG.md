@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [1.14.0] - 2024-08-20
+# [1.14.0] - 2024-08-27
 - Changed deployment flow to work despite the latest deployment failed
 - Changed deployment flow with the flag `--continue_deploy` to work despite the latest deployment being absent or succeeded
 - Implemented rolling back on error mechanism(flag `--rollback_on_error`) for deployment flow with the flag `--continue_deploy`
@@ -34,6 +34,7 @@ resources, instead of updating the existing meta
 - Fixed a synchronization issue that prevented the batch job queue from being deleted before its state was fully updated
 - Fixed an issue related to removing CloudWatch alarms that were used for Dynamodb autoscaling
 - Fixed an issue with the absence of lambda's information in the output file in case deployment failed on the trigger configuration step
+- Fixed an issue related to the API Gateway throttling and cache configuration for ANY method
 
 # [1.13.0] - 2024-07-10
 - Added possibility to configure `FunctionResponseTypes` for lambda functions
