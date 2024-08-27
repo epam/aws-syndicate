@@ -1179,10 +1179,8 @@ class LambdaResource(BaseResource):
                      if event_source not in event_sources_meta]
         self.remove_lambda_triggers(name, arn, to_remove)
 
-        # create new triggers
-        to_create = [event_source for event_source in event_sources_meta
-                     if event_source not in prev_event_sources_meta]
-        self.create_lambda_triggers(name, arn, role_name, to_create)
+        # create/update triggers
+        self.create_lambda_triggers(name, arn, role_name, event_sources_meta)
 
     def remove_lambda_triggers(self, lambda_name, lambda_arn,
                                event_sources_meta):
