@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [1.14.0] - 2024-08-27
+# [1.14.0] - 2024-08-28
 - Changed deployment flow to work despite the latest deployment failed
 - Changed deployment flow with the flag `--continue_deploy` to work despite the latest deployment being absent or succeeded
 - Implemented rolling back on error mechanism(flag `--rollback_on_error`) for deployment flow with the flag `--continue_deploy`
@@ -29,6 +29,7 @@ resources, instead of updating the existing meta
 - Fixed an issue related to name resolving if one resource name contains another resource name
 - Fixed an issue when a lambda deployment fails when a trigger defined in meta does not exist
 - Fixed an issue related to updating lambda triggers
+- Fixed lambda event source mapping inactivity after deployment
 - Improved logging for the deletion of a resource that does not exist in the account
 - Fixed Lambda Layer packaging for the NodeJS runtime
 - Fixed an issue where newly added resources (after deploy) were causing the update operation to fail

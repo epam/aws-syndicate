@@ -505,7 +505,8 @@ class LambdaConnection(object):
                             batch_window=None, filters: Optional[List] = None,
                             function_response_types: Optional[List] = None):
         params = dict(
-            UUID=uuid, FunctionName=function_name, BatchSize=batch_size
+            UUID=uuid, FunctionName=function_name, BatchSize=batch_size,
+            Enabled=True
         )
         if batch_window is not None:
             params['MaximumBatchingWindowInSeconds'] = batch_window
