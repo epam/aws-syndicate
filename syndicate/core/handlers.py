@@ -466,12 +466,10 @@ def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
         preserve_state=preserve_state)
 
     if result == ABORTED_STATUS:
-        clean_success = False
         click.echo('Clean of resources has been aborted')
     else:
-        clean_success = True
         click.echo('AWS resources were removed.')
-    return clean_success
+    return result
 
 
 @syndicate.command(name=SYNC_ACTION)

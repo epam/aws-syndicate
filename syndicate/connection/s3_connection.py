@@ -176,8 +176,11 @@ class S3Connection(object):
     def remove_bucket(self, bucket_name):
         """ Remove bucket by name. To remove bucket it must be empty."""
         bucket = self.resource.Bucket(bucket_name)
-        for each in bucket.objects.all():
-            each.delete()
+        bucket_versioning = self.resource.BucketVersioning(bucket_name)
+        if bucket_versioning.status == 'Enabled':
+            bucket.object_versions.delete()
+        else:
+            bucket.objects.all().delete()
         bucket.delete()
 
     def delete_bucket(self, bucket_name):

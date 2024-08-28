@@ -625,6 +625,7 @@ def _post_remove_output_handling(deploy_name, bundle_name, preserve_state,
                              success=is_regular_output,
                              replace_output=True)
         return {'operation': PARTIAL_CLEAN_ACTION}
+    return True
 
 
 def _apply_dynamic_changes(resources, output):

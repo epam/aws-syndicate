@@ -26,15 +26,21 @@ output for the latest deployment is empty
 resources, instead of updating the existing meta
 - Fixed deployment failure if resource name is the same as resource type
 - Fixed an issue related to resource name resolving if ARN is a list item
-- Fixed an issue related to name resolving if one resource name contains another resource name.
+- Fixed an issue related to name resolving if one resource name contains another resource name
 - Fixed an issue when a lambda deployment fails when a trigger defined in meta does not exist
+- Fixed an issue related to updating lambda triggers
 - Improved logging for the deletion of a resource that does not exist in the account
 - Fixed Lambda Layer packaging for the NodeJS runtime
 - Fixed an issue where newly added resources (after deploy) were causing the update operation to fail
 - Fixed a synchronization issue that prevented the batch job queue from being deleted before its state was fully updated
 - Fixed an issue related to removing CloudWatch alarms that were used for Dynamodb autoscaling
 - Fixed an issue with the absence of lambda's information in the output file in case deployment failed on the trigger configuration step
+- Fixed an issue related to losing state after partial clean
+- Fixed an issue related to the latest output resolving
 - Fixed an issue related to the API Gateway throttling and cache configuration for ANY method
+
+# [1.13.1] - 2024-08-05
+- Speed up deletion of s3 bucket with lots of objects
 
 # [1.13.0] - 2024-07-10
 - Added possibility to configure `FunctionResponseTypes` for lambda functions
