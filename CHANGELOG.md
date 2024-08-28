@@ -38,6 +38,7 @@ resources, instead of updating the existing meta
 - Fixed an issue with the absence of lambda's information in the output file in case deployment failed on the trigger configuration step
 - Fixed an issue related to losing state after partial clean
 - Fixed an issue related to the latest output resolving
+- Fixed an issue related to the API Gateway throttling and cache configuration for ANY method
 
 # [1.13.1] - 2024-08-05
 - Speed up deletion of s3 bucket with lots of objects
