@@ -482,7 +482,7 @@ def update_deployment_resources(bundle_name, deploy_name, replace_output=False,
     latest_bundle = PROJECT_STATE.get_latest_deployed_or_updated_bundle(
         bundle_name, latest_if_not_found=True)
     if not latest_bundle:
-        latest_bundle = PROJECT_STATE.latest_deployed_bundle_name()
+        latest_bundle = PROJECT_STATE.latest_deployed_bundle_name
     _LOG.debug(f'Latest bundle name: {latest_bundle}')
 
     try:
