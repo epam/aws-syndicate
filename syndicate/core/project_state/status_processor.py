@@ -81,6 +81,8 @@ def process_default_view():
         if last_event.get('deploy_name'):
             data.insert(1,
                         ['', 'Deploy name: ', last_event.get('deploy_name')])
+        if last_event.get('status'):
+            data.append(['', 'Status: ', last_event.get('status')])
         result.append(tabulate_data(data))
     lambdas = PROJECT_STATE.lambdas
     result.append(LINE_SEP + 'Project resources:')
@@ -102,7 +104,7 @@ def process_events_view():
     events = PROJECT_STATE.events
     if events:
         headers = ['Operation', 'Started at', 'Duration (sec)',
-                   'Initiator', 'Bundle', 'Deploy']
+                   'Initiator', 'Bundle', 'Deploy', 'Status']
         summaries = []
         for event in events:
             summaries.append([
@@ -112,6 +114,7 @@ def process_events_view():
                 event.get('initiator'),
                 event.get('bundle_name'),
                 event.get('deploy_name'),
+                event.get('status')
             ])
         result.append(tabulate_data(data=summaries, headers=headers,
                                     tablefmt='simple'))

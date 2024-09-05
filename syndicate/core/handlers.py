@@ -16,6 +16,7 @@
 import json
 import os
 import sys
+from functools import partial
 
 import click
 from tabulate import tabulate
@@ -63,7 +64,8 @@ from syndicate.core.helper import (create_bundle_callback,
                                    resolve_default_value, ValidRegionParamType,
                                    generate_default_bundle_name,
                                    resolve_and_verify_bundle_callback,
-                                   param_to_lower, verbose_option)
+                                   param_to_lower, verbose_option,
+                                   validate_incompatible_options)
 from syndicate.core.project_state.project_state import (MODIFICATION_LOCK,
                                                         WARMUP_LOCK)
 from syndicate.core.project_state.status_processor import project_state_status
@@ -485,23 +487,24 @@ def sync():
 
 
 @syndicate.command(name=STATUS_ACTION)
-@click.option('--events', 'category', flag_value='events',
+@click.option('--events', flag_value='events',
+              callback=partial(validate_incompatible_options,
+                               incompatible_options=['resources']),
               help='Show event logs of the project')
-@click.option('--resources', 'category', flag_value='resources',
+@click.option('--resources', flag_value='resources',
+              callback=partial(validate_incompatible_options,
+                               incompatible_options=['events']),
               help='Show a summary of the project resources')
 @verbose_option
 @check_deploy_bucket_exists
 @timeit()
-def status(category):
+def status(events, resources):
     """
     Shows the state of a local project state file (.syndicate).
     Command displays the following content: project name, state, latest
     modification, locks summary, latest event, project resources.
-
-    NOTE: The flags are incompatible and the status is displayed according to
-    the first entered flag.
     """
-    click.echo(project_state_status(category))
+    click.echo(project_state_status(category=events or resources))
 
 
 @syndicate.command(name=WARMUP_ACTION)
