@@ -26,5 +26,7 @@
       "parameter": "client_id"
     }
   },
+  "publish_version": true,
+  "alias": "${lambdas_alias_name}",
   "region": "${region}"
 }
