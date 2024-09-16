@@ -33,6 +33,7 @@ resources, instead of updating the existing meta
 - Fixed an issue related to updating lambda triggers
 - Fixed lambda event source mapping inactivity after deployment
 - Improved logging for the deletion of a resource that does not exist in the account
+- Improved logging in case of the absence of resources to clean
 - Fixed Lambda Layer packaging for the NodeJS runtime
 - Fixed an issue where newly added resources (after deploy) were causing the update operation to fail
 - Fixed a synchronization issue that prevented the batch job queue from being deleted before its state was fully updated
