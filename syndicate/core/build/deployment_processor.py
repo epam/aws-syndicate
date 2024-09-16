@@ -597,7 +597,10 @@ def remove_deployment_resources(deploy_name, bundle_name,
     resources_list = list(new_output.items())
     resources_list.sort(key=cmp_to_key(_compare_clean_resources))
     _LOG.debug(f'Resources to delete: {prettify_json(resources_list)}')
-    USER_LOG.info('Going to clean AWS resources')
+    if resources_list:
+        USER_LOG.info('Going to clean AWS resources')
+    else:
+        _LOG.info('Clean skipped because resources to clean absent')
     clean_resources(resources_list)
     # remove new_output from bucket
     return _post_remove_output_handling(
