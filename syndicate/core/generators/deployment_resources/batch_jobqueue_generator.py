@@ -16,6 +16,7 @@ class BatchJobqueueGenerator(BaseDeploymentResourceGenerator):
         "state": DEFAULT_STATE,
         "priority": 1,
         "compute_environment_order": list,
+        "tags": dict
     }
 
     def __init__(self, **kwargs):

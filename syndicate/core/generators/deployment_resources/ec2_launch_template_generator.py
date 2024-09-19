@@ -14,7 +14,8 @@ class EC2LaunchTemplateGenerator(BaseDeploymentResourceGenerator):
     RESOURCE_TYPE = EC2_LAUNCH_TEMPLATE_TYPE
     CONFIGURATION = {
         'version_description': None,
-        'launch_template_data': dict
+        'launch_template_data': dict,
+        'tags': dict
     }
 
     KEY_MAPPING = {

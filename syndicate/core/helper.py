@@ -522,15 +522,16 @@ class DictParamType(click.types.StringParamType):
                 k, v = item.split(self.KEY_VALUE_SEPARATOR)
                 result[k] = v
         except ValueError as e:
-            raise BadParameter(f'Wrong format: {value}. '
-                               f'Must be key:value or key,value. '
-                               f'\nError: {e.__str__()}')
+            raise BadParameter(
+                f'Wrong format: "{value}". '
+                f'Must be "key:value" or "key1:value1,key2:value2". '
+                f'\nError: {e.__str__()}')
 
         _LOG.info(f'Converted to such a dict: {result}')
         return result
 
     def get_metavar(self, param):
-        return f'KEY{self.KEY_VALUE_SEPARATOR}VALUE1' \
+        return f'KEY1{self.KEY_VALUE_SEPARATOR}VALUE1' \
                f'{self.ITEMS_SEPARATOR}KEY2{self.KEY_VALUE_SEPARATOR}VALUE2'
 
 

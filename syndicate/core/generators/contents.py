@@ -524,7 +524,8 @@ def _stringify(dict_content):
     return json.dumps(dict_content, indent=2)
 
 
-def _generate_python_node_lambda_config(lambda_name, lambda_relative_path):
+def _generate_python_node_lambda_config(lambda_name, lambda_relative_path,
+                                        tags):
     return _stringify({
         'version': '1.0',
         'name': lambda_name,
@@ -542,7 +543,8 @@ def _generate_python_node_lambda_config(lambda_name, lambda_relative_path):
         'alias': _alias_variable(LAMBDAS_ALIASES_NAME_CFG),
         'url_config': {},
         'ephemeral_storage': 512,
-        'logs_expiration': _alias_variable(LOGS_EXPIRATION)
+        'logs_expiration': _alias_variable(LOGS_EXPIRATION),
+        'tags': tags
         # 'platforms': ['manylinux2014_x86_64']
         # by default (especially if you have linux), you don't need it
     })
@@ -582,7 +584,8 @@ def _generate_node_layer_package_lock_file(layer_name):
         })
 
 
-def _generate_nodejs_node_lambda_config(lambda_name, lambda_relative_path):
+def _generate_nodejs_node_lambda_config(lambda_name, lambda_relative_path,
+                                        tags):
     return _stringify({
         'version': '1.0',
         'name': lambda_name,
@@ -599,7 +602,8 @@ def _generate_nodejs_node_lambda_config(lambda_name, lambda_relative_path):
         'publish_version': True,
         'alias': _alias_variable(LAMBDAS_ALIASES_NAME_CFG),
         'url_config': {},
-        'ephemeral_storage': 512
+        'ephemeral_storage': 512,
+        'tags': tags
     })
 
 
@@ -656,7 +660,7 @@ def _get_lambda_default_policy():
     })
 
 
-def _generate_lambda_role_config(role_name, stringify=True):
+def _generate_lambda_role_config(role_name, tags, stringify=True):
     role_content = {
         role_name: {
             "predefined_policies": [],
@@ -664,7 +668,8 @@ def _generate_lambda_role_config(role_name, stringify=True):
             "custom_policies": [
                 POLICY_LAMBDA_BASIC_EXECUTION
             ],
-            "resource_type": "iam_role"
+            "resource_type": "iam_role",
+            "tags": tags
         }
     }
     return _stringify(role_content) if stringify else role_content

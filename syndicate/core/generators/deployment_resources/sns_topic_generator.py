@@ -7,5 +7,6 @@ class SNSTopicGenerator(BaseDeploymentResourceGenerator):
     RESOURCE_TYPE = SNS_TOPIC_TYPE
     CONFIGURATION = {
         'region': None,
-        "event_sources": list
+        'event_sources': list,
+        'tags': dict
     }

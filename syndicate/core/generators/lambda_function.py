@@ -72,6 +72,7 @@ PROJECT_PATH_PARAM = 'project_path'
 LAYER_NAME_PARAM = 'layer_name'
 LAYERS_PATH_PARAM = 'layers_path'
 RUNTIME_PARAM = 'runtime'
+TAGS_PARAM = 'tags'
 
 PYTHON_LAMBDA_FILES = [
     FILE_INIT_PYTHON, FILE_LOCAL_REQUIREMENTS,
@@ -108,8 +109,7 @@ def generate_common_module(src_path, runtime):
     runtime_processor(src_path=src_path)
 
 
-def generate_lambda_function(project_path, runtime,
-                             lambda_names):
+def generate_lambda_function(project_path, runtime, lambda_names, tags):
     if not os.path.exists(project_path):
         USER_LOG.info(f'Project "{project_path}" you '
                       f'have provided does not exist')
@@ -136,7 +136,8 @@ def generate_lambda_function(project_path, runtime,
     lambdas_path = os.path.join(src_path, FOLDER_LAMBDAS)
 
     processor(project_path=project_path, lambda_names=lambda_names,
-              lambdas_path=lambdas_path, project_state=project_state)
+              lambdas_path=lambdas_path, project_state=project_state,
+              tags=tags)
 
     tests_generator = TESTS_MODULE_PROCESSORS.get(runtime)
     [tests_generator(project_path, name) for name in lambda_names]
@@ -198,6 +199,7 @@ def _generate_python_lambdas(**kwargs):
     lambdas_path = kwargs.get(LAMBDAS_PATH_PARAM)
     lambda_names = kwargs.get(LAMBDA_NAMES_PARAM)
     project_state = kwargs.get(PROJECT_STATE_PARAM)
+    tags = kwargs.get(TAGS_PARAM)
 
     if not os.path.exists(lambdas_path):
         _mkdir(lambdas_path, exist_ok=True)
@@ -232,14 +234,15 @@ def _generate_python_lambdas(**kwargs):
 
         # fill deployment_resources.json
         pattern_format = LAMBDA_ROLE_NAME_PATTERN.format(lambda_name)
-        role_def = _generate_lambda_role_config(pattern_format)
+        role_def = _generate_lambda_role_config(pattern_format, tags)
         _write_content_to_file(os.path.join(
             lambda_folder, FILE_DEPLOYMENT_RESOURCES), role_def)
 
         # fill lambda_config.json
         lambda_def = _generate_python_node_lambda_config(
             lambda_name,
-            os.path.join(FOLDER_LAMBDAS, lambda_name))
+            os.path.join(FOLDER_LAMBDAS, lambda_name),
+            tags)
         _write_content_to_file(os.path.join(lambda_folder, FILE_LAMBDA_CONFIG),
                                lambda_def)
 
@@ -265,6 +268,7 @@ def _generate_java_lambdas(**kwargs):
     project_state = kwargs.get(PROJECT_STATE_PARAM)
     project_name = project_state.name
     lambda_names = kwargs.get(LAMBDA_NAMES_PARAM, [])
+    tags = kwargs.get(TAGS_PARAM)
 
     _generate_java_project_hierarchy(project_name=project_name,
                                      full_project_path=project_path)
@@ -311,7 +315,7 @@ def _generate_java_lambdas(**kwargs):
             dep_res_path
         ))
         deployment_resources.update(_generate_lambda_role_config(
-            lambda_role_name, stringify=False))
+            lambda_role_name, tags, stringify=False))
         _write_content_to_file(dep_res_path,
                                json.dumps(deployment_resources, indent=2))
 
@@ -338,6 +342,7 @@ def _generate_nodejs_lambdas(**kwargs):
     lambdas_path = kwargs.get(LAMBDAS_PATH_PARAM)
     lambda_names = kwargs.get(LAMBDA_NAMES_PARAM, [])
     project_state = kwargs.get(PROJECT_STATE_PARAM)
+    tags = kwargs.get(TAGS_PARAM)
 
     if not os.path.exists(lambdas_path):
         _mkdir(lambdas_path, exist_ok=True)
@@ -374,7 +379,7 @@ def _generate_nodejs_lambdas(**kwargs):
 
         # fill deployment_resources.json
         role_def = _generate_lambda_role_config(
-            LAMBDA_ROLE_NAME_PATTERN.format(lambda_name))
+            LAMBDA_ROLE_NAME_PATTERN.format(lambda_name), tags)
         _write_content_to_file(
             os.path.join(lambda_folder, FILE_DEPLOYMENT_RESOURCES),
             role_def)
@@ -382,7 +387,8 @@ def _generate_nodejs_lambdas(**kwargs):
         # fill lambda_config.json
         lambda_def = _generate_nodejs_node_lambda_config(
             lambda_name,
-            os.path.join(FOLDER_LAMBDAS, lambda_name))
+            os.path.join(FOLDER_LAMBDAS, lambda_name),
+            tags)
         _write_content_to_file(os.path.join(lambda_folder, FILE_LAMBDA_CONFIG),
                                lambda_def)
         project_state.add_lambda(lambda_name=lambda_name, runtime=RUNTIME_NODEJS)

@@ -6,7 +6,8 @@ from syndicate.core.constants import IAM_POLICY
 class IAMPolicyGenerator(BaseDeploymentResourceGenerator):
     RESOURCE_TYPE = IAM_POLICY
     CONFIGURATION = {
-        "policy_content": dict
+        'policy_content': dict,
+        'tags': dict
     }
 
     def _resolve_configuration(self, defaults_dict=None) -> dict:
