@@ -10,7 +10,8 @@ class CloudwatchEventRuleGenerator(BaseDeploymentResourceGenerator):
     RESOURCE_TYPE = CLOUD_WATCH_RULE_TYPE
     CONFIGURATION = {
         "rule_type": None,
-        "region": None
+        "region": None,
+        "tags": dict
     }
 
     def __init__(self, **kwargs):

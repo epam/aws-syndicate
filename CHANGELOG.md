@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added enhanced logging of the `build` command execution
 - Added validation for existence of bundle and deploy names
 - Added validation for incompatible parameters(`--events`, `--resources`) of the command `syndicate status`
+- Added the possibility to add resource-specific tags via the resource meta generation(flag `--tags`)
 - Event status added to the command `syndicate status` output
 - Reworked lambda triggers update to compare local event sources meta with the previous remote one
 - Reworked lambda triggers deletion to not list every resource of the trigger type to remove it from lambda (**EPMCEOOS-6112**)

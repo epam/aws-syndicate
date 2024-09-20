@@ -38,4 +38,5 @@ class WebSocketApiGatewayGenerator(BaseDeploymentResourceGenerator):
                 "lambda_name": str
             }
         },
+        'tags': dict
     }

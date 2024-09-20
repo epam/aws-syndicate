@@ -31,16 +31,27 @@ SRC_MAIN_JAVA = 'jsrc/main/java'
 FILE_POM = 'pom.xml'
 CANCEL_MESSAGE = 'Creating of {} has been canceled.'
 
+JAVA_TAGS_IMPORT = """
+import com.syndicate.deployment.annotations.lambda.Tag;
+import com.syndicate.deployment.annotations.lambda.Tags;"""
+
+JAVA_TAGS_ANNOTATION_TEMPLATE = """
+@Tags(value = {
+{tags}})
+"""
+
+JAVA_TAG_ANNOTATION_TEMPLATE = '    @Tag(key = "{key}", value = "{value}")'
+
 JAVA_LAMBDA_HANDLER_CLASS = """package {java_package_name};
 
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
-import com.syndicate.deployment.annotations.lambda.LambdaHandler;
+import com.syndicate.deployment.annotations.lambda.LambdaHandler;{tags_import}
 import com.syndicate.deployment.model.RetentionSetting;
 
 import java.util.HashMap;
 import java.util.Map;
-
+{tags}
 @LambdaHandler(
     lambdaName = "{lambda_name}",
 	roleName = "{lambda_role_name}",
@@ -524,7 +535,8 @@ def _stringify(dict_content):
     return json.dumps(dict_content, indent=2)
 
 
-def _generate_python_node_lambda_config(lambda_name, lambda_relative_path):
+def _generate_python_node_lambda_config(lambda_name, lambda_relative_path,
+                                        tags):
     return _stringify({
         'version': '1.0',
         'name': lambda_name,
@@ -542,7 +554,8 @@ def _generate_python_node_lambda_config(lambda_name, lambda_relative_path):
         'alias': _alias_variable(LAMBDAS_ALIASES_NAME_CFG),
         'url_config': {},
         'ephemeral_storage': 512,
-        'logs_expiration': _alias_variable(LOGS_EXPIRATION)
+        'logs_expiration': _alias_variable(LOGS_EXPIRATION),
+        'tags': tags
         # 'platforms': ['manylinux2014_x86_64']
         # by default (especially if you have linux), you don't need it
     })
@@ -582,7 +595,8 @@ def _generate_node_layer_package_lock_file(layer_name):
         })
 
 
-def _generate_nodejs_node_lambda_config(lambda_name, lambda_relative_path):
+def _generate_nodejs_node_lambda_config(lambda_name, lambda_relative_path,
+                                        tags):
     return _stringify({
         'version': '1.0',
         'name': lambda_name,
@@ -599,7 +613,8 @@ def _generate_nodejs_node_lambda_config(lambda_name, lambda_relative_path):
         'publish_version': True,
         'alias': _alias_variable(LAMBDAS_ALIASES_NAME_CFG),
         'url_config': {},
-        'ephemeral_storage': 512
+        'ephemeral_storage': 512,
+        'tags': tags
     })
 
 
@@ -651,12 +666,13 @@ def _get_lambda_default_policy():
                     }
                 ],
                 "Version": "2012-10-17"},
-            "resource_type": "iam_policy"
+            "resource_type": "iam_policy",
+            "tags": {}
         }
     })
 
 
-def _generate_lambda_role_config(role_name, stringify=True):
+def _generate_lambda_role_config(role_name, tags, stringify=True):
     role_content = {
         role_name: {
             "predefined_policies": [],
@@ -664,7 +680,8 @@ def _generate_lambda_role_config(role_name, stringify=True):
             "custom_policies": [
                 POLICY_LAMBDA_BASIC_EXECUTION
             ],
-            "resource_type": "iam_role"
+            "resource_type": "iam_role",
+            "tags": tags
         }
     }
     return _stringify(role_content) if stringify else role_content

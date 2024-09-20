@@ -31,7 +31,8 @@ class ApiGatewayGenerator(BaseDeploymentResourceGenerator):
         'deploy_stage': None,
         'dependencies': list,
         'resources': dict,
-        'minimum_compression_size': None
+        'minimum_compression_size': None,
+        'tags': dict
     }
 
 

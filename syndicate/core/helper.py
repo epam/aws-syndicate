@@ -520,17 +520,18 @@ class DictParamType(click.types.StringParamType):
         try:
             for item in value.split(self.ITEMS_SEPARATOR):
                 k, v = item.split(self.KEY_VALUE_SEPARATOR)
-                result[k] = v
+                result[k.lstrip().rstrip()] = v.lstrip().rstrip()
         except ValueError as e:
-            raise BadParameter(f'Wrong format: {value}. '
-                               f'Must be key:value or key,value. '
-                               f'\nError: {e.__str__()}')
+            raise BadParameter(
+                f'Wrong format: "{value}". '
+                f'Must be "key:value" or "key1:value1,key2:value2". '
+                f'\nError: {e.__str__()}')
 
         _LOG.info(f'Converted to such a dict: {result}')
         return result
 
     def get_metavar(self, param):
-        return f'KEY{self.KEY_VALUE_SEPARATOR}VALUE1' \
+        return f'KEY1{self.KEY_VALUE_SEPARATOR}VALUE1' \
                f'{self.ITEMS_SEPARATOR}KEY2{self.KEY_VALUE_SEPARATOR}VALUE2'
 
 
@@ -740,6 +741,35 @@ def validate_api_gw_path(ctx, param, value):
             f"alphanumeric characters, hyphens, periods, underscores or "
             "dynamic parameters wrapped in '{}'")
     return value
+
+
+def check_tags(ctx, param, value):
+    if value:
+        errors = validate_tags(value)
+        if errors:
+            raise BadParameter(errors)
+        return value
+
+
+def validate_tags(tags):
+    errors = []
+    if len(tags) > 50:
+        errors.append('Exceeded the maximum amount of tags. Max allowed 50.')
+
+    for k, v in tags.items():
+        if len(k) < 1 or len(k) > 128:
+            errors.append(f'The tag key "{k}" has length "{len(k)}". Allowed '
+                          'length is between 1 and 128.')
+
+        if k.lower().startswith('aws:'):
+            errors.append(f'The tag key "{k}" starts with the forbidden '
+                          f'prefix "aws:".')
+
+        if len(v) > 256:
+            errors.append(f'The tag key "{k}" value "{v}" has length '
+                          f'"{len(v)}". Max allowed length is 256.')
+
+    return errors
 
 
 def set_debug_log_level(ctx, param, value):

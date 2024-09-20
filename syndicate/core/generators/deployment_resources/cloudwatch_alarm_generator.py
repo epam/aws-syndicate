@@ -23,7 +23,8 @@ class CloudWatchAlarmGenerator(BaseDeploymentResourceGenerator):
         "lambdas": list,
         "ssm_response_plan": list,
         "evaluate_low_sample_count_percentile": None,
-        "datapoints": None
+        "datapoints": None,
+        "tags": dict
     }
 
     def _generate_resource_configuration(self) -> dict:

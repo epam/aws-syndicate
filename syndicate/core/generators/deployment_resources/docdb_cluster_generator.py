@@ -16,6 +16,7 @@ class DocumentDBClusterGenerator(BaseDeploymentResourceGenerator):
         "port": 27017,
         "master_username": None,
         "master_password": None,
+        "tags": dict
     }
 
     def _generate_resource_configuration(self) -> dict:

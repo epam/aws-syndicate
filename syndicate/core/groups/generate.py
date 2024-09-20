@@ -34,7 +34,8 @@ from syndicate.core.helper import (timeit, OrderedGroup,
                                    check_suffix, check_prefix,
                                    check_file_extension,
                                    check_lambda_layer_name,
-                                   check_lambda_existence, verbose_option)
+                                   check_lambda_existence, verbose_option,
+                                   check_tags)
 
 GENERATE_GROUP_NAME = 'generate'
 GENERATE_PROJECT_COMMAND_NAME = 'project'
@@ -84,12 +85,15 @@ def project(name, path):
                    "from the current config if it exists. "
                    "Otherwise - the current working directory",
               callback=resolve_project_path)
+@click.option('--tags', type=DictParamType(), callback=check_tags,
+              help='The resource tags')
 @verbose_option
 @timeit()
-def lambda_function(name, runtime, project_path):
+def lambda_function(name, runtime, project_path, tags):
     """
     Generates required environment for lambda function
     """
+    tags = tags or {}
     if not os.access(project_path, os.F_OK):
         click.echo(f"The provided path {project_path} doesn't exist")
         return
@@ -103,7 +107,8 @@ def lambda_function(name, runtime, project_path):
     click.echo(f'Project path: {project_path}')
     generate_lambda_function(project_path=project_path,
                              runtime=runtime,
-                             lambda_names=name)
+                             lambda_names=name,
+                             tags=tags)
 
 
 @generate.command(name='lambda_layer')
@@ -206,7 +211,7 @@ def lambda_layer(name, runtime, link_with_lambda, project_path):
                    'associated with the IAM user which will be used for '
                    'deployment. If specified MFA token will be asked before '
                    'making actions')
-@click.option('--tags', type=DictParamType(),
+@click.option('--tags', type=DictParamType(), callback=check_tags,
               help='Tags to add to the config. They will be added to all the '
                    'resources during deployment')
 @click.option('--iam_permissions_boundary', type=str,

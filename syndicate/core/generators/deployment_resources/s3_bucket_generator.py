@@ -20,7 +20,8 @@ class S3Generator(BaseDeploymentResourceGenerator):
             'ignore_public_acls': True,
             'block_public_policy': True,
             'restrict_public_buckets': True
-        }
+        },
+        'tags': dict
     }
 
     def __init__(self, **kwargs):

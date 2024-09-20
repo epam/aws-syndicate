@@ -22,7 +22,8 @@ class DynamoDBGenerator(BaseDeploymentResourceGenerator):
         'read_capacity': 1,
         'write_capacity': 1,
         'global_indexes': list,
-        'autoscaling': list
+        'autoscaling': list,
+        'tags': dict
     }
 
 
