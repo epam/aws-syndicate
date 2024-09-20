@@ -31,16 +31,28 @@ SRC_MAIN_JAVA = 'jsrc/main/java'
 FILE_POM = 'pom.xml'
 CANCEL_MESSAGE = 'Creating of {} has been canceled.'
 
+JAVA_TAGS_IMPORT = """
+import com.syndicate.deployment.annotations.lambda.Tag;
+import com.syndicate.deployment.annotations.lambda.Tags;
+"""
+
+JAVA_TAGS_ANNOTATION_TEMPLATE = """
+@Tags(value = {
+{tags}})
+"""
+
+JAVA_TAG_ANNOTATION_TEMPLATE = '    @Tag(key = "{key}", value = "{value}")'
+
 JAVA_LAMBDA_HANDLER_CLASS = """package {java_package_name};
 
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
-import com.syndicate.deployment.annotations.lambda.LambdaHandler;
+import com.syndicate.deployment.annotations.lambda.LambdaHandler;{tags_import}
 import com.syndicate.deployment.model.RetentionSetting;
 
 import java.util.HashMap;
 import java.util.Map;
-
+{tags}
 @LambdaHandler(
     lambdaName = "{lambda_name}",
 	roleName = "{lambda_role_name}",

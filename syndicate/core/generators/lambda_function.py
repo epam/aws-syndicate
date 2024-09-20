@@ -37,7 +37,8 @@ from syndicate.core.generators.contents import (
     ABSTRACT_LAMBDA_CONTENT, EXCEPTION_CONTENT, LOG_HELPER_CONTENT,
     _generate_python_node_layer_config, REQUIREMENTS_FILE_CONTENT,
     LOCAL_REQUIREMENTS_FILE_CONTENT, _generate_node_layer_package_file,
-    _generate_node_layer_package_lock_file)
+    _generate_node_layer_package_lock_file, JAVA_TAG_ANNOTATION_TEMPLATE,
+    JAVA_TAGS_ANNOTATION_TEMPLATE, JAVA_TAGS_IMPORT)
 from syndicate.core.groups import (RUNTIME_JAVA, RUNTIME_NODEJS,
                                    RUNTIME_PYTHON, RUNTIME_PYTHON_LAYER,
                                    RUNTIME_NODEJS_LAYER)
@@ -292,12 +293,15 @@ def _generate_java_lambdas(**kwargs):
                                                       chars=['-', '_']).title()
         lambda_class_name = lambda_class_name.replace(' ', '')
         lambda_role_name = LAMBDA_ROLE_NAME_PATTERN.format(lambda_name)
+        lambda_tags_import, lambda_tags = _resolve_java_tags(tags)
         java_handler_content = \
             (JAVA_LAMBDA_HANDLER_CLASS
              .replace('{java_package_name}', java_package_name)
              .replace('{lambda_name}', lambda_name)
              .replace('{lambda_class_name}', lambda_class_name)
-             .replace('{lambda_role_name}', lambda_role_name))
+             .replace('{lambda_role_name}', lambda_role_name)
+             .replace('{tags_import}', lambda_tags_import)
+             .replace('{tags}', lambda_tags))
 
         java_handler_file_name = os.path.join(
             project_path, SRC_MAIN_JAVA, java_package_as_path,
@@ -329,6 +333,20 @@ def _generate_java_package_name(project_name):
     java_package_name = unified_package_name.replace(' ', '')
     java_package_name = f'com.{java_package_name}'
     return java_package_name
+
+
+def _resolve_java_tags(tags):
+    if tags:
+        tag_annotations = []
+        for key, value in tags.items():
+            tag_annotations.append(JAVA_TAG_ANNOTATION_TEMPLATE
+                                   .replace('{key}', key)
+                                   .replace('{value}', value))
+        return (JAVA_TAGS_IMPORT,
+                JAVA_TAGS_ANNOTATION_TEMPLATE.replace(
+                    '{tags}', ',\n'.join(tag_annotations)))
+
+    return '', ''
 
 
 def _get_parts_split_by_chars(chars, to_split):
