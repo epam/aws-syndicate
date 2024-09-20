@@ -33,8 +33,7 @@ CANCEL_MESSAGE = 'Creating of {} has been canceled.'
 
 JAVA_TAGS_IMPORT = """
 import com.syndicate.deployment.annotations.lambda.Tag;
-import com.syndicate.deployment.annotations.lambda.Tags;
-"""
+import com.syndicate.deployment.annotations.lambda.Tags;"""
 
 JAVA_TAGS_ANNOTATION_TEMPLATE = """
 @Tags(value = {
