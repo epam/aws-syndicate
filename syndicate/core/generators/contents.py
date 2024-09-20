@@ -666,7 +666,8 @@ def _get_lambda_default_policy():
                     }
                 ],
                 "Version": "2012-10-17"},
-            "resource_type": "iam_policy"
+            "resource_type": "iam_policy",
+            "tags": {}
         }
     })
 

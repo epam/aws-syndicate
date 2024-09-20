@@ -34,7 +34,8 @@ from syndicate.core.helper import (timeit, OrderedGroup,
                                    check_suffix, check_prefix,
                                    check_file_extension,
                                    check_lambda_layer_name,
-                                   check_lambda_existence, verbose_option)
+                                   check_lambda_existence, verbose_option,
+                                   check_tags)
 
 GENERATE_GROUP_NAME = 'generate'
 GENERATE_PROJECT_COMMAND_NAME = 'project'
@@ -84,7 +85,7 @@ def project(name, path):
                    "from the current config if it exists. "
                    "Otherwise - the current working directory",
               callback=resolve_project_path)
-@click.option('--tags', type=DictParamType(),
+@click.option('--tags', type=DictParamType(), callback=check_tags,
               help='The resource tags')
 @verbose_option
 @timeit()
@@ -210,7 +211,7 @@ def lambda_layer(name, runtime, link_with_lambda, project_path):
                    'associated with the IAM user which will be used for '
                    'deployment. If specified MFA token will be asked before '
                    'making actions')
-@click.option('--tags', type=DictParamType(),
+@click.option('--tags', type=DictParamType(), callback=check_tags,
               help='Tags to add to the config. They will be added to all the '
                    'resources during deployment')
 @click.option('--iam_permissions_boundary', type=str,
