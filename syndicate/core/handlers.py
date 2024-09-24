@@ -624,7 +624,7 @@ def profiler(bundle_name, deploy_name, from_date, to_date):
                    'to a folder, which is be later used as the deployment '
                    'bundle (the bundle path: bundles/${bundle_name})')
 @click.option('--force_upload', '-fu', nargs=1,
-              callback=resolve_path_callback, required=True,
+              default=False, required=False,
               help='Identifier that indicates whether a locally existing'
                    ' bundle should be deleted and a new one created using'
                    ' the same path.')
@@ -664,7 +664,7 @@ def assemble_java_mvn(bundle_name, project_path, force_upload):
                    'and internal project dependencies according to the '
                    'described in local_requirements.txt file')
 @click.option('--force_upload', '-fu', nargs=1,
-              callback=resolve_path_callback, required=True,
+              default=False, required=False,
               help='Identifier that indicates whether a locally existing'
                    ' bundle should be deleted and a new one created using'
                    ' the same path.')
@@ -677,7 +677,7 @@ def assemble_python(bundle_name, project_path, force_upload):
     \f
     :param bundle_name: name of the bundle
     :param project_path: path to project folder
-    :force_upload: force upload identification
+    :param force_upload: force upload identification
     :return:
     """
     click.echo(f'Command assemble python: project_path: {project_path} ')
@@ -702,7 +702,7 @@ def assemble_python(bundle_name, project_path, force_upload):
                    'packed to a zip archive, where the external libraries are '
                    'found, which are described in the package.json file')
 @click.option('--force_upload', '-fu', nargs=1,
-              callback=resolve_path_callback, required=True,
+              default=False, required=False,
               help='Identifier that indicates whether a locally existing'
                    ' bundle should be deleted and a new one created using'
                    ' the same path.')
@@ -771,7 +771,7 @@ RUNTIME_LANG_TO_BUILD_MAPPING = {
               help='Bundle\'s name to build the lambdas in. '
                    'Default value: $ProjectName_%Y%m%d.%H%M%S')
 @click.option('--force_upload', '-fu', nargs=1,
-              callback=resolve_path_callback, default=False,
+              default=False, required=False,
               help='Identifier that indicates whether a locally existing'
                    ' bundle should be deleted and a new one created using'
                    ' the same path.')
@@ -786,6 +786,7 @@ def assemble(ctx, bundle_name, force_upload):
     :param ctx:
     :param bundle_name: name of the bundle to which the artifacts
         will be associated
+    :param force_upload: True if bundle should be overwritten
     :return:
     """
     click.echo(f'Building artifacts, bundle: {bundle_name}')
