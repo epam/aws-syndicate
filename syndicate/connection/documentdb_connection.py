@@ -40,7 +40,8 @@ class DocumentDBConnection(object):
 
     def create_db_cluster(self, identifier, vpc_security_group_ids=None,
                           port=None, availability_zones=None,
-                          master_username=None, master_password=None):
+                          master_username=None, master_password=None,
+                          tags=None):
         """
         Creates a new Amazon DocumentDB cluster.
         """
@@ -58,12 +59,14 @@ class DocumentDBConnection(object):
             params['MasterUsername'] = master_username
         if master_password:
             params['MasterUserPassword'] = master_password
+        if tags:
+            params['Tags'] = tags
 
         response = self.client.create_db_cluster(**params)
         return response['DBCluster'].get('DBClusterIdentifier')
 
     def create_db_instance(self, instance_identifier, cluster_identifier,
-                           instance_class, availability_zone=None):
+                           instance_class, availability_zone=None, tags=None):
         """
         Creates a new instance.
         """
@@ -75,6 +78,8 @@ class DocumentDBConnection(object):
         }
         if availability_zone:
             params['AvailabilityZone'] = availability_zone
+        if tags:
+            params['Tags'] = tags
 
         response = self.client.create_db_instance(**params)
         return response['DBInstance'].get('DBInstanceIdentifier')

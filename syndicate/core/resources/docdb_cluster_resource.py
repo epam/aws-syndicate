@@ -87,7 +87,8 @@ class DocumentDBClusterResource(BaseResource):
         cluster = self.connection.create_db_cluster(
             identifier=name, availability_zones=availability_zones,
             vpc_security_group_ids=vpc_security_group_ids, port=port,
-            master_password=master_password, master_username=master_username)
+            master_password=master_password, master_username=master_username,
+            tags=meta.get('tags'))
         _LOG.info(f'Created documentDB cluster {cluster}')
         return self.describe_documentdb_cluster(identifier=name, meta=meta)
 

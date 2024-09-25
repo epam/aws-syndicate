@@ -34,11 +34,14 @@ class BeanstalkConnection(object):
                              aws_session_token=aws_session_token)
         _LOG.debug('Opened new Elastic beanstalk connection.')
 
-    def create_application(self, app_name, description=''):
-        self.client.create_application(
+    def create_application(self, app_name, description='', tags=None):
+        params = dict(
             ApplicationName=app_name,
             Description=description
         )
+        if tags:
+            params['Tags'] = tags
+        self.client.create_application(**params)
 
     def remove_app(self, app_name, terminate_env_force=True):
         return self.client.delete_application(
@@ -119,8 +122,9 @@ class BeanstalkConnection(object):
             params['EnvironmentName'] = env_name
         return self.client.describe_configuration_settings(**params)
 
-    def create_app_version(self, app_name, version_label, s3_bucket, s3_key):
-        return self.client.create_application_version(
+    def create_app_version(self, app_name, version_label, s3_bucket, s3_key,
+                           tags):
+        params = dict(
             ApplicationName=app_name,
             VersionLabel=version_label,
             SourceBundle={
@@ -128,6 +132,9 @@ class BeanstalkConnection(object):
                 'S3Key': s3_key
             }
         )
+        if tags:
+            params['Tags'] = tags
+        return self.client.create_application_version(**params)
 
     def describe_applications(self, app_names=None):
         """

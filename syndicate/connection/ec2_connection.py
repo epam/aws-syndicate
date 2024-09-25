@@ -212,8 +212,10 @@ class EC2Connection(object):
                         security_group_ids=None,
                         iam_instance_profile=None,
                         name=None, key_name=None,
-                        user_data=None, tags_list=None,
+                        user_data=None, tags=None,
                         subnet_id=None, availability_zone=None):
+
+        tags = tags or []
 
         if iam_instance_profile:
             if not iam_instance_profile.get('Arn') \
@@ -223,35 +225,24 @@ class EC2Connection(object):
                                      'Arn or Name nodes required.'
                                      .format(iam_instance_profile))
 
-        tag_specification = {
-            'ResourceType': 'instance',
-        }
-        name_tag = None
         if name:
-            name_tag = {
+            tags.append({
                 'Key': 'Name',
                 'Value': name
-            }
-
-        if tags_list:
-            valid_tags = [tag for tag in tags_list
-                          if tag['Key'] and tag['Value']]
-            if not valid_tags:
-                _LOG.warn('There are no valid tags in tags_list specified')
-            else:
-                if name_tag:
-                    valid_tags.append(name_tag)
-                tag_specification['Tags'] = valid_tags
-        else:
-            tag_specification['Tags'] = [name_tag]
+            })
 
         instance_parameters = {
             'ImageId': image_id,
             'InstanceType': instance_type,
-            'TagSpecifications': [tag_specification],
             'MinCount': 1,
             'MaxCount': 1
         }
+
+        if tags:
+            instance_parameters['TagSpecifications'] = [{
+                'ResourceType': 'instance',
+                'Tags': tags
+            }]
 
         if availability_zone:
             instance_parameters['Placement'] = {
@@ -365,14 +356,18 @@ class EC2Connection(object):
         return self.client.associate_address(**params)
 
     def create_launch_template(self, name, lt_data, version_description=None,
-                               tag_specifications=None):
+                               tags=None):
         params = dict()
         params['LaunchTemplateName'] = name
         params['LaunchTemplateData'] = lt_data
         if version_description is not None:
             params['VersionDescription'] = version_description
-        if tag_specifications is not None:
-            params['TagSpecifications'] = tag_specifications
+
+        if tags:
+            params['TagSpecifications'] = [{
+                'ResourceType': 'instance',
+                'Tags': tags
+            }]
         return self.client.create_launch_template(**params)
 
     def create_launch_template_version(self, lt_name=None, lt_id=None,

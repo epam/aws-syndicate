@@ -18,7 +18,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.connection import ResourceGroupsTaggingAPIConnection
 from syndicate.core.constants import LAMBDA_TYPE, SWAGGER_UI_TYPE, \
-    EC2_LAUNCH_TEMPLATE_TYPE
+    EC2_LAUNCH_TEMPLATE_TYPE, TAGS_RESOURCE_TYPE_CONFIG
 from syndicate.core.resources.helper import chunks
 
 _LOG = get_logger('syndicate.core.resources.group_tagging_api_resource')
@@ -31,6 +31,8 @@ class TagsApiResource:
         self.resource_type_to_preprocessor_mapping = {
             LAMBDA_TYPE: self._preprocess_lambda_arn
         }
+        self.post_deploy_tagging_types = TAGS_RESOURCE_TYPE_CONFIG[
+            'post_deploy_tagging']
         from syndicate.core import CONFIG
         self.tags = CONFIG.tags
 
@@ -101,3 +103,21 @@ class TagsApiResource:
         else:
             USER_LOG.warn(f'Couldn\'t remove tags from resources: '
                           f'{failed_arns}')
+
+    def apply_post_deployment_tags(self, output: dict):
+        for arn, res_output in output.items():
+            res_type = res_output['resource_meta']['resource_type']
+            res_name = res_output['resource_name']
+            if res_type in self.post_deploy_tagging_types:
+                tags = res_output['resource_meta'].get('tags')
+                if not tags:
+                    continue
+                failure = self.connection.tag_resources([arn], tags)
+                if failure:
+                    USER_LOG.warn(
+                        f'Resource "{res_name}" was not tagged. The next '
+                        f'error occurred "{failure['string']['ErrorMessage']}"')
+                else:
+                    _LOG.info(f'Resource {res_name} was tagged successfully')
+
+

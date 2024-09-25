@@ -333,7 +333,8 @@ class ApiGatewayResource(BaseResource):
         _LOG.info(f'Api gateway with name \'{name}\' does not exist. Creating')
         api_item = self.connection.create_rest_api(
             api_name=name,
-            binary_media_types=meta.get('binary_media_types'))
+            binary_media_types=meta.get('binary_media_types'),
+            tags=meta.get('tags'))
         api_id = api_item['id']
 
         # create default request validators
@@ -1066,7 +1067,8 @@ class ApiGatewayResource(BaseResource):
         resources = meta.get('resources') or {}
         route_selection_expression = meta.get('route_selection_expression')
         api_id = self.apigw_v2.create_web_socket_api(
-            name=name, route_selection_expression=route_selection_expression)
+            name=name, route_selection_expression=route_selection_expression,
+            tags=meta.get('tags'))
         for route_name, route_meta in resources.items():
             int_type = route_meta.get('integration_type') or 'lambda'
             if int_type != 'lambda':

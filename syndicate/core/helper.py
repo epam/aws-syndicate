@@ -745,31 +745,14 @@ def validate_api_gw_path(ctx, param, value):
 
 def check_tags(ctx, param, value):
     if value:
-        errors = validate_tags(value)
+        errors = validate_tags(param.name, value)
         if errors:
             raise BadParameter(errors)
         return value
 
 
-def validate_tags(tags):
-    errors = []
-    if len(tags) > 50:
-        errors.append('Exceeded the maximum amount of tags. Max allowed 50.')
-
-    for k, v in tags.items():
-        if len(k) < 1 or len(k) > 128:
-            errors.append(f'The tag key "{k}" has length "{len(k)}". Allowed '
-                          'length is between 1 and 128.')
-
-        if k.lower().startswith('aws:'):
-            errors.append(f'The tag key "{k}" starts with the forbidden '
-                          f'prefix "aws:".')
-
-        if len(v) > 256:
-            errors.append(f'The tag key "{k}" value "{v}" has length '
-                          f'"{len(v)}". Max allowed length is 256.')
-
-    return errors
+def validate_tags(key_name, tags_dict):
+    return ConfigValidator.validate_tags(key_name, tags_dict)
 
 
 def set_debug_log_level(ctx, param, value):

@@ -174,7 +174,8 @@ class EventConnection(object):
                              aws_session_token=aws_session_token)
         _LOG.debug('Opened new Cloudwatch events connection.')
 
-    def create_schedule_rule(self, name, expression, state='ENABLED'):
+    def create_schedule_rule(self, name, expression, tags=None,
+                             state='ENABLED'):
         """ Create CloudWatch schedule rule for resource invocation.
 
         :type name: str
@@ -182,18 +183,28 @@ class EventConnection(object):
         :param expression: e.g. rate(1 hour)
         :type state: str
         :param state: 'ENABLED'/'DISABLED'
+        :param tags: List of resource tags key-value pairs
         """
-        self.client.put_rule(Name=name, ScheduleExpression=expression,
-                             State=state, Description=name)
+        params = dict(
+            Name=name,
+            ScheduleExpression=expression,
+            State=state,
+            Description=name,
+        )
+        if tags:
+            params['Tags'] = tags
+
+        self.client.put_rule(**params)
 
     def create_ec2_rule(self, name, instances=None, instance_states=None,
-                        state='ENABLED'):
+                        tags=None, state='ENABLED'):
         """ Create CloudWatch ec2 rule for resource invocation.
 
         :type name: str
         :type instances: list
         :type instance_states: list
         :type state: str
+        :type tags: list of dict
         """
         event_pattern = {
             "source": ["aws.ec2"],
@@ -207,11 +218,20 @@ class EventConnection(object):
             else:
                 event_pattern["detail"] = {"state": instance_states}
 
-        self.client.put_rule(Name=name, EventPattern=dumps(event_pattern),
-                             State=state, Description=name)
+        params = dict(
+            Name=name,
+            EventPattern=dumps(event_pattern),
+            State=state,
+            Description=name
+        )
+
+        if tags:
+            params['Tags'] = tags
+
+        self.client.put_rule(**params)
 
     def create_api_call_rule(self, name, aws_service=None, operations=None,
-                             custom_pattern=None, state='ENABLED'):
+                             custom_pattern=None, tags=None, state='ENABLED'):
         """ To select ANY operation do not set 'operations' param.
 
         :type aws_service:
@@ -221,6 +241,7 @@ class EventConnection(object):
         :type custom_pattern: dict
         :param operations:
         :type state: str
+        :type tags: list of dict
         """
         if custom_pattern:
             event_pattern = custom_pattern
@@ -245,8 +266,17 @@ class EventConnection(object):
                 f'aws_service or custom_pattern should be specified for rule '
                 f'with "api_call" type! Resource: {name}')
 
-        self.client.put_rule(Name=name, EventPattern=dumps(event_pattern),
-                             State=state, Description=name)
+        params = dict(
+            Name=name,
+            EventPattern=dumps(event_pattern),
+            State=state,
+            Description=name
+        )
+
+        if tags:
+            params['Tags'] = tags
+
+        self.client.put_rule(**params)
 
     def get_rule(self, rule_name):
         try:
@@ -444,7 +474,7 @@ class MetricConnection(object):
                          alarm_actions=None, insufficient_data_actions=None,
                          extended_statistic=None, dimensions=None, unit=None,
                          description=None, datapoints=None,
-                         evaluate_low_sample_count_percentile=None):
+                         evaluate_low_sample_count_percentile=None, tags=None):
         """
         :type alarm_name: str
         :type metric_name: str
@@ -478,6 +508,7 @@ class MetricConnection(object):
         trigger the alarm
         :type evaluate_low_sample_count_percentile: str
         :param evaluate_low_sample_count_percentile: 'evaluate'|'ignore'
+        :type tags: list of dicts: List of resource tags key-value pairs
         """
         params = dict(AlarmName=alarm_name, MetricName=metric_name,
                       Namespace=namespace, Period=period, Threshold=threshold,
@@ -505,6 +536,8 @@ class MetricConnection(object):
                 evaluate_low_sample_count_percentile
         if datapoints:
             params['DatapointsToAlarm'] = datapoints
+        if tags:
+            params['Tags'] = tags
         self.client.put_metric_alarm(**params)
 
     def remove_alarms(self, alarm_names):

@@ -267,6 +267,7 @@ class DynamoDBResource(AbstractExternalResource, BaseResource):
             meta.get('read_capacity'), meta.get('write_capacity'),
             global_indexes=meta.get('global_indexes'),
             local_indexes=meta.get('local_indexes'),
+            tags=meta.get('tags'),
             wait=True)
         response = self.dynamodb_conn.describe_table(name)
         if not response:

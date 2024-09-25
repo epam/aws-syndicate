@@ -42,7 +42,8 @@ class CognitoIdentityConnection(object):
                              allow_unauthenticated=False, login_providers=None,
                              open_id_connect_provider_arns=None,
                              cognito_identity_providers=None,
-                             saml_provider_arns=None):
+                             saml_provider_arns=None,
+                             tags=None):
         """ Crete Cognito identity pool and get identity pool id.
 
         :type pool_name: str
@@ -52,6 +53,7 @@ class CognitoIdentityConnection(object):
         :type open_id_connect_provider_arns: list
         :type cognito_identity_providers: list
         :type saml_provider_arns: list
+        :type tags: dict
         """
         params = dict(IdentityPoolName=pool_name,
                       AllowUnauthenticatedIdentities=allow_unauthenticated)
@@ -65,6 +67,8 @@ class CognitoIdentityConnection(object):
             params['CognitoIdentityProviders'] = cognito_identity_providers
         if saml_provider_arns:
             params['SamlProviderARNs'] = saml_provider_arns
+        if tags:
+            params['IdentityPoolTags'] = tags
 
         response = self.client.create_identity_pool(**params)
         return response.get('IdentityPoolId')

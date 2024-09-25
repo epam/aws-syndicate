@@ -24,7 +24,8 @@ from syndicate.core.build.bundle_processor import create_deploy_output, \
     load_deploy_output, load_failed_deploy_output,load_meta_resources, \
     remove_failed_deploy_output, load_latest_deploy_output
 from syndicate.core.build.meta_processor import resolve_meta, \
-    populate_s3_paths, resolve_resource_name, get_meta_from_output
+    populate_s3_paths, resolve_resource_name, get_meta_from_output, \
+    resolve_tags
 from syndicate.core.constants import (BUILD_META_FILE_NAME,
                                       CLEAN_RESOURCE_TYPE_PRIORITY,
                                       DEPLOY_RESOURCE_TYPE_PRIORITY,
@@ -384,6 +385,7 @@ def create_deployment_resources(deploy_name, bundle_name,
     _LOG.debug('Names were resolved')
     resources = populate_s3_paths(resources, bundle_name)
     _LOG.debug('Artifacts s3 paths were resolved')
+    resolve_tags(resources)
 
     deploy_only_resources = _resolve_names(deploy_only_resources)
     excluded_resources = _resolve_names(excluded_resources)
@@ -441,6 +443,9 @@ def create_deployment_resources(deploy_name, bundle_name,
                 clean_resources(output_resources_list)
 
         else:
+            _LOG.info('Going to apply post deployment tags')
+            _apply_post_deployment_tags(output)
+
             USER_LOG.info('Going to create deploy output')
             create_deploy_output(bundle_name=bundle_name,
                                  deploy_name=deploy_name,
@@ -455,8 +460,8 @@ def create_deployment_resources(deploy_name, bundle_name,
         _apply_dynamic_changes(resources, output)
         USER_LOG.info('Dynamic changes were applied successfully')
 
-        _LOG.info('Going to apply common tags')
-        _apply_tags(output)
+        _LOG.info('Going to apply post deployment tags')
+        _apply_post_deployment_tags(output)
 
         USER_LOG.info('Going to create deploy output')
         create_deploy_output(bundle_name=bundle_name,
@@ -671,10 +676,10 @@ def _apply_dynamic_changes(resources, output):
     concurrent.futures.wait(futures, timeout=None, return_when=ALL_COMPLETED)
 
 
-def _apply_tags(output: dict):
+def _apply_post_deployment_tags(output: dict):
     from syndicate.core import RESOURCES_PROVIDER
     tags_resource = RESOURCES_PROVIDER.tags_api()
-    tags_resource.apply_tags(output)
+    tags_resource.apply_post_deployment_tags(output)
 
 
 def compare_deploy_resources(first, second):

@@ -114,7 +114,8 @@ class IamResource(BaseResource):
             _LOG.warn('IAM policy %s exists.', name)
             return self.describe_policy(name=name, meta=meta)
         policy_content = meta['policy_content']
-        self.iam_conn.create_custom_policy(name, policy_content)
+        self.iam_conn.create_custom_policy(name, policy_content,
+                                           meta.get('tags'))
         _LOG.info('Created IAM policy %s.', name)
         return self.describe_policy(name=name, meta=meta)
 
@@ -146,6 +147,7 @@ class IamResource(BaseResource):
         external_id = meta.get('external_id')
         trust_rltn = meta.get('trusted_relationships')
         permissions_boundary = meta.get('permissions_boundary')
+        tags = meta.get('tags')
         if principal_service and '{region}' in principal_service:
             principal_service = principal_service.format(region=self.region)
         response = self.iam_conn.create_custom_role(
@@ -154,7 +156,8 @@ class IamResource(BaseResource):
             allowed_service=principal_service,
             external_id=external_id,
             trusted_relationships=trust_rltn,
-            permissions_boundary=permissions_boundary)
+            permissions_boundary=permissions_boundary,
+            tags=tags)
         waiter = self.iam_conn.get_waiter('role_exists')
         waiter.wait(RoleName=name)
         if instance_profile:

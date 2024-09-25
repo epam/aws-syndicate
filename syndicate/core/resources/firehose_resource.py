@@ -48,7 +48,8 @@ class FirehoseResource(BaseResource):
         arn = self.connection.create_delivery_stream(
             stream_name=name, s3_configuration=s3_configuration,
             stream_type=stream_type,
-            kinesis_stream_source=kinesis_configuration)
+            kinesis_stream_source=kinesis_configuration,
+            tags=meta.get('tags'))
         _LOG.info(f'Created firehose stream {arn}')
         return self.describe_stream(name=name, meta=meta, arn=arn)
 
