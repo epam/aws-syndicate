@@ -59,8 +59,8 @@ class TagsApiResource:
             arns.append(arn)
         return arns
 
-    def apply_tags(self, output: dict):
-        if not self.tags:
+    def apply_tags(self, tags: dict, output: dict):
+        if not tags:
             USER_LOG.info('No tags are specified in config. Skipping...')
             return
         arns = self._extract_arns(output)
@@ -68,17 +68,16 @@ class TagsApiResource:
         with ThreadPoolExecutor() as executor:
             futures = [
                 executor.submit(self.connection.tag_resources, batch,
-                                self.tags) for batch in chunks(arns, 20)
+                                tags) for batch in chunks(arns, 20)
             ]
             for future in as_completed(futures):
                 failed = future.result()
                 if failed:
                     failed_arns.extend(failed.keys())
         if not failed_arns:
-            USER_LOG.info(f'Tags: {self.tags} were successfully applied to '
-                          f'all resources')
+            _LOG.info(f'Tags were successfully applied.')
         else:
-            USER_LOG.warn(f'Couldn\'t apply tags for resources: '
+            USER_LOG.warn(f'Can\'t apply tags for resources: '
                           f'{failed_arns}')
 
     def remove_tags(self, output: dict):
@@ -105,19 +104,34 @@ class TagsApiResource:
                           f'{failed_arns}')
 
     def apply_post_deployment_tags(self, output: dict):
-        for arn, res_output in output.items():
-            res_type = res_output['resource_meta']['resource_type']
-            res_name = res_output['resource_name']
-            if res_type in self.post_deploy_tagging_types:
-                tags = res_output['resource_meta'].get('tags')
-                if not tags:
-                    continue
-                failure = self.connection.tag_resources([arn], tags)
-                if failure:
-                    USER_LOG.warn(
-                        f'Resource "{res_name}" was not tagged. The next '
-                        f'error occurred "{failure['string']['ErrorMessage']}"')
-                else:
-                    _LOG.info(f'Resource {res_name} was tagged successfully')
+        output = {k: v for k, v in output.items() if
+                  v['resource_meta']['resource_type'] in
+                  self.post_deploy_tagging_types}
 
+        to_tag_list = self._group_output_by_tags(output)
+        for res_group in to_tag_list:
+            group_tags, group_output = res_group
+            self.apply_tags(group_tags, group_output)
 
+    @staticmethod
+    def _group_output_by_tags(output: dict) -> list[tuple]:
+        result = []
+        for res_meta in output.values():
+            if res_meta['resource_meta'].get('tags'):
+                res_meta['resource_meta']['tags'] = dict(
+                    sorted(res_meta['resource_meta']['tags'].items()))
+
+        tags_list = [v['resource_meta']['tags'] for v in
+                     output.values() if v['resource_meta'].get('tags')]
+        tags_ids = set([frozenset(tags.items()) for tags in tags_list])
+
+        for tags_id in tags_ids:
+            for tags in tags_list:
+                if tags_id == frozenset(tags.items()):
+                    res_tags = tags
+                    break
+            res_group = {k: v for k, v in output.items() if
+                         tags_id == frozenset(
+                             v['resource_meta'].get('tags', {}).items())}
+            result.append((res_tags, res_group))
+        return result
