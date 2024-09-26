@@ -59,21 +59,19 @@ class TagsApiResource:
             arns.append(arn)
         return arns
 
-    def apply_tags(self, tags: dict, output: dict):
-        if not tags:
-            USER_LOG.info('No tags are specified in config. Skipping...')
-            return
-        arns = self._extract_arns(output)
+    def apply_tags(self, output: dict):
         failed_arns = []
-        with ThreadPoolExecutor() as executor:
-            futures = [
-                executor.submit(self.connection.tag_resources, batch,
-                                tags) for batch in chunks(arns, 20)
-            ]
-            for future in as_completed(futures):
-                failed = future.result()
-                if failed:
-                    failed_arns.extend(failed.keys())
+        for tags, res_group in self._group_output_by_tags(output):
+            arns = self._extract_arns(res_group)
+            with ThreadPoolExecutor() as executor:
+                futures = [
+                    executor.submit(self.connection.tag_resources, batch,
+                                    tags) for batch in chunks(arns, 20)
+                ]
+                for future in as_completed(futures):
+                    failed = future.result()
+                    if failed:
+                        failed_arns.extend(failed.keys())
         if not failed_arns:
             _LOG.info(f'Tags were successfully applied.')
         else:
@@ -107,11 +105,7 @@ class TagsApiResource:
         output = {k: v for k, v in output.items() if
                   v['resource_meta']['resource_type'] in
                   self.post_deploy_tagging_types}
-
-        to_tag_list = self._group_output_by_tags(output)
-        for res_group in to_tag_list:
-            group_tags, group_output = res_group
-            self.apply_tags(group_tags, group_output)
+        self.apply_tags(output)
 
     @staticmethod
     def _group_output_by_tags(output: dict) -> list[tuple]:
