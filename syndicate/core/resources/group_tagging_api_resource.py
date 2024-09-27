@@ -18,7 +18,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.connection import ResourceGroupsTaggingAPIConnection
 from syndicate.core.constants import LAMBDA_TYPE, SWAGGER_UI_TYPE, \
-    EC2_LAUNCH_TEMPLATE_TYPE, TAGS_RESOURCE_TYPE_CONFIG
+    TAGS_RESOURCE_TYPE_CONFIG
 from syndicate.core.resources.helper import chunks
 
 _LOG = get_logger('syndicate.core.resources.group_tagging_api_resource')
@@ -50,7 +50,7 @@ class TagsApiResource:
         _LOG.info(f'Extracting and processing arns from output')
         for arn, meta in output.items():
             resource_type = meta['resource_meta']['resource_type']
-            if resource_type in [SWAGGER_UI_TYPE, EC2_LAUNCH_TEMPLATE_TYPE]:
+            if resource_type in [SWAGGER_UI_TYPE]:
                 continue
             processor_func = self.resource_type_to_preprocessor_mapping.get(
                 resource_type)
@@ -79,26 +79,23 @@ class TagsApiResource:
                           f'{failed_arns}')
 
     def remove_tags(self, output: dict):
-        if not self.tags:
-            USER_LOG.info('No tags are specified in config. Skipping...')
-            return
-        arns = self._extract_arns(output)
         failed_arns = []
-        with ThreadPoolExecutor() as executor:
-            futures = [
-                executor.submit(
-                    self.connection.untag_resources, batch,
-                    list(self.tags.keys())) for batch in chunks(arns, 20)
-            ]
-            for future in as_completed(futures):
-                failed = future.result()
-                if failed:
-                    failed_arns.extend(failed.keys())
+        for tags, res_group in self._group_output_by_tags(output):
+            arns = self._extract_arns(res_group)
+            with ThreadPoolExecutor() as executor:
+                futures = [
+                    executor.submit(
+                        self.connection.untag_resources, batch,
+                        list(tags.keys())) for batch in chunks(arns, 20)
+                ]
+                for future in as_completed(futures):
+                    failed = future.result()
+                    if failed:
+                        failed_arns.extend(failed.keys())
         if not failed_arns:
-            USER_LOG.info(f'Tags {list(self.tags.keys())} were successfully '
-                          f'removed from all resources')
+            USER_LOG.info(f'Tags were successfully removed from all resources')
         else:
-            USER_LOG.warn(f'Couldn\'t remove tags from resources: '
+            USER_LOG.warn(f'Can\'t remove tags from resources: '
                           f'{failed_arns}')
 
     def apply_post_deployment_tags(self, output: dict):
@@ -106,6 +103,38 @@ class TagsApiResource:
                   v['resource_meta']['resource_type'] in
                   self.post_deploy_tagging_types}
         self.apply_tags(output)
+
+    def update_tags(self, old_output: dict, new_output: dict):
+        failed_arns = []
+        for arn, res_meta in new_output.items():
+            res_type = res_meta['resource_meta']['resource_type']
+            old_res_meta = old_output.get(arn)
+            old_res_tags = old_res_meta['resource_meta'].get('tags', {})
+            new_res_tags = res_meta['resource_meta'].get('tags', {})
+            to_tag = {k: v for k, v in new_res_tags.items()
+                      if k not in old_res_tags.keys() or
+                      v != old_res_tags.get(k)}
+            to_untag = [k for k in old_res_tags.keys()
+                        if k not in new_res_tags.keys()]
+            preprocess_arn = self.resource_type_to_preprocessor_mapping.get(
+                res_type)
+            if preprocess_arn:
+                arn = preprocess_arn(arn, res_meta)
+
+            if to_tag:
+                failed_tag = self.connection.tag_resources([arn], to_tag)
+                if failed_tag:
+                    failed_arns.append(arn)
+
+            if to_untag:
+                failed_untag = self.connection.untag_resources([arn], to_untag)
+                if failed_untag:
+                    failed_arns.append(arn)
+            if failed_arns:
+                USER_LOG.warn(f'Can\'t update tags for resources '
+                              f'{list(set(failed_arns))}.')
+            else:
+                _LOG.info('Tags were updated successfully')
 
     @staticmethod
     def _group_output_by_tags(output: dict) -> list[tuple]:

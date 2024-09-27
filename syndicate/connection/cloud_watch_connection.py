@@ -68,12 +68,14 @@ class LogsConnection(object):
                                             destinationArn=lambda_arn)
 
     def create_log_group_with_retention_days(self, group_name: str,
-                                             retention_in_days: int):
+                                             retention_in_days: int,
+                                             tags: dict = None):
         """ Creates a log group for provided lambda function and sets
         the retention .
 
         :type group_name: str
         :type retention_in_days: int
+        :type tags: dict
         """
 
         if retention_in_days == 0:
@@ -87,7 +89,12 @@ class LogsConnection(object):
             retention_in_days = DEFAULT_LOGS_EXPIRATION
 
         log_group_name = get_lambda_log_group_name(group_name)
-        self.client.create_log_group(logGroupName=log_group_name)
+        params = dict(
+            logGroupName=log_group_name
+        )
+        if tags:
+            params['tags'] = tags
+        self.client.create_log_group(**params)
         self.client.put_retention_policy(
             logGroupName=log_group_name,
             retentionInDays=retention_in_days

@@ -25,7 +25,7 @@ from syndicate.core.build.bundle_processor import create_deploy_output, \
     remove_failed_deploy_output, load_latest_deploy_output
 from syndicate.core.build.meta_processor import resolve_meta, \
     populate_s3_paths, resolve_resource_name, get_meta_from_output, \
-    resolve_tags
+    resolve_tags, preprocess_tags
 from syndicate.core.constants import (BUILD_META_FILE_NAME,
                                       CLEAN_RESOURCE_TYPE_PRIORITY,
                                       DEPLOY_RESOURCE_TYPE_PRIORITY,
@@ -449,7 +449,7 @@ def create_deployment_resources(deploy_name, bundle_name,
             USER_LOG.info('Going to create deploy output')
             create_deploy_output(bundle_name=bundle_name,
                                  deploy_name=deploy_name,
-                                 output={**output, **latest_deploy_output},
+                                 output={**latest_deploy_output, **output},
                                  success=success,
                                  replace_output=replace_output)
     else:
@@ -466,7 +466,7 @@ def create_deployment_resources(deploy_name, bundle_name,
         USER_LOG.info('Going to create deploy output')
         create_deploy_output(bundle_name=bundle_name,
                              deploy_name=deploy_name,
-                             output={**output, **latest_deploy_output},
+                             output={**latest_deploy_output, **output},
                              success=success,
                              replace_output=replace_output)
 
@@ -517,6 +517,7 @@ def update_deployment_resources(bundle_name, deploy_name, replace_output=False,
     _LOG.debug('Names were resolved')
     resources = populate_s3_paths(resources, bundle_name)
     _LOG.debug('Artifacts s3 paths were resolved')
+    resolve_tags(resources)
 
     USER_LOG.warn(
         'Please pay attention that only the '
@@ -546,9 +547,13 @@ def update_deployment_resources(bundle_name, deploy_name, replace_output=False,
 
     success, output = update_resources(resources_list, old_resources)
 
+    _LOG.info('Going to updates tags')
+    preprocess_tags(output)
+    _update_tags(old_output, output)
+
     create_deploy_output(bundle_name=bundle_name,
                          deploy_name=deploy_name,
-                         output={**output, **old_output},
+                         output={**old_output, **output},
                          success=success,
                          replace_output=replace_output)
     if success:
@@ -680,6 +685,12 @@ def _apply_post_deployment_tags(output: dict):
     from syndicate.core import RESOURCES_PROVIDER
     tags_resource = RESOURCES_PROVIDER.tags_api()
     tags_resource.apply_post_deployment_tags(output)
+
+
+def _update_tags(old_output: dict, new_output: dict):
+    from syndicate.core import RESOURCES_PROVIDER
+    tags_resource = RESOURCES_PROVIDER.tags_api()
+    tags_resource.update_tags(old_output, new_output)
 
 
 def compare_deploy_resources(first, second):

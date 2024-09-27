@@ -567,6 +567,35 @@ def resolve_tags(meta: dict) -> None:
         res_meta['tags'] = overall_tags
 
 
+def preprocess_tags(output: dict):
+    for item in output.values():
+        res_meta = item['resource_meta']
+        tags = res_meta.get('tags')
+
+        match tags:
+            case tags if isinstance(tags, dict):
+                continue
+            case tags if isinstance(tags, list):
+                res_meta['tags'] = _tags_to_dict(tags)
+            case _:
+                res_meta.pop('tags', None)
+
+
+def _tags_to_dict(tags: list) -> dict:
+    result = {}
+    for tag in tags:
+        tag_key = None
+        tag_value = ''
+        for k, v in tag.items():
+            if k.lower() == 'key':
+                tag_key = v
+            if k.lower() == 'value':
+                tag_value = v
+        if tag_key is not None:
+            result.update({tag_key: tag_value})
+    return result
+
+
 def _format_tags(res_type: str, tags: dict) -> dict | list:
     match res_type:
         case res_type if (res_type in
@@ -575,6 +604,9 @@ def _format_tags(res_type: str, tags: dict) -> dict | list:
         case res_type if (res_type in
                           TAGS_RESOURCE_TYPE_CONFIG['lover_case_keys_list']):
             return [{'key': k, 'value': v} for k, v in tags.items()]
+        case res_type if res_type in TAGS_RESOURCE_TYPE_CONFIG['untaggable']:
+            _LOG.debug(f'The resource type {res_type} can not be tagged')
+            return {}
         case _:
             return tags
 

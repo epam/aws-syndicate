@@ -1359,7 +1359,8 @@ class LambdaResource(BaseResource):
             if retention:
                 self.cw_logs_conn.create_log_group_with_retention_days(
                     group_name=lambda_name,
-                    retention_in_days=retention
+                    retention_in_days=retention,
+                    tags=meta.get('tags')
                 )
 
     def _resolve_env_variables(self, env_vars):
