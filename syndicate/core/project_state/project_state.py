@@ -30,7 +30,7 @@ from syndicate.core.constants import BUILD_ACTION, \
     ABORTED_STATUS, SUCCEEDED_STATUS, FAILED_STATUS
 from syndicate.core.constants import DATE_FORMAT_ISO_8601
 from syndicate.core.groups import RUNTIME_JAVA, RUNTIME_NODEJS, RUNTIME_PYTHON, \
-    RUNTIME_SWAGGER_UI
+    RUNTIME_SWAGGER_UI, RUNTIME_DOTNET
 
 CAPITAL_LETTER_REGEX = '[A-Z][^A-Z]*'
 
@@ -55,6 +55,7 @@ BUILD_MAPPINGS = {
     RUNTIME_JAVA: 'jsrc/main/java',
     RUNTIME_PYTHON: 'src',
     RUNTIME_NODEJS: 'app',
+    RUNTIME_DOTNET: 'dnapp',
     RUNTIME_SWAGGER_UI: 'swagger_src'
 }
 

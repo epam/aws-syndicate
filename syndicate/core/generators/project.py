@@ -29,7 +29,7 @@ from syndicate.core.generators.contents import (_get_lambda_default_policy,
                                                 GITIGNORE_CONTENT,
                                                 README_TEMPLATE)
 from syndicate.core.groups import (RUNTIME_JAVA, RUNTIME_NODEJS,
-                                   RUNTIME_PYTHON)
+                                   RUNTIME_PYTHON, RUNTIME_DOTNET)
 
 _LOG = get_logger('syndicate.core.generators.project')
 
@@ -107,4 +107,5 @@ PROJECT_PROCESSORS = {
     RUNTIME_JAVA: _generate_java_project_hierarchy,
     RUNTIME_NODEJS: _generate_nodejs_project_hierarchy,
     RUNTIME_PYTHON: _generate_python_project_hierarchy,
+    RUNTIME_DOTNET: 'pass'
 }

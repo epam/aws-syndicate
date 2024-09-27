@@ -26,6 +26,7 @@ from syndicate.core.build.runtime.swagger_ui import assemble_swagger_ui
 RUNTIME_JAVA = 'javaX'
 RUNTIME_NODEJS = 'nodejs20.x'
 RUNTIME_PYTHON = 'pythonX'
+RUNTIME_DOTNET = 'dotnet8'
 RUNTIME_SWAGGER_UI = 'swagger_ui'
 
 SUPPORTED_RUNTIMES = [

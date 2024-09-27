@@ -16,6 +16,7 @@
 RUNTIME_JAVA = 'java'
 RUNTIME_NODEJS = 'nodejs'
 RUNTIME_PYTHON = 'python'
+RUNTIME_DOTNET = 'dotnet'
 RUNTIME_SWAGGER_UI = 'swagger_ui'
 RUNTIME = 'runtime'
 RUNTIME_PYTHON_LAYER = 'python_layer'
