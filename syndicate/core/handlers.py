@@ -31,7 +31,8 @@ from syndicate.core.build.artifact_processor import (RUNTIME_NODEJS,
                                                      assemble_artifacts,
                                                      RUNTIME_JAVA,
                                                      RUNTIME_PYTHON,
-                                                     RUNTIME_SWAGGER_UI)
+                                                     RUNTIME_SWAGGER_UI,
+                                                     RUNTIME_DOTNET)
 from syndicate.core.build.bundle_processor import (create_bundles_bucket,
                                                    load_bundle,
                                                    upload_bundle_to_s3,
@@ -50,7 +51,8 @@ from syndicate.core.build.warmup_processor import (process_deploy_resources,
 from syndicate.core.conf.validator import (JAVA_LANGUAGE_NAME,
                                            PYTHON_LANGUAGE_NAME,
                                            NODEJS_LANGUAGE_NAME,
-                                           SWAGGER_UI_NAME)
+                                           SWAGGER_UI_NAME,
+                                           DOTNET_LANGUAGE_NAME)
 from syndicate.core.decorators import (check_deploy_name_for_duplicates,
                                        check_deploy_bucket_exists)
 from syndicate.core.groups.generate import (generate,
@@ -76,7 +78,7 @@ from syndicate.core.constants import TEST_ACTION, BUILD_ACTION, \
     ASSEMBLE_PYTHON_ACTION, ASSEMBLE_NODE_ACTION, ASSEMBLE_ACTION, \
     PACKAGE_META_ACTION, CREATE_DEPLOY_TARGET_BUCKET_ACTION, UPLOAD_ACTION, \
     COPY_BUNDLE_ACTION, EXPORT_ACTION, ASSEMBLE_SWAGGER_UI_ACTION, \
-    ABORTED_STATUS
+    ABORTED_STATUS, ASSEMBLE_DOTNET_ACTION
 
 INIT_COMMAND_NAME = 'init'
 SYNDICATE_PACKAGE_NAME = 'aws-syndicate'
@@ -637,7 +639,7 @@ def assemble_java_mvn(bundle_name, project_path, force_upload):
     \f
     :param bundle_name: name of the bundle
     :param project_path: path to project folder
-    :force_upload: force upload identification
+    :param force_upload: force upload identification
     :return:
     """
     click.echo(f'Command compile java project path: {project_path}')
@@ -677,7 +679,7 @@ def assemble_python(bundle_name, project_path, force_upload):
     \f
     :param bundle_name: name of the bundle
     :param project_path: path to project folder
-    :force_upload: force upload identification
+    :param force_upload: force upload identification
     :return:
     """
     click.echo(f'Command assemble python: project_path: {project_path} ')
@@ -715,7 +717,7 @@ def assemble_node(bundle_name, project_path, force_upload):
     \f
     :param bundle_name: name of the bundle
     :param project_path: path to project folder
-    :force_upload: force upload identification
+    :param force_upload: force upload identification
     :return:
     """
     click.echo(f'Command assemble node: project_path: {project_path} ')
@@ -725,6 +727,44 @@ def assemble_node(bundle_name, project_path, force_upload):
                        force_upload=force_upload
                        )
     click.echo('NodeJS artifacts were prepared successfully.')
+
+
+@syndicate.command(name=ASSEMBLE_DOTNET_ACTION)
+@timeit()
+@click.option('--bundle_name', '-b', nargs=1,
+              callback=generate_default_bundle_name,
+              help='Name of the bundle, to which the build artifacts are '
+                   'gathered and later used for the deployment. '
+                   'Default value: $ProjectName_%Y%m%d.%H%M%S')
+@click.option('--project_path', '-path', nargs=1,
+              callback=resolve_path_callback, required=True,
+              help='The path to the NodeJS project. The code is '
+                   'packed to a zip archive, where the external libraries are '
+                   'found, which are described in the package.json file')
+@click.option('--force_upload', '-fu', nargs=1,
+              default=False, required=False,
+              help='Identifier that indicates whether a locally existing'
+                   ' bundle should be deleted and a new one created using'
+                   ' the same path.')
+@verbose_option
+@timeit(action_name=ASSEMBLE_DOTNET_ACTION)
+def assemble_dotnet(bundle_name, project_path, force_upload):
+    """
+    Builds DotNet lambdas
+
+    \f
+    :param bundle_name: name of the bundle
+    :param project_path: path to project folder
+    :param force_upload: force upload identification
+    :return:
+    """
+    click.echo(f'Command assemble dotnet: project_path: {project_path} ')
+    assemble_artifacts(bundle_name=bundle_name,
+                       project_path=project_path,
+                       runtime=RUNTIME_DOTNET,
+                       force_upload=force_upload
+                       )
+    click.echo('DotNet artifacts were prepared successfully.')
 
 
 @syndicate.command(name=ASSEMBLE_SWAGGER_UI_ACTION)
@@ -762,6 +802,7 @@ RUNTIME_LANG_TO_BUILD_MAPPING = {
     JAVA_LANGUAGE_NAME: assemble_java_mvn,
     PYTHON_LANGUAGE_NAME: assemble_python,
     NODEJS_LANGUAGE_NAME: assemble_node,
+    DOTNET_LANGUAGE_NAME: assemble_dotnet,
     SWAGGER_UI_NAME: assemble_swagger_ui
 }
 
