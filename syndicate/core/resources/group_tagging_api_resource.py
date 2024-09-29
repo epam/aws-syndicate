@@ -43,7 +43,13 @@ class TagsApiResource:
         processed_arn = arn[:arn.index(lambda_name) + len(lambda_name)]
         _LOG.debug(f'Processing lambda\'s arn from \'{arn}\' '
                    f'to \'{processed_arn}\'')
-        return processed_arn
+        lambda_arn_params = processed_arn.split(':')
+        cw_lg_arn = (f'arn:aws:logs:{lambda_arn_params[3]}:'
+                     f'{lambda_arn_params[4]}:log-group:/aws/lambda/'
+                     f'{lambda_name}')
+        _LOG.debug(f'For lambda \'{lambda_name}\' resolved CloudWatch logs '
+                   f'group ARN \'{cw_lg_arn}\'')
+        return [processed_arn, cw_lg_arn]
 
     def _extract_arns(self, output: dict) -> list:
         arns = []
@@ -56,7 +62,10 @@ class TagsApiResource:
                 resource_type)
             if processor_func:
                 arn = processor_func(arn, meta)
-            arns.append(arn)
+            if isinstance(arn, list):
+                arns.extend(arn)
+            else:
+                arns.append(arn)
         return arns
 
     def apply_tags(self, output: dict):
@@ -107,6 +116,7 @@ class TagsApiResource:
     def update_tags(self, old_output: dict, new_output: dict):
         failed_arns = []
         for arn, res_meta in new_output.items():
+            arns = []
             res_type = res_meta['resource_meta']['resource_type']
             old_res_meta = old_output.get(arn)
             old_res_tags = old_res_meta['resource_meta'].get('tags', {})
@@ -121,18 +131,23 @@ class TagsApiResource:
             if preprocess_arn:
                 arn = preprocess_arn(arn, res_meta)
 
+            if isinstance(arn, list):
+                arns.extend(arn)
+            else:
+                arns.append(arn)
+
             if to_tag:
-                failed_tag = self.connection.tag_resources([arn], to_tag)
+                failed_tag = self.connection.tag_resources(arns, to_tag)
                 if failed_tag:
                     failed_arns.append(arn)
 
             if to_untag:
-                failed_untag = self.connection.untag_resources([arn], to_untag)
+                failed_untag = self.connection.untag_resources(arns, to_untag)
                 if failed_untag:
                     failed_arns.append(arn)
             if failed_arns:
                 USER_LOG.warn(f'Can\'t update tags for resources '
-                              f'{list(set(failed_arns))}.')
+                              f'{failed_arns}.')
             else:
                 _LOG.info('Tags were updated successfully')
 
