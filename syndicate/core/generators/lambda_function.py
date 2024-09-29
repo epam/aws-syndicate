@@ -676,7 +676,6 @@ COMMON_MODULE_PROCESSORS = {
     RUNTIME_DOTNET: _common_dotnet_module,
     RUNTIME_PYTHON_LAYER: _common_python_nodejs_layer_module,
     RUNTIME_NODEJS_LAYER: _common_python_nodejs_layer_module,
-    RUNTIME_DOTNET_LAYER: _common_python_nodejs_layer_module
 
 }
 

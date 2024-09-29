@@ -64,19 +64,6 @@ def assemble_dotnet_lambdas(project_path, bundles_dir):
     futures = []
     for root, sub_dirs, files in os.walk(project_abs_path):
         for item in files:
-            if item.endswith(LAMBDA_LAYER_CONFIG_FILE_NAME):
-                _LOG.info(f'Going to build lambda layer in: {root}')
-                arg = {
-                    'layer_root': root,
-                    'target_folder': bundles_dir
-                }
-                futures.append(executor.submit(build_dotnet_lambda_layer, arg))
-
-    for future in concurrent.futures.as_completed(futures):
-        _LOG.info(future.result())
-    futures = []
-    for root, sub_dirs, files in os.walk(project_abs_path):
-        for item in files:
             if item.endswith(LAMBDA_CONFIG_FILE_NAME):
                 _LOG.info(f'Going to build artifact in: {root}')
                 arg = {
@@ -103,7 +90,6 @@ def _build_dotnet_artifact(item, root, target_folder):
     validate_params(root, lambda_config_dict, req_params)
     lambda_name = lambda_config_dict['name']
     lambda_version = lambda_config_dict['version']
-    lambda_layers = lambda_config_dict.get('layers', [])
     package_name = build_py_package_name(lambda_name, lambda_version)
     artifact_path = str(Path(target_folder, package_name))
     tmp_output = build_path(target_folder, BUILD_DIR_TMP, LAMBDA_DIR, root)
@@ -114,20 +100,6 @@ def _build_dotnet_artifact(item, root, target_folder):
         '--msbuild-parameters', f'-p:output={tmp_output}'
     ]
 
-    if lambda_layers:
-        if len(lambda_layers) > 1:
-            raise AssertionError(
-                f'Currently lambdas with runtime dotnet support linking with '
-                f'one layer only! Lambda with name {lambda_name} has '
-                f'{len(lambda_layers)} layers linked.'
-            )
-
-        layer_name = lambda_layers[0]
-        layer_package_store = build_path(
-            target_folder, BUILD_DIR_TMP, LAYER_DIR,
-            layer_name, STORE_DIR)
-        command.append(f'-p:manifest={layer_package_store}')
-
     exit_code, stdout, stderr = run_external_command(command)
     if exit_code != 0:
         raise RuntimeError(
@@ -135,41 +107,6 @@ def _build_dotnet_artifact(item, root, target_folder):
             f'Details:\n{stdout}\n{stderr}'
         )
     _clean_tmp_files(root, BUILD_LAMBDA_TMP_DIRS)
-
-
-@unpack_kwargs
-def build_dotnet_lambda_layer(layer_root: str, target_folder: str):
-    with open(Path(layer_root, LAMBDA_LAYER_CONFIG_FILE_NAME), 'r') as file:
-        layer_config = json.load(file)
-
-    layer_name = layer_config['name']
-    validate_params(layer_root, layer_config, ['name', 'deployment_package'])
-    package_name = zip_ext(layer_config['deployment_package'])
-    store_output_path = build_path(target_folder, BUILD_DIR_TMP,
-                                   LAYER_DIR, layer_name, STORE_DIR)
-    _LOG.info(f'Packaging artifacts {package_name}')
-    _create_runtime_package_store(layer_name, layer_root, store_output_path)
-    zip_dir(build_path(store_output_path, X64_DIR, NET_8_0_DIR),
-            build_path(target_folder, package_name))
-    _clean_tmp_files(layer_root, BUILD_LAYER_TMP_DIRS)
-
-
-def _create_runtime_package_store(layer_name: str, layer_root: str,
-                                  output_path: str):
-    create_store_command = [
-        'dotnet', 'store', '--skip-optimization',
-        '--manifest', f'{layer_root}/packages.csproj',
-        '--framework', 'net8.0',
-        '--runtime', 'linux-x64',
-        '--output', output_path
-    ]
-
-    exit_code, stdout, stderr = run_external_command(create_store_command)
-    if exit_code != 0:
-        raise RuntimeError(
-            f'An error occurred during lambda layer {layer_name} packaging. '
-            f'Details:\n{stdout}\n{stderr}'
-        )
 
 
 def _check_dotnet_is_installed():
