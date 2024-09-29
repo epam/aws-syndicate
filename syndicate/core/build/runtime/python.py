@@ -29,7 +29,8 @@ from pathlib import Path
 from typing import Union, Optional, List, Set
 
 from syndicate.commons.log_helper import get_logger, get_user_logger
-from syndicate.core.build.helper import build_py_package_name, zip_dir
+from syndicate.core.build.helper import build_py_package_name, zip_dir, \
+    remove_dir
 from syndicate.core.conf.processor import path_resolver
 from syndicate.core.constants import (LAMBDA_CONFIG_FILE_NAME, DEFAULT_SEP,
                                       REQ_FILE_NAME, LOCAL_REQ_FILE_NAME,
@@ -86,18 +87,6 @@ def assemble_python_lambdas(project_path, bundles_dir):
             print(f'\033[91m' + str(exception), file=sys.stderr)
             sys.exit(1)
     _LOG.info('Python project was processed successfully')
-
-
-def remove_dir(path: Union[str, Path]):
-    removed = False
-    while not removed:
-        _LOG.info(f'Trying to remove "{path}"')
-        try:
-            shutil.rmtree(path)
-            removed = True
-        except Exception as e:
-            _LOG.warn(f'An error "{e}" occurred while '
-                      f'removing artifacts "{path}"')
 
 
 @unpack_kwargs

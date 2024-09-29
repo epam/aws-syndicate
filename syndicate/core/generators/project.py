@@ -103,9 +103,13 @@ def _generate_nodejs_project_hierarchy(full_project_path, project_name=None):
     _mkdir(os.path.join(full_project_path, FOLDER_COMMONS), exist_ok=True)
 
 
+def _generate_dotnet_project_hierarchy(full_project_path, project_name=None):
+    _mkdir(os.path.join(full_project_path, FOLDER_LAMBDAS), exist_ok=True)
+
+
 PROJECT_PROCESSORS = {
     RUNTIME_JAVA: _generate_java_project_hierarchy,
     RUNTIME_NODEJS: _generate_nodejs_project_hierarchy,
     RUNTIME_PYTHON: _generate_python_project_hierarchy,
-    RUNTIME_DOTNET: 'pass'
+    RUNTIME_DOTNET: _generate_dotnet_project_hierarchy
 }

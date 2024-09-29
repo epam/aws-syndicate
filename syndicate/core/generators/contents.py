@@ -246,6 +246,17 @@ DOTNET_LAMBDA_CSPROJ_TEMPLATE = """<Project Sdk="Microsoft.NET.Sdk">
 </Project>
 """
 
+DOTNET_LAMBDA_LAYER_CSPROJ_TEMPLATE = '''<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Project packages here" Version="0.0.0" />
+  </ItemGroup>
+</Project>
+
+'''
+
 GITIGNORE_CONTENT = """.syndicate
 logs/
 .syndicate-config-*/
