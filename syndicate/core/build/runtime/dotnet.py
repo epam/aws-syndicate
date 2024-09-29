@@ -16,6 +16,7 @@
 import concurrent
 import json
 import os
+import sys
 
 from concurrent.futures.thread import ThreadPoolExecutor
 from pathlib import Path
@@ -110,12 +111,16 @@ def _build_dotnet_artifact(item, root, target_folder):
 
 
 def _check_dotnet_is_installed():
-    exit_code, _, _ = run_external_command(CHECK_DOTNET_INSTALLED_COMMAND)
-    if exit_code != 0:
-        raise AssertionError(
-            'dotnet SDK is not installed. There is no ability to build '
-            'DotNet bundle. Please, install dotnet SDK and retry to build a '
-            'bundle.')
+    try:
+        exit_code, _, _ = run_external_command(CHECK_DOTNET_INSTALLED_COMMAND)
+    except Exception as e:
+        _LOG.debug(f'An error occurred during checking dotnet SDK '
+                   f'installed\n{e}')
+        USER_LOG.error(
+            'It seems like the dotnet SDK is not installed. There is no '
+            'ability to build a DotNet bundle. Please, make sure dotnet SDK '
+            'is installed and retry to build a bundle.')
+        sys.exit(1)
 
 
 def _check_amazon_lambda_tools_is_installed():
