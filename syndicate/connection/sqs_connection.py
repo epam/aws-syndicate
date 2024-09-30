@@ -44,7 +44,7 @@ class SqsConnection(object):
                      redrive_policy=None, visibility_timeout=None,
                      kms_master_key_id=None,
                      kms_data_key_reuse_period_seconds=None, fifo_queue=False,
-                     content_based_deduplication=None):
+                     content_based_deduplication=None, tags=None):
         attributes = dict()
         if fifo_queue:
             attributes['FifoQueue'] = str(fifo_queue)
@@ -96,6 +96,8 @@ class SqsConnection(object):
             attributes[
                 'ContentBasedDeduplication'] = str(content_based_deduplication)
         params['Attributes'] = attributes
+        if tags:
+            params['tags'] = tags
         return self.client.create_queue(**params)
 
     def delete_queue(self, queue_url):

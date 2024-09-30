@@ -36,12 +36,17 @@ class SFConnection(object):
                              aws_session_token=aws_session_token)
         _LOG.debug('Opened new Step Functions connection.')
 
-    def create_state_machine(self, machine_name, definition, role_arn):
+    def create_state_machine(self, machine_name, definition, role_arn, tags):
         if isinstance(definition, dict):
             definition = dumps(definition)
-        return self.client.create_state_machine(name=machine_name,
-                                                definition=definition,
-                                                roleArn=role_arn)
+        params = dict(
+            name=machine_name,
+            definition=definition,
+            roleArn=role_arn
+        )
+        if tags:
+            params['tags'] = tags
+        return self.client.create_state_machine(**params)
 
     def describe_state_machine(self, arn):
         try:
@@ -91,7 +96,12 @@ class SFConnection(object):
     def stop_execution(self, execution_arn):
         return self.client.stop_execution(executionArn=execution_arn)
 
-    def create_activity(self, name):
+    def create_activity(self, name, tags):
+        params = dict(
+            name=name
+        )
+        if tags:
+            params['tags'] = tags
         return self.client.create_activity(name=name)
 
     def describe_activity(self, arn):

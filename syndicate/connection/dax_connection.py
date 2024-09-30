@@ -39,7 +39,8 @@ class DaxConnection:
                        cluster_endpoint_encryption_type: str = 'TLS',
                        security_group_ids: list = None,
                        parameter_group_name: str = None,
-                       availability_zones: list = None):
+                       availability_zones: list = None,
+                       tags: list[dict] = None):
         params = dict(
             ClusterName=cluster_name,
             NodeType=node_type,
@@ -49,7 +50,8 @@ class DaxConnection:
             SecurityGroupIds=security_group_ids,
             ParameterGroupName=parameter_group_name,
             AvailabilityZones=availability_zones,
-            ClusterEndpointEncryptionType=cluster_endpoint_encryption_type
+            ClusterEndpointEncryptionType=cluster_endpoint_encryption_type,
+            Tags=tags
         )
         params = {key: value for key, value in params.items() if value}
         try:

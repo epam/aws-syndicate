@@ -109,6 +109,7 @@ class SqsResource(BaseResource):
         kms_master_key_id = meta.get('kms_master_key_id')
         kms_data_reuse_period = meta.get('kms_data_key_reuse_period_seconds')
         content_deduplication = meta.get('content_based_deduplication')
+        tags = meta.get('tags')
         params = dict(queue_name=resource_name,
                       delay_seconds=delay_sec,
                       maximum_message_size=max_mes_size,
@@ -120,7 +121,8 @@ class SqsResource(BaseResource):
                       kms_master_key_id=kms_master_key_id,
                       kms_data_key_reuse_period_seconds=kms_data_reuse_period,
                       fifo_queue=is_fifo,
-                      content_based_deduplication=content_deduplication)
+                      content_based_deduplication=content_deduplication,
+                      tags=tags)
         queue_url = self.sqs_conn_builder(region).create_queue(**params)[
             'QueueUrl']
         _LOG.info('Created SQS queue %s.', name)

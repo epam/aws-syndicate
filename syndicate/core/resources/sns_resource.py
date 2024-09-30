@@ -145,7 +145,8 @@ class SnsResource(BaseResource):
                 '{0} sns topic exists in region {1}.'.format(name, region))
             return self.describe_sns(name=name, meta=meta, region=region,
                                      arn=arn)
-        arn = self.connection_provider.sns(region).create_topic(name)
+        arn = self.connection_provider.sns(region).create_topic(
+            name, meta.get('tags'))
         event_sources = meta.get('event_sources')
         if event_sources:
             for trigger_meta in event_sources:

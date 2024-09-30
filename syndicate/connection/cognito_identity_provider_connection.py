@@ -40,7 +40,7 @@ class CognitoIdentityProviderConnection(object):
 
     def create_user_pool(self, pool_name, auto_verified_attributes=None,
                          sms_configuration=None, username_attributes=None,
-                         policies=None):
+                         policies=None, tags=None):
         """
         Crete Cognito user pool and get user pool id.
         """
@@ -53,6 +53,8 @@ class CognitoIdentityProviderConnection(object):
             params['UsernameAttributes'] = username_attributes
         if policies:
             params['Policies'] = policies
+        if tags:
+            params['UserPoolTags'] = tags
 
         response = self.client.create_user_pool(**params)
         return response['UserPool'].get('Id')

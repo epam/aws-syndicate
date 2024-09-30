@@ -35,12 +35,18 @@ class SNSConnection(object):
                              aws_session_token=aws_session_token)
         _LOG.debug('Opened new SNS connection.')
 
-    def create_topic(self, name):
+    def create_topic(self, name, tags):
         """ Crete SNS topic and return topic arn.
 
         :type name: str
+        :type tags: list
         """
-        return self.client.create_topic(Name=name)['TopicArn']
+        params = dict(
+            Name=name
+        )
+        if tags:
+            params['Tags'] = tags
+        return self.client.create_topic(**params)['TopicArn']
 
     def subscribe(self, endpoint, topic_name, protocol):
         """

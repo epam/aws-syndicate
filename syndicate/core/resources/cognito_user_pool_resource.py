@@ -114,7 +114,8 @@ class CognitoUserPoolResource(BaseResource):
         pool_id = self.connection.create_user_pool(
             pool_name=name, auto_verified_attributes=auto_verified_attributes,
             sms_configuration=sms_configuration,
-            username_attributes=username_attributes, policies=policies)
+            username_attributes=username_attributes, policies=policies,
+            tags=meta.get('tags'))
 
         custom_attributes = meta.get('custom_attributes')
         if custom_attributes:

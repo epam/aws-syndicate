@@ -141,9 +141,11 @@ class StepFunctionResource(BaseResource):
                 activity_arn = activity_info['activityArn']
                 del definition_copy['States'][key]['Activity']
                 definition_copy['States'][key]['Resource'] = activity_arn
-        machine_info = self.sf_conn.create_state_machine(machine_name=name,
-                                                         role_arn=role_arn,
-                                                         definition=definition_copy)
+        machine_info = self.sf_conn.create_state_machine(
+            machine_name=name,
+            role_arn=role_arn,
+            definition=definition_copy,
+            tags=meta.get('tags'))
 
         event_sources = meta.get('event_sources')
         if event_sources:
@@ -198,7 +200,8 @@ class StepFunctionResource(BaseResource):
             return {
                 arn: build_description_obj(response, name, meta)
             }
-        response = self.sf_conn.create_activity(name=name)
+        response = self.sf_conn.create_activity(name=name,
+                                                tags=meta.get('tags'))
         _LOG.info('Activity %s is created.', name)
         return {
             arn: build_description_obj(response, name, meta)

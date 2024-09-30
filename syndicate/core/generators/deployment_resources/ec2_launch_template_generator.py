@@ -23,7 +23,7 @@ class EC2LaunchTemplateGenerator(BaseDeploymentResourceGenerator):
         'imds_version': 'imds_support'
     }
 
-    NON_LT_DATA_KEYS = ['version_description']
+    NON_LT_DATA_KEYS = ['version_description', 'tags']
 
     def write(self):
         lt_data = dict()

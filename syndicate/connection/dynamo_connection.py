@@ -114,7 +114,7 @@ class DynamoConnection(object):
     def create_table(self, table_name, hash_key_name, hash_key_type,
                      sort_key_name=None, sort_key_type=None, read_throughput=None,
                      write_throughput=None, wait=True, global_indexes=None,
-                     local_indexes=None):
+                     local_indexes=None, tags=None):
         """ Table creation.
 
         :type table_name: str
@@ -127,6 +127,7 @@ class DynamoConnection(object):
         :type wait: bool
         :type global_indexes: dict
         :type local_indexes: dict
+        :type tags: list of dict
         :returns created table
         """
         params = dict()
@@ -175,6 +176,8 @@ class DynamoConnection(object):
             for index in local_indexes:
                 index_info = _build_index_definition(index)
                 params['LocalSecondaryIndexes'].append(index_info)
+        if tags:
+            params['Tags'] = tags
         table = self.conn.create_table(**params)
         if wait:
             waiter = table.meta.client.get_waiter('table_exists')

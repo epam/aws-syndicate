@@ -57,13 +57,15 @@ class ApiGatewayConnection(object):
     def create_rest_api(self, api_name,
                         binary_media_types=None,
                         description=None,
-                        clone_from=None):
+                        clone_from=None,
+                        tags=None):
         """
         :type api_name: str
         :type description: str
         :type binary_media_types: list
         :type clone_from: str
         :param clone_from: The ID of the RestApi that you want to clone from.
+        :param tags: dict The resource tags key-value pairs
         """
         params = dict(name=api_name)
         if description:
@@ -72,6 +74,8 @@ class ApiGatewayConnection(object):
             params['cloneFrom'] = clone_from
         if binary_media_types:
             params['binaryMediaTypes'] = binary_media_types
+        if tags:
+            params['tags'] = tags
         return self.client.create_rest_api(**params)
 
     def create_openapi(self, openapi_context):
@@ -783,12 +787,16 @@ class ApiGatewayV2Connection:
 
     def create_web_socket_api(self, name: str,
                               route_selection_expression: Optional[
-                                  str] = 'request.body.action') -> str:
-        return self.client.create_api(
+                                  str] = 'request.body.action',
+                              tags=None) -> str:
+        params = dict(
             Name=name,
             ProtocolType='WEBSOCKET',
             RouteSelectionExpression=route_selection_expression
-        )['ApiId']
+        )
+        if tags:
+            params['Tags'] = tags
+        return self.client.create_api(**params)['ApiId']
 
     def create_stage(self, api_id: str, stage_name: str):
         return self.client.create_stage(
