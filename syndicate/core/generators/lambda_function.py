@@ -38,10 +38,13 @@ from syndicate.core.generators.contents import (
     _generate_python_node_layer_config, REQUIREMENTS_FILE_CONTENT,
     LOCAL_REQUIREMENTS_FILE_CONTENT, _generate_node_layer_package_file,
     _generate_node_layer_package_lock_file, JAVA_TAG_ANNOTATION_TEMPLATE,
-    JAVA_TAGS_ANNOTATION_TEMPLATE, JAVA_TAGS_IMPORT)
+    JAVA_TAGS_ANNOTATION_TEMPLATE, JAVA_TAGS_IMPORT,
+    DOTNET_LAMBDA_HANDLER_TEMPLATE, DOTNET_LAMBDA_CSPROJ_TEMPLATE,
+    _generate_dotnet_lambda_config, DOTNET_LAMBDA_LAYER_CSPROJ_TEMPLATE)
 from syndicate.core.groups import (RUNTIME_JAVA, RUNTIME_NODEJS,
                                    RUNTIME_PYTHON, RUNTIME_PYTHON_LAYER,
-                                   RUNTIME_NODEJS_LAYER)
+                                   RUNTIME_NODEJS_LAYER, RUNTIME_DOTNET,
+                                   RUNTIME_DOTNET_LAYER)
 
 _LOG = get_logger('syndicate.core.generators.lambda_function')
 USER_LOG = get_user_logger()
@@ -59,6 +62,11 @@ FILE_LAYER_CONFIG = 'lambda_layer_config.json'
 
 FILE_REQUIREMENTS = 'requirements.txt'
 FILE_LOCAL_REQUIREMENTS = 'local_requirements.txt'
+
+FILE_DOTNET_FUNCTION = 'Function.cs'
+FILE_DOTNET_FUNCTION_CONFIG = 'Function.csproj'
+FILE_DOTNET_LAYER_PACKAGES = 'packages.csproj'
+
 
 LAMBDA_ROLE_NAME_PATTERN = '{0}-role'  # 0 - lambda_name
 POLICY_NAME_PATTERN = '{0}-policy'  # 0 - lambda_name
@@ -100,6 +108,18 @@ NODEJS_LAYER_FILES = [
     FILE_PACKAGE,
     FILE_PACKAGE_LOCK,
     FILE_LAYER_CONFIG
+]
+
+DOTNET_LAMBDA_FILES = [
+    FILE_DOTNET_FUNCTION,
+    FILE_DOTNET_FUNCTION_CONFIG,
+    FILE_LAMBDA_CONFIG,
+    FILE_DEPLOYMENT_RESOURCES
+]
+
+DOTNET_LAYER_FILES = [
+    FILE_LAYER_CONFIG,
+    FILE_DOTNET_LAYER_PACKAGES
 ]
 
 
@@ -165,7 +185,6 @@ def generate_lambda_layer(name, runtime, project_path, lambda_names=None):
         return
     project_state = ProjectState(project_path=project_path)
     src_path = os.path.join(project_path, BUILD_MAPPINGS[runtime])
-
     common_module_generator = COMMON_MODULE_PROCESSORS.get(runtime + '_layer')
     if not common_module_generator:
         raise AssertionError(f'The layer runtime {runtime} is not currently '
@@ -413,6 +432,58 @@ def _generate_nodejs_lambdas(**kwargs):
         _LOG.info(f'Lambda {lambda_name} created')
 
 
+def _generate_dotnet_lambdas(**kwargs):
+    lambdas_path = kwargs.get(LAMBDAS_PATH_PARAM)
+    lambda_names = kwargs.get(LAMBDA_NAMES_PARAM, [])
+    project_state = kwargs.get(PROJECT_STATE_PARAM)
+    tags = kwargs.get(TAGS_PARAM)
+
+    if not os.path.exists(lambdas_path):
+        _mkdir(lambdas_path, exist_ok=True)
+    for lambda_name in lambda_names:
+
+        lambda_folder = os.path.join(lambdas_path, lambda_name)
+
+        answer = _mkdir(
+            path=lambda_folder,
+            fault_message=f'\nLambda {lambda_name} already exists.\n'
+                          f'Override the Lambda function? [y/n]: ')
+        if not answer:
+            _LOG.info(CANCEL_MESSAGE.format(lambda_name))
+            continue
+
+        for file in DOTNET_LAMBDA_FILES:
+            _touch(Path(lambda_folder, file))
+
+        # fill Function.cs
+        _write_content_to_file(
+            os.path.join(lambda_folder, FILE_DOTNET_FUNCTION),
+            DOTNET_LAMBDA_HANDLER_TEMPLATE)
+
+        # fill Function.csproj
+        _write_content_to_file(os.path.join(
+            lambda_folder, FILE_DOTNET_FUNCTION_CONFIG),
+             DOTNET_LAMBDA_CSPROJ_TEMPLATE)
+
+        # fill deployment_resources.json
+        role_def = _generate_lambda_role_config(
+            LAMBDA_ROLE_NAME_PATTERN.format(lambda_name), tags)
+        _write_content_to_file(
+            os.path.join(lambda_folder, FILE_DEPLOYMENT_RESOURCES),
+            role_def)
+
+        # fill lambda_config.json
+        lambda_def = _generate_dotnet_lambda_config(
+            lambda_name,
+            os.path.join(FOLDER_LAMBDAS, lambda_name),
+            tags)
+        _write_content_to_file(os.path.join(lambda_folder, FILE_LAMBDA_CONFIG),
+                               lambda_def)
+        project_state.add_lambda(lambda_name=lambda_name,
+                                 runtime=RUNTIME_DOTNET)
+        _LOG.info(f'Lambda {lambda_name} created')
+
+
 def _generate_python_layer(**kwargs):
     layer_name = kwargs.get(LAYER_NAME_PARAM)
     layers_path = kwargs.get(LAYERS_PATH_PARAM)
@@ -471,6 +542,33 @@ def _generate_nodejs_layer(**kwargs):
                            _generate_node_layer_package_lock_file(layer_name))
 
 
+def _generate_dotnet_layer(**kwargs):
+    layer_name = kwargs.get(LAYER_NAME_PARAM)
+    layers_path = kwargs.get(LAYERS_PATH_PARAM)
+    runtime = kwargs.get(RUNTIME_PARAM)
+
+    layer_folder = os.path.join(layers_path, layer_name)
+    answer = _mkdir(
+        path=layer_folder,
+        fault_message=f'\nLayer \'{layer_name}\' already exists.\n'
+                      f'Override? [y/n]: ')
+
+    if not answer:
+        USER_LOG.info(f'Creation of the layer \'{layer_name}\' skipped')
+        return
+
+    for file in DOTNET_LAYER_FILES:
+        _touch(Path(layer_folder, file))
+
+    layer_config = _generate_python_node_layer_config(layer_name, runtime)
+    _write_content_to_file(os.path.join(layer_folder, FILE_LAYER_CONFIG),
+                           layer_config)
+
+    _write_content_to_file(
+        os.path.join(layer_folder, FILE_DOTNET_LAYER_PACKAGES),
+        DOTNET_LAMBDA_LAYER_CSPROJ_TEMPLATE)
+
+
 def _link_layer_to_lambdas(lambda_names, layer_name, layer_runtime,
                            existent_lambdas, lambda_path):
     for lambda_name in lambda_names:
@@ -512,11 +610,13 @@ LAMBDAS_PROCESSORS = {
     RUNTIME_JAVA: _generate_java_lambdas,
     RUNTIME_NODEJS: _generate_nodejs_lambdas,
     RUNTIME_PYTHON: _generate_python_lambdas,
+    RUNTIME_DOTNET: _generate_dotnet_lambdas
 }
 
 LAYERS_PROCESSORS = {
     RUNTIME_NODEJS: _generate_nodejs_layer,
-    RUNTIME_PYTHON: _generate_python_layer
+    RUNTIME_PYTHON: _generate_python_layer,
+    RUNTIME_DOTNET: _generate_dotnet_layer
 }
 
 
@@ -525,6 +625,10 @@ def _common_java_module(src_path):
 
 
 def _common_nodejs_module(src_path):
+    pass
+
+
+def _common_dotnet_module(src_path):
     pass
 
 
@@ -569,13 +673,15 @@ COMMON_MODULE_PROCESSORS = {
     RUNTIME_JAVA: _common_java_module,
     RUNTIME_NODEJS: _common_nodejs_module,
     RUNTIME_PYTHON: _common_python_module,
+    RUNTIME_DOTNET: _common_dotnet_module,
     RUNTIME_PYTHON_LAYER: _common_python_nodejs_layer_module,
-    RUNTIME_NODEJS_LAYER: _common_python_nodejs_layer_module
+    RUNTIME_NODEJS_LAYER: _common_python_nodejs_layer_module,
 
 }
 
 TESTS_MODULE_PROCESSORS = {
     RUNTIME_JAVA: lambda project_path, lambda_name: None,
     RUNTIME_NODEJS: lambda project_path, lambda_name: None,
+    RUNTIME_DOTNET: lambda project_path, lambda_name: None,
     RUNTIME_PYTHON: _generate_python_tests,
 }

@@ -15,7 +15,8 @@
 """
 import json
 
-from syndicate.core.build.artifact_processor import RUNTIME_NODEJS
+from syndicate.core.build.artifact_processor import RUNTIME_NODEJS, \
+    RUNTIME_DOTNET
 from syndicate.core.conf.validator import (
     LAMBDAS_ALIASES_NAME_CFG, LOGS_EXPIRATION
 )
@@ -203,6 +204,58 @@ NODEJS_LAMBDA_HANDLER_TEMPLATE = """exports.handler = async (event) => {
     return response;
 };
 """
+
+DOTNET_LAMBDA_HANDLER_TEMPLATE = """using System.Collections.Generic;
+using Amazon.Lambda.Core;
+using Amazon.Lambda.APIGatewayEvents;
+
+[assembly: LambdaSerializer(typeof(Amazon.Lambda.Serialization.SystemTextJson.DefaultLambdaJsonSerializer))]
+
+namespace SimpleLambdaFunction;
+
+public class Function
+{
+    public APIGatewayProxyResponse FunctionHandler(APIGatewayProxyRequest request, ILambdaContext context)
+    {
+        return new APIGatewayProxyResponse
+        {
+            StatusCode = 200,
+            Body = "Hello world!",
+            Headers = new Dictionary<string, string> { { "Content-Type", "text/plain" } }
+        };
+    }
+}
+"""
+
+DOTNET_LAMBDA_CSPROJ_TEMPLATE = """<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+		<AssemblyName>SimpleLambdaFunction</AssemblyName>
+        <TargetFramework>net8.0</TargetFramework>
+        <OutputType>Library</OutputType>
+        <Nullable>enable</Nullable>
+        <GenerateRuntimeConfigurationFiles>true</GenerateRuntimeConfigurationFiles>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Amazon.Lambda.APIGatewayEvents" Version="2.4.0" />
+        <PackageReference Include="Amazon.Lambda.Core" Version="2.2.0" />
+        <PackageReference Include="Amazon.Lambda.Serialization.SystemTextJson" Version="2.2.0" />
+    </ItemGroup>
+
+</Project>
+"""
+
+DOTNET_LAMBDA_LAYER_CSPROJ_TEMPLATE = '''<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Project packages here" Version="0.0.0" />
+  </ItemGroup>
+</Project>
+
+'''
 
 GITIGNORE_CONTENT = """.syndicate
 logs/
@@ -639,6 +692,28 @@ def _generate_package_lock_nodejs_lambda(lambda_name):
         "lockfileVersion": 1,
         "requires": True,
         "dependencies": {}
+    })
+
+
+def _generate_dotnet_lambda_config(lambda_name, lambda_relative_path, tags):
+    return _stringify({
+        'version': '1.0',
+        'name': lambda_name,
+        'func_name': 'SimpleLambdaFunction::SimpleLambdaFunction.Function::FunctionHandler',
+        'resource_type': 'lambda',
+        'iam_role_name': LAMBDA_ROLE_NAME_PATTERN.format(lambda_name),
+        'runtime': RUNTIME_DOTNET,
+        'memory': 128,
+        'timeout': 100,
+        'lambda_path': lambda_relative_path,
+        'dependencies': [],
+        'event_sources': [],
+        'env_variables': {},
+        'publish_version': True,
+        'alias': _alias_variable(LAMBDAS_ALIASES_NAME_CFG),
+        'url_config': {},
+        'ephemeral_storage': 512,
+        'tags': tags
     })
 
 

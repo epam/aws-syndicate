@@ -16,12 +16,15 @@
 RUNTIME_JAVA = 'java'
 RUNTIME_NODEJS = 'nodejs'
 RUNTIME_PYTHON = 'python'
+RUNTIME_DOTNET = 'dotnet'
 RUNTIME_SWAGGER_UI = 'swagger_ui'
 RUNTIME = 'runtime'
 RUNTIME_PYTHON_LAYER = 'python_layer'
 RUNTIME_NODEJS_LAYER = 'nodejs_layer'
+RUNTIME_DOTNET_LAYER = 'dotnet_layer'
 
 DEFAULT_RUNTIME_VERSION = {
         RUNTIME_PYTHON: 'python3.10',
-        RUNTIME_NODEJS: 'nodejs20.x'
+        RUNTIME_NODEJS: 'nodejs20.x',
+        RUNTIME_DOTNET: 'dotnet8'
     }

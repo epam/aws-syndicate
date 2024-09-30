@@ -18,6 +18,7 @@ import shutil
 
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.build.helper import resolve_bundle_directory
+from syndicate.core.build.runtime.dotnet import assemble_dotnet_lambdas
 from syndicate.core.build.runtime.java import assemble_java_mvn_lambdas
 from syndicate.core.build.runtime.nodejs import assemble_node_lambdas
 from syndicate.core.build.runtime.python import assemble_python_lambdas
@@ -26,12 +27,14 @@ from syndicate.core.build.runtime.swagger_ui import assemble_swagger_ui
 RUNTIME_JAVA = 'javaX'
 RUNTIME_NODEJS = 'nodejs20.x'
 RUNTIME_PYTHON = 'pythonX'
+RUNTIME_DOTNET = 'dotnet8'
 RUNTIME_SWAGGER_UI = 'swagger_ui'
 
 SUPPORTED_RUNTIMES = [
     RUNTIME_JAVA,
     RUNTIME_NODEJS,
     RUNTIME_PYTHON,
+    RUNTIME_DOTNET,
     RUNTIME_SWAGGER_UI
 ]
 
@@ -39,6 +42,7 @@ RUNTIME_TO_BUILDER_MAPPING = {
     RUNTIME_JAVA: assemble_java_mvn_lambdas,
     RUNTIME_NODEJS: assemble_node_lambdas,
     RUNTIME_PYTHON: assemble_python_lambdas,
+    RUNTIME_DOTNET: assemble_dotnet_lambdas,
     RUNTIME_SWAGGER_UI: assemble_swagger_ui
 }
 

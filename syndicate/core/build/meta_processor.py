@@ -211,7 +211,7 @@ def _merge_api_gw_list_typed_configurations(initial_resource,
     return additional_resource
 
 
-def _populate_s3_path_python_node(meta, bundle_name):
+def _populate_s3_path_python_node_dotnet(meta, bundle_name):
     name = meta.get('name')
     version = meta.get('version')
     prefix = meta.pop('prefix', None)
@@ -325,17 +325,18 @@ def extract_deploy_stage_from_openapi_spec(openapi_spec: dict) -> str:
 
 
 RUNTIME_PATH_RESOLVER = {
-    'python3.8': _populate_s3_path_python_node,
-    'python3.9': _populate_s3_path_python_node,
-    'python3.10': _populate_s3_path_python_node,
-    'python3.11': _populate_s3_path_python_node,
-    'python3.12': _populate_s3_path_python_node,
+    'python3.8': _populate_s3_path_python_node_dotnet,
+    'python3.9': _populate_s3_path_python_node_dotnet,
+    'python3.10': _populate_s3_path_python_node_dotnet,
+    'python3.11': _populate_s3_path_python_node_dotnet,
+    'python3.12': _populate_s3_path_python_node_dotnet,
     'java11': _populate_s3_path_java,
     'java17': _populate_s3_path_java,
     'java21': _populate_s3_path_java,
-    'nodejs16.x': _populate_s3_path_python_node,
-    'nodejs18.x': _populate_s3_path_python_node,
-    'nodejs20.x': _populate_s3_path_python_node
+    'nodejs16.x': _populate_s3_path_python_node_dotnet,
+    'nodejs18.x': _populate_s3_path_python_node_dotnet,
+    'nodejs20.x': _populate_s3_path_python_node_dotnet,
+    'dotnet8': _populate_s3_path_python_node_dotnet
 }
 
 S3_PATH_MAPPING = {

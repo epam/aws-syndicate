@@ -14,13 +14,20 @@
     limitations under the License.
 """
 import os
+import shutil
+import subprocess
 import zipfile
 from contextlib import closing
 from datetime import datetime, date
-from pathlib import PurePath
+from pathlib import PurePath, Path
+from typing import Union
 
+from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.constants import ARTIFACTS_FOLDER
 from syndicate.core.helper import build_path
+
+_LOG = get_logger(__name__)
+USER_LOG = get_user_logger()
 
 
 def build_py_package_name(lambda_name, lambda_version):
@@ -38,6 +45,28 @@ def zip_dir(basedir: str, name: str, archive_subfolder: str = None):
                 absfn = os.path.join(root, fn)
                 zfn = os.path.join(archive_root, fn)
                 z.write(absfn, zfn)
+
+
+def run_external_command(command: list):
+    result = subprocess.run(
+        command,
+        capture_output=True,
+        text=True)
+
+    return result.returncode, result.stdout, result.stderr
+
+
+def remove_dir(path: Union[str, Path]):
+    removed = False
+    while not removed:
+        _LOG.info(f'Trying to remove "{path}"')
+        try:
+            shutil.rmtree(path)
+            removed = True
+        except Exception as e:
+            removed = True
+            _LOG.warn(f'An error "{e}" occurred while '
+                      f'removing artifacts "{path}"')
 
 
 def _json_serial(obj):

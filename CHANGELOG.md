@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Changed deployment flow to work despite the latest deployment failed
 - Changed deployment flow with the flag `--continue_deploy` to work despite the latest deployment being absent or succeeded
 - Implemented rolling back on error mechanism(flag `--rollback_on_error`) for deployment flow with the flag `--continue_deploy`
+- Added support of lambda functions with runtime DotNet
 - Added possibility to deploy/update resource-specific tags
 - Added confirmation request mechanism for the `update` command in case the latest deployment failed
 - Added the flag `--force` for the `update` command to run an update without confirmation request in case the latest deployment failed
