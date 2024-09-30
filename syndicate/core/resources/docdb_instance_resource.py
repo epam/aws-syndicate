@@ -66,7 +66,8 @@ class DocumentDBInstanceResource(BaseResource):
         instance = self.connection.create_db_instance(
             instance_identifier=name, availability_zone=availability_zone,
             instance_class=instance_class,
-            cluster_identifier=cluster_identifier)
+            cluster_identifier=cluster_identifier,
+            tags=meta.get('tags'))
 
         _LOG.info(f'Created documentDB instance {instance}')
         return self.describe_documentdb_instance(identifier=name, meta=meta)

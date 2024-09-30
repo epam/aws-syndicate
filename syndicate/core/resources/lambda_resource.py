@@ -355,7 +355,8 @@ class LambdaResource(BaseResource):
             layers=lambda_layers_arns,
             ephemeral_storage=ephemeral_storage,
             snap_start=self._resolve_snap_start(meta=meta),
-            architectures=meta.get('architectures')
+            architectures=meta.get('architectures'),
+            tags=meta.get('tags')
         )
         _LOG.debug('Lambda created %s', name)
         # AWS sometimes returns None after function creation, needs for
@@ -1358,7 +1359,8 @@ class LambdaResource(BaseResource):
             if retention:
                 self.cw_logs_conn.create_log_group_with_retention_days(
                     group_name=lambda_name,
-                    retention_in_days=retention
+                    retention_in_days=retention,
+                    tags=meta.get('tags')
                 )
 
     def _resolve_env_variables(self, env_vars):

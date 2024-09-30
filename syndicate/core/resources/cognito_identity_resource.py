@@ -78,7 +78,7 @@ class CognitoIdentityResource(BaseResource):
             self.account_id, n) for n in open_id_provider_names]
         pool_id = self.connection.create_identity_pool(
             pool_name=name, provider_name=meta.get('provider_name'),
-            open_id_connect_provider_arns=open_id_arns)
+            open_id_connect_provider_arns=open_id_arns, tags=meta.get('tags'))
         auth_role = meta.get('auth_role')
         unauth_role = meta.get('unauth_role')
         self.connection.set_role(pool_id, auth_role, unauth_role)

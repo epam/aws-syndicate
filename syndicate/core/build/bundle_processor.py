@@ -23,7 +23,8 @@ from syndicate.commons.log_helper import get_logger
 from syndicate.connection import S3Connection
 from syndicate.core.build.helper import _json_serial, resolve_bundle_directory, \
     resolve_all_bundles_directory, assert_bundle_bucket_exists
-from syndicate.core.build.meta_processor import validate_deployment_packages
+from syndicate.core.build.meta_processor import validate_deployment_packages, \
+    preprocess_tags
 from syndicate.core.constants import (ARTIFACTS_FOLDER, BUILD_META_FILE_NAME,
                                       DEFAULT_SEP)
 from syndicate.core.helper import build_path, unpack_kwargs
@@ -46,6 +47,8 @@ def _backup_deploy_output(filename, output):
 def create_deploy_output(bundle_name, deploy_name, output, success,
                          replace_output=False):
     from syndicate.core import CONFIG, CONN
+    _LOG.debug('Going to preprocess resources tags in output')
+    preprocess_tags(output)
     output_str = json.dumps(output, default=_json_serial)
     key = _build_output_key(bundle_name=bundle_name,
                             deploy_name=deploy_name,

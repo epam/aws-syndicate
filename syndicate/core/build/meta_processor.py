@@ -17,7 +17,7 @@ import os
 from json import load
 from typing import Any
 from urllib.parse import urlparse
-from syndicate.commons.log_helper import get_logger
+from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.build.helper import (build_py_package_name,
                                          resolve_bundle_directory)
 from syndicate.core.build.validator.mapping import (VALIDATOR_BY_TYPE_MAPPING,
@@ -33,10 +33,11 @@ from syndicate.core.constants import (API_GATEWAY_TYPE, ARTIFACTS_FOLDER,
                                       WEB_SOCKET_API_GATEWAY_TYPE,
                                       OAS_V3_FILE_NAME,
                                       API_GATEWAY_OAS_V3_TYPE, SWAGGER_UI_TYPE,
-                                      SWAGGER_UI_CONFIG_FILE_NAME)
+                                      SWAGGER_UI_CONFIG_FILE_NAME,
+                                      TAGS_RESOURCE_TYPE_CONFIG)
 from syndicate.core.helper import (build_path, prettify_json,
                                    resolve_aliases_for_string,
-                                   write_content_to_file)
+                                   write_content_to_file, validate_tags)
 from syndicate.core.resources.helper import resolve_dynamic_identifier
 
 DEFAULT_IAM_SUFFIX_LENGTH = 5
@@ -44,6 +45,7 @@ NAME_RESOLVING_BLACKLISTED_KEYS = ['prefix', 'suffix', 'resource_type', 'princip
                                    'authorization_type']
 
 _LOG = get_logger('syndicate.core.build.meta_processor')
+USER_LOG = get_user_logger()
 
 
 def validate_deployment_packages(bundle_path, meta_resources):
@@ -543,6 +545,70 @@ def resolve_meta(overall_meta):
             continue
         _resolve_names_in_meta(overall_meta, current_name, resolved_name)
     return overall_meta
+
+
+def resolve_tags(meta: dict) -> None:
+    _LOG.debug('Going to resolve resources tags.')
+    from syndicate.core import CONFIG
+    common_tags = CONFIG.tags
+    for res_name, res_meta in meta.items():
+        res_tags = res_meta.get('tags', {})
+        _LOG.debug(f'The resource {res_name} tags: {res_tags}')
+        errors = validate_tags('tags', res_tags)
+        if errors:
+            USER_LOG.warn(
+                f'The resource {res_name} tags don\'t pass validation and '
+                f'will be removed from the resource meta. Details "{errors}"')
+            res_meta.pop('tags')
+            continue
+        overall_tags = _format_tags(res_meta['resource_type'],
+                                    {**common_tags, **res_tags})
+        _LOG.debug(f'Resolved resource {res_name} tags {overall_tags}')
+        res_meta['tags'] = overall_tags
+
+
+def preprocess_tags(output: dict):
+    for item in output.values():
+        res_meta = item['resource_meta']
+        tags = res_meta.get('tags')
+
+        match tags:
+            case tags if isinstance(tags, dict):
+                continue
+            case tags if isinstance(tags, list):
+                res_meta['tags'] = _tags_to_dict(tags)
+            case _:
+                res_meta.pop('tags', None)
+
+
+def _tags_to_dict(tags: list) -> dict:
+    result = {}
+    for tag in tags:
+        tag_key = None
+        tag_value = ''
+        for k, v in tag.items():
+            if k.lower() == 'key':
+                tag_key = v
+            if k.lower() == 'value':
+                tag_value = v
+        if tag_key is not None:
+            result.update({tag_key: tag_value})
+    return result
+
+
+def _format_tags(res_type: str, tags: dict) -> dict | list:
+    match res_type:
+        case res_type if (res_type in
+                          TAGS_RESOURCE_TYPE_CONFIG['capitalised_keys_list']):
+            return [{'Key': k, 'Value': v} for k, v in tags.items()]
+        case res_type if (res_type in
+                          TAGS_RESOURCE_TYPE_CONFIG['lover_case_keys_list']):
+            return [{'key': k, 'value': v} for k, v in tags.items()]
+        case res_type if res_type in TAGS_RESOURCE_TYPE_CONFIG['untaggable']:
+            _LOG.debug(f'The resource type {res_type} can not be tagged')
+            return {}
+        case _:
+            return tags
 
 
 def _resolve_aliases(overall_meta):

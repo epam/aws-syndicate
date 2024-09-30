@@ -66,7 +66,8 @@ class DaxResource(BaseResource):
             cluster_endpoint_encryption_type=meta.get('cluster_endpoint_encryption_type'),
             security_group_ids=meta.get('security_group_ids') or [],
             parameter_group_name=meta.get('parameter_group_name'),
-            availability_zones=meta.get('availability_zones') or []
+            availability_zones=meta.get('availability_zones') or [],
+            tags=meta.get('tags')
         )
         if response:
             _LOG.info(f'Dax cluster \'{name}\' was successfully created')
