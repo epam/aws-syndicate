@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added validation for existence of bundle and deploy names
 - Added validation for incompatible parameters(`--events`, `--resources`) of the command `syndicate status`
 - Added the possibility to add resource-specific tags via the resource meta generation(flag `--tags`)
+- Added tags support to the Syndicate Java plugin. The `@Tags` and the `@Tag` annotations added to the plugin. The Java plugin version updated to 1.14.0
+- Changed the Java lambda template to use the Syndicate Java plugin version 1.14.0 for the new lambda generation.
 - Event status added to the command `syndicate status` output
 - Reworked lambda triggers update to compare local event sources meta with the previous remote one
 - Reworked lambda triggers deletion to not list every resource of the trigger type to remove it from lambda (**EPMCEOOS-6112**)

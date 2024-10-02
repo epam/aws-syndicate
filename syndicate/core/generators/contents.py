@@ -33,8 +33,8 @@ FILE_POM = 'pom.xml'
 CANCEL_MESSAGE = 'Creating of {} has been canceled.'
 
 JAVA_TAGS_IMPORT = """
-import com.syndicate.deployment.annotations.lambda.Tag;
-import com.syndicate.deployment.annotations.lambda.Tags;"""
+import com.syndicate.deployment.annotations.tag.Tag;
+import com.syndicate.deployment.annotations.tag.Tags;"""
 
 JAVA_TAGS_ANNOTATION_TEMPLATE = """
 @Tags(value = {
@@ -84,7 +84,7 @@ JAVA_ROOT_POM_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
 
     <properties>
         <maven-shade-plugin.version>3.5.2</maven-shade-plugin.version>
-        <syndicate.java.plugin.version>1.13.0</syndicate.java.plugin.version>
+        <syndicate.java.plugin.version>1.14.0</syndicate.java.plugin.version>
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>

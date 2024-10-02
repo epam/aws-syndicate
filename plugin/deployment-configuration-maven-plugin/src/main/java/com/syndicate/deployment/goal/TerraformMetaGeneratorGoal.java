@@ -125,6 +125,9 @@ public class TerraformMetaGeneratorGoal extends SyndicateMetaGeneratorGoal {
 			if (syndicate.getVariables() != null && !syndicate.getVariables().isEmpty()) {
 				configurationBuilder.withEnvironmentVariables(syndicate.getVariables());
 			}
+			if (syndicate.getTags() != null && !syndicate.getTags().isEmpty()) {
+				configurationBuilder.withTags(syndicate.getTags());
+			}
 			if (syndicate.getDlResourceName() != null && syndicate.getDlResourceType() != null) {
 				configurationBuilder.withDeadLetterConfig(buildDeadLetterSourceArn(syndicate.getDlResourceName(),
 					syndicate.getDlResourceType(), accountId, region));

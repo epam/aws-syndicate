@@ -17,6 +17,7 @@
 package com.syndicate.deployment.processor.impl;
 
 import com.syndicate.deployment.annotations.environment.EnvironmentVariable;
+import com.syndicate.deployment.annotations.tag.Tag;
 import com.syndicate.deployment.model.environment.ValueTransformer;
 import com.syndicate.deployment.annotations.events.DynamoDbTriggerEventSource;
 import com.syndicate.deployment.annotations.events.EventBridgeRuleSource;
@@ -44,6 +45,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Created by Vladyslav Tereshchenko on 10/5/2016.
@@ -81,8 +84,9 @@ public class LambdaHandlerAnnotationProcessor extends AbstractAnnotationProcesso
             dependencies.add(DependencyItemFactory.createDependencyItem(annotation));
         }
         Map<String, Object> envVariables = getEnvVariables(lambdaClass);
+        Map<String, String > tags = getTags(lambdaClass);
         LambdaConfiguration lambdaConfiguration = LambdaConfigurationFactory.createLambdaConfiguration(version, lambdaClass, lambdaHandler, dependencies,
-                events, envVariables, fileName, path);
+                events, envVariables, tags, fileName, path);
         return new Pair<>(lambdaHandler.lambdaName(), lambdaConfiguration);
     }
 
@@ -111,4 +115,10 @@ public class LambdaHandlerAnnotationProcessor extends AbstractAnnotationProcesso
                 "resource_type", annotation.valueTransformer().getResourceType(),
                 "parameter", annotation.valueTransformer().getParameter());
     }
+
+    private Map<String, String> getTags(Class<?> lambdaClass) {
+        return Stream.of(lambdaClass.getDeclaredAnnotationsByType(Tag.class))
+                .collect(Collectors.toMap(Tag::key, Tag::value));
+    }
+
 }
