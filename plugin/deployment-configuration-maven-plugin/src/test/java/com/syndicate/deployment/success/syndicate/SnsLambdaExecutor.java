@@ -19,6 +19,8 @@ import com.syndicate.deployment.annotations.environment.EnvironmentVariable;
 import com.syndicate.deployment.annotations.events.SnsEventSource;
 import com.syndicate.deployment.annotations.lambda.LambdaHandler;
 import com.syndicate.deployment.annotations.resources.DependsOn;
+import com.syndicate.deployment.annotations.tag.Tag;
+import com.syndicate.deployment.annotations.tag.Tags;
 import com.syndicate.deployment.model.LambdaSnapStart;
 import com.syndicate.deployment.model.RegionScope;
 import com.syndicate.deployment.model.ResourceType;
@@ -35,6 +37,7 @@ import com.syndicate.deployment.model.TracingMode;
 @EnvironmentVariable(key = "name", value = "lambda_execute_notification")
 @DependsOn(name = "stackAuditTopic", resourceType = ResourceType.SNS_TOPIC)
 @SnsEventSource(targetTopic = "stackAuditTopic", regionScope = RegionScope.ALL)
+@Tags(value = {@Tag(key = "key", value = "value")})
 public class SnsLambdaExecutor {
     // test lambda class to be processed
 }

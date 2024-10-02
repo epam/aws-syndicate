@@ -72,6 +72,9 @@ public class TerraformLambdaConfiguration {
     @JsonProperty("environment")
     private Map<String, Object> environmentVariables;
 
+    @JsonProperty("tags")
+    private Map<String, String> tags;
+
     @JsonProperty("dead_letter_config")
     private Map<String, String> deadLetterConfig;
 
@@ -141,6 +144,15 @@ public class TerraformLambdaConfiguration {
             return this;
         }
 
+        public Builder withTags(Map<String, String> tags) {
+            Objects.requireNonNull(tags, "Tags variables cannot be null");
+            if (tags.isEmpty()) {
+                throw new InvalidParameterException("Tags variables cannot be empty");
+            }
+            configuration.tags = tags;
+            return this;
+        }
+
         public Builder withDeadLetterConfig(String deadLetterTargetResourceArn) {
             Objects.requireNonNull(deadLetterTargetResourceArn, "Dead letter resource arn cannot be null");
             configuration.deadLetterConfig = Collections.singletonMap(DL_CONFIG_ARN, deadLetterTargetResourceArn);
@@ -200,4 +212,9 @@ public class TerraformLambdaConfiguration {
     public Map<String, Object> getEnvironmentVariables() {
         return environmentVariables;
     }
+
+    public Map<String, String> getTags() {
+        return tags;
+    }
+
 }
