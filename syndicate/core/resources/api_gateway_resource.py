@@ -426,6 +426,8 @@ class ApiGatewayResource(BaseResource):
 
         _LOG.info(f'Api gateway with name \'{name}\' does not exist. Creating')
         api_id = self.connection.create_openapi(openapi_context)
+        _LOG.debug('Applying tags')
+        self.connection.tag_openapi(openapi_id=api_id, tags=meta.get('tags'))
         self.connection.deploy_api(api_id, deploy_stage)
 
         api_lambdas_arns = self.extract_api_gateway_lambdas_arns(
