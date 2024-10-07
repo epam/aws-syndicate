@@ -664,7 +664,7 @@ def resolve_lambda_path(project: Path, runtime: str, source: str) -> Path:
     return project/Path(source, _lambda)
 
 
-def _common_python_nodejs_layer_module(src_path):
+def _common_python_nodejs_dotnet_layer_module(src_path):
     layer_path = os.path.join(src_path, FOLDER_LAMBDAS, FOLDER_LAYERS)
     _mkdir(path=layer_path, exist_ok=True)
 
@@ -674,8 +674,9 @@ COMMON_MODULE_PROCESSORS = {
     RUNTIME_NODEJS: _common_nodejs_module,
     RUNTIME_PYTHON: _common_python_module,
     RUNTIME_DOTNET: _common_dotnet_module,
-    RUNTIME_PYTHON_LAYER: _common_python_nodejs_layer_module,
-    RUNTIME_NODEJS_LAYER: _common_python_nodejs_layer_module,
+    RUNTIME_PYTHON_LAYER: _common_python_nodejs_dotnet_layer_module,
+    RUNTIME_NODEJS_LAYER: _common_python_nodejs_dotnet_layer_module,
+    RUNTIME_DOTNET_LAYER: _common_python_nodejs_dotnet_layer_module
 
 }
 
