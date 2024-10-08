@@ -4,10 +4,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [1.14.1] - 2024-10-03
+# [1.14.1] - 2024-10-08
 - Added support lambda layers with runtime DotNet
 - Tagging added to `oas_v3 openapi` API Gateway.
 - SNS topic deletion fixed.
+- Added an example of a lambda function with runtime `dotnet`
 
 # [1.14.0] - 2024-08-28
 - Changed deployment flow to work despite the latest deployment failed
