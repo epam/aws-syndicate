@@ -44,7 +44,11 @@ import static com.syndicate.deployment.model.environment.ValueTransformer.USER_P
  * Created by Roman Ivanov on 7/20/2024.
  */
 @DependsOn(resourceType = ResourceType.COGNITO_USER_POOL, name = "${pool_name}")
-@LambdaHandler(lambdaName = "api-handler", roleName = "api-handler-role", runtime = DeploymentRuntime.JAVA17)
+@LambdaHandler(lambdaName = "api-handler",
+        roleName = "api-handler-role",
+        runtime = DeploymentRuntime.JAVA17,
+        isPublishVersion = true,
+	    aliasName = "${lambdas_alias_name}")
 @EnvironmentVariables(value = {
         @EnvironmentVariable(key = "REGION", value = "${region}"),
         @EnvironmentVariable(key = "COGNITO_ID", value = "${pool_name}", valueTransformer = USER_POOL_NAME_TO_USER_POOL_ID),

@@ -1,5 +1,5 @@
 account_id: ACCOUNT_ID
 region: REGION_NAME
 logs_expiration: 30
-
+lambdas_alias_name: dev
 pool_name: USERPOOL_NAME
