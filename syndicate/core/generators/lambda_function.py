@@ -284,6 +284,7 @@ def __lambda_name_to_class_name(lambda_name):
 
 
 def _generate_java_lambdas(**kwargs):
+    from click import confirm as click_confirm
     project_path = kwargs.get(PROJECT_PATH_PARAM)
     project_state = kwargs.get(PROJECT_STATE_PARAM)
     project_name = project_state.name
@@ -325,6 +326,12 @@ def _generate_java_lambdas(**kwargs):
         java_handler_file_name = os.path.join(
             project_path, SRC_MAIN_JAVA, java_package_as_path,
             f'{lambda_class_name}.java')
+        if Path(str(java_handler_file_name)).is_file():
+            if not click_confirm(
+                    f'\nLambda {lambda_name} already exists.\nOverride '
+                    f'the Lambda function?'):
+                _LOG.info(CANCEL_MESSAGE.format(lambda_name))
+                continue
         _write_content_to_file(
             java_handler_file_name,
             java_handler_content

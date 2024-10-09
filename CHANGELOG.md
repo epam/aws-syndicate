@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Tagging added to `oas_v3 openapi` API Gateway.
 - SNS topic deletion fixed.
 - Added an example of a lambda function with runtime `dotnet`
+- Fixed silent overwriting existing lambda with runtime Java during the command `syndicate generate lambda`
 
 # [1.14.0] - 2024-08-28
 - Changed deployment flow to work despite the latest deployment failed
