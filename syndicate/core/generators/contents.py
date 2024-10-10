@@ -251,7 +251,8 @@ DOTNET_LAMBDA_LAYER_CSPROJ_TEMPLATE = '''<Project Sdk="Microsoft.NET.Sdk">
     <TargetFramework>net8.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Project packages here" Version="0.0.0" />
+    <!-- Layer packages here -->
+    <PackageReference Include="Amazon.Lambda.Core" Version="2.2.0" />
   </ItemGroup>
 </Project>
 
