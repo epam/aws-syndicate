@@ -50,6 +50,9 @@ BUILD_LAYER_TMP_DIRS = [OBJ_DIR]
 
 CHECK_DOTNET_INSTALLED_COMMAND = ['dotnet', '--info']
 
+SYNDICATE_DIR = '.syndicate'
+LOCAL_NUGET_SOURCE_NAME = 'syndicate_local_nuget_source'
+
 
 _LOG = get_logger('dotnet_runtime_assembler')
 USER_LOG = get_user_logger()
@@ -151,34 +154,32 @@ def _build_dotnet_lambda_layer_artifact(item, root, target_folder):
 
     layer_name = layer_config['name']
     package_name = layer_config['deployment_package']
+    custom_packages = layer_config.get('custom_packages', [])
     validate_params(root, layer_config, ['name', 'deployment_package'])
 
     output_path = build_path(target_folder, BUILD_DIR_TMP, LAYER_DIR,
                              layer_name, DOTNET_CORE_DIR, STORE_DIR)
-    artifact_path = build_path(
-        root, STORE_DIR, X64_DIR, NET_8_0_DIR, ARTIFACT_FILE)
-    if Path(artifact_path).is_file():
-        _LOG.info(
-            f'Building layer \'{layer_name}\' artifact skipped. Will be used '
-            f'package described in the file \'{artifact_path}\'.')
 
-        shutil.copytree(build_path(root, STORE_DIR), output_path)
-    else:
-        _LOG.info(f'Packaging artifacts {package_name}')
-        command = [
-            'dotnet', 'store', '--skip-optimization',
-            '--manifest', root,
-            '--framework', 'net8.0',
-            '--runtime', 'linux-x64',
-            '--output', output_path
-        ]
+    if custom_packages:
+        _LOG.info(f'Processing layer \'{layer_name}\' custom packages '
+                  f'\'{custom_packages}\'.')
+        _process_custom_packages(root, custom_packages)
 
-        exit_code, stdout, stderr = run_external_command(command)
-        if exit_code != 0:
-            raise RuntimeError(
-                f'An error occurred during lambda layer {layer_name} '
-                f'packaging. Details:\n{stdout}\n{stderr}'
-            )
+    _LOG.info(f'Packaging artifacts {package_name}')
+    command = [
+        'dotnet', 'store', '--skip-optimization',
+        '--manifest', root,
+        '--framework', 'net8.0',
+        '--runtime', 'linux-x64',
+        '--output', output_path
+    ]
+
+    exit_code, stdout, stderr = run_external_command(command)
+    if exit_code != 0:
+        raise RuntimeError(
+            f'An error occurred during lambda layer {layer_name} '
+            f'packaging. Details:\n{stdout}\n{stderr}'
+        )
 
     zip_dir(
         build_path(target_folder, BUILD_DIR_TMP, LAYER_DIR, layer_name),
@@ -204,3 +205,66 @@ def _clean_tmp_files(location, dirs):
     for tmp_dir in dirs:
         _LOG.debug(f'Remove tmp directory {tmp_dir}')
         remove_dir(build_path(location, tmp_dir))
+
+
+def _process_custom_packages(layer_dir, packages):
+    if not _is_local_source_exist(LOCAL_NUGET_SOURCE_NAME):
+        _LOG.info(
+            'Syndicate local NuGet source does not exist, creating...')
+        _create_local_nuget_source()
+
+    for package in packages:
+        _LOG.info(f'Publishing package \'{package}\' to local NuGet source '
+                  f'\'{LOCAL_NUGET_SOURCE_NAME}\'...')
+
+        package_path = build_path(layer_dir, package)
+        command = [
+            'dotnet', 'nuget',
+            'push', package_path,
+            '--source', LOCAL_NUGET_SOURCE_NAME
+        ]
+
+        exit_code, stdout, stderr = run_external_command(command)
+        if exit_code != 0:
+            raise RuntimeError(
+                f'An error occurred during publishing package \'{package}\' '
+                f'into local NuGet source \'{LOCAL_NUGET_SOURCE_NAME}\'.'
+                f'Details:\n{stdout}\n{stderr}'
+            )
+    _LOG.info(f'All custom packages successfully published to local NuGet '
+              f'source \'{LOCAL_NUGET_SOURCE_NAME}\'.')
+
+
+def _create_local_nuget_source():
+    home_dir = str(Path.home())
+    local_store = build_path(home_dir, SYNDICATE_DIR, LOCAL_NUGET_SOURCE_NAME)
+    if not Path(local_store).exists():
+        _LOG.info('Directory for local NuGet source does not exist, '
+                  'creating...')
+        Path(local_store).mkdir(parents=True)
+
+    command = [
+        'dotnet', 'nuget', 'add', 'source', local_store,
+        '--name', LOCAL_NUGET_SOURCE_NAME
+    ]
+
+    exit_code, stdout, stderr = run_external_command(command)
+    if exit_code != 0:
+        raise RuntimeError(
+            f'An error occurred during local NuGet source creation.'
+            f'Details:\n{stdout}\n{stderr}'
+        )
+
+    _LOG.info(f'Syndicate local NuGet source \'{LOCAL_NUGET_SOURCE_NAME}\' '
+              f'created successfully.')
+
+
+def _is_local_source_exist(source_name):
+    command = ['dotnet', 'nuget', 'list', 'source', '--format', 'Short']
+    exit_code, stdout, stderr = run_external_command(command)
+    if exit_code != 0:
+        raise RuntimeError(
+            f'An error occurred during when attempt to list NuGet sources.'
+            f'Details:\n{stdout}\n{stderr}'
+        )
+    return True if source_name in stdout else False
