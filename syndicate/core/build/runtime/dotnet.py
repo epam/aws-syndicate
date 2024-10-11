@@ -16,6 +16,7 @@
 import concurrent
 import json
 import os
+import shutil
 import sys
 
 from concurrent.futures.thread import ThreadPoolExecutor
@@ -105,6 +106,9 @@ def _build_dotnet_lambda_artifact(item, root, target_folder):
     lambda_version = lambda_config_dict['version']
     package_name = build_py_package_name(lambda_name, lambda_version)
     layers = lambda_config_dict.get('layers', [])
+    output_path = build_path(target_folder, BUILD_DIR_TMP, LAMBDA_DIR,
+                             lambda_name)
+
     command = [
         'dotnet', 'publish', root,
         '-p:GenerateRuntimeConfigurationFiles=true',
@@ -112,8 +116,7 @@ def _build_dotnet_lambda_artifact(item, root, target_folder):
         '--framework', 'net8.0',
         '--runtime', 'linux-x64',
         '--self-contained', 'False',
-        '--output', build_path(target_folder, BUILD_DIR_TMP, LAMBDA_DIR,
-                               lambda_name)
+        '--output', output_path
     ]
 
     for layer_name in layers:
@@ -135,9 +138,7 @@ def _build_dotnet_lambda_artifact(item, root, target_folder):
             f'Details:\n{stdout}\n{stderr}'
         )
 
-    zip_dir(
-        build_path(target_folder, BUILD_DIR_TMP, LAMBDA_DIR, lambda_name),
-        build_path(target_folder, package_name))
+    zip_dir(output_path, build_path(target_folder, package_name))
 
     _clean_tmp_files(root, BUILD_LAMBDA_TMP_DIRS)
 
@@ -151,23 +152,33 @@ def _build_dotnet_lambda_layer_artifact(item, root, target_folder):
     layer_name = layer_config['name']
     package_name = layer_config['deployment_package']
     validate_params(root, layer_config, ['name', 'deployment_package'])
-    _LOG.info(f'Packaging artifacts {package_name}')
 
-    command = [
-        'dotnet', 'store', '--skip-optimization',
-        '--manifest', root,
-        '--framework', 'net8.0',
-        '--runtime', 'linux-x64',
-        '--output', build_path(target_folder, BUILD_DIR_TMP, LAYER_DIR,
-                               layer_name, DOTNET_CORE_DIR, STORE_DIR)
-    ]
+    output_path = build_path(target_folder, BUILD_DIR_TMP, LAYER_DIR,
+                             layer_name, DOTNET_CORE_DIR, STORE_DIR)
+    artifact_path = build_path(
+        root, STORE_DIR, X64_DIR, NET_8_0_DIR, ARTIFACT_FILE)
+    if Path(artifact_path).is_file():
+        _LOG.info(
+            f'Building layer \'{layer_name}\' artifact skipped. Will be used '
+            f'package described in the file \'{artifact_path}\'.')
 
-    exit_code, stdout, stderr = run_external_command(command)
-    if exit_code != 0:
-        raise RuntimeError(
-            f'An error occurred during lambda layer {layer_name} packaging. '
-            f'Details:\n{stdout}\n{stderr}'
-        )
+        shutil.copytree(build_path(root, STORE_DIR), output_path)
+    else:
+        _LOG.info(f'Packaging artifacts {package_name}')
+        command = [
+            'dotnet', 'store', '--skip-optimization',
+            '--manifest', root,
+            '--framework', 'net8.0',
+            '--runtime', 'linux-x64',
+            '--output', output_path
+        ]
+
+        exit_code, stdout, stderr = run_external_command(command)
+        if exit_code != 0:
+            raise RuntimeError(
+                f'An error occurred during lambda layer {layer_name} '
+                f'packaging. Details:\n{stdout}\n{stderr}'
+            )
 
     zip_dir(
         build_path(target_folder, BUILD_DIR_TMP, LAYER_DIR, layer_name),
