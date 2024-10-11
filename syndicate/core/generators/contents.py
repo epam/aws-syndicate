@@ -616,14 +616,17 @@ def _generate_python_node_lambda_config(lambda_name, lambda_relative_path,
 
 
 def _generate_python_node_layer_config(layer_name, runtime):
-    return _stringify({
+    layer_template = {
         "name": layer_name,
         "resource_type": "lambda_layer",
         "runtimes": [
             DEFAULT_RUNTIME_VERSION.get(runtime)
         ],
         "deployment_package": f"{layer_name}_layer.zip"
-    })
+    }
+    if runtime in RUNTIME_DOTNET:
+        layer_template["custom_packages"] = []
+    return _stringify(layer_template)
 
 
 def _generate_node_layer_package_file(layer_name):
