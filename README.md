@@ -30,6 +30,8 @@ descriptions.
    or higher version;
 3) [Apache Maven 3.3.9](https://maven.apache.org/download.cgi "Apache Maven 3.3.9")
 or higher version (for Java projects).
+4) [SDK 8.0.402](https://dotnet.microsoft.com/en-us/download/dotnet/8.0 "SDK 8.0.402")
+or higher version (for .NET projects).
 
 #### 1.2.2 Installation on macOS
 
@@ -37,7 +39,9 @@ Detailed guide how to install Python you can find
 [here](https://docs.python-guide.org/starting/install3/osx/ "here").
 Also [here](https://www.baeldung.com/install-maven-on-windows-linux-mac "here") 
 you can find detailed guild how to install
-the [latest Apache Maven](https://maven.apache.org/download.cgi "latest Apache Maven").
+the [latest Apache Maven](https://maven.apache.org/download.cgi "latest Apache Maven").  
+.NET installation guide can be found [here](https://learn.microsoft.com/en-us/dotnet/core/install/macos ".NET installation guide"), it is needed if you plan to work with runtime `.NET`.
+
 
 1. Pull the project
 ```shell
@@ -67,7 +71,8 @@ Detailed guide how to install Python you can
 find [here](https://docs.python-guide.org/starting/install3/linux/ "here").
 Also [here](https://www.baeldung.com/install-maven-on-windows-linux-mac "here")
 you can find detailed guild how to install
-the [latest Apache Maven](https://maven.apache.org/download.cgi "latest Apache Maven").
+the [latest Apache Maven](https://maven.apache.org/download.cgi "latest Apache Maven").  
+.NET installation guide can be found [here](https://learn.microsoft.com/en-us/dotnet/core/install/linux ".NET installation guide"), it is needed if you plan to work with runtime `.NET`.
 
 1. Pull the project
 ```shell
@@ -98,6 +103,7 @@ find [here](https://docs.python-guide.org/starting/install3/win/ "here").
 Also [here](https://www.baeldung.com/install-maven-on-windows-linux-mac "here")
 you can find detailed guild how to install
 the [latest Apache Maven](https://maven.apache.org/download.cgi "latest Apache Maven").
+.NET installation guide can be found [here](https://learn.microsoft.com/en-us/dotnet/core/install/windows ".NET installation guide"), it is needed if you plan to work with runtime `.NET`.
 
 1. Pull the project
 ```shell
@@ -218,7 +224,7 @@ lambda function except business logic. Command example:
 ```shell
 syndicate generate lambda
     --name $lambda_name_1
-    --runtime python|java|nodejs
+    --runtime python|java|nodejs|dotnet
     --project_path $project_path
 ```
 
@@ -290,6 +296,21 @@ created for different runtimes:
     │               ├── index.js
     │               ├── package.json
     │               └── package-lock.json
+    └── ...
+```
+
+* for .NET
+
+```
+   .
+    ├── $project_path
+    │   └── dnapp
+    │       └── lambdas
+    │           └── $lambda_name
+    │               ├── deployment_resources.json
+    │               ├── lambda_config.json
+    │               ├── Function.cs
+    │               └── Function.csproj
     └── ...
 ```
 
