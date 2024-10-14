@@ -1,0 +1,9 @@
+{
+  "name": "external_libs",
+  "resource_type": "lambda_layer",
+  "runtimes": [
+    "dotnet8"
+  ],
+  "deployment_package": "external_libs_layer.zip",
+  "custom_packages": []
+}

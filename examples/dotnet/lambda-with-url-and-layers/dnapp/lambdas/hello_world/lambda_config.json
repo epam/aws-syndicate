@@ -1,0 +1,25 @@
+{
+  "version": "1.0",
+  "name": "hello_world",
+  "func_name": "SimpleLambdaFunction::SimpleLambdaFunction.Function::FunctionHandler",
+  "resource_type": "lambda",
+  "iam_role_name": "hello_world-role",
+  "runtime": "dotnet8",
+  "memory": 128,
+  "timeout": 100,
+  "lambda_path": "lambdas\\hello_world",
+  "dependencies": [],
+  "event_sources": [],
+  "env_variables": {},
+  "publish_version": true,
+  "alias": "${lambdas_alias_name}",
+  "url_config": {
+    "auth_type": "NONE"
+  },
+  "ephemeral_storage": 512,
+  "tags": {},
+  "layers": [
+    "custom_lib",
+    "external_libs"
+  ]
+}
