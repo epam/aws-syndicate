@@ -87,6 +87,8 @@ class S3Resource(BaseResource):
         acl_response = self.s3_conn.get_bucket_acl(name)
         location_response = self.s3_conn.get_bucket_location(name)
         bucket_policy = self.s3_conn.get_bucket_policy(name)
+        if not location_response:
+            return
         response = {
             'bucket_acl': acl_response,
             'location': location_response,
@@ -130,7 +132,6 @@ class S3Resource(BaseResource):
 
         policy = meta.get('policy')
         if policy:
-            self._populate_bucket_name_in_policy(policy, name)
             self.s3_conn.add_bucket_policy(name, policy)
             _LOG.debug('Policy on {0} S3 bucket is set up.'.format(name))
 
@@ -200,21 +201,5 @@ class S3Resource(BaseResource):
 
     @staticmethod
     def is_bucket_arn(maybe_arn: str) -> bool:
-        # TODO add files keys support to regex
-        return bool(re.match(r'^arn:aws:s3:::[a-z0-9.-]{3,63}/?$',
-                             maybe_arn))
-
-    @staticmethod
-    def _populate_bucket_name_in_policy(policy, bucket_name):
-        statements = policy['Statement'] if policy.get('Statement') else []
-        for statement in statements:
-            resources = statement['Resource'] if statement.get('Resource') \
-                else []
-            new_resources = []
-            for resource in resources:
-                if 'bucket_name' in resource:
-                    new_resources.append(resource.format(bucket_name=
-                                                         bucket_name))
-                else:
-                    new_resources.append(resource)
-            statement['Resource'] = new_resources
+        arn_regex = r'^arn:aws:s3:::[a-z0-9.-]{3,63}(?:/.*)?$'
+        return bool(re.match(arn_regex, maybe_arn))

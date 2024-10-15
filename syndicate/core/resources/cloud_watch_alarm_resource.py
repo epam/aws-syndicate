@@ -47,6 +47,8 @@ class CloudWatchAlarmResource(BaseResource):
 
     def describe_alarm(self, name, meta):
         response = self.client.describe_alarms([name])[0]
+        if not response:
+            return
         arn = response['AlarmArn']
         return {
             arn: build_description_obj(response, name, meta)
@@ -74,7 +76,8 @@ class CloudWatchAlarmResource(BaseResource):
                       dimensions=meta.get('dimensions'),
                       datapoints=meta.get('datapoints'), alarm_actions=[],
                       evaluate_low_sample_count_percentile=meta.get(
-                          'evaluate_low_sample_count_percentile'))
+                          'evaluate_low_sample_count_percentile'),
+                      tags=meta.get('tags'))
 
         if sns_topics := meta.get('sns_topics'):
             for each in sns_topics:

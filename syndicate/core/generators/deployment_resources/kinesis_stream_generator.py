@@ -7,4 +7,5 @@ class KinesisStreamGenerator(BaseDeploymentResourceGenerator):
     RESOURCE_TYPE = KINESIS_STREAM_TYPE
     CONFIGURATION = {
         'shard_count': None,
+        'tags': dict
     }

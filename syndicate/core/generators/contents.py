@@ -15,7 +15,8 @@
 """
 import json
 
-from syndicate.core.build.artifact_processor import RUNTIME_NODEJS
+from syndicate.core.build.artifact_processor import RUNTIME_NODEJS, \
+    RUNTIME_DOTNET
 from syndicate.core.conf.validator import (
     LAMBDAS_ALIASES_NAME_CFG, LOGS_EXPIRATION
 )
@@ -31,16 +32,27 @@ SRC_MAIN_JAVA = 'jsrc/main/java'
 FILE_POM = 'pom.xml'
 CANCEL_MESSAGE = 'Creating of {} has been canceled.'
 
+JAVA_TAGS_IMPORT = """
+import com.syndicate.deployment.annotations.tag.Tag;
+import com.syndicate.deployment.annotations.tag.Tags;"""
+
+JAVA_TAGS_ANNOTATION_TEMPLATE = """
+@Tags(value = {
+{tags}})
+"""
+
+JAVA_TAG_ANNOTATION_TEMPLATE = '    @Tag(key = "{key}", value = "{value}")'
+
 JAVA_LAMBDA_HANDLER_CLASS = """package {java_package_name};
 
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
-import com.syndicate.deployment.annotations.lambda.LambdaHandler;
+import com.syndicate.deployment.annotations.lambda.LambdaHandler;{tags_import}
 import com.syndicate.deployment.model.RetentionSetting;
 
 import java.util.HashMap;
 import java.util.Map;
-
+{tags}
 @LambdaHandler(
     lambdaName = "{lambda_name}",
 	roleName = "{lambda_role_name}",
@@ -72,7 +84,7 @@ JAVA_ROOT_POM_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
 
     <properties>
         <maven-shade-plugin.version>3.5.2</maven-shade-plugin.version>
-        <syndicate.java.plugin.version>1.13.0</syndicate.java.plugin.version>
+        <syndicate.java.plugin.version>1.14.0</syndicate.java.plugin.version>
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -192,6 +204,58 @@ NODEJS_LAMBDA_HANDLER_TEMPLATE = """exports.handler = async (event) => {
     return response;
 };
 """
+
+DOTNET_LAMBDA_HANDLER_TEMPLATE = """using System.Collections.Generic;
+using Amazon.Lambda.Core;
+using Amazon.Lambda.APIGatewayEvents;
+
+[assembly: LambdaSerializer(typeof(Amazon.Lambda.Serialization.SystemTextJson.DefaultLambdaJsonSerializer))]
+
+namespace SimpleLambdaFunction;
+
+public class Function
+{
+    public APIGatewayProxyResponse FunctionHandler(APIGatewayProxyRequest request, ILambdaContext context)
+    {
+        return new APIGatewayProxyResponse
+        {
+            StatusCode = 200,
+            Body = "Hello world!",
+            Headers = new Dictionary<string, string> { { "Content-Type", "text/plain" } }
+        };
+    }
+}
+"""
+
+DOTNET_LAMBDA_CSPROJ_TEMPLATE = """<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+		<AssemblyName>SimpleLambdaFunction</AssemblyName>
+        <TargetFramework>net8.0</TargetFramework>
+        <OutputType>Library</OutputType>
+        <Nullable>enable</Nullable>
+        <GenerateRuntimeConfigurationFiles>true</GenerateRuntimeConfigurationFiles>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Amazon.Lambda.APIGatewayEvents" Version="2.4.0" />
+        <PackageReference Include="Amazon.Lambda.Core" Version="2.2.0" />
+        <PackageReference Include="Amazon.Lambda.Serialization.SystemTextJson" Version="2.2.0" />
+    </ItemGroup>
+
+</Project>
+"""
+
+DOTNET_LAMBDA_LAYER_CSPROJ_TEMPLATE = '''<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Project packages here" Version="0.0.0" />
+  </ItemGroup>
+</Project>
+
+'''
 
 GITIGNORE_CONTENT = """.syndicate
 logs/
@@ -524,7 +588,8 @@ def _stringify(dict_content):
     return json.dumps(dict_content, indent=2)
 
 
-def _generate_python_node_lambda_config(lambda_name, lambda_relative_path):
+def _generate_python_node_lambda_config(lambda_name, lambda_relative_path,
+                                        tags):
     return _stringify({
         'version': '1.0',
         'name': lambda_name,
@@ -542,7 +607,8 @@ def _generate_python_node_lambda_config(lambda_name, lambda_relative_path):
         'alias': _alias_variable(LAMBDAS_ALIASES_NAME_CFG),
         'url_config': {},
         'ephemeral_storage': 512,
-        'logs_expiration': _alias_variable(LOGS_EXPIRATION)
+        'logs_expiration': _alias_variable(LOGS_EXPIRATION),
+        'tags': tags
         # 'platforms': ['manylinux2014_x86_64']
         # by default (especially if you have linux), you don't need it
     })
@@ -582,7 +648,8 @@ def _generate_node_layer_package_lock_file(layer_name):
         })
 
 
-def _generate_nodejs_node_lambda_config(lambda_name, lambda_relative_path):
+def _generate_nodejs_node_lambda_config(lambda_name, lambda_relative_path,
+                                        tags):
     return _stringify({
         'version': '1.0',
         'name': lambda_name,
@@ -599,7 +666,8 @@ def _generate_nodejs_node_lambda_config(lambda_name, lambda_relative_path):
         'publish_version': True,
         'alias': _alias_variable(LAMBDAS_ALIASES_NAME_CFG),
         'url_config': {},
-        'ephemeral_storage': 512
+        'ephemeral_storage': 512,
+        'tags': tags
     })
 
 
@@ -627,6 +695,28 @@ def _generate_package_lock_nodejs_lambda(lambda_name):
     })
 
 
+def _generate_dotnet_lambda_config(lambda_name, lambda_relative_path, tags):
+    return _stringify({
+        'version': '1.0',
+        'name': lambda_name,
+        'func_name': 'SimpleLambdaFunction::SimpleLambdaFunction.Function::FunctionHandler',
+        'resource_type': 'lambda',
+        'iam_role_name': LAMBDA_ROLE_NAME_PATTERN.format(lambda_name),
+        'runtime': RUNTIME_DOTNET,
+        'memory': 128,
+        'timeout': 100,
+        'lambda_path': lambda_relative_path,
+        'dependencies': [],
+        'event_sources': [],
+        'env_variables': {},
+        'publish_version': True,
+        'alias': _alias_variable(LAMBDAS_ALIASES_NAME_CFG),
+        'url_config': {},
+        'ephemeral_storage': 512,
+        'tags': tags
+    })
+
+
 def _get_lambda_default_policy():
     return _stringify({
         POLICY_LAMBDA_BASIC_EXECUTION: {
@@ -651,12 +741,13 @@ def _get_lambda_default_policy():
                     }
                 ],
                 "Version": "2012-10-17"},
-            "resource_type": "iam_policy"
+            "resource_type": "iam_policy",
+            "tags": {}
         }
     })
 
 
-def _generate_lambda_role_config(role_name, stringify=True):
+def _generate_lambda_role_config(role_name, tags, stringify=True):
     role_content = {
         role_name: {
             "predefined_policies": [],
@@ -664,7 +755,8 @@ def _generate_lambda_role_config(role_name, stringify=True):
             "custom_policies": [
                 POLICY_LAMBDA_BASIC_EXECUTION
             ],
-            "resource_type": "iam_role"
+            "resource_type": "iam_role",
+            "tags": tags
         }
     }
     return _stringify(role_content) if stringify else role_content

@@ -4,6 +4,51 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [1.14.0] - 2024-08-28
+- Changed deployment flow to work despite the latest deployment failed
+- Changed deployment flow with the flag `--continue_deploy` to work despite the latest deployment being absent or succeeded
+- Implemented rolling back on error mechanism(flag `--rollback_on_error`) for deployment flow with the flag `--continue_deploy`
+- Added support of lambda functions with runtime DotNet
+- Added possibility to deploy/update resource-specific tags
+- Added confirmation request mechanism for the `update` command in case the latest deployment failed
+- Added the flag `--force` for the `update` command to run an update without confirmation request in case the latest deployment failed
+- Added proper messages for commands `update` and `clean` if deployed resources are absent(output file not found)
+- Added logging of resource names that cause errors to improve error diagnostics
+- Added enhanced logging of the `build` command execution
+- Added validation for existence of bundle and deploy names
+- Added validation for incompatible parameters(`--events`, `--resources`) of the command `syndicate status`
+- Added the possibility to add resource-specific tags via the resource meta generation(flag `--tags`)
+- Added tags support to the Syndicate Java plugin. The `@Tags` and the `@Tag` annotations added to the plugin. The Java plugin version updated to 1.14.0
+- Changed the Java lambda template to use the Syndicate Java plugin version 1.14.0 for the new lambda generation.
+- Event status added to the command `syndicate status` output
+- Reworked lambda triggers update to compare local event sources meta with the previous remote one
+- Reworked lambda triggers deletion to not list every resource of the trigger type to remove it from lambda (**EPMCEOOS-6112**)
+- The key `operation_status` in `latest_deploy` section of the syndicate state file(.syndicate) renamed to `is_succeeded`
+- Fixed lock resolving issue
+- Fixed an issue related to bucket name resolving in the s3_bucket policy
+- Added logging of resource names that cause errors to improve error diagnostics
+- Fix the resource update issue that occurs when a deploy_name is specified by user (not default one) but deployment 
+output for the latest deployment is empty
+- Fixed an issue where updating only certain resources caused the deployment output to be overwritten with only these 
+resources, instead of updating the existing meta
+- Fixed deployment failure if resource name is the same as resource type
+- Fixed an issue related to resource name resolving if ARN is a list item
+- Fixed an issue related to name resolving if one resource name contains another resource name
+- Fixed an issue when a lambda deployment fails when a trigger defined in meta does not exist
+- Fixed an issue related to updating lambda triggers
+- Fixed lambda event source mapping inactivity after deployment
+- Improved logging for the deletion of a resource that does not exist in the account
+- Improved logging in case of the absence of resources to clean
+- Fixed Lambda Layer packaging for the NodeJS runtime
+- Fixed an issue where newly added resources (after deploy) were causing the update operation to fail
+- Fixed a synchronization issue that prevented the batch job queue from being deleted before its state was fully updated
+- Fixed an issue related to removing CloudWatch alarms that were used for Dynamodb autoscaling
+- Fixed an issue with the absence of lambda's information in the output file in case deployment failed on the trigger configuration step
+- Fixed an issue related to losing state after partial clean
+- Fixed an issue related to the latest output resolving
+- Fixed an issue related to the API Gateway throttling and cache configuration for ANY method
+- Fixed an issue with `--force_upload` being required while syndicate assemble
+
 # [1.13.1] - 2024-08-05
 - Speed up deletion of s3 bucket with lots of objects
 

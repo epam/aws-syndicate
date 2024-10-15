@@ -20,21 +20,20 @@ from concurrent.futures import ALL_COMPLETED, ThreadPoolExecutor
 from functools import cmp_to_key
 
 from syndicate.commons.log_helper import get_logger, get_user_logger
-from syndicate.core.build.bundle_processor import (create_deploy_output,
-                                                   load_deploy_output,
-                                                   load_failed_deploy_output,
-                                                   load_meta_resources,
-                                                   remove_failed_deploy_output,
-                                                   load_latest_deploy_output)
-from syndicate.core.build.meta_processor import (resolve_meta,
-                                                 populate_s3_paths,
-                                                 resolve_resource_name)
+from syndicate.core.build.bundle_processor import create_deploy_output, \
+    load_deploy_output, load_failed_deploy_output,load_meta_resources, \
+    remove_failed_deploy_output, load_latest_deploy_output
+from syndicate.core.build.meta_processor import resolve_meta, \
+    populate_s3_paths, resolve_resource_name, get_meta_from_output, \
+    resolve_tags, preprocess_tags
 from syndicate.core.constants import (BUILD_META_FILE_NAME,
                                       CLEAN_RESOURCE_TYPE_PRIORITY,
                                       DEPLOY_RESOURCE_TYPE_PRIORITY,
                                       UPDATE_RESOURCE_TYPE_PRIORITY,
-                                      PARTIAL_CLEAN_ACTION)
+                                      PARTIAL_CLEAN_ACTION, ABORTED_STATUS)
 from syndicate.core.helper import exit_on_exception, prettify_json
+from syndicate.core.build.helper import assert_bundle_bucket_exists, \
+    construct_deploy_s3_key_path
 
 BUILD_META = 'build_meta'
 DEPLOYMENT_OUTPUT = 'deployment_output'
@@ -43,11 +42,12 @@ _LOG = get_logger('syndicate.core.build.deployment_processor')
 USER_LOG = get_user_logger()
 
 
-def _process_resources(resources, handlers_mapping, pass_context=False,
-                       output=None):
+def _process_resources(resources, handlers_mapping, describe_handlers=None,
+                       pass_context=False, output=None):
     output = output or {}
     args = []
     resource_type = None
+    is_succeeded = True
     try:
         for res_name, res_meta in resources:
             current_res_type = res_meta['resource_type']
@@ -80,25 +80,36 @@ def _process_resources(resources, handlers_mapping, pass_context=False,
             response = func(args)
             process_response(response=response, output=output)
 
-        return True, output
     except Exception as e:
         USER_LOG.exception('Error occurred while {0} '
                            'resource creating: {1}'.format(resource_type,
                                                            str(e)))
-        return False, output
+        is_succeeded = False
+
+    if not is_succeeded:
+        for item in args:
+            func = describe_handlers[item['meta']['resource_type']]
+            response = func(item['name'], item['meta'])
+            if response:
+                process_response(response=response, output=output)
+
+    return is_succeeded, output
 
 
 def _process_resources_with_dependencies(resources, handlers_mapping,
-                                         pass_context=False,
+                                         describe_handlers, pass_context=False,
                                          overall_resources=None, output=None,
                                          current_resource_type=None,
                                          run_count=0):
     overall_resources = overall_resources or resources
     output = output or {}
+    resource_type = None
+    is_succeeded = True
     try:
         for res_name, res_meta in resources:
             args = []
             resource_type = res_meta['resource_type']
+
             if res_meta.get('processed'):
                 _LOG.debug(f"Processing of '{resource_type}' '{res_name}' "
                            f"skipped. Resource already processed")
@@ -130,6 +141,7 @@ def _process_resources_with_dependencies(resources, handlers_mapping,
                 success, output = _process_resources_with_dependencies(
                     resources=depends_on_resources,
                     handlers_mapping=handlers_mapping,
+                    describe_handlers=describe_handlers,
                     pass_context=pass_context,
                     overall_resources=overall_resources,
                     output=output,
@@ -155,14 +167,22 @@ def _process_resources_with_dependencies(resources, handlers_mapping,
                 (res_name, res_meta))
             overall_resources[overall_res_index][-1]['processed'] = True
 
-        return True, output
     except Exception as e:
         if 'An infinite loop' in str(e):
             USER_LOG.error(e.args[0])
         else:
             USER_LOG.exception(f"Error occurred while '{resource_type}' "
                                f"resource creating: {str(e)}")
-        return False, output
+        is_succeeded = False
+
+    if not is_succeeded:
+        for item in args:
+            func = describe_handlers[item['meta']['resource_type']]
+            response = func(item['name'], item['meta'])
+            if response:
+                process_response(response=response, output=output)
+
+    return is_succeeded, output
 
 
 def _build_args(name, meta, context, pass_context=False):
@@ -225,16 +245,26 @@ def deploy_resources(resources, output=None):
         return _process_resources_with_dependencies(
             resources=resources,
             handlers_mapping=PROCESSOR_FACADE.create_handlers(),
+            describe_handlers=PROCESSOR_FACADE.describe_handlers(),
             output=output)
 
     return _process_resources(
         resources=resources,
         handlers_mapping=PROCESSOR_FACADE.create_handlers(),
+        describe_handlers=PROCESSOR_FACADE.describe_handlers(),
         output=output)
 
 
-def update_resources(resources):
+def update_resources(resources, old_resources):
     from syndicate.core import PROCESSOR_FACADE
+    # exclude new resources that were added after deployment
+    to_remove = [i for i, res in enumerate(resources) if
+                 res[0] not in old_resources]
+    for i in reversed(to_remove):
+        _LOG.info(f'Skipping resource {resources[i][0]} due to absence in '
+                  f'initial deployment output.')
+        resources.pop(i)
+
     return _process_resources(
         resources=resources,
         handlers_mapping=PROCESSOR_FACADE.update_handlers(),
@@ -267,20 +297,19 @@ def clean_resources(output):
         func(args)
 
 
-def continue_deploy_resources(resources, failed_output,
-                              project_resources_amount):
+def continue_deploy_resources(resources, latest_deploy_output):
 
-    if len(failed_output) == project_resources_amount:
-        USER_LOG.info('Skipping deployment because all project resources '
-                      'already deployed')
-        return True, failed_output
-
-    for arn, meta in failed_output.items():
+    for arn, meta in latest_deploy_output.items():
         for resource_name, resource_meta in resources:
             if resource_name == meta['resource_name']:
                 resources.remove((resource_name, resource_meta))
 
-    return deploy_resources(resources, failed_output)
+    if not resources:
+        USER_LOG.info('Skipping deployment because all specified resources '
+                      'already deployed')
+        return True, latest_deploy_output
+
+    return deploy_resources(resources)
 
 
 def process_response(response, output: dict):
@@ -332,6 +361,7 @@ def _compare_external_resources(expected_resources):
 
 @exit_on_exception
 def create_deployment_resources(deploy_name, bundle_name,
+                                continue_deploy=False,
                                 deploy_only_resources=None,
                                 deploy_only_types=None,
                                 excluded_resources=None,
@@ -339,21 +369,13 @@ def create_deployment_resources(deploy_name, bundle_name,
                                 replace_output=False,
                                 rollback_on_error=False):
 
-    from syndicate.core import PROJECT_STATE
-    latest_deploy_name = PROJECT_STATE.latest_deploy.get('deploy_name')
-    latest_bundle_name = PROJECT_STATE.latest_deploy.get('bundle_name')
-    latest_deploy_status = PROJECT_STATE.latest_deploy.get('operation_status')
-
-    if latest_deploy_status is False:
-        message = (f"Your last deployment with deploy name: "
-                   f"{latest_deploy_name} and deploy bundle: "
-                   f"{latest_bundle_name} failed, you can either clean "
-                   f"resources with `syndicate clean` or continue deployment"
-                   f" with `syndicate deploy --continue_deploy`.")
-        raise AssertionError(message)
-
-    latest_deploy_output = load_latest_deploy_output()
-    _LOG.debug(f'Latest deploy output:\n {latest_deploy_output}')
+    is_ld_output_regular, latest_deploy_output = load_latest_deploy_output()
+    if is_ld_output_regular is True:
+        _LOG.info(f'The latest deployment has status succeeded. '
+                  f'Loaded output:\n {prettify_json(latest_deploy_output)}')
+    elif is_ld_output_regular is False:
+        _LOG.info(f'The latest deployment has status failed. '
+                  f'Loaded output:\n {prettify_json(latest_deploy_output)}')
 
     resources = load_meta_resources(bundle_name)
     # validate_deployment_packages(resources)
@@ -363,6 +385,7 @@ def create_deployment_resources(deploy_name, bundle_name,
     _LOG.debug('Names were resolved')
     resources = populate_s3_paths(resources, bundle_name)
     _LOG.debug('Artifacts s3 paths were resolved')
+    resolve_tags(resources)
 
     deploy_only_resources = _resolve_names(deploy_only_resources)
     excluded_resources = _resolve_names(excluded_resources)
@@ -390,7 +413,15 @@ def create_deployment_resources(deploy_name, bundle_name,
     resources_list.sort(key=cmp_to_key(compare_deploy_resources))
 
     _LOG.info('Going to deploy AWS resources')
-    success, output = deploy_resources(resources_list)
+    if continue_deploy:
+        success, output = continue_deploy_resources(resources_list,
+                                                    latest_deploy_output)
+    else:
+        success, output = deploy_resources(resources_list)
+
+    # remove failed output from bucket
+    if is_ld_output_regular is False:
+        remove_failed_deploy_output(bundle_name, deploy_name)
 
     if not success:
         if rollback_on_error is True:
@@ -412,10 +443,13 @@ def create_deployment_resources(deploy_name, bundle_name,
                 clean_resources(output_resources_list)
 
         else:
+            _LOG.info('Going to apply post deployment tags')
+            _apply_post_deployment_tags(output)
+
             USER_LOG.info('Going to create deploy output')
             create_deploy_output(bundle_name=bundle_name,
                                  deploy_name=deploy_name,
-                                 output={**output, **latest_deploy_output},
+                                 output={**latest_deploy_output, **output},
                                  success=success,
                                  replace_output=replace_output)
     else:
@@ -426,13 +460,13 @@ def create_deployment_resources(deploy_name, bundle_name,
         _apply_dynamic_changes(resources, output)
         USER_LOG.info('Dynamic changes were applied successfully')
 
-        _LOG.info('Going to apply common tags')
-        _apply_tags(output)
+        _LOG.info('Going to apply post deployment tags')
+        _apply_post_deployment_tags(output)
 
         USER_LOG.info('Going to create deploy output')
         create_deploy_output(bundle_name=bundle_name,
                              deploy_name=deploy_name,
-                             output={**output, **latest_deploy_output},
+                             output={**latest_deploy_output, **output},
                              success=success,
                              replace_output=replace_output)
 
@@ -446,8 +480,36 @@ def update_deployment_resources(bundle_name, deploy_name, replace_output=False,
                                 update_only_types=None,
                                 update_only_resources=None,
                                 excluded_resources=None,
-                                excluded_types=None):
-    from syndicate.core import PROCESSOR_FACADE
+                                excluded_types=None,
+                                force=False):
+    from syndicate.core import PROCESSOR_FACADE, PROJECT_STATE
+    from click import confirm as click_confirm
+    latest_bundle = PROJECT_STATE.get_latest_deployed_or_updated_bundle(
+        bundle_name, latest_if_not_found=True)
+    if not latest_bundle:
+        latest_bundle = PROJECT_STATE.latest_deployed_bundle_name
+    _LOG.debug(f'Latest bundle name: {latest_bundle}')
+
+    try:
+        old_output = load_deploy_output(latest_bundle, deploy_name)
+        _LOG.info('Output file was loaded successfully')
+    except AssertionError:
+        try:
+            old_output = load_failed_deploy_output(latest_bundle, deploy_name)
+            if not force:
+                if not click_confirm(
+                        "The latest deployment has status failed. "
+                        "Do you want to proceed with updating?"):
+                    return ABORTED_STATUS
+
+                _LOG.warn(
+                    'Updating resources despite previous deployment failures')
+        except AssertionError:
+            USER_LOG.error('Deployment to update not found.')
+            return ABORTED_STATUS
+
+    old_resources = get_meta_from_output(old_output)
+    old_resources = _resolve_names(tuple(old_resources.keys()))
     resources = load_meta_resources(bundle_name)
     _LOG.debug(prettify_json(resources))
 
@@ -455,8 +517,9 @@ def update_deployment_resources(bundle_name, deploy_name, replace_output=False,
     _LOG.debug('Names were resolved')
     resources = populate_s3_paths(resources, bundle_name)
     _LOG.debug('Artifacts s3 paths were resolved')
+    resolve_tags(resources)
 
-    _LOG.warn(
+    USER_LOG.warn(
         'Please pay attention that only the '
         'following resources types are supported for update: {}'.format(
             list(PROCESSOR_FACADE.update_handlers().keys())))
@@ -477,18 +540,24 @@ def update_deployment_resources(bundle_name, deploy_name, replace_output=False,
         exclude_types=excluded_types
     )
 
-    _LOG.debug('Going to update the following resources: {0}'.format(
-        prettify_json(resources)))
+    _LOG.debug(
+        f'Going to update the following resources: {prettify_json(resources)}')
     resources_list = list(resources.items())
     resources_list.sort(key=cmp_to_key(_compare_update_resources))
 
-    success, output = update_resources(resources_list)
+    success, output = update_resources(resources_list, old_resources)
+
+    _LOG.info('Going to updates tags')
+    preprocess_tags(output)
+    _update_tags(old_output, output)
 
     create_deploy_output(bundle_name=bundle_name,
                          deploy_name=deploy_name,
-                         output=output,
+                         output={**old_output, **output},
                          success=success,
                          replace_output=replace_output)
+    if success:
+        remove_failed_deploy_output(bundle_name, deploy_name)
     return success
 
 
@@ -511,8 +580,9 @@ def remove_deployment_resources(deploy_name, bundle_name,
                 bundle_name, deploy_name
             )
             is_regular_output = False
-        except AssertionError as e:
-            return e
+        except AssertionError:
+            USER_LOG.error("Deployment to clean not found.")
+            return ABORTED_STATUS
 
     clean_only_resources = _resolve_names(clean_only_resources)
     excluded_resources = _resolve_names(excluded_resources)
@@ -537,7 +607,10 @@ def remove_deployment_resources(deploy_name, bundle_name,
     resources_list = list(new_output.items())
     resources_list.sort(key=cmp_to_key(_compare_clean_resources))
     _LOG.debug(f'Resources to delete: {prettify_json(resources_list)}')
-    USER_LOG.info('Going to clean AWS resources')
+    if resources_list:
+        USER_LOG.info('Going to clean AWS resources')
+    else:
+        _LOG.info('Clean skipped because resources to clean absent')
     clean_resources(resources_list)
     # remove new_output from bucket
     return _post_remove_output_handling(
@@ -548,82 +621,6 @@ def remove_deployment_resources(deploy_name, bundle_name,
         new_output=new_output,
         is_regular_output=is_regular_output
     )
-
-
-@exit_on_exception
-def continue_deployment_resources(deploy_name, bundle_name,
-                                  deploy_only_resources=None,
-                                  deploy_only_types=None,
-                                  excluded_resources=None,
-                                  excluded_types=None,
-                                  replace_output=False):
-    from syndicate.core import PROJECT_STATE
-    latest_deploy_name = PROJECT_STATE.latest_deploy.get('deploy_name')
-    latest_bundle_name = PROJECT_STATE.latest_deploy.get('bundle_name')
-    latest_deploy_status = PROJECT_STATE.latest_deploy.get('operation_status')
-
-    if latest_deploy_status is True:
-        raise AssertionError(f"Your last deployment with deploy name:"
-                             f" {latest_deploy_name} and deploy bundle:"
-                             f" {latest_bundle_name} was successful,"
-                             f" you cannot execute the `continue deploy` "
-                             f"command.")
-
-    failed_output = load_failed_deploy_output(
-        bundle_name=latest_bundle_name, deploy_name=latest_deploy_name
-    )
-    _LOG.info('Failed output file was loaded successfully')
-
-    resources = load_meta_resources(bundle_name)
-    _LOG.debug('{0} file was loaded successfully'.format(BUILD_META_FILE_NAME))
-    project_resources_amount = len(resources)
-
-    resources = resolve_meta(resources)
-    _LOG.debug('Names were resolved')
-    resources = populate_s3_paths(resources, bundle_name)
-    _LOG.debug('Artifacts s3 paths were resolved')
-
-    deploy_only_resources = _resolve_names(deploy_only_resources)
-    excluded_resources = _resolve_names(excluded_resources)
-    _LOG.info(
-        'Prefixes and suffixes of any resource names have been resolved.')
-
-    resources = _filter_resources(
-        resources_meta=resources,
-        resource_names=deploy_only_resources,
-        resource_types=deploy_only_types,
-        exclude_names=excluded_resources,
-        exclude_types=excluded_types
-    )
-
-    _LOG.debug('Going to create: {0}'.format(prettify_json(resources)))
-
-    # sort resources with priority
-    resources_list = list(resources.items())
-    resources_list.sort(key=cmp_to_key(compare_deploy_resources))
-
-    success, updated_output = continue_deploy_resources(
-        resources=resources_list, failed_output=failed_output,
-        project_resources_amount=project_resources_amount)
-    _LOG.info('AWS resources were deployed successfully')
-    if success:
-        # apply dynamic changes that uses ARNs
-        _LOG.info('Going to apply dynamic changes')
-        _apply_dynamic_changes(resources, updated_output)
-        _LOG.info('Dynamic changes were applied successfully')
-
-        _LOG.info('Going to apply common tags')
-        _apply_tags(updated_output)
-
-    # remove failed output from bucket
-    remove_failed_deploy_output(bundle_name, deploy_name)
-    _LOG.info('Going to create deploy output')
-    create_deploy_output(bundle_name=bundle_name,
-                         deploy_name=deploy_name,
-                         output=updated_output,
-                         success=success,
-                         replace_output=replace_output)
-    return success
 
 
 def _post_remove_output_handling(deploy_name, bundle_name, preserve_state,
@@ -641,6 +638,7 @@ def _post_remove_output_handling(deploy_name, bundle_name, preserve_state,
                              success=is_regular_output,
                              replace_output=True)
         return {'operation': PARTIAL_CLEAN_ACTION}
+    return True
 
 
 def _apply_dynamic_changes(resources, output):
@@ -683,10 +681,16 @@ def _apply_dynamic_changes(resources, output):
     concurrent.futures.wait(futures, timeout=None, return_when=ALL_COMPLETED)
 
 
-def _apply_tags(output: dict):
+def _apply_post_deployment_tags(output: dict):
     from syndicate.core import RESOURCES_PROVIDER
     tags_resource = RESOURCES_PROVIDER.tags_api()
-    tags_resource.apply_tags(output)
+    tags_resource.apply_post_deployment_tags(output)
+
+
+def _update_tags(old_output: dict, new_output: dict):
+    from syndicate.core import RESOURCES_PROVIDER
+    tags_resource = RESOURCES_PROVIDER.tags_api()
+    tags_resource.update_tags(old_output, new_output)
 
 
 def compare_deploy_resources(first, second):
@@ -771,3 +775,14 @@ def _filter_resources(resources_meta, resources_meta_type=BUILD_META,
                 filtered.pop(k)
 
     return filtered
+
+
+def is_deploy_exist(bundle_name, deploy_name):
+    from syndicate.core import CONN, CONFIG
+    assert_bundle_bucket_exists()
+    key_compound = construct_deploy_s3_key_path(bundle_name, deploy_name)
+    failed_key_compound = construct_deploy_s3_key_path(
+        bundle_name, deploy_name, is_failed=True)
+    bucket = CONFIG.deploy_target_bucket
+    return CONN.s3().get_keys_by_prefix(bucket, key_compound) or \
+        CONN.s3().get_keys_by_prefix(bucket, failed_key_compound)

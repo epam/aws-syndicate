@@ -45,6 +45,8 @@ class EbsResource(BaseResource):
             f':application/{name}'
         if not response:
             response = self.ebs_conn.describe_applications([name])
+        if not response:
+            return
         return {
             arn: build_description_obj(response, name, meta)
         }
@@ -163,14 +165,16 @@ class EbsResource(BaseResource):
                 break
 
         # create APP
-        response = self.ebs_conn.create_application(name)
+        response = self.ebs_conn.create_application(name,
+                                                    tags=meta.get('tags'))
         _LOG.info(f'Created EBS app {name}.')
         # create ENV
         self.ebs_conn.create_environment(app_name=name,
                                          env_name=env_name,
                                          option_settings=env_settings,
                                          tier=meta['tier'],
-                                         solution_stack_name=stack)
+                                         solution_stack_name=stack,
+                                         tags=meta.get('tags'))
         key = meta[S3_PATH_NAME]
         key_compound = PurePath(CONFIG.deploy_target_bucket_key_compound,
                                 key).as_posix()
@@ -184,7 +188,8 @@ class EbsResource(BaseResource):
         self.ebs_conn.create_app_version(app_name=name,
                                          version_label=version_label,
                                          s3_bucket=self.deploy_target_bucket,
-                                         s3_key=key_compound)
+                                         s3_key=key_compound,
+                                         tags=meta.get('tags'))
         _LOG.debug(f'Waiting for beanstalk env {env_name}')
         # wait for env creation
         start = time()

@@ -10,4 +10,5 @@ class CognitoFederatedPoolGenerator(BaseDeploymentResourceGenerator):
         "unauth_role": None,
         "open_id_providers": list,
         "provider_name": None,
+        "tags": dict
     }

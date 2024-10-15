@@ -29,7 +29,8 @@ from pathlib import Path
 from typing import Union, Optional, List, Set
 
 from syndicate.commons.log_helper import get_logger, get_user_logger
-from syndicate.core.build.helper import build_py_package_name, zip_dir
+from syndicate.core.build.helper import build_py_package_name, zip_dir, \
+    remove_dir
 from syndicate.core.conf.processor import path_resolver
 from syndicate.core.constants import (LAMBDA_CONFIG_FILE_NAME, DEFAULT_SEP,
                                       REQ_FILE_NAME, LOCAL_REQ_FILE_NAME,
@@ -86,18 +87,6 @@ def assemble_python_lambdas(project_path, bundles_dir):
             print(f'\033[91m' + str(exception), file=sys.stderr)
             sys.exit(1)
     _LOG.info('Python project was processed successfully')
-
-
-def remove_dir(path: Union[str, Path]):
-    removed = False
-    while not removed:
-        _LOG.info(f'Trying to remove "{path}"')
-        try:
-            shutil.rmtree(path)
-            removed = True
-        except Exception as e:
-            _LOG.warn(f'An error "{e}" occurred while '
-                      f'removing artifacts "{path}"')
 
 
 @unpack_kwargs
@@ -199,40 +188,47 @@ def _build_python_artifact(root, config_file, target_folder, project_path):
 def install_requirements_to(requirements_txt: Union[str, Path],
                             to: Union[str, Path],
                             config: Optional[dict] = None):
+    exit_code = None
     config = config or {}
     _LOG.info('Going to install 3-rd party dependencies')
     supported_platforms = update_platforms(set(config.get('platforms') or []))
     python_version = _get_python_version(lambda_config=config)
-    try:
-        if supported_platforms:
-            # tries to install packages compatible with specific platforms
-            # returns the list of requirement that failed the installation
-            failed_requirements = install_requirements_for_platform(
-                requirements_txt=requirements_txt,
+    if supported_platforms:
+        # tries to install packages compatible with specific platforms
+        # returns the list of requirement that failed the installation
+        failed_requirements = install_requirements_for_platform(
+            requirements_txt=requirements_txt,
+            to=to,
+            supported_platforms=supported_platforms,
+            python_version=python_version
+        )
+        for failed in failed_requirements:
+            command = build_pip_install_command(  # default installation
+                requirement=failed,
                 to=to,
-                supported_platforms=supported_platforms,
-                python_version=python_version
             )
-            for failed in failed_requirements:
-                command = build_pip_install_command(  # default installation
-                    requirement=failed,
-                    to=to,
-                )
-                subprocess.run(command, stderr=subprocess.PIPE, check=True)
-        else:
-            _LOG.info('Installing all the requirements with defaults')
-            command = build_pip_install_command(
-                requirement=requirements_txt,
-                to=to
-            )
-            subprocess.run(command, stderr=subprocess.PIPE, check=True)
+            result = subprocess.run(command, capture_output=True, text=True)
+            if result.returncode != 0:
+                exit_code = result.returncode
+                break
+            _LOG.info(f'\n{result.stdout}\n{result.stderr}')
+    else:
+        _LOG.info('Installing all the requirements with defaults')
+        command = build_pip_install_command(
+            requirement=requirements_txt,
+            to=to
+        )
+        result = subprocess.run(command, capture_output=True, text=True)
+        exit_code = result.returncode
 
-    except subprocess.CalledProcessError as e:
-        message = f'An error: \n"{e.stderr.decode()}"\noccured while ' \
-                  f'installing requirements: "{str(requirements_txt)}" ' \
-                  f'for package "{to}"'
+    if exit_code:
+        message = (f'An error: \n"{result.stdout}\n{result.stderr}"\noccurred '
+                   f'while installing requirements: "{str(requirements_txt)}" '
+                   f'for package "{to}"')
         _LOG.error(message)
         raise RuntimeError(message)
+    if exit_code == 0:
+        _LOG.info(f'\n{result.stdout}\n{result.stderr}')
     _LOG.info('3-rd party dependencies were installed successfully')
 
 
@@ -314,23 +310,24 @@ def install_requirements_for_platform(requirements_txt: Union[str, Path],
     )
     failed_requirements = []
     for requirement in it:
-        try:
-            command = build_pip_install_command(
-                requirement=requirement,
-                to=to,
-                implementation='cp',
-                python=python_version,
-                only_binary=':all:',
-                platforms=supported_platforms
-            )
-            subprocess.run(command, stderr=subprocess.PIPE, check=True)
-        except subprocess.CalledProcessError as e:
-            message = f'An error: \n"{e.stderr.decode()}"\noccured while ' \
-                      f'installing requirements for platforms:' \
+        command = build_pip_install_command(
+            requirement=requirement,
+            to=to,
+            implementation='cp',
+            python=python_version,
+            only_binary=':all:',
+            platforms=supported_platforms
+        )
+        result = subprocess.run(command, capture_output=True, text=True)
+        if result.returncode != 0:
+            message = f'An error: \n"{result.stdout}\n{result.stderr}"\n' \
+                      f'occurred while installing requirements for platforms: ' \
                       f'{",".join(supported_platforms)}: ' \
                       f'"{str(requirements_txt)}" for package "{requirement}"'
-            USER_LOG.warning(f"\033[93m{message}\033[0m")
+            USER_LOG.error(f"\033[93m{message}\033[0m")
             failed_requirements.append(requirement)
+        else:
+            _LOG.info(f'\n{result.stdout}\n{result.stderr}')
     fp.close()
     return failed_requirements
 

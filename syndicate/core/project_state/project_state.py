@@ -27,10 +27,10 @@ import yaml
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.constants import BUILD_ACTION, \
     DEPLOY_ACTION, UPDATE_ACTION, CLEAN_ACTION, PACKAGE_META_ACTION, \
-    PARTIAL_CLEAN_ACTION
+    ABORTED_STATUS, SUCCEEDED_STATUS, FAILED_STATUS
 from syndicate.core.constants import DATE_FORMAT_ISO_8601
 from syndicate.core.groups import RUNTIME_JAVA, RUNTIME_NODEJS, RUNTIME_PYTHON, \
-    RUNTIME_SWAGGER_UI
+    RUNTIME_SWAGGER_UI, RUNTIME_DOTNET
 
 CAPITAL_LETTER_REGEX = '[A-Z][^A-Z]*'
 
@@ -41,6 +41,7 @@ STATE_BUILD_PROJECT_MAPPING = 'build_projects_mapping'
 STATE_LOG_EVENTS = 'events'
 STATE_LATEST_DEPLOY = 'latest_deploy'
 LOCK_LOCKED_TILL = 'locked_till'
+LOCK_IS_LOCKED = 'is_locked'
 LOCK_LAST_MODIFICATION_DATE = 'last_modification_date'
 LOCK_INITIATOR = 'initiator'
 
@@ -54,6 +55,7 @@ BUILD_MAPPINGS = {
     RUNTIME_JAVA: 'jsrc/main/java',
     RUNTIME_PYTHON: 'src',
     RUNTIME_NODEJS: 'app',
+    RUNTIME_DOTNET: 'dnapp',
     RUNTIME_SWAGGER_UI: 'swagger_src'
 }
 
@@ -82,6 +84,8 @@ class ProjectState:
             self.project_path = project_path
             self.state_path = os.path.join(project_path, PROJECT_STATE_FILE)
         self.dct = dct if dct else self.__load_project_state_file()
+        self._current_deploy = None
+        self._current_bundle = None
 
     @staticmethod
     def generate(project_path, project_name):
@@ -204,6 +208,22 @@ class ProjectState:
         self.dct[STATE_LATEST_DEPLOY] = latest_deploy
 
     @property
+    def current_deploy(self):
+        return self._current_deploy
+
+    @current_deploy.setter
+    def current_deploy(self, current_deploy):
+        self._current_deploy = current_deploy
+
+    @property
+    def current_bundle(self):
+        return self._current_bundle
+
+    @current_bundle.setter
+    def current_bundle(self, current_bundle):
+        self._current_bundle = current_bundle
+
+    @property
     def latest_bundle_name(self):
         """Returns bundle_name from the one of the latest operations which
         can guarantee that the bundle is ready"""
@@ -237,17 +257,47 @@ class ProjectState:
                        event.get('operation') in modification_ops), None)
         return latest
 
+    def get_latest_deployed_or_updated_bundle(
+            self, bundle_name=None, latest_if_not_found=False):
+        """
+        Retrieve the latest deployed or updated bundle. If `bundle_name`
+        is provided, it returns the latest event for that specific bundle.
+        If `bundle_name` is None, it returns the latest event across all
+        operations.
+        :latest_if_not_found: - If True, the method will retry fetching the
+        latest event without reference to the bundle name.
+        """
+        modification_ops = [DEPLOY_ACTION, UPDATE_ACTION]
+        filtered_events = (
+            event for event in self.events
+            if self._is_event_matching(event, bundle_name, modification_ops)
+        )
+        latest_event = next(filtered_events, None)
+        if not latest_event and latest_if_not_found:
+            return self.get_latest_deployed_or_updated_bundle()
+        return latest_event.get('bundle_name') if latest_event else None
+
+    @staticmethod
+    def _is_event_matching(event, bundle_name, modification_ops):
+        matches_operation = event.get('operation') in modification_ops
+        matches_bundle_name = bundle_name is None or event.get(
+            'bundle_name') == bundle_name
+        status = event.get('status') != ABORTED_STATUS
+
+        return matches_operation and matches_bundle_name and status
+
     def is_lock_free(self, lock_name):
         lock = self.locks.get(lock_name)
         if not lock:
             return True
-        elif not lock.get(LOCK_LOCKED_TILL):
+        elif not lock.get(LOCK_IS_LOCKED):
             return True
         elif locked_till := lock.get(LOCK_LOCKED_TILL):
             locked_till_datetime = datetime.strptime(
                 locked_till, DATE_FORMAT_ISO_8601)
             if locked_till_datetime <= datetime.utcnow():
                 lock[LOCK_LOCKED_TILL] = None
+                lock[LOCK_IS_LOCKED] = False
                 return True
         return False
 
@@ -361,21 +411,28 @@ class ProjectState:
     def log_execution_event(self, **kwargs):
         operation = kwargs.get('operation')
 
-        operation_status = kwargs.get('operation_status')
+        status = kwargs.get('status')
         rollback_on_error = kwargs.get('rollback_on_error')
-        if not isinstance(operation_status, bool):
-            kwargs.pop('operation_status')
+        if status not in [True, False, ABORTED_STATUS]:
+            kwargs.pop('status', None)
 
-        if operation in [DEPLOY_ACTION, PARTIAL_CLEAN_ACTION]:
+        if operation in [DEPLOY_ACTION]:
             params = kwargs.copy()
             params.pop('operation')
+            params['is_succeeded'] = params.pop('status')
 
-            if not(operation_status is False and rollback_on_error is True):
+            if not (status is False and rollback_on_error is True):
                 params.pop('rollback_on_error')
                 self._set_latest_deploy_info(**params)
 
-        if operation == CLEAN_ACTION:
+        if operation == CLEAN_ACTION and status is True:
             self._delete_latest_deploy_info()
+
+        match status:
+            case True:
+                kwargs['status'] = SUCCEEDED_STATUS
+            case False:
+                kwargs['status'] = FAILED_STATUS
 
         kwargs = {
             key: value for key, value in kwargs.items() if value is not None

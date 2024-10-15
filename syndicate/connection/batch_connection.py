@@ -39,7 +39,8 @@ class BatchConnection(object):
     def create_compute_environment(self, compute_environment_name,
                                    compute_environment_type, state,
                                    service_role=None,
-                                   compute_resources=None):
+                                   compute_resources=None,
+                                   tags=None):
         params = dict(
             computeEnvironmentName=compute_environment_name,
             type=compute_environment_type,
@@ -50,6 +51,9 @@ class BatchConnection(object):
         if compute_resources:
             compute_resources = dict_keys_to_camel_case(compute_resources)
             params['computeResources'] = compute_resources
+
+        if tags:
+            params['tags'] = tags
 
         return self.client.create_compute_environment(**params)
 
@@ -93,6 +97,9 @@ class BatchConnection(object):
         for index, item in enumerate(compute_environment_order):
             compute_environment_order[index] = dict_keys_to_camel_case(item)
         params['computeEnvironmentOrder'] = compute_environment_order
+
+        if tags:
+            params['tags'] = tags
 
         return self.client.create_job_queue(**params)
 

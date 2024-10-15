@@ -22,8 +22,9 @@ from botocore.exceptions import ClientError
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection import S3Connection
 from syndicate.core.build.helper import _json_serial, resolve_bundle_directory, \
-    resolve_all_bundles_directory
-from syndicate.core.build.meta_processor import validate_deployment_packages
+    resolve_all_bundles_directory, assert_bundle_bucket_exists
+from syndicate.core.build.meta_processor import validate_deployment_packages, \
+    preprocess_tags
 from syndicate.core.constants import (ARTIFACTS_FOLDER, BUILD_META_FILE_NAME,
                                       DEFAULT_SEP)
 from syndicate.core.helper import build_path, unpack_kwargs
@@ -46,6 +47,8 @@ def _backup_deploy_output(filename, output):
 def create_deploy_output(bundle_name, deploy_name, output, success,
                          replace_output=False):
     from syndicate.core import CONFIG, CONN
+    _LOG.debug('Going to preprocess resources tags in output')
+    preprocess_tags(output)
     output_str = json.dumps(output, default=_json_serial)
     key = _build_output_key(bundle_name=bundle_name,
                             deploy_name=deploy_name,
@@ -88,6 +91,8 @@ def remove_failed_deploy_output(bundle_name, deploy_name):
                             key).as_posix()
     if CONN.s3().is_file_exists(CONFIG.deploy_target_bucket,
                                 key_compound):
+        _LOG.debug(f"Going to remove failed output '{key_compound}' from the "
+                   f"bucket '{CONFIG.deploy_target_bucket}'")
         CONN.s3().remove_object(CONFIG.deploy_target_bucket, key_compound)
     else:
         _LOG.warn(
@@ -133,24 +138,22 @@ def load_failed_deploy_output(bundle_name, deploy_name):
 def load_latest_deploy_output():
     from syndicate.core import PROJECT_STATE
     if not PROJECT_STATE.latest_deploy:
-        return {}
+        return None, {}
     deploy_name = PROJECT_STATE.latest_deploy.get('deploy_name')
     bundle_name = PROJECT_STATE.latest_deploy.get('bundle_name')
-    latest_deploy_status = PROJECT_STATE.latest_deploy.get('operation_status')
+    latest_deploy_status = PROJECT_STATE.latest_deploy.get(
+        'is_succeeded', True)
 
     if latest_deploy_status is True:
-        return load_deploy_output(bundle_name, deploy_name)
+        return True, load_deploy_output(bundle_name, deploy_name)
+    elif latest_deploy_status is False:
+        return False, load_failed_deploy_output(bundle_name, deploy_name)
     else:
-        message = ("Deployment output file not found. It is because the "
-                   "previous deployment failed. This problem can be resolved"
-                   " in the following ways. First of all, you can execute"
-                   " command `syndicate clean`, after that fix the error that"
-                   " led to the failed deployment, create a new bundle and"
-                   " deploy it. Alternatively, you can fix the error that"
-                   " led to the failed deployment, create a new bundle, and"
-                   " execute command `syndicate deploy --continue_deploy`.")
-        _LOG.error(message)
-        raise AssertionError(message)
+        raise ValueError(
+            "The latest deployments' status can't be resolved because of "
+            "unexpected status. Please check the parameter 'is_succeeded' "
+            "value in the 'latest_deploy' section of the syndicate state "
+            "file. Expected value is 'true' or 'false'")
 
 
 def load_meta_resources(bundle_name):
@@ -165,7 +168,7 @@ def load_meta_resources(bundle_name):
 
 def if_bundle_exist(bundle_name):
     from syndicate.core import CONFIG, CONN
-    _assert_bundle_bucket_exists()
+    assert_bundle_bucket_exists()
     bundle_folder = bundle_name + DEFAULT_SEP
     key_compound = PurePath(CONFIG.deploy_target_bucket_key_compound,
                             bundle_folder).as_posix()
@@ -290,13 +293,3 @@ def _put_package_to_s3(path, path_to_package):
                             path).as_posix()
     CONN.s3().upload_single_file(path_to_package, key_compound,
                                  CONFIG.deploy_target_bucket)
-
-
-def _assert_bundle_bucket_exists():
-    from syndicate.core import CONFIG, CONN
-    if not CONN.s3().is_bucket_exists(
-            CONFIG.deploy_target_bucket):
-        raise AssertionError("Bundles bucket {0} does not exist."
-                             " Please use 'create_deploy_target_bucket' to "
-                             "create the bucket."
-                             .format(CONFIG.deploy_target_bucket))

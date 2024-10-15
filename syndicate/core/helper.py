@@ -95,25 +95,17 @@ def prettify_json(obj):
     return json.dumps(obj, indent=4)
 
 
-def cli_command(handler_func):
-    @wraps(handler_func)
-    def wrapper(*args, **kwargs):
-        status_code = handler_func(*args, **kwargs)
-        if status_code != 0:
-            _LOG.error('Execution is failed')
-            sys.exit(1)
-
-    return wrapper
-
-
-@cli_command
 def execute_command_by_path(command, path):
-    return subprocess.call(command, shell=True, cwd=path)
+    result = subprocess.run(command, shell=True, cwd=path, capture_output=True,
+                            text=True)
 
-
-@cli_command
-def execute_command(command):
-    return subprocess.call(command, shell=True)
+    if result.returncode != 0:
+        msg = (f'While running the command "{command}" occurred an error:\n'
+               f'"{result.stdout}\n{result.stderr}"')
+        USER_LOG.error(msg)
+        sys.exit(result.returncode)
+    _LOG.info(f'Running the command "{command}"\n{result.stdout}'
+              f'\n{result.stderr}')
 
 
 def build_path(*paths):
@@ -198,7 +190,7 @@ def generate_default_bundle_name(ctx, param, value):
 
 def resolve_default_bundle_name(command_name):
     from syndicate.core import PROJECT_STATE
-    if command_name == 'clean':
+    if command_name in 'clean':
         bundle_name = PROJECT_STATE.latest_deployed_bundle_name
     else:
         bundle_name = PROJECT_STATE.latest_bundle_name
@@ -212,7 +204,7 @@ def resolve_default_bundle_name(command_name):
 
 def resolve_default_deploy_name(command_name):
     from syndicate.core import PROJECT_STATE
-    if command_name == 'clean':
+    if command_name in ('clean', 'update'):
         deploy_name = PROJECT_STATE.latest_deployed_deploy_name
     else:
         deploy_name = PROJECT_STATE.default_deploy_name
@@ -337,6 +329,8 @@ def timeit(action_name=None):
                       str(timedelta(seconds=te - ts)))
             result_action_name = result.get('operation') if \
                 isinstance(result, dict) else None
+            if result_action_name:
+                result = True
             if action_name:
                 username = getpass.getuser()
                 duration = round(te - ts, 3)
@@ -348,7 +342,6 @@ def timeit(action_name=None):
                 bundle_name = kwargs.get('bundle_name')
                 deploy_name = kwargs.get('deploy_name')
                 rollback_on_error = kwargs.get('rollback_on_error')
-                operation_status = result
                 from syndicate.core import PROJECT_STATE
                 PROJECT_STATE.log_execution_event(
                     operation=result_action_name or action_name,
@@ -358,7 +351,7 @@ def timeit(action_name=None):
                     time_start=start_date_formatted,
                     time_end=end_date_formatted,
                     duration_sec=duration,
-                    operation_status=operation_status,
+                    status=result,
                     rollback_on_error=rollback_on_error
                 )
             return result
@@ -527,17 +520,18 @@ class DictParamType(click.types.StringParamType):
         try:
             for item in value.split(self.ITEMS_SEPARATOR):
                 k, v = item.split(self.KEY_VALUE_SEPARATOR)
-                result[k] = v
+                result[k.lstrip().rstrip()] = v.lstrip().rstrip()
         except ValueError as e:
-            raise BadParameter(f'Wrong format: {value}. '
-                               f'Must be key:value or key,value. '
-                               f'\nError: {e.__str__()}')
+            raise BadParameter(
+                f'Wrong format: "{value}". '
+                f'Must be "key:value" or "key1:value1,key2:value2". '
+                f'\nError: {e.__str__()}')
 
         _LOG.info(f'Converted to such a dict: {result}')
         return result
 
     def get_metavar(self, param):
-        return f'KEY{self.KEY_VALUE_SEPARATOR}VALUE1' \
+        return f'KEY1{self.KEY_VALUE_SEPARATOR}VALUE1' \
                f'{self.ITEMS_SEPARATOR}KEY2{self.KEY_VALUE_SEPARATOR}VALUE2'
 
 
@@ -747,6 +741,18 @@ def validate_api_gw_path(ctx, param, value):
             f"alphanumeric characters, hyphens, periods, underscores or "
             "dynamic parameters wrapped in '{}'")
     return value
+
+
+def check_tags(ctx, param, value):
+    if value:
+        errors = validate_tags(param.name, value)
+        if errors:
+            raise BadParameter(errors)
+        return value
+
+
+def validate_tags(key_name, tags_dict):
+    return ConfigValidator.validate_tags(key_name, tags_dict)
 
 
 def set_debug_log_level(ctx, param, value):

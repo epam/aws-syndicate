@@ -64,6 +64,7 @@ TAGS_CFG = 'tags'
 PYTHON_LANGUAGE_NAME = 'python'
 NODEJS_LANGUAGE_NAME = 'nodejs'
 JAVA_LANGUAGE_NAME = 'java'
+DOTNET_LANGUAGE_NAME = 'dotnet'
 SWAGGER_UI_NAME = 'swagger_ui'
 
 ALLOWED_RUNTIME_LANGUAGES = [PYTHON_LANGUAGE_NAME,
@@ -314,15 +315,26 @@ class ConfigValidator:
             errors.append(f'Each resource can have up to 50 user created tags.'
                           f' You have specified: {len(value)}')
         for tag_name, tag_value in value.items():
-            if tag_name.startswith('aws:'):
-                errors.append(f'\'{tag_name}\': you can\'t create, edit or '
-                              f'delete a tag that begins with the \'aws:\' '
-                              f'prefix.')
+            if not isinstance(tag_name, str):
+                errors.append(
+                    f'The tag key \'{tag_name}\' has type '
+                    f'"{type(tag_name).__name__}". Supported type is "string".')
+            else:
+                if tag_name.startswith('aws:'):
+                    errors.append(f'\'{tag_name}\': you can\'t create, edit '
+                                  f'or delete a tag that begins with the '
+                                  f'\'aws:\' prefix.')
                 if not 1 <= len(tag_name) <= 128:
                     errors.append(f'\'{tag_name}\': the tag key must be a '
                                   f'minimum of 1 and a maximum of 128 Unicode '
                                   f'characters')
-                if not 0 <= len(tag_value) <= 256:
+
+            if not isinstance(tag_value, str):
+                errors.append(
+                    f'The tag key \'{tag_name}\' value \'{tag_value}\'has type '
+                    f'"{type(tag_value).__name__}". Supported type is "string".')
+            else:
+                if len(tag_value) > 256:
                     errors.append(f'\'{tag_value}\': the tag value must be a '
                                   f'minimum of 0 and a maximum of 256 Unicode '
                                   f'characters')

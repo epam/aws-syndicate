@@ -14,12 +14,20 @@
     limitations under the License.
 """
 import os
+import shutil
+import subprocess
 import zipfile
 from contextlib import closing
 from datetime import datetime, date
+from pathlib import PurePath, Path
+from typing import Union
 
+from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.constants import ARTIFACTS_FOLDER
 from syndicate.core.helper import build_path
+
+_LOG = get_logger(__name__)
+USER_LOG = get_user_logger()
 
 
 def build_py_package_name(lambda_name, lambda_version):
@@ -39,6 +47,28 @@ def zip_dir(basedir: str, name: str, archive_subfolder: str = None):
                 z.write(absfn, zfn)
 
 
+def run_external_command(command: list):
+    result = subprocess.run(
+        command,
+        capture_output=True,
+        text=True)
+
+    return result.returncode, result.stdout, result.stderr
+
+
+def remove_dir(path: Union[str, Path]):
+    removed = False
+    while not removed:
+        _LOG.info(f'Trying to remove "{path}"')
+        try:
+            shutil.rmtree(path)
+            removed = True
+        except Exception as e:
+            removed = True
+            _LOG.warn(f'An error "{e}" occurred while '
+                      f'removing artifacts "{path}"')
+
+
 def _json_serial(obj):
     """JSON serializer for objects not serializable by default json code"""
 
@@ -54,3 +84,21 @@ def resolve_all_bundles_directory():
 
 def resolve_bundle_directory(bundle_name):
     return build_path(resolve_all_bundles_directory(), bundle_name)
+
+
+def assert_bundle_bucket_exists():
+    from syndicate.core import CONFIG, CONN
+    if not CONN.s3().is_bucket_exists(
+            CONFIG.deploy_target_bucket):
+        raise AssertionError(
+            f'Bundles bucket {CONFIG.deploy_target_bucket} does not exist. '
+            f'Please use \'create_deploy_target_bucket\' to create the bucket.'
+        )
+
+
+def construct_deploy_s3_key_path(bundle_name: str, deploy_name: str,
+                                 is_failed: bool = False) -> str:
+    from syndicate.core import CONFIG
+    file_name = f"{deploy_name}{'_failed' if is_failed else ''}.json"
+    return PurePath(CONFIG.deploy_target_bucket_key_compound, bundle_name,
+                    'outputs', file_name).as_posix()

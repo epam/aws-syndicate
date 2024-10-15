@@ -169,6 +169,7 @@ PROFILER_ACTION = 'profiler'
 ASSEMBLE_JAVA_MVN_ACTION = 'assemble_java_mvn'
 ASSEMBLE_PYTHON_ACTION = 'assemble_python'
 ASSEMBLE_NODE_ACTION = 'assemble_node'
+ASSEMBLE_DOTNET_ACTION = 'assemble_dotnet'
 ASSEMBLE_SWAGGER_UI_ACTION = 'assemble_swagger_ui'
 ASSEMBLE_ACTION = 'assemble'
 PACKAGE_META_ACTION = 'package_meta'
@@ -210,3 +211,23 @@ SYNDICATE_PROJECT_EXAMPLES_PAGE = 'https://github.com/epam/aws-syndicate/tree/ma
 JAVA_LAMBDAS_WIKI_PAGE = '3.-Lambda-Requirements-for-Automatic-Articfacts-Build#32-java-lambdas'
 
 EC2_LAUNCH_TEMPLATE_SUPPORTED_IMDS_VERSIONS = ['v1.0', 'v2.0']
+
+ABORTED_STATUS = 'aborted'
+SUCCEEDED_STATUS = 'succeeded'
+FAILED_STATUS = 'failed'
+
+TAGS_RESOURCE_TYPE_CONFIG = {
+    'capitalised_keys_list': [
+        IAM_POLICY, IAM_ROLE,  DYNAMO_TABLE_TYPE, CLOUD_WATCH_RULE_TYPE,
+        EVENT_BRIDGE_RULE_TYPE, SNS_TOPIC_TYPE, CLOUD_WATCH_ALARM_TYPE,
+        EBS_TYPE, EC2_INSTANCE_TYPE, EC2_LAUNCH_TEMPLATE_TYPE,
+        DOCUMENTDB_CLUSTER_TYPE, DOCUMENTDB_INSTANCE_TYPE, DAX_CLUSTER_TYPE,
+        FIREHOSE_TYPE],
+    'lover_case_keys_list': [
+        STEP_FUNCTION_TYPE, STATE_ACTIVITY_TYPE],
+    'post_deploy_tagging': [
+        EVENT_BRIDGE_SCHEDULE_TYPE, KINESIS_STREAM_TYPE, S3_BUCKET_TYPE,
+        API_GATEWAY_OAS_V3_TYPE],
+    'untaggable': [SWAGGER_UI_TYPE, SNS_PLATFORM_APPLICATION_TYPE,
+                   LAMBDA_LAYER_TYPE]
+}

@@ -66,7 +66,8 @@ class DaxResource(BaseResource):
             cluster_endpoint_encryption_type=meta.get('cluster_endpoint_encryption_type'),
             security_group_ids=meta.get('security_group_ids') or [],
             parameter_group_name=meta.get('parameter_group_name'),
-            availability_zones=meta.get('availability_zones') or []
+            availability_zones=meta.get('availability_zones') or [],
+            tags=meta.get('tags')
         )
         if response:
             _LOG.info(f'Dax cluster \'{name}\' was successfully created')
@@ -100,6 +101,8 @@ class DaxResource(BaseResource):
         except self.dax_conn.client.exceptions.InvalidClusterStateFault as e:
             USER_LOG.warning(e.response['Error']['Message'] +
                              ' Remove it manually!')
+        except self.dax_conn.client.exceptions.ClusterNotFoundFault:
+            _LOG.warning(f'Dax cluster with name \'{cluster_name}\' not found')
         if subnet_group_name:
             self._remove_subnet_group(subnet_group_name)
 

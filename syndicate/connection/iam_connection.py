@@ -131,21 +131,27 @@ class IAMConnection(object):
             PolicyArn=policy_arn, VersionId=policy_version)
         return policy_content['PolicyVersion']['Document']
 
-    def create_custom_policy(self, policy_name, policy_document):
+    def create_custom_policy(self, policy_name, policy_document, tags):
         """
         :type policy_name: str
         :type policy_document: dict or str
+        :type tags: list of dict
         """
         if isinstance(policy_document, dict):
             policy_document = dumps(policy_document)
-        return self.client.create_policy(
+
+        params = dict(
             PolicyName=policy_name,
-            PolicyDocument=policy_document,
-        )['Policy']
+            PolicyDocument=policy_document
+        )
+        if tags:
+            params['Tags'] = tags
+        return self.client.create_policy(**params)['Policy']
 
     def create_custom_role(self, role_name, allowed_account=None,
                            allowed_service=None, trusted_relationships=None,
-                           external_id=None, permissions_boundary=None):
+                           external_id=None, permissions_boundary=None,
+                           tags=None):
         """ Create custom role with trusted relationships. You can specify
         custom policy, or set principal_account and principal_service params
         to use default.
@@ -155,6 +161,7 @@ class IAMConnection(object):
         :type allowed_service: str
         :type trusted_relationships: dict
         :param trusted_relationships: if not specified will use default
+        :param tags: list of dict: List of resource tags key-value pairs
         """
         if not trusted_relationships:
             trusted_relationships = IAMConnection.empty_trusted_relationships()
@@ -173,6 +180,9 @@ class IAMConnection(object):
                       AssumeRolePolicyDocument=trusted_relationships)
         if permissions_boundary:
             params['PermissionsBoundary'] = permissions_boundary
+
+        if tags:
+            params['Tags'] = tags
 
         try:
             role = self.client.create_role(**params)
@@ -279,14 +289,7 @@ class IAMConnection(object):
 
         :type policy_arn: str
         """
-        try:
-            version = self.client.list_policy_versions(PolicyArn=policy_arn)
-        except ClientError as e:
-            if e.response['Error']['Code'] == 'NoSuchEntity':
-                _LOG.warn(f'Policy \'{policy_arn}\' not found')
-                return
-            else:
-                raise e
+        version = self.client.list_policy_versions(PolicyArn=policy_arn)
         policy_versions = version['Versions']
         if policy_versions:
             for each in policy_versions:

@@ -139,7 +139,7 @@ class Ec2Resource(BaseResource):
             image_id=image_id,
             instance_type=instance_type,
             key_name=key_name,
-            tags_list=meta.get('tags_list'),
+            tags=meta.get('tags'),
             security_groups_names=meta.get('security_group_names'),
             security_group_ids=meta.get('security_group_ids'),
             user_data=user_data_content,
@@ -196,10 +196,11 @@ class Ec2Resource(BaseResource):
             response = self.ec2_conn.describe_launch_templates(lt_name=name)
         else:
             response = [response['LaunchTemplate']]
-        lt_id = response[0]['LaunchTemplateId']
-        return {
-            lt_id: build_description_obj(response, name, meta)
-        }
+        if response:
+            lt_id = response[0]['LaunchTemplateId']
+            return {
+                lt_id: build_description_obj(response, name, meta)
+            }
 
     def create_launch_template(self, args):
         return self.create_pool(self._create_launch_template_from_meta, args)
@@ -211,10 +212,7 @@ class Ec2Resource(BaseResource):
             name=name,
             lt_data=dict_keys_to_capitalized_camel_case(lt_data),
             version_description=meta.get('version_description'),
-            tag_specifications=dict_keys_to_capitalized_camel_case(
-                meta['tag_specifications']) if
-            meta.get('tag_specifications') else None
-        )
+            tags=meta.get('tags'))
         return self.describe_launch_template(name, meta, response)
 
     def remove_launch_templates(self, args):

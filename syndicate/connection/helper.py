@@ -65,6 +65,8 @@ def retry(retry_timeout=DEFAULT_RETRY_TIMEOUT_SEC,
                 'calling the CreateEventSourceMapping operation',
                 'An error occurred (InvalidParameterValueException) when '
                 'calling the UpdateEventSourceMapping operation',
+                'An error occurred (ResourceInUseException) when '
+                'calling the UpdateEventSourceMapping operation'
                 'An error occurred (InvalidParameterValueException) when '
                 'calling the CreateCluster operation',
                 'An error occurred (InvalidParameterValue) when '

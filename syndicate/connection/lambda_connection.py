@@ -64,7 +64,8 @@ class LambdaConnection(object):
                       vpc_sub_nets=None, vpc_security_group=None,
                       env_vars=None, dl_target_arn=None, tracing_mode=None,
                       publish_version=False, layers=None,
-                      ephemeral_storage=512, snap_start: str = None):
+                      ephemeral_storage=512, snap_start: str = None,
+                      tags: dict = None):
         """ Create Lambda method
         :type lambda_name: str
         :type func_name: str
@@ -85,6 +86,7 @@ class LambdaConnection(object):
         :param ephemeral_storage: amount of ephemeral storage between 512 MB
         and 10,240 MB
         :param snap_start: Optional[str] denotes `PublishedVersions`|`None`
+        :type tags: dict
         :return: response
         """
         layers = [] if layers is None else layers
@@ -115,6 +117,8 @@ class LambdaConnection(object):
             }
         if architectures:
             params['Architectures'] = architectures
+        if tags:
+            params['Tags'] = tags
         return self.client.create_function(**params)
 
     def get_existing_permissions(self, lambda_arn):
@@ -380,7 +384,7 @@ class LambdaConnection(object):
         """
         self.client.delete_function(FunctionName=func_name)
 
-    def remove_trigger(self, lambda_name):
+    def remove_event_sources(self, lambda_name):
         """ Remove trigger by name. Trigger has the same name as Lambda.
 
         :type lambda_name: str
@@ -407,7 +411,7 @@ class LambdaConnection(object):
                     'Failed to delete lambda %s', each['FunctionName'],
                     exc_info=True)
 
-    def delete_trigger(self, uuid):
+    def remove_event_source(self, uuid):
         """ Delete event source stream.
 
         :param uuid: str
@@ -505,7 +509,8 @@ class LambdaConnection(object):
                             batch_window=None, filters: Optional[List] = None,
                             function_response_types: Optional[List] = None):
         params = dict(
-            UUID=uuid, FunctionName=function_name, BatchSize=batch_size
+            UUID=uuid, FunctionName=function_name, BatchSize=batch_size,
+            Enabled=True
         )
         if batch_window is not None:
             params['MaximumBatchingWindowInSeconds'] = batch_window

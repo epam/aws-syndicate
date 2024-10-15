@@ -33,12 +33,14 @@ def _create_ec2_rule(rule_name, rule_meta, cw_conn):
     cw_conn.create_ec2_rule(name=rule_name,
                             instances=rule_meta.get('instance_ids'),
                             instance_states=rule_meta.get(
-                                'instance_states'))
+                                'instance_states'),
+                            tags=rule_meta.get('tags'))
 
 
 def _create_schedule_rule(rule_name, rule_meta, cw_conn):
     cw_conn.create_schedule_rule(name=rule_name,
-                                 expression=rule_meta['expression'])
+                                 expression=rule_meta['expression'],
+                                 tags=rule_meta.get('tags'))
 
 
 def _create_api_call_rule(rule_name, rule_meta, cw_conn):
@@ -46,7 +48,8 @@ def _create_api_call_rule(rule_name, rule_meta, cw_conn):
                                  aws_service=rule_meta.get('aws_service'),
                                  operations=rule_meta.get('operations'),
                                  custom_pattern=rule_meta.get(
-                                     'custom_pattern'))
+                                     'custom_pattern'),
+                                 tags=rule_meta.get('tags'))
 
 
 RULE_TYPES = {

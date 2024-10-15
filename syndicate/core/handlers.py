@@ -20,7 +20,9 @@ from functools import partial
 
 import click
 from tabulate import tabulate
+from logging import DEBUG
 
+from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.export.export_processor import export_specification
 from syndicate.core.transform.transform_processor import generate_build_meta
 from syndicate.core import initialize_connection, \
@@ -29,14 +31,15 @@ from syndicate.core.build.artifact_processor import (RUNTIME_NODEJS,
                                                      assemble_artifacts,
                                                      RUNTIME_JAVA,
                                                      RUNTIME_PYTHON,
-                                                     RUNTIME_SWAGGER_UI)
+                                                     RUNTIME_SWAGGER_UI,
+                                                     RUNTIME_DOTNET)
 from syndicate.core.build.bundle_processor import (create_bundles_bucket,
                                                    load_bundle,
                                                    upload_bundle_to_s3,
                                                    if_bundle_exist)
-from syndicate.core.build.deployment_processor import (
-    continue_deployment_resources, create_deployment_resources,
-    remove_deployment_resources, update_deployment_resources)
+from syndicate.core.build.deployment_processor import is_deploy_exist, \
+    create_deployment_resources, remove_deployment_resources, \
+    update_deployment_resources
 from syndicate.core.build.meta_processor import create_meta
 from syndicate.core.build.profiler_processor import (get_metric_statistics,
                                                      process_metrics)
@@ -48,7 +51,8 @@ from syndicate.core.build.warmup_processor import (process_deploy_resources,
 from syndicate.core.conf.validator import (JAVA_LANGUAGE_NAME,
                                            PYTHON_LANGUAGE_NAME,
                                            NODEJS_LANGUAGE_NAME,
-                                           SWAGGER_UI_NAME)
+                                           SWAGGER_UI_NAME,
+                                           DOTNET_LANGUAGE_NAME)
 from syndicate.core.decorators import (check_deploy_name_for_duplicates,
                                        check_deploy_bucket_exists)
 from syndicate.core.groups.generate import (generate,
@@ -73,7 +77,8 @@ from syndicate.core.constants import TEST_ACTION, BUILD_ACTION, \
     STATUS_ACTION, WARMUP_ACTION, PROFILER_ACTION, ASSEMBLE_JAVA_MVN_ACTION, \
     ASSEMBLE_PYTHON_ACTION, ASSEMBLE_NODE_ACTION, ASSEMBLE_ACTION, \
     PACKAGE_META_ACTION, CREATE_DEPLOY_TARGET_BUCKET_ACTION, UPLOAD_ACTION, \
-    COPY_BUNDLE_ACTION, EXPORT_ACTION, ASSEMBLE_SWAGGER_UI_ACTION
+    COPY_BUNDLE_ACTION, EXPORT_ACTION, ASSEMBLE_SWAGGER_UI_ACTION, \
+    ABORTED_STATUS, ASSEMBLE_DOTNET_ACTION
 
 INIT_COMMAND_NAME = 'init'
 SYNDICATE_PACKAGE_NAME = 'aws-syndicate'
@@ -84,6 +89,9 @@ commands_without_config = (
     GENERATE_CONFIG_COMMAND_NAME,
     HELP_PARAMETER_KEY
 )
+
+_LOG = get_logger('syndicate.core.handlers')
+USER_LOG = get_user_logger()
 
 
 def _not_require_config(all_params):
@@ -131,8 +139,13 @@ def test(suite, test_folder_name, errors_allowed):
     project_path = CONFIG.project_path
     test_folder = os.path.join(project_path, test_folder_name)
     if not os.path.exists(test_folder):
-        click.echo(f'Tests not found, \'{test_folder_name}\' folder is missing'
-                   f' in \'{project_path}\'.')
+        msg = (f'Tests not found, \'{test_folder_name}\' folder is missing in '
+               f'\'{project_path}\'.')
+        if _LOG.level > DEBUG:
+            click.echo(msg)
+            _LOG.info(msg)
+        else:
+            USER_LOG.info(msg)
         return
     test_lib_command_mapping = {
         'unittest': f'{sys.executable} -m unittest discover {test_folder} -v',
@@ -141,12 +154,16 @@ def test(suite, test_folder_name, errors_allowed):
     }
 
     command = test_lib_command_mapping.get(suite)
-    result = subprocess.run(command.split(), cwd=project_path)
+    result = subprocess.run(command, cwd=project_path, shell=True,
+                            capture_output=True, text=True)
 
-    if not errors_allowed:
-        if result.returncode != 0:
+    if result.returncode != 0:
+        _LOG.error(f'{result.stdout}\n{result.stderr}\n{"-" * 70}')
+        if not errors_allowed:
             click.echo('Some tests failed. Exiting.')
-            sys.exit(1)
+            sys.exit(result.returncode)
+
+    _LOG.info(f'{result.stdout}\n{result.stderr}\n{"-" * 70}')
     click.echo('Tests passed.')
 
 
@@ -222,16 +239,13 @@ def transform(bundle_name, dsl, output_dir):
                    'while deploy')
 @click.option('--excluded_types', '-extypes', multiple=True,
               help='Types of the resources to skip while deploy')
-@click.option('--continue_deploy', is_flag=True, is_eager=True,
+@click.option('--continue_deploy', is_flag=True, default=False,
               help='Flag to continue failed deploy')
 @click.option('--replace_output', is_flag=True, default=False,
               help='Flag to replace the existing deploy output')
 @click.option('--rollback_on_error', is_flag=True, default=False,
-              callback=partial(validate_incompatible_options,
-                               incompatible_options=['continue_deploy']),
               help='Flag to automatically clean deployed resources if the'
-                   ' deployment is unsuccessful. Cannot be used with'
-                   ' --continue_deploy flag.')
+                   ' deployment is unsuccessful')
 @verbose_option
 @check_deploy_name_for_duplicates
 @check_deploy_bucket_exists
@@ -243,6 +257,14 @@ def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
     """
     Deploys the application infrastructure
     """
+    from syndicate.core import PROJECT_STATE
+    PROJECT_STATE.current_bundle = bundle_name
+    if not if_bundle_exist(bundle_name=bundle_name):
+        click.echo(
+            f'The bundle name \'{bundle_name}\' does not exist in deploy '
+            f'bucket. Please verify the bundle name and try again.')
+        return False
+
     if deploy_only_resources_path and os.path.exists(
             deploy_only_resources_path):
         deploy_resources_list = json.load(open(deploy_only_resources_path))
@@ -250,7 +272,7 @@ def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
             set(deploy_only_resources + tuple(deploy_resources_list)))
         if deploy_only_resources:
             click.echo(
-                f'Resources to update: {list(deploy_only_resources)}')
+                f'Resources to deploy: {list(deploy_only_resources)}')
 
     if excluded_resources_path and os.path.exists(excluded_resources_path):
         excluded_resources_list = json.load(open(excluded_resources_path))
@@ -258,27 +280,17 @@ def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
             set(excluded_resources + tuple(excluded_resources_list)))
         if excluded_resources:
             click.echo(
-                f'Resources to update: {list(excluded_resources)}')
+                f'Resources to deploy: {list(excluded_resources)}')
 
-    if continue_deploy:
-        deploy_success = continue_deployment_resources(deploy_name,
-                                                       bundle_name,
-                                                       deploy_only_resources,
-                                                       deploy_only_types,
-                                                       excluded_resources,
-                                                       excluded_types,
-                                                       replace_output
-                                                       )
-
-    else:
-        deploy_success = create_deployment_resources(deploy_name, bundle_name,
-                                                     deploy_only_resources,
-                                                     deploy_only_types,
-                                                     excluded_resources,
-                                                     excluded_types,
-                                                     replace_output,
-                                                     rollback_on_error
-                                                     )
+    deploy_success = create_deployment_resources(deploy_name, bundle_name,
+                                                 continue_deploy,
+                                                 deploy_only_resources,
+                                                 deploy_only_types,
+                                                 excluded_resources,
+                                                 excluded_types,
+                                                 replace_output,
+                                                 rollback_on_error
+                                                 )
 
     message = 'Backend resources were deployed{suffix}.'.format(
         suffix='' if deploy_success else (
@@ -313,17 +325,27 @@ def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
               help='Types of the resources to skip while update')
 @click.option('--replace_output', nargs=1, is_flag=True, default=False,
               help='The flag to replace the existing deploy output file')
+@click.option('--force', nargs=1, is_flag=True, default=False,
+              help='The flag, to apply updates even if the latest deployment '
+                   'failed')
 @verbose_option
 @check_deploy_name_for_duplicates
 @check_deploy_bucket_exists
 @timeit(action_name=UPDATE_ACTION)
 def update(bundle_name, deploy_name, replace_output, update_only_resources,
            update_only_resources_path, update_only_types, excluded_resources,
-           excluded_resources_path, excluded_types):
+           excluded_resources_path, excluded_types, force):
     """
     Updates infrastructure from the provided bundle
     """
+    from syndicate.core import PROJECT_STATE
     click.echo(f'Bundle name: {bundle_name}')
+    PROJECT_STATE.current_bundle = bundle_name
+    if not if_bundle_exist(bundle_name=bundle_name):
+        click.echo(
+            f'The bundle name \'{bundle_name}\' does not exist in deploy '
+            f'bucket. Please verify the bundle name and try again.')
+        return False
 
     if update_only_resources_path and os.path.exists(
             update_only_resources_path):
@@ -349,11 +371,19 @@ def update(bundle_name, deploy_name, replace_output, update_only_resources,
         update_only_resources=update_only_resources,
         excluded_resources=excluded_resources,
         excluded_types=excluded_types,
-        replace_output=replace_output)
-    if success:
+        replace_output=replace_output,
+        force=force)
+    if success is True:
+        update_success = True
         click.echo('Update of resources has been successfully completed')
+    elif success == ABORTED_STATUS:
+        update_success = False
+        click.echo('Update of resources has been aborted')
     else:
+        update_success = False
         click.echo('Something went wrong during resources update')
+
+    return update_success
 
 
 @syndicate.command(name=CLEAN_ACTION)
@@ -392,9 +422,21 @@ def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
     """
     Cleans the application infrastructure
     """
+    from syndicate.core import PROJECT_STATE
     click.echo('Command clean')
     click.echo(f'Deploy name: {deploy_name}')
     separator = ', '
+    PROJECT_STATE.current_bundle = bundle_name
+    if not if_bundle_exist(bundle_name=bundle_name):
+        click.echo(
+            f'The bundle name \'{bundle_name}\' does not exist in deploy '
+            f'bucket. Please verify the bundle name and try again.')
+        return False
+    if not is_deploy_exist(bundle_name=bundle_name, deploy_name=deploy_name):
+        click.echo(f'The deploy name \'{deploy_name}\' is invalid. '
+                   f'Please verify the deploy name and try again.')
+        return False
+
     if clean_only_types:
         click.echo(f'Clean only types: {separator.join(clean_only_types)}')
     if clean_only_resources:
@@ -426,7 +468,11 @@ def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
         excluded_types=excluded_types,
         clean_externals=clean_externals,
         preserve_state=preserve_state)
-    click.echo('AWS resources were removed.')
+
+    if result == ABORTED_STATUS:
+        click.echo('Clean of resources has been aborted')
+    else:
+        click.echo('AWS resources were removed.')
     return result
 
 
@@ -443,23 +489,24 @@ def sync():
 
 
 @syndicate.command(name=STATUS_ACTION)
-@click.option('--events', 'category', flag_value='events',
+@click.option('--events', flag_value='events',
+              callback=partial(validate_incompatible_options,
+                               incompatible_options=['resources']),
               help='Show event logs of the project')
-@click.option('--resources', 'category', flag_value='resources',
+@click.option('--resources', flag_value='resources',
+              callback=partial(validate_incompatible_options,
+                               incompatible_options=['events']),
               help='Show a summary of the project resources')
 @verbose_option
 @check_deploy_bucket_exists
 @timeit()
-def status(category):
+def status(events, resources):
     """
     Shows the state of a local project state file (.syndicate).
     Command displays the following content: project name, state, latest
     modification, locks summary, latest event, project resources.
-
-    NOTE: The flags are incompatible and the status is displayed according to
-    the first entered flag.
     """
-    click.echo(project_state_status(category))
+    click.echo(project_state_status(category=events or resources))
 
 
 @syndicate.command(name=WARMUP_ACTION)
@@ -579,7 +626,7 @@ def profiler(bundle_name, deploy_name, from_date, to_date):
                    'to a folder, which is be later used as the deployment '
                    'bundle (the bundle path: bundles/${bundle_name})')
 @click.option('--force_upload', '-fu', nargs=1,
-              callback=resolve_path_callback, required=True,
+              default=False, required=False,
               help='Identifier that indicates whether a locally existing'
                    ' bundle should be deleted and a new one created using'
                    ' the same path.')
@@ -592,7 +639,7 @@ def assemble_java_mvn(bundle_name, project_path, force_upload):
     \f
     :param bundle_name: name of the bundle
     :param project_path: path to project folder
-    :force_upload: force upload identification
+    :param force_upload: force upload identification
     :return:
     """
     click.echo(f'Command compile java project path: {project_path}')
@@ -619,7 +666,7 @@ def assemble_java_mvn(bundle_name, project_path, force_upload):
                    'and internal project dependencies according to the '
                    'described in local_requirements.txt file')
 @click.option('--force_upload', '-fu', nargs=1,
-              callback=resolve_path_callback, required=True,
+              default=False, required=False,
               help='Identifier that indicates whether a locally existing'
                    ' bundle should be deleted and a new one created using'
                    ' the same path.')
@@ -632,7 +679,7 @@ def assemble_python(bundle_name, project_path, force_upload):
     \f
     :param bundle_name: name of the bundle
     :param project_path: path to project folder
-    :force_upload: force upload identification
+    :param force_upload: force upload identification
     :return:
     """
     click.echo(f'Command assemble python: project_path: {project_path} ')
@@ -657,7 +704,7 @@ def assemble_python(bundle_name, project_path, force_upload):
                    'packed to a zip archive, where the external libraries are '
                    'found, which are described in the package.json file')
 @click.option('--force_upload', '-fu', nargs=1,
-              callback=resolve_path_callback, required=True,
+              default=False, required=False,
               help='Identifier that indicates whether a locally existing'
                    ' bundle should be deleted and a new one created using'
                    ' the same path.')
@@ -670,7 +717,7 @@ def assemble_node(bundle_name, project_path, force_upload):
     \f
     :param bundle_name: name of the bundle
     :param project_path: path to project folder
-    :force_upload: force upload identification
+    :param force_upload: force upload identification
     :return:
     """
     click.echo(f'Command assemble node: project_path: {project_path} ')
@@ -680,6 +727,44 @@ def assemble_node(bundle_name, project_path, force_upload):
                        force_upload=force_upload
                        )
     click.echo('NodeJS artifacts were prepared successfully.')
+
+
+@syndicate.command(name=ASSEMBLE_DOTNET_ACTION)
+@timeit()
+@click.option('--bundle_name', '-b', nargs=1,
+              callback=generate_default_bundle_name,
+              help='Name of the bundle, to which the build artifacts are '
+                   'gathered and later used for the deployment. '
+                   'Default value: $ProjectName_%Y%m%d.%H%M%S')
+@click.option('--project_path', '-path', nargs=1,
+              callback=resolve_path_callback, required=True,
+              help='The path to the NodeJS project. The code is '
+                   'packed to a zip archive, where the external libraries are '
+                   'found, which are described in the package.json file')
+@click.option('--force_upload', '-fu', nargs=1,
+              default=False, required=False,
+              help='Identifier that indicates whether a locally existing'
+                   ' bundle should be deleted and a new one created using'
+                   ' the same path.')
+@verbose_option
+@timeit(action_name=ASSEMBLE_DOTNET_ACTION)
+def assemble_dotnet(bundle_name, project_path, force_upload):
+    """
+    Builds DotNet lambdas
+
+    \f
+    :param bundle_name: name of the bundle
+    :param project_path: path to project folder
+    :param force_upload: force upload identification
+    :return:
+    """
+    click.echo(f'Command assemble dotnet: project_path: {project_path} ')
+    assemble_artifacts(bundle_name=bundle_name,
+                       project_path=project_path,
+                       runtime=RUNTIME_DOTNET,
+                       force_upload=force_upload
+                       )
+    click.echo('DotNet artifacts were prepared successfully.')
 
 
 @syndicate.command(name=ASSEMBLE_SWAGGER_UI_ACTION)
@@ -717,6 +802,7 @@ RUNTIME_LANG_TO_BUILD_MAPPING = {
     JAVA_LANGUAGE_NAME: assemble_java_mvn,
     PYTHON_LANGUAGE_NAME: assemble_python,
     NODEJS_LANGUAGE_NAME: assemble_node,
+    DOTNET_LANGUAGE_NAME: assemble_dotnet,
     SWAGGER_UI_NAME: assemble_swagger_ui
 }
 
@@ -726,7 +812,7 @@ RUNTIME_LANG_TO_BUILD_MAPPING = {
               help='Bundle\'s name to build the lambdas in. '
                    'Default value: $ProjectName_%Y%m%d.%H%M%S')
 @click.option('--force_upload', '-fu', nargs=1,
-              callback=resolve_path_callback, default=False,
+              default=False, required=False,
               help='Identifier that indicates whether a locally existing'
                    ' bundle should be deleted and a new one created using'
                    ' the same path.')

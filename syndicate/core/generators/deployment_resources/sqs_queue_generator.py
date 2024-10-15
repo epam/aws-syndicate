@@ -20,7 +20,8 @@ class SQSQueueGenerator(BaseDeploymentResourceGenerator):
         },
         "kms_master_key_id": None,
         "kms_data_key_reuse_period_seconds": None,
-        "content_based_deduplication": False
+        "content_based_deduplication": False,
+        "tags": dict
     }
 
     def __init__(self, **kwargs):

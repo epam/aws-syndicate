@@ -15,7 +15,8 @@ class DocumentDBInstanceGenerator(BaseDeploymentResourceGenerator):
     CONFIGURATION = {
         "cluster_identifier": None,
         "instance_class": "db.r5.large",
-        "availability_zone": None
+        "availability_zone": None,
+        "tags": dict
     }
 
     def write(self):

@@ -147,6 +147,8 @@ class DynamoDBResource(AbstractExternalResource, BaseResource):
     def describe_table(self, name, meta, response=None):
         if not response:
             response = self.dynamodb_conn.describe_table(table_name=name)
+        if not response:
+            return
         arn = response['TableArn']
         del response['TableArn']
         return {
@@ -155,6 +157,8 @@ class DynamoDBResource(AbstractExternalResource, BaseResource):
 
     def describe_stream(self, name, meta):
         response = self.dynamodb_conn.describe_table(meta['table'])
+        if not response:
+            return
         res_obj = {
             'StreamSpecification': response['StreamSpecification'],
             'LatestStreamLabel': response['LatestStreamLabel']
@@ -263,6 +267,7 @@ class DynamoDBResource(AbstractExternalResource, BaseResource):
             meta.get('read_capacity'), meta.get('write_capacity'),
             global_indexes=meta.get('global_indexes'),
             local_indexes=meta.get('local_indexes'),
+            tags=meta.get('tags'),
             wait=True)
         response = self.dynamodb_conn.describe_table(name)
         if not response:
@@ -408,9 +413,7 @@ class DynamoDBResource(AbstractExternalResource, BaseResource):
                 for policy in policies:
                     if policy:
                         alarms = policy.get('Alarms', [])
-                        alarm_args.extend(map(lambda x: {
-                            'arn': x['AlarmARN'],
-                            'config': {'resource_name': x['AlarmName']}
-                        }, alarms))
+                        alarm_args.extend(map(
+                            lambda x: x['AlarmName'], alarms))
 
         self.cw_alarm_conn.remove_alarms(alarm_args)

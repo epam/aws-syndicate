@@ -35,12 +35,18 @@ class SNSConnection(object):
                              aws_session_token=aws_session_token)
         _LOG.debug('Opened new SNS connection.')
 
-    def create_topic(self, name):
+    def create_topic(self, name, tags):
         """ Crete SNS topic and return topic arn.
 
         :type name: str
+        :type tags: list
         """
-        return self.client.create_topic(Name=name)['TopicArn']
+        params = dict(
+            Name=name
+        )
+        if tags:
+            params['Tags'] = tags
+        return self.client.create_topic(**params)['TopicArn']
 
     def subscribe(self, endpoint, topic_name, protocol):
         """
@@ -149,7 +155,9 @@ class SNSConnection(object):
 
         :type topic_arn: str
         """
-        self.client.delete_topic(TopicArn=topic_arn)
+        # make get api call first, because the delete function is idempotent
+        if self.client.get_topic_attributes(topic_arn):
+            self.client.delete_topic(TopicArn=topic_arn)
 
     def remove_topic_by_name(self, topic_name):
         """ Remove topic by arn.

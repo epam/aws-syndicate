@@ -30,12 +30,15 @@ class BaseResource:
         exceptions = []
         executor = ThreadPoolExecutor(
             workers) if workers else ThreadPoolExecutor()
+        futures_dict = {}
         try:
             # futures = [executor.submit(func, i, kwargs) for i in args]
             futures = []
             for param_chunk in parameters:
                 param_chunk['self'] = self
-                futures.append(executor.submit(job, param_chunk))
+                future = executor.submit(job, param_chunk)
+                futures.append(future)
+                futures_dict[future] = param_chunk
             concurrent.futures.wait(futures, return_when=ALL_COMPLETED)
             responses = {}
             for future in futures:
@@ -44,7 +47,10 @@ class BaseResource:
                     if result:
                         responses.update(result)
                 except Exception as e:
-                    exceptions.append(e)
+                    param_chunk = futures_dict[future]
+                    resource_name = param_chunk.get('name', 'Unknown')
+                    exceptions.append(
+                        f'Caused by resource named {resource_name}. {e}')
 
             return (responses, exceptions) if exceptions else responses
         finally:

@@ -17,7 +17,7 @@ import os
 from json import load
 from typing import Any
 from urllib.parse import urlparse
-from syndicate.commons.log_helper import get_logger
+from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.build.helper import (build_py_package_name,
                                          resolve_bundle_directory)
 from syndicate.core.build.validator.mapping import (VALIDATOR_BY_TYPE_MAPPING,
@@ -33,15 +33,19 @@ from syndicate.core.constants import (API_GATEWAY_TYPE, ARTIFACTS_FOLDER,
                                       WEB_SOCKET_API_GATEWAY_TYPE,
                                       OAS_V3_FILE_NAME,
                                       API_GATEWAY_OAS_V3_TYPE, SWAGGER_UI_TYPE,
-                                      SWAGGER_UI_CONFIG_FILE_NAME)
+                                      SWAGGER_UI_CONFIG_FILE_NAME,
+                                      TAGS_RESOURCE_TYPE_CONFIG)
 from syndicate.core.helper import (build_path, prettify_json,
                                    resolve_aliases_for_string,
-                                   write_content_to_file)
+                                   write_content_to_file, validate_tags)
 from syndicate.core.resources.helper import resolve_dynamic_identifier
 
 DEFAULT_IAM_SUFFIX_LENGTH = 5
+NAME_RESOLVING_BLACKLISTED_KEYS = ['prefix', 'suffix', 'resource_type', 'principal_service', 'integration_type',
+                                   'authorization_type']
 
 _LOG = get_logger('syndicate.core.build.meta_processor')
+USER_LOG = get_user_logger()
 
 
 def validate_deployment_packages(bundle_path, meta_resources):
@@ -207,7 +211,7 @@ def _merge_api_gw_list_typed_configurations(initial_resource,
     return additional_resource
 
 
-def _populate_s3_path_python_node(meta, bundle_name):
+def _populate_s3_path_python_node_dotnet(meta, bundle_name):
     name = meta.get('name')
     version = meta.get('version')
     prefix = meta.pop('prefix', None)
@@ -321,17 +325,18 @@ def extract_deploy_stage_from_openapi_spec(openapi_spec: dict) -> str:
 
 
 RUNTIME_PATH_RESOLVER = {
-    'python3.8': _populate_s3_path_python_node,
-    'python3.9': _populate_s3_path_python_node,
-    'python3.10': _populate_s3_path_python_node,
-    'python3.11': _populate_s3_path_python_node,
-    'python3.12': _populate_s3_path_python_node,
+    'python3.8': _populate_s3_path_python_node_dotnet,
+    'python3.9': _populate_s3_path_python_node_dotnet,
+    'python3.10': _populate_s3_path_python_node_dotnet,
+    'python3.11': _populate_s3_path_python_node_dotnet,
+    'python3.12': _populate_s3_path_python_node_dotnet,
     'java11': _populate_s3_path_java,
     'java17': _populate_s3_path_java,
     'java21': _populate_s3_path_java,
-    'nodejs16.x': _populate_s3_path_python_node,
-    'nodejs18.x': _populate_s3_path_python_node,
-    'nodejs20.x': _populate_s3_path_python_node
+    'nodejs16.x': _populate_s3_path_python_node_dotnet,
+    'nodejs18.x': _populate_s3_path_python_node_dotnet,
+    'nodejs20.x': _populate_s3_path_python_node_dotnet,
+    'dotnet8': _populate_s3_path_python_node_dotnet
 }
 
 S3_PATH_MAPPING = {
@@ -458,23 +463,41 @@ def create_resource_json(project_path: str, bundle_name: str) -> dict[
 def _resolve_names_in_meta(resources_dict, old_value, new_value):
     if isinstance(resources_dict, dict):
         for k, v in resources_dict.items():
-            if k in ['prefix', 'suffix']:
+            if k in NAME_RESOLVING_BLACKLISTED_KEYS:
                 continue
             if isinstance(v, str) and old_value == v:
                 resources_dict[k] = v.replace(old_value, new_value)
             elif isinstance(v, str) and old_value in v and v.startswith('arn'):
-                resources_dict[k] = v.replace(old_value, new_value)
+                resources_dict[k] = _resolve_name_in_arn(v, old_value, new_value)
             else:
                 _resolve_names_in_meta(v, old_value, new_value)
     elif isinstance(resources_dict, list):
         for item in resources_dict:
             if isinstance(item, dict):
                 _resolve_names_in_meta(item, old_value, new_value)
+            elif (isinstance(item, str) and old_value in item and
+                  item.startswith('arn')):
+                index = resources_dict.index(item)
+                resources_dict[index] = _resolve_name_in_arn(item, old_value, new_value)
             elif isinstance(item, str):
                 if item == old_value:
                     index = resources_dict.index(old_value)
                     del resources_dict[index]
                     resources_dict.append(new_value)
+
+
+def _resolve_name_in_arn(arn, old_value, new_value):
+    arn_parts = arn.split(':')
+    for part in arn_parts:
+        new_part = None
+        if part == old_value:
+            new_part = new_value
+        elif part.startswith(old_value) and part[len(old_value)] == '/':
+            new_part = part.replace(old_value, new_value)
+        if new_part:
+            index = arn_parts.index(part)
+            arn_parts[index] = new_part
+    return ':'.join(arn_parts)
 
 
 def create_meta(project_path, bundle_name):
@@ -525,6 +548,70 @@ def resolve_meta(overall_meta):
     return overall_meta
 
 
+def resolve_tags(meta: dict) -> None:
+    _LOG.debug('Going to resolve resources tags.')
+    from syndicate.core import CONFIG
+    common_tags = CONFIG.tags
+    for res_name, res_meta in meta.items():
+        res_tags = res_meta.get('tags', {})
+        _LOG.debug(f'The resource {res_name} tags: {res_tags}')
+        errors = validate_tags('tags', res_tags)
+        if errors:
+            USER_LOG.warn(
+                f'The resource {res_name} tags don\'t pass validation and '
+                f'will be removed from the resource meta. Details "{errors}"')
+            res_meta.pop('tags')
+            continue
+        overall_tags = _format_tags(res_meta['resource_type'],
+                                    {**common_tags, **res_tags})
+        _LOG.debug(f'Resolved resource {res_name} tags {overall_tags}')
+        res_meta['tags'] = overall_tags
+
+
+def preprocess_tags(output: dict):
+    for item in output.values():
+        res_meta = item['resource_meta']
+        tags = res_meta.get('tags')
+
+        match tags:
+            case tags if isinstance(tags, dict):
+                continue
+            case tags if isinstance(tags, list):
+                res_meta['tags'] = _tags_to_dict(tags)
+            case _:
+                res_meta.pop('tags', None)
+
+
+def _tags_to_dict(tags: list) -> dict:
+    result = {}
+    for tag in tags:
+        tag_key = None
+        tag_value = ''
+        for k, v in tag.items():
+            if k.lower() == 'key':
+                tag_key = v
+            if k.lower() == 'value':
+                tag_value = v
+        if tag_key is not None:
+            result.update({tag_key: tag_value})
+    return result
+
+
+def _format_tags(res_type: str, tags: dict) -> dict | list:
+    match res_type:
+        case res_type if (res_type in
+                          TAGS_RESOURCE_TYPE_CONFIG['capitalised_keys_list']):
+            return [{'Key': k, 'Value': v} for k, v in tags.items()]
+        case res_type if (res_type in
+                          TAGS_RESOURCE_TYPE_CONFIG['lover_case_keys_list']):
+            return [{'key': k, 'value': v} for k, v in tags.items()]
+        case res_type if res_type in TAGS_RESOURCE_TYPE_CONFIG['untaggable']:
+            _LOG.debug(f'The resource type {res_type} can not be tagged')
+            return {}
+        case _:
+            return tags
+
+
 def _resolve_aliases(overall_meta):
     """
     :type overall_meta: dict
@@ -568,3 +655,17 @@ def _resolve_suffix_name(resource_name, resource_suffix):
     if resource_suffix:
         return resource_name + resolve_aliases_for_string(resource_suffix)
     return resource_name
+
+
+def get_meta_from_output(output: dict):
+    from syndicate.core import CONFIG
+    meta = {}
+    for arn, data in output.items():
+        resource_meta = data.get('resource_meta')
+        resource_name = data.get('resource_name')
+        resource_name = resource_name.replace(CONFIG.resources_suffix, '')
+        resource_name = resource_name.replace(CONFIG.resources_prefix, '')
+
+        meta.update({resource_name: resource_meta})
+
+    return meta
