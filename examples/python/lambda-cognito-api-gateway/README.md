@@ -57,7 +57,7 @@ Response must contain just created `syndicate-demo-api`:
 Using Postman, curl or other tool trigger lambda via API endpoint. 
 API URL scheme: `https://{api-id}.execute-api.{region}.amazonaws.com/{stage-name}/{endpoint}`. 
 Example: `https://bzztcmtw94.execute-api.eu-central-1.amazonaws.com/dev/singnup`
-Use such payload: `{"username": "example@gmail.com", "password": "Some_text123!"}'`
+Use such payload: `{"email": "example@gmail.com", "password": "Some_text123!"}'`
 
 Response content for `/singnup` endpoint:
 ```json
