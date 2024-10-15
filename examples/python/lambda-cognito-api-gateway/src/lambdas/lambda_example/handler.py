@@ -18,14 +18,75 @@ import os
 
 import boto3
 
+cognito_client = boto3.client('cognito-idp',
+                              os.environ.get('region', 'eu-central-1'))
+CUP_ID = os.environ.get('cup_id')
+CLIENT_ID = os.environ.get('cup_client_id')
+
 
 def lambda_handler(event, context):
     print(event)
     body = json.loads(event['body'])
+    request_path = event['resource']
     email = body.get('email')
     password = body.get('password')
 
-    auth_result = admin_initiate_auth(username=email, password=password)
+    if request_path == '/login':
+        return login(email, password)
+    elif request_path == '/signup':
+        return signup(email, password)
+    else:
+        return {
+            "statusCode": 400,
+            "headers": {
+                "Content-Type": "application/json"
+            },
+            "body": json.dumps({'message': 'Unknown request path'})
+        }
+
+
+def signup(email, password):
+    custom_attr = [{
+        'Name': 'email',
+        'Value': email
+    }]
+    try:
+        cognito_client.sign_up(
+            ClientId=CLIENT_ID,
+            Username=email,
+            Password=password,
+            UserAttributes=custom_attr)
+        cognito_client.admin_confirm_sign_up(
+            UserPoolId=CUP_ID, Username=email)
+    except Exception as e:
+        print(str(e))
+        return {
+            "statusCode": 400,
+            "headers": {
+                "Content-Type": "application/json"
+            },
+            "body": json.dumps({'message': f'Cannot create user {email}.'})
+        }
+
+    return {
+        "statusCode": 200,
+        "headers": {
+            "Content-Type": "application/json"
+        },
+        "body": json.dumps({'message': f'User {email} was created.'})
+    }
+
+
+def login(email, password):
+    auth_params = {
+        'USERNAME': email,
+        'PASSWORD': password
+    }
+    auth_result = cognito_client.admin_initiate_auth(
+        UserPoolId=CUP_ID,
+        ClientId=CLIENT_ID,
+        AuthFlow='ADMIN_USER_PASSWORD_AUTH', AuthParameters=auth_params)
+
     if auth_result:
         id_token = auth_result['AuthenticationResult']['IdToken']
     else:
@@ -38,17 +99,3 @@ def lambda_handler(event, context):
         },
         "body": json.dumps(id_token)
     }
-
-
-def admin_initiate_auth(username, password):
-    auth_params = {
-        'USERNAME': username,
-        'PASSWORD': password
-    }
-    cognito_client = boto3.client('cognito-idp',
-                                  os.environ.get('region', 'eu-central-1'))
-    result = cognito_client.admin_initiate_auth(
-        UserPoolId=os.environ.get('cup_id'),
-        ClientId=os.environ.get('cup_client_id'),
-        AuthFlow='ADMIN_NO_SRP_AUTH', AuthParameters=auth_params)
-    return result

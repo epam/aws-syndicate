@@ -12,7 +12,7 @@ exports.handler = async (event) => {
 
     if (event.resource === '/login') {
         const params = {
-            AuthFlow: 'ADMIN_NO_SRP_AUTH',
+            AuthFlow: 'ADMIN_USER_PASSWORD_AUTH',
             UserPoolId: userPoolId,
             ClientId: clientId,
             AuthParameters: {
