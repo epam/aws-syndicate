@@ -88,6 +88,19 @@ class ApiGatewayConnection(object):
         _LOG.debug(f"API Gateway created successfully with ID: {api_id}")
         return api_id
 
+    def tag_openapi(self, openapi_id, tags):
+        try:
+            self.client.tag_resource(
+                resourceArn=\
+                    f'arn:aws:apigateway:{self.client.meta.region_name}'
+                    f'::/restapis/{openapi_id}',
+                tags={**tags}
+            )
+            _LOG.debug(f"Tags: {tags} applied to openapi with id:"
+                       f" {openapi_id}.")
+        except self.client.exceptions.BadRequestException as e:
+            _LOG.error(f"Unexpected error happened while tagging openapi: {e}")
+
     def describe_openapi(self, api_id, stage_name):
         try:
             response = self.client.get_export(

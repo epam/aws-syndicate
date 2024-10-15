@@ -33,6 +33,8 @@ class TagsApiResource:
         }
         self.post_deploy_tagging_types = TAGS_RESOURCE_TYPE_CONFIG[
             'post_deploy_tagging']
+        self.untaggable_resource_types = TAGS_RESOURCE_TYPE_CONFIG[
+            'untaggable']
         from syndicate.core import CONFIG
         self.tags = CONFIG.tags
 
@@ -118,6 +120,8 @@ class TagsApiResource:
         for arn, res_meta in new_output.items():
             arns = []
             res_type = res_meta['resource_meta']['resource_type']
+            if res_type in self.untaggable_resource_types:
+                continue
             old_res_meta = old_output.get(arn)
             old_res_tags = old_res_meta['resource_meta'].get('tags', {})
             new_res_tags = res_meta['resource_meta'].get('tags', {})

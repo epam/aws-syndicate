@@ -284,6 +284,7 @@ def __lambda_name_to_class_name(lambda_name):
 
 
 def _generate_java_lambdas(**kwargs):
+    from click import confirm as click_confirm
     project_path = kwargs.get(PROJECT_PATH_PARAM)
     project_state = kwargs.get(PROJECT_STATE_PARAM)
     project_name = project_state.name
@@ -325,6 +326,12 @@ def _generate_java_lambdas(**kwargs):
         java_handler_file_name = os.path.join(
             project_path, SRC_MAIN_JAVA, java_package_as_path,
             f'{lambda_class_name}.java')
+        if Path(str(java_handler_file_name)).is_file():
+            if not click_confirm(
+                    f'\nLambda {lambda_name} already exists.\nOverride '
+                    f'the Lambda function?'):
+                _LOG.info(CANCEL_MESSAGE.format(lambda_name))
+                continue
         _write_content_to_file(
             java_handler_file_name,
             java_handler_content
@@ -664,7 +671,7 @@ def resolve_lambda_path(project: Path, runtime: str, source: str) -> Path:
     return project/Path(source, _lambda)
 
 
-def _common_python_nodejs_layer_module(src_path):
+def _common_python_nodejs_dotnet_layer_module(src_path):
     layer_path = os.path.join(src_path, FOLDER_LAMBDAS, FOLDER_LAYERS)
     _mkdir(path=layer_path, exist_ok=True)
 
@@ -674,8 +681,9 @@ COMMON_MODULE_PROCESSORS = {
     RUNTIME_NODEJS: _common_nodejs_module,
     RUNTIME_PYTHON: _common_python_module,
     RUNTIME_DOTNET: _common_dotnet_module,
-    RUNTIME_PYTHON_LAYER: _common_python_nodejs_layer_module,
-    RUNTIME_NODEJS_LAYER: _common_python_nodejs_layer_module,
+    RUNTIME_PYTHON_LAYER: _common_python_nodejs_dotnet_layer_module,
+    RUNTIME_NODEJS_LAYER: _common_python_nodejs_dotnet_layer_module,
+    RUNTIME_DOTNET_LAYER: _common_python_nodejs_dotnet_layer_module
 
 }
 

@@ -67,6 +67,10 @@ KINESIS_TRIGGER = 'kinesis_trigger'
 SQS_TRIGGER = 'sqs_trigger'
 NOT_AVAILABLE = 'N/A'
 
+_DOTNET_LAMBDA_SHARED_STORE_ENV = {
+    'DOTNET_SHARED_STORE': '/opt/dotnetcore/store/'
+}
+
 
 class LambdaResource(BaseResource):
 
@@ -324,6 +328,10 @@ class LambdaResource(BaseResource):
         lambda_layers_arns = []
         layer_meta = meta.get('layers')
         if layer_meta:
+            if 'dotnet' in meta['runtime'].lower():
+                env_vars = meta.get('env_variables', {})
+                env_vars.update(_DOTNET_LAMBDA_SHARED_STORE_ENV)
+                meta['env_variables'] = env_vars
             for layer_name in layer_meta:
                 layer_arn = self.lambda_conn.get_lambda_layer_arn(layer_name)
                 if not layer_arn:
@@ -465,7 +473,7 @@ class LambdaResource(BaseResource):
             _LOG.warning('Execution role does not exist. Keeping the old one')
         role_arn = if_updated(role_arn, old_conf.get('Role'))
         handler = if_updated(meta.get('func_name'), old_conf.get('Handler'))
-        env_vars = meta.get('env_variables')
+        env_vars = meta.get('env_variables', {})
         timeout = if_updated(meta.get('timeout'), old_conf.get('Timeout'))
         memory_size = if_updated(meta.get('memory_size'),
                                  old_conf.get('MemorySize'))
@@ -495,6 +503,9 @@ class LambdaResource(BaseResource):
         lambda_layers_arns = []
         layer_meta = meta.get('layers')
         if layer_meta:
+            if 'dotnet' in meta['runtime'].lower():
+                env_vars.update(_DOTNET_LAMBDA_SHARED_STORE_ENV)
+                meta['env_variables'] = env_vars
             for layer_name in layer_meta:
                 layer_arn = self.lambda_conn.get_lambda_layer_arn(layer_name)
                 if not layer_arn:

@@ -251,7 +251,8 @@ DOTNET_LAMBDA_LAYER_CSPROJ_TEMPLATE = '''<Project Sdk="Microsoft.NET.Sdk">
     <TargetFramework>net8.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Project packages here" Version="0.0.0" />
+    <!-- Layer packages here -->
+    <PackageReference Include="Amazon.Lambda.Core" Version="2.2.0" />
   </ItemGroup>
 </Project>
 
@@ -615,14 +616,17 @@ def _generate_python_node_lambda_config(lambda_name, lambda_relative_path,
 
 
 def _generate_python_node_layer_config(layer_name, runtime):
-    return _stringify({
+    layer_template = {
         "name": layer_name,
         "resource_type": "lambda_layer",
         "runtimes": [
             DEFAULT_RUNTIME_VERSION.get(runtime)
         ],
         "deployment_package": f"{layer_name}_layer.zip"
-    })
+    }
+    if runtime in RUNTIME_DOTNET:
+        layer_template["custom_packages"] = []
+    return _stringify(layer_template)
 
 
 def _generate_node_layer_package_file(layer_name):
