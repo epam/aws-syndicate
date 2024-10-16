@@ -602,7 +602,7 @@ class LambdaConnection(object):
         params = dict(FunctionName=lambda_name)
         if ephemeral_storage:
             params['EphemeralStorage'] = {'Size': ephemeral_storage}
-        if layers:
+        if layers is not None:
             params['Layers'] = layers
         if role:
             params['Role'] = role
