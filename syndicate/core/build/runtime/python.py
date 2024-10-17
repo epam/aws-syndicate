@@ -320,10 +320,11 @@ def install_requirements_for_platform(requirements_txt: Union[str, Path],
         )
         result = subprocess.run(command, capture_output=True, text=True)
         if result.returncode != 0:
-            message = f'An error: \n"{result.stdout}\n{result.stderr}"\n' \
-                      f'occurred while installing requirements for platforms: ' \
-                      f'{",".join(supported_platforms)}: ' \
-                      f'"{str(requirements_txt)}" for package "{requirement}"'
+            message = (f'An error occurred while installing requirements from '
+                       f'"{str(requirements_txt)}" for platforms: '
+                       f'{",".join(supported_platforms)}: for package '
+                       f'"{requirement}"'
+                       f'\nDetails: \n"{result.stdout}\n{result.stderr}"\n')
             USER_LOG.error(f"\033[93m{message}\033[0m")
             failed_requirements.append(requirement)
         else:

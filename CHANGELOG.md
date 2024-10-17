@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 # [1.14.2] - 2024-10-16
 - Fixed updating lambda layers when the lambda no longer has layers
+- Improved error message if errors occur during Python requirements installation
+- Changed log level from info to warn if updating of the resource skipped because of absence in the deployment output
 
 # [1.14.1] - 2024-10-08
 - Added support lambda layers with runtime DotNet
