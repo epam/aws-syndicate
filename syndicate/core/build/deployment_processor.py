@@ -261,7 +261,7 @@ def update_resources(resources, old_resources):
     to_remove = [i for i, res in enumerate(resources) if
                  res[0] not in old_resources]
     for i in reversed(to_remove):
-        _LOG.info(f'Skipping resource {resources[i][0]} due to absence in '
+        _LOG.warn(f'Skipping resource {resources[i][0]} due to absence in '
                   f'initial deployment output.')
         resources.pop(i)
 
