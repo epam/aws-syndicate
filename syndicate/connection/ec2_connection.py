@@ -452,7 +452,8 @@ class EC2Connection(object):
                 raise e
         return result_list
 
-    def delete_launch_template(self, lt_name=None, lt_id=None):
+    def delete_launch_template(self, lt_name=None, lt_id=None,
+                               log_not_found_error=True):
         params = dict()
         if lt_name is not None and lt_id is not None:
             _LOG.warn('Both the launch template name and ID are specified. '

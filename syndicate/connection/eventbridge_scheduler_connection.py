@@ -41,7 +41,7 @@ class EventBridgeSchedulerConnection(object):
             else:
                 raise e
 
-    def delete_schedule(self, name, group_name=None):
+    def delete_schedule(self, name, group_name=None, log_not_found_error=True):
         params = {'Name': name}
         if group_name is not None:
             params['GroupName'] = group_name

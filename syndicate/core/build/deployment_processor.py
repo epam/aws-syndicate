@@ -273,6 +273,7 @@ def update_resources(resources, old_resources):
 
 def clean_resources(output):
     from syndicate.core import PROCESSOR_FACADE
+    responses = []
     args = []
     resource_type = None
     # clean all resources
@@ -287,14 +288,17 @@ def clean_resources(output):
         elif res_type != resource_type:
             USER_LOG.info('Removing {0} resources ...'.format(resource_type))
             func = PROCESSOR_FACADE.remove_handlers()[resource_type]
-            func(args)
+            result = func(args)
+            responses.append(result)
             del args[:]
             args.append({'arn': arn, 'config': config})
             resource_type = res_type
     if args:
         USER_LOG.info('Removing {0} resources ...'.format(resource_type))
         func = PROCESSOR_FACADE.remove_handlers()[resource_type]
-        func(args)
+        result = func(args)
+        responses.append(result)
+    return _process_clean_responses(responses)
 
 
 def continue_deploy_resources(resources, latest_deploy_output):
@@ -323,6 +327,18 @@ def process_response(response, output: dict):
         raise Exception(exceptions[0])
 
     return output
+
+
+def _process_clean_responses(responses):
+    removed_resources_arn = []
+    errors = []
+    for response in responses:
+        if isinstance(response, dict):
+            removed_resources_arn.extend(response.keys())
+        if isinstance(response, tuple):
+            removed_resources_arn.extend(response[0].keys())
+            errors.extend(response[-1])
+    return removed_resources_arn, errors
 
 
 def __move_output_content(args, failed_output, updated_output):
@@ -611,7 +627,13 @@ def remove_deployment_resources(deploy_name, bundle_name,
         USER_LOG.info('Going to clean AWS resources')
     else:
         _LOG.info('Clean skipped because resources to clean absent')
-    clean_resources(resources_list)
+
+    removed_resources_arn, errors = clean_resources(resources_list)
+    _LOG.debug(f'Removed successfully: \'{removed_resources_arn}\'')
+
+    new_output = {k: v for k, v in new_output.items() if k in
+                  removed_resources_arn}
+
     # remove new_output from bucket
     return _post_remove_output_handling(
         deploy_name=deploy_name,
@@ -619,12 +641,14 @@ def remove_deployment_resources(deploy_name, bundle_name,
         preserve_state=preserve_state,
         output=output,
         new_output=new_output,
-        is_regular_output=is_regular_output
+        is_regular_output=is_regular_output,
+        errors=errors
     )
 
 
 def _post_remove_output_handling(deploy_name, bundle_name, preserve_state,
-                                 output, new_output, is_regular_output):
+                                 output, new_output, is_regular_output,
+                                 errors):
     if output == new_output:
         if not preserve_state:
             # remove output from bucket
@@ -637,6 +661,8 @@ def _post_remove_output_handling(deploy_name, bundle_name, preserve_state,
                              output=output,
                              success=is_regular_output,
                              replace_output=True)
+        if errors:
+            raise Exception(errors[0])
         return {'operation': PARTIAL_CLEAN_ACTION}
     return True
 

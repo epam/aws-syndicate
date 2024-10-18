@@ -84,7 +84,8 @@ class DocumentDBConnection(object):
         response = self.client.create_db_instance(**params)
         return response['DBInstance'].get('DBInstanceIdentifier')
 
-    def delete_db_instance(self, instance_identifier):
+    def delete_db_instance(self, instance_identifier,
+                           log_not_found_error=True):
         """
         Deletes a previously provisioned instance.
         """
@@ -93,7 +94,8 @@ class DocumentDBConnection(object):
         return response['DBInstance'].get('DBInstanceIdentifier')
 
     def delete_db_cluster(self, cluster_identifier, skip_final_snapshot=True,
-                          final_db_snapshot_identifier=None):
+                          final_db_snapshot_identifier=None,
+                          log_not_found_error=True):
         """
         Deletes a previously provisioned cluster (all automated backups for
         that cluster are deleted and can't be recovered).

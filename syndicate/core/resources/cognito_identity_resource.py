@@ -93,10 +93,13 @@ class CognitoIdentityResource(BaseResource):
     def _remove_cognito_identity_pool(self, arn, config):
         pool_id = config['description']['IdentityPoolId']
         try:
-            self.connection.remove_identity_pool(pool_id)
+            self.connection.remove_identity_pool(pool_id,
+                                                 log_not_found_error=False)
             _LOG.info('Cognito identity pool %s was removed', pool_id)
+            return {arn: config}
         except ClientError as e:
             if e.response['Error']['Code'] == 'ResourceNotFoundException':
                 _LOG.warn('Cognito identity pool %s is not found', id)
+                return {arn: config}
             else:
                 raise e

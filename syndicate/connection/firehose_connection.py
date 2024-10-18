@@ -50,6 +50,6 @@ class FirehoseConnection(object):
             else:
                 raise e
 
-    def delete_delivery_stream(self, stream_name):
+    def delete_delivery_stream(self, stream_name, log_not_found_error=True):
         return self.client.delete_delivery_stream(
             DeliveryStreamName=stream_name)

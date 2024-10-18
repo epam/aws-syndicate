@@ -97,12 +97,15 @@ class DaxResource(BaseResource):
                                      ['resource_meta', 'subnet_group_name']) \
             if deep_get(config, ['resource_meta', 'subnet_ids']) else None
         try:
-            self.dax_conn.delete_cluster(cluster_name)
+            self.dax_conn.delete_cluster(cluster_name,
+                                         log_not_found_error=False)
+            return {arn: config}
         except self.dax_conn.client.exceptions.InvalidClusterStateFault as e:
             USER_LOG.warning(e.response['Error']['Message'] +
                              ' Remove it manually!')
         except self.dax_conn.client.exceptions.ClusterNotFoundFault:
             _LOG.warning(f'Dax cluster with name \'{cluster_name}\' not found')
+            return {arn: config}
         if subnet_group_name:
             self._remove_subnet_group(subnet_group_name)
 

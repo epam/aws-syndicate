@@ -150,10 +150,11 @@ class SNSConnection(object):
             token = response.get('NextToken')
         return applications
 
-    def remove_topic_by_arn(self, topic_arn):
+    def remove_topic_by_arn(self, topic_arn, log_not_found_error=True):
         """ Remove topic by arn.
 
         :type topic_arn: str
+        :type log_not_found_error: boolean
         """
         # make get api call first, because the delete function is idempotent
         if self.get_topic_attributes(topic_arn):
@@ -257,10 +258,12 @@ class SNSConnection(object):
             Name=name, Platform=platform, Attributes=attributes)
         return response.get('PlatformApplicationArn')
 
-    def remove_application_by_arn(self, application_arn):
+    def remove_application_by_arn(self, application_arn,
+                                  log_not_found_error=True):
         """ Remove application by arn.
 
         :type application_arn: str
+        :type log_not_found_error boolean
         """
         self.client.delete_platform_application(
             PlatformApplicationArn=application_arn)

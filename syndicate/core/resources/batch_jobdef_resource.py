@@ -74,6 +74,7 @@ class BatchJobDefinitionResource(BaseResource):
         job_def_name = config['resource_name']
         self.batch_conn.deregister_job_definition(job_def_name)
         _LOG.info('Batch Job Definition %s was removed.', job_def_name)
+        return {arn: config}
 
     @unpack_kwargs
     def _update_job_definition_from_meta(self, name, meta, context):

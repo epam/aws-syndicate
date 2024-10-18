@@ -173,7 +173,7 @@ class S3Connection(object):
             }
         self.client.create_bucket(**param)
 
-    def remove_bucket(self, bucket_name):
+    def remove_bucket(self, bucket_name, log_not_found_error=True):
         """ Remove bucket by name. To remove bucket it must be empty."""
         bucket = self.resource.Bucket(bucket_name)
         bucket_versioning = self.resource.BucketVersioning(bucket_name)

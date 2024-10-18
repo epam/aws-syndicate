@@ -59,12 +59,14 @@ class StepFunctionResource(BaseResource):
                 for execution in executions:
                     self.sf_conn.stop_execution(execution['executionArn'])
                 _LOG.debug('Executions stop initiated')
-            self.sf_conn.delete_state_machine(arn)
+            self.sf_conn.delete_state_machine(arn, log_not_found_error=False)
             _LOG.info('State machine %s was removed', sm_name)
+            return {arn: config}
         except ClientError as e:
             exception_type = e.response['Error']['Code']
             if exception_type == 'StateMachineDoesNotExist':
                 _LOG.warn('State machine %s is not found', sm_name)
+                return {arn: config}
             else:
                 raise e
 
@@ -75,12 +77,14 @@ class StepFunctionResource(BaseResource):
     def _remove_activity(self, arn, config):
         activity_name = config['resource_name']
         try:
-            self.sf_conn.delete_activity(arn)
+            self.sf_conn.delete_activity(arn, log_not_found_error=False)
             _LOG.info('State activity %s was removed', activity_name)
+            return {arn: config}
         except ClientError as e:
             exception_type = e.response['Error']['Code']
             if exception_type == 'ResourceNotFoundException':
                 _LOG.warn('State activity %s is not found', activity_name)
+                return {arn: config}
             else:
                 raise e
 

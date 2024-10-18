@@ -17,6 +17,8 @@ import concurrent
 from concurrent.futures import ALL_COMPLETED
 from concurrent.futures.thread import ThreadPoolExecutor
 
+from syndicate.commons import deep_get
+
 
 class BaseResource:
 
@@ -48,7 +50,12 @@ class BaseResource:
                         responses.update(result)
                 except Exception as e:
                     param_chunk = futures_dict[future]
-                    resource_name = param_chunk.get('name', 'Unknown')
+                    resource_name = (
+                            param_chunk.get('name') or
+                            deep_get(
+                                param_chunk,
+                                ['config', 'resource_name'],
+                                'Unknown'))
                     exceptions.append(
                         f'Caused by resource named {resource_name}. {e}')
 

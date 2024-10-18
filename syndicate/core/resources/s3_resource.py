@@ -184,11 +184,14 @@ class S3Resource(BaseResource):
     def _remove_bucket(self, arn, config):
         bucket_name = config['resource_name']
         try:
-            self.s3_conn.remove_bucket(bucket_name=bucket_name)
+            self.s3_conn.remove_bucket(bucket_name=bucket_name,
+                                       log_not_found_error=False)
             _LOG.info('S3 bucket {0} was removed.'.format(bucket_name))
+            return {arn: config}
         except ClientError as e:
             if e.response['Error']['Code'] == 'NoSuchBucket':
                 _LOG.warn('S3 bucket {0} is not found'.format(bucket_name))
+                return {arn: config}
             else:
                 raise e
 

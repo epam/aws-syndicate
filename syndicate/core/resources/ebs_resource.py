@@ -231,10 +231,12 @@ class EbsResource(BaseResource):
     def _remove_ebs_app(self, arn, config):
         app_name = config['resource_name']
         try:
-            self.ebs_conn.remove_app(app_name)
+            self.ebs_conn.remove_app(app_name, log_not_found_error=False)
             _LOG.info(f'EBS app {app_name} was removed.')
+            return {arn: config}
         except ClientError as e:
             if e.response['Error']['Code'] == 'ResourceNotFoundException':
                 _LOG.warn(f'EBS app {app_name} is not found')
+                return {arn: config}
             else:
                 raise e

@@ -60,6 +60,7 @@ class BatchJobQueueResource(BaseResource):
 
         self.batch_conn.delete_job_queue(job_queue=arn)
         _LOG.info(f'Batch Job Queue {job_queue_name} was removed.')
+        return {arn: config}
 
     @unpack_kwargs
     def _create_job_queue_from_meta(self, name, meta):

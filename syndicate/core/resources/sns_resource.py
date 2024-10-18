@@ -231,12 +231,15 @@ class SnsResource(BaseResource):
         #  deleting subscriptions with related SNS topic deletion
         self._remove_sns_topic_subscriptions(arn)
         try:
-            self.connection_provider.sns(region).remove_topic_by_arn(arn)
+            self.connection_provider.sns(region).remove_topic_by_arn(
+                arn, log_not_found_error=False)
             _LOG.info('SNS topic %s was removed.', topic_name)
+            return {arn: config}
         except ClientError as e:
             exception_type = e.response['Error']['Code']
             if exception_type == 'ResourceNotFoundException':
                 _LOG.warn('SNS topic %s is not found', topic_name)
+                return {arn: config}
             else:
                 raise e
 
@@ -293,11 +296,14 @@ class SnsResource(BaseResource):
         region = arn.split(':')[3]
         application_name = config['resource_name']
         try:
-            self.connection_provider.sns(region).remove_application_by_arn(arn)
+            self.connection_provider.sns(region).remove_application_by_arn(
+                arn, log_not_found_error=False)
             _LOG.info('SNS application %s was removed.', application_name)
+            return {arn: config}
         except ClientError as e:
             exception_type = e.response['Error']['Code']
             if exception_type == 'ResourceNotFoundException':
                 _LOG.warn('SNS application %s is not found', application_name)
+                return {arn: config}
             else:
                 raise e

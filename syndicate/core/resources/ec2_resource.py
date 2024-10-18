@@ -221,12 +221,15 @@ class Ec2Resource(BaseResource):
     @unpack_kwargs
     def _remove_launch_template(self, arn, config):
         try:
-            self.ec2_conn.delete_launch_template(lt_id=arn)
+            self.ec2_conn.delete_launch_template(lt_id=arn,
+                                                 log_not_found_error=False)
             _LOG.info(f"Launch template with ID '{arn}' removed "
                       f"successfully")
+            return {arn: config}
         except ClientError as e:
             if 'InvalidLaunchTemplateId.NotFound' in str(e):
                 _LOG.warn(f"Launch template with ID '{arn}' not found")
+                return {arn: config}
             else:
                 raise e
 

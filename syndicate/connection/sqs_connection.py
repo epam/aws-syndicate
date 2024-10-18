@@ -100,7 +100,7 @@ class SqsConnection(object):
             params['tags'] = tags
         return self.client.create_queue(**params)
 
-    def delete_queue(self, queue_url):
+    def delete_queue(self, queue_url, log_not_found_error=True):
         self.client.delete_queue(QueueUrl=queue_url)
 
     def list_queues(self, url_prefix):

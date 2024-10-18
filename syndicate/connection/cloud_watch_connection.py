@@ -356,10 +356,11 @@ class EventConnection(object):
             for rule in rules:
                 self.remove_rule(rule['Name'])
 
-    def remove_rule(self, rule_name):
+    def remove_rule(self, rule_name, log_not_found_error=True):
         """ Remove single rule by name with targets.
 
         :type rule_name: str
+        :type log_not_found_error: boolean
         """
         response = self.client.list_targets_by_rule(Rule=rule_name)
         if response['Targets']:

@@ -60,7 +60,7 @@ class BatchComputeEnvironmentResource(BaseResource):
         except (KeyError, IndexError):
             _LOG.warn("Batch Compute Environment %s not found", config[
                 'resource_name'])
-            return
+            return {arn: config}
         if compute_environment_data['state'] == 'ENABLED':
             # need to disable compute env first
             self.batch_conn.update_compute_environment(arn, state='DISABLED')
@@ -71,6 +71,7 @@ class BatchComputeEnvironmentResource(BaseResource):
             'computeEnvironmentName']
         _LOG.info('Batch Compute Environment %s was removed.',
                   compute_environment_name)
+        return {arn: config}
 
     @unpack_kwargs
     def _create_compute_environment_from_meta(self, name, meta):

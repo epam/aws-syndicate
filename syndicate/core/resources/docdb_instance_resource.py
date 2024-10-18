@@ -79,10 +79,13 @@ class DocumentDBInstanceResource(BaseResource):
     def _remove_db_instance(self, arn, config):
         instance = config['description']
         try:
-            self.connection.delete_db_instance(instance)
+            self.connection.delete_db_instance(instance,
+                                               log_not_found_error=False)
             _LOG.info(f'DocumentDB instance \'{instance}\' was removed')
+            return {arn: config}
         except ClientError as e:
             if e.response['Error']['Code'] == 'ResourceNotFoundException':
                 _LOG.warn(f'DocumentDB instance \'{instance}\' is not found')
+                return {arn: config}
             else:
                 raise e

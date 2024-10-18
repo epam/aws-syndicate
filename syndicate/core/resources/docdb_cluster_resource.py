@@ -99,10 +99,13 @@ class DocumentDBClusterResource(BaseResource):
     def _remove_db_cluster(self, arn, config):
         cluster = config['description']
         try:
-            self.connection.delete_db_cluster(cluster)
+            self.connection.delete_db_cluster(cluster,
+                                              log_not_found_error=False)
             _LOG.info(f'DocumentDB cluster \'{cluster}\' was removed')
+            return {arn: config}
         except ClientError as e:
             if e.response['Error']['Code'] == 'ResourceNotFoundException':
                 _LOG.warn(f'DocumentDB cluster \'{cluster}\' is not found')
+                return {arn: config}
             else:
                 raise e

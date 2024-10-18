@@ -146,4 +146,7 @@ class EventBridgeSchedulerResource(BaseResource):
                 'group_name')
         except:
             group_name = None
-        return self.connection.delete_schedule(name=name, group_name=group_name)
+        self.connection.delete_schedule(name=name,
+                                        group_name=group_name,
+                                        log_not_found_error=False)
+        return {arn: config}

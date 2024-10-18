@@ -77,14 +77,17 @@ class SqsResource(BaseResource):
                 resource_name,
                 self.account_id)
             if queue_url:
-                self.sqs_conn_builder(region).delete_queue(queue_url)
+                self.sqs_conn_builder(region).delete_queue(
+                    queue_url, log_not_found_error=False)
                 _LOG.info('SQS queue %s was removed.', queue_name)
             else:
                 _LOG.warn('SQS queue %s is not found', queue_name)
+            return {arn: config}
         except ClientError as e:
             exception_type = e.response['Error']['Code']
             if exception_type == 'ResourceNotFoundException':
                 _LOG.warn('SQS queue %s is not found', queue_name)
+                return {arn: config}
             else:
                 raise e
 

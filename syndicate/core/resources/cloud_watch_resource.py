@@ -188,11 +188,14 @@ class CloudWatchResource(BaseResource):
         region = arn.split(':')[3]
         resource_name = config['resource_name']
         try:
-            self._cw_events_conn_builder(region).remove_rule(resource_name)
+            self._cw_events_conn_builder(region).remove_rule(
+                resource_name, log_not_found_error=False)
             _LOG.info('Rule %s was removed', resource_name)
+            return {arn: config}
         except ClientError as e:
             exception_type = e.response['Error']['Code']
             if exception_type == 'ResourceNotFoundException':
                 _LOG.warn('Rule %s is not found', resource_name)
+                return {arn: config}
             else:
                 raise e

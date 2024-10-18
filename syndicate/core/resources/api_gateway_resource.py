@@ -1042,7 +1042,7 @@ class ApiGatewayResource(BaseResource):
             if e.response['Error']['Code'] == 'NotFoundException':
                 _LOG.warning(f'API Gateway {api_id} is not found')
             else:
-                raise
+                raise e
 
     @unpack_kwargs
     def _create_model_from_metadata(self, api_id, models):

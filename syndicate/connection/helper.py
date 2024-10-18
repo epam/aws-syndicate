@@ -23,6 +23,7 @@ from syndicate.commons.log_helper import get_logger
 
 _LOG = get_logger('syndicate.connection.helper')
 
+LOG_NOT_FOUND_ERROR = 'log_not_found_error'
 
 DEFAULT_RETRY_TIMEOUT_SEC = 35
 DEFAULT_RETRY_TIMEOUT_STEP = 3
@@ -90,6 +91,12 @@ def retry(retry_timeout=DEFAULT_RETRY_TIMEOUT_SEC,
                 'Cannot delete, resource is being modified',
                 'Please try again'
             ]
+            resource_not_found_error_codes = [
+                'NoSuchEntity',
+                'ResourceNotFoundException',
+                'StateMachineDoesNotExist',
+                'ClusterNotFoundFault'
+            ]
             last_ex = None
             for each in range(1, retry_timeout, retry_timeout_step):
                 try:
@@ -107,8 +114,16 @@ def retry(retry_timeout=DEFAULT_RETRY_TIMEOUT_SEC,
                                 f'Traceback:\n {traceback.format_exc()}')
                             retry_flag = True
                     if not retry_flag:
-                        _LOG.error(f'Error occurred: {e}')
-                        _LOG.error(f'Traceback:\n {traceback.format_exc()}')
+                        error_code = e.response['Error']['Code']
+                        if (kwargs.get(LOG_NOT_FOUND_ERROR) and error_code in
+                           resource_not_found_error_codes):
+                            _LOG.error(f'Error occurred: {e}')
+                            _LOG.error(
+                                f'Traceback:\n {traceback.format_exc()}')
+                        else:
+                            _LOG.debug(f'Error occurred: {e}')
+                            _LOG.debug(
+                                f'Traceback:\n {traceback.format_exc()}')
                         raise e
                     last_ex = e
                     sleep(each)

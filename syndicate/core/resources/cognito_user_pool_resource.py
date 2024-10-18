@@ -134,11 +134,14 @@ class CognitoUserPoolResource(BaseResource):
     def _remove_cognito_user_pools(self, arn, config):
         pool_id = config['description']['UserPool']['Id']
         try:
-            self.connection.remove_user_pool(pool_id)
+            self.connection.remove_user_pool(pool_id,
+                                             log_not_found_error=False)
             _LOG.info('Cognito user pool %s was removed', pool_id)
+            return {arn: config}
         except ClientError as e:
             if e.response['Error']['Code'] == 'ResourceNotFoundException':
                 _LOG.warn('Cognito user pool %s is not found', id)
+                return {arn: config}
             else:
                 raise e
 

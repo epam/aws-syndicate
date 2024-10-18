@@ -69,5 +69,5 @@ class KinesisConnection(object):
                 result.extend(response['StreamNames'])
         return result
 
-    def remove_stream(self, stream_name):
+    def remove_stream(self, stream_name, log_not_found_error=True):
         self.client.delete_stream(StreamName=stream_name)

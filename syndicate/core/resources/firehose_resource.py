@@ -67,11 +67,12 @@ class FirehoseResource(BaseResource):
     def _delete_stream(self, arn, config):
         name = config['resource_name']
         try:
-            response = self.connection.delete_delivery_stream(name)
-            return response
+            self.connection.delete_delivery_stream(name,
+                                                   log_not_found_error=False)
+            return {arn: config}
         except ClientError as e:
             if e.response['Error']['Code'] == 'ResourceNotFoundException':
                 _LOG.warning(f'Cannot find delivery stream with name {name}')
-                pass
+                return {arn: config}
             else:
                 raise e
