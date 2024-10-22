@@ -95,7 +95,10 @@ def retry(retry_timeout=DEFAULT_RETRY_TIMEOUT_SEC,
                 'NoSuchEntity',
                 'ResourceNotFoundException',
                 'StateMachineDoesNotExist',
-                'ClusterNotFoundFault'
+                'ClusterNotFoundFault',
+                'InvalidInstanceID.NotFound',
+                'IncorrectInstanceState'
+
             ]
             last_ex = None
             for each in range(1, retry_timeout, retry_timeout_step):
