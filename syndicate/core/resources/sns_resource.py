@@ -221,7 +221,7 @@ class SnsResource(BaseResource):
                   rule_name)
 
     def remove_sns_topics(self, args):
-        self.create_pool(self._remove_sns_topic, args)
+        return self.create_pool(self._remove_sns_topic, args)
 
     @unpack_kwargs
     def _remove_sns_topic(self, arn, config):

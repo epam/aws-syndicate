@@ -548,9 +548,10 @@ class MetricConnection(object):
             params['Tags'] = tags
         self.client.put_metric_alarm(**params)
 
-    def remove_alarms(self, alarm_names):
+    def remove_alarms(self, alarm_names, log_not_found_error=True):
         """
         :type alarm_names: str or list
+        :type log_not_found_error: boolean
         """
         if isinstance(alarm_names, str):
             alarm_names = [alarm_names]
