@@ -21,8 +21,9 @@ from functools import cmp_to_key
 
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.build.bundle_processor import create_deploy_output, \
-    load_deploy_output, load_failed_deploy_output,load_meta_resources, \
-    remove_failed_deploy_output, load_latest_deploy_output
+    load_deploy_output, load_failed_deploy_output, load_meta_resources, \
+    remove_failed_deploy_output, load_latest_deploy_output, \
+    remove_deploy_output
 from syndicate.core.build.meta_processor import resolve_meta, \
     populate_s3_paths, resolve_resource_name, get_meta_from_output, \
     resolve_tags, preprocess_tags
@@ -324,7 +325,7 @@ def process_response(response, output: dict):
         result, exceptions = response
         if result:
             output.update(result)
-        raise Exception(exceptions[0])
+        raise Exception('\n'.join(exceptions))
 
     return output
 
@@ -653,16 +654,20 @@ def _post_remove_output_handling(deploy_name, bundle_name, preserve_state,
         if not preserve_state:
             # remove output from bucket
             remove_failed_deploy_output(bundle_name, deploy_name)
+            remove_deploy_output(bundle_name, deploy_name)
+            if errors:
+                _LOG.warn('There were errors during cleaning resources. '
+                          f'Details: {"\n".join(errors)}')
     else:
         for key, value in new_output.items():
-            output.pop(key)
+            output.pop(key, None)
         create_deploy_output(bundle_name=bundle_name,
                              deploy_name=deploy_name,
                              output=output,
                              success=is_regular_output,
                              replace_output=True)
         if errors:
-            raise Exception(errors[0])
+            raise Exception('\n'.join(errors))
         return {'operation': PARTIAL_CLEAN_ACTION}
     return True
 

@@ -165,31 +165,70 @@ class Ec2Resource(BaseResource):
         return self.describe_ec2(name, meta, response)
 
     def remove_ec2_instances(self, args):
-        for param_chunk in chunks(args, 1000):
-            self.remove_instance_list(param_chunk)
+        return self._remove_ec2_instances(args)
 
-    def remove_instance_list(self, instance_list):
-        instance_ids = [x['config']['description']['InstanceId'] for x in
-                        instance_list]
-        existing_instances_list = []
-        for instance_id in instance_ids:
-            try:
-                self.ec2_conn.modify_instance_attribute(
-                    InstanceId=instance_id,
-                    DisableApiTermination={'Value': False}
-                )
-                existing_instances_list.append(instance_id)
-            except ClientError as e:
-                if 'InvalidInstanceID.NotFound' in str(e):
-                    _LOG.warn('Instance %s does not exist', instance_id)
-                else:
-                    raise e
+    def _remove_ec2_instances(self, args):
+        results = {}
+        exceptions = []
+        for res_chunk in chunks(args, 1000):
+            existing_instances_list = []
+            for resource in res_chunk:
+                arn = resource['arn']
+                config = resource['config']
+                instance_id = config['description']['InstanceId']
+                try:
+                    self.ec2_conn.modify_instance_attribute(
+                        InstanceId=instance_id,
+                        DisableApiTermination={'Value': False},
+                        log_not_found_error=False
+                    )
+                    existing_instances_list.append(instance_id)
+                except ClientError as e:
+                    if 'InvalidInstanceID.NotFound' in str(e):
+                        _LOG.warn('Instance %s does not exist', instance_id)
+                        results.update({arn: config})
+                    elif 'IncorrectInstanceState' in str(e):
+                        _LOG.warn('Instance %s '
+                                  'already terminated', instance_id)
+                        results.update({arn: config})
+                    else:
+                        exceptions.append(f'Caused by resource {arn}. {e}')
 
-        if existing_instances_list:
-            self.ec2_conn.terminate_instances(
-                instance_ids=existing_instances_list)
-        _LOG.info('EC2 instances %s were removed.',
-                  str(existing_instances_list))
+            if existing_instances_list:
+                try:
+                    self.ec2_conn.terminate_instances(
+                        instance_ids=existing_instances_list)
+                    _LOG.info('EC2 instances %s were removed.',
+                              str(existing_instances_list))
+                    results.update({
+                        item['arn']: item['config'] for item in res_chunk
+                    })
+                except Exception as e:
+                    exceptions.append(str(e))
+                    filters = [
+                        {
+                            'Name': 'instance-state-name',
+                            'Values': ['pending', 'running',
+                                       'stopping', 'stopped']
+                        }
+                    ]
+                    try:
+                        described_instances = self.ec2_conn.describe_instances(
+                            filters=filters,
+                            instance_ids=existing_instances_list
+                        )
+                        described_instances_ids = [x['InstanceId'] for x in
+                                                   described_instances]
+                        for instance in res_chunk:
+                            instance_id = \
+                                instance['config']['description']['InstanceId']
+                            if instance_id not in described_instances_ids:
+                                results.update({
+                                    instance['arn']: instance['config']
+                                })
+                    except Exception as e:
+                        exceptions.append(str(e))
+        return (results, exceptions) if exceptions else results
 
     def describe_launch_template(self, name, meta, response=None):
         if not response:

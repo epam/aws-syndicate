@@ -54,7 +54,7 @@ class IamResource(BaseResource):
                 raise e
 
     def remove_roles(self, args):
-        self.create_pool(self._remove_role, args)
+        return self.create_pool(self._remove_role, args)
 
     @unpack_kwargs
     def _remove_role(self, arn, config):
