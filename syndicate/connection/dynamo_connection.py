@@ -1009,7 +1009,8 @@ class DynamoConnection(object):
         and then continue.
 
         :type table_names: list
-        :type log_not_found_error: boolean
+        :type log_not_found_error: boolean, parameter is needed for proper log
+        handling in the retry decorator
         """
         removed_tables = []
         exceptions = []

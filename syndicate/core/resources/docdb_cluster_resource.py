@@ -93,7 +93,7 @@ class DocumentDBClusterResource(BaseResource):
         return self.describe_documentdb_cluster(identifier=name, meta=meta)
 
     def remove_db_cluster(self, args):
-        self.create_pool(self._remove_db_cluster, args)
+        return self.create_pool(self._remove_db_cluster, args)
 
     @unpack_kwargs
     def _remove_db_cluster(self, arn, config):

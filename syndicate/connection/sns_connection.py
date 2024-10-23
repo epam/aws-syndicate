@@ -154,7 +154,8 @@ class SNSConnection(object):
         """ Remove topic by arn.
 
         :type topic_arn: str
-        :type log_not_found_error: boolean
+        :type log_not_found_error: boolean, parameter is needed for proper log
+        handling in the retry decorator
         """
         # make get api call first, because the delete function is idempotent
         if self.get_topic_attributes(topic_arn):
@@ -263,7 +264,8 @@ class SNSConnection(object):
         """ Remove application by arn.
 
         :type application_arn: str
-        :type log_not_found_error boolean
+        :type log_not_found_error boolean, parameter is needed for proper log
+        handling in the retry decorator
         """
         self.client.delete_platform_application(
             PlatformApplicationArn=application_arn)

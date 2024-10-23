@@ -225,7 +225,7 @@ class EbsResource(BaseResource):
         })
 
     def remove_ebs_apps(self, args):
-        self.create_pool(self._remove_ebs_app, args)
+        return self.create_pool(self._remove_ebs_app, args)
 
     @unpack_kwargs
     def _remove_ebs_app(self, arn, config):

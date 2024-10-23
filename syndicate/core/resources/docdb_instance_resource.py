@@ -73,7 +73,7 @@ class DocumentDBInstanceResource(BaseResource):
         return self.describe_documentdb_instance(identifier=name, meta=meta)
 
     def remove_db_instance(self, args):
-        self.create_pool(self._remove_db_instance, args)
+        return self.create_pool(self._remove_db_instance, args)
 
     @unpack_kwargs
     def _remove_db_instance(self, arn, config):

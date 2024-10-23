@@ -289,7 +289,7 @@ class SnsResource(BaseResource):
         return self.describe_sns_application(name, meta, region, arn)
 
     def remove_sns_application(self, args):
-        self.create_pool(self._remove_sns_application, args)
+        return self.create_pool(self._remove_sns_application, args)
 
     @unpack_kwargs
     def _remove_sns_application(self, arn, config):

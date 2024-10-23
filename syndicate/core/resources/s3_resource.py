@@ -178,7 +178,7 @@ class S3Resource(BaseResource):
             return []
 
     def remove_buckets(self, args):
-        self.create_pool(self._remove_bucket, args)
+        return self.create_pool(self._remove_bucket, args)
 
     @unpack_kwargs
     def _remove_bucket(self, arn, config):

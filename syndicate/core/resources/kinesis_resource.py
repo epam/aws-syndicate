@@ -33,7 +33,7 @@ class KinesisResource(BaseResource):
         return self.create_pool(self._create_kinesis_stream_from_meta, args)
 
     def remove_kinesis_streams(self, args):
-        self.create_pool(self._remove_kinesis_stream, args)
+        return self.create_pool(self._remove_kinesis_stream, args)
 
     @unpack_kwargs
     def _remove_kinesis_stream(self, arn, config):

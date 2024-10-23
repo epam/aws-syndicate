@@ -88,6 +88,8 @@ class DocumentDBConnection(object):
                            log_not_found_error=True):
         """
         Deletes a previously provisioned instance.
+        log_not_found_error parameter is needed for proper log handling in the
+        retry decorator
         """
         response = self.client.delete_db_instance(
             DBInstanceIdentifier=instance_identifier)
@@ -99,6 +101,8 @@ class DocumentDBConnection(object):
         """
         Deletes a previously provisioned cluster (all automated backups for
         that cluster are deleted and can't be recovered).
+        log_not_found_error parameter is needed for proper log handling in the
+        retry decorator
         """
         if skip_final_snapshot and final_db_snapshot_identifier:
             raise AssertionError(

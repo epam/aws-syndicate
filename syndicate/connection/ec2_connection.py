@@ -275,6 +275,10 @@ class EC2Connection(object):
             return launched_instances[0]
 
     def modify_instance_attribute(self, **kwargs):
+        """
+        log_not_found_error parameter is needed for proper log handling in the
+        retry decorator
+        """
         kwargs.pop('log_not_found_error', None)
         if not kwargs['InstanceId']:
             raise AssertionError('InstanceId must be specified')
@@ -460,6 +464,10 @@ class EC2Connection(object):
 
     def delete_launch_template(self, lt_name=None, lt_id=None,
                                log_not_found_error=True):
+        """
+        log_not_found_error parameter is needed for proper log handling in the
+        retry decorator
+        """
         params = dict()
         if lt_name is not None and lt_id is not None:
             _LOG.warn('Both the launch template name and ID are specified. '

@@ -381,7 +381,8 @@ class LambdaConnection(object):
         """ Delete Lambda.
 
         :param func_name: str
-        :param log_not_found_error: boolean
+        :param log_not_found_error: boolean, parameter is needed for proper log
+        handling in the retry decorator
         """
         self.client.delete_function(FunctionName=func_name)
 
@@ -689,6 +690,10 @@ class LambdaConnection(object):
         return self.client.get_layer_version_by_arn(Arn=arn)
 
     def delete_layer(self, arn, log_not_found_error=True):
+        """
+        log_not_found_error parameter is needed for proper log handling in the
+        retry decorator
+        """
         version = arn.split(':')[len(arn.split(':')) - 1]
         arn = arn[:-len(version) - 1]
         return self.client.delete_layer_version(

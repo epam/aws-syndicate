@@ -181,7 +181,7 @@ class CloudWatchResource(BaseResource):
             _LOG.debug('Rule %s removed', rule_name)
 
     def remove_cloud_watch_rules(self, args):
-        self.create_pool(self._remove_cloud_watch_rule, args)
+        return self.create_pool(self._remove_cloud_watch_rule, args)
 
     @unpack_kwargs
     def _remove_cloud_watch_rule(self, arn, config):

@@ -87,7 +87,7 @@ class CognitoIdentityResource(BaseResource):
                                           pool_id=pool_id)
 
     def remove_cognito_identity_pools(self, args):
-        self.create_pool(self._remove_cognito_identity_pool, args)
+        return self.create_pool(self._remove_cognito_identity_pool, args)
 
     @unpack_kwargs
     def _remove_cognito_identity_pool(self, arn, config):

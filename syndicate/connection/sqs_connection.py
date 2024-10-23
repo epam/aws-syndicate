@@ -101,6 +101,10 @@ class SqsConnection(object):
         return self.client.create_queue(**params)
 
     def delete_queue(self, queue_url, log_not_found_error=True):
+        """
+        log_not_found_error parameter is needed for proper log handling in the
+        retry decorator
+        """
         self.client.delete_queue(QueueUrl=queue_url)
 
     def list_queues(self, url_prefix):

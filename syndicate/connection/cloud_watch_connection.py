@@ -360,7 +360,8 @@ class EventConnection(object):
         """ Remove single rule by name with targets.
 
         :type rule_name: str
-        :type log_not_found_error: boolean
+        :type log_not_found_error: boolean, parameter is needed for proper log
+        handling in the retry decorator
         """
         response = self.client.list_targets_by_rule(Rule=rule_name)
         if response['Targets']:
@@ -551,7 +552,8 @@ class MetricConnection(object):
     def remove_alarms(self, alarm_names, log_not_found_error=True):
         """
         :type alarm_names: str or list
-        :type log_not_found_error: boolean
+        :type log_not_found_error: boolean, parameter is needed for proper
+        log handling in the retry decorator
         """
         if isinstance(alarm_names, str):
             alarm_names = [alarm_names]

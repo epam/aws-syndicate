@@ -60,10 +60,12 @@ class SqsResource(BaseResource):
         }
 
     def remove_queues(self, args):
-        self.create_pool(self._remove_queue, args)
+        result = self.create_pool(self._remove_queue, args)
         # wait to remove all queues
         if args:
             time.sleep(60)
+
+        return result
 
     @unpack_kwargs
     def _remove_queue(self, arn, config):

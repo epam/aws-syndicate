@@ -44,9 +44,11 @@ class StepFunctionResource(BaseResource):
         return self.create_pool(self._create_activity_from_meta, args)
 
     def remove_state_machines(self, args):
-        self.create_pool(self._remove_state_machine, args)
+        result = self.create_pool(self._remove_state_machine, args)
         if args:
             time.sleep(60)
+
+        return result
 
     @unpack_kwargs
     def _remove_state_machine(self, arn, config):
@@ -71,7 +73,7 @@ class StepFunctionResource(BaseResource):
                 raise e
 
     def remove_activities(self, args):
-        self.create_pool(self._remove_activity, args)
+        return self.create_pool(self._remove_activity, args)
 
     @unpack_kwargs
     def _remove_activity(self, arn, config):

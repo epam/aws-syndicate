@@ -44,7 +44,7 @@ class BatchJobQueueResource(BaseResource):
             return {}
 
     def remove_job_queue(self, args):
-        self.create_pool(self._remove_job_queue, args)
+        return self.create_pool(self._remove_job_queue, args)
 
     @unpack_kwargs
     def _remove_job_queue(self, arn, config):

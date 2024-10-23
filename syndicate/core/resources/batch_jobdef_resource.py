@@ -41,7 +41,7 @@ class BatchJobDefinitionResource(BaseResource):
             return {}
 
     def deregister_job_definition(self, args):
-        self.create_pool(self._deregister_job_definition, args)
+        return self.create_pool(self._deregister_job_definition, args)
 
     @unpack_kwargs
     def _register_job_definition_from_meta(self, name, meta):

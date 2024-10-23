@@ -288,7 +288,8 @@ class IAMConnection(object):
         """ To remove policy all it version must be removed before default one.
 
         :type policy_arn: str
-        :type log_not_found_error: boolean
+        :type log_not_found_error: boolean, parameter is needed for proper log
+        handling in the retry decorator
         """
         version = self.client.list_policy_versions(PolicyArn=policy_arn)
         policy_versions = version['Versions']
@@ -300,6 +301,10 @@ class IAMConnection(object):
         self.client.delete_policy(PolicyArn=policy_arn)
 
     def remove_role(self, role_name, log_not_found_error=True):
+        """
+        log_not_found_error parameter is needed for proper log handling in the
+        retry decorator
+        """
         self.client.delete_role(RoleName=role_name)
 
     def create_instance_profile(self, profile_name):

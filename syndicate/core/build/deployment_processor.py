@@ -337,7 +337,11 @@ def _process_clean_responses(responses):
         if isinstance(response, dict):
             removed_resources_arn.extend(response.keys())
         if isinstance(response, tuple):
-            removed_resources_arn.extend(response[0].keys())
+            if isinstance(response[0], dict):
+                removed_resources_arn.extend(response[0].keys())
+            else:
+                _LOG.warn(f'Got unexpected response. Expect dict. '
+                          f'Got \'{type(response)}\', \'{str(response)}\'')
             errors.extend(response[-1])
     return removed_resources_arn, errors
 

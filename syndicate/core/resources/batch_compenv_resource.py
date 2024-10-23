@@ -49,7 +49,7 @@ class BatchComputeEnvironmentResource(BaseResource):
             return {}
 
     def remove_compute_environment(self, args):
-        self.create_pool(self._remove_compute_environment, args)
+        return self.create_pool(self._remove_compute_environment, args)
 
     @unpack_kwargs
     def _remove_compute_environment(self, arn, config):

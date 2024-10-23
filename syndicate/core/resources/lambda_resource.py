@@ -1202,7 +1202,7 @@ class LambdaResource(BaseResource):
             func(self, lambda_name, lambda_arn, event_source)
 
     def remove_lambdas(self, args):
-        self.create_pool(self._remove_lambda, args)
+        return self.create_pool(self._remove_lambda, args)
 
     @unpack_kwargs
     @retry()
