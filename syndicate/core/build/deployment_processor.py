@@ -21,8 +21,9 @@ from functools import cmp_to_key
 
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.build.bundle_processor import create_deploy_output, \
-    load_deploy_output, load_failed_deploy_output,load_meta_resources, \
-    remove_failed_deploy_output, load_latest_deploy_output
+    load_deploy_output, load_failed_deploy_output, load_meta_resources, \
+    remove_failed_deploy_output, load_latest_deploy_output, \
+    remove_deploy_output
 from syndicate.core.build.meta_processor import resolve_meta, \
     populate_s3_paths, resolve_resource_name, get_meta_from_output, \
     resolve_tags, preprocess_tags
@@ -273,6 +274,7 @@ def update_resources(resources, old_resources):
 
 def clean_resources(output):
     from syndicate.core import PROCESSOR_FACADE
+    responses = []
     args = []
     resource_type = None
     # clean all resources
@@ -287,14 +289,17 @@ def clean_resources(output):
         elif res_type != resource_type:
             USER_LOG.info('Removing {0} resources ...'.format(resource_type))
             func = PROCESSOR_FACADE.remove_handlers()[resource_type]
-            func(args)
+            result = func(args)
+            responses.append(result)
             del args[:]
             args.append({'arn': arn, 'config': config})
             resource_type = res_type
     if args:
         USER_LOG.info('Removing {0} resources ...'.format(resource_type))
         func = PROCESSOR_FACADE.remove_handlers()[resource_type]
-        func(args)
+        result = func(args)
+        responses.append(result)
+    return _process_clean_responses(responses)
 
 
 def continue_deploy_resources(resources, latest_deploy_output):
@@ -320,9 +325,25 @@ def process_response(response, output: dict):
         result, exceptions = response
         if result:
             output.update(result)
-        raise Exception(exceptions[0])
+        raise Exception('\n'.join(exceptions))
 
     return output
+
+
+def _process_clean_responses(responses):
+    removed_resources_arn = []
+    errors = []
+    for response in responses:
+        if isinstance(response, dict):
+            removed_resources_arn.extend(response.keys())
+        if isinstance(response, tuple):
+            if isinstance(response[0], dict):
+                removed_resources_arn.extend(response[0].keys())
+            else:
+                _LOG.warn(f'Got unexpected response. Expect dict. '
+                          f'Got \'{type(response)}\', \'{str(response)}\'')
+            errors.extend(response[-1])
+    return removed_resources_arn, errors
 
 
 def __move_output_content(args, failed_output, updated_output):
@@ -611,7 +632,13 @@ def remove_deployment_resources(deploy_name, bundle_name,
         USER_LOG.info('Going to clean AWS resources')
     else:
         _LOG.info('Clean skipped because resources to clean absent')
-    clean_resources(resources_list)
+
+    removed_resources_arn, errors = clean_resources(resources_list)
+    _LOG.debug(f'Removed successfully: \'{removed_resources_arn}\'')
+
+    new_output = {k: v for k, v in new_output.items() if k in
+                  removed_resources_arn}
+
     # remove new_output from bucket
     return _post_remove_output_handling(
         deploy_name=deploy_name,
@@ -619,24 +646,32 @@ def remove_deployment_resources(deploy_name, bundle_name,
         preserve_state=preserve_state,
         output=output,
         new_output=new_output,
-        is_regular_output=is_regular_output
+        is_regular_output=is_regular_output,
+        errors=errors
     )
 
 
 def _post_remove_output_handling(deploy_name, bundle_name, preserve_state,
-                                 output, new_output, is_regular_output):
+                                 output, new_output, is_regular_output,
+                                 errors):
     if output == new_output:
         if not preserve_state:
             # remove output from bucket
             remove_failed_deploy_output(bundle_name, deploy_name)
+            remove_deploy_output(bundle_name, deploy_name)
+            if errors:
+                _LOG.warn('There were errors during cleaning resources. '
+                          f'Details: {"\n".join(errors)}')
     else:
         for key, value in new_output.items():
-            output.pop(key)
+            output.pop(key, None)
         create_deploy_output(bundle_name=bundle_name,
                              deploy_name=deploy_name,
                              output=output,
                              success=is_regular_output,
                              replace_output=True)
+        if errors:
+            raise Exception('\n'.join(errors))
         return {'operation': PARTIAL_CLEAN_ACTION}
     return True
 

@@ -403,8 +403,12 @@ class DynamoDBResource(AbstractExternalResource, BaseResource):
 
     def remove_dynamodb_tables(self, args):
         db_names = [x['config']['resource_name'] for x in args]
-        self.dynamodb_conn.remove_tables_by_names(db_names)
-        _LOG.info('Dynamo DB tables %s were removed', str(db_names))
+        removed_tables, errors = self.dynamodb_conn.remove_tables_by_names(
+            db_names,
+            log_not_found_error=False)
+        results = {x['arn']: x['config'] for x in args
+                   if x['config']['resource_name'] in removed_tables}
+        _LOG.info('Dynamo DB tables %s were removed', str(removed_tables))
         alarm_args = []
         for arg in args:
             autoscaling = arg['config']['description'].get('Autoscaling')
@@ -415,5 +419,9 @@ class DynamoDBResource(AbstractExternalResource, BaseResource):
                         alarms = policy.get('Alarms', [])
                         alarm_args.extend(map(
                             lambda x: x['AlarmName'], alarms))
+        try:
+            self.cw_alarm_conn.remove_alarms(alarm_args)
+        except Exception as e:
+            errors.append(str(e))
 
-        self.cw_alarm_conn.remove_alarms(alarm_args)
+        return (results, errors) if errors else results

@@ -33,17 +33,20 @@ class KinesisResource(BaseResource):
         return self.create_pool(self._create_kinesis_stream_from_meta, args)
 
     def remove_kinesis_streams(self, args):
-        self.create_pool(self._remove_kinesis_stream, args)
+        return self.create_pool(self._remove_kinesis_stream, args)
 
     @unpack_kwargs
     def _remove_kinesis_stream(self, arn, config):
         stream_name = config['resource_name']
         try:
-            self.kin_conn.remove_stream(stream_name=stream_name)
+            self.kin_conn.remove_stream(stream_name=stream_name,
+                                        log_not_found_error=False)
             _LOG.info('Kinesis stream %s was removed.', stream_name)
+            return {arn: config}
         except ClientError as e:
             if e.response['Error']['Code'] == 'ResourceNotFoundException':
                 _LOG.warn('Kinesis stream %s is not found', stream_name)
+                return {arn: config}
             else:
                 raise e
 

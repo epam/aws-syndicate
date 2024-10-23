@@ -43,7 +43,12 @@ class BeanstalkConnection(object):
             params['Tags'] = tags
         self.client.create_application(**params)
 
-    def remove_app(self, app_name, terminate_env_force=True):
+    def remove_app(self, app_name, terminate_env_force=True,
+                   log_not_found_error=True):
+        """
+        log_not_found_error parameter is needed for proper log handling in the
+        retry decorator
+        """
         return self.client.delete_application(
             ApplicationName=app_name,
             TerminateEnvByForce=terminate_env_force

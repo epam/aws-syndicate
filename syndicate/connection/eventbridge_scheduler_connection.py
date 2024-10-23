@@ -41,7 +41,11 @@ class EventBridgeSchedulerConnection(object):
             else:
                 raise e
 
-    def delete_schedule(self, name, group_name=None):
+    def delete_schedule(self, name, group_name=None, log_not_found_error=True):
+        """
+        log_not_found_error parameter is needed for proper log handling in the
+        retry decorator
+        """
         params = {'Name': name}
         if group_name is not None:
             params['GroupName'] = group_name

@@ -128,10 +128,12 @@ class CognitoIdentityConnection(object):
         return self.client.describe_identity_pool(
             IdentityPoolId=identity_pool_id)
 
-    def remove_identity_pool(self, identity_pool_id):
+    def remove_identity_pool(self, identity_pool_id, log_not_found_error=True):
         """ Remove identity pool by id.
 
         :type identity_pool_id: str
+        :type log_not_found_error: boolean, parameter is needed for proper log
+        handling in the retry decorator
         """
         self.client.delete_identity_pool(IdentityPoolId=identity_pool_id)
 

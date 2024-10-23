@@ -995,10 +995,7 @@ class ApiGatewayResource(BaseResource):
         return list(lambdas)
 
     def remove_api_gateways(self, args):
-        for arg in args:
-            self._remove_api_gateway(**arg)
-            # wait for success deletion
-            time.sleep(60)
+        return self.create_pool(self._remove_api_gateway, args)
 
     def _remove_invocation_permissions_from_lambdas(self, config):
         api_id = config['description']['id']
@@ -1021,6 +1018,7 @@ class ApiGatewayResource(BaseResource):
                 ids_to_remove=ids_to_remove
             )
 
+    @unpack_kwargs
     def _remove_api_gateway(self, arn, config):
         api_id = config['description']['id']
         stage_name = config["resource_meta"]["deploy_stage"]
@@ -1035,14 +1033,15 @@ class ApiGatewayResource(BaseResource):
                 {*api_lambdas_arns, *api_lambda_auth_arns}
             )
         try:
-            if self.connection.get_api(api_id):
-                self.connection.remove_api(api_id)
-                _LOG.info(f'API Gateway {api_id} was removed.')
+            self.connection.remove_api(api_id, log_not_found_error=False)
+            _LOG.info(f'API Gateway {api_id} was removed.')
+            return {arn: config}
         except ClientError as e:
             if e.response['Error']['Code'] == 'NotFoundException':
                 _LOG.warning(f'API Gateway {api_id} is not found')
+                return {arn: config}
             else:
-                raise
+                raise e
 
     @unpack_kwargs
     def _create_model_from_metadata(self, api_id, models):
@@ -1126,16 +1125,14 @@ class ApiGatewayResource(BaseResource):
         }
 
     def remove_v2_api_gateway(self, args):
-        for arg in args:
-            self._remove_v2_api_gateway(**arg)
-            # wait for success deletion
-            # time.sleep(60)
+        return self.create_pool(self._remove_v2_api_gateway, args)
 
+    @unpack_kwargs
     def _remove_v2_api_gateway(self, arn, config):
         api_id = config.get('description', {}).get('ApiId')
         if not api_id:
             _LOG.warning('V2 api id not found in output. Skipping')
-            return
+            return {arn: config}
 
         lambda_arns = []
         routes = self.apigw_v2.get_routes(api_id)
@@ -1146,7 +1143,7 @@ class ApiGatewayResource(BaseResource):
         self.remove_lambdas_permissions(
             api_id, {*[arn for arn in lambda_arns if arn is not None]})
         self.apigw_v2.delete_api(api_id)
-        return
+        return {arn: config}
 
     @staticmethod
     def extract_api_gateway_lambdas_arns(openapi_spec):

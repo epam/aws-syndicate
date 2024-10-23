@@ -193,11 +193,13 @@ class CognitoIdentityProviderConnection(object):
     def describe_user_pool(self, user_pool_id):
         return self.client.describe_user_pool(UserPoolId=user_pool_id)
 
-    def remove_user_pool(self, user_pool_id):
+    def remove_user_pool(self, user_pool_id, log_not_found_error=True):
         """
         Removes user pool by id.
 
         :type user_pool_id: str
+        :type log_not_found_error: boolean, parameter is needed for proper log
+        handling in the retry decorator
         """
         self.client.delete_user_pool(UserPoolId=user_pool_id)
 
