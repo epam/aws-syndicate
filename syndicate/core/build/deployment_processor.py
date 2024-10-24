@@ -46,6 +46,7 @@ USER_LOG = get_user_logger()
 def _process_resources(resources, handlers_mapping, describe_handlers=None,
                        pass_context=False, output=None):
     output = output or {}
+    errors = []
     args = []
     resource_type = None
     is_succeeded = True
@@ -66,7 +67,9 @@ def _process_resources(resources, handlers_mapping, describe_handlers=None,
                 USER_LOG.info(f'Processing {resource_type} resources')
                 func = handlers_mapping[resource_type]
                 response = func(args)
-                process_response(response=response, output=output)
+                response_errors = process_response(response=response,
+                                                   output=output)
+                errors.extend(response_errors)
 
                 del args[:]
                 args.append(_build_args(name=res_name,
@@ -79,7 +82,12 @@ def _process_resources(resources, handlers_mapping, describe_handlers=None,
             func = handlers_mapping[resource_type]
 
             response = func(args)
-            process_response(response=response, output=output)
+            response_errors = process_response(response=response,
+                                               output=output)
+            errors.extend(response_errors)
+
+        if errors:
+            is_succeeded = False
 
     except Exception as e:
         USER_LOG.exception('Error occurred while {0} '
@@ -90,20 +98,27 @@ def _process_resources(resources, handlers_mapping, describe_handlers=None,
     if not is_succeeded:
         for item in args:
             func = describe_handlers[item['meta']['resource_type']]
-            response = func(item['name'], item['meta'])
+            try:
+                response = func(item['name'], item['meta'])
+            except Exception as e:
+                response = ({}, [str(e)])
             if response:
-                process_response(response=response, output=output)
+                response_errors = process_response(response=response,
+                                                   output=output)
+                errors.extend(response_errors)
 
-    return is_succeeded, output
+    return is_succeeded, output, errors
 
 
 def _process_resources_with_dependencies(resources, handlers_mapping,
                                          describe_handlers, pass_context=False,
                                          overall_resources=None, output=None,
+                                         errors=None,
                                          current_resource_type=None,
                                          run_count=0):
     overall_resources = overall_resources or resources
     output = output or {}
+    errors = errors or []
     resource_type = None
     is_succeeded = True
     try:
@@ -139,13 +154,14 @@ def _process_resources_with_dependencies(resources, handlers_mapping,
                     f"Processing '{resource_type}' '{res_name}' dependencies "
                     f"{prettify_json(res_meta['dependencies'])}")
 
-                success, output = _process_resources_with_dependencies(
+                success, output, errors = _process_resources_with_dependencies(
                     resources=depends_on_resources,
                     handlers_mapping=handlers_mapping,
                     describe_handlers=describe_handlers,
                     pass_context=pass_context,
                     overall_resources=overall_resources,
                     output=output,
+                    errors=errors,
                     current_resource_type=current_resource_type,
                     run_count=run_count)
 
@@ -161,12 +177,17 @@ def _process_resources_with_dependencies(resources, handlers_mapping,
                 current_resource_type = resource_type
             func = handlers_mapping[resource_type]
             response = func(args)
-            process_response(response=response, output=output)
+            response_errors = process_response(response=response,
+                                               output=output)
+            errors.extend(response_errors)
 
             res_meta['processed'] = True
             overall_res_index = overall_resources.index(
                 (res_name, res_meta))
             overall_resources[overall_res_index][-1]['processed'] = True
+
+        if errors:
+            is_succeeded = False
 
     except Exception as e:
         if 'An infinite loop' in str(e):
@@ -179,11 +200,16 @@ def _process_resources_with_dependencies(resources, handlers_mapping,
     if not is_succeeded:
         for item in args:
             func = describe_handlers[item['meta']['resource_type']]
-            response = func(item['name'], item['meta'])
+            try:
+                response = func(item['name'], item['meta'])
+            except Exception as e:
+                response = ({}, [str(e)])
             if response:
-                process_response(response=response, output=output)
+                response_errors = process_response(response=response,
+                                                   output=output)
+                errors.extend(response_errors)
 
-    return is_succeeded, output
+    return is_succeeded, output, errors
 
 
 def _build_args(name, meta, context, pass_context=False):
@@ -312,12 +338,13 @@ def continue_deploy_resources(resources, latest_deploy_output):
     if not resources:
         USER_LOG.info('Skipping deployment because all specified resources '
                       'already deployed')
-        return True, latest_deploy_output
+        return True, latest_deploy_output, []
 
     return deploy_resources(resources)
 
 
 def process_response(response, output: dict):
+    errors = []
 
     if isinstance(response, dict):
         output.update(response)
@@ -325,9 +352,9 @@ def process_response(response, output: dict):
         result, exceptions = response
         if result:
             output.update(result)
-        raise Exception('\n'.join(exceptions))
+        errors.extend(exceptions)
 
-    return output
+    return errors
 
 
 def _process_clean_responses(responses):
@@ -435,10 +462,11 @@ def create_deployment_resources(deploy_name, bundle_name,
 
     _LOG.info('Going to deploy AWS resources')
     if continue_deploy:
-        success, output = continue_deploy_resources(resources_list,
-                                                    latest_deploy_output)
+        success, output, errors = continue_deploy_resources(
+            resources_list,
+            latest_deploy_output)
     else:
-        success, output = deploy_resources(resources_list)
+        success, output, errors = deploy_resources(resources_list)
 
     # remove failed output from bucket
     if is_ld_output_regular is False:
@@ -446,6 +474,9 @@ def create_deployment_resources(deploy_name, bundle_name,
 
     if not success:
         if rollback_on_error is True:
+            if errors:
+                _LOG.warn('There were errors during resources deployment. '
+                          f'Details: {"\n".join(errors)}')
             USER_LOG.info(
                 "Deployment failed, `rollback_on_error` is enabled,"
                 " going to clean resources that have been deployed during"
@@ -473,6 +504,11 @@ def create_deployment_resources(deploy_name, bundle_name,
                                  output={**latest_deploy_output, **output},
                                  success=success,
                                  replace_output=replace_output)
+            if errors:
+                USER_LOG.warn(
+                    "There were errors during the deployment of resources. "
+                    "More details can be found in the log file.")
+                _LOG.error('\n'.join(errors))
     else:
         USER_LOG.info('AWS resources were deployed successfully')
 
@@ -566,7 +602,7 @@ def update_deployment_resources(bundle_name, deploy_name, replace_output=False,
     resources_list = list(resources.items())
     resources_list.sort(key=cmp_to_key(_compare_update_resources))
 
-    success, output = update_resources(resources_list, old_resources)
+    success, output, errors = update_resources(resources_list, old_resources)
 
     _LOG.info('Going to updates tags')
     preprocess_tags(output)
@@ -579,6 +615,12 @@ def update_deployment_resources(bundle_name, deploy_name, replace_output=False,
                          replace_output=replace_output)
     if success:
         remove_failed_deploy_output(bundle_name, deploy_name)
+
+    if errors:
+        USER_LOG.warn("There were errors during the updating of resources. "
+                      "More details can be found in the log file.")
+        _LOG.error('\n'.join(errors))
+
     return success
 
 
@@ -660,8 +702,9 @@ def _post_remove_output_handling(deploy_name, bundle_name, preserve_state,
             remove_failed_deploy_output(bundle_name, deploy_name)
             remove_deploy_output(bundle_name, deploy_name)
             if errors:
-                _LOG.warn('There were errors during cleaning resources. '
-                          f'Details: {"\n".join(errors)}')
+                _LOG.warn(
+                    'There were errors during the cleaning of resources. '
+                    f'Details: {"\n".join(errors)}')
     else:
         for key, value in new_output.items():
             output.pop(key, None)
@@ -670,8 +713,12 @@ def _post_remove_output_handling(deploy_name, bundle_name, preserve_state,
                              output=output,
                              success=is_regular_output,
                              replace_output=True)
+
         if errors:
-            raise Exception('\n'.join(errors))
+            USER_LOG.warn(
+                "There were errors during the cleaning of resources. "
+                "More details can be found in the log file.")
+            _LOG.error('\n'.join(errors))
         return {'operation': PARTIAL_CLEAN_ACTION}
     return True
 
