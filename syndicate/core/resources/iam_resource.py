@@ -132,6 +132,7 @@ class IamResource(BaseResource):
             return {
                 arn: build_description_obj(response, name, meta)
             }
+        return {}
 
     @unpack_kwargs
     def _create_role_from_meta(self, name, meta):
@@ -186,7 +187,7 @@ class IamResource(BaseResource):
         if not response:
             response = self.iam_conn.get_role(role_name=name)
         if not response:
-            return
+            return {}
         arn = response['Arn']
         del response['Arn']
         return {

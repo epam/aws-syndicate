@@ -45,7 +45,7 @@ class CognitoUserPoolResource(BaseResource):
         if not pool_id:
             pool_id = self.connection.if_pool_exists_by_name(name)
         if not pool_id:
-            return
+            return {}
         response = self.connection.describe_user_pool(pool_id)
         arn = f'arn:aws:cognito-idp:{self.region}:{self.account_id}:' \
               f'userpool/{pool_id}'

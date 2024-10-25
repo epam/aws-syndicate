@@ -433,6 +433,8 @@ class ProjectState:
                 kwargs['status'] = SUCCEEDED_STATUS
             case False:
                 kwargs['status'] = FAILED_STATUS
+            case status if status == ABORTED_STATUS:
+                kwargs['status'] = ABORTED_STATUS
 
         kwargs = {
             key: value for key, value in kwargs.items() if value is not None

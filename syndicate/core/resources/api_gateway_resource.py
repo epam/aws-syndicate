@@ -683,7 +683,7 @@ class ApiGatewayResource(BaseResource):
 
         response = self.connection.get_api(api_id)
         if not response:
-            return
+            return {}
         response['resources'] = self.connection.get_resources(api_id)
         _LOG.info('Described %s API Gateway.', name)
         arn = 'arn:aws:apigateway:{0}::/restapis/{1}'.format(self.region,
@@ -1111,7 +1111,7 @@ class ApiGatewayResource(BaseResource):
         if not api_id:
             api = self.apigw_v2.get_api_by_name(name)
             if not api:
-                return
+                return {}
             api_id = api['ApiId']
 
         # response = self.connection.get_api(api_id)

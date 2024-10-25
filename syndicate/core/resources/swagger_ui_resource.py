@@ -118,7 +118,7 @@ class SwaggerUIResource(BaseResource):
             'policy': self.s3_conn.get_bucket_policy(target_bucket)
         }
         if not bucket_description['location']:
-            return
+            return {}
         response = {
             'host_description': bucket_description
         }

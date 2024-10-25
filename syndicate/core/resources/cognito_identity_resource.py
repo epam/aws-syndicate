@@ -51,7 +51,7 @@ class CognitoIdentityResource(BaseResource):
         if not pool_id:
             pool_id = self.connection.if_pool_exists_by_name(name)
         if not pool_id:
-            return
+            return {}
         response = self.connection.describe_identity_pool(pool_id)
         arn = 'arn:aws:cognito-identity:{0}:{1}:identitypool/{2}'.format(
             self.region, self.account_id, pool_id)

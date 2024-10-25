@@ -208,7 +208,7 @@ class LambdaResource(BaseResource):
         if not response:
             response = self.lambda_conn.get_function(lambda_name=name)
         if not response:
-            return
+            return {}
         arn = self.build_lambda_arn_with_alias(response, meta.get('alias'))
 
         del response['Configuration']['FunctionArn']
