@@ -76,3 +76,4 @@ class KinesisResource(BaseResource):
                 response['StreamARN']: build_description_obj(response, name,
                                                              meta)
             }
+        return {}

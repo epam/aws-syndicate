@@ -170,6 +170,7 @@ class StepFunctionResource(BaseResource):
             return {
                 arn: build_description_obj(response, name, meta)
             }
+        return {}
 
     def _build_sm_arn(self, name, region):
         return f'arn:aws:states:{region}:{self.account_id}:stateMachine:{name}'
@@ -220,6 +221,7 @@ class StepFunctionResource(BaseResource):
             return {
                 arn: build_description_obj(response, name, meta)
             }
+        return {}
 
     def build_activity_arn(self, name):
         arn = 'arn:aws:states:{0}:{1}:activity:{2}'.format(self.region,

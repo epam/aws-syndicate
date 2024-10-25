@@ -71,9 +71,9 @@ class SnsResource(BaseResource):
                 topic_arn)
             if response:
                 responses.append({'arn': topic_arn, 'response': response})
-        description = []
+        description = {}
         for topic in responses:
-            description.append({
+            description.update({
                 topic['arn']: build_description_obj(
                     topic['response'], name, meta)
             })
@@ -111,9 +111,9 @@ class SnsResource(BaseResource):
                 app_arn)
             if response:
                 responses.append({'arn': app_arn, 'response': response})
-        description = []
+        description = {}
         for topic in responses:
-            description.append({
+            description.update({
                 topic['arn']: build_description_obj(
                     topic['response'], name, meta)
             })

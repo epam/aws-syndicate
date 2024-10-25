@@ -102,11 +102,11 @@ class CloudWatchResource(BaseResource):
             if rule:
                 responses.append(rule)
 
-        description = []
+        description = {}
         for rule in responses:
             arn = rule[ARN_KEY]
             del rule[ARN_KEY]
-            description.append({arn: build_description_obj(rule, name, meta)})
+            description.update({arn: build_description_obj(rule, name, meta)})
         return description
 
     def create_cloud_watch_rule(self, args):

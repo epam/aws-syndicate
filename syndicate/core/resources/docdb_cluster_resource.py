@@ -42,10 +42,10 @@ class DocumentDBClusterResource(BaseResource):
 
     def describe_documentdb_cluster(self, identifier, meta):
         if not identifier:
-            return
+            return {}
         response = self.connection.describe_db_clusters(identifier)
         if not response:
-            return
+            return {}
         arn = f'arn:aws:rds:{self.region}:{self.account_id}:' \
               f'cluster:{identifier}'
         return {

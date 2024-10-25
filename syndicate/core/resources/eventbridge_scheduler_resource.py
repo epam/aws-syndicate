@@ -134,6 +134,7 @@ class EventBridgeSchedulerResource(BaseResource):
             return {
                 arn: build_description_obj(response, name, meta)
             }
+        return {}
 
     def remove_schedule(self, args):
         return self.create_pool(self._remove_schedule, args)

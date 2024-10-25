@@ -107,20 +107,19 @@ def _process_resources(resources, handlers_mapping, describe_handlers=None,
                                                    output=output)
                 errors.extend(response_errors)
 
-    return is_succeeded, output, errors
+    return is_succeeded, output
 
 
 def _process_resources_with_dependencies(resources, handlers_mapping,
                                          describe_handlers, pass_context=False,
                                          overall_resources=None, output=None,
-                                         errors=None,
                                          current_resource_type=None,
                                          run_count=0):
     overall_resources = overall_resources or resources
     output = output or {}
-    errors = errors or []
     resource_type = None
     is_succeeded = True
+    errors = []
     try:
         for res_name, res_meta in resources:
             args = []
@@ -154,14 +153,13 @@ def _process_resources_with_dependencies(resources, handlers_mapping,
                     f"Processing '{resource_type}' '{res_name}' dependencies "
                     f"{prettify_json(res_meta['dependencies'])}")
 
-                success, output, errors = _process_resources_with_dependencies(
+                success, output = _process_resources_with_dependencies(
                     resources=depends_on_resources,
                     handlers_mapping=handlers_mapping,
                     describe_handlers=describe_handlers,
                     pass_context=pass_context,
                     overall_resources=overall_resources,
                     output=output,
-                    errors=errors,
                     current_resource_type=current_resource_type,
                     run_count=run_count)
 
@@ -209,7 +207,7 @@ def _process_resources_with_dependencies(resources, handlers_mapping,
                                                    output=output)
                 errors.extend(response_errors)
 
-    return is_succeeded, output, errors
+    return is_succeeded, output
 
 
 def _build_args(name, meta, context, pass_context=False):
@@ -300,7 +298,8 @@ def update_resources(resources, old_resources):
 
 def clean_resources(output):
     from syndicate.core import PROCESSOR_FACADE
-    responses = []
+    clean_output = {}
+    errors = []
     args = []
     resource_type = None
     # clean all resources
@@ -316,7 +315,8 @@ def clean_resources(output):
             USER_LOG.info('Removing {0} resources ...'.format(resource_type))
             func = PROCESSOR_FACADE.remove_handlers()[resource_type]
             result = func(args)
-            responses.append(result)
+            response_errors = process_response(result, clean_output)
+            errors.extend(response_errors)
             del args[:]
             args.append({'arn': arn, 'config': config})
             resource_type = res_type
@@ -324,8 +324,12 @@ def clean_resources(output):
         USER_LOG.info('Removing {0} resources ...'.format(resource_type))
         func = PROCESSOR_FACADE.remove_handlers()[resource_type]
         result = func(args)
-        responses.append(result)
-    return _process_clean_responses(responses)
+        response_errors = process_response(result, clean_output)
+        errors.extend(response_errors)
+
+    removed_resources_arn = list(clean_output.keys())
+    success = False if errors else True
+    return success, removed_resources_arn
 
 
 def continue_deploy_resources(resources, latest_deploy_output):
@@ -350,27 +354,21 @@ def process_response(response, output: dict):
         output.update(response)
     elif isinstance(response, tuple):
         result, exceptions = response
-        if result:
+
+        if isinstance(result, dict):
             output.update(result)
-        errors.extend(exceptions)
+        else:
+            _LOG.warn(f'Got unexpected response. Expect dict. '
+                      f'Got \'{type(response)}\', \'{str(response)}\'')
+
+        if isinstance(exceptions, list):
+            errors.extend(exceptions)
+            _LOG.error('\n'.join(exceptions))
+        else:
+            _LOG.error(str(exceptions))
+            errors.append(str(exceptions))
 
     return errors
-
-
-def _process_clean_responses(responses):
-    removed_resources_arn = []
-    errors = []
-    for response in responses:
-        if isinstance(response, dict):
-            removed_resources_arn.extend(response.keys())
-        if isinstance(response, tuple):
-            if isinstance(response[0], dict):
-                removed_resources_arn.extend(response[0].keys())
-            else:
-                _LOG.warn(f'Got unexpected response. Expect dict. '
-                          f'Got \'{type(response)}\', \'{str(response)}\'')
-            errors.extend(response[-1])
-    return removed_resources_arn, errors
 
 
 def __move_output_content(args, failed_output, updated_output):
@@ -462,11 +460,11 @@ def create_deployment_resources(deploy_name, bundle_name,
 
     _LOG.info('Going to deploy AWS resources')
     if continue_deploy:
-        success, output, errors = continue_deploy_resources(
+        success, output = continue_deploy_resources(
             resources_list,
             latest_deploy_output)
     else:
-        success, output, errors = deploy_resources(resources_list)
+        success, output = deploy_resources(resources_list)
 
     # remove failed output from bucket
     if is_ld_output_regular is False:
@@ -474,9 +472,6 @@ def create_deployment_resources(deploy_name, bundle_name,
 
     if not success:
         if rollback_on_error is True:
-            if errors:
-                _LOG.warn('There were errors during resources deployment. '
-                          f'Details: {"\n".join(errors)}')
             USER_LOG.info(
                 "Deployment failed, `rollback_on_error` is enabled,"
                 " going to clean resources that have been deployed during"
@@ -504,11 +499,11 @@ def create_deployment_resources(deploy_name, bundle_name,
                                  output={**latest_deploy_output, **output},
                                  success=success,
                                  replace_output=replace_output)
-            if errors:
-                USER_LOG.warn(
-                    "There were errors during the deployment of resources. "
-                    "More details can be found in the log file.")
-                _LOG.error('\n'.join(errors))
+
+            USER_LOG.warn(
+                "There were errors during the deployment of resources. "
+                "More details can be found in the log file.")
+
     else:
         USER_LOG.info('AWS resources were deployed successfully')
 
@@ -602,7 +597,7 @@ def update_deployment_resources(bundle_name, deploy_name, replace_output=False,
     resources_list = list(resources.items())
     resources_list.sort(key=cmp_to_key(_compare_update_resources))
 
-    success, output, errors = update_resources(resources_list, old_resources)
+    success, output = update_resources(resources_list, old_resources)
 
     _LOG.info('Going to updates tags')
     preprocess_tags(output)
@@ -615,11 +610,9 @@ def update_deployment_resources(bundle_name, deploy_name, replace_output=False,
                          replace_output=replace_output)
     if success:
         remove_failed_deploy_output(bundle_name, deploy_name)
-
-    if errors:
+    else:
         USER_LOG.warn("There were errors during the updating of resources. "
                       "More details can be found in the log file.")
-        _LOG.error('\n'.join(errors))
 
     return success
 
@@ -635,17 +628,19 @@ def remove_deployment_resources(deploy_name, bundle_name,
 
     is_regular_output = True
     try:
-        output = new_output = load_deploy_output(bundle_name, deploy_name)
+        output = load_deploy_output(bundle_name, deploy_name)
         _LOG.info('Output file was loaded successfully')
     except AssertionError:
         try:
-            output = new_output = load_failed_deploy_output(
+            output = load_failed_deploy_output(
                 bundle_name, deploy_name
             )
             is_regular_output = False
         except AssertionError:
             USER_LOG.error("Deployment to clean not found.")
             return ABORTED_STATUS
+
+    new_output = copy.deepcopy(output)
 
     clean_only_resources = _resolve_names(clean_only_resources)
     excluded_resources = _resolve_names(excluded_resources)
@@ -675,7 +670,7 @@ def remove_deployment_resources(deploy_name, bundle_name,
     else:
         _LOG.info('Clean skipped because resources to clean absent')
 
-    removed_resources_arn, errors = clean_resources(resources_list)
+    success, removed_resources_arn = clean_resources(resources_list)
     _LOG.debug(f'Removed successfully: \'{removed_resources_arn}\'')
 
     new_output = {k: v for k, v in new_output.items() if k in
@@ -689,22 +684,18 @@ def remove_deployment_resources(deploy_name, bundle_name,
         output=output,
         new_output=new_output,
         is_regular_output=is_regular_output,
-        errors=errors
+        success=success
     )
 
 
 def _post_remove_output_handling(deploy_name, bundle_name, preserve_state,
                                  output, new_output, is_regular_output,
-                                 errors):
+                                 success):
     if output == new_output:
         if not preserve_state:
             # remove output from bucket
             remove_failed_deploy_output(bundle_name, deploy_name)
             remove_deploy_output(bundle_name, deploy_name)
-            if errors:
-                _LOG.warn(
-                    'There were errors during the cleaning of resources. '
-                    f'Details: {"\n".join(errors)}')
     else:
         for key, value in new_output.items():
             output.pop(key, None)
@@ -714,13 +705,13 @@ def _post_remove_output_handling(deploy_name, bundle_name, preserve_state,
                              success=is_regular_output,
                              replace_output=True)
 
-        if errors:
+        if not success:
             USER_LOG.warn(
                 "There were errors during the cleaning of resources. "
                 "More details can be found in the log file.")
-            _LOG.error('\n'.join(errors))
+            return success
         return {'operation': PARTIAL_CLEAN_ACTION}
-    return True
+    return success
 
 
 def _apply_dynamic_changes(resources, output):

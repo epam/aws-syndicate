@@ -86,6 +86,7 @@ class DaxResource(BaseResource):
             return {
                 arn: build_description_obj(response, name, meta)
             }
+        return {}
 
     def remove_cluster(self, args):
         return self.create_pool(self._remove_cluster, args)

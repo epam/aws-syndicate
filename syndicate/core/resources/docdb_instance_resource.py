@@ -41,10 +41,10 @@ class DocumentDBInstanceResource(BaseResource):
 
     def describe_documentdb_instance(self, identifier, meta):
         if not identifier:
-            return
+            return {}
         response = self.connection.describe_db_instances(identifier)
         if not response:
-            return
+            return {}
         arn = f'arn:aws:rds:{self.region}:{self.account_id}:' \
               f'db:{identifier}'
         return {

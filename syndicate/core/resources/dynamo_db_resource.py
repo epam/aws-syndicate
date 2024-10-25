@@ -148,7 +148,7 @@ class DynamoDBResource(AbstractExternalResource, BaseResource):
         if not response:
             response = self.dynamodb_conn.describe_table(table_name=name)
         if not response:
-            return
+            return {}
         arn = response['TableArn']
         del response['TableArn']
         return {
@@ -158,7 +158,7 @@ class DynamoDBResource(AbstractExternalResource, BaseResource):
     def describe_stream(self, name, meta):
         response = self.dynamodb_conn.describe_table(meta['table'])
         if not response:
-            return
+            return {}
         res_obj = {
             'StreamSpecification': response['StreamSpecification'],
             'LatestStreamLabel': response['LatestStreamLabel']

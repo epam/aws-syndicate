@@ -46,10 +46,10 @@ class CloudWatchAlarmResource(BaseResource):
         return self.create_pool(self._create_alarm_from_meta, args)
 
     def describe_alarm(self, name, meta):
-        response = self.client.describe_alarms([name])[0]
+        response = self.client.describe_alarms([name])
         if not response:
-            return
-        arn = response['AlarmArn']
+            return {}
+        arn = response[0]['AlarmArn']
         return {
             arn: build_description_obj(response, name, meta)
         }

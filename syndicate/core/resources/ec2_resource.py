@@ -240,6 +240,7 @@ class Ec2Resource(BaseResource):
             return {
                 lt_id: build_description_obj(response, name, meta)
             }
+        return {}
 
     def create_launch_template(self, args):
         return self.create_pool(self._create_launch_template_from_meta, args)

@@ -46,7 +46,7 @@ class EbsResource(BaseResource):
         if not response:
             response = self.ebs_conn.describe_applications([name])
         if not response:
-            return
+            return {}
         return {
             arn: build_description_obj(response, name, meta)
         }
