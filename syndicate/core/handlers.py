@@ -653,7 +653,7 @@ def profiler(bundle_name, deploy_name, from_date, to_date):
 @verbose_option
 @timeit(action_name=ASSEMBLE_JAVA_MVN_ACTION)
 def assemble_java_mvn(bundle_name, project_path, force_upload, skip_tests,
-                      **kwargs):
+                      errors_allowed=False):
     """
     Builds Java lambdas
 
@@ -662,6 +662,8 @@ def assemble_java_mvn(bundle_name, project_path, force_upload, skip_tests,
     :param project_path: path to project folder
     :param force_upload: force upload identification
     :param skip_tests: force skipping tests
+    :param errors_allowed: not used for java, but need to unify the
+    `assemble` commands interface
     :return:
     """
     click.echo(f'Command compile java project path: {project_path}')
@@ -697,7 +699,8 @@ def assemble_java_mvn(bundle_name, project_path, force_upload, skip_tests,
                    'while building dependencies')
 @verbose_option
 @timeit(action_name=ASSEMBLE_PYTHON_ACTION)
-def assemble_python(bundle_name, project_path, force_upload, errors_allowed):
+def assemble_python(bundle_name, project_path, force_upload, errors_allowed,
+                    skip_tests=False):
     """
     Builds Python lambdas
 
@@ -706,6 +709,8 @@ def assemble_python(bundle_name, project_path, force_upload, errors_allowed):
     :param project_path: path to project folder
     :param force_upload: force upload identification
     :param errors_allowed: allows to ignore dependency errors
+    :param skip_tests: not used for python, but need to unify the
+    `assemble` commands interface
     :return:
     """
     click.echo(f'Command assemble python: project_path: {project_path} ')
@@ -736,7 +741,8 @@ def assemble_python(bundle_name, project_path, force_upload, errors_allowed):
                    ' the same path.')
 @verbose_option
 @timeit(action_name=ASSEMBLE_NODE_ACTION)
-def assemble_node(bundle_name, project_path, force_upload, **kwargs):
+def assemble_node(bundle_name, project_path, force_upload,
+                  errors_allowed=False, skip_tests=False):
     """
     Builds NodeJS lambdas
 
@@ -744,6 +750,10 @@ def assemble_node(bundle_name, project_path, force_upload, **kwargs):
     :param bundle_name: name of the bundle
     :param project_path: path to project folder
     :param force_upload: force upload identification
+    :param errors_allowed: not used for NodeJS, but need to unify the
+    `assemble` commands interface
+    :param skip_tests: not used for NodeJS, but need to unify the
+    `assemble` commands interface
     :return:
     """
     click.echo(f'Command assemble node: project_path: {project_path} ')
@@ -774,7 +784,8 @@ def assemble_node(bundle_name, project_path, force_upload, **kwargs):
                    ' the same path.')
 @verbose_option
 @timeit(action_name=ASSEMBLE_DOTNET_ACTION)
-def assemble_dotnet(bundle_name, project_path, force_upload, **kwargs):
+def assemble_dotnet(bundle_name, project_path, force_upload,
+                    errors_allowed=False, skip_tests=False):
     """
     Builds DotNet lambdas
 
@@ -782,6 +793,10 @@ def assemble_dotnet(bundle_name, project_path, force_upload, **kwargs):
     :param bundle_name: name of the bundle
     :param project_path: path to project folder
     :param force_upload: force upload identification
+    :param errors_allowed: not used for DotNet, but need to unify the
+    `assemble` commands interface
+    :param skip_tests: not used for DotNet, but need to unify the
+    `assemble` commands interface
     :return:
     """
     click.echo(f'Command assemble dotnet: project_path: {project_path} ')

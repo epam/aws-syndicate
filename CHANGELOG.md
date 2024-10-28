@@ -11,8 +11,6 @@ building the bundle
 - Improved logic of option `--errors_allowed` to allow dependency installing if it is not possible to find a 
 requirement that fits a specific platform. In this case, the dependencies will be installed independently 
 of each other or without specifying a specific platform (using default platform `any`). Python-specific feature
-
-# [1.14.2] - 2024-10-25
 - Fixed updating lambda layers when the lambda no longer has layers
 - Fixed logging not found exceptions during the clean operation
 - Fixed handling of deployment output in case of failures on the stage describe resources in case of deploy/update fail

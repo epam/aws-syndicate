@@ -199,21 +199,30 @@ def install_requirements_to(requirements_txt: Union[str, Path],
     1. If there is NO "platform" parameter in lambda_config.json, then the
     dependency installation will be executed by the default command:
     "pip install -r requirements.txt".
+
     2. If there is NO "platform" parameter in lambda_config.json and flag
-    --errors_allowed is True, then installation of dependencies will be
-    performed separately for each dependency using the default command:
+    --errors_allowed is True, dependency installation will be tried by
+    executing the default command: "pip install -r requirements.txt" in case
+    of failures, installation of dependencies will be performed separately
+    for each dependency using the default command:
     "pip install <package1>
     pip install <packageN>".
+
     3. If there is "platform" parameter in lambda_config.json and flag
     --errors_allowed is False, then the dependency installation will be
     executed by the default command using additional parameters:
     "pip install -r requirements.txt --platform manylinux2014_x86_64
     --only-binary=:all: --implementation=cp --python-version 3.8".
+
     4. If there is "platform" parameter in lambda_config.json and flag
-    --errors_allowed is True, then installation of dependencies will be
-    performed separately for each dependency using the default command using
-    additional parameters. Dependencies that do not have a specified platform
-    will be installed with the --platform=any:
+    --errors_allowed is True, dependency installation will be tried by the
+    default command using additional parameters:
+    "pip install -r requirements.txt --platform manylinux2014_x86_64
+    --only-binary=:all: --implementation=cp --python-version 3.8",
+    in case of failures, installation of dependencies will be performed
+    separately for each dependency using the default command using additional
+    parameters. Dependencies that do not have a specified platform will be
+    installed with the --platform=any:
     "pip install <package1> --platform manylinux2014_x86_64
     --only-binary=:all: --implementation=cp --python-version 3.8
     pip install <packageN> --platform manylinux2014_x86_64
