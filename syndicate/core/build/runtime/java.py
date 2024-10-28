@@ -32,7 +32,7 @@ def assemble_java_mvn_lambdas(project_path, bundles_dir, skip_tests=False,
     _LOG.info(f'Going to process java mvn project by path: '
               f'{CONFIG.project_path}')
     execute_command_by_path(
-        command='mvn clean install' + ' -DskipTests' if skip_tests else '',
+        command='mvn clean install' + (' -DskipTests' if skip_tests else ''),
         path=CONFIG.project_path)
 
     # copy java artifacts to the target folder
