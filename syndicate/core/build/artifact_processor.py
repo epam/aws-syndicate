@@ -49,12 +49,12 @@ RUNTIME_TO_BUILDER_MAPPING = {
 _LOG = get_logger('syndicate.core.build.artifact_processor')
 
 
-def assemble_artifacts(bundle_name, project_path, runtime, force_upload=None):
+def assemble_artifacts(bundle_name, project_path, runtime, force_upload=None,
+                       errors_allowed=False, skip_tests=False):
     if runtime not in SUPPORTED_RUNTIMES:
         raise AssertionError(
-            'Runtime {} is not supported. '
-            'Currently available runtimes:{}'.format(runtime,
-                                                     SUPPORTED_RUNTIMES))
+            f'Runtime {runtime} is not supported. '
+            f'Currently available runtimes:{SUPPORTED_RUNTIMES}')
 
     bundle_dir = resolve_bundle_directory(bundle_name=bundle_name)
 
@@ -69,11 +69,13 @@ def assemble_artifacts(bundle_name, project_path, runtime, force_upload=None):
             shutil.rmtree(normalized_bundle_dir)
 
     os.makedirs(bundle_dir, exist_ok=True)
-    _LOG.debug('Target directory: {0}'.format(bundle_dir))
+    _LOG.debug(f'Target directory: {bundle_dir}')
 
     assemble_func = RUNTIME_TO_BUILDER_MAPPING.get(runtime)
     if not assemble_func:
         raise AssertionError(
-            'There is no assembler for the runtime {}'.format(runtime))
+            f'There is no assembler for the runtime {runtime}')
     assemble_func(project_path=project_path,
-                  bundles_dir=bundle_dir)
+                  bundles_dir=bundle_dir,
+                  errors_allowed=errors_allowed,
+                  skip_tests=skip_tests)

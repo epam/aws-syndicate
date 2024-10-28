@@ -30,7 +30,7 @@ _LOG = get_logger('syndicate.core.generators.swagger_ui')
 USER_LOG = get_user_logger()
 
 
-def assemble_swagger_ui(project_path, bundles_dir):
+def assemble_swagger_ui(project_path, bundles_dir, **kwargs):
     from syndicate.core import CONFIG
     path_to_project = CONFIG.project_path
     src_path = build_path(path_to_project, project_path)
