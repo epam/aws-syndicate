@@ -45,10 +45,11 @@ _LOG = get_logger(__name__)
 USER_LOG = get_user_logger()
 
 _PY_EXT = "*.py"
-EMPTY_LINE_CHARS = ('\n', '\r\n')
+EMPTY_LINE_CHARS = ('\n', '\r\n', '\t')
 
 
-def assemble_python_lambdas(project_path, bundles_dir):
+def assemble_python_lambdas(project_path, bundles_dir, errors_allowed,
+                            **kwargs):
     from syndicate.core import CONFIG
     project_base_folder = os.path.basename(os.path.normpath(project_path))
     if project_path != '.':
@@ -68,6 +69,7 @@ def assemble_python_lambdas(project_path, bundles_dir):
                         'config_file': str(Path(root, item)),
                         'target_folder': bundles_dir,
                         'project_path': project_path,
+                        'errors_allowed': errors_allowed
                     }
                     futures.append(
                         executor.submit(_build_python_artifact, arg))
@@ -76,7 +78,8 @@ def assemble_python_lambdas(project_path, bundles_dir):
                     arg = {
                         'layer_root': root,
                         'bundle_dir': bundles_dir,
-                        'project_path': project_path
+                        'project_path': project_path,
+                        'errors_allowed': errors_allowed
                     }
                     futures.append(
                         executor.submit(build_python_lambda_layer, arg))
@@ -91,7 +94,7 @@ def assemble_python_lambdas(project_path, bundles_dir):
 
 @unpack_kwargs
 def build_python_lambda_layer(layer_root: str, bundle_dir: str,
-                              project_path: str):
+                              project_path: str, errors_allowed: bool):
     """
     Layer root is a dir where these files exist:
     - lambda_layer_config.json
@@ -111,7 +114,8 @@ def build_python_lambda_layer(layer_root: str, bundle_dir: str,
     requirements_path = Path(layer_root, REQ_FILE_NAME)
     if os.path.exists(requirements_path):
         install_requirements_to(requirements_path, to=path_for_requirements,
-                                config=layer_config)
+                                config=layer_config,
+                                errors_allowed=errors_allowed)
 
     # install local requirements
     local_requirements_path = Path(layer_root, LOCAL_REQ_FILE_NAME)
@@ -132,7 +136,8 @@ def build_python_lambda_layer(layer_root: str, bundle_dir: str,
 
 
 @unpack_kwargs
-def _build_python_artifact(root, config_file, target_folder, project_path):
+def _build_python_artifact(root, config_file, target_folder, project_path,
+                           errors_allowed):
     _LOG.info(f'Building artifact in {target_folder}')
 
     # create folder to store artifacts
@@ -148,7 +153,8 @@ def _build_python_artifact(root, config_file, target_folder, project_path):
     requirements_path = Path(root, REQ_FILE_NAME)
     if os.path.exists(requirements_path):
         install_requirements_to(requirements_path, to=artifact_path,
-                                config=lambda_config)
+                                config=lambda_config,
+                                errors_allowed=errors_allowed)
 
     # install local requirements
     local_requirements_path = Path(root, LOCAL_REQ_FILE_NAME)
@@ -187,31 +193,76 @@ def _build_python_artifact(root, config_file, target_folder, project_path):
 
 def install_requirements_to(requirements_txt: Union[str, Path],
                             to: Union[str, Path],
-                            config: Optional[dict] = None):
+                            config: Optional[dict] = None,
+                            errors_allowed: bool = False):
+    """
+    1. If there is NO "platform" parameter in lambda_config.json, then the
+    dependency installation will be executed by the default command:
+    "pip install -r requirements.txt".
+    2. If there is NO "platform" parameter in lambda_config.json and flag
+    --errors_allowed is True, then installation of dependencies will be
+    performed separately for each dependency using the default command:
+    "pip install <package1>
+    pip install <packageN>".
+    3. If there is "platform" parameter in lambda_config.json and flag
+    --errors_allowed is False, then the dependency installation will be
+    executed by the default command using additional parameters:
+    "pip install -r requirements.txt --platform manylinux2014_x86_64
+    --only-binary=:all: --implementation=cp --python-version 3.8".
+    4. If there is "platform" parameter in lambda_config.json and flag
+    --errors_allowed is True, then installation of dependencies will be
+    performed separately for each dependency using the default command using
+    additional parameters. Dependencies that do not have a specified platform
+    will be installed with the --platform=any:
+    "pip install <package1> --platform manylinux2014_x86_64
+    --only-binary=:all: --implementation=cp --python-version 3.8
+    pip install <packageN> --platform manylinux2014_x86_64
+    --only-binary=:all: --implementation=cp --python-version 3.8
+    pip install <packageN+1>".
+    """
+
     exit_code = None
     config = config or {}
     _LOG.info('Going to install 3-rd party dependencies')
     supported_platforms = update_platforms(set(config.get('platforms') or []))
     python_version = _get_python_version(lambda_config=config)
     if supported_platforms:
-        # tries to install packages compatible with specific platforms
-        # returns the list of requirement that failed the installation
-        failed_requirements = install_requirements_for_platform(
-            requirements_txt=requirements_txt,
+        command = build_pip_install_command(  # default installation
+            requirement=requirements_txt,
             to=to,
-            supported_platforms=supported_platforms,
-            python_version=python_version
+            platforms=supported_platforms,
+            python=python_version,
+            only_binary=':all:',
+            implementation='cp'
         )
-        for failed in failed_requirements:
-            command = build_pip_install_command(  # default installation
-                requirement=failed,
+        result = subprocess.run(command, capture_output=True, text=True)
+        _LOG.info(f'\n{result.stdout}\n{result.stderr}')
+        if result.returncode != 0 and errors_allowed:
+            # tries to install packages compatible with specific platforms
+            # independently
+            _LOG.info(
+                f'Going to install 3-rd party dependencies for platforms: '
+                f'{",".join(supported_platforms)}')
+            failed_requirements = install_requirements_independently(
+                requirements=requirements_txt,
                 to=to,
+                supported_platforms=supported_platforms,
+                python_version=python_version
             )
-            result = subprocess.run(command, capture_output=True, text=True)
-            if result.returncode != 0:
-                exit_code = result.returncode
-                break
+            failed_requirements = install_requirements_independently(
+                requirements=failed_requirements,
+                to=to
+            )
+
             _LOG.info(f'\n{result.stdout}\n{result.stderr}')
+            if failed_requirements:
+                message = (f'An error occurred while installing '
+                           f'requirements: "{failed_requirements}" for '
+                           f'package "{to}"')
+                _LOG.error(message)
+                raise RuntimeError(message)
+        elif result.returncode != 0:
+            exit_code = result.returncode
     else:
         _LOG.info('Installing all the requirements with defaults')
         command = build_pip_install_command(
@@ -221,10 +272,28 @@ def install_requirements_to(requirements_txt: Union[str, Path],
         result = subprocess.run(command, capture_output=True, text=True)
         exit_code = result.returncode
 
+        if result.returncode != 0 and errors_allowed:
+            # tries to install packages independently
+            _LOG.info(
+                'Installing the requirements with defaults independently')
+            failed_requirements = install_requirements_independently(
+                requirements=requirements_txt,
+                to=to
+            )
+
+            _LOG.info(f'\n{result.stdout}\n{result.stderr}')
+            if failed_requirements:
+                message = (f'An error occurred while installing '
+                           f'requirements: "{failed_requirements}" for '
+                           f'package "{to}"')
+                _LOG.error(message)
+                raise RuntimeError(message)
+
     if exit_code:
         message = (f'An error: \n"{result.stdout}\n{result.stderr}"\noccurred '
                    f'while installing requirements: "{str(requirements_txt)}" '
-                   f'for package "{to}"')
+                   f'for package "{to}"\nUse --errors_allowed flag to ignore '
+                   f'failures in dependencies installation.')
         _LOG.error(message)
         raise RuntimeError(message)
     if exit_code == 0:
@@ -295,41 +364,46 @@ def update_platforms(platforms: Set[str]) -> Set[str]:
     return platforms
 
 
-def install_requirements_for_platform(requirements_txt: Union[str, Path],
-                                      to: Union[str, Path],
-                                      python_version: str,
-                                      supported_platforms: Set[str]
-                                      ) -> List[str]:
-    _LOG.info(f'Going to install 3-rd party dependencies for platforms: '
-              f'{",".join(supported_platforms)}')
-    fp = open(requirements_txt, 'r')
-    it = (
-        line.split(' #')[0].strip() for line in
-        filter(lambda line: not line.strip().startswith('#')
-                            and line not in EMPTY_LINE_CHARS, fp)
-    )
+def install_requirements_independently(requirements: Union[str, Path, List[str]],
+                                       to: Union[str, Path],
+                                       python_version: str = None,
+                                       supported_platforms: Set[str] = None) \
+        -> List[str]:
+    if type(requirements) != list:
+        fp = open(requirements, 'r')
+        it = (
+            line.split(' #')[0].strip() for line in
+            filter(lambda line: not line.strip().startswith('#')
+                                and line not in EMPTY_LINE_CHARS, fp)
+        )
+    else:
+        it = requirements
     failed_requirements = []
+    implementation = 'cp' if python_version or supported_platforms else None
+    only_binary = ':all:' if python_version or supported_platforms else None
+
     for requirement in it:
         command = build_pip_install_command(
             requirement=requirement,
             to=to,
-            implementation='cp',
+            implementation=implementation,
             python=python_version,
-            only_binary=':all:',
+            only_binary=only_binary,
             platforms=supported_platforms
         )
         result = subprocess.run(command, capture_output=True, text=True)
         if result.returncode != 0:
             message = (f'An error occurred while installing requirements from '
-                       f'"{str(requirements_txt)}" for platforms: '
-                       f'{",".join(supported_platforms)}: for package '
-                       f'"{requirement}"'
+                       f'"{str(requirements)}" for platforms: '
+                       f'{",".join(supported_platforms) if supported_platforms else "any"}: '
+                       f'for package "{requirement}"'
                        f'\nDetails: \n"{result.stdout}\n{result.stderr}"\n')
             USER_LOG.error(f"\033[93m{message}\033[0m")
             failed_requirements.append(requirement)
         else:
             _LOG.info(f'\n{result.stdout}\n{result.stderr}')
-    fp.close()
+    if type(requirements) != list:
+        fp.close()
     return failed_requirements
 
 
