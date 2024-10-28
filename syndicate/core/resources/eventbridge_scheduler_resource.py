@@ -134,6 +134,7 @@ class EventBridgeSchedulerResource(BaseResource):
             return {
                 arn: build_description_obj(response, name, meta)
             }
+        return {}
 
     def remove_schedule(self, args):
         return self.create_pool(self._remove_schedule, args)
@@ -146,4 +147,7 @@ class EventBridgeSchedulerResource(BaseResource):
                 'group_name')
         except:
             group_name = None
-        return self.connection.delete_schedule(name=name, group_name=group_name)
+        self.connection.delete_schedule(name=name,
+                                        group_name=group_name,
+                                        log_not_found_error=False)
+        return {arn: config}

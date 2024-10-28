@@ -57,7 +57,11 @@ class SFConnection(object):
             else:
                 raise e
 
-    def delete_state_machine(self, arn):
+    def delete_state_machine(self, arn, log_not_found_error=True):
+        """
+        log_not_found_error parameter is needed for proper log handling in the
+        retry decorator
+        """
         return self.client.delete_state_machine(stateMachineArn=arn)
 
     def list_state_machines(self):
@@ -113,7 +117,11 @@ class SFConnection(object):
             else:
                 raise e
 
-    def delete_activity(self, arn):
+    def delete_activity(self, arn, log_not_found_error=True):
+        """
+        log_not_found_error parameter is needed for proper log handling in the
+        retry decorator
+        """
         self.client.delete_activity(activityArn=arn)
 
     def list_activities(self):

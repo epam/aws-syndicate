@@ -12,8 +12,11 @@ building the bundle
 requirement that fits a specific platform. In this case, the dependencies will be installed independently 
 of each other or without specifying a specific platform (using default platform `any`). Python-specific feature
 
-# [1.14.2] - 2024-10-16
+# [1.14.2] - 2024-10-25
 - Fixed updating lambda layers when the lambda no longer has layers
+- Fixed logging not found exceptions during the clean operation
+- Fixed handling of deployment output in case of failures on the stage describe resources in case of deploy/update fail
+- Implemented handling of failures during the clean action
 - Improved error message if errors occur during Python requirements installation
 - Changed log level from info to warn if updating of the resource skipped because of absence in the deployment output
 

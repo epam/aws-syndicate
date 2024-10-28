@@ -70,7 +70,11 @@ class DaxConnection:
             _LOG.warning(f'Cluster \'{cluster_name}\' not found')
             return
 
-    def delete_cluster(self, cluster_name):
+    def delete_cluster(self, cluster_name, log_not_found_error=True):
+        """
+        log_not_found_error parameter is needed for proper log handling in the
+        retry decorator
+        """
         return self.client.delete_cluster(ClusterName=cluster_name)
 
     def create_subnet_group(self, subnet_group_name, subnet_ids):

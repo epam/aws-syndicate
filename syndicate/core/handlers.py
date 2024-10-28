@@ -269,11 +269,13 @@ def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
     """
     from syndicate.core import PROJECT_STATE
     PROJECT_STATE.current_bundle = bundle_name
+    if not bundle_name or not deploy_name:
+        return ABORTED_STATUS
     if not if_bundle_exist(bundle_name=bundle_name):
         click.echo(
             f'The bundle name \'{bundle_name}\' does not exist in deploy '
             f'bucket. Please verify the bundle name and try again.')
-        return False
+        return ABORTED_STATUS
 
     if deploy_only_resources_path and os.path.exists(
             deploy_only_resources_path):
@@ -351,11 +353,13 @@ def update(bundle_name, deploy_name, replace_output, update_only_resources,
     from syndicate.core import PROJECT_STATE
     click.echo(f'Bundle name: {bundle_name}')
     PROJECT_STATE.current_bundle = bundle_name
+    if not bundle_name or not deploy_name:
+        return ABORTED_STATUS
     if not if_bundle_exist(bundle_name=bundle_name):
         click.echo(
             f'The bundle name \'{bundle_name}\' does not exist in deploy '
             f'bucket. Please verify the bundle name and try again.')
-        return False
+        return ABORTED_STATUS
 
     if update_only_resources_path and os.path.exists(
             update_only_resources_path):
@@ -437,15 +441,17 @@ def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
     click.echo(f'Deploy name: {deploy_name}')
     separator = ', '
     PROJECT_STATE.current_bundle = bundle_name
+    if not bundle_name or not deploy_name:
+        return ABORTED_STATUS
     if not if_bundle_exist(bundle_name=bundle_name):
         click.echo(
             f'The bundle name \'{bundle_name}\' does not exist in deploy '
             f'bucket. Please verify the bundle name and try again.')
-        return False
+        return ABORTED_STATUS
     if not is_deploy_exist(bundle_name=bundle_name, deploy_name=deploy_name):
         click.echo(f'The deploy name \'{deploy_name}\' is invalid. '
                    f'Please verify the deploy name and try again.')
-        return False
+        return ABORTED_STATUS
 
     if clean_only_types:
         click.echo(f'Clean only types: {separator.join(clean_only_types)}')
@@ -481,6 +487,8 @@ def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
 
     if result == ABORTED_STATUS:
         click.echo('Clean of resources has been aborted')
+    elif result is False:
+        click.echo('AWS resources were removed with errors.')
     else:
         click.echo('AWS resources were removed.')
     return result

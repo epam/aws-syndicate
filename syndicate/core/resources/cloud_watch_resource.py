@@ -102,11 +102,11 @@ class CloudWatchResource(BaseResource):
             if rule:
                 responses.append(rule)
 
-        description = []
+        description = {}
         for rule in responses:
             arn = rule[ARN_KEY]
             del rule[ARN_KEY]
-            description.append({arn: build_description_obj(rule, name, meta)})
+            description.update({arn: build_description_obj(rule, name, meta)})
         return description
 
     def create_cloud_watch_rule(self, args):
@@ -181,18 +181,21 @@ class CloudWatchResource(BaseResource):
             _LOG.debug('Rule %s removed', rule_name)
 
     def remove_cloud_watch_rules(self, args):
-        self.create_pool(self._remove_cloud_watch_rule, args)
+        return self.create_pool(self._remove_cloud_watch_rule, args)
 
     @unpack_kwargs
     def _remove_cloud_watch_rule(self, arn, config):
         region = arn.split(':')[3]
         resource_name = config['resource_name']
         try:
-            self._cw_events_conn_builder(region).remove_rule(resource_name)
+            self._cw_events_conn_builder(region).remove_rule(
+                resource_name, log_not_found_error=False)
             _LOG.info('Rule %s was removed', resource_name)
+            return {arn: config}
         except ClientError as e:
             exception_type = e.response['Error']['Code']
             if exception_type == 'ResourceNotFoundException':
                 _LOG.warn('Rule %s is not found', resource_name)
+                return {arn: config}
             else:
                 raise e

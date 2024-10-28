@@ -208,7 +208,7 @@ class LambdaResource(BaseResource):
         if not response:
             response = self.lambda_conn.get_function(lambda_name=name)
         if not response:
-            return
+            return {}
         arn = self.build_lambda_arn_with_alias(response, meta.get('alias'))
 
         del response['Configuration']['FunctionArn']
@@ -1202,7 +1202,7 @@ class LambdaResource(BaseResource):
             func(self, lambda_name, lambda_arn, event_source)
 
     def remove_lambdas(self, args):
-        self.create_pool(self._remove_lambda, args)
+        return self.create_pool(self._remove_lambda, args)
 
     @unpack_kwargs
     @retry()
@@ -1212,16 +1212,19 @@ class LambdaResource(BaseResource):
         lambda_name = config['resource_name']
         event_sources_meta = config['resource_meta'].get('event_sources', [])
         try:
-            self.lambda_conn.delete_lambda(lambda_name)
+            self.lambda_conn.delete_lambda(lambda_name,
+                                           log_not_found_error=False)
             self.remove_lambda_triggers(lambda_name, arn, event_sources_meta)
             group_names = self.cw_logs_conn.get_log_group_names()
             for each in group_names:
                 if lambda_name == each.split('/')[-1]:
                     self.cw_logs_conn.delete_log_group_name(each)
             _LOG.info('Lambda %s was removed.', lambda_name)
+            return {arn: config}
         except ClientError as e:
             if e.response['Error']['Code'] == 'ResourceNotFoundException':
                 _LOG.warn('Lambda %s is not found', lambda_name)
+                return {arn: config}
             else:
                 raise e
 
@@ -1300,12 +1303,14 @@ class LambdaResource(BaseResource):
         try:
             for arn in [layer['LayerVersionArn'] for layer in layers_list]:
                 layer_version = arn.split(':')[-1]
-                self.lambda_conn.delete_layer(arn)
+                self.lambda_conn.delete_layer(arn, log_not_found_error=False)
                 _LOG.info('Lambda layer {0} version {1} was removed.'.format(
                     layer_name, layer_version))
+            return {arn: config}
         except ClientError as e:
             if e.response['Error']['Code'] == 'ResourceNotFoundException':
                 _LOG.warn('Lambda Layer {} is not found'.format(layer_name))
+                return {arn: config}
             else:
                 raise e
 

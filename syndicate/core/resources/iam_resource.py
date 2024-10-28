@@ -36,26 +36,25 @@ class IamResource(BaseResource):
         self.region = region
 
     def remove_policies(self, args):
-        self.create_pool(self._remove_policy, args)
+        return self.create_pool(self._remove_policy, args)
 
     @unpack_kwargs
     def _remove_policy(self, arn, config):
         policy_name = config['resource_name']
         try:
-            self.iam_conn.remove_policy(arn)
+            self.iam_conn.remove_policy(arn, log_not_found_error=False)
             _LOG.info(f'IAM policy {policy_name} was removed.')
+            return {arn: config}
         except ClientError as e:
             error_code = e.response['Error']['Code']
             if error_code == 'NoSuchEntity':
                 _LOG.warn(f'IAM policy {policy_name} is not found')
-            elif error_code == 'DeleteConflict':
-                _LOG.warn(
-                    f'Cannot remove {policy_name} policy, it is attached.')
+                return {arn: config}
             else:
                 raise e
 
     def remove_roles(self, args):
-        self.create_pool(self._remove_role, args)
+        return self.create_pool(self._remove_role, args)
 
     @unpack_kwargs
     def _remove_role(self, arn, config):
@@ -78,11 +77,13 @@ class IamResource(BaseResource):
                 for each in instance_profiles:
                     self.iam_conn.remove_role_from_instance_profile(
                         role_name, each['InstanceProfileName'])
-            self.iam_conn.remove_role(role_name)
+            self.iam_conn.remove_role(role_name, log_not_found_error=False)
             _LOG.info('IAM role %s was removed.', role_name)
+            return {arn: config}
         except ClientError as e:
             if e.response['Error']['Code'] == 'NoSuchEntity':
                 _LOG.warn('IAM role %s is not found ', role_name)
+                return {arn: config}
             else:
                 raise e
 
@@ -131,6 +132,7 @@ class IamResource(BaseResource):
             return {
                 arn: build_description_obj(response, name, meta)
             }
+        return {}
 
     @unpack_kwargs
     def _create_role_from_meta(self, name, meta):
@@ -185,7 +187,7 @@ class IamResource(BaseResource):
         if not response:
             response = self.iam_conn.get_role(role_name=name)
         if not response:
-            return
+            return {}
         arn = response['Arn']
         del response['Arn']
         return {
