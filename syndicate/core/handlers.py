@@ -166,11 +166,14 @@ def test(suite, test_folder_name, errors_allowed, skip_tests):
     if result.returncode != 0:
         _LOG.error(f'{result.stdout}\n{result.stderr}\n{"-" * 70}')
         if not errors_allowed:
-            click.echo('Some tests failed. Exiting.')
+            click.echo(
+                'Some tests failed. See details in the log file. Exiting...')
             sys.exit(result.returncode)
-
-    _LOG.info(f'{result.stdout}\n{result.stderr}\n{"-" * 70}')
-    click.echo('Tests passed.')
+        else:
+            USER_LOG.warn('Some tests failed. See details in the log file.')
+    else:
+        _LOG.info(f'{result.stdout}\n{result.stderr}\n{"-" * 70}')
+        click.echo('Tests passed.')
 
 
 @syndicate.command(name=BUILD_ACTION)
