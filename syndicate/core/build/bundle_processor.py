@@ -100,7 +100,13 @@ def remove_failed_deploy_output(bundle_name, deploy_name):
                 deploy_name))
 
 
-def load_deploy_output(bundle_name, deploy_name):
+def load_deploy_output(bundle_name, deploy_name, failsafe: bool = False):
+    """
+    :param bundle_name:
+    :param deploy_name:
+    :param failsafe: False - raise error if no deploy output;
+                     True - do not raise an error, return False
+    """
     from syndicate.core import CONFIG, CONN
     key = _build_output_key(bundle_name=bundle_name,
                             deploy_name=deploy_name,
@@ -113,11 +119,22 @@ def load_deploy_output(bundle_name, deploy_name):
             CONFIG.deploy_target_bucket, key_compound)
         return json.loads(output_file)
     else:
-        raise AssertionError('Deploy name {0} does not exist.'
-                             ' Cannot find output file.'.format(deploy_name))
+        if failsafe:
+            _LOG.warn(f'Deploy name {deploy_name} does not exist. '
+                      f'Failsafe status - {failsafe}.')
+            return False
+        raise AssertionError(f'Deploy name {deploy_name} does not exist. '
+                             f'Cannot find output file.')
 
 
-def load_failed_deploy_output(bundle_name, deploy_name):
+def load_failed_deploy_output(bundle_name, deploy_name,
+                              failsafe: bool = False):
+    """
+    :param bundle_name:
+    :param deploy_name:
+    :param failsafe: False - raise error if no deploy output;
+                     True - do not raise an error, return False
+    """
     from syndicate.core import CONFIG, CONN
     key = _build_output_key(bundle_name=bundle_name,
                             deploy_name=deploy_name,
@@ -131,11 +148,15 @@ def load_failed_deploy_output(bundle_name, deploy_name):
             key_compound)
         return json.loads(output_file)
     else:
-        raise AssertionError('Deploy name {0} does not exist.'
-                             ' Cannot find output file.'.format(deploy_name))
+        if failsafe:
+            _LOG.warn(f'Deploy name {deploy_name} does not exist. '
+                      f'Failsafe status - {failsafe}.')
+            return False
+        raise AssertionError(f'Deploy name {deploy_name} does not exist. '
+                             f'Cannot find output file.')
 
 
-def load_latest_deploy_output():
+def load_latest_deploy_output(failsafe: bool = False):
     from syndicate.core import PROJECT_STATE
     if not PROJECT_STATE.latest_deploy:
         return None, {}
@@ -145,9 +166,11 @@ def load_latest_deploy_output():
         'is_succeeded', True)
 
     if latest_deploy_status is True:
-        return True, load_deploy_output(bundle_name, deploy_name)
+        return True, load_deploy_output(bundle_name, deploy_name,
+                                        failsafe=failsafe)
     elif latest_deploy_status is False:
-        return False, load_failed_deploy_output(bundle_name, deploy_name)
+        return False, load_failed_deploy_output(bundle_name, deploy_name,
+                                                failsafe=failsafe)
     else:
         raise ValueError(
             "The latest deployments' status can't be resolved because of "

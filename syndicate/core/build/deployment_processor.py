@@ -415,8 +415,13 @@ def create_deployment_resources(deploy_name, bundle_name,
                                 replace_output=False,
                                 rollback_on_error=False):
 
-    is_ld_output_regular, latest_deploy_output = load_latest_deploy_output()
-    if is_ld_output_regular is True:
+    is_ld_output_regular, latest_deploy_output = load_latest_deploy_output(
+        failsafe=True)
+    if latest_deploy_output is False:
+        USER_LOG.warning(f'The latest deploy output is absent. The current '
+                         f'deployment will be performed without taking into '
+                         f'account the latest deployment.')
+    elif is_ld_output_regular is True:
         _LOG.info(f'The latest deployment has status succeeded. '
                   f'Loaded output:\n {prettify_json(latest_deploy_output)}')
     elif is_ld_output_regular is False:
@@ -425,7 +430,7 @@ def create_deployment_resources(deploy_name, bundle_name,
 
     resources = load_meta_resources(bundle_name)
     # validate_deployment_packages(resources)
-    _LOG.debug('{0} file was loaded successfully'.format(BUILD_META_FILE_NAME))
+    _LOG.debug(f'{BUILD_META_FILE_NAME} file was loaded successfully')
 
     resources = resolve_meta(resources)
     _LOG.debug('Names were resolved')
@@ -460,9 +465,14 @@ def create_deployment_resources(deploy_name, bundle_name,
 
     _LOG.info('Going to deploy AWS resources')
     if continue_deploy:
+        if latest_deploy_output is False:
+            USER_LOG.warning(
+                f'The latest deploy output is absent. The command will be '
+                f'executed without taking into account the '
+                f'`--continue_deploy` parameter.')
         success, output = continue_deploy_resources(
             resources_list,
-            latest_deploy_output)
+            latest_deploy_output if latest_deploy_output else {})
     else:
         success, output = deploy_resources(resources_list)
 
@@ -494,9 +504,11 @@ def create_deployment_resources(deploy_name, bundle_name,
             _apply_post_deployment_tags(output)
 
             USER_LOG.info('Going to create deploy output')
+            output = {**latest_deploy_output, **output} \
+                if latest_deploy_output else output
             create_deploy_output(bundle_name=bundle_name,
                                  deploy_name=deploy_name,
-                                 output={**latest_deploy_output, **output},
+                                 output=output,
                                  success=success,
                                  replace_output=replace_output)
 
@@ -516,14 +528,16 @@ def create_deployment_resources(deploy_name, bundle_name,
         _apply_post_deployment_tags(output)
 
         USER_LOG.info('Going to create deploy output')
+        output = {**latest_deploy_output, **output} \
+            if latest_deploy_output else output
         create_deploy_output(bundle_name=bundle_name,
                              deploy_name=deploy_name,
-                             output={**latest_deploy_output, **output},
+                             output=output,
                              success=success,
                              replace_output=replace_output)
 
     if not (success is False and rollback_on_error is True):
-        USER_LOG.info('Deploy output for {0} was created.'.format(deploy_name))
+        USER_LOG.info(f'Deploy output for {deploy_name} was created.')
     return success
 
 
