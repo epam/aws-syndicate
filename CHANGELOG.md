@@ -17,6 +17,7 @@ of each other or without specifying a specific platform (using default platform 
 - Implemented handling of failures during the clean action
 - Improved error message if errors occur during Python requirements installation
 - Changed log level from info to warn if updating of the resource skipped because of absence in the deployment output
+- Fixed deploying a new bundle if latest deploy output is missing
 
 # [1.14.1] - 2024-10-08
 - Added support lambda layers with runtime DotNet
