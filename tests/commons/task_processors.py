@@ -12,6 +12,7 @@ def process_task_verification(task_steps):
         step_errors = handler(task_step['params'])
         step_passed = not step_errors
         item = {
+            'index': index,
             'description': task_step['description'],
             'step_passed': step_passed,
             'meta': {'errors': step_errors} if step_errors else {}
