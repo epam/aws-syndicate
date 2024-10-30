@@ -1,5 +1,5 @@
 {
-  "lambda-basic-execution": {
+  "sdct-at-lambda-basic-execution-policy": {
     "policy_content": {
       "Statement": [
         {
@@ -32,7 +32,7 @@
     "predefined_policies": [],
     "principal_service": "lambda",
     "custom_policies": [
-      "lambda-basic-execution"
+      "sdct-at-lambda-basic-execution-policy"
     ],
     "resource_type": "iam_role",
     "tags": {
