@@ -6,7 +6,7 @@ from commons.task_processors import process_task_verification
 from commons.constants import COMMANDS_TO_TEST, DEPLOY_NAME, BUNDLE_NAME
 from commons.utils import save_json
 
-from tests.commons.step_processors import get_s3_file, run_build, run_deploy, \
+from tests.smoke.commons.step_processors import get_s3_file, run_build, run_deploy, \
     run_clean, run_update
 
 
