@@ -9,14 +9,12 @@ def process_task_verification(task_steps):
                 verifications[index] = False
                 continue
         handler = task_step['handler']
-        step_errors = handler(task_step['params'])
-        step_passed = not step_errors
+        step_result = handler(task_step['params'])
         item = {
             'index': index,
             'description': task_step['description'],
-            'step_passed': step_passed,
-            'meta': {'errors': step_errors} if step_errors else {}
+            'step_passed': step_result
         }
         validation_steps.append(item)
-        verifications[index] = step_passed
+        verifications[index] = step_result
     return validation_steps

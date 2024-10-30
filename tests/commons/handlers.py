@@ -31,3 +31,6 @@ def get_lambda_alias(function_name, alias_name):
         return None
 
 
+def get_s3_bucket_file_content(bucket_name, file_key):
+    file_obj = s3_client.get_object(Bucket=bucket_name, Key=file_key)
+    return file_obj["Body"].read()
