@@ -1,0 +1,11 @@
+{
+  "name": "sdct-at-dotnet-lambda_layer",
+  "resource_type": "lambda_layer",
+  "runtimes": [
+    "dotnet8"
+  ],
+  "deployment_package": "sdct-at-dotnet-lambda_layer_layer.zip",
+  "custom_packages": [
+    "HWP.1.0.2.nupkg"
+  ]
+}

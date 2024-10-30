@@ -1,0 +1,18 @@
+{
+"lambda-basic-execution": "",
+"sdct-at-java-lambda-role": "",
+"sdct-at-java-lambda": "",
+"sdct-at-java-lambda_layer": "",
+"sdct-at-dotnet-lambda-role": "",
+"sdct-at-dotnet-lambda": "",
+"sdct-at-dotnet-lambda_layer": "",
+"sdct-at-python-lambda-role": "",
+"sdct-at-python-lambda": "",
+"sdct-at-python-lambda_layer": "",
+"sdct-at-queue": "",
+"sdct-at-topic": "",
+"sdct-at-table": "",
+"sdct-at-cw-rule": "",
+"sdct-at-s3-bucket": "",
+"sdct-at-swagger-ui": ""
+}

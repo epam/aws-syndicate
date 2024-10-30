@@ -1,0 +1,44 @@
+{
+  "version": "1.0",
+  "name": "sdct-at-nodejs-lambda",
+  "func_name": "lambdas/sdct-at-nodejs-lambda/index.handler",
+  "resource_type": "lambda",
+  "iam_role_name": "sdct-at-nodejs-lambda-role",
+  "runtime": "nodejs20.x",
+  "memory": 128,
+  "timeout": 100,
+  "lambda_path": "lambdas\\sdct-at-nodejs-lambda",
+  "dependencies": [
+    {
+      "resource_name": "${booking_userpool}",
+      "resource_type": "cognito_idp"
+    }
+  ],
+  "event_sources": [],
+  "env_variables": {
+    "region": "${region}",
+    "tables_table": "${tables_table}",
+    "reservations_table": "${reservations_table}",
+    "cup_id": {
+      "resource_name": "${booking_userpool}",
+      "resource_type": "cognito_idp",
+      "parameter": "id"
+    },
+    "cup_client_id": {
+      "resource_name": "${booking_userpool}",
+      "resource_type": "cognito_idp",
+      "parameter": "client_id"
+    }
+  },
+  "publish_version": true,
+  "alias": "${lambdas_alias_name}",
+  "url_config": {},
+  "ephemeral_storage": 512,
+  "tags": {
+      "tests": "smoke",
+      "project": "sdct-auto-test"
+    },
+  "layers": [
+    "sdct-at-nodejs-lambda_layer"
+  ]
+}

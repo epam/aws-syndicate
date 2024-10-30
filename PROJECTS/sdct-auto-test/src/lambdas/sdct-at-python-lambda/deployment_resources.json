@@ -1,0 +1,14 @@
+{
+  "sdct-at-python-lambda-role": {
+    "predefined_policies": ["AWSLambdaSQSQueueExecutionRole"],
+    "principal_service": "lambda",
+    "custom_policies": [
+      "lambda-basic-execution"
+    ],
+    "resource_type": "iam_role",
+    "tags": {
+      "tests": "smoke",
+      "project": "sdct-auto-test"
+    }
+  }
+}

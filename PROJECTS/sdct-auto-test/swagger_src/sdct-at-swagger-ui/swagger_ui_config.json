@@ -1,0 +1,7 @@
+{
+  "name": "sdct-at-swagger-ui",
+  "resource_type": "swagger_ui",
+  "path_to_spec": "swagger_src/sdct-at-swagger-ui_spec.json",
+  "target_bucket": "sdct-at-s3-bucket",
+  "deployment_package": "swagger_ui_sdct-at-swagger-ui.zip"
+}
