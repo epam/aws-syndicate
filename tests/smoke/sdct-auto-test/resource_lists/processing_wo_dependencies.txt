@@ -1,5 +1,5 @@
 {
-"lambda-basic-execution": "",
+"sdct-at-lambda-basic-execution-policy": "",
 "sdct-at-java-lambda-role": "",
 "sdct-at-java-lambda": "",
 "sdct-at-java-lambda_layer": "",

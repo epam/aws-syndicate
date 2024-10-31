@@ -47,12 +47,12 @@ def main(deploy_target_bucket: str, config: str, verbose: bool,
     with open(config) as file:
         stages = json.load(file)
 
-    for command, steps in stages[STAGES_CONFIG_PARAM].items():
-        print(f'Processing command {command}')
+    for stage, steps in stages[STAGES_CONFIG_PARAM].items():
+        print(f'Processing command {stage}')
         verification_result = process_steps(
             steps, verbose=verbose, deploy_target_bucket=deploy_target_bucket,
             suffix=suffix, prefix=prefix)
-        result[STAGES_CONFIG_PARAM].update({command: verification_result})
+        result[STAGES_CONFIG_PARAM].update({stage: verification_result})
 
     save_json(output_file, result)
 

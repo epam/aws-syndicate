@@ -10,3 +10,5 @@ COMMAND_CONFIG_PARAM = 'command'
 CHECKS_CONFIG_PARAM = 'checks'
 NAME_CONFIG_PARAM = 'name'
 DEPENDS_ON_CONFIG_PARAM = 'depends_on'
+
+DEPLOY_OUTPUT_DIR = 'output'

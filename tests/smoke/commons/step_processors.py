@@ -18,8 +18,9 @@ def process_steps(steps: List[dict], verbose: Optional[bool] = False,
                             CHECKS_CONFIG_PARAM: []}
         validation_checks = validation_steps[CHECKS_CONFIG_PARAM]
 
-        command_to_execute = step[COMMAND_CONFIG_PARAM] + (
-            ['--verbose'] if verbose else [''])
+        command_to_execute = step[COMMAND_CONFIG_PARAM]
+        if verbose:
+            command_to_execute.append('--verbose')
         exec_result = subprocess.run(command_to_execute, check=False,
                                      shell=True,capture_output=True, text=True)
         for check in step[CHECKS_CONFIG_PARAM]:
@@ -45,7 +46,7 @@ def process_steps(steps: List[dict], verbose: Optional[bool] = False,
                 'index': index,
                 'description': check_description,
                 'step_passed': check_result is True,
-                'meta': check_result if type(check_result) == dict else {}
+                'meta': check_result if type(check_result) is dict else {}
             })
             verifications.update({index: check_result is True})
         result.append(validation_steps)
