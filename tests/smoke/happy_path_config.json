@@ -4,13 +4,12 @@
       "steps": [
         {
           "description": "Build bundle",
-          "command": "build",
+          "command": ["syndicate", "build"],
           "checks": [
             {
               "name": "exit_code",
               "description": "Check if actual status code equals expected",
-              "expected_exit_code": 0,
-              "depends_on": [1]
+              "expected_exit_code": 0
             },
             {
               "name": "artifacts_exist",
@@ -26,7 +25,8 @@
                 "sdct-at-python-lambda-1.0.zip",
                 "sdct-at-python-lambda_layer_layer.zip",
                 "swagger_ui_sdct-at-swagger-ui.zip"
-              ]
+              ],
+              "depends_on": [1]
             },
             {
               "name": "build_meta",
@@ -98,7 +98,8 @@
                 "sdct-at-open-api-gw": {
                   "resource_type": "api_gateway_oas_v3"
                 }
-              }
+              },
+              "depends_on": [1]
             }
           ]
         }
@@ -108,7 +109,7 @@
       "steps": [
         {
           "description": "Deployment without dependencies",
-          "command": "deploy",
+          "command": ["syndicate", "deploy"],
           "checks": [
             {
               "name": "exit_code",
@@ -235,7 +236,7 @@
         },
         {
           "description": "Deployment without dependencies",
-          "command": "deploy --continue_deploy",
+          "command": ["syndicate", "deploy", "--continue_deploy"],
           "checks": [
             {
               "name": "exit_code",
@@ -415,7 +416,7 @@
       "steps": [
         {
           "description": "Updating without dependencies",
-          "command": "update",
+          "command": ["syndicate", "update"],
           "checks": [
             {
               "name": "exit_code",
@@ -535,169 +536,6 @@
                 },
                 "sdct-at-swagger-ui": {
                   "resource_type": "swagger_ui"
-                }
-              }
-            }
-          ]
-        },
-        {
-          "description": "Deployment without dependencies",
-          "command": "deploy --continue_deploy",
-          "checks": [
-            {
-              "name": "exit_code",
-              "description": "Check if actual status code equals expected",
-              "expected_exit_code": 0
-            },
-            {
-              "name": "artifacts_exist",
-              "description": "Check if deployment output file exists",
-              "artifacts_list": [
-                "sdct_auto_test.json"
-              ]
-            },
-            {
-              "name": "deployment_output",
-              "description": "Check if all resources present in deployment output",
-              "succeeded": true,
-              "resources": {
-                "sdct-at-lambda-basic-execution-policy": {
-                  "resource_type": "iam_policy"
-                },
-                "sdct-at-java-lambda-role": {
-                  "resource_type": "iam_role"
-                },
-                "sdct-at-java-lambda": {
-                  "resource_type": "lambda"
-                },
-                "sdct-at-java-lambda_layer": {
-                  "resource_type": "lambda_layer"
-                },
-                "sdct-at-dotnet-lambda-role": {
-                  "resource_type": "iam_role"
-                },
-                "sdct-at-dotnet-lambda": {
-                  "resource_type": "lambda"
-                },
-                "sdct-at-dotnet-lambda_layer": {
-                  "resource_type": "lambda_layer"
-                },
-                "sdct-at-python-lambda-role": {
-                  "resource_type": "iam_role"
-                },
-                "sdct-at-python-lambda": {
-                  "resource_type": "lambda"
-                },
-                "sdct-at-python-lambda_layer": {
-                  "resource_type": "lambda_layer"
-                },
-                "sdct-at-queue": {
-                  "resource_type": "sqs_queue"
-                },
-                "sdct-at-topic": {
-                  "resource_type": "sns_topic"
-                },
-                "sdct-at-table": {
-                  "resource_type": "dynamodb_table"
-                },
-                "sdct-at-cw-rule": {
-                  "resource_type": "cloudwatch_rule"
-                },
-                "sdct-at-s3-bucket": {
-                  "resource_type": "s3_bucket"
-                },
-                "sdct-at-swagger-ui": {
-                  "resource_type": "swagger_ui"
-                },
-                "sdct-at-nodejs-lambda-role": {
-                  "resource_type": "iam_role"
-                },
-                "sdct-at-nodejs-lambda": {
-                  "resource_type": "lambda"
-                },
-                "sdct-at-nodejs-lambda_layer": {
-                  "resource_type": "lambda_layer"
-                },
-                "sdct-at-cup": {
-                  "resource_type": "cognito_idp"
-                },
-                "sdct-at-api-gw": {
-                  "resource_type": "api_gateway"
-                },
-                "sdct-at-open-api-gw": {
-                  "resource_type": "api_gateway_oas_v3"
-                }
-              }
-            },
-            {
-              "name": "resource_existence",
-              "description": "Check if all resources present in account",
-              "resources": {
-                "sdct-at-lambda-basic-execution-policy": {
-                  "resource_type": "iam_policy"
-                },
-                "sdct-at-java-lambda-role": {
-                  "resource_type": "iam_role"
-                },
-                "sdct-at-java-lambda": {
-                  "resource_type": "lambda"
-                },
-                "sdct-at-java-lambda_layer": {
-                  "resource_type": "lambda_layer"
-                },
-                "sdct-at-dotnet-lambda-role": {
-                  "resource_type": "iam_role"
-                },
-                "sdct-at-dotnet-lambda": {
-                  "resource_type": "lambda"
-                },
-                "sdct-at-dotnet-lambda_layer": {
-                  "resource_type": "lambda_layer"
-                },
-                "sdct-at-python-lambda-role": {
-                  "resource_type": "iam_role"
-                },
-                "sdct-at-python-lambda": {
-                  "resource_type": "lambda"
-                },
-                "sdct-at-python-lambda_layer": {
-                  "resource_type": "lambda_layer"
-                },
-                "sdct-at-queue": {
-                  "resource_type": "sqs_queue"
-                },
-                "sdct-at-topic": {
-                  "resource_type": "sns_topic"
-                },
-                "sdct-at-table": {
-                  "resource_type": "dynamodb_table"
-                },
-                "sdct-at-cw-rule": {
-                  "resource_type": "cloudwatch_rule"
-                },
-                "sdct-at-s3-bucket": {
-                  "resource_type": "s3_bucket"
-                },
-                "sdct-at-swagger-ui": {
-                  "resource_type": "swagger_ui"
-                },
-                "sdct-at-nodejs-lambda-role": {
-                  "resource_type": "iam_role"
-                },
-                "sdct-at-nodejs-lambda": {
-                  "resource_type": "lambda"
-                },
-                "sdct-at-nodejs-lambda_layer": {
-                  "resource_type": "lambda_layer"
-                },
-                "sdct-at-cup": {
-                  "resource_type": "cognito_idp"
-                },
-                "sdct-at-api-gw": {
-                  "resource_type": "api_gateway"
-                },
-                "sdct-at-open-api-gw": {
-                  "resource_type": "api_gateway_oas_v3"
                 }
               }
             }
