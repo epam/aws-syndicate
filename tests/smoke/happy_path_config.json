@@ -9,11 +9,12 @@
             {
               "name": "exit_code",
               "description": "Check if actual status code equals expected",
-              "expected_exit_code": 0
+              "expected_exit_code": 0,
+              "depends_on": [1]
             },
             {
-              "name": "artifacts",
-              "description": "Check if artifacts exists",
+              "name": "artifacts_exist",
+              "description": "Check if artifacts exist",
               "artifacts_list": [
                 "build_meta.json",
                 "sdct-at-dotnet-lambda-1.0.zip",
@@ -115,7 +116,7 @@
               "expected_exit_code": 0
             },
             {
-              "name": "artifacts",
+              "name": "artifacts_exist",
               "description": "Check if deployment output file exists",
               "artifacts_list": [
                 "sdct_auto_test.json"
@@ -242,7 +243,7 @@
               "expected_exit_code": 0
             },
             {
-              "name": "artifacts",
+              "name": "artifacts_exist",
               "description": "Check if deployment output file exists",
               "artifacts_list": [
                 "sdct_auto_test_failed.json"
@@ -422,7 +423,7 @@
               "expected_exit_code": 0
             },
             {
-              "name": "artifacts",
+              "name": "artifacts_exist",
               "description": "Check if deployment output file exists",
               "artifacts_list": [
                 "sdct_auto_test.json"
@@ -549,7 +550,7 @@
               "expected_exit_code": 0
             },
             {
-              "name": "artifacts",
+              "name": "artifacts_exist",
               "description": "Check if deployment output file exists",
               "artifacts_list": [
                 "sdct_auto_test.json"

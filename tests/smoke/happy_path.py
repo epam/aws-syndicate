@@ -1,121 +1,60 @@
 import argparse
-from pathlib import Path
-from typing import Optional, List
+import json
+import os
 
-from commons.task_processors import process_task_verification
-from commons.constants import COMMANDS_TO_TEST, DEPLOY_NAME, BUNDLE_NAME
+from commons.step_processors import process_steps
+from commons.constants import STAGES_CONFIG_PARAM
 from commons.utils import save_json
-
-from tests.smoke.commons.step_processors import get_s3_file, run_build, run_deploy, \
-    run_clean, run_update
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description='Entrypoint for happy path tests',
     )
+
+    def full_path(value: str) -> str:
+        if not value.endswith('.json'):
+            value = value + '.json'
+        if not os.path.isabs(value):  # check if full path
+            value = os.path.join(os.getcwd(), value)
+        return value
+
+    parser.add_argument('-d', '--deploy_target_bucket', required=True,
+                        type=str,
+                        help='* S3 bucket name where bundles will be stored.')
     parser.add_argument(
-        '-s', '--stages', required=False, type=str, nargs='*',
-        choices=COMMANDS_TO_TEST,
-        help='Commands to be tested. Multiple entries can be specified.'
+        '-c', '--config', required=False, default='happy_path_config.json',
+        type=full_path,
+        help='Full path to the config file with described stage checks. '
+             'Default: happy_path_config.json'
     )
     parser.add_argument('-v', '--verbose', required=False, default=False,
                         action='store_true',
-                        help='Enable logging verbose mode.')
-
-    def ext_json(value: str) -> Path:
-        if not value.endswith('.json'):
-            value = value + '.json'
-        return Path(value)
-
-    parser.add_argument('--filename', required=False, type=ext_json,
-                        help='Output filename.')
+                        help='Enable logging verbose mode. Default: False')
+    parser.add_argument('-o', '--output_file', required=False, type=full_path,
+                        default='result_report.json',
+                        help='Output filename. Default: result_report.json')
+    parser.add_argument('-s', '--suffix', required=False, type=str,
+                        help='Resource suffix.')
+    parser.add_argument('-p', '--prefix', required=False, type=str,
+                        help='Resource prefix.')
     return parser
 
 
-def test_build(verbose: bool) -> dict:
-    task_steps = {
-        1: {
-            'description': 'Exit code 0',
-            'handler': run_build,
-            'params': {
-                'verbose': verbose,
-                'bundle_name': BUNDLE_NAME
-            }
-        },
-        2: {'description': 'build_meta.json is present in deployment bucket',
-            'handler': get_s3_file,
-            'params': {'bucket_name': '',
-                       'file_key': 'build_meta.json '},
-            'depends_on': [1]
-            }
-    }
-    result = process_task_verification(task_steps=task_steps)
+def main(deploy_target_bucket: str, config: str, verbose: bool,
+         output_file: str, suffix: str, prefix: str):
+    result = {STAGES_CONFIG_PARAM: {}}
+    with open(config) as file:
+        stages = json.load(file)
 
+    for command, steps in stages[STAGES_CONFIG_PARAM].items():
+        print(f'Processing command {command}')
+        verification_result = process_steps(
+            steps, verbose=verbose, deploy_target_bucket=deploy_target_bucket,
+            suffix=suffix, prefix=prefix)
+        result[STAGES_CONFIG_PARAM].update({command: verification_result})
 
-def test_deploy(verbose: bool) -> dict:
-    task_steps = {
-        1: {
-            'description': 'Exit code 0',
-            'handler': run_deploy,
-            'params': {
-                'verbose': verbose,
-                'bundle_name': BUNDLE_NAME,
-                'deploy_name': DEPLOY_NAME
-            }
-        },
-    }
-    ...
-
-
-def test_clean(verbose: bool) -> dict:
-    task_steps = {
-        1: {
-            'description': 'Exit code 0',
-            'handler': run_clean,
-            'params': {
-                'verbose': verbose,
-                'bundle_name': BUNDLE_NAME,
-                'deploy_name': DEPLOY_NAME
-            }
-        },
-    }
-    ...
-
-
-def test_update(verbose: bool) -> dict:
-    task_steps = {
-        1: {
-            'description': 'Exit code 0',
-            'handler': run_update,
-            'params': {
-                'verbose': verbose,
-                'bundle_name': BUNDLE_NAME,
-                'deploy_name': DEPLOY_NAME
-            }
-        },
-    }
-    ...
-
-
-def main(stages: Optional[List[str]], verbose: bool, filename: Optional[Path]):
-    command_test_mapping = {
-        'build': test_build,
-        'deploy': test_deploy,
-        'clean': test_clean,
-        'update': test_update
-    }
-    results = {}
-
-    if stages:
-        for stage in (command_test_mapping[s] for s in stages if
-                      s in command_test_mapping):
-            results.update(stage(verbose))
-    else:
-        for stage in command_test_mapping.values():
-            results.update(stage(verbose))
-
-    save_json(filename, results)
+    save_json(output_file, result)
 
 
 if __name__ == '__main__':

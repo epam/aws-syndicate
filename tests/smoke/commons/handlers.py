@@ -1,36 +1,32 @@
-import boto3
-from botocore.config import Config
+from typing import Optional
+
+from tests.smoke.commons import connections
 
 
-config = Config(
-   retries={
-      'max_attempts': 10,
-      'mode': 'standard'
-   }
-)
-
-session = boto3.session.Session()
-lambda_client = boto3.client('lambda', config=config)
-api_gw_client = boto3.client('apigateway', config=config)
-sqs_client = boto3.client('sqs', config=config)
-sns_client = boto3.client('sns', config=config)
-logs_client = boto3.client('logs', config=config)
-dynamodb_client = boto3.client('dynamodb', config=config)
-dynamodb = boto3.resource('dynamodb', config=config)
-xray_client = boto3.client('xray', config=config)
-eventbridge_client = boto3.client('events', config=config)
-s3_client = boto3.client('s3', config=config)
-cognito_client = boto3.client("cognito-idp", config=config)
+def exit_code(actual_exit_code: int, expected_exit_code: int, **kwargs):
+    return actual_exit_code == expected_exit_code
 
 
-def get_lambda_alias(function_name, alias_name):
-    try:
-        return lambda_client.get_alias(FunctionName=function_name,
-                                       Name=alias_name)
-    except lambda_client.exceptions.ResourceNotFoundException:
-        return None
+def artifacts_exist(artifacts_list: list, deploy_target_bucket: str,
+                    suffix: Optional[str] = None, prefix: Optional[str] = None,
+                    **kwargs):
+    missing_resources = []
+    for artifact in artifacts_list:
+        exist = connections.get_s3_bucket_object(
+            bucket_name=deploy_target_bucket, file_key=artifact)
+        if not exist:
+            missing_resources.append(artifact)
+    return {'missing_resources': missing_resources} \
+        if missing_resources else True
 
 
-def get_s3_bucket_file_content(bucket_name, file_key):
-    file_obj = s3_client.get_object(Bucket=bucket_name, Key=file_key)
-    return file_obj["Body"].read()
+def build_meta(resources: dict, suffix: Optional[str] = None,
+               prefix: Optional[str] = None, **kwargs):
+    ...
+
+
+HANDLERS_MAPPING = {
+    'exit_code': exit_code,
+    'artifacts_exist': artifacts_exist,
+    'build_meta': build_meta
+}
