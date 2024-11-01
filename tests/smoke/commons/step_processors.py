@@ -22,7 +22,7 @@ def process_steps(steps: List[dict], verbose: Optional[bool] = False,
         if verbose:
             command_to_execute.append('--verbose')
         exec_result = subprocess.run(command_to_execute, check=False,
-                                     shell=True,capture_output=True, text=True)
+                                     capture_output=True, text=True)
         for check in step[CHECKS_CONFIG_PARAM]:
             index = step[CHECKS_CONFIG_PARAM].index(check) + 1
             depends_on = check.pop(DEPENDS_ON_CONFIG_PARAM, None)

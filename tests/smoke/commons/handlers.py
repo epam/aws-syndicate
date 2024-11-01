@@ -1,22 +1,25 @@
 import copy
+from datetime import datetime
 from typing import Optional
 
 from tests.smoke.commons import connections
 from tests.smoke.commons.connections import get_s3_bucket_file_content
-from tests.smoke.commons.constants import DEPLOY_OUTPUT_DIR
+from tests.smoke.commons.constants import DEPLOY_OUTPUT_DIR, \
+    RESOURCE_TYPE_CONFIG_PARAM, BUNDLE_NAME
 
 
 def exit_code(actual_exit_code: int, expected_exit_code: int, **kwargs):
     return actual_exit_code == expected_exit_code
 
 
-def artifacts_exist(artifacts_list: list, deploy_target_bucket: str,
-                    suffix: Optional[str] = None, prefix: Optional[str] = None,
-                    **kwargs):
+def artifacts_existence(artifacts_list: list, deploy_target_bucket: str,
+                        suffix: Optional[str] = None,
+                        prefix: Optional[str] = None, **kwargs):
     missing_resources = []
     for artifact in artifacts_list:
         exist = connections.get_s3_bucket_object(
-            bucket_name=deploy_target_bucket, file_key=artifact)
+            bucket_name=deploy_target_bucket,
+            file_key=BUNDLE_NAME + '/' + artifact)
         if not exist:
             missing_resources.append(artifact)
     return {'missing_resources': missing_resources} \
@@ -68,12 +71,51 @@ def deployment_output_checker(deploy_target_bucket: str, bundle_name: str,
     return results if results else True
 
 
+def resource_existence(resources: dict, suffix: Optional[str] = None,
+                       prefix: Optional[str] = None, **kwargs):
+    ...
+
+
+# ------------ Modification Handlers -------------
+def policy_modification(resource_name: str, update_time: str | datetime,
+                        **kwargs):
+    response = connections.get_iam_policy(resource_name)
+    response_update_date = response.get('UpdateDate')
+    if response_update_date and response_update_date >= update_time: # START of update time!!!
+        return True
+
+
+def lambda_modification(resource_name: str, update_time: str | datetime,
+                        **kwargs):
+    response = connections.get_function_configuration(resource_name)
+    response_update_date = response.get('LastModified')
+    if response_update_date and response_update_date >= update_time:
+        return True
+
+
+def lambda_layer_modification(resource_name: str, update_time: str | datetime,
+                              **kwargs):
+    response = connections.get_function_configuration(resource_name)
+    response_update_date = response.get('LastModified')
+    if response_update_date and response_update_date >= update_time:
+        return True
+
+
+# ------------ MAPPINGS -----------------
+
 HANDLERS_MAPPING = {
     'exit_code': exit_code,
-    'artifacts_exist': artifacts_exist,
+    'artifacts_existence': artifacts_existence,
     'build_meta': build_meta,
-    'deployment_output': deployment_output_checker
+    'deployment_output': deployment_output_checker,
+    'resource_existence': resource_existence
 }
 
 
+TYPE_MODIFICATION_FUNC_MAPPING = {
+    'iam_policy': policy_modification,
+    'iam_role': ...,
+    'lambda': lambda_modification,
+    'lambda_layer': lambda_layer_modification
+}
 
