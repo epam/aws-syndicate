@@ -6,7 +6,7 @@ from tests.smoke.commons import connections
 from tests.smoke.commons.connections import get_s3_bucket_file_content
 from tests.smoke.commons.constants import DEPLOY_OUTPUT_DIR, \
     RESOURCE_TYPE_CONFIG_PARAM, BUNDLE_NAME, DEPLOY_NAME
-from tests.smoke.commons.utils import find_max_version
+from tests.smoke.commons.utils import find_max_version, deep_get
 
 
 def exit_code_checker(actual_exit_code: int, expected_exit_code: int,
@@ -25,14 +25,8 @@ def artifacts_existence_checker(artifacts_list: list,
             file_key = f'{BUNDLE_NAME}/{DEPLOY_OUTPUT_DIR}/{artifact}'
         else:
             file_key = f'{BUNDLE_NAME}/{artifact}'
-        try:
-            exist = connections.get_s3_bucket_object(
-                bucket_name=deploy_target_bucket, file_key=file_key)
-        except Exception as e:
-            if 'NoSuchKey' in str(e):
-                exist = False
-            else:
-                raise
+        exist = connections.get_s3_bucket_object(
+            bucket_name=deploy_target_bucket, file_key=file_key)
         if not exist:
             missing_resources.append(artifact)
     return {'missing_resources': missing_resources} \
@@ -87,6 +81,71 @@ def resource_existence(resources: dict, suffix: Optional[str] = None,
                        prefix: Optional[str] = None, **kwargs):
     ...
 
+# ------------ Existence checkers -------------
+
+
+def iam_policy_existence_checker(name: str) -> bool:
+    return True if connections.get_iam_policy(name) else False
+
+
+def iam_role_existence_checker(name: str) -> bool:
+    return True if connections.get_iam_role(name) else False
+
+
+def lambda_existence_checker(name: str) -> bool:
+    return True if connections.get_function_configuration(name) else False
+
+
+def lambda_layer_existence_checker(name: str) -> bool:
+    return True if connections.get_layer_version(name) else False
+
+
+def api_gateway_existence_checker(name: str) -> bool:
+    return True if connections.get_api_gw_id(name) else False
+
+
+def sqs_queue_existence_checker(name: str) -> bool:
+    return True if connections.get_sqs_queue_url(name) else False
+
+
+def sns_topic_existence_checker(name: str) -> bool:
+    return True if connections.get_sns_topic_attributes(name) else False
+
+
+def dynamo_db_existence_checker(name: str) -> bool:
+    return True if connections.get_dynamodb_table_description(name) else False
+
+
+def cw_rule_existence_checker(name: str) -> bool:
+    return True if connections.get_event_bridge_rule(name) else False
+
+
+def s3_bucket_existence_checker(name: str) -> bool:
+    return True if connections.get_s3_bucket_head(name) else False
+
+
+def cognito_idp_existence_checker(name: str) -> bool:
+    return True if connections.get_cup_id(name) else False
+
+
+def swagger_ui_existence_checker(name: str, deployment_bucket: str) -> bool:
+    description = connections.describe_swagger_ui(
+        name=name,
+        deployment_bucket=deployment_bucket,
+        bundle_name=BUNDLE_NAME,
+        deploy_name=DEPLOY_NAME)
+    if description:
+        target_bucket = description.get('target_bucket', '')
+        index_document = deep_get(description,
+                                  ['website_hosting', 'index_document'])
+        bucket_exist = connections.get_s3_bucket_head(target_bucket)
+        web_site_config = connections.get_s3_bucket_website(name)
+        index_doc_exists = connections.get_s3_bucket_object(target_bucket,
+                                                            index_document)
+        return True if all([bucket_exist, web_site_config, index_doc_exists]) \
+            else False
+
+
 
 # ------------ Modification Handlers -------------
 def policy_modification_checker(resource_name: str,
@@ -125,6 +184,21 @@ HANDLERS_MAPPING = {
     'resource_existence': resource_existence
 }
 
+TYPE_EXISTENCE_FUNC_MAPPING = {
+    'iam_policy': iam_policy_existence_checker,
+    'iam_role': iam_role_existence_checker,
+    'lambda': lambda_existence_checker,
+    'lambda_layer': lambda_layer_existence_checker,
+    'api_gateway': api_gateway_existence_checker,
+    'api_gateway_oas_v3': api_gateway_existence_checker,
+    'sqs_queue': sqs_queue_existence_checker,
+    'sns_topic': sns_topic_existence_checker,
+    'dynamo_db': dynamo_db_existence_checker,
+    'cw_rule': cw_rule_existence_checker,
+    's3_bucket': s3_bucket_existence_checker,
+    'cognito_idp': cognito_idp_existence_checker,
+    'swagger_ui': swagger_ui_existence_checker
+}
 
 TYPE_MODIFICATION_FUNC_MAPPING = {
     'iam_policy': policy_modification_checker,
