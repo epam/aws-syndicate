@@ -48,7 +48,7 @@ def main(deploy_target_bucket: str, config: str, verbose: bool,
         stages = json.load(file)
 
     for stage, steps in stages[STAGES_CONFIG_PARAM].items():
-        print(f'Processing command {stage}')
+        print(f'Processing stage {stage}')
         verification_result = process_steps(
             steps, verbose=verbose, deploy_target_bucket=deploy_target_bucket,
             suffix=suffix, prefix=prefix)

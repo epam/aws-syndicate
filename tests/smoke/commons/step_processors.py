@@ -3,7 +3,8 @@ from typing import List, Optional
 
 from tests.smoke.commons.constants import STEPS_CONFIG_PARAM, \
     COMMAND_CONFIG_PARAM, CHECKS_CONFIG_PARAM, NAME_CONFIG_PARAM, \
-    DESCRIPTION_CONFIG_PARAM, DEPENDS_ON_CONFIG_PARAM
+    DESCRIPTION_CONFIG_PARAM, DEPENDS_ON_CONFIG_PARAM, BUILD_COMMAND, \
+    BUNDLE_NAME, DEPLOY_COMMAND, UPDATE_COMMAND, DEPLOY_NAME
 from tests.smoke.commons.handlers import HANDLERS_MAPPING
 
 
@@ -21,6 +22,16 @@ def process_steps(steps: List[dict], verbose: Optional[bool] = False,
         command_to_execute = step[COMMAND_CONFIG_PARAM]
         if verbose:
             command_to_execute.append('--verbose')
+        if BUILD_COMMAND in command_to_execute:
+            command_to_execute.extend(['--bundle_name', BUNDLE_NAME])
+        if DEPLOY_COMMAND in command_to_execute:
+            command_to_execute.extend(['--bundle_name', BUNDLE_NAME,
+                                       '--deploy_name', DEPLOY_NAME])
+        if UPDATE_COMMAND in command_to_execute:
+            command_to_execute.extend(['--bundle_name', BUNDLE_NAME,
+                                       '--deploy_name', DEPLOY_NAME,
+                                       '--replace_output'])
+
         exec_result = subprocess.run(command_to_execute, check=False,
                                      capture_output=True, text=True)
         for check in step[CHECKS_CONFIG_PARAM]:

@@ -1,6 +1,11 @@
 DEPLOY_NAME = 'autotest'
 BUNDLE_NAME = 'happy_path_autotest'
 
+BUILD_COMMAND = 'build'
+DEPLOY_COMMAND = 'deploy'
+UPDATE_COMMAND = 'update'
+CLEAN_COMMAND = 'clean'
+
 STAGES_CONFIG_PARAM = 'stages'
 STEPS_CONFIG_PARAM = 'steps'
 DESCRIPTION_CONFIG_PARAM = 'description'
@@ -10,4 +15,4 @@ NAME_CONFIG_PARAM = 'name'
 DEPENDS_ON_CONFIG_PARAM = 'depends_on'
 RESOURCE_TYPE_CONFIG_PARAM = 'resource_type'
 
-DEPLOY_OUTPUT_DIR = 'output'
+DEPLOY_OUTPUT_DIR = 'outputs'

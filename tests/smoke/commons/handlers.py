@@ -5,7 +5,7 @@ from typing import Optional
 from tests.smoke.commons import connections
 from tests.smoke.commons.connections import get_s3_bucket_file_content
 from tests.smoke.commons.constants import DEPLOY_OUTPUT_DIR, \
-    RESOURCE_TYPE_CONFIG_PARAM, BUNDLE_NAME
+    RESOURCE_TYPE_CONFIG_PARAM, BUNDLE_NAME, DEPLOY_NAME
 from tests.smoke.commons.utils import find_max_version
 
 
@@ -17,10 +17,20 @@ def artifacts_existence(artifacts_list: list, deploy_target_bucket: str,
                         suffix: Optional[str] = None,
                         prefix: Optional[str] = None, **kwargs):
     missing_resources = []
+    succeeded_deploy = kwargs.get('succeeded_deploy')
     for artifact in artifacts_list:
-        exist = connections.get_s3_bucket_object(
-            bucket_name=deploy_target_bucket,
-            file_key=BUNDLE_NAME + '/' + artifact)
+        if succeeded_deploy is not None:
+            file_key = f'{BUNDLE_NAME}/{DEPLOY_OUTPUT_DIR}/{artifact}'
+        else:
+            file_key = f'{BUNDLE_NAME}/{artifact}'
+        try:
+            exist = connections.get_s3_bucket_object(
+                bucket_name=deploy_target_bucket, file_key=file_key)
+        except Exception as e:
+            if 'NoSuchKey' in str(e):
+                exist = False
+            else:
+                raise
         if not exist:
             missing_resources.append(artifact)
     return {'missing_resources': missing_resources} \
@@ -32,19 +42,18 @@ def build_meta(resources: dict, suffix: Optional[str] = None,
     ...
 
 
-def deployment_output_checker(deploy_target_bucket: str, bundle_name: str,
-                              deploy_name: str, resources: dict,
-                              succeeded: bool = True,
+def deployment_output_checker(deploy_target_bucket: str, resources: dict,
+                              succeeded_deploy: bool = True,
                               prefix: Optional[str] = None,
                               suffix: Optional[str] = None, **kwargs):
     results = {}
     missing_resources = []
 
-    if succeeded:
-        output_path = f'{bundle_name}/{DEPLOY_OUTPUT_DIR}/{deploy_name}.json'
+    if succeeded_deploy:
+        output_path = f'{BUNDLE_NAME}/{DEPLOY_OUTPUT_DIR}/{DEPLOY_NAME}.json'
     else:
         output_path = \
-            f'{bundle_name}/{DEPLOY_OUTPUT_DIR}/{deploy_name}_failed.json'
+            f'{BUNDLE_NAME}/{DEPLOY_OUTPUT_DIR}/{DEPLOY_NAME}_failed.json'
 
     output = get_s3_bucket_file_content(deploy_target_bucket, output_path)
     redundant_resources = copy.deepcopy(output)

@@ -119,6 +119,7 @@
             {
               "name": "artifacts_exist",
               "description": "Check if deployment output file exists",
+              "bundle_name": "sdct-auto-test",
               "artifacts_list": [
                 "sdct_auto_test.json"
               ]
@@ -126,6 +127,8 @@
             {
               "name": "deployment_output",
               "description": "Check if all resources present in deployment output",
+              "bundle_name": "sdct-auto-test",
+              "deploy_name": "sdct-auto-test",
               "succeeded": true,
               "resources": {
                 "sdct-at-lambda-basic-execution-policy": {
