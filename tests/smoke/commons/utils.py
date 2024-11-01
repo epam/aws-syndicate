@@ -1,4 +1,5 @@
 import json
+import os
 
 
 def save_json(output_file, data):
@@ -17,3 +18,12 @@ def find_max_version(layer_versions):
             max_version_dict = layer
 
     return max_version_dict
+
+
+def full_path(value: str) -> str:
+    if not value.endswith('.json'):
+        value = value + '.json'
+    if not os.path.isabs(value):  # check if full path
+        value = os.path.join(os.getcwd(), value)
+    return value
+

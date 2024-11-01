@@ -9,13 +9,15 @@ from tests.smoke.commons.constants import DEPLOY_OUTPUT_DIR, \
 from tests.smoke.commons.utils import find_max_version
 
 
-def exit_code(actual_exit_code: int, expected_exit_code: int, **kwargs):
+def exit_code_checker(actual_exit_code: int, expected_exit_code: int,
+                      **kwargs):
     return actual_exit_code == expected_exit_code
 
 
-def artifacts_existence(artifacts_list: list, deploy_target_bucket: str,
-                        suffix: Optional[str] = None,
-                        prefix: Optional[str] = None, **kwargs):
+def artifacts_existence_checker(artifacts_list: list,
+                                deploy_target_bucket: str,
+                                suffix: Optional[str] = None,
+                                prefix: Optional[str] = None, **kwargs):
     missing_resources = []
     succeeded_deploy = kwargs.get('succeeded_deploy')
     for artifact in artifacts_list:
@@ -37,8 +39,8 @@ def artifacts_existence(artifacts_list: list, deploy_target_bucket: str,
         if missing_resources else True
 
 
-def build_meta(resources: dict, suffix: Optional[str] = None,
-               prefix: Optional[str] = None, **kwargs):
+def build_meta_checker(resources: dict, suffix: Optional[str] = None,
+                       prefix: Optional[str] = None, **kwargs):
     ...
 
 
@@ -87,24 +89,24 @@ def resource_existence(resources: dict, suffix: Optional[str] = None,
 
 
 # ------------ Modification Handlers -------------
-def policy_modification(resource_name: str, update_time: str | datetime,
-                        **kwargs):
+def policy_modification_checker(resource_name: str,
+                                update_time: str | datetime, **kwargs):
     response = connections.get_iam_policy(resource_name)
     response_update_date = response.get('UpdateDate')
     if response_update_date and response_update_date >= update_time: # START of update time!!!
         return True
 
 
-def lambda_modification(resource_name: str, update_time: str | datetime,
-                        **kwargs):
+def lambda_modification_checker(resource_name: str,
+                                update_time: str | datetime, **kwargs):
     response = connections.get_function_configuration(resource_name)
     response_update_date = response.get('LastModified')
     if response_update_date and response_update_date >= update_time:
         return True
 
 
-def lambda_layer_modification(resource_name: str, update_time: str | datetime,
-                              **kwargs):
+def lambda_layer_modification_checker(resource_name: str,
+                                      update_time: str | datetime, **kwargs):
     response = connections.get_layer_version(resource_name)
     layer_versions = response.get('LayerVersions')
     latest_version = find_max_version(layer_versions)
@@ -116,19 +118,19 @@ def lambda_layer_modification(resource_name: str, update_time: str | datetime,
 # ------------ MAPPINGS -----------------
 
 HANDLERS_MAPPING = {
-    'exit_code': exit_code,
-    'artifacts_existence': artifacts_existence,
-    'build_meta': build_meta,
+    'exit_code': exit_code_checker,
+    'artifacts_existence': artifacts_existence_checker,
+    'build_meta': build_meta_checker,
     'deployment_output': deployment_output_checker,
     'resource_existence': resource_existence
 }
 
 
 TYPE_MODIFICATION_FUNC_MAPPING = {
-    'iam_policy': policy_modification,
+    'iam_policy': policy_modification_checker,
     'iam_role': ...,
-    'lambda': lambda_modification,
-    'lambda_layer': lambda_layer_modification
+    'lambda': lambda_modification_checker,
+    'lambda_layer': lambda_layer_modification_checker
 }
 
 

@@ -1,10 +1,11 @@
 import argparse
 import json
-import os
 
 from commons.step_processors import process_steps
-from commons.constants import STAGES_CONFIG_PARAM
-from commons.utils import save_json
+from commons.constants import STAGES_CONFIG_PARAM, INIT_PARAMS_CONFIG_PARAM, \
+    OUTPUT_FILE_CONFIG_PARAM, DEPENDS_ON_CONFIG_PARAM, \
+    STAGE_PASSED_REPORT_PARAM
+from commons.utils import save_json, full_path
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -12,16 +13,6 @@ def build_parser() -> argparse.ArgumentParser:
         description='Entrypoint for happy path tests',
     )
 
-    def full_path(value: str) -> str:
-        if not value.endswith('.json'):
-            value = value + '.json'
-        if not os.path.isabs(value):  # check if full path
-            value = os.path.join(os.getcwd(), value)
-        return value
-
-    parser.add_argument('-d', '--deploy_target_bucket', required=True,
-                        type=str,
-                        help='* S3 bucket name where bundles will be stored.')
     parser.add_argument(
         '-c', '--config', required=False, default='happy_path_config.json',
         type=full_path,
@@ -31,27 +22,34 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument('-v', '--verbose', required=False, default=False,
                         action='store_true',
                         help='Enable logging verbose mode. Default: False')
-    parser.add_argument('-o', '--output_file', required=False, type=full_path,
-                        default='result_report.json',
-                        help='Output filename. Default: result_report.json')
-    parser.add_argument('-s', '--suffix', required=False, type=str,
-                        help='Resource suffix.')
-    parser.add_argument('-p', '--prefix', required=False, type=str,
-                        help='Resource prefix.')
     return parser
 
 
-def main(deploy_target_bucket: str, config: str, verbose: bool,
-         output_file: str, suffix: str, prefix: str):
+def main(verbose: bool, config: str):
+    def should_process_stage(stage_info):
+        depends_on = stage_info.get(DEPENDS_ON_CONFIG_PARAM)
+        if not depends_on:
+            return True
+
+        for k, v in result.get(STAGES_CONFIG_PARAM, {}).items():
+            if k in depends_on and any(
+                    i.get(STAGE_PASSED_REPORT_PARAM) is False for i in v):
+                return False
+        return True
+
     result = {STAGES_CONFIG_PARAM: {}}
     with open(config) as file:
-        stages = json.load(file)
+        config_file = json.load(file)
 
-    for stage, steps in stages[STAGES_CONFIG_PARAM].items():
-        print(f'Processing stage {stage}')
+    init_params = config_file.get(INIT_PARAMS_CONFIG_PARAM, {})
+    output_file = init_params.pop(full_path(OUTPUT_FILE_CONFIG_PARAM),
+                                  full_path('result_report.json'))
+
+    for stage, stage_info in config_file[STAGES_CONFIG_PARAM].items():
+        print(f'Processing stage `{stage}`')
         verification_result = process_steps(
-            steps, verbose=verbose, deploy_target_bucket=deploy_target_bucket,
-            suffix=suffix, prefix=prefix)
+            stage_info, verbose=verbose,
+            skip_stage=not should_process_stage(stage_info), **init_params)
         result[STAGES_CONFIG_PARAM].update({stage: verification_result})
 
     save_json(output_file, result)

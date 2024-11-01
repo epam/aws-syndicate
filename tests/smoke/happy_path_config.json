@@ -1,4 +1,10 @@
 {
+  "init_parameters": {
+    "suffix": "-test",
+    "deploy_target_bucket": "prakhova-test",
+    "prefix": "cmtr-",
+    "output_file": "output"
+  },
   "stages": {
     "build": {
       "steps": [
@@ -7,11 +13,13 @@
           "command": ["syndicate", "build"],
           "checks": [
             {
+              "index": 1,
               "name": "exit_code",
               "description": "Check if actual status code equals expected",
               "expected_exit_code": 0
             },
             {
+              "index": 2,
               "name": "artifacts_exist",
               "description": "Check if artifacts exist",
               "artifacts_list": [
@@ -29,6 +37,7 @@
               "depends_on": [1]
             },
             {
+              "index": 3,
               "name": "build_meta",
               "description": "Check if all resources in build meta exist",
               "resources": {
@@ -112,11 +121,13 @@
           "command": ["syndicate", "deploy"],
           "checks": [
             {
+              "index": 1,
               "name": "exit_code",
               "description": "Check if actual status code equals expected",
               "expected_exit_code": 0
             },
             {
+              "index": 2,
               "name": "artifacts_exist",
               "description": "Check if deployment output file exists",
               "bundle_name": "sdct-auto-test",
@@ -125,6 +136,7 @@
               ]
             },
             {
+              "index": 3,
               "name": "deployment_output",
               "description": "Check if all resources present in deployment output",
               "bundle_name": "sdct-auto-test",
@@ -182,6 +194,7 @@
               }
             },
             {
+              "index": 4,
               "name": "resource_existence",
               "description": "Check if all resources present in account",
               "resources": {
@@ -242,11 +255,13 @@
           "command": ["syndicate", "deploy", "--continue_deploy"],
           "checks": [
             {
+              "index": 1,
               "name": "exit_code",
               "description": "Check if actual status code equals expected",
               "expected_exit_code": 0
             },
             {
+              "index": 2,
               "name": "artifacts_exist",
               "description": "Check if deployment output file exists",
               "artifacts_list": [
@@ -254,6 +269,7 @@
               ]
             },
             {
+              "index": 3,
               "name": "deployment_output",
               "description": "Check if all resources present in deployment output",
               "succeeded": false,
@@ -327,6 +343,7 @@
               }
             },
             {
+              "index": 4,
               "name": "resource_existence",
               "description": "Check if all resources present in account",
               "resources": {
@@ -399,6 +416,7 @@
               }
             },
             {
+              "index": 4,
               "name": "resource_existence",
               "description": "Check if all resources present in account",
               "resources": {
@@ -410,10 +428,10 @@
                 }
               }
             }
-
           ]
         }
-      ]
+      ],
+      "depends_on": ["build"]
     },
     "update": {
       "steps": [
@@ -422,11 +440,13 @@
           "command": ["syndicate", "update"],
           "checks": [
             {
+              "index": 1,
               "name": "exit_code",
               "description": "Check if actual status code equals expected",
               "expected_exit_code": 0
             },
             {
+              "index": 2,
               "name": "artifacts_exist",
               "description": "Check if deployment output file exists",
               "artifacts_list": [
@@ -434,6 +454,7 @@
               ]
             },
             {
+              "index": 3,
               "name": "deployment_output",
               "description": "Check if all resources present in deployment output",
               "succeeded": true,
@@ -489,6 +510,7 @@
               }
             },
             {
+              "index": 4,
               "name": "resource_existence",
               "description": "Check if all resources present in account",
               "resources": {
@@ -544,7 +566,8 @@
             }
           ]
         }
-      ]
+      ],
+      "depends_on": ["deploy"]
     }
   }
 }

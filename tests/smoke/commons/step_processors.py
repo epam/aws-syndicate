@@ -4,21 +4,31 @@ from typing import List, Optional
 from tests.smoke.commons.constants import STEPS_CONFIG_PARAM, \
     COMMAND_CONFIG_PARAM, CHECKS_CONFIG_PARAM, NAME_CONFIG_PARAM, \
     DESCRIPTION_CONFIG_PARAM, DEPENDS_ON_CONFIG_PARAM, BUILD_COMMAND, \
-    BUNDLE_NAME, DEPLOY_COMMAND, UPDATE_COMMAND, DEPLOY_NAME
+    BUNDLE_NAME, DEPLOY_COMMAND, UPDATE_COMMAND, DEPLOY_NAME, \
+    INDEX_CONFIG_PARAM, STAGE_PASSED_REPORT_PARAM
 from tests.smoke.commons.handlers import HANDLERS_MAPPING
 
 
-def process_steps(steps: List[dict], verbose: Optional[bool] = False,
+def process_steps(steps: dict[str: List[dict]],
+                  verbose: Optional[bool] = False,
                   deploy_target_bucket: Optional[str] = None,
-                  suffix: Optional[str] = None, prefix: Optional[str] = None):
+                  suffix: Optional[str] = None, prefix: Optional[str] = None,
+                  skip_stage: bool = False):
     result = []
     for step in steps[STEPS_CONFIG_PARAM]:
         verifications = {}
         step_description = step.get(DESCRIPTION_CONFIG_PARAM, None)
-        validation_steps = {DESCRIPTION_CONFIG_PARAM: step_description,
-                            CHECKS_CONFIG_PARAM: []}
-        validation_checks = validation_steps[CHECKS_CONFIG_PARAM]
+        validation_steps = {
+            DESCRIPTION_CONFIG_PARAM: step_description,
+            CHECKS_CONFIG_PARAM: [],
+            STAGE_PASSED_REPORT_PARAM: True if not skip_stage else False
+        }
+        if skip_stage:
+            print('Skipping the stage because the stages on which it '
+                  'depends did not execute successfully.')
+            return [validation_steps]
 
+        validation_checks = validation_steps[CHECKS_CONFIG_PARAM]
         command_to_execute = step[COMMAND_CONFIG_PARAM]
         if verbose:
             command_to_execute.append('--verbose')
@@ -35,12 +45,13 @@ def process_steps(steps: List[dict], verbose: Optional[bool] = False,
         exec_result = subprocess.run(command_to_execute, check=False,
                                      capture_output=True, text=True)
         for check in step[CHECKS_CONFIG_PARAM]:
-            index = step[CHECKS_CONFIG_PARAM].index(check) + 1
+            index = check[INDEX_CONFIG_PARAM]
             depends_on = check.pop(DEPENDS_ON_CONFIG_PARAM, None)
             if depends_on is not None:
                 if not all(verifications[i]
                            if verifications else True for i in depends_on):
                     verifications[index] = False
+                    validation_steps[STAGE_PASSED_REPORT_PARAM] = False
                     continue
 
             handler_name = check.pop(NAME_CONFIG_PARAM, None)
@@ -60,5 +71,7 @@ def process_steps(steps: List[dict], verbose: Optional[bool] = False,
                 'meta': check_result if type(check_result) is dict else {}
             })
             verifications.update({index: check_result is True})
+            if check_result is not True:
+                validation_steps[STAGE_PASSED_REPORT_PARAM] = False
         result.append(validation_steps)
     return result
