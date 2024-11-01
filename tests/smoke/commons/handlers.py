@@ -6,6 +6,7 @@ from tests.smoke.commons import connections
 from tests.smoke.commons.connections import get_s3_bucket_file_content
 from tests.smoke.commons.constants import DEPLOY_OUTPUT_DIR, \
     RESOURCE_TYPE_CONFIG_PARAM, BUNDLE_NAME
+from tests.smoke.commons.utils import find_max_version
 
 
 def exit_code(actual_exit_code: int, expected_exit_code: int, **kwargs):
@@ -95,8 +96,10 @@ def lambda_modification(resource_name: str, update_time: str | datetime,
 
 def lambda_layer_modification(resource_name: str, update_time: str | datetime,
                               **kwargs):
-    response = connections.get_function_configuration(resource_name)
-    response_update_date = response.get('LastModified')
+    response = connections.get_layer_version(resource_name)
+    layer_versions = response.get('LayerVersions')
+    latest_version = find_max_version(layer_versions)
+    response_update_date = latest_version.get('CreatedDate')
     if response_update_date and response_update_date >= update_time:
         return True
 
@@ -119,3 +122,19 @@ TYPE_MODIFICATION_FUNC_MAPPING = {
     'lambda_layer': lambda_layer_modification
 }
 
+
+def resource_modification(resources: dict, update_time: str,
+                          suffix: Optional[str] = None,
+                          prefix: Optional[str] = None, **kwargs):
+    result = []
+    for resource_name, resource_type in resources.items():
+        resource_typename = resource_type[RESOURCE_TYPE_CONFIG_PARAM]
+        func = TYPE_MODIFICATION_FUNC_MAPPING.get(resource_typename)
+        if not func:
+            print(f'Unknown resource type `{resource_typename}`')
+            continue
+        is_modified = func(update_time=update_time,
+                           resource_name=f'{prefix}{resource_name}{suffix}')
+        if is_modified is not True:
+            result.append(resource_name)
+    return {'unmodified_resources': result} if result else True

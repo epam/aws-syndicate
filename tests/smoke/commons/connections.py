@@ -76,7 +76,8 @@ def get_function_configuration(lambda_name: str):
 
 def get_layer_version(lambda_layer_name: str):
     try:
-        response = lambda_client.get_layer_version(LayerName=lambda_layer_name)
+        response = lambda_client.list_layer_versions(
+            LayerName=lambda_layer_name)
     except ClientError as e:
         if e.response['Error']['Code'] == 'ResourceNotFoundException':
             print(f'No lambda layer {lambda_layer_name}')
