@@ -65,6 +65,16 @@ def deployment_output_checker(output: dict, resources: dict) -> dict:
     return results if results else True
 
 
+def outputs_modification_checker(deploy_target_bucket:str,
+                                 update_time: str | datetime):
+    response = connections.if_s3_object_modified(
+        bucket_name=deploy_target_bucket,
+        file_key=f'{BUNDLE_NAME}/outputs/{DEPLOY_NAME}.json',
+        modified_since=update_time)
+    if not response:
+        return False
+    return True
+
 # ------------ Resource existence checkers -------------
 
 

@@ -11,10 +11,10 @@ tests
 │   │   requirements.txt
 │   │
 │   └───commons
+│   │   │   checkers.py
 │   │   │   connections.py
 │   │   │   constants.py
 │   │   │   handlers.py
-│   │   │   mappings.py
 │   │   │   step_processors.py
 │   │   │   utils.py
 │   │   │   ...
@@ -34,10 +34,10 @@ tests
 
 #### `commons` Subdirectory
 - Contains common utility scripts and modules used across different tests:
+  - **`checkers.py`**: Contains checkers for each step.
   - **`connections.py`**: Manages boto3 connections.
   - **`constants.py`**: Defines constants used throughout the tests.
-  - **`handlers.py`**: Contains checkers for each step.
-  - **`mappings.py`**: Provides mapping definitions used in data transformation.
+  - **`handlers.py`**: Contains mappings and functions that are a layer between the handlers and the step processor.
   - **`step_processors.py`**: Implements logic for processing of each stage from `happy_path_config.json`.
   - **`utils.py`**: Includes utility functions for general purposes like file or complex structure manipulation.
 
@@ -103,6 +103,13 @@ tests
       - `expected_exit_code`, `resources`, `more_params`: Custom parameters needed for a specific checker (see [Checkers](#checkers))
 
 ## Checkers
+- `exit_code`: Check exit code of command from `command` section in config. Required parameters: `actual_exit_code`, `expected_exit_code`.
+- `artifacts_existence`: Check if files in s3 bucket exist. Required parameters: `artifacts_list`, `deploy_target_bucket`. Optional parameters: `succeeded_deploy`.
+- `build_meta`: Check if all resources in build_meta.json exist. Required parameters: `resources`, `deploy_target_bucket`.
+- `deployment_output`: Check if all resources present in deployment output. Required parameters: `deploy_target_bucket`, `resources`. Optional parameters: `succeeded_deploy`, `prefix`, `suffix`.
+- `resource_existence`: Check if all resources present in account. Required parameters: `resources`, `deploy_target_bucket`. Optional parameters: `prefix`, `suffix`.
+- `resource_modification`: Check if resources were modified. Required parameters: `resources`. Optional parameters: `prefix`, `suffix`.
+- `outputs_modification`: Check the time of output.json file last modification. Required parameters: `deploy_target_bucket`.
 
 ## How to run
 ### Prerequisites
