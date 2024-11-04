@@ -17,6 +17,29 @@ def artifacts_existence_checker(artifact: str,
             bucket_name=deploy_target_bucket, file_key=artifact) else False
 
 
+def build_meta_checker(build_meta: dict, resources: dict):
+    results = {}
+    invalid_resources = []  # missing or invalid type
+    for resource_name, resource_meta in resources.items():
+        if not (resource_data := build_meta.pop(resource_name, {})):
+            invalid_resources.append(resource_name)
+            continue
+
+        if resource_data.get('resource_type') != \
+                resource_meta.get('resource_type'):
+            invalid_resources.append(resource_name)
+            continue
+
+    redundant_resources = list(build_meta.keys())
+
+    if invalid_resources:
+        results['invalid_resources'] = invalid_resources
+    if redundant_resources:
+        results['redundant_resources'] = redundant_resources
+
+    return results if results else True
+
+
 def deployment_output_checker(output: dict, resources: dict) -> dict:
     results = {}
     missing_resources = {}
