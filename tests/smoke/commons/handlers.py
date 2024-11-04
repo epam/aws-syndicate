@@ -1,4 +1,5 @@
 import copy
+import json
 from datetime import datetime
 from typing import Optional
 
@@ -33,9 +34,34 @@ def artifacts_existence_checker(artifacts_list: list,
         if missing_resources else True
 
 
-def build_meta_checker(resources: dict, suffix: Optional[str] = None,
-                       prefix: Optional[str] = None, **kwargs):
-    ...
+def build_meta_checker(resources: dict, deploy_target_bucket: str, **kwargs):
+    results = {}
+    invalid_resources = []  # missing or invalid type
+    build_meta_json = connections.get_s3_bucket_file_content(
+        bucket_name=deploy_target_bucket,
+        file_key=f'{BUNDLE_NAME}/build_meta.json')
+    if not build_meta_json:
+        return False
+
+    build_meta_content = json.loads(build_meta_json)
+    for resource_name, resource_type in resources.items():
+        if not (resource_data := build_meta_content.pop(resource_name, {})):
+            invalid_resources.append(resource_name)
+            continue
+
+        if resource_data.get('resource_type') != \
+                resource_type.get('resource_type'):
+            invalid_resources.append(resource_name)
+            continue
+
+    redundant_resources = list(build_meta_content.keys())
+
+    if invalid_resources:
+        results['invalid_resources'] = invalid_resources
+    if redundant_resources:
+        results['redundant_resources'] = redundant_resources
+
+    return results if (invalid_resources or redundant_resources) else True
 
 
 def deployment_output_checker(deploy_target_bucket: str, resources: dict,
@@ -146,21 +172,26 @@ def swagger_ui_existence_checker(name: str, deployment_bucket: str) -> bool:
             else False
 
 
-
 # ------------ Modification Handlers -------------
+
 def policy_modification_checker(resource_name: str,
                                 update_time: str | datetime, **kwargs):
     response = connections.get_iam_policy(resource_name)
-    response_update_date = response.get('UpdateDate')
-    if response_update_date and response_update_date >= update_time: # START of update time!!!
+    response_update_date = response.get('Policy', {}).get('UpdateDate')
+    if response_update_date and response_update_date.replace(
+            tzinfo=None) >= update_time:
         return True
 
 
 def lambda_modification_checker(resource_name: str,
                                 update_time: str | datetime, **kwargs):
     response = connections.get_function_configuration(resource_name)
+    if not response:
+        return False
     response_update_date = response.get('LastModified')
-    if response_update_date and response_update_date >= update_time:
+    if response_update_date and datetime.strptime(
+            response_update_date, '%Y-%m-%dT%H:%M:%S.%f%z').\
+            replace(tzinfo=None) >= update_time:
         return True
 
 
@@ -175,14 +206,6 @@ def lambda_layer_modification_checker(resource_name: str,
 
 
 # ------------ MAPPINGS -----------------
-
-HANDLERS_MAPPING = {
-    'exit_code': exit_code_checker,
-    'artifacts_existence': artifacts_existence_checker,
-    'build_meta': build_meta_checker,
-    'deployment_output': deployment_output_checker,
-    'resource_existence': resource_existence
-}
 
 TYPE_EXISTENCE_FUNC_MAPPING = {
     'iam_policy': iam_policy_existence_checker,
@@ -208,9 +231,9 @@ TYPE_MODIFICATION_FUNC_MAPPING = {
 }
 
 
-def resource_modification(resources: dict, update_time: str,
-                          suffix: Optional[str] = None,
-                          prefix: Optional[str] = None, **kwargs):
+def resource_modification_checker(resources: dict, update_time: str,
+                                  suffix: Optional[str] = None,
+                                  prefix: Optional[str] = None, **kwargs):
     result = []
     for resource_name, resource_type in resources.items():
         resource_typename = resource_type[RESOURCE_TYPE_CONFIG_PARAM]
@@ -223,3 +246,13 @@ def resource_modification(resources: dict, update_time: str,
         if is_modified is not True:
             result.append(resource_name)
     return {'unmodified_resources': result} if result else True
+
+
+HANDLERS_MAPPING = {
+    'exit_code': exit_code_checker,
+    'artifacts_existence': artifacts_existence_checker,
+    'build_meta': build_meta_checker,
+    'deployment_output': deployment_output_checker,
+    'resource_existence': resource_existence,
+    'resource_modification': resource_modification_checker
+}

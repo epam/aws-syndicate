@@ -20,7 +20,7 @@
             },
             {
               "index": 2,
-              "name": "artifacts_exist",
+              "name": "artifacts_existence",
               "description": "Check if artifacts exist",
               "artifacts_list": [
                 "build_meta.json",
@@ -98,7 +98,7 @@
                 "sdct-at-nodejs-lambda_layer": {
                   "resource_type": "lambda_layer"
                 },
-                "sdct-at-cup": {
+                "${booking_userpool}": {
                   "resource_type": "cognito_idp"
                 },
                 "sdct-at-api-gw": {
@@ -128,12 +128,13 @@
             },
             {
               "index": 2,
-              "name": "artifacts_exist",
+              "name": "artifacts_existence",
               "description": "Check if deployment output file exists",
               "bundle_name": "sdct-auto-test",
               "artifacts_list": [
                 "sdct_auto_test.json"
-              ]
+              ],
+              "depends_on": [1]
             },
             {
               "index": 3,
@@ -191,7 +192,8 @@
                 "sdct-at-swagger-ui": {
                   "resource_type": "swagger_ui"
                 }
-              }
+              },
+              "depends_on": [1, 2]
             },
             {
               "index": 4,
@@ -246,7 +248,8 @@
                 "sdct-at-swagger-ui": {
                   "resource_type": "swagger_ui"
                 }
-              }
+              },
+              "depends_on": [1, 2, 3]
             }
           ]
         },
@@ -262,7 +265,7 @@
             },
             {
               "index": 2,
-              "name": "artifacts_exist",
+              "name": "artifacts_existence",
               "description": "Check if deployment output file exists",
               "artifacts_list": [
                 "sdct_auto_test_failed.json"
@@ -447,120 +450,11 @@
             },
             {
               "index": 2,
-              "name": "artifacts_exist",
-              "description": "Check if deployment output file exists",
-              "artifacts_list": [
-                "sdct_auto_test.json"
-              ]
-            },
-            {
-              "index": 3,
-              "name": "deployment_output",
-              "description": "Check if all resources present in deployment output",
-              "succeeded": true,
+              "name": "resource_modification",
+              "description": "Check resource modification",
               "resources": {
-                "sdct-at-lambda-basic-execution-policy": {
-                  "resource_type": "iam_policy"
-                },
-                "sdct-at-java-lambda-role": {
-                  "resource_type": "iam_role"
-                },
                 "sdct-at-java-lambda": {
                   "resource_type": "lambda"
-                },
-                "sdct-at-java-lambda_layer": {
-                  "resource_type": "lambda_layer"
-                },
-                "sdct-at-dotnet-lambda-role": {
-                  "resource_type": "iam_role"
-                },
-                "sdct-at-dotnet-lambda": {
-                  "resource_type": "lambda"
-                },
-                "sdct-at-dotnet-lambda_layer": {
-                  "resource_type": "lambda_layer"
-                },
-                "sdct-at-python-lambda-role": {
-                  "resource_type": "iam_role"
-                },
-                "sdct-at-python-lambda": {
-                  "resource_type": "lambda"
-                },
-                "sdct-at-python-lambda_layer": {
-                  "resource_type": "lambda_layer"
-                },
-                "sdct-at-queue": {
-                  "resource_type": "sqs_queue"
-                },
-                "sdct-at-topic": {
-                  "resource_type": "sns_topic"
-                },
-                "sdct-at-table": {
-                  "resource_type": "dynamodb_table"
-                },
-                "sdct-at-cw-rule": {
-                  "resource_type": "cloudwatch_rule"
-                },
-                "sdct-at-s3-bucket": {
-                  "resource_type": "s3_bucket"
-                },
-                "sdct-at-swagger-ui": {
-                  "resource_type": "swagger_ui"
-                }
-              }
-            },
-            {
-              "index": 4,
-              "name": "resource_existence",
-              "description": "Check if all resources present in account",
-              "resources": {
-                "sdct-at-lambda-basic-execution-policy": {
-                  "resource_type": "iam_policy"
-                },
-                "sdct-at-java-lambda-role": {
-                  "resource_type": "iam_role"
-                },
-                "sdct-at-java-lambda": {
-                  "resource_type": "lambda"
-                },
-                "sdct-at-java-lambda_layer": {
-                  "resource_type": "lambda_layer"
-                },
-                "sdct-at-dotnet-lambda-role": {
-                  "resource_type": "iam_role"
-                },
-                "sdct-at-dotnet-lambda": {
-                  "resource_type": "lambda"
-                },
-                "sdct-at-dotnet-lambda_layer": {
-                  "resource_type": "lambda_layer"
-                },
-                "sdct-at-python-lambda-role": {
-                  "resource_type": "iam_role"
-                },
-                "sdct-at-python-lambda": {
-                  "resource_type": "lambda"
-                },
-                "sdct-at-python-lambda_layer": {
-                  "resource_type": "lambda_layer"
-                },
-                "sdct-at-queue": {
-                  "resource_type": "sqs_queue"
-                },
-                "sdct-at-topic": {
-                  "resource_type": "sns_topic"
-                },
-                "sdct-at-table": {
-                  "resource_type": "dynamodb_table"
-                },
-                "sdct-at-cw-rule": {
-                  "resource_type": "cloudwatch_rule"
-                },
-                "sdct-at-s3-bucket": {
-                  "resource_type": "s3_bucket"
-                },
-                "sdct-at-swagger-ui": {
-                  "resource_type": "swagger_ui"
                 }
               }
             }

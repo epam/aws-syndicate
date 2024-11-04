@@ -1,4 +1,5 @@
 import subprocess
+from datetime import datetime
 from typing import List, Optional
 
 from tests.smoke.commons.constants import STEPS_CONFIG_PARAM, \
@@ -42,6 +43,8 @@ def process_steps(steps: dict[str: List[dict]],
                                        '--deploy_name', DEPLOY_NAME,
                                        '--replace_output'])
 
+        print(f'Run command: {command_to_execute}')
+        execution_datetime = datetime.utcnow()
         exec_result = subprocess.run(command_to_execute, check=False,
                                      capture_output=True, text=True)
         for check in step[CHECKS_CONFIG_PARAM]:
@@ -61,9 +64,11 @@ def process_steps(steps: dict[str: List[dict]],
                 print(f'Invalid handler `{handler_name}`')
                 continue
 
+            print(f'Executing handler `{handler_name}`')
             check_result = handler(actual_exit_code=exec_result.returncode,
                                    deploy_target_bucket=deploy_target_bucket,
-                                   suffix=suffix, prefix=prefix, **check)
+                                   suffix=suffix, prefix=prefix,
+                                   update_time=execution_datetime, **check)
             validation_checks.append({
                 'index': index,
                 'description': check_description,

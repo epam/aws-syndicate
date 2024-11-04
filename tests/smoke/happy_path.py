@@ -42,8 +42,8 @@ def main(verbose: bool, config: str):
         config_file = json.load(file)
 
     init_params = config_file.get(INIT_PARAMS_CONFIG_PARAM, {})
-    output_file = init_params.pop(full_path(OUTPUT_FILE_CONFIG_PARAM),
-                                  full_path('result_report.json'))
+    output_file = full_path(init_params.pop(OUTPUT_FILE_CONFIG_PARAM,
+                                            'result_report.json'))
 
     for stage, stage_info in config_file[STAGES_CONFIG_PARAM].items():
         print(f'Processing stage `{stage}`')
