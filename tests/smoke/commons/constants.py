@@ -21,3 +21,5 @@ OUTPUT_FILE_CONFIG_PARAM = 'output_file'
 DEPLOY_OUTPUT_DIR = 'outputs'
 
 STAGE_PASSED_REPORT_PARAM = 'stage_passed'
+
+SWAGGER_UI_RESOURCE_TYPE = 'swagger_ui'
