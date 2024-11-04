@@ -36,8 +36,8 @@ def deep_get(dct: dict, path: Union[list, tuple], default=None) -> Any:
         path, dct)
 
 
-def populate_prefix_suffix(resources: dict, suffix: Optional[str] = None,
-                           prefix: Optional[str] = None) -> dict:
+def populate_prefix_suffix(resources: dict, prefix: Optional[str] = None,
+                           suffix: Optional[str] = None) -> dict:
     final_resources = {}
     for res_name, res_meta in resources.items():
         if prefix:

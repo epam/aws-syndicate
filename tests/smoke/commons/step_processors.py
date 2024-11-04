@@ -37,7 +37,8 @@ def process_steps(steps: dict[str: List[dict]],
             command_to_execute.extend(['--bundle_name', BUNDLE_NAME])
         if DEPLOY_COMMAND in command_to_execute:
             command_to_execute.extend(['--bundle_name', BUNDLE_NAME,
-                                       '--deploy_name', DEPLOY_NAME])
+                                       '--deploy_name', DEPLOY_NAME,
+                                       '--replace_output'])
         if UPDATE_COMMAND in command_to_execute:
             command_to_execute.extend(['--bundle_name', BUNDLE_NAME,
                                        '--deploy_name', DEPLOY_NAME,

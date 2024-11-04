@@ -15,6 +15,7 @@ CHECKS_CONFIG_PARAM = 'checks'
 NAME_CONFIG_PARAM = 'name'
 DEPENDS_ON_CONFIG_PARAM = 'depends_on'
 RESOURCE_TYPE_CONFIG_PARAM = 'resource_type'
+RESOURCE_NAME_CONFIG_PARAM = 'resource_name'
 INDEX_CONFIG_PARAM = 'index'
 OUTPUT_FILE_CONFIG_PARAM = 'output_file'
 

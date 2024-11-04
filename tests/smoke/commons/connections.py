@@ -1,3 +1,4 @@
+import json
 from datetime import datetime
 from typing import Union
 
@@ -76,7 +77,7 @@ def get_iam_policy(policy_name: str) -> Union[dict | None]:
     try:
         response = iam_client.get_policy(
             PolicyArn=f'arn:aws:iam::{ACCOUNT_ID}:policy/{policy_name}')
-    except iam_client.exceptions.ResourceNotFoundException:
+    except iam_client.exceptions.NoSuchEntityException:
         print(f'Policy \'{policy_name}\' not found')
         return
     return response
@@ -85,7 +86,7 @@ def get_iam_policy(policy_name: str) -> Union[dict | None]:
 def get_iam_role(role_name: str) -> Union[dict | None]:
     try:
         response = iam_client.get_role(RoleName=role_name)['Role']
-    except iam_client.exceptions.ResourceNotFoundException:
+    except iam_client.exceptions.NoSuchEntityException:
         print(f'Role \'{role_name}\' not found')
         return
     return response
@@ -227,11 +228,14 @@ def describe_swagger_ui(name: str, deployment_bucket: str, bundle_name: str,
     failed_deploy_key = \
         f'{bundle_name}/{DEPLOY_OUTPUT_DIR}/{deploy_name}_failed.json'
     deploy_output = (
-            get_s3_bucket_object(deployment_bucket, success_deploy_key) or
-            get_s3_bucket_object(deployment_bucket, failed_deploy_key) or {})
+            get_s3_bucket_file_content(deployment_bucket,
+                                       success_deploy_key) or
+            get_s3_bucket_file_content(deployment_bucket,
+                                       failed_deploy_key) or {})
+    deploy_output_json = json.loads(deploy_output)
 
     description = {}
-    for arn, meta in deploy_output.items():
+    for arn, meta in deploy_output_json.items():
         if 'aws-syndicate' in arn and name in arn:
             target_bucket = deep_get(meta, ['resource_meta', 'target_bucket'])
             if target_bucket:

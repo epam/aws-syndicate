@@ -1,7 +1,8 @@
 import copy
 from datetime import datetime
 
-from smoke.commons.constants import BUNDLE_NAME, DEPLOY_NAME
+from smoke.commons.constants import BUNDLE_NAME, DEPLOY_NAME, \
+    RESOURCE_TYPE_CONFIG_PARAM, RESOURCE_NAME_CONFIG_PARAM
 from smoke.commons.utils import deep_get, find_max_lambda_layer_version
 from tests.smoke.commons import connections
 
@@ -49,7 +50,7 @@ def deployment_output_checker(output: dict, resources: dict) -> dict:
     for res_name, res_type in resources.items():
         is_res_present = False
         for arn, meta in output.items():
-            if res_name == meta['resource_name']:
+            if res_name == meta[RESOURCE_NAME_CONFIG_PARAM]:
                 redundant_resources.pop(arn)
                 is_res_present = True
                 break
@@ -59,8 +60,13 @@ def deployment_output_checker(output: dict, resources: dict) -> dict:
     if missing_resources:
         results['missing_resources'] = missing_resources
 
-    if redundant_resources:
-        results['redundant_resources'] = redundant_resources
+    redundant_resource_info = {}
+    for _, meta in redundant_resources.items():
+        res_name = meta[RESOURCE_NAME_CONFIG_PARAM]
+        res_type = meta[RESOURCE_NAME_CONFIG_PARAM][RESOURCE_TYPE_CONFIG_PARAM]
+        redundant_resource_info[res_name] = res_type
+    if redundant_resource_info:
+        results['redundant_resources'] = redundant_resource_info
 
     return results if results else True
 
@@ -123,7 +129,7 @@ def swagger_ui_existence_checker(name: str, deployment_bucket: str) -> bool:
         index_document = deep_get(description,
                                   ['website_hosting', 'index_document'])
         bucket_exist = connections.get_s3_bucket_head(target_bucket)
-        web_site_config = connections.get_s3_bucket_website(name)
+        web_site_config = connections.get_s3_bucket_website(target_bucket)
         index_doc_exists = connections.get_s3_bucket_object(target_bucket,
                                                             index_document)
         return True if all([bucket_exist, web_site_config, index_doc_exists]) \
@@ -172,8 +178,8 @@ TYPE_EXISTENCE_FUNC_MAPPING = {
     'api_gateway_oas_v3': api_gateway_existence_checker,
     'sqs_queue': sqs_queue_existence_checker,
     'sns_topic': sns_topic_existence_checker,
-    'dynamo_db': dynamo_db_existence_checker,
-    'cw_rule': cw_rule_existence_checker,
+    'dynamodb_table': dynamo_db_existence_checker,
+    'cloudwatch_rule': cw_rule_existence_checker,
     's3_bucket': s3_bucket_existence_checker,
     'cognito_idp': cognito_idp_existence_checker,
     'swagger_ui': swagger_ui_existence_checker

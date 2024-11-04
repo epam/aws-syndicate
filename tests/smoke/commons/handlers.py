@@ -1,3 +1,4 @@
+import json
 from typing import Optional
 
 from smoke.commons.checkers import TYPE_MODIFICATION_FUNC_MAPPING, \
@@ -36,11 +37,13 @@ def artifacts_existence_handler(artifacts_list: list,
 
 
 def build_meta_handler(resources: dict, deploy_target_bucket: str, **kwargs):
-    build_meta_json = connections.get_s3_bucket_file_content(
+    build_meta = connections.get_s3_bucket_file_content(
         bucket_name=deploy_target_bucket,
         file_key=f'{BUNDLE_NAME}/build_meta.json')
-    if not build_meta_json:
+    if not build_meta:
         return False
+
+    build_meta_json = json.loads(build_meta)
 
     return build_meta_checker(build_meta_json, resources)
 
@@ -56,9 +59,9 @@ def deployment_output_handler(deploy_target_bucket: str, resources: dict,
             f'{BUNDLE_NAME}/{DEPLOY_OUTPUT_DIR}/{DEPLOY_NAME}_failed.json'
 
     output = get_s3_bucket_file_content(deploy_target_bucket, output_path)
-
+    output_json = json.loads(output)
     return deployment_output_checker(
-        output,
+        output_json,
         populate_prefix_suffix(resources, prefix, suffix))
 
 
@@ -75,14 +78,14 @@ def resource_existence_handler(resources: dict, deploy_target_bucket: str,
         func = TYPE_EXISTENCE_FUNC_MAPPING.get(res_type)
         if not func:
             print(f'Unknown resource type `{res_type}`')
-            non_existent_resources[res_name] = res_type
+            non_checked_resources[res_name] = res_type
             continue
         if res_type == SWAGGER_UI_RESOURCE_TYPE:
             is_exist = func(res_name, deploy_target_bucket)
         else:
             is_exist = func(res_name)
         if not is_exist:
-            non_checked_resources[res_name] = res_meta
+            non_existent_resources[res_name] = res_meta
 
     if non_existent_resources:
         results['non_existent_resources'] = non_existent_resources
