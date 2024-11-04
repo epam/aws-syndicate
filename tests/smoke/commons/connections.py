@@ -235,3 +235,23 @@ def describe_swagger_ui(name: str, deployment_bucket: str, bundle_name: str,
         return
     return description
 
+
+def delete_s3_object(bucket_name: str, file_path: str):
+    try:
+        response = s3_client.delete_object(Bucket=bucket_name,
+                                           Key=file_path)
+    except ClientError as e:
+        print(e)
+        return
+    return response
+
+
+def delete_s3_folder(bucket_name: str, folder_path: str):
+    objects_to_delete = s3_client.list_objects_v2(Bucket=bucket_name,
+                                                  Prefix=folder_path)
+    if 'Contents' in objects_to_delete:
+        for obj in objects_to_delete['Contents']:
+            print(f"Deleting object {obj['Key']}...")
+            delete_s3_object(bucket_name=bucket_name, file_path=obj['Key'])
+    else:
+        print(f'Folder {folder_path} is already empty or does not exist')

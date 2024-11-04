@@ -462,6 +462,22 @@
         }
       ],
       "depends_on": ["deploy"]
+    },
+    "clean": {
+      "steps": [
+        {
+          "description": "Clean resources",
+          "command": ["syndicate", "clean"],
+          "checks": [
+            {
+              "index": 1,
+              "name": "exit_code",
+              "description": "Check if actual status code equals expected",
+              "expected_exit_code": 0
+            }
+          ]
+        }
+      ]
     }
   }
 }

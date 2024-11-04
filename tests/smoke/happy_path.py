@@ -1,11 +1,13 @@
 import argparse
 import json
+import subprocess
 
 from commons.step_processors import process_steps
 from commons.constants import STAGES_CONFIG_PARAM, INIT_PARAMS_CONFIG_PARAM, \
     OUTPUT_FILE_CONFIG_PARAM, DEPENDS_ON_CONFIG_PARAM, \
-    STAGE_PASSED_REPORT_PARAM
+    STAGE_PASSED_REPORT_PARAM, BUNDLE_NAME, DEPLOY_NAME, CLEAN_COMMAND
 from commons.utils import save_json, full_path
+from commons.connections import delete_s3_folder
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -23,6 +25,17 @@ def build_parser() -> argparse.ArgumentParser:
                         action='store_true',
                         help='Enable logging verbose mode. Default: False')
     return parser
+
+
+def force_clean(deploy_bucket, only_bundle=False):
+    print('Cleaning bundle' + ' and resources' if not only_bundle else '')
+    if not only_bundle:
+        command_to_execute = ['syndicate', 'clean', '--bundle_name',
+                              BUNDLE_NAME, '--deploy_name', DEPLOY_NAME]
+        exec_result = subprocess.run(command_to_execute, check=False,
+                                     capture_output=True, text=True)
+        print(f'Execution return code: {exec_result.returncode}')
+    delete_s3_folder(deploy_bucket, BUNDLE_NAME)
 
 
 def main(verbose: bool, config: str):
@@ -53,6 +66,12 @@ def main(verbose: bool, config: str):
         result[STAGES_CONFIG_PARAM].update({stage: verification_result})
 
     save_json(output_file, result)
+
+    only_bundle = False
+    if CLEAN_COMMAND in result[STAGES_CONFIG_PARAM] and any(
+            not i['stage_passed'] for i in result[STAGES_CONFIG_PARAM][CLEAN_COMMAND]):
+        only_bundle = True
+    force_clean(init_params.get('deploy_target_bucket'), only_bundle)
 
 
 if __name__ == '__main__':
