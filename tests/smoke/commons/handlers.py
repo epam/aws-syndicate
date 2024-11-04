@@ -205,6 +205,17 @@ def lambda_layer_modification_checker(resource_name: str,
         return True
 
 
+def outputs_modification_checker(deploy_target_bucket:str,
+                                 update_time: str | datetime, **kwargs):
+    response = connections.if_s3_object_modified(
+        bucket_name=deploy_target_bucket,
+        file_key=f'{BUNDLE_NAME}/outputs/{DEPLOY_NAME}.json',
+        modified_since=update_time)
+    if not response:
+        return False
+    return True
+
+
 # ------------ MAPPINGS -----------------
 
 TYPE_EXISTENCE_FUNC_MAPPING = {
@@ -254,5 +265,6 @@ HANDLERS_MAPPING = {
     'build_meta': build_meta_checker,
     'deployment_output': deployment_output_checker,
     'resource_existence': resource_existence,
-    'resource_modification': resource_modification_checker
+    'resource_modification': resource_modification_checker,
+    'outputs_modification': outputs_modification_checker
 }

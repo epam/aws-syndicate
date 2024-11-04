@@ -28,7 +28,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def force_clean(deploy_bucket, only_bundle=False):
-    print('Cleaning bundle' + ' and resources' if not only_bundle else '')
+    print('\nCleaning bundle' + ' and resources' if not only_bundle else '')
     if not only_bundle:
         command_to_execute = ['syndicate', 'clean', '--bundle_name',
                               BUNDLE_NAME, '--deploy_name', DEPLOY_NAME]

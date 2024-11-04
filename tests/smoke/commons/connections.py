@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Union
 
 import boto3
@@ -49,6 +50,16 @@ def get_s3_bucket_file_content(bucket_name, file_key):
 def get_s3_bucket_object(bucket_name, file_key):
     try:
         file_obj = s3_client.get_object(Bucket=bucket_name, Key=file_key)
+    except s3_client.exceptions.NoSuchKey:
+        print(f'Not found key {file_key} in the bucket {bucket_name}')
+        return
+    return file_obj
+
+
+def if_s3_object_modified(bucket_name, file_key, modified_since: datetime):
+    try:
+        file_obj = s3_client.get_object(Bucket=bucket_name, Key=file_key,
+                                        IfModifiedSince=modified_since)
     except s3_client.exceptions.NoSuchKey:
         print(f'Not found key {file_key} in the bucket {bucket_name}')
         return

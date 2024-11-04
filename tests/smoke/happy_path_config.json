@@ -440,7 +440,7 @@
       "steps": [
         {
           "description": "Updating without dependencies",
-          "command": ["syndicate", "update"],
+          "command": ["syndicate", "update", "--force"],
           "checks": [
             {
               "index": 1,
@@ -456,7 +456,14 @@
                 "sdct-at-java-lambda": {
                   "resource_type": "lambda"
                 }
-              }
+              },
+              "depends_on": [1]
+            },
+            {
+              "index": 3,
+              "name": "outputs_modification",
+              "description": "Check the time of output.json file last modification",
+              "depends_on": [1]
             }
           ]
         }
