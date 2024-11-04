@@ -1,9 +1,10 @@
 import json
+from datetime import datetime
 from typing import Optional
 
 from smoke.commons.checkers import TYPE_MODIFICATION_FUNC_MAPPING, \
     exit_code_checker, artifacts_existence_checker, deployment_output_checker, \
-    build_meta_checker, TYPE_EXISTENCE_FUNC_MAPPING
+    build_meta_checker, TYPE_EXISTENCE_FUNC_MAPPING, outputs_modification_checker
 from smoke.commons.utils import populate_prefix_suffix
 from tests.smoke.commons import connections
 from tests.smoke.commons.connections import get_s3_bucket_file_content
@@ -112,11 +113,18 @@ def resource_modification_handler(resources: dict, update_time: str,
     return {'unmodified_resources': result} if result else True
 
 
+def outputs_modification_handler(deploy_target_bucket: str,
+                                 update_time: str | datetime, **kwargs):
+    return True if outputs_modification_checker(deploy_target_bucket,
+                                                update_time) else False
+
+
 HANDLERS_MAPPING = {
     'exit_code': exit_code_handler,
     'artifacts_existence': artifacts_existence_handler,
     'build_meta': build_meta_handler,
     'deployment_output': deployment_output_handler,
     'resource_existence': resource_existence_handler,
-    'resource_modification': resource_modification_handler
+    'resource_modification': resource_modification_handler,
+    'outputs_modification': outputs_modification_handler
 }

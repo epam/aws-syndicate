@@ -451,7 +451,7 @@
             {
               "index": 2,
               "name": "resource_modification",
-              "description": "Check resource modification",
+              "description": "Check if resources were modified",
               "resources": {
                 "sdct-at-java-lambda": {
                   "resource_type": "lambda"
