@@ -41,6 +41,9 @@ tests
   - **`step_processors.py`**: Implements logic for processing of each stage from `happy_path_config.json`.
   - **`utils.py`**: Includes utility functions for general purposes like file or complex structure manipulation.
 
+#### `sdct-auto-test` Subdirectory
+- Contains the project on which testing will be carried out.
+
 ## Configuration
 
 ### Config structure
