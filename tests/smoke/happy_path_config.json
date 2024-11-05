@@ -907,6 +907,17 @@
             },
             {
               "index": 2,
+              "name": "artifacts_existence",
+              "description": "Check if deployment output file exists",
+              "succeeded_deploy": true,
+              "reverse_check": true,
+              "artifacts_list": [
+                "autotest.json"
+              ],
+              "depends_on": [1]
+            },
+            {
+              "index": 3,
               "name": "resource_existence",
               "reverse_check": true,
               "description": "Check if all resources are not present in account",

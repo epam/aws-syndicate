@@ -23,6 +23,7 @@ def exit_code_handler(actual_exit_code: int, expected_exit_code: int,
 
 def artifacts_existence_handler(artifacts_list: list,
                                 deploy_target_bucket: str,
+                                reverse_check: bool = False,
                                 succeeded_deploy: Optional[bool] = None,
                                 **kwargs):
     missing_resources = []
@@ -31,7 +32,11 @@ def artifacts_existence_handler(artifacts_list: list,
             file_key = f'{BUNDLE_NAME}/{DEPLOY_OUTPUT_DIR}/{artifact}'
         else:
             file_key = f'{BUNDLE_NAME}/{artifact}'
-        if not artifacts_existence_checker(file_key, deploy_target_bucket):
+        is_file_exists = artifacts_existence_checker(file_key,
+                                                     deploy_target_bucket)
+        if is_file_exists and reverse_check:
+            missing_resources.append(artifact)
+        elif not is_file_exists and not reverse_check:
             missing_resources.append(artifact)
     return {'missing_resources': missing_resources} \
         if missing_resources else True

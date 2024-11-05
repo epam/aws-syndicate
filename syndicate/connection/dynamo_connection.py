@@ -1005,7 +1005,7 @@ class DynamoConnection(object):
 
     def remove_tables_by_names(self, table_names, log_not_found_error=True):
         """ Remove tables by names. AWS restricts simultaneous amount of
-        tables, so after 10 requests sent we waiting when operations finish
+        tables, so after 10 requests sent we're waiting when operations finish
         and then continue.
 
         :type table_names: list
@@ -1024,6 +1024,7 @@ class DynamoConnection(object):
                     'table_not_exists')
                 try:
                     table.delete()
+                    removed_tables.append(name)
                 except ClientError as e:
                     exception_type = e.response['Error']['Code']
                     if exception_type == 'ResourceNotFoundException':
