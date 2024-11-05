@@ -1,8 +1,8 @@
 {
   "init_parameters": {
-    "suffix": "-test",
-    "deploy_target_bucket": "prakhova-test",
-    "prefix": "cmtr-",
+    "suffix": "",
+    "deploy_target_bucket": "",
+    "prefix": "",
     "output_file": "output"
   },
   "stages": {
