@@ -1,16 +1,19 @@
 import json
 from datetime import datetime
 from typing import Optional
+import sys
+from pathlib import Path
 
-from smoke.commons.checkers import TYPE_MODIFICATION_FUNC_MAPPING, \
+parent_dir = str(Path(__file__).resolve().parent.parent)
+sys.path.append(parent_dir)
+
+from commons.checkers import TYPE_MODIFICATION_FUNC_MAPPING, \
     exit_code_checker, artifacts_existence_checker, deployment_output_checker, \
     build_meta_checker, TYPE_EXISTENCE_FUNC_MAPPING, outputs_modification_checker
-from smoke.commons.utils import populate_prefix_suffix
-from tests.smoke.commons import connections
-from tests.smoke.commons.connections import get_s3_bucket_file_content
-from tests.smoke.commons.constants import DEPLOY_OUTPUT_DIR, \
-    RESOURCE_TYPE_CONFIG_PARAM, BUNDLE_NAME, DEPLOY_NAME, \
-    SWAGGER_UI_RESOURCE_TYPE
+from commons.utils import populate_prefix_suffix
+from commons import connections
+from commons.constants import DEPLOY_OUTPUT_DIR, RESOURCE_TYPE_CONFIG_PARAM, \
+    BUNDLE_NAME, DEPLOY_NAME, SWAGGER_UI_RESOURCE_TYPE
 
 
 def exit_code_handler(actual_exit_code: int, expected_exit_code: int,
@@ -65,7 +68,8 @@ def deployment_output_handler(deploy_target_bucket: str, resources: dict,
         output_path = \
             f'{BUNDLE_NAME}/{DEPLOY_OUTPUT_DIR}/{DEPLOY_NAME}_failed.json'
 
-    output = get_s3_bucket_file_content(deploy_target_bucket, output_path)
+    output = connections.get_s3_bucket_file_content(deploy_target_bucket,
+                                                    output_path)
     output_json = json.loads(output)
     return deployment_output_checker(
         output_json,

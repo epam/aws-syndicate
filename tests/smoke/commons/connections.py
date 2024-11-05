@@ -1,13 +1,18 @@
 import json
 from datetime import datetime
 from typing import Union
+import sys
+from pathlib import Path
 
 import boto3
 from botocore.config import Config
 from botocore.exceptions import ClientError
 
-from smoke.commons.constants import DEPLOY_OUTPUT_DIR
-from smoke.commons.utils import deep_get
+parent_dir = str(Path(__file__).resolve().parent.parent)
+sys.path.append(parent_dir)
+
+from tests.smoke.commons.constants import DEPLOY_OUTPUT_DIR
+from tests.smoke.commons.utils import deep_get
 
 config = Config(
    retries={

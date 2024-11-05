@@ -1,11 +1,16 @@
 import copy
 from datetime import datetime
+import sys
+from pathlib import Path
 
-from smoke.commons.constants import BUNDLE_NAME, DEPLOY_NAME, \
+parent_dir = str(Path(__file__).resolve().parent.parent)
+sys.path.append(parent_dir)
+
+from commons.constants import BUNDLE_NAME, DEPLOY_NAME, \
     RESOURCE_TYPE_CONFIG_PARAM, RESOURCE_NAME_CONFIG_PARAM, \
     RESOURCE_META_CONFIG_PARAM
-from smoke.commons.utils import deep_get, find_max_lambda_layer_version
-from tests.smoke.commons import connections
+from commons.utils import deep_get, find_max_lambda_layer_version
+from commons import connections
 
 
 def exit_code_checker(actual_exit_code: int, expected_exit_code: int,

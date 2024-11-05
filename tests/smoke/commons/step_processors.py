@@ -1,13 +1,18 @@
 import subprocess
 from datetime import datetime
 from typing import List, Optional
+import sys
+from pathlib import Path
 
-from tests.smoke.commons.constants import STEPS_CONFIG_PARAM, \
+parent_dir = str(Path(__file__).resolve().parent.parent)
+sys.path.append(parent_dir)
+
+from commons.constants import STEPS_CONFIG_PARAM, \
     COMMAND_CONFIG_PARAM, CHECKS_CONFIG_PARAM, NAME_CONFIG_PARAM, \
     DESCRIPTION_CONFIG_PARAM, DEPENDS_ON_CONFIG_PARAM, BUILD_COMMAND, \
     BUNDLE_NAME, DEPLOY_COMMAND, UPDATE_COMMAND, DEPLOY_NAME, \
     INDEX_CONFIG_PARAM, STAGE_PASSED_REPORT_PARAM
-from tests.smoke.commons.handlers import HANDLERS_MAPPING
+from commons.handlers import HANDLERS_MAPPING
 
 
 def process_steps(steps: dict[str: List[dict]],

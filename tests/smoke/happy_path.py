@@ -1,6 +1,12 @@
 import argparse
 import json
 import subprocess
+import sys
+from pathlib import Path
+
+cur_dir = Path(__file__).resolve().parent
+parent_dir = str(cur_dir.parent)
+sys.path.append(parent_dir)
 
 from commons.step_processors import process_steps
 from commons.constants import STAGES_CONFIG_PARAM, INIT_PARAMS_CONFIG_PARAM, \
@@ -16,7 +22,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
-        '-c', '--config', required=False, default='happy_path_config.json',
+        '-c', '--config', required=False,
+        default=full_path('happy_path_config.json', str(cur_dir)),
         type=full_path,
         help='Full path to the config file with described stage checks. '
              'Default: happy_path_config.json'
@@ -60,12 +67,13 @@ def main(verbose: bool, config: str):
 
     try:
         for stage, stage_info in config_file[STAGES_CONFIG_PARAM].items():
-            print(f'Processing stage `{stage}`')
+            print(f'\nProcessing stage `{stage}`')
             verification_result = process_steps(
                 stage_info, verbose=verbose,
                 skip_stage=not should_process_stage(stage_info), **init_params)
             result[STAGES_CONFIG_PARAM].update({stage: verification_result})
 
+        print(f'Saving result report to {output_file}')
         save_json(output_file, result)
     except Exception as e:
         print(e)

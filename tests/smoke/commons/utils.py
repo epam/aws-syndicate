@@ -22,11 +22,14 @@ def find_max_lambda_layer_version(layer_versions):
     return max_version_dict
 
 
-def full_path(value: str) -> str:
+def full_path(value: str, working_dir: str = None) -> str:
     if not value.endswith('.json'):
         value = value + '.json'
     if not os.path.isabs(value):  # check if full path
-        value = os.path.join(os.getcwd(), value)
+        if working_dir:
+            value = os.path.join(working_dir, value)
+        else:
+            value = os.path.join(os.getcwd(), value)
     return value
 
 
