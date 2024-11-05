@@ -68,12 +68,14 @@ def deployment_output_handler(deploy_target_bucket: str, resources: dict,
 
 def resource_existence_handler(resources: dict, deploy_target_bucket: str,
                                suffix: Optional[str] = None,
-                               prefix: Optional[str] = None, **kwargs):
+                               prefix: Optional[str] = None,
+                               reverse_check: bool = False, **kwargs):
     results = {}
     resources = populate_prefix_suffix(resources, prefix, suffix)
 
     non_existent_resources = {}
     non_checked_resources = {}
+    existent_resources = {}
     for res_name, res_meta in resources.items():
         res_type = res_meta[RESOURCE_TYPE_CONFIG_PARAM]
         func = TYPE_EXISTENCE_FUNC_MAPPING.get(res_type)
@@ -87,13 +89,17 @@ def resource_existence_handler(resources: dict, deploy_target_bucket: str,
             is_exist = func(res_name)
         if not is_exist:
             non_existent_resources[res_name] = res_meta
+        elif reverse_check:
+            existent_resources[res_name] = res_meta
 
-    if non_existent_resources:
+    if not reverse_check and non_existent_resources:
         results['non_existent_resources'] = non_existent_resources
     if non_checked_resources:
         results['non_checked_resources'] = non_checked_resources
+    if reverse_check and existent_resources:
+        results['existent_resources'] = existent_resources
 
-    return results if results else True
+    return results if any(results.values()) else True
 
 
 def resource_modification_handler(resources: dict, update_time: str,

@@ -172,8 +172,7 @@ def lambda_modification_checker(resource_name: str,
 def lambda_layer_modification_checker(resource_name: str,
                                       update_time: str | datetime, **kwargs):
     response = connections.get_layer_version(resource_name)
-    layer_versions = response.get('LayerVersions')
-    latest_version = find_max_lambda_layer_version(layer_versions)
+    latest_version = find_max_lambda_layer_version(response)
     response_update_date = latest_version.get('CreatedDate')
     if response_update_date and response_update_date >= update_time:
         return True

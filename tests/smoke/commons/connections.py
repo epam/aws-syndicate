@@ -44,7 +44,11 @@ def get_lambda_alias(function_name, alias_name):
 
 
 def get_s3_bucket_file_content(bucket_name, file_key):
-    file_obj = s3_client.get_object(Bucket=bucket_name, Key=file_key)
+    try:
+        file_obj = s3_client.get_object(Bucket=bucket_name, Key=file_key)
+    except s3_client.exceptions.NoSuchKey:
+        print(f'Not found key {file_key} in the bucket {bucket_name}')
+        return '{}'
     return file_obj["Body"].read()
 
 
@@ -109,7 +113,7 @@ def get_layer_version(lambda_layer_name: str) -> Union[dict | None]:
     except lambda_client.exceptions.ResourceNotFoundException:
         print(f'Lambda layer \'{lambda_layer_name}\' not found')
         return
-    return response
+    return response.get('LayerVersions')
 
 
 def get_api_gw_id(api_gw_name: str) -> Union[str | None]:
@@ -166,6 +170,10 @@ def get_s3_bucket_head(name: str) -> Union[dict | None]:
         response = s3_client.head_bucket(Bucket=name)
     except s3_client.exceptions.NoSuchBucket:
         print(f'Bucket \'{name}\' not found')
+        return
+    except ClientError as e:
+        if 'Not Found' in str(e):
+            print(f'Bucket \'{name}\' not found')
         return
     return response
 

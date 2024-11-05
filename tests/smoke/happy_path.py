@@ -58,20 +58,25 @@ def main(verbose: bool, config: str):
     output_file = full_path(init_params.pop(OUTPUT_FILE_CONFIG_PARAM,
                                             'result_report.json'))
 
-    for stage, stage_info in config_file[STAGES_CONFIG_PARAM].items():
-        print(f'Processing stage `{stage}`')
-        verification_result = process_steps(
-            stage_info, verbose=verbose,
-            skip_stage=not should_process_stage(stage_info), **init_params)
-        result[STAGES_CONFIG_PARAM].update({stage: verification_result})
+    try:
+        for stage, stage_info in config_file[STAGES_CONFIG_PARAM].items():
+            print(f'Processing stage `{stage}`')
+            verification_result = process_steps(
+                stage_info, verbose=verbose,
+                skip_stage=not should_process_stage(stage_info), **init_params)
+            result[STAGES_CONFIG_PARAM].update({stage: verification_result})
 
-    save_json(output_file, result)
-
-    only_bundle = False
-    if CLEAN_COMMAND in result[STAGES_CONFIG_PARAM] and any(
-            not i['stage_passed'] for i in result[STAGES_CONFIG_PARAM][CLEAN_COMMAND]):
-        only_bundle = True
-    force_clean(init_params.get('deploy_target_bucket'), only_bundle)
+        save_json(output_file, result)
+    except Exception as e:
+        print(e)
+        raise e
+    finally:
+        only_bundle = False
+        if CLEAN_COMMAND in result[STAGES_CONFIG_PARAM] and any(
+                not i['stage_passed'] for i in result[
+                    STAGES_CONFIG_PARAM][CLEAN_COMMAND]):
+            only_bundle = True
+        force_clean(init_params.get('deploy_target_bucket'), only_bundle)
 
 
 if __name__ == '__main__':
