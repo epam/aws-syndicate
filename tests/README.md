@@ -107,10 +107,10 @@ tests
 
 ## Checkers
 - `exit_code`: Check exit code of command from `command` section in config. Required parameters: `actual_exit_code`, `expected_exit_code`.
-- `artifacts_existence`: Check if files in s3 bucket exist. Required parameters: `artifacts_list`, `deploy_target_bucket`. Optional parameters: `succeeded_deploy`.
+- `artifacts_existence`: Check if files in s3 bucket exist. Required parameters: `artifacts_list`, `deploy_target_bucket`. Optional parameters: `succeeded_deploy`, `reverse_check`.
 - `build_meta`: Check if all resources in build_meta.json exist. Required parameters: `resources`, `deploy_target_bucket`.
-- `deployment_output`: Check if all resources present in deployment output. Required parameters: `deploy_target_bucket`, `resources`. Optional parameters: `succeeded_deploy`, `prefix`, `suffix`.
-- `resource_existence`: Check if all resources present in account. Required parameters: `resources`, `deploy_target_bucket`. Optional parameters: `prefix`, `suffix`.
+- `deployment_output`: Check if all resources present in deployment output. Required parameters: `deploy_target_bucket`, `resources`. Optional parameters: `succeeded_deploy`, `reverse_check`, prefix`, `suffix`.
+- `resource_existence`: Check if all resources present in account. Required parameters: `resources`, `deploy_target_bucket`. Optional parameters: `reverse_check`, prefix`, `suffix`.
 - `resource_modification`: Check if resources were modified. Required parameters: `resources`. Optional parameters: `prefix`, `suffix`.
 - `outputs_modification`: Check the time of output.json file last modification. Required parameters: `deploy_target_bucket`.
 
