@@ -41,7 +41,8 @@ def build_meta_checker(build_meta: dict, resources: dict):
     return results if results else True
 
 
-def deployment_output_checker(output: dict, resources: dict) -> dict:
+def deployment_output_checker(output: dict, resources: dict,
+                              reverse_check: bool) -> dict:
     results = {}
     missing_resources = {}
 
@@ -54,7 +55,9 @@ def deployment_output_checker(output: dict, resources: dict) -> dict:
                 redundant_resources.pop(arn)
                 is_res_present = True
                 break
-        if not is_res_present:
+        if not is_res_present and not reverse_check:
+            missing_resources.update({res_name: res_type})
+        elif is_res_present and reverse_check:
             missing_resources.update({res_name: res_type})
 
     if missing_resources:

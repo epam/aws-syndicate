@@ -484,6 +484,64 @@
             },
             {
               "index": 2,
+              "name": "deployment_output",
+              "description": "Check if all resources are absent in deployment output",
+              "resources": {
+                "sdct-at-lambda-basic-execution-policy": {
+                  "resource_type": "iam_policy"
+                },
+                "sdct-at-java-lambda-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-java-lambda": {
+                  "resource_type": "lambda"
+                },
+                "sdct-at-java-lambda_layer": {
+                  "resource_type": "lambda_layer"
+                },
+                "sdct-at-dotnet-lambda-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-dotnet-lambda": {
+                  "resource_type": "lambda"
+                },
+                "sdct-at-dotnet-lambda_layer": {
+                  "resource_type": "lambda_layer"
+                },
+                "sdct-at-python-lambda-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-python-lambda": {
+                  "resource_type": "lambda"
+                },
+                "sdct-at-python-lambda_layer": {
+                  "resource_type": "lambda_layer"
+                },
+                "sdct-at-queue": {
+                  "resource_type": "sqs_queue"
+                },
+                "sdct-at-topic": {
+                  "resource_type": "sns_topic"
+                },
+                "sdct-at-table": {
+                  "resource_type": "dynamodb_table"
+                },
+                "sdct-at-cw-rule": {
+                  "resource_type": "cloudwatch_rule"
+                },
+                "sdct-at-s3-bucket": {
+                  "resource_type": "s3_bucket"
+                },
+                "sdct-at-swagger-ui": {
+                  "resource_type": "swagger_ui"
+                }
+              },
+              "reverse_check": true,
+              "succeeded": true,
+              "depends_on": [1]
+            },
+            {
+              "index": 2,
               "name": "resource_existence",
               "description": "Check if all resources are absent in account",
               "resources": {
@@ -537,7 +595,7 @@
                 }
               },
               "reverse_check": true,
-              "depends_on": [1]
+              "depends_on": [1, 2]
             }
           ]
         }

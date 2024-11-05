@@ -51,6 +51,7 @@ def build_meta_handler(resources: dict, deploy_target_bucket: str, **kwargs):
 
 def deployment_output_handler(deploy_target_bucket: str, resources: dict,
                               succeeded_deploy: bool = True,
+                              reverse_check: bool = False,
                               prefix: Optional[str] = None,
                               suffix: Optional[str] = None, **kwargs):
     if succeeded_deploy:
@@ -63,7 +64,8 @@ def deployment_output_handler(deploy_target_bucket: str, resources: dict,
     output_json = json.loads(output)
     return deployment_output_checker(
         output_json,
-        populate_prefix_suffix(resources, prefix, suffix))
+        populate_prefix_suffix(resources, prefix, suffix),
+        reverse_check=reverse_check)
 
 
 def resource_existence_handler(resources: dict, deploy_target_bucket: str,
