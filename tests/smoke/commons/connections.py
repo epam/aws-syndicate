@@ -153,7 +153,7 @@ def get_dynamodb_table_description(name: str) -> Union[dict | None]:
     except dynamodb_client.exceptions.ResourceNotFoundException:
         print(f'Table \'{name}\' not found')
         return
-    return result
+    return result.get('Table')
 
 
 def get_event_bridge_rule(name: str) -> Union[dict | None]:
