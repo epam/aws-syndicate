@@ -2,7 +2,8 @@ import copy
 from datetime import datetime
 
 from smoke.commons.constants import BUNDLE_NAME, DEPLOY_NAME, \
-    RESOURCE_TYPE_CONFIG_PARAM, RESOURCE_NAME_CONFIG_PARAM
+    RESOURCE_TYPE_CONFIG_PARAM, RESOURCE_NAME_CONFIG_PARAM, \
+    RESOURCE_META_CONFIG_PARAM
 from smoke.commons.utils import deep_get, find_max_lambda_layer_version
 from tests.smoke.commons import connections
 
@@ -44,7 +45,7 @@ def build_meta_checker(build_meta: dict, resources: dict):
 def deployment_output_checker(output: dict, resources: dict,
                               reverse_check: bool) -> dict:
     results = {}
-    missing_resources = {}
+    not_passed_check_resources = {}
 
     redundant_resources = copy.deepcopy(output)
 
@@ -56,19 +57,22 @@ def deployment_output_checker(output: dict, resources: dict,
                 is_res_present = True
                 break
         if not is_res_present and not reverse_check:
-            missing_resources.update({res_name: res_type})
+            not_passed_check_resources.update({res_name: res_type})
         elif is_res_present and reverse_check:
-            missing_resources.update({res_name: res_type})
+            not_passed_check_resources.update({res_name: res_type})
 
-    if missing_resources:
-        results['missing_resources'] = missing_resources
+    if not_passed_check_resources:
+        if not reverse_check:
+            results['missing_resources'] = not_passed_check_resources
+        else:
+            results['redundant_resources'] = not_passed_check_resources
 
     redundant_resource_info = {}
     for _, meta in redundant_resources.items():
         res_name = meta[RESOURCE_NAME_CONFIG_PARAM]
-        res_type = meta[RESOURCE_NAME_CONFIG_PARAM][RESOURCE_TYPE_CONFIG_PARAM]
+        res_type = meta[RESOURCE_META_CONFIG_PARAM][RESOURCE_TYPE_CONFIG_PARAM]
         redundant_resource_info[res_name] = res_type
-    if redundant_resource_info:
+    if redundant_resource_info and not reverse_check:
         results['redundant_resources'] = redundant_resource_info
 
     return results if results else True
