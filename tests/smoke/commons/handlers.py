@@ -131,9 +131,11 @@ def resource_modification_handler(resources: dict, update_time: str,
 
 
 def outputs_modification_handler(deploy_target_bucket: str,
-                                 update_time: str | datetime, **kwargs):
+                                 update_time: str | datetime,
+                                 succeeded_deploy: bool = True, **kwargs):
     return True if outputs_modification_checker(deploy_target_bucket,
-                                                update_time) else False
+                                                update_time,
+                                                succeeded_deploy) else False
 
 
 HANDLERS_MAPPING = {
