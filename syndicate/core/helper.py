@@ -22,6 +22,7 @@ import re
 import subprocess
 import sys
 import logging
+import zipfile
 from datetime import datetime, timedelta
 from functools import wraps
 from pathlib import Path
@@ -691,6 +692,23 @@ def zip_ext(name: str) -> str:
     if not name.endswith(_zip):
         name = name + _zip
     return name
+
+
+def is_zip_empty(zip_path):
+    """Check if a ZIP file is empty"""
+    try:
+        with zipfile.ZipFile(zip_path, 'r') as zip_file:
+            contents = zip_file.namelist()
+            if not contents:
+                return True
+            else:
+                return False
+    except zipfile.BadZipFile:
+        _LOG.info('Error: The file is not a ZIP file or it is corrupted.')
+        return True
+    except FileNotFoundError:
+        _LOG.info('Error: The ZIP file does not exist.')
+        return True
 
 
 def check_file_extension(ctx, param, value, extensions):
