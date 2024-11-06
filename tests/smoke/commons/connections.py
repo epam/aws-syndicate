@@ -11,8 +11,8 @@ from botocore.exceptions import ClientError
 parent_dir = str(Path(__file__).resolve().parent.parent)
 sys.path.append(parent_dir)
 
-from tests.smoke.commons.constants import DEPLOY_OUTPUT_DIR
-from tests.smoke.commons.utils import deep_get
+from smoke.commons.constants import DEPLOY_OUTPUT_DIR
+from smoke.commons.utils import deep_get
 
 config = Config(
    retries={

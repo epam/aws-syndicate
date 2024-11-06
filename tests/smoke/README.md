@@ -176,6 +176,8 @@ tests
 1. Specify valid credentials in the `.aws/credentials` file or set credentials in the `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN` env variables.
 2. Installed python 3.10+
 3. Install requirements from corresponding `requirements.txt`
+4. Install aws-syndicate
+5. Create aws-syndicate config files and set its path to `SDCT_CONF` env variable
 
 ### Available script parameters
   - `-c, --config`: [optional] full path to the config file with described stage checks. Default config is happy_path_config.json
