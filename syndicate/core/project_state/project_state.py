@@ -421,9 +421,10 @@ class ProjectState:
             params.pop('operation')
             params['is_succeeded'] = params.pop('status')
 
-            if not (status is False and rollback_on_error is True):
-                params.pop('rollback_on_error')
-                self._set_latest_deploy_info(**params)
+            if params['is_succeeded'] != ABORTED_STATUS:
+                if not (status is False and rollback_on_error is True):
+                    params.pop('rollback_on_error')
+                    self._set_latest_deploy_info(**params)
 
         if operation == CLEAN_ACTION and status is True:
             self._delete_latest_deploy_info()
