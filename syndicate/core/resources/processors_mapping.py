@@ -171,7 +171,9 @@ class ProcessorFacade:
             SWAGGER_UI_TYPE: self.resources_provider.swagger_ui().
             describe_swagger_ui,
             EC2_LAUNCH_TEMPLATE_TYPE:
-                self.resources_provider.ec2().describe_launch_template
+                self.resources_provider.ec2().describe_launch_template,
+            LAMBDA_LAYER_TYPE:
+                self.resources_provider.lambda_resource().describe_lambda_layer
         }
 
     def remove_handlers(self):
