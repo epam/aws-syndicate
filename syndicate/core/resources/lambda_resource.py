@@ -1249,8 +1249,8 @@ class LambdaResource(BaseResource):
         self.s3_conn.download_file(self.deploy_target_bucket, key_compound,
                                    file_name)
         if is_zip_empty(file_name):
-            message = f'Could not load layer {name}: ' \
-                      f'Uploaded file must be a non-empty zip.'
+            message = f'Can not create layer \'{name}\' because of empty ' \
+                      f'deployment package zip file.'
             _LOG.error(message)
             return {}, [message]
 

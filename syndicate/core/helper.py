@@ -704,10 +704,10 @@ def is_zip_empty(zip_path):
             else:
                 return False
     except zipfile.BadZipFile:
-        _LOG.info('Error: The file is not a ZIP file or it is corrupted.')
+        _LOG.info('The file is not a zip file or it is corrupted.')
         return True
     except FileNotFoundError:
-        _LOG.info('Error: The ZIP file does not exist.')
+        _LOG.info('The zip file does not exist.')
         return True
 
 
