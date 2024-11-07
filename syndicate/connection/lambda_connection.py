@@ -689,6 +689,10 @@ class LambdaConnection(object):
     def get_lambda_layer_by_arn(self, arn):
         return self.client.get_layer_version_by_arn(Arn=arn)
 
+    def get_layer_version(self, name, version):
+        return self.client.get_layer_version(LayerName=name,
+                                             VersionNumber=version)
+
     def delete_layer(self, arn, log_not_found_error=True):
         """
         log_not_found_error parameter is needed for proper log handling in the

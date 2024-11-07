@@ -19,6 +19,7 @@ import sys
 from functools import partial
 
 import click
+from click.exceptions import Exit
 from tabulate import tabulate
 from logging import DEBUG
 
@@ -200,7 +201,7 @@ def build(ctx, bundle_name, force_upload, errors_allowed, skip_tests):
         click.echo(f'Bundle name \'{bundle_name}\' already exists '
                    f'in deploy bucket. Please use another bundle '
                    f'name or delete the bundle')
-        return
+        raise Exit(1)
     ctx.invoke(test, errors_allowed=errors_allowed, skip_tests=skip_tests)
     ctx.invoke(assemble, bundle_name=bundle_name,
                errors_allowed=errors_allowed, force_upload=force_upload)

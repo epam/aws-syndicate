@@ -27,7 +27,7 @@ from syndicate.core.build.meta_processor import S3_PATH_NAME
 from syndicate.core.constants import DEFAULT_LOGS_EXPIRATION
 from syndicate.core.decorators import threading_lock
 from syndicate.core.helper import (unpack_kwargs,
-                                   exit_on_exception)
+                                   exit_on_exception, is_zip_empty)
 from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import (
     build_description_obj, validate_params, assert_required_params, if_updated)
@@ -1248,6 +1248,12 @@ class LambdaResource(BaseResource):
         file_name = key.split('/')[-1]
         self.s3_conn.download_file(self.deploy_target_bucket, key_compound,
                                    file_name)
+        if is_zip_empty(file_name):
+            message = f'Can not create layer \'{name}\' because of empty ' \
+                      f'deployment package zip file.'
+            _LOG.error(message)
+            return {}, [message]
+
         with open(file_name, 'rb') as file_data:
             file_body = file_data.read()
         import hashlib
@@ -1257,15 +1263,14 @@ class LambdaResource(BaseResource):
                                                        name)
         if existing_version:
             existing_layer_arn = existing_version['LayerVersionArn']
-            _LOG.info('Layer {} with same content already '
-                      'exists in layer version {}.'.format(name,
-                                                           existing_layer_arn))
+            _LOG.info(f'Layer {name} with same content already '
+                      f'exists in layer version {existing_layer_arn}.')
             return {
                 existing_layer_arn: build_description_obj(
                     response=existing_version, name=name, meta=meta
                 )}
 
-        _LOG.debug('Creating lambda layer %s', name)
+        _LOG.debug(f'Creating lambda layer {name}')
 
         args = {'layer_name': name, 'runtimes': meta['runtimes'],
                 's3_bucket': self.deploy_target_bucket,
@@ -1279,9 +1284,8 @@ class LambdaResource(BaseResource):
             args['architectures'] = meta['architectures']
         response = self.lambda_conn.create_layer(**args)
 
-        _LOG.info(
-            'Lambda Layer {0} version {1} was successfully created'.format(
-                name, response['Version']))
+        _LOG.info(f'Lambda Layer {name} version {response["Version"]} '
+                  f'was successfully created')
         layer_arn = response['LayerArn'] + ':' + str(response['Version'])
         del response['LayerArn']
         return {
@@ -1313,6 +1317,29 @@ class LambdaResource(BaseResource):
                 return {arn: config}
             else:
                 raise e
+
+    def describe_lambda_layer(self, name, meta, response=None):
+        if not response:
+            layer_versions = self.lambda_conn.list_lambda_layer_versions(
+                name=name
+            )
+            if not layer_versions:
+                _LOG.warn(f'No versions available for layer {name}')
+                return {}
+            else:
+                latest_version = max(
+                    layer_versions, key=lambda x: x['Version'])
+                response = self.lambda_conn.get_layer_version(
+                    name=name,
+                    version=latest_version['Version']
+                )
+        if not response:
+            return {}
+
+        arn = response.pop('LayerArn')
+        return {
+            arn: build_description_obj(response, name, meta)
+        }
 
     @staticmethod
     def _resolve_snap_start(meta: dict) -> Optional[str]:
