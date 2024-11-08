@@ -49,3 +49,41 @@ def populate_prefix_suffix(resources: dict, prefix: Optional[str] = None,
             res_name = res_name + suffix
         final_resources[res_name] = res_meta
     return final_resources
+
+
+def transform_tags(original_tags):
+    """
+    Transforms one tag dictionary to another
+    {
+    'Tags': [
+        {
+            'Key': 'string',
+            'Value': 'string'
+        },
+        ]
+    }
+
+    ---->
+
+    {'Tags': {'string': 'string'}}
+    """
+    transformed_tags = {}
+
+    for tag in original_tags:
+        key = tag['Key']
+        value = tag['Value']
+        transformed_tags[key] = value
+
+    return transformed_tags
+
+
+def compare_dicts(dict1, dict2):
+    """
+    return None if equals, otherwise return missing elements from second dict
+    """
+    set1 = set(dict1.items())
+    set2 = set(dict2.items())
+
+    if set1 == set2:
+        return
+    return set2 - set1

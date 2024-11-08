@@ -39,70 +39,134 @@
             {
               "index": 3,
               "name": "build_meta",
-              "description": "Check if all resources in build meta exist",
+              "description": "Check if all resources with tags in build meta exist",
               "resources": {
                 "sdct-at-lambda-basic-execution-policy": {
-                  "resource_type": "iam_policy"
+                  "resource_type": "iam_policy",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test"
+                  }
                 },
                 "sdct-at-java-lambda-role": {
-                  "resource_type": "iam_role"
+                  "resource_type": "iam_role",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test"
+                  }
                 },
                 "sdct-at-java-lambda": {
-                  "resource_type": "lambda"
+                  "resource_type": "lambda",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test"
+                  }
                 },
                 "sdct-at-java-lambda_layer": {
                   "resource_type": "lambda_layer"
                 },
                 "sdct-at-dotnet-lambda-role": {
-                  "resource_type": "iam_role"
+                  "resource_type": "iam_role",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test"
+                  }
                 },
                 "sdct-at-dotnet-lambda": {
-                  "resource_type": "lambda"
+                  "resource_type": "lambda",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test"
+                  }
                 },
                 "sdct-at-dotnet-lambda_layer": {
                   "resource_type": "lambda_layer"
                 },
                 "sdct-at-python-lambda-role": {
-                  "resource_type": "iam_role"
+                  "resource_type": "iam_role",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test"
+                  }
                 },
                 "sdct-at-python-lambda": {
-                  "resource_type": "lambda"
+                  "resource_type": "lambda",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test"
+                  }
                 },
                 "sdct-at-python-lambda_layer": {
                   "resource_type": "lambda_layer"
                 },
                 "sdct-at-queue": {
-                  "resource_type": "sqs_queue"
+                  "resource_type": "sqs_queue",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test"
+                  }
                 },
                 "sdct-at-topic": {
-                  "resource_type": "sns_topic"
+                  "resource_type": "sns_topic",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test"
+                  }
                 },
                 "sdct-at-table": {
-                  "resource_type": "dynamodb_table"
+                  "resource_type": "dynamodb_table",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test"
+                  }
                 },
                 "sdct-at-cw-rule": {
-                  "resource_type": "cloudwatch_rule"
-                },
-                "sdct-at-s3-bucket": {
-                  "resource_type": "s3_bucket"
-                },
-                "sdct-at-swagger-ui": {
-                  "resource_type": "swagger_ui"
+                  "resource_type": "cloudwatch_rule",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test"
+                  }
                 },
                 "sdct-at-nodejs-lambda-role": {
-                  "resource_type": "iam_role"
+                  "resource_type": "iam_role",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test"
+                  }
                 },
                 "sdct-at-nodejs-lambda": {
-                  "resource_type": "lambda"
+                  "resource_type": "lambda",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test"
+                  }
                 },
                 "sdct-at-nodejs-lambda_layer": {
                   "resource_type": "lambda_layer"
                 },
                 "${booking_userpool}": {
-                  "resource_type": "cognito_idp"
+                  "resource_type": "cognito_idp",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test"
+                  }
                 },
                 "sdct-at-api-gw": {
-                  "resource_type": "api_gateway"
+                  "resource_type": "api_gateway",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test"
+                  }
+                },
+                "sdct-at-s3-bucket": {
+                  "resource_type": "s3_bucket",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test"
+                  }
+                },
+                "sdct-at-swagger-ui": {
+                  "resource_type": "swagger_ui"
                 },
                 "sdct-at-open-api-gw": {
                   "resource_type": "api_gateway_oas_v3"
@@ -487,6 +551,205 @@
                   "resource_type": "api_gateway_oas_v3"
                 }
               }
+            },
+            {
+              "index": 5,
+              "name": "tag_existence",
+              "description": "Check if all tags have been added to the resources",
+              "succeeded_deploy": true,
+              "resources": {
+                "sdct-at-java-lambda-role": {
+                  "resource_type": "iam_role",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test",
+                    "resource-level-tag": "set-from-project",
+                    "project-level-tag": "set-from-project"
+                  }
+                },
+                "sdct-at-java-lambda": {
+                  "resource_type": "lambda",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test",
+                    "resource-level-tag": "set-from-project",
+                    "project-level-tag": "set-from-project"
+                  }
+                },
+                "sdct-at-dotnet-lambda-role": {
+                  "resource_type": "iam_role",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test",
+                    "resource-level-tag": "set-from-project",
+                    "project-level-tag": "set-from-project"
+                  }
+                },
+                "sdct-at-dotnet-lambda": {
+                  "resource_type": "lambda",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test",
+                    "resource-level-tag": "set-from-project",
+                    "project-level-tag": "set-from-project"
+                  }
+                },
+                "sdct-at-python-lambda-role": {
+                  "resource_type": "iam_role",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test",
+                    "resource-level-tag": "set-from-project",
+                    "project-level-tag": "set-from-project"
+                  }
+                },
+                "sdct-at-python-lambda": {
+                  "resource_type": "lambda",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test",
+                    "resource-level-tag": "set-from-project",
+                    "project-level-tag": "set-from-project"
+                  }
+                },
+                "sdct-at-queue": {
+                  "resource_type": "sqs_queue",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test",
+                    "resource-level-tag": "set-from-project",
+                    "project-level-tag": "set-from-project"
+                  }
+                },
+                "sdct-at-topic": {
+                  "resource_type": "sns_topic",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test",
+                    "resource-level-tag": "set-from-project",
+                    "project-level-tag": "set-from-project"
+                  }
+                },
+                "sdct-at-table": {
+                  "resource_type": "dynamodb_table",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test",
+                    "resource-level-tag": "set-from-project",
+                    "project-level-tag": "set-from-project"
+                  }
+                },
+                "sdct-at-cw-rule": {
+                  "resource_type": "cloudwatch_rule",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test",
+                    "resource-level-tag": "set-from-project",
+                    "project-level-tag": "set-from-project"
+                  }
+                },
+                "sdct-at-s3-bucket": {
+                  "resource_type": "s3_bucket",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test",
+                    "resource-level-tag": "set-from-project",
+                    "project-level-tag": "set-from-project"
+                  }
+                },
+                "sdct-at-nodejs-lambda-role": {
+                  "resource_type": "iam_role",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test",
+                    "resource-level-tag": "set-from-project",
+                    "project-level-tag": "set-from-project"
+                  }
+                },
+                "sdct-at-nodejs-lambda": {
+                  "resource_type": "lambda",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test",
+                    "resource-level-tag": "set-from-project",
+                    "project-level-tag": "set-from-project"
+                  }
+                },
+                "sdct-at-cup": {
+                  "resource_type": "cognito_idp",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test",
+                    "resource-level-tag": "set-from-project",
+                    "project-level-tag": "set-from-project"
+                  }
+                },
+                "sdct-at-api-gw": {
+                  "resource_type": "api_gateway",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test",
+                    "resource-level-tag": "set-from-project",
+                    "project-level-tag": "set-from-project"
+                  }
+                }
+              },
+              "depends_on": [1, 4]
+            },
+            {
+              "index": 6,
+              "name": "tag_existence",
+              "description": "Check if resource-level tag overwrites the value of the same project-level tag",
+              "resources": {
+                "sdct-at-lambda-basic-execution-policy": {
+                  "resource_type": "iam_policy",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test",
+                    "resource-level-tag": "set-from-resource",
+                    "project-level-tag": "set-from-project"
+                  }
+                }
+              },
+              "depends_on": [1, 5]
+            },
+            {
+              "index": 7,
+              "name": "tag_existence",
+              "description": "Check if there is no tags in resource",
+              "reverse_check": true,
+              "resources": {
+                "sdct-at-s3-bucket": {
+                  "resource_type": "s3_bucket",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test",
+                    "resource-level-tag": "set-from-project",
+                    "project-level-tag": "set-from-project"
+                  }
+                }
+              },
+              "depends_on": [1, 5]
+            },
+            {
+              "index": 8,
+              "name": "lambda_trigger_existence",
+              "description": "Check if lambda trigger exists",
+              "triggers": {
+                "sdct-at-python-lambda": [{
+                  "resource_name": "sdct-at-queue",
+                  "resource_type": "sqs_queue"
+                }],
+                "sdct-at-java-lambda": [{
+                  "resource_name": "sdct-at-cw-rule",
+                  "resource_type": "cloudwatch_rule"
+                }],
+                "sdct-at-dotnet-lambda": [{
+                  "resource_name": "sdct-at-topic",
+                  "resource_type": "sns_topic"
+                }]
+            },
+              "depends_on": [1, 5]
             }
           ]
         }

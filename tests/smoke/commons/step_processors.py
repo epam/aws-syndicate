@@ -16,10 +16,8 @@ from commons.handlers import HANDLERS_MAPPING
 
 
 def process_steps(steps: dict[str: List[dict]],
-                  verbose: Optional[bool] = False,
-                  deploy_target_bucket: Optional[str] = None,
-                  suffix: Optional[str] = None, prefix: Optional[str] = None,
-                  skip_stage: bool = False):
+                  verbose: Optional[bool] = False,skip_stage: bool = False,
+                  **kwargs):
     result = []
     for step in steps[STEPS_CONFIG_PARAM]:
         verifications = {}
@@ -72,9 +70,8 @@ def process_steps(steps: dict[str: List[dict]],
 
             print(f'Executing handler `{handler_name}`')
             check_result = handler(actual_exit_code=exec_result.returncode,
-                                   deploy_target_bucket=deploy_target_bucket,
-                                   suffix=suffix, prefix=prefix,
-                                   update_time=execution_datetime, **check)
+                                   update_time=execution_datetime,
+                                   **kwargs, **check)
             validation_checks.append({
                 'index': index,
                 'description': check_description,

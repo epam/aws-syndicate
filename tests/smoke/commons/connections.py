@@ -12,7 +12,7 @@ parent_dir = str(Path(__file__).resolve().parent.parent)
 sys.path.append(parent_dir)
 
 from smoke.commons.constants import DEPLOY_OUTPUT_DIR
-from smoke.commons.utils import deep_get
+from smoke.commons.utils import deep_get, transform_tags
 
 config = Config(
    retries={
@@ -147,7 +147,7 @@ def get_sns_topic_attributes(name: str) -> Union[dict | None]:
     try:
         response = sns_client.get_topic_attributes(TopicArn=topic_arn)
     except sns_client.exceptions.NotFoundException:
-        print(f'Topic \'{name}\' noy found')
+        print(f'Topic \'{name}\' not found')
         return
     return response
 
@@ -283,3 +283,242 @@ def delete_s3_folder(bucket_name: str, folder_path: str):
             delete_s3_object(bucket_name=bucket_name, file_path=obj['Key'])
     else:
         print(f'Folder {folder_path} is already empty or does not exist')
+
+
+# ------- Get tags -----------
+
+def list_role_tags(name: str, tag_keys: list = None):
+    try:
+        response = iam_client.list_role_tags(RoleName=name)
+    except iam_client.exceptions.NoSuchEntityException:
+        print(f'Role \'{name}\' not found')
+        return {}
+
+    response_tags = transform_tags(response.get('Tags'))
+    if not tag_keys:
+        return response_tags
+    else:
+        result = {}
+        for tag in tag_keys:
+            if tag in response_tags:
+                result[tag] = response_tags[tag]
+        return result
+
+
+def list_policy_tags(name: str, tag_keys: list = None):
+    try:
+        response = iam_client.list_policy_tags(
+            PolicyArn=f'arn:aws:iam::{ACCOUNT_ID}:policy/{name}')
+    except iam_client.exceptions.NoSuchEntityException:
+        print(f'Policy \'{name}\' not found')
+        return {}
+
+    response_tags = transform_tags(response.get('Tags'))
+    if not tag_keys:
+        return response_tags
+    else:
+        result = {}
+        for tag in tag_keys:
+            if tag in response_tags:
+                result[tag] = response_tags[tag]
+        return result
+
+
+def list_lambda_tags(name, tag_keys: list = None):
+    lambda_arn = f'arn:aws:lambda:{REGION}:{ACCOUNT_ID}:function:{name}'
+    try:
+        response = lambda_client.list_tags(Resource=lambda_arn)
+    except lambda_client.exceptions.ResourceNotFoundException:
+        print(f'Lambda \'{name}\' not found')
+        return {}
+
+    response_tags = response.get('Tags')
+    if not tag_keys:
+        return response_tags
+    else:
+        result = {}
+        for tag in tag_keys:
+            if tag in response_tags:
+                result[tag] = response_tags[tag]
+        return result
+
+
+def list_sns_topic_tags(name: str, tag_keys: list = None):
+    topic_arn = f'arn:aws:sns:{REGION}:{ACCOUNT_ID}:{name}'
+    try:
+        response = sns_client.list_tags_for_resource(ResourceArn=topic_arn)
+    except sns_client.exceptions.NotFoundException:
+        print(f'Topic \'{name}\' not found')
+        return {}
+
+    response_tags = transform_tags(response.get('Tags'))
+    if not tag_keys:
+        return response_tags
+    else:
+        result = {}
+        for tag in tag_keys:
+            if tag in response_tags:
+                result[tag] = response_tags[tag]
+        return result
+
+
+def list_sqs_queue_tags(name: str, tag_keys: list = None):
+    url = get_sqs_queue_url(name)
+    if not url:
+        return {}
+    try:
+        response = sqs_client.list_queue_tags(QueueUrl=url)
+    except sqs_client.exceptions.QueueDoesNotExist:
+        print(f'Queue \'{name}\' not found')
+        return {}
+
+    response_tags = response.get('Tags')
+    if not tag_keys:
+        return response_tags
+    else:
+        result = {}
+        for tag in tag_keys:
+            if tag in response_tags:
+                result[tag] = response_tags[tag]
+        return result
+
+
+def list_dynamodb_tags(name: str, tag_keys: list = None) -> Union[dict | None]:
+    arn = f'arn:aws:dynamodb:{REGION}:{ACCOUNT_ID}:table/{name}'
+
+    try:
+        response = dynamodb_client.list_tags_of_resource(ResourceArn=arn)
+    except dynamodb_client.exceptions.ResourceNotFoundException:
+        print(f'Table \'{name}\' not found')
+        return {}
+
+    response_tags = transform_tags(response.get('Tags'))
+    if not tag_keys:
+        return response_tags
+    else:
+        result = {}
+        for tag in tag_keys:
+            if tag in response_tags:
+                result[tag] = response_tags[tag]
+        return result
+
+
+def list_event_bridge_rule_tags(name: str,
+                                tag_keys: list = None) -> Union[dict | None]:
+    arn = f'arn:aws:events:{REGION}:{ACCOUNT_ID}:rule/{name}'
+    try:
+        response = eventbridge_client.list_tags_for_resource(ResourceARN=arn)
+    except eventbridge_client.exceptions.ResourceNotFoundException:
+        print(f'Rule \'{name}\' not found')
+        return {}
+
+    response_tags = transform_tags(response.get('Tags'))
+    if not tag_keys:
+        return response_tags
+    else:
+        result = {}
+        for tag in tag_keys:
+            if tag in response_tags:
+                result[tag] = response_tags[tag]
+        return result
+
+
+def list_api_gateway_tags(name: str,
+                          tag_keys: list = None) -> Union[dict | None]:
+    response_tags = {}
+    try:
+        paginator = api_gw_client.get_paginator('get_rest_apis')
+        for response in paginator.paginate():
+            for api in response['items']:
+                if api['name'] == name:
+                    response_tags = api['tags']
+    except api_gw_client.exceptions.ResourceNotFoundException:
+        print(f'API Gateway \'{name}\' not found')
+
+    if not tag_keys:
+        return response_tags
+    else:
+        result = {}
+        for tag in tag_keys:
+            if tag in response_tags:
+                result[tag] = response_tags[tag]
+        return result
+
+
+def list_s3_bucket_tags(name: str,
+                        tag_keys: list = None) -> Union[dict | None]:
+    try:
+        response = s3_client.get_bucket_tagging(Bucket=name)
+    except ClientError as error:
+        if error.response['Error']['Code'] == 'NoSuchTagSet':
+            print(f'No tags for S3 bucket \'{name}\'')
+        return {}
+    except s3_client.exceptions.NoSuchBucket:
+        print(f'S3 bucket \'{name}\' not found')
+        return {}
+
+    response_tags = transform_tags(response.get('TagSet'))
+    if not tag_keys:
+        return response_tags
+    else:
+        result = {}
+        for tag in tag_keys:
+            if tag in response_tags:
+                result[tag] = response_tags[tag]
+        return result
+
+
+def list_cognito_tags(name: str, tag_keys: list = None) -> Union[dict | None]:
+    cup_id = get_cup_id(name)
+    arn = f'arn:aws:cognito-idp:{REGION}:{ACCOUNT_ID}:userpool/{cup_id}'
+
+    try:
+        response = cognito_client.list_tags_for_resource(ResourceArn=arn)
+    except cognito_client.exceptions.ResourceNotFoundException:
+        print(f'Cognito User Pool \'{name}\' not found')
+        return {}
+
+    response_tags = response.get('Tags')
+    if not tag_keys:
+        return response_tags
+    else:
+        result = {}
+        for tag in tag_keys:
+            if tag in response_tags:
+                result[tag] = response_tags[tag]
+        return result
+
+
+def get_lambda_event_source_mappings(name):
+    result = []
+    paginator = lambda_client.get_paginator('list_event_source_mappings')
+    for response in paginator.paginate(FunctionName=name):
+        result.extend(response.get('EventSourceMappings'))
+
+    return result
+
+
+def get_event_bridge_rule_targets(rule_name: str) -> list:
+    result = []
+    try:
+        paginator = eventbridge_client.get_paginator('list_targets_by_rule')
+        for response in paginator.paginate(Rule=rule_name):
+            result.extend(response.get('Targets'))
+    except eventbridge_client.exceptions.ResourceNotFoundException:
+        print(f'Rule \'{rule_name}\' not found')
+        return []
+
+    return result
+
+
+def get_sns_topic_subscriptions(topic_arn: str) -> list:
+    result = []
+    try:
+        paginator = sns_client.get_paginator('list_subscriptions_by_topic')
+        for response in paginator.paginate(TopicArn=topic_arn):
+            result.extend(response.get('Subscriptions'))
+    except sns_client.exceptions.NotFoundException:
+        print(f'Topic \'{topic_arn}\' not found')
+        return []
+
+    return result

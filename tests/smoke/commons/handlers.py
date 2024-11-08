@@ -9,11 +9,14 @@ sys.path.append(parent_dir)
 
 from commons.checkers import TYPE_MODIFICATION_FUNC_MAPPING, \
     exit_code_checker, artifacts_existence_checker, deployment_output_checker, \
-    build_meta_checker, TYPE_EXISTENCE_FUNC_MAPPING, outputs_modification_checker
+    build_meta_checker, TYPE_EXISTENCE_FUNC_MAPPING, lambda_triggers_checker, \
+    outputs_modification_checker, TYPE_TAGS_FUNC_MAPPING
 from commons.utils import populate_prefix_suffix
 from commons import connections
 from commons.constants import DEPLOY_OUTPUT_DIR, RESOURCE_TYPE_CONFIG_PARAM, \
-    BUNDLE_NAME, DEPLOY_NAME, SWAGGER_UI_RESOURCE_TYPE
+    BUNDLE_NAME, DEPLOY_NAME, SWAGGER_UI_RESOURCE_TYPE, TAGS_CONFIG_PARAM, \
+    API_GATEWAY_OAS_V3_RESOURCE_TYPE, LAMBDA_LAYER_RESOURCE_TYPE, \
+    RESOURCE_NAME_CONFIG_PARAM
 
 
 def exit_code_handler(actual_exit_code: int, expected_exit_code: int,
@@ -138,6 +141,71 @@ def outputs_modification_handler(deploy_target_bucket: str,
                                                 succeeded_deploy) else False
 
 
+def tag_existence_handler(resources: dict,
+                          suffix: Optional[str] = None,
+                          prefix: Optional[str] = None,
+                          reverse_check: bool = False, **kwargs):
+    results = {}
+    resources = populate_prefix_suffix(resources, prefix, suffix)
+
+    missing_tags = {}
+    redundant_tags = {}
+    for res_name, res_meta in resources.items():
+        res_type = res_meta[RESOURCE_TYPE_CONFIG_PARAM]
+
+        if res_meta.get(TAGS_CONFIG_PARAM)\
+                and res_type not in (SWAGGER_UI_RESOURCE_TYPE,
+                                     API_GATEWAY_OAS_V3_RESOURCE_TYPE,
+                                     LAMBDA_LAYER_RESOURCE_TYPE):
+            tag_func = TYPE_TAGS_FUNC_MAPPING.get(res_type)
+            if not tag_func:
+                print(f'Unknown resource type `{res_type}`. Cannot list tags.')
+                missing_tags[res_name] = res_type
+                continue
+            missing = tag_func(res_name, res_meta[TAGS_CONFIG_PARAM])
+            if missing is not True and reverse_check:
+                continue
+            elif missing is True and reverse_check:
+                redundant_tags[res_name] = res_meta[TAGS_CONFIG_PARAM]
+            elif missing is not True:
+                missing_tags[res_name] = missing
+
+    if missing_tags:
+        results['missing_tags'] = missing_tags
+    if redundant_tags:
+        results['redundant_tags'] = redundant_tags
+
+    return results if any(results.values()) else True
+
+
+def lambda_trigger_handler(triggers: dict, suffix: Optional[str] = None,
+                           prefix: Optional[str] = None,
+                           alias: Optional[str] = None,
+                           **kwargs) -> bool | dict:
+    invalid_lambdas = {}
+    for lambda_name, triggers_meta in triggers.items():
+        if prefix:
+            lambda_name = prefix + lambda_name
+        if suffix:
+            lambda_name = lambda_name + suffix
+        if alias:
+            lambda_name = lambda_name + f':{alias}'
+
+        for trigger in triggers_meta:
+            trigger_name = trigger[RESOURCE_NAME_CONFIG_PARAM]
+            if prefix:
+                trigger_name = prefix + trigger_name
+            if suffix:
+                trigger_name = trigger_name + suffix
+            trigger[RESOURCE_NAME_CONFIG_PARAM] = trigger_name
+
+        response = lambda_triggers_checker(lambda_name, triggers_meta)
+        if response:
+            invalid_lambdas[lambda_name] = response
+
+    return invalid_lambdas if invalid_lambdas else True
+
+
 HANDLERS_MAPPING = {
     'exit_code': exit_code_handler,
     'artifacts_existence': artifacts_existence_handler,
@@ -145,5 +213,7 @@ HANDLERS_MAPPING = {
     'deployment_output': deployment_output_handler,
     'resource_existence': resource_existence_handler,
     'resource_modification': resource_modification_handler,
-    'outputs_modification': outputs_modification_handler
+    'outputs_modification': outputs_modification_handler,
+    'tag_existence': tag_existence_handler,
+    'lambda_trigger_existence': lambda_trigger_handler
 }

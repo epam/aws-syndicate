@@ -19,9 +19,12 @@ RESOURCE_NAME_CONFIG_PARAM = 'resource_name'
 RESOURCE_META_CONFIG_PARAM = 'resource_meta'
 INDEX_CONFIG_PARAM = 'index'
 OUTPUT_FILE_CONFIG_PARAM = 'output_file'
+TAGS_CONFIG_PARAM = 'tags'
 
 DEPLOY_OUTPUT_DIR = 'outputs'
 
 STAGE_PASSED_REPORT_PARAM = 'stage_passed'
 
 SWAGGER_UI_RESOURCE_TYPE = 'swagger_ui'
+API_GATEWAY_OAS_V3_RESOURCE_TYPE = 'api_gateway_oas_v3'
+LAMBDA_LAYER_RESOURCE_TYPE = 'lambda_layer'

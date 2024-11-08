@@ -25,7 +25,8 @@
     "resource_type": "iam_policy",
     "tags": {
       "tests": "smoke",
-      "project": "sdct-auto-test"
+      "project": "sdct-auto-test",
+      "resource-level-tag": "set-from-resource"
     }
   },
   "sdct-at-java-lambda-role": {
