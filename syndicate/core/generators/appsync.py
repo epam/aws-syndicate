@@ -27,8 +27,6 @@ from syndicate.core.project_state.project_state import BUILD_MAPPINGS
 
 FILE_DEPLOYMENT_RESOURCES = 'deployment_resources.json'
 DEFAULT_SCHEMA_FILE_NAME = 'schema.graphql'
-DEFAULT_SCHEMA_PATH = \
-    f'{BUILD_MAPPINGS[RUNTIME_APPSYNC]}/$APPSYNC_NAME/{DEFAULT_SCHEMA_FILE_NAME}'
 
 
 _LOG = get_logger(__name__)
@@ -58,11 +56,6 @@ def generate_appsync(name, project_path, tags, schema_path):
             raise AssertionError(
                 f'Provided schema file \'{schema_path}\' can\'t be '
                 f'resolved! Please provide the correct path.')
-    # else:
-    #     path_to_schema = Path(
-    #         DEFAULT_SCHEMA_PATH.replace('$APPSYNC_NAME', name))
-    #     abs_path_to_schema = Path.joinpath(path_to_project,
-    #                                        Path(path_to_schema))
 
     project_state = ProjectState(project_path=project_path)
     src_path = PurePath(project_path,
