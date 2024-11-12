@@ -15,6 +15,7 @@
 """
 from syndicate.connection import ConnectionProvider
 from syndicate.core.resources.api_gateway_resource import ApiGatewayResource
+from syndicate.core.resources.appsync_resource import AppSyncResource
 from syndicate.core.resources.cloud_watch_alarm_resource import (
     CloudWatchAlarmResource)
 from syndicate.core.resources.cloud_watch_resource import CloudWatchResource
@@ -75,6 +76,7 @@ class ResourceProvider:
         _cw_resource = None
         _sns_resource = None
         _api_gateway_resource = None
+        _appsync_resource = None
         _cognito_identity_resource = None
         _cognito_user_pool_resource = None
         _dynamodb_resource = None
@@ -141,6 +143,13 @@ class ResourceProvider:
                     region=self.config.region
                 )
             return self._api_gateway_resource
+
+        def appsync(self):
+            if not self._appsync_resource:
+                self._appsync_resource = AppSyncResource(
+                    appsync_conn=self._conn_provider.appsync()
+                )
+            return self._appsync_resource
 
         def cognito_identity(self):
             self._cognito_identity_resource = CognitoIdentityResource(
