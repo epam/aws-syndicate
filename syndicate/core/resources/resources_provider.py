@@ -147,7 +147,12 @@ class ResourceProvider:
         def appsync(self):
             if not self._appsync_resource:
                 self._appsync_resource = AppSyncResource(
-                    appsync_conn=self._conn_provider.appsync()
+                    appsync_conn=self._conn_provider.appsync(),
+                    s3_conn=self._conn_provider.s3(),
+                    deploy_target_bucket_key_compound=
+                    self.config.deploy_target_bucket_key_compound,
+                    deploy_target_bucket=self.config.deploy_target_bucket,
+                    account_id=self.config.account_id
                 )
             return self._appsync_resource
 
