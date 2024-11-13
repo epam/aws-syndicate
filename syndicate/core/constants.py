@@ -45,6 +45,7 @@ BATCH_JOBDEF_TYPE = 'batch_jobdef'
 FIREHOSE_TYPE = 'firehose'
 DOCUMENTDB_CLUSTER_TYPE = 'documentdb_cluster'
 DOCUMENTDB_INSTANCE_TYPE = 'documentdb_instance'
+APPSYNC_TYPE = 'appsync'
 
 S3_PATH_NAME = 's3_path'
 EXPORT_DIR_NAME = 'export'
@@ -231,3 +232,5 @@ TAGS_RESOURCE_TYPE_CONFIG = {
     'untaggable': [SWAGGER_UI_TYPE, SNS_PLATFORM_APPLICATION_TYPE,
                    LAMBDA_LAYER_TYPE]
 }
+
+APPSYNC_DATA_SOURCE_TYPES = ['AWS_LAMBDA', 'AMAZON_DYNAMODB']

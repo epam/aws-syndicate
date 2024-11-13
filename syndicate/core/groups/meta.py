@@ -6,10 +6,12 @@ import click
 
 from syndicate.core.constants import S3_BUCKET_ACL_LIST, \
     API_GW_AUTHORIZER_TYPES, CUSTOM_AUTHORIZER_KEY, \
-    EC2_LAUNCH_TEMPLATE_SUPPORTED_IMDS_VERSIONS
+    EC2_LAUNCH_TEMPLATE_SUPPORTED_IMDS_VERSIONS, APPSYNC_DATA_SOURCE_TYPES
 from syndicate.core.generators.deployment_resources import *
 from syndicate.core.generators.deployment_resources.api_gateway_generator import \
     ApiGatewayAuthorizerGenerator
+from syndicate.core.generators.deployment_resources.appsync_generator import \
+    AppSyncDataSourceGenerator
 from syndicate.core.generators.deployment_resources.ec2_launch_template_generator import \
     EC2LaunchTemplateGenerator
 from syndicate.core.generators.lambda_function import PROJECT_PATH_PARAM
@@ -1017,6 +1019,34 @@ def documentdb_instance(ctx, **kwargs):
     _generate(generator)
     click.echo(f"DocumentDB instance '{kwargs['resource_name']}' was "
                f"added successfully")
+
+
+@meta.command(name='appsync_data_source')
+@click.option('--appsync_name', required=True, type=str,
+              help="AppSync API name to add data source to")
+@click.option('--name', required=True, type=str,
+              help="Data source name")
+@click.option('--description', type=str,
+              help="Data source description")
+@click.option('--type', type=click.Choice(APPSYNC_DATA_SOURCE_TYPES),
+              help="Data source type. Default type is 'NONE'")
+@click.option('--service_role_name', type=str, cls=OptionRequiredIf,
+              required_if='type', help="Data source service role name")
+@click.option('--resource_name', type=str, cls=OptionRequiredIf,
+              required_if='type', help="Data source resource name")
+@click.option('--region', type=ValidRegionParamType(),
+              help="The region where the resource is located. If not "
+                   "specified, sets the default value from syndicate config")
+@verbose_option
+@click.pass_context
+@timeit()
+def appsync_data_source(ctx, **kwargs):
+    """Adds authorization to an existing SyncApp API"""
+    kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
+    generator = AppSyncDataSourceGenerator(**kwargs)
+    _generate(generator)
+    click.echo(f"Data source '{kwargs['name']}' was added to AppSync API "
+               f"'{kwargs['appsync_name']}' successfully")
 
 
 def _generate(generator: BaseConfigurationGenerator):
