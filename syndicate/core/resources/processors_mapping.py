@@ -249,7 +249,8 @@ class ProcessorFacade:
             EVENT_BRIDGE_SCHEDULE_TYPE:
                 self.resources_provider.eventbridge_scheduler().remove_schedule,
             SWAGGER_UI_TYPE: self.resources_provider.swagger_ui().
-            remove_swagger_ui
+            remove_swagger_ui,
+            APPSYNC_TYPE: self.resources_provider.appsync().remove_graphql_api
         }
 
     def update_handlers(self):

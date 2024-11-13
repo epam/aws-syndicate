@@ -178,8 +178,4 @@ class AppSyncConnection(object):
 # ------------------------ Delete ------------------------
 
     def delete_graphql_api(self, api_id: str):
-        try:
-            self.client.delete_graphql_api(apiId=api_id)
-        except self.client.exceptions.NotFoundException:
-            _LOG.info(f'GraphQL API {api_id} already deleted.')
-            return
+        self.client.delete_graphql_api(apiId=api_id)

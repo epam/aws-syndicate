@@ -5,6 +5,8 @@ from pathlib import PurePath
 from time import sleep
 from zipfile import ZipFile
 
+from botocore.exceptions import ClientError
+
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.constants import ARTIFACTS_FOLDER, \
     APPSYNC_ARTIFACT_NAME_TEMPLATE
@@ -229,3 +231,20 @@ class AppSyncResource(BaseResource):
         return {
             arn: build_description_obj(response, name, meta)
         }
+
+    def remove_graphql_api(self, args):
+        return self.create_pool(self._remove_graphql_api, args)
+
+    @unpack_kwargs
+    def _remove_graphql_api(self, arn, config):
+        api_id = config['description']['apiId']
+        try:
+            self.appsync_conn.delete_graphql_api(api_id)
+            _LOG.info(f'GraphQL API {api_id} was removed.')
+            return {arn: config}
+        except ClientError as e:
+            if e.response['Error']['Code'] == 'NotFoundException':
+                _LOG.warning(f'GraphQL API {api_id} is not found')
+                return {arn: config}
+            else:
+                raise e
