@@ -77,8 +77,10 @@ class AppSyncConnection(object):
         if user_pool_config:
             params['userPoolConfig'] = user_pool_config
         if open_id_config:
+            open_id_config = dict_keys_to_camel_case(open_id_config)
             params['openIDConnectConfig'] = open_id_config
         if lambda_auth_config:
+            lambda_auth_config = dict_keys_to_camel_case(lambda_auth_config)
             params['lambdaAuthorizerConfig'] = lambda_auth_config
         if log_config:
             params['logConfig'] = log_config
