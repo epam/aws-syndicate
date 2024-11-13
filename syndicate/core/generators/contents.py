@@ -773,3 +773,19 @@ def _generate_swagger_ui_config(resource_name, path_to_spec, target_bucket):
             "path_to_spec": path_to_spec,
             "target_bucket": target_bucket
         })
+
+
+def _generate_syncapp_dr(resource_name, path_to_schema, tags=None):
+
+    deployment_resources_content = {
+        resource_name: {
+            "resource_type": "appsync",
+            "schema_path": path_to_schema,
+            "tags": tags or {},
+        }
+    }
+    return _stringify(deployment_resources_content)
+
+
+def _generate_syncapp_default_schema():
+    return '## Your schema here'
