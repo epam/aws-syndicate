@@ -66,7 +66,9 @@ class AppSyncConnection(object):
                            user_pool_config: dict = None,
                            open_id_config: dict = None,
                            lambda_auth_config: dict = None,
-                           log_config: dict = None, api_type: str = None):
+                           log_config: dict = None, api_type: str = None,
+                           xray_enabled: bool = None,
+                           extra_auth_types: list = None):
         params = dict(
             name=name,
             authenticationType=auth_type,
@@ -75,6 +77,7 @@ class AppSyncConnection(object):
         if tags:
             params['tags'] = tags
         if user_pool_config:
+            user_pool_config = dict_keys_to_camel_case(user_pool_config)
             params['userPoolConfig'] = user_pool_config
         if open_id_config:
             open_id_config = dict_keys_to_camel_case(open_id_config)
@@ -84,6 +87,10 @@ class AppSyncConnection(object):
             params['lambdaAuthorizerConfig'] = lambda_auth_config
         if log_config:
             params['logConfig'] = log_config
+        if xray_enabled:
+            params['xrayEnabled'] = xray_enabled
+        if extra_auth_types:
+            params['additionalAuthenticationProviders'] = extra_auth_types
 
         return self.client.create_graphql_api(**params)['graphqlApi']['apiId']
 

@@ -10,7 +10,8 @@ from botocore.exceptions import ClientError
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.constants import ARTIFACTS_FOLDER, \
     APPSYNC_ARTIFACT_NAME_TEMPLATE
-from syndicate.core.helper import build_path, unpack_kwargs
+from syndicate.core.helper import build_path, unpack_kwargs, \
+    dict_keys_to_camel_case
 from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import validate_params, \
     build_description_obj
@@ -85,16 +86,26 @@ class AppSyncResource(BaseResource):
             with ZipFile(artifact, 'r') as zf:
                 zf.extractall(extract_to)
 
-        auth_type = meta.get('auth_type')
+        auth_type = meta.get('primary_auth_type')
+        extra_auth_types = meta.get('extra_auth_types', [])
+        updated_extra_auth_types = []
+        is_extra_auth_api_key = False
+
+        for auth in extra_auth_types:
+            if auth['authentication_type'] == 'API_KEY':
+                is_extra_auth_api_key = True
+            updated_extra_auth_types.append(dict_keys_to_camel_case(auth))
+
         api_id = self.appsync_conn.create_graphql_api(
             name, auth_type=auth_type, tags=meta.get('tags'),
             user_pool_config=meta.get('user_pool_config'),
             open_id_config=meta.get('open_id_config'),
             lambda_auth_config=meta.get('lambda_auth_config'),
-            log_config=meta.get('log_config'),
-            api_type=meta.get('api_type'))
+            log_config=meta.get('log_config'), api_type=meta.get('api_type'),
+            xray_enabled=meta.get('xray_enabled'),
+            extra_auth_types=updated_extra_auth_types)
 
-        if auth_type == 'API_KEY':
+        if auth_type == 'API_KEY' or is_extra_auth_api_key:
             self.appsync_conn.create_api_key(api_id)
 
         if schema_path := meta.get('schema_path'):
@@ -128,8 +139,7 @@ class AppSyncResource(BaseResource):
         _LOG.info(f'Created AppSync GraphQL API {api_id}')
         return self.describe_graphql_api(name=name, meta=meta, api_id=api_id)
 
-    @staticmethod
-    def _build_data_source_params_from_meta(source_meta: dict):
+    def _build_data_source_params_from_meta(self, source_meta: dict):
         source_name = source_meta.get('name')
         try:
             validate_params(
@@ -142,8 +152,20 @@ class AppSyncResource(BaseResource):
         _LOG.info(f'Creating data source \'{source_name}\'...')
         source_config = None
         source_type = source_meta.get('type')
+
         if config_key := DATA_SOURCE_TYPE_CONFIG_MAPPING.get(source_type):
             source_config = source_meta.get(config_key)
+
+        if source_type == 'AWS_LAMBDA' and source_config:
+            region = source_config.pop('aws_region', None)
+            lambda_name = source_config.pop('lambda_name', None)
+            source_config['lambda_function_arn'] = self.build_lambda_arn(
+                lambda_name, region)
+        elif source_type == 'AMAZON_EVENTBRIDGE' and source_config:
+            region = source_config.pop('aws_region')
+            event_bus = source_config.pop('event_bus_name')
+            source_config['event_bus_arn'] = self.build_event_bus_arn(
+                event_bus, region)
 
         return {
             'name': source_name,
@@ -152,6 +174,14 @@ class AppSyncResource(BaseResource):
             'description': source_meta.get('description'),
             'service_role_arn': source_meta.get('service_role_arn')
         }
+
+    def build_lambda_arn(self, name, region):
+        arn = f'arn:aws:lambda:{region}:{self.account_id}:function:{name}'
+        return arn
+
+    def build_event_bus_arn(self, name, region):
+        arn = f'arn:aws:events:{region}:{self.account_id}:event-bus/{name}'
+        return arn
 
     @staticmethod
     def _build_resolver_params_from_meta(resolver_meta, artifacts_path):
