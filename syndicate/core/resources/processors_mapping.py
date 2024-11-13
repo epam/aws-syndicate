@@ -24,7 +24,7 @@ from syndicate.core.constants import \
     BATCH_JOBDEF_TYPE, COGNITO_USER_POOL_TYPE, COGNITO_FEDERATED_POOL_TYPE, \
     DOCUMENTDB_CLUSTER_TYPE, DOCUMENTDB_INSTANCE_TYPE, DAX_CLUSTER_TYPE, \
     FIREHOSE_TYPE, EVENT_BRIDGE_SCHEDULE_TYPE, API_GATEWAY_OAS_V3_TYPE, \
-    SWAGGER_UI_TYPE, EC2_LAUNCH_TEMPLATE_TYPE
+    SWAGGER_UI_TYPE, EC2_LAUNCH_TEMPLATE_TYPE, APPSYNC_TYPE
 
 
 class ProcessorFacade:
@@ -101,7 +101,8 @@ class ProcessorFacade:
             EVENT_BRIDGE_SCHEDULE_TYPE:
                 self.resources_provider.eventbridge_scheduler().create_schedule,
             SWAGGER_UI_TYPE: self.resources_provider.swagger_ui().
-            create_update_swagger_ui
+            create_update_swagger_ui,
+            APPSYNC_TYPE: self.resources_provider.appsync().create_graphql_api
         }
 
     def describe_handlers(self):
@@ -173,7 +174,9 @@ class ProcessorFacade:
             EC2_LAUNCH_TEMPLATE_TYPE:
                 self.resources_provider.ec2().describe_launch_template,
             LAMBDA_LAYER_TYPE:
-                self.resources_provider.lambda_resource().describe_lambda_layer
+                self.resources_provider.lambda_resource().describe_lambda_layer,
+            APPSYNC_TYPE:
+                self.resources_provider.appsync().describe_graphql_api
         }
 
     def remove_handlers(self):

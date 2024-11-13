@@ -18,6 +18,7 @@ from boto3 import client
 
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import apply_methods_decorator, retry
+from syndicate.core.helper import dict_keys_to_camel_case
 
 _LOG = get_logger('syndicate.connection.appsync_connection')
 
@@ -30,6 +31,8 @@ DATA_SOURCE_TYPE_CONFIG_MAPPING = {
     'AMAZON_OPENSEARCH_SERVICE': 'openSearchServiceConfig',
     'AMAZON_EVENTBRIDGE': 'eventBridgeConfig'
 }
+
+REDUNDANT_RESOLVER_EXCEPTION_TEXT = 'Only one resolver is allowed per field'
 
 
 @apply_methods_decorator(retry())
@@ -59,14 +62,15 @@ class AppSyncConnection(object):
 
         return self.client.create_api(**params)
 
-    def create_graphql_api(self, name: str, auth_type: str, tags: dict,
-                           user_pool_config: dict, open_id_config: dict,
-                           lambda_auth_config: dict, log_config: dict,
-                           api_type: str = 'GRAPHQL'):
+    def create_graphql_api(self, name: str, auth_type: str, tags: dict = None,
+                           user_pool_config: dict = None,
+                           open_id_config: dict = None,
+                           lambda_auth_config: dict = None,
+                           log_config: dict = None, api_type: str = None):
         params = dict(
             name=name,
             authenticationType=auth_type,
-            apiType=api_type
+            apiType=api_type if api_type else 'GRAPHQL'
         )
         if tags:
             params['tags'] = tags
@@ -84,7 +88,7 @@ class AppSyncConnection(object):
     def create_schema(self, api_id: str, definition: str):
         return self.client.start_schema_creation(
             apiId=api_id,
-            definition=definition.encode('utf-8')
+            definition=str.encode(definition)
         )['status']
 
     def create_type(self, api_id: str, definition: str, format: str):
@@ -97,16 +101,15 @@ class AppSyncConnection(object):
 
     def create_data_source(self, api_id: str, name: str, source_type: str,
                            source_config: dict = None, description: str = None,
-                           service_role_arn: str = None,
-                           metrics_config: str = 'DISABLED'):
+                           service_role_arn: str = None):
         params = dict(
-            api_id=api_id,
+            apiId=api_id,
             name=name,
-            type=source_type,
-            metrics_config=metrics_config
+            type=source_type
         )
         config_key = DATA_SOURCE_TYPE_CONFIG_MAPPING.get(source_type)
         if config_key:
+            source_config = dict_keys_to_camel_case(source_config)
             params[config_key] = source_config
         if description:
             params['description'] = description
@@ -117,14 +120,12 @@ class AppSyncConnection(object):
 
     def create_resolver(self, api_id: str, type_name: str, field_name: str,
                         runtime: str = None, data_source_name: str = None,
-                        code: str = None, metrics_config: str = 'DISABLED',
-                        request_mapping_template: str = None,
+                        code: str = None, request_mapping_template: str = None,
                         response_mapping_template: str = None):
         params = dict(
-            api_id=api_id,
-            type_name=type_name,
-            field_name=field_name,
-            metrics_config=metrics_config
+            apiId=api_id,
+            typeName=type_name,
+            fieldName=field_name
         )
         if runtime:
             params['runtime'] = runtime
@@ -137,7 +138,28 @@ class AppSyncConnection(object):
         if response_mapping_template:
             params['responseMappingTemplate'] = response_mapping_template
 
-        return self.client.create_resolver(**params)['resolver']
+        try:
+            return self.client.create_resolver(**params)['resolver']
+        except self.client.exceptions.BadRequestException as e:
+            if REDUNDANT_RESOLVER_EXCEPTION_TEXT in str(e):
+                _LOG.warning(f'Only one resolver is allowed per field '
+                             f'{field_name}; type {type_name}. '
+                             f'Ignoring redundant resolver.')
+                return
+            else:
+                raise e
+
+    def create_api_key(self, api_id: str, description: str = None,
+                       expires: int = None):
+        params = dict(
+            apiId=api_id
+        )
+        if description:
+            params['description'] = description
+        if expires:
+            params['expires'] = expires
+
+        return self.client.create_api_key(**params)['apiKey']
 
 # ------------------------ Get ------------------------
 
@@ -147,6 +169,13 @@ class AppSyncConnection(object):
     def get_data_source(self, api_id: str, name: str):
         return self.client.get_data_source(
             apiId=api_id, name=name)['dataSource']
+
+    def get_graphql_api_by_name(self, name):
+        # TODO change list_graphql_apis to list_apis when upgrade boto3 version
+        return next((api for api in self.client.list_graphql_apis()[
+            'graphqlApis'] if api['name'] == name), None)
+
+# ------------------------ Delete ------------------------
 
     def delete_graphql_api(self, api_id: str):
         try:
