@@ -5,6 +5,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 # [1.15.0] - 2024-10-28
+- Added new resource type `appsync`
 - Added `--skip_tests` option to `build`, `test` and `assemble_java_mvn` commands to not run tests during or after 
 building the bundle
 - Added `--errors_allowed` option to `assemble_python` and `assemble` commands
