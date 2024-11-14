@@ -168,16 +168,19 @@ class AppSyncResource(BaseResource):
 
     @staticmethod
     def _build_resolver_params_from_meta(resolver_meta, artifacts_path):
-        resolver_name = resolver_meta.get('name')
+        type_name = resolver_meta.get('type_name')
+        field_name = resolver_meta.get('field_name')
         try:
-            validate_params(
-                resolver_name, resolver_meta, RESOLVER_REQUIRED_PARAMS)
+            validate_params(type_name + ':' + field_name, resolver_meta,
+                            RESOLVER_REQUIRED_PARAMS)
         except AssertionError as e:
             _LOG.warning(str(e))
-            _LOG.warning(f'Skipping resolver \'{resolver_name}\'...')
+            _LOG.warning(f'Skipping resolver for type \'{type_name}\' '
+                         f'and field \'{field_name}\'...')
             return
 
-        _LOG.info(f'Altering resolver \'{resolver_name}\'...')
+        _LOG.info(f'Altering resolver for type \'{type_name}\' and field '
+                  f'\'{field_name}\'...')
         code = None
         request_mapping_template = None
         response_mapping_template = None
@@ -331,7 +334,7 @@ class AppSyncResource(BaseResource):
                             resolver_meta, extract_to)
                 if not params:
                     continue
-                self.appsync_conn.update_resolver(api_id, **params)
+                self.appsync_conn.create_resolver(api_id, **params)
 
         for resolver in existent_resolvers:
             self.appsync_conn.delete_resolver(api_id,
@@ -359,7 +362,7 @@ class AppSyncResource(BaseResource):
                 params = self._build_data_source_params_from_meta(source_meta)
                 if not params:
                     continue
-                self.appsync_conn.update_data_source(api_id, **params)
+                self.appsync_conn.create_data_source(api_id, **params)
 
         for source in existent_sources:
             self.appsync_conn.delete_data_source(api_id, source['name'])
