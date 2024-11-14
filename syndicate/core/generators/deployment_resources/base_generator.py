@@ -71,6 +71,14 @@ class BaseConfigurationGenerator:
                                   recursive=True)
         return dep_res_files
 
+    @staticmethod
+    def _get_deployment_resources_file_content(path: str) -> dict:
+        """Returns deployment resources file content"""
+        deployment_resources = json.loads(_read_content_from_file(
+            path))
+
+        return deployment_resources
+
     def _find_resources_by_type(self, resources_type) -> dict:
         """Returns the dict, where key is a path to deployment_resources file
         and value is a set of entities' names with given resource_type"""
@@ -112,8 +120,16 @@ class BaseConfigurationGenerator:
             raise ValueError(message)
         _LOG.info(f"Validation successfully finished, lambda exists")
 
+    def _validate_resource_existence(self, resource_name, resource_type):
+        _LOG.info(f"Validating existence of {resource_type}: {resource_name}")
+        if not self._get_resource_meta_paths(resource_name, resource_type):
+            message = f"'{resource_type}' '{resource_name}' wasn't found"
+            _LOG.error(f"Validation error: {message}")
+            raise ValueError(message)
+        _LOG.info(f"Validation successfully finished")
+
     def write(self):
-        """The main method to write resouces"""
+        """The main method to write resources"""
         raise NotImplementedError()
 
 

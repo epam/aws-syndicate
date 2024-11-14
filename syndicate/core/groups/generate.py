@@ -288,7 +288,8 @@ def swagger_ui(name, path_to_spec, target_bucket, project_path):
 @click.option('--name', required=True, type=str,
               help="AppSync API name")
 @click.option('--path_to_schema', type=str, default=DEFAULT_SCHEMA_FILE_NAME,
-              callback=partial(check_file_extension, extensions=['.graphql']),
+              callback=partial(check_file_extension,
+                               extensions=['.graphql', '.json']),
               help="Path to GraphQL schema file. Path that is relative "
                    "to the project path can be specified. If not specified "
                    "empty schema file will be created in the AppSync source "
