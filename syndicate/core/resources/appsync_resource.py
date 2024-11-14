@@ -60,8 +60,6 @@ class AppSyncResource(BaseResource):
         :type name: str
         :type meta: dict
         """
-        from syndicate.core import PROJECT_STATE
-
         validate_params(name, meta, API_REQUIRED_PARAMS)
 
         api = self.appsync_conn.get_graphql_api_by_name(name)
@@ -70,22 +68,7 @@ class AppSyncResource(BaseResource):
             return self.describe_graphql_api(
                 name=name, meta=meta, api_id=api['apiId'])
 
-        artifact_dir = PurePath(self.conf_path, ARTIFACTS_FOLDER,
-                                name).as_posix()
-        artifact_src_path = posixpath.join(
-            self.deploy_target_bucket_key_compound,
-            PROJECT_STATE.current_bundle,
-            APPSYNC_ARTIFACT_NAME_TEMPLATE.format(name=name))
-        _LOG.info(f'Downloading an artifact for Appsync \'{name}\'')
-        with io.BytesIO() as artifact:
-            self.s3_conn.download_to_file(
-                    bucket_name=self.deploy_target_bucket,
-                    key=artifact_src_path,
-                    file=artifact)
-            extract_to = build_path(artifact_dir, name)
-            with ZipFile(artifact, 'r') as zf:
-                zf.extractall(extract_to)
-
+        extract_to = self._extract_zip(name)
         auth_type = meta.get('primary_auth_type')
         extra_auth_types = meta.get('extra_auth_types', [])
         updated_extra_auth_types = []
@@ -121,14 +104,14 @@ class AppSyncResource(BaseResource):
             self.appsync_conn.create_schema(api_id, schema_definition)
             sleep(2)  # to avoid an error when schema is still being altered
 
-        if data_sources_meta := meta.get('data_sources'):
+        if data_sources_meta := meta.get('data_sources', []):
             for source_meta in data_sources_meta:
                 params = self._build_data_source_params_from_meta(source_meta)
                 if not params:
                     continue
                 self.appsync_conn.create_data_source(api_id, **params)
 
-        if resolvers_meta := meta.get('resolvers'):
+        if resolvers_meta := meta.get('resolvers', []):
             for resolver_meta in resolvers_meta:
                 params = self._build_resolver_params_from_meta(
                     resolver_meta, extract_to)
@@ -149,7 +132,7 @@ class AppSyncResource(BaseResource):
             _LOG.warning(f'Skipping data source \'{source_name}\'...')
             return
 
-        _LOG.info(f'Creating data source \'{source_name}\'...')
+        _LOG.info(f'Altering data source \'{source_name}\'...')
         source_config = None
         source_type = source_meta.get('type')
 
@@ -194,7 +177,7 @@ class AppSyncResource(BaseResource):
             _LOG.warning(f'Skipping resolver \'{resolver_name}\'...')
             return
 
-        _LOG.info(f'Creating resolver \'{resolver_name}\'...')
+        _LOG.info(f'Altering resolver \'{resolver_name}\'...')
         code = None
         request_mapping_template = None
         response_mapping_template = None
@@ -241,7 +224,9 @@ class AppSyncResource(BaseResource):
             'runtime': runtime,
             'code': code,
             'request_mapping_template': request_mapping_template,
-            'response_mapping_template': response_mapping_template
+            'response_mapping_template': response_mapping_template,
+            'kind': resolver_meta.get('kind'),
+            'max_batch_size': resolver_meta.get('max_batch_size')
         }
 
     def build_graphql_api_arn(self, api_id: str) -> str:
@@ -278,3 +263,126 @@ class AppSyncResource(BaseResource):
                 return {arn: config}
             else:
                 raise e
+
+    def update_graphql_api(self, args):
+        return self.create_pool(self._update_graphql_api, args, 1)
+
+    @unpack_kwargs
+    def _update_graphql_api(self, name, meta, context):
+        api = self.appsync_conn.get_graphql_api_by_name(name)
+        if not api:
+            raise AssertionError(f'{name} GraphQL API does not exist.')
+
+        extract_to = self._extract_zip(name)
+        api_id = api['apiId']
+        updated_extra_auth_types = []
+        extra_auth_types = meta.get('extra_auth_types', [])
+
+        for auth in extra_auth_types:
+            updated_extra_auth_types.append(dict_keys_to_camel_case(auth))
+
+        self.appsync_conn.update_graphql_api(
+            api_id, name, auth_type=meta.get('primary_auth_type'),
+            user_pool_config=meta.get('user_pool_config'),
+            open_id_config=meta.get('open_id_config'),
+            lambda_auth_config=meta.get('lambda_auth_config'),
+            log_config=meta.get('log_config'),
+            xray_enabled=meta.get('xray_enabled'),
+            extra_auth_types=updated_extra_auth_types)
+
+        if schema_path := meta.get('schema_path'):
+            schema_full_path = build_path(extract_to, schema_path)
+            if not os.path.exists(schema_full_path):
+                raise AssertionError(
+                    f'\'{schema_full_path}\' file not found for '
+                    f'AppSync \'{name}\'')
+
+            with open(schema_full_path, 'r') as file:
+                schema_definition = file.read()
+
+            self.appsync_conn.create_schema(api_id, schema_definition)
+            sleep(2)
+
+        types = self.appsync_conn.list_types(api_id)
+        existent_resolvers = []
+        for t in types:
+            existent_resolvers.extend(
+                self.appsync_conn.list_resolvers(api_id, t['name']))
+        resolvers_meta = meta.get('resolvers', [])
+
+        for resolver_meta in resolvers_meta:
+            to_create = True
+            for resolver in existent_resolvers:
+                if resolver['typeName'] == resolver_meta['type_name'] and \
+                        resolver['fieldName'] == resolver_meta['field_name']:
+                    # update an existent one
+                    to_create = False
+                    params = self._build_resolver_params_from_meta(
+                            resolver_meta, extract_to)
+                    if not params:
+                        break
+                    self.appsync_conn.update_resolver(api_id, **params)
+                    existent_resolvers.remove(resolver)
+                    break
+
+            # create a new one
+            if to_create:
+                params = self._build_resolver_params_from_meta(
+                            resolver_meta, extract_to)
+                if not params:
+                    continue
+                self.appsync_conn.update_resolver(api_id, **params)
+
+        for resolver in existent_resolvers:
+            self.appsync_conn.delete_resolver(api_id,
+                                              type_name=resolver['typeName'],
+                                              field_name=resolver['fieldName'])
+
+        existent_sources = self.appsync_conn.list_data_sources(api_id)
+        data_sources_meta = meta.get('data_sources', [])
+        for source_meta in data_sources_meta:
+            to_create = True
+            for source in existent_sources:
+                if source['name'] == source_meta['name']:
+                    # update an existent one
+                    to_create = False
+                    params = self._build_data_source_params_from_meta(
+                        source_meta)
+                    if not params:
+                        break
+                    self.appsync_conn.update_data_source(api_id, **params)
+                    existent_sources.remove(source)
+                    break
+
+            # create a new one
+            if to_create:
+                params = self._build_data_source_params_from_meta(source_meta)
+                if not params:
+                    continue
+                self.appsync_conn.update_data_source(api_id, **params)
+
+        for source in existent_sources:
+            self.appsync_conn.delete_data_source(api_id, source['name'])
+
+        _LOG.info(f'Updated AppSync GraphQL API {api_id}')
+        return self.describe_graphql_api(name=name, meta=meta, api_id=api_id)
+
+    def _extract_zip(self, name: str):
+        from syndicate.core import PROJECT_STATE
+
+        artifact_dir = PurePath(self.conf_path, ARTIFACTS_FOLDER,
+                                name).as_posix()
+        artifact_src_path = posixpath.join(
+            self.deploy_target_bucket_key_compound,
+            PROJECT_STATE.current_bundle,
+            APPSYNC_ARTIFACT_NAME_TEMPLATE.format(name=name))
+        _LOG.info(f'Downloading an artifact for Appsync \'{name}\'')
+        with io.BytesIO() as artifact:
+            self.s3_conn.download_to_file(
+                    bucket_name=self.deploy_target_bucket,
+                    key=artifact_src_path,
+                    file=artifact)
+            extract_to = build_path(artifact_dir, name)
+            with ZipFile(artifact, 'r') as zf:
+                zf.extractall(extract_to)
+        return extract_to

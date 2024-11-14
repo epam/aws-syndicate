@@ -293,6 +293,7 @@ def update_resources(resources, old_resources):
     return _process_resources(
         resources=resources,
         handlers_mapping=PROCESSOR_FACADE.update_handlers(),
+        describe_handlers=PROCESSOR_FACADE.describe_handlers(),
         pass_context=True)
 
 

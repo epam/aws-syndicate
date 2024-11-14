@@ -279,6 +279,8 @@ class ProcessorFacade:
             create_update_swagger_ui,
             EC2_LAUNCH_TEMPLATE_TYPE:
                 self.resources_provider.ec2().update_launch_template,
+            APPSYNC_TYPE:
+                self.resources_provider.appsync().update_graphql_api
         }
 
     def resource_configuration_processor(self):
