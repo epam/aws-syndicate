@@ -6,18 +6,20 @@ import click
 
 from syndicate.core.constants import S3_BUCKET_ACL_LIST, \
     API_GW_AUTHORIZER_TYPES, CUSTOM_AUTHORIZER_KEY, \
-    EC2_LAUNCH_TEMPLATE_SUPPORTED_IMDS_VERSIONS, APPSYNC_DATA_SOURCE_TYPES
+    EC2_LAUNCH_TEMPLATE_SUPPORTED_IMDS_VERSIONS, APPSYNC_DATA_SOURCE_TYPES, \
+    APPSYNC_RESOLVER_RUNTIMES
 from syndicate.core.generators.deployment_resources import *
 from syndicate.core.generators.deployment_resources.api_gateway_generator import \
     ApiGatewayAuthorizerGenerator
 from syndicate.core.generators.deployment_resources.appsync_generator import \
-    AppSyncDataSourceGenerator
+    AppSyncDataSourceGenerator, AppSyncResolverGenerator
 from syndicate.core.generators.deployment_resources.ec2_launch_template_generator import \
     EC2LaunchTemplateGenerator
 from syndicate.core.generators.lambda_function import PROJECT_PATH_PARAM
 from syndicate.core.helper import OrderedGroup, OptionRequiredIf, \
     validate_incompatible_options, validate_authorizer_name_option, \
-    verbose_option, validate_api_gw_path, DictParamType, check_tags
+    verbose_option, validate_api_gw_path, DictParamType, check_tags, \
+    check_file_extension
 from syndicate.core.helper import ValidRegionParamType
 from syndicate.core.helper import check_bundle_bucket_name
 from syndicate.core.helper import resolve_project_path, timeit
@@ -1029,10 +1031,13 @@ def documentdb_instance(ctx, **kwargs):
 @click.option('--description', type=str,
               help="Data source description")
 @click.option('--type', type=click.Choice(APPSYNC_DATA_SOURCE_TYPES),
-              help="Data source type. Default type is 'NONE'")
+              default='NONE', help="Data source type")
 @click.option('--service_role_name', type=str, cls=OptionRequiredIf,
-              required_if='type', help="Data source service role name")
+              required_if='type',
+              required_if_values=['AWS_LAMBDA', 'AMAZON_DYNAMODB'],
+              help="Data source service role name")
 @click.option('--resource_name', type=str, cls=OptionRequiredIf,
+              required_if_values=['AWS_LAMBDA', 'AMAZON_DYNAMODB'],
               required_if='type', help="Data source resource name")
 @click.option('--region', type=ValidRegionParamType(),
               help="The region where the resource is located. If not "
@@ -1041,11 +1046,47 @@ def documentdb_instance(ctx, **kwargs):
 @click.pass_context
 @timeit()
 def appsync_data_source(ctx, **kwargs):
-    """Adds authorization to an existing SyncApp API"""
+    """Adds data source to an existing SyncApp API"""
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = AppSyncDataSourceGenerator(**kwargs)
     _generate(generator)
     click.echo(f"Data source '{kwargs['name']}' was added to AppSync API "
+               f"'{kwargs['appsync_name']}' successfully")
+
+
+@meta.command(name='appsync_resolver')
+@click.option('--appsync_name', required=True, type=str,
+              help="AppSync API name to add resolver to")
+@click.option('--type_name', required=True, type=str,
+              help="The name of the type")
+@click.option('--field_name', required=True, type=str,
+              help="The name of the field to attach the resolver to")
+@click.option('--data_source_name', required=True, type=str,
+              help="The name of the data source to associate the resolver with")
+@click.option('--runtime', type=click.Choice(APPSYNC_RESOLVER_RUNTIMES),
+              required=True, help="Resolver runtime")
+@click.option('--code_path', type=str, cls=OptionRequiredIf,
+              required_if='runtime', required_if_values=['JS'],
+              callback=partial(check_file_extension, extensions=['.js']),
+              help="Path to the file with resolver code")
+@click.option('--req_mapping_template', type=str, cls=OptionRequiredIf,
+              required_if='runtime', required_if_values=['VTL'],
+              callback=partial(check_file_extension, extensions=['.vtl']),
+              help="Path to the file with resolver request mapping template")
+@click.option('--resp_mapping_template', type=str, cls=OptionRequiredIf,
+              required_if='runtime', required_if_values=['VTL'],
+              callback=partial(check_file_extension, extensions=['.vtl']),
+              help="Path to the file with resolver response mapping template")
+@verbose_option
+@click.pass_context
+@timeit()
+def appsync_resolver(ctx, **kwargs):
+    """Adds resolver to an existing SyncApp API"""
+    kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
+    generator = AppSyncResolverGenerator(**kwargs)
+    _generate(generator)
+    click.echo(f"The resolver of the type '{kwargs['type_name']}'  for the "
+               f"field '{kwargs['field_name']}' was added to AppSync API "
                f"'{kwargs['appsync_name']}' successfully")
 
 

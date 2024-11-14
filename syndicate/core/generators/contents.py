@@ -780,7 +780,7 @@ def _generate_syncapp_dr(resource_name, path_to_schema, tags=None):
     deployment_resources_content = {
         resource_name: {
             "resource_type": "appsync",
-            "auth_type": "API_KEY",
+            "primary_auth_type": "API_KEY",
             "schema_path": path_to_schema,
             "tags": tags or {},
         }
