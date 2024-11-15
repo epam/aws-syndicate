@@ -7,12 +7,14 @@ import click
 from syndicate.core.constants import S3_BUCKET_ACL_LIST, \
     API_GW_AUTHORIZER_TYPES, CUSTOM_AUTHORIZER_KEY, \
     EC2_LAUNCH_TEMPLATE_SUPPORTED_IMDS_VERSIONS, APPSYNC_DATA_SOURCE_TYPES, \
-    APPSYNC_RESOLVER_RUNTIMES
+    APPSYNC_RESOLVER_RUNTIMES, APPSYNC_AUTHORIZATION_TYPES, \
+    APPSYNC_AUTHENTICATION_TYPES
 from syndicate.core.generators.deployment_resources import *
 from syndicate.core.generators.deployment_resources.api_gateway_generator import \
     ApiGatewayAuthorizerGenerator
 from syndicate.core.generators.deployment_resources.appsync_generator import \
-    AppSyncDataSourceGenerator, AppSyncResolverGenerator
+    AppSyncDataSourceGenerator, AppSyncResolverGenerator, \
+    AppSyncAuthorizationGenerator
 from syndicate.core.generators.deployment_resources.ec2_launch_template_generator import \
     EC2LaunchTemplateGenerator
 from syndicate.core.generators.lambda_function import PROJECT_PATH_PARAM
@@ -1087,6 +1089,36 @@ def appsync_resolver(ctx, **kwargs):
     _generate(generator)
     click.echo(f"The resolver of the type '{kwargs['type_name']}'  for the "
                f"field '{kwargs['field_name']}' was added to AppSync API "
+               f"'{kwargs['appsync_name']}' successfully")
+
+
+@meta.command(name='appsync_authorization')
+@click.option('--appsync_name', required=True, type=str,
+              help="AppSync API name to add authorization to")
+@click.option('--type', required=True,
+              type=click.Choice(APPSYNC_AUTHORIZATION_TYPES),
+              help="The authorization type")
+@click.option('--auth_type', required=True,
+              type=click.Choice(APPSYNC_AUTHENTICATION_TYPES),
+              help="The authentication type")
+@click.option('--resource_name', type=str, cls=OptionRequiredIf,
+              required_if_values=['AWS_LAMBDA', 'AMAZON_COGNITO_USER_POOLS'],
+              required_if='auth_type',
+              help="Authentication provider resource name")
+@click.option('--region', type=ValidRegionParamType(),
+              help="The region where the authentication provider resource is "
+                   "located. If not specified, sets the default value from "
+                   "syndicate config")
+@verbose_option
+@click.pass_context
+@timeit()
+def appsync_authorization(ctx, **kwargs):
+    """Adds resolver to an existing SyncApp API"""
+    kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
+    generator = AppSyncAuthorizationGenerator(**kwargs)
+    _generate(generator)
+    click.echo(f"The '{kwargs['type']}' authorization of type "
+               f"'{kwargs['auth_type']}' was added to AppSync API "
                f"'{kwargs['appsync_name']}' successfully")
 
 

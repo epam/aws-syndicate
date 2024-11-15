@@ -2,7 +2,8 @@ import json
 from pathlib import Path, PurePath
 
 from syndicate.commons.log_helper import get_logger, get_user_logger
-from syndicate.core.constants import APPSYNC_TYPE, DYNAMO_TABLE_TYPE, IAM_ROLE
+from syndicate.core.constants import APPSYNC_TYPE, DYNAMO_TABLE_TYPE, IAM_ROLE, \
+    COGNITO_USER_POOL_TYPE
 from syndicate.core.generators import _write_content_to_file
 from syndicate.core.generators.deployment_resources import \
     BaseConfigurationGenerator
@@ -203,3 +204,152 @@ class AppSyncResolverGenerator(AppSyncConfigurationGenerator):
                 raise ValueError(f"File '{abs_path_to_file}' not found")
 
         return super()._resolve_configuration()
+
+
+class AppSyncAuthorizationGenerator(AppSyncConfigurationGenerator):
+    CONFIGURATION = {
+        'primary_auth_type': None,
+        'extra_auth_types': None,
+        'lambda_authorizer_config': None,
+        'user_pool_config': None,
+    }
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def write(self):
+        paths_with_appsync = self._get_resource_meta_paths(self.appsync_name,
+                                                           APPSYNC_TYPE)
+        error_message = None
+        if not paths_with_appsync:
+            error_message = f"AppSync api '{self.appsync_name}' was not found"
+        elif len(paths_with_appsync) > 1:
+            error_message = (
+                f"AppSync API '{self.appsync_name}' was found in several "
+                f"deployment resource files. Duplication of resources is "
+                f"forbidden.")
+
+        if error_message:
+            _LOG.error(error_message)
+            raise ValueError(error_message)
+
+        path_to_dr = paths_with_appsync[0]
+        deployment_resources = self._get_deployment_resources_file_content(
+            path_to_dr)
+
+        primary_auth = deployment_resources[self.appsync_name].get(
+            'primary_auth_type')
+        self._dict['current_primary_auth'] = primary_auth
+        if self._dict['type'] == 'primary':
+            if primary_auth:
+                message = "Primary authorization already exists."
+                if click_confirm(f"{message} Overwrite?"):
+                    _LOG.warning(f"Overwriting primary authorization")
+                    deployment_resources[self.appsync_name].pop(
+                        'lambda_authorizer_config', None)
+                    deployment_resources[self.appsync_name].pop(
+                        'user_pool_config', None)
+                else:
+                    _LOG.warning(f"Skipping primary authorization creation")
+                    raise RuntimeError
+
+        extra_auth = deployment_resources[self.appsync_name].get(
+            'extra_auth_types', [])
+        self._dict['current_extra_auth'] = extra_auth
+        if self._dict['type'] == 'extra':
+            if not primary_auth:
+                raise ValueError('Primary authorization is mandatory, '
+                                 'please configure it first')
+            new_extra_auth_type = self._dict['auth_type']
+            for auth_type in extra_auth:
+                if auth_type['authentication_type'] == new_extra_auth_type:
+                    message = (f"Extra authorization '{new_extra_auth_type}' "
+                               f"already exists.")
+                    if click_confirm(f"{message} Overwrite?"):
+                        _LOG.warning(f"Overwriting extra authorization")
+                    else:
+                        _LOG.warning(
+                            f"Skipping extra authorization creation")
+                        raise RuntimeError
+
+        deployment_resources[self.appsync_name].update(
+            self._resolve_configuration())
+        _write_content_to_file(path_to_dr,
+                               json.dumps(deployment_resources, indent=2))
+
+    def _resolve_configuration(self, defaults_dict=None):
+        authorizer_type = self._dict.pop('type')
+        authentication_type = self._dict.pop('auth_type')
+        authentication_config = self._resolve_authentication_configuration(
+            authentication_type
+        )
+        if authorizer_type == 'primary':
+            primary_auth_type = authentication_config['authentication_type']
+            lambda_config = \
+                authentication_config.get('lambda_authorizer_config')
+            cognito_config = authentication_config.get('user_pool_config')
+
+            for extra_auth in self._dict['current_extra_auth']:
+                if primary_auth_type == extra_auth['authentication_type']:
+                    raise ValueError(
+                        f"'{primary_auth_type}' can't be configured as "
+                        f" the primary authorization because it is already "
+                        f"configured as an extra authorization provider")
+
+            self._dict['primary_auth_type'] = primary_auth_type
+            if lambda_config:
+                self._dict['lambda_authorizer_config'] = lambda_config
+            if cognito_config:
+                self._dict['user_pool_config'] = cognito_config
+        elif authorizer_type == 'extra':
+            new_auth_type = authentication_config['authentication_type']
+
+            if new_auth_type == self._dict['current_primary_auth']:
+                raise ValueError(
+                    f"'{new_auth_type}' can't be configured as "
+                    f"an extra authorization provider because it is already "
+                    f"configured as the primary authorization")
+
+            current_extra_auth = self._dict.pop('current_extra_auth', [])
+            for extra_auth in current_extra_auth:
+                if extra_auth['authentication_type'] == new_auth_type:
+                    current_extra_auth.remove(extra_auth)
+
+            current_extra_auth.append(authentication_config)
+            self._dict['extra_auth_types'] = current_extra_auth
+
+        return super()._resolve_configuration()
+
+    def _resolve_authentication_configuration(self, auth_type: str) -> dict:
+        from syndicate.core import CONFIG
+        region = self._dict.pop('region', None) or CONFIG.region
+
+        match auth_type:
+            case 'API_KEY':
+                return {'authentication_type': 'API_KEY'}
+            case 'AWS_IAM':
+                return {'authentication_type': 'AWS_IAM'}
+            case 'AWS_LAMBDA':
+                lambda_name = self._dict.pop('resource_name')
+                self._validate_lambda_existence(lambda_name)
+
+                return {
+                    'authentication_type': 'AWS_LAMBDA',
+                    'lambda_authorizer_config': {
+                        'authorizer_result_ttl': 300,
+                        'resource_name': lambda_name,
+                        'region': region
+                    }
+                }
+            case 'AMAZON_COGNITO_USER_POOLS':
+                cup_name = self._dict.pop('resource_name')
+                self._validate_resource_existence(cup_name,
+                                                  COGNITO_USER_POOL_TYPE)
+
+                return {
+                    'authentication_type': 'AMAZON_COGNITO_USER_POOLS',
+                    'user_pool_config': {
+                        'resource_name': cup_name,
+                        'region': region
+                    }
+                }
