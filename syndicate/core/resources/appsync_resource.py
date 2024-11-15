@@ -84,7 +84,7 @@ class AppSyncResource(BaseResource):
             user_pool_config=meta.get('user_pool_config'),
             open_id_config=meta.get('open_id_config'),
             lambda_auth_config=meta.get('lambda_auth_config'),
-            log_config=meta.get('log_config'), api_type=meta.get('api_type'),
+            log_config=meta.get('log_config'),
             xray_enabled=meta.get('xray_enabled'),
             extra_auth_types=updated_extra_auth_types)
 

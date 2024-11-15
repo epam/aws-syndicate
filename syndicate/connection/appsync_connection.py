@@ -68,13 +68,12 @@ class AppSyncConnection(object):
                            user_pool_config: dict = None,
                            open_id_config: dict = None,
                            lambda_auth_config: dict = None,
-                           log_config: dict = None, api_type: str = None,
+                           log_config: dict = None,
                            xray_enabled: bool = None,
                            extra_auth_types: list = None):
         params = dict(
             name=name,
-            authenticationType=auth_type,
-            apiType=api_type if api_type else 'GRAPHQL'
+            authenticationType=auth_type
         )
         if tags:
             params['tags'] = tags
