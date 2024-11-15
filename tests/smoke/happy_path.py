@@ -74,7 +74,8 @@ def main(verbose: bool, config: str):
             result[STAGES_CONFIG_PARAM].update({stage: verification_result})
 
         print(f'Saving result report to {output_file}')
-        save_json(output_file, result)
+        output_list = [{k:v} for k, v in result[STAGES_CONFIG_PARAM].items()]
+        save_json(output_file, {STAGES_CONFIG_PARAM: output_list})
     except Exception as e:
         print(e)
         raise e
