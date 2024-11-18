@@ -18,25 +18,25 @@ from pathlib import Path, PurePath
 
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core import ProjectState
+from syndicate.core.constants import APPSYNC_SCHEMA_DEFAULT_FILE_NAME, \
+    APPSYNC_CONFIG_FILE_NAME
 from syndicate.core.generators import _mkdir, _touch, _write_content_to_file
-from syndicate.core.generators.contents import _generate_syncapp_dr, \
+from syndicate.core.generators.contents import _generate_syncapp_config, \
     _generate_syncapp_default_schema
 from syndicate.core.groups import RUNTIME_APPSYNC
 from syndicate.core.project_state.project_state import BUILD_MAPPINGS
 
 
-FILE_DEPLOYMENT_RESOURCES = 'deployment_resources.json'
-DEFAULT_SCHEMA_FILE_NAME = 'schema.graphql'
+APPSYNC_FILES = [APPSYNC_SCHEMA_DEFAULT_FILE_NAME, APPSYNC_CONFIG_FILE_NAME]
 
 
 _LOG = get_logger(__name__)
 USER_LOG = get_user_logger()
 
 
-def generate_appsync(name, project_path, tags, schema_path):
+def generate_appsync(name, project_path, tags):
     path_to_project = Path(project_path)
-    default_schema_path = True if schema_path == DEFAULT_SCHEMA_FILE_NAME \
-        else False
+
     if not Path.exists(path_to_project):
         USER_LOG.info(f'Project "{project_path}" you '
                       f'have provided does not exist')
@@ -45,45 +45,35 @@ def generate_appsync(name, project_path, tags, schema_path):
             project_path=project_path):
         USER_LOG.info(f'Seems that the path {project_path} is not a project')
         return
-    if not default_schema_path:
-        abs_path_to_schema = Path(schema_path)
-        if not Path.is_absolute(Path(schema_path)):
-            abs_path_to_schema = Path.joinpath(path_to_project,
-                                               Path(schema_path))
-            _LOG.info(f'Path to schema file resolved as '
-                      f'\'{abs_path_to_schema}\'')
-        if not Path.is_file(abs_path_to_schema):
-            raise AssertionError(
-                f'Provided schema file \'{schema_path}\' can\'t be '
-                f'resolved! Please provide the correct path.')
 
     project_state = ProjectState(project_path=project_path)
     src_path = PurePath(project_path,
                         BUILD_MAPPINGS[RUNTIME_APPSYNC],
                         name).as_posix()
-    answer = _mkdir(path=src_path,
-                    fault_message=f'AppSync API with name \'{name}\' already '
-                                  f'exists.\nOverride? [y/n]')
-    if not answer:
-        USER_LOG.info(f'Creation of AppSync API \'{name}\' cancelled')
-        sys.exit()
+    if Path(src_path).exists():
+        answer = _mkdir(
+            path=src_path,
+            fault_message=f'AppSync API with name \'{name}\' already exists.'
+                          f'\nOverride? [y/n]')
+        if not answer:
+            USER_LOG.info(f'Creation of AppSync API \'{name}\' cancelled')
+            sys.exit()
+    else:
+        _mkdir(src_path)
 
-    if default_schema_path:
-        schema_path = (f'{BUILD_MAPPINGS[RUNTIME_APPSYNC]}/{name}/'
-                       f'{DEFAULT_SCHEMA_FILE_NAME}')
-        abs_path_to_schema = Path.joinpath(path_to_project, Path(schema_path))
-        _touch(PurePath(abs_path_to_schema).as_posix())
-        default_schema_content = _generate_syncapp_default_schema()
-        _write_content_to_file(abs_path_to_schema, default_schema_content)
+    default_schema_content = _generate_syncapp_default_schema()
+    config_content = _generate_syncapp_config(name, APPSYNC_SCHEMA_DEFAULT_FILE_NAME,
+                                              tags)
 
-    _touch(PurePath(src_path, FILE_DEPLOYMENT_RESOURCES).as_posix())
+    for file_name in APPSYNC_FILES:
+        path_to_file = PurePath(src_path, file_name).as_posix()
+        _touch(path_to_file)
 
-    deployment_resources_content = _generate_syncapp_dr(name, schema_path,
-                                                        tags)
+        if file_name == APPSYNC_SCHEMA_DEFAULT_FILE_NAME:
+            _write_content_to_file(path_to_file, default_schema_content)
 
-    _write_content_to_file(
-        PurePath(src_path, FILE_DEPLOYMENT_RESOURCES).as_posix(),
-        deployment_resources_content)
+        if file_name == APPSYNC_CONFIG_FILE_NAME:
+            _write_content_to_file(path_to_file, config_content)
 
     project_state.add_project_build_mapping(runtime=RUNTIME_APPSYNC)
     project_state.save()

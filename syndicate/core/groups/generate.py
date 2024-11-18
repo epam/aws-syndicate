@@ -20,8 +20,7 @@ import click
 from syndicate.core.conf.generator import generate_configuration_files
 from syndicate.core.constants import SYNDICATE_WIKI_PAGE, \
     JAVA_LAMBDAS_WIKI_PAGE, SYNDICATE_PROJECT_EXAMPLES_PAGE
-from syndicate.core.generators.appsync import generate_appsync, \
-    DEFAULT_SCHEMA_FILE_NAME
+from syndicate.core.generators.appsync import generate_appsync
 from syndicate.core.generators.lambda_function import (
     generate_lambda_function, generate_lambda_layer)
 from syndicate.core.generators.project import (generate_project_structure,
@@ -287,13 +286,6 @@ def swagger_ui(name, path_to_spec, target_bucket, project_path):
 @generate.command(name='appsync')
 @click.option('--name', required=True, type=str,
               help="AppSync API name")
-@click.option('--path_to_schema', type=str, default=DEFAULT_SCHEMA_FILE_NAME,
-              callback=partial(check_file_extension,
-                               extensions=['.graphql', '.json']),
-              help="Path to GraphQL schema file. Path that is relative "
-                   "to the project path can be specified. If not specified "
-                   "empty schema file will be created in the AppSync source "
-                   "directory.")
 @click.option('--project_path', nargs=1,
               help="Path to the project folder. Default value: the one "
                    "from the current config if it exists. "
@@ -303,7 +295,7 @@ def swagger_ui(name, path_to_spec, target_bucket, project_path):
               help='The resource tags')
 @verbose_option
 @timeit()
-def appsync(name, project_path, path_to_schema, tags):
+def appsync(name, project_path, tags):
     """
     Generates required environment for AppSync API
     """
@@ -317,7 +309,6 @@ def appsync(name, project_path, path_to_schema, tags):
         return
     generate_appsync(name=name,
                      project_path=project_path,
-                     schema_path=path_to_schema,
                      tags=tags)
 
 
