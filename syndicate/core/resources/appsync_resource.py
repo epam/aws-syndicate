@@ -68,7 +68,8 @@ class AppSyncResource(BaseResource):
             return self.describe_graphql_api(
                 name=name, meta=meta, api_id=api['apiId'])
 
-        extract_to = self._extract_zip(name)
+        archive_path = meta['deployment_package']
+        extract_to = self._extract_zip(archive_path, name)
         auth_type = meta.get('primary_auth_type')
         extra_auth_types = meta.get('extra_auth_types', [])
         updated_extra_auth_types = []
@@ -284,7 +285,8 @@ class AppSyncResource(BaseResource):
         if not api:
             raise AssertionError(f'{name} GraphQL API does not exist.')
 
-        extract_to = self._extract_zip(name)
+        archive_path = meta['deployment_package']
+        extract_to = self._extract_zip(archive_path, name)
         api_id = api['apiId']
         updated_extra_auth_types = []
         extra_auth_types = meta.get('extra_auth_types', [])
@@ -378,15 +380,14 @@ class AppSyncResource(BaseResource):
         _LOG.info(f'Updated AppSync GraphQL API {api_id}')
         return self.describe_graphql_api(name=name, meta=meta, api_id=api_id)
 
-    def _extract_zip(self, name: str):
+    def _extract_zip(self, path: str, name: str):
         from syndicate.core import PROJECT_STATE
 
         artifact_dir = PurePath(self.conf_path, ARTIFACTS_FOLDER,
-                                name).as_posix()
+                                path).as_posix()
         artifact_src_path = posixpath.join(
             self.deploy_target_bucket_key_compound,
-            PROJECT_STATE.current_bundle,
-            APPSYNC_ARTIFACT_NAME_TEMPLATE.format(name=name))
+            PROJECT_STATE.current_bundle, path)
         _LOG.info(f'Downloading an artifact for Appsync \'{name}\'')
         with io.BytesIO() as artifact:
             self.s3_conn.download_to_file(

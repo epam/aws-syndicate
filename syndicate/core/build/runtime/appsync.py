@@ -58,11 +58,13 @@ def assemble_appsync(project_path, bundles_dir, **kwargs):
 
             with open(conf_file_path) as file:
                 appsync_conf = json.load(file)
-            schema_path = appsync_conf.get('schema_path')
-            if not os.path.isabs(schema_path):
-                schema_path = build_path(appsync_src_path, schema_path)
+            schema_filepath = appsync_conf.get('schema_path')
+            if not os.path.isabs(schema_filepath):
+                schema_path = build_path(appsync_src_path, schema_filepath)
                 USER_LOG.info(f'Path to schema file resolved as '
                               f'\'{schema_path}\'')
+            else:
+                schema_path = schema_filepath
             if not os.path.isfile(schema_path):
                 raise AssertionError(
                     f'Schema file not found for Appsync \'{item}\' in the '
@@ -78,33 +80,23 @@ def assemble_appsync(project_path, bundles_dir, **kwargs):
             resolvers = appsync_conf.get('resolvers')
             resolvers_path = []
             for resolver in resolvers:
-                resolvers_path.append(
-                    build_path(resolver.get('type_name', '').lower(),
-                               resolver.get('field_name', '').lower()))
+                if resolver_file_path := resolver.get(
+                        'request_mapping_template_path'):
+                    resolvers_path.append(resolver_file_path)
+                if resolver_file_path := resolver.get(
+                        'response_mapping_template_path'):
+                    resolvers_path.append(resolver_file_path)
+                if resolver_file_path := resolver.get('code_path'):
+                    resolvers_path.append(resolver_file_path)
 
-            appsync_resolvers_path = build_path(
-                appsync_src_path, APPSYNC_RESOLVERS_FOLDER)
             with zipfile.ZipFile(zip_file_path, 'w') as zipf:
-                for file in os.listdir(appsync_src_path):
-                    if RESOURCES_FILE_NAME == file:
-                        _LOG.debug(f'Skipping {RESOURCES_FILE_NAME} file '
-                                   f'in appsync source folder')
-                        continue
-                    file_path = build_path(appsync_src_path, file)
-                    if os.path.isfile(file_path):
-                        zipf.write(file_path, file)
+                zipf.write(schema_path, schema_filepath)
 
                 # to archive only resolvers in config
                 for path in resolvers_path:
-                    resolver_path = build_path(appsync_resolvers_path, path)
-                    if os.path.exists(resolver_path) and os.listdir(
-                            resolver_path):
-                        for root, dirs, files in os.walk(resolver_path):
-                            for file in files:
-                                file_path = os.path.join(root, file)
-                                zipf.write(
-                                    file_path, build_path(
-                                        APPSYNC_RESOLVERS_FOLDER, path, file))
+                    resolver_path = build_path(appsync_src_path, path)
+                    if os.path.exists(resolver_path):
+                        zipf.write(resolver_path, path)
 
             if os.path.getsize(zip_file_path) == 0:
                 raise AssertionError(
