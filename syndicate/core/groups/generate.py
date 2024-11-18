@@ -20,13 +20,13 @@ import click
 from syndicate.core.conf.generator import generate_configuration_files
 from syndicate.core.constants import SYNDICATE_WIKI_PAGE, \
     JAVA_LAMBDAS_WIKI_PAGE, SYNDICATE_PROJECT_EXAMPLES_PAGE
-from syndicate.core.generators.appsync import generate_appsync
 from syndicate.core.generators.lambda_function import (
     generate_lambda_function, generate_lambda_layer)
 from syndicate.core.generators.project import (generate_project_structure,
                                                PROJECT_PROCESSORS)
 from syndicate.core.generators.swagger_ui import generate_swagger_ui
 from syndicate.core.groups import RUNTIME_JAVA
+from syndicate.core.groups.appsync import appsync
 from syndicate.core.groups.meta import meta
 from syndicate.core.helper import (timeit, OrderedGroup,
                                    check_bundle_bucket_name,
@@ -283,33 +283,5 @@ def swagger_ui(name, path_to_spec, target_bucket, project_path):
                         project_path=project_path)
 
 
-@generate.command(name='appsync')
-@click.option('--name', required=True, type=str,
-              help="AppSync API name")
-@click.option('--project_path', nargs=1,
-              help="Path to the project folder. Default value: the one "
-                   "from the current config if it exists. "
-                   "Otherwise - the current working directory",
-              callback=resolve_project_path)
-@click.option('--tags', type=DictParamType(), callback=check_tags,
-              help='The resource tags')
-@verbose_option
-@timeit()
-def appsync(name, project_path, tags):
-    """
-    Generates required environment for AppSync API
-    """
-    if not os.access(project_path, os.F_OK):
-        click.echo(f"The provided path {project_path} doesn't exist")
-        return
-    elif not os.access(project_path, os.W_OK) or not os.access(project_path,
-                                                               os.X_OK):
-        click.echo(f"Incorrect permissions for the provided path "
-                   f"'{project_path}'")
-        return
-    generate_appsync(name=name,
-                     project_path=project_path,
-                     tags=tags)
-
-
 generate.add_command(meta)
+generate.add_command(appsync)
