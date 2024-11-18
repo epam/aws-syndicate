@@ -28,7 +28,7 @@ from syndicate.core.constants import (API_GATEWAY_TYPE, ARTIFACTS_FOLDER,
                                       LAMBDA_CONFIG_FILE_NAME, LAMBDA_TYPE,
                                       RESOURCES_FILE_NAME, RESOURCE_LIST,
                                       IAM_ROLE, LAMBDA_LAYER_TYPE,
-                                      S3_PATH_NAME,
+                                      S3_PATH_NAME, APPSYNC_CONFIG_FILE_NAME,
                                       LAMBDA_LAYER_CONFIG_FILE_NAME,
                                       WEB_SOCKET_API_GATEWAY_TYPE,
                                       OAS_V3_FILE_NAME,
@@ -361,7 +361,8 @@ def _look_for_configs(nested_files: list[str], resources_meta: dict[str, Any],
     for each in nested_files:
         if each.endswith(LAMBDA_CONFIG_FILE_NAME) or \
                 each.endswith(LAMBDA_LAYER_CONFIG_FILE_NAME) or \
-                each.endswith(SWAGGER_UI_CONFIG_FILE_NAME):
+                each.endswith(SWAGGER_UI_CONFIG_FILE_NAME) or \
+                each.endswith(APPSYNC_CONFIG_FILE_NAME):
             resource_config_path = os.path.join(path, each)
             _LOG.debug(f'Processing file: {resource_config_path}')
             with open(resource_config_path) as data_file:
