@@ -323,7 +323,7 @@ class AppSyncAuthorizationGenerator(AppSyncConfigurationGenerator):
                     'lambda_authorizer_config': {
                         'authorizer_result_ttl': 300,
                         'resource_name': lambda_name,
-                        'region': region
+                        'aws_region': region
                     }
                 }
             case 'AMAZON_COGNITO_USER_POOLS':
@@ -335,6 +335,6 @@ class AppSyncAuthorizationGenerator(AppSyncConfigurationGenerator):
                     'authentication_type': 'AMAZON_COGNITO_USER_POOLS',
                     'user_pool_config': {
                         'resource_name': cup_name,
-                        'region': region
+                        'aws_region': region
                     }
                 }
