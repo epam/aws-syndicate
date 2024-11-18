@@ -790,3 +790,15 @@ def _generate_syncapp_config(resource_name, schema_file_name, tags=None):
 
 def _generate_syncapp_default_schema():
     return '## Your schema here'
+
+
+def _generate_syncapp_js_resolver_code():
+    return '// Your code here'
+
+
+def _generate_syncapp_vtl_resolver_req_mt():
+    return '## Your code here'
+
+
+def _generate_syncapp_vtl_resolver_resp_mt():
+    return '## Your code here'

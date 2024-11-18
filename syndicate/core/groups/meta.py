@@ -1050,7 +1050,10 @@ def documentdb_instance(ctx, **kwargs):
 def appsync_data_source(ctx, **kwargs):
     """Adds data source to an existing SyncApp API"""
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
-    generator = AppSyncDataSourceGenerator(**kwargs)
+    try:
+        generator = AppSyncDataSourceGenerator(**kwargs)
+    except ValueError as e:
+        raise click.BadParameter(e)
     _generate(generator)
     click.echo(f"Data source '{kwargs['name']}' was added to AppSync API "
                f"'{kwargs['appsync_name']}' successfully")
@@ -1067,25 +1070,16 @@ def appsync_data_source(ctx, **kwargs):
               help="The name of the data source to associate the resolver with")
 @click.option('--runtime', type=click.Choice(APPSYNC_RESOLVER_RUNTIMES),
               required=True, help="Resolver runtime")
-@click.option('--code_path', type=str, cls=OptionRequiredIf,
-              required_if='runtime', required_if_values=['JS'],
-              callback=partial(check_file_extension, extensions=['.js']),
-              help="Path to the file with resolver code")
-@click.option('--req_mapping_template', type=str, cls=OptionRequiredIf,
-              required_if='runtime', required_if_values=['VTL'],
-              callback=partial(check_file_extension, extensions=['.vtl']),
-              help="Path to the file with resolver request mapping template")
-@click.option('--resp_mapping_template', type=str, cls=OptionRequiredIf,
-              required_if='runtime', required_if_values=['VTL'],
-              callback=partial(check_file_extension, extensions=['.vtl']),
-              help="Path to the file with resolver response mapping template")
 @verbose_option
 @click.pass_context
 @timeit()
 def appsync_resolver(ctx, **kwargs):
     """Adds resolver to an existing SyncApp API"""
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
-    generator = AppSyncResolverGenerator(**kwargs)
+    try:
+        generator = AppSyncResolverGenerator(**kwargs)
+    except ValueError as e:
+        raise click.BadParameter(e)
     _generate(generator)
     click.echo(f"The resolver of the type '{kwargs['type_name']}'  for the "
                f"field '{kwargs['field_name']}' was added to AppSync API "
@@ -1115,7 +1109,10 @@ def appsync_resolver(ctx, **kwargs):
 def appsync_authorization(ctx, **kwargs):
     """Adds resolver to an existing SyncApp API"""
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
-    generator = AppSyncAuthorizationGenerator(**kwargs)
+    try:
+        generator = AppSyncAuthorizationGenerator(**kwargs)
+    except ValueError as e:
+        raise click.BadParameter(e)
     _generate(generator)
     click.echo(f"The '{kwargs['type']}' authorization of type "
                f"'{kwargs['auth_type']}' was added to AppSync API "

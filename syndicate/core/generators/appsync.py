@@ -18,6 +18,8 @@ from pathlib import Path, PurePath
 
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core import ProjectState
+from syndicate.core.constants import APPSYNC_SCHEMA_DEFAULT_FILE_NAME, \
+    APPSYNC_CONFIG_FILE_NAME
 from syndicate.core.generators import _mkdir, _touch, _write_content_to_file
 from syndicate.core.generators.contents import _generate_syncapp_config, \
     _generate_syncapp_default_schema
@@ -25,10 +27,7 @@ from syndicate.core.groups import RUNTIME_APPSYNC
 from syndicate.core.project_state.project_state import BUILD_MAPPINGS
 
 
-APPSYNC_CONFIG_FILE_NAME = 'appsync_config.json'
-APPSYNC_SCHEMA_FILE_NAME = 'schema.graphql'
-
-APPSYNC_FILES = [APPSYNC_SCHEMA_FILE_NAME, APPSYNC_CONFIG_FILE_NAME]
+APPSYNC_FILES = [APPSYNC_SCHEMA_DEFAULT_FILE_NAME, APPSYNC_CONFIG_FILE_NAME]
 
 
 _LOG = get_logger(__name__)
@@ -63,14 +62,14 @@ def generate_appsync(name, project_path, tags):
         _mkdir(src_path)
 
     default_schema_content = _generate_syncapp_default_schema()
-    config_content = _generate_syncapp_config(name, APPSYNC_SCHEMA_FILE_NAME,
+    config_content = _generate_syncapp_config(name, APPSYNC_SCHEMA_DEFAULT_FILE_NAME,
                                               tags)
 
     for file_name in APPSYNC_FILES:
         path_to_file = PurePath(src_path, file_name).as_posix()
         _touch(path_to_file)
 
-        if file_name == APPSYNC_SCHEMA_FILE_NAME:
+        if file_name == APPSYNC_SCHEMA_DEFAULT_FILE_NAME:
             _write_content_to_file(path_to_file, default_schema_content)
 
         if file_name == APPSYNC_CONFIG_FILE_NAME:
