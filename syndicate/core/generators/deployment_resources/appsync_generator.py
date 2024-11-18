@@ -6,7 +6,7 @@ from syndicate.core.constants import DYNAMO_TABLE_TYPE, IAM_ROLE, \
     COGNITO_USER_POOL_TYPE, APPSYNC_CONFIG_FILE_NAME, \
     APPSYNC_JS_RESOLVER_CODE_DEFAULT_FILE_NAME, \
     APPSYNC_VTL_RESOLVER_REQ_MT_DEFAULT_FILE_NAME, \
-    APPSYNC_VTL_RESOLVER_RESP_MT_DEFAULT_FILE_NAME
+    APPSYNC_VTL_RESOLVER_RESP_MT_DEFAULT_FILE_NAME, APPSYNC_SRC_FOLDER
 from syndicate.core.generators import _write_content_to_file, \
     _read_content_from_file, _mkdir, _touch
 from syndicate.core.generators.contents import \
@@ -17,7 +17,6 @@ from syndicate.core.generators.deployment_resources import \
 from click import confirm as click_confirm
 
 
-APPSYNC_SRC_DIR = 'appsync_src'
 APPSYNC_RESOLVERS_DIR = 'resolvers'
 
 _LOG = get_logger(__name__)
@@ -31,7 +30,7 @@ class AppSyncConfigurationGenerator(BaseConfigurationGenerator):
         from syndicate.core import CONFIG
         path_to_project = CONFIG.project_path
         self.appsync_name = kwargs.pop('appsync_name')
-        self.appsync_path = PurePath(path_to_project, APPSYNC_SRC_DIR,
+        self.appsync_path = PurePath(path_to_project, APPSYNC_SRC_FOLDER,
                                      self.appsync_name).as_posix()
         self.appsync_config = self._get_appsync_config()
         self.region = CONFIG.region
