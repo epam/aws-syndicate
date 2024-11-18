@@ -63,8 +63,10 @@ OAS_V3_FILE_NAME = 'oas_v3.json'
 SWAGGER_UI_SPEC_NAME_TEMPLATE = '{name}_spec.json'
 SWAGGER_UI_ARTIFACT_NAME_TEMPLATE = 'swagger_ui_{name}.zip'
 SWAGGER_UI_CONFIG_FILE_NAME = 'swagger_ui_config.json'
+APPSYNC_CONFIG_FILE_NAME = 'appsync_config.json'
 APPSYNC_SRC_FOLDER = 'appsync_src'
 APPSYNC_ARTIFACT_NAME_TEMPLATE = 'appsync_{name}.zip'
+APPSYNC_RESOLVERS_FOLDER = 'resolvers'
 # layer.zip
 # │ python/PIL
 # └ python/Pillow-5.3.0.dist-info
