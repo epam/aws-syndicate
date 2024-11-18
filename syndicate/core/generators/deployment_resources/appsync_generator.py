@@ -29,7 +29,7 @@ class AppSyncConfigurationGenerator(BaseConfigurationGenerator):
     def __init__(self, **kwargs):
         from syndicate.core import CONFIG
         path_to_project = CONFIG.project_path
-        self.appsync_name = kwargs.pop('appsync_name')
+        self.appsync_name = kwargs.pop('api_name')
         self.appsync_path = PurePath(path_to_project, APPSYNC_SRC_FOLDER,
                                      self.appsync_name).as_posix()
         self.appsync_config = self._get_appsync_config()

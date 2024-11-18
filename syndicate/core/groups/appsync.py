@@ -68,7 +68,7 @@ def api(name, project_path, tags):
 
 
 @appsync.command(name='data_source')
-@click.option('--appsync_name', required=True, type=str,
+@click.option('--api_name', required=True, type=str,
               help="AppSync API name to add data source to")
 @click.option('--name', required=True, type=str,
               help="Data source name")
@@ -98,11 +98,11 @@ def data_source(ctx, **kwargs):
         raise click.BadParameter(e)
     _generate(generator)
     click.echo(f"Data source '{kwargs['name']}' was added to AppSync API "
-               f"'{kwargs['appsync_name']}' successfully")
+               f"'{kwargs['api_name']}' successfully")
 
 
 @appsync.command(name='resolver')
-@click.option('--appsync_name', required=True, type=str,
+@click.option('--api_name', required=True, type=str,
               help="AppSync API name to add resolver to")
 @click.option('--type_name', required=True, type=str,
               help="The name of the type")
@@ -125,11 +125,11 @@ def resolver(ctx, **kwargs):
     _generate(generator)
     click.echo(f"The resolver of the type '{kwargs['type_name']}'  for the "
                f"field '{kwargs['field_name']}' was added to AppSync API "
-               f"'{kwargs['appsync_name']}' successfully")
+               f"'{kwargs['api_name']}' successfully")
 
 
 @appsync.command(name='authorization')
-@click.option('--appsync_name', required=True, type=str,
+@click.option('--api_name', required=True, type=str,
               help="AppSync API name to add authorization to")
 @click.option('--type', required=True,
               type=click.Choice(APPSYNC_AUTHORIZATION_TYPES),
@@ -158,7 +158,7 @@ def authorization(ctx, **kwargs):
     _generate(generator)
     click.echo(f"The '{kwargs['type']}' authorization of type "
                f"'{kwargs['auth_type']}' was added to AppSync API "
-               f"'{kwargs['appsync_name']}' successfully")
+               f"'{kwargs['api_name']}' successfully")
 
 
 def _generate(generator: BaseConfigurationGenerator):
