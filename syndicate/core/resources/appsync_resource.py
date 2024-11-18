@@ -136,6 +136,14 @@ class AppSyncResource(BaseResource):
         source_config = None
         source_type = source_meta.get('type')
 
+        if source_type == 'NONE':
+            return {
+                'name': source_name,
+                'source_type': source_type,
+                'description': source_meta.get('description'),
+                'service_role_arn': source_meta.get('service_role_arn')
+            }
+
         if config_key := DATA_SOURCE_TYPE_CONFIG_MAPPING.get(source_type):
             source_config = source_meta.get(config_key)
 
