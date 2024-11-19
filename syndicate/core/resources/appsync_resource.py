@@ -23,8 +23,11 @@ RESOLVER_REQUIRED_PARAMS = ['type_name', 'field_name', 'runtime',
                             'data_source_name']
 RESOLVER_DEFAULT_KIND = 'UNIT'
 
+AWS_REGION_PARAMETER = 'aws_region'
+AWS_LAMBDA_TYPE = 'AWS_LAMBDA'
+
 DATA_SOURCE_TYPE_CONFIG_MAPPING = {
-    'AWS_LAMBDA': 'lambda_config',
+    AWS_LAMBDA_TYPE: 'lambda_config',
     'AMAZON_DYNAMODB': 'dynamodb_config',
     'AMAZON_ELASTICSEARCH': 'elasticsearch_config',
     'HTTP': 'http_config',
@@ -73,19 +76,24 @@ class AppSyncResource(BaseResource):
         extract_to = self._extract_zip(archive_path, name)
         auth_type = meta.get('primary_auth_type')
         extra_auth_types = meta.get('extra_auth_types', [])
-        updated_extra_auth_types = []
-        is_extra_auth_api_key = False
+        lambda_auth_config = meta.get('lambda_auth_config', {})
 
-        for auth in extra_auth_types:
-            if auth['authentication_type'] == 'API_KEY':
-                is_extra_auth_api_key = True
-            updated_extra_auth_types.append(dict_keys_to_camel_case(auth))
+        if auth_type == AWS_LAMBDA_TYPE:
+            lambda_arn = self.build_lambda_arn(
+                region=lambda_auth_config.get(
+                    'lambda_authorizer_config', {}).pop(AWS_REGION_PARAMETER, None),
+                name=lambda_auth_config.get(
+                    'lambda_authorizer_config', {}).pop('lambda_name', None))
+            lambda_auth_config['authorizer_uri'] = lambda_arn
+
+        updated_extra_auth_types, is_extra_auth_api_key = \
+            self._process_extra_auth(extra_auth_types)
 
         api_id = self.appsync_conn.create_graphql_api(
             name, auth_type=auth_type, tags=meta.get('tags'),
             user_pool_config=meta.get('user_pool_config'),
             open_id_config=meta.get('open_id_config'),
-            lambda_auth_config=meta.get('lambda_auth_config'),
+            lambda_auth_config=lambda_auth_config,
             log_config=meta.get('log_config'),
             xray_enabled=meta.get('xray_enabled'),
             extra_auth_types=updated_extra_auth_types)
@@ -152,13 +160,13 @@ class AppSyncResource(BaseResource):
         if config_key := DATA_SOURCE_TYPE_CONFIG_MAPPING.get(source_type):
             source_config = source_meta.get(config_key)
 
-        if source_type == 'AWS_LAMBDA' and source_config:
-            region = source_config.pop('aws_region', None)
+        if source_type == AWS_LAMBDA_TYPE and source_config:
+            region = source_config.pop(AWS_REGION_PARAMETER, None)
             lambda_name = source_config.pop('lambda_name', None)
             source_config['lambda_function_arn'] = self.build_lambda_arn(
                 lambda_name, region)
         elif source_type == 'AMAZON_EVENTBRIDGE' and source_config:
-            region = source_config.pop('aws_region')
+            region = source_config.pop(AWS_REGION_PARAMETER)
             event_bus = source_config.pop('event_bus_name')
             source_config['event_bus_arn'] = self.build_event_bus_arn(
                 event_bus, region)
@@ -417,3 +425,19 @@ class AppSyncResource(BaseResource):
             with ZipFile(artifact, 'r') as zf:
                 zf.extractall(extract_to)
         return extract_to
+
+    def _process_extra_auth(self, extra_auth_types):
+        is_extra_auth_api_key = False
+        result = []
+        for auth in extra_auth_types:
+            if auth['authentication_type'] == 'API_KEY':
+                is_extra_auth_api_key = True
+            if auth['authentication_type'] == AWS_LAMBDA_TYPE:
+                lambda_arn = self.build_lambda_arn(
+                    region=auth.get('lambda_authorizer_config', {}).pop(
+                        AWS_REGION_PARAMETER, None),
+                    name=auth.get('lambda_authorizer_config', {}).pop(
+                        'lambda_name', None))
+                auth['authorizer_uri'] = lambda_arn
+            result.append(dict_keys_to_camel_case(auth))
+        return result, is_extra_auth_api_key
