@@ -793,12 +793,88 @@ def _generate_syncapp_default_schema():
 
 
 def _generate_syncapp_js_resolver_code():
-    return '// Your code here'
+    default_code = '''/**
+ * Sends a request to the attached data source
+ * @param {import('@aws-appsync/utils').Context} ctx the context
+ * @returns {*} the request
+ */
+export function request(ctx) {
+    // Update with custom logic or select a code sample.
+    return {};
+}
+
+/**
+ * Returns the resolver result
+ * @param {import('@aws-appsync/utils').Context} ctx the context
+ * @returns {*} the result
+ */
+export function response(ctx) {
+    // Update with response logic
+    return ctx.result;
+}
+    '''
+    return default_code
 
 
-def _generate_syncapp_vtl_resolver_req_mt():
-    return '## Your code here'
+def _generate_syncapp_vtl_resolver_req_mt(data_source_type):
+    match data_source_type:
+        case 'NONE':
+            content = \
+'''#**Resolvers with None data sources can locally publish events that fire
+subscriptions or otherwise transform data without hitting a backend data source.
+The value of 'payload' is forwarded to $ctx.result in the response mapping template.
+*#
+{
+    "version": "2017-02-28",
+    "payload": {
+        "hello": "local",
+    }
+}
+            '''
+        case 'AWS_LAMBDA':
+            content = \
+'''#**The value of 'payload' after the template has been evaluated
+will be passed as the event to AWS Lambda.
+*#
+{
+  "version" : "2017-02-28",
+  "operation": "Invoke",
+  "payload": $util.toJson($context.args)
+}
+            '''
+        case 'AMAZON_DYNAMODB':
+            content = \
+'''## Below example shows how to look up an item with a Primary Key of "id" from GraphQL arguments
+## The helper $util.dynamodb.toDynamoDBJson automatically converts to a DynamoDB formatted request
+## There is a "context" object with arguments, identity, headers, and parent field information you can access.
+## It also has a shorthand notation avaialable:
+##  - $context or $ctx is the root object
+##  - $ctx.arguments or $ctx.args contains arguments
+##  - $ctx.identity has caller information, such as $ctx.identity.username
+##  - $ctx.request.headers contains headers, such as $context.request.headers.xyz
+##  - $ctx.source is a map of the parent field, for instance $ctx.source.xyz
+## Read more: https://docs.aws.amazon.com/appsync/latest/devguide/resolver-mapping-template-reference.html
+
+{
+        "version": "2017-02-28",
+        "operation": "GetItem",
+        "key": {
+            "id": $util.dynamodb.toDynamoDBJson($ctx.args.id),
+        }
+    }
+            '''
+    return content
 
 
-def _generate_syncapp_vtl_resolver_resp_mt():
-    return '## Your code here'
+def _generate_syncapp_vtl_resolver_resp_mt(data_source_type):
+    match data_source_type:
+        case 'NONE':
+            content = '''$util.toJson($context.result)'''
+        case 'AWS_LAMBDA':
+            content = '''$util.toJson($context.result)'''
+        case 'AMAZON_DYNAMODB':
+            content = \
+'''## Pass back the result from DynamoDB. **
+$util.toJson($ctx.result)
+                '''
+    return content

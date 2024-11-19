@@ -199,6 +199,7 @@ class AppSyncConnection(object):
 
     def get_graphql_api_by_name(self, name):
         # TODO change list_graphql_apis to list_apis when upgrade boto3 version
+        # TODO implement pagination
         return next((api for api in self.client.list_graphql_apis()[
             'graphqlApis'] if api['name'] == name), None)
 

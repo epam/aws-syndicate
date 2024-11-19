@@ -134,6 +134,7 @@ class AppSyncResolverGenerator(AppSyncConfigurationGenerator):
             f"'{self.appsync_name}' definition.")
         for data_source in data_sources:
             if current_ds_name == data_source['name']:
+                self._dict['data_source_type'] = data_source['type']
                 error_message = None
                 break
         if error_message:
@@ -196,8 +197,10 @@ class AppSyncResolverGenerator(AppSyncConfigurationGenerator):
             _write_content_to_file(paths_to_code, code_content)
         if runtime == 'VTL':
             Path(paths_to_code).unlink(missing_ok=True)
-            req_mapping_template = _generate_syncapp_vtl_resolver_req_mt()
-            resp_mapping_template = _generate_syncapp_vtl_resolver_resp_mt()
+            req_mapping_template = _generate_syncapp_vtl_resolver_req_mt(
+                self._dict['data_source_type'])
+            resp_mapping_template = _generate_syncapp_vtl_resolver_resp_mt(
+                self._dict['data_source_type'])
 
             self._dict['request_mapping_template_path'] = PurePath(
                 internal_path_to_field,

@@ -1,15 +1,14 @@
 import io
 import os.path
 import posixpath
+import shutil
 from pathlib import PurePath
-from time import sleep
 from zipfile import ZipFile
 
 from botocore.exceptions import ClientError
 
 from syndicate.commons.log_helper import get_logger
-from syndicate.core.constants import ARTIFACTS_FOLDER, \
-    APPSYNC_ARTIFACT_NAME_TEMPLATE
+from syndicate.core.constants import ARTIFACTS_FOLDER
 from syndicate.core.helper import build_path, unpack_kwargs, \
     dict_keys_to_camel_case
 from syndicate.core.resources.base_resource import BaseResource
@@ -20,7 +19,9 @@ _LOG = get_logger('syndicate.core.resources.dynamo_db_resource')
 
 API_REQUIRED_PARAMS = ['schema_path']
 DATA_SOURCE_REQUIRED_PARAMS = ['name', 'type']
-RESOLVER_REQUIRED_PARAMS = ['type_name', 'field_name', 'runtime']
+RESOLVER_REQUIRED_PARAMS = ['type_name', 'field_name', 'runtime',
+                            'data_source_name']
+RESOLVER_DEFAULT_KIND = 'UNIT'
 
 DATA_SOURCE_TYPE_CONFIG_MAPPING = {
     'AWS_LAMBDA': 'lambda_config',
@@ -103,14 +104,13 @@ class AppSyncResource(BaseResource):
                 schema_definition = file.read()
 
             self.appsync_conn.create_schema(api_id, schema_definition)
-            sleep(2)  # to avoid an error when schema is still being altered
 
-        if data_sources_meta := meta.get('data_sources', []):
-            for source_meta in data_sources_meta:
-                params = self._build_data_source_params_from_meta(source_meta)
-                if not params:
-                    continue
-                self.appsync_conn.create_data_source(api_id, **params)
+        data_sources_meta = meta.get('data_sources', [])
+        for data_source_meta in data_sources_meta:
+            params = self._build_data_source_params_from_meta(data_source_meta)
+            if not params:
+                continue
+            self.appsync_conn.create_data_source(api_id, **params)
 
         if resolvers_meta := meta.get('resolvers', []):
             for resolver_meta in resolvers_meta:
@@ -119,7 +119,7 @@ class AppSyncResource(BaseResource):
                 if not params:
                     continue
                 self.appsync_conn.create_resolver(api_id, **params)
-
+        shutil.rmtree(extract_to, ignore_errors=True)
         _LOG.info(f'Created AppSync GraphQL API {api_id}')
         return self.describe_graphql_api(name=name, meta=meta, api_id=api_id)
 
@@ -137,13 +137,17 @@ class AppSyncResource(BaseResource):
         source_config = None
         source_type = source_meta.get('type')
 
-        if source_type == 'NONE':
-            return {
-                'name': source_name,
-                'source_type': source_type,
-                'description': source_meta.get('description'),
-                'service_role_arn': source_meta.get('service_role_arn')
-            }
+        data_source_params = {
+            'name': source_name,
+            'source_type': source_type
+        }
+
+        if source_description := source_meta.get('description'):
+            data_source_params['description'] = source_description
+
+        if role_name := source_meta.get('service_role_name'):
+            role_arn = self._build_iam_role_arn(role_name)
+            data_source_params['service_role_arn'] = role_arn
 
         if config_key := DATA_SOURCE_TYPE_CONFIG_MAPPING.get(source_type):
             source_config = source_meta.get(config_key)
@@ -159,13 +163,10 @@ class AppSyncResource(BaseResource):
             source_config['event_bus_arn'] = self.build_event_bus_arn(
                 event_bus, region)
 
-        return {
-            'name': source_name,
-            'source_type': source_meta.get('type'),
-            'source_config': source_config,
-            'description': source_meta.get('description'),
-            'service_role_arn': source_meta.get('service_role_arn')
-        }
+        if source_config:
+            data_source_params['source_config'] = source_config
+
+        return data_source_params
 
     def build_lambda_arn(self, name, region):
         arn = f'arn:aws:lambda:{region}:{self.account_id}:function:{name}'
@@ -174,6 +175,9 @@ class AppSyncResource(BaseResource):
     def build_event_bus_arn(self, name, region):
         arn = f'arn:aws:events:{region}:{self.account_id}:event-bus/{name}'
         return arn
+
+    def _build_iam_role_arn(self, name):
+        return f'arn:aws:iam::{self.account_id}:role/{name}'
 
     @staticmethod
     def _build_resolver_params_from_meta(resolver_meta, artifacts_path):
@@ -190,14 +194,19 @@ class AppSyncResource(BaseResource):
 
         _LOG.info(f'Altering resolver for type \'{type_name}\' and field '
                   f'\'{field_name}\'...')
-        code = None
-        request_mapping_template = None
-        response_mapping_template = None
+        resolver_params = {
+            'type_name': type_name,
+            'field_name': field_name,
+            'data_source_name': resolver_meta['data_source_name'],
+            'kind': resolver_meta.get('kind', RESOLVER_DEFAULT_KIND)
+        }
+
         if resolver_meta.get('runtime') in ('JS', 'APPSYNC_JS'):
             runtime = {
                 'name': 'APPSYNC_JS',
                 'runtimeVersion': '1.0.0'
             }
+            resolver_params['runtime'] = runtime
         else:
             runtime = None
 
@@ -205,17 +214,22 @@ class AppSyncResource(BaseResource):
             code_path = build_path(artifacts_path,
                                    resolver_meta.get('code_path'))
             if not os.path.exists(code_path):
-                raise AssertionError(f'\'{code_path}\' file not found')
+                raise AssertionError(
+                    f"Resolver code file for type '{type_name}' and field "
+                    f"'{field_name}' not found.")
 
             with open(code_path, 'r') as file:
                 code = file.read()
+            resolver_params['code'] = code
         else:
             _LOG.debug('Runtime is not JS')
             request_template_path = build_path(
                 artifacts_path,
                 resolver_meta.get('request_mapping_template_path'))
             if not os.path.exists(request_template_path):
-                _LOG.debug(f'\'{request_template_path}\' file not found')
+                raise AssertionError(
+                    f"Resolver request mapping template file for type "
+                    f"'{type_name}' and field '{field_name}' not found.")
             else:
                 with open(request_template_path, 'r') as file:
                     request_mapping_template = file.read()
@@ -224,22 +238,22 @@ class AppSyncResource(BaseResource):
                 artifacts_path,
                 resolver_meta.get('response_mapping_template_path'))
             if not os.path.exists(response_template_path):
-                _LOG.debug(f'\'{response_template_path}\' file not found')
+                raise AssertionError(
+                    f"Resolver response mapping template file for type "
+                    f"'{type_name}' and field '{field_name}' not found.")
             else:
                 with open(response_template_path, 'r') as file:
                     response_mapping_template = file.read()
 
-        return {
-            'type_name': resolver_meta.get('type_name'),
-            'field_name': resolver_meta.get('field_name'),
-            'data_source_name': resolver_meta.get('data_source_name'),
-            'runtime': runtime,
-            'code': code,
-            'request_mapping_template': request_mapping_template,
-            'response_mapping_template': response_mapping_template,
-            'kind': resolver_meta.get('kind'),
-            'max_batch_size': resolver_meta.get('max_batch_size')
-        }
+            resolver_params['request_mapping_template'] = \
+                request_mapping_template
+            resolver_params['response_mapping_template'] = \
+                response_mapping_template
+
+        if max_batch_size := resolver_meta.get('max_batch_size'):
+            resolver_params['max_batch_size'] = max_batch_size
+
+        return resolver_params
 
     def build_graphql_api_arn(self, api_id: str) -> str:
         return f'arn:aws:appsync:{self.appsync_conn.client.meta.region_name}' \
@@ -314,7 +328,6 @@ class AppSyncResource(BaseResource):
                 schema_definition = file.read()
 
             self.appsync_conn.create_schema(api_id, schema_definition)
-            sleep(2)
 
         types = self.appsync_conn.list_types(api_id)
         existent_resolvers = []
@@ -383,18 +396,24 @@ class AppSyncResource(BaseResource):
     def _extract_zip(self, path: str, name: str):
         from syndicate.core import PROJECT_STATE
 
-        artifact_dir = PurePath(self.conf_path, ARTIFACTS_FOLDER,
-                                path).as_posix()
+        extract_to = PurePath(self.conf_path, ARTIFACTS_FOLDER,
+                              name).as_posix()
         artifact_src_path = posixpath.join(
             self.deploy_target_bucket_key_compound,
             PROJECT_STATE.current_bundle, path)
+
+        if not self.s3_conn.is_file_exists(self.deploy_target_bucket,
+                                           artifact_src_path):
+            raise AssertionError(
+                f"Deployment package for Appsync '{name}' not found by the "
+                f"path '{artifact_src_path}'")
+
         _LOG.info(f'Downloading an artifact for Appsync \'{name}\'')
         with io.BytesIO() as artifact:
             self.s3_conn.download_to_file(
                     bucket_name=self.deploy_target_bucket,
                     key=artifact_src_path,
                     file=artifact)
-            extract_to = build_path(artifact_dir, name)
             with ZipFile(artifact, 'r') as zf:
                 zf.extractall(extract_to)
         return extract_to
