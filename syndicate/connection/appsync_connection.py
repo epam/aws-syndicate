@@ -47,6 +47,7 @@ class AppSyncConnection(object):
                              aws_access_key_id=aws_access_key_id,
                              aws_secret_access_key=aws_secret_access_key,
                              aws_session_token=aws_session_token)
+        self.region = region
         _LOG.debug('Opened new AppSync connection.')
 
 # ------------------------ Create ------------------------
@@ -199,9 +200,39 @@ class AppSyncConnection(object):
 
     def get_graphql_api_by_name(self, name):
         # TODO change list_graphql_apis to list_apis when upgrade boto3 version
-        # TODO implement pagination
-        return next((api for api in self.client.list_graphql_apis()[
-            'graphqlApis'] if api['name'] == name), None)
+        def process_apis(resume_token=None):
+            pagination_conf = {
+                'MaxItems': 60,
+                'PageSize': 10
+            }
+            if resume_token:
+                pagination_conf['StartingToken'] = resume_token
+            response = paginator.paginate(
+                PaginationConfig=pagination_conf
+            )
+            for page in response:
+                apis.extend(
+                    [api for api in page['graphqlApis'] if
+                     api['name'] == name]
+                )
+            return response.resume_token
+
+        apis = []
+        paginator = self.client.get_paginator('list_graphql_apis')
+
+        next_token = process_apis()
+        while next_token:
+            next_token = process_apis(next_token)
+
+        if len(apis) == 1:
+            return apis[0]
+        if len(apis) > 1:
+            _LOG.warn(f'AppSync API can\'t be identified unambiguously '
+                      f'because there is more than one resource with the name '
+                      f'"{name}" in the region {self.region}.')
+        else:
+            _LOG.warn(f'AppSync API with the name "{name}" '
+                      f'not found in the region {self.region}')
 
     def get_resolver(self, api_id: str, type_name: str, field_name: str):
         try:
