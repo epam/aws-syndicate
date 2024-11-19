@@ -285,6 +285,10 @@ class AppSyncConnection(object):
             apiId=api_id,
             format='SDL' if not format else format
         )['schema']
+
+    def list_api_keys(self, api_id: str) -> list:
+        return self.client.list_api_keys(apiId=api_id)['apiKeys']
+
 # ------------------------ Update ------------------------
 
     def update_data_source(self, api_id: str, name: str, source_type: str,

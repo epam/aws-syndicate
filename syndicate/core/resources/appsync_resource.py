@@ -2,12 +2,13 @@ import io
 import os.path
 import posixpath
 import shutil
+import time
 from pathlib import PurePath
 from zipfile import ZipFile
 
 from botocore.exceptions import ClientError
 
-from syndicate.commons.log_helper import get_logger
+from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.constants import ARTIFACTS_FOLDER
 from syndicate.core.helper import build_path, unpack_kwargs, \
     dict_keys_to_camel_case
@@ -16,6 +17,7 @@ from syndicate.core.resources.helper import validate_params, \
     build_description_obj
 
 _LOG = get_logger('syndicate.core.resources.dynamo_db_resource')
+USER_LOG = get_user_logger()
 
 API_REQUIRED_PARAMS = ['schema_path']
 DATA_SOURCE_REQUIRED_PARAMS = ['name', 'type']
@@ -25,6 +27,7 @@ RESOLVER_DEFAULT_KIND = 'UNIT'
 
 AWS_REGION_PARAMETER = 'aws_region'
 AWS_LAMBDA_TYPE = 'AWS_LAMBDA'
+AWS_CUP_TYPE = 'AMAZON_COGNITO_USER_POOLS'
 
 DATA_SOURCE_TYPE_CONFIG_MAPPING = {
     AWS_LAMBDA_TYPE: 'lambda_config',
@@ -36,14 +39,17 @@ DATA_SOURCE_TYPE_CONFIG_MAPPING = {
     'AMAZON_EVENTBRIDGE': 'event_bridge_config'
 }
 
+ONE_DAY_IN_SECONDS = 86400
+
 
 class AppSyncResource(BaseResource):
 
-    def __init__(self, appsync_conn, s3_conn, deploy_target_bucket,
+    def __init__(self, appsync_conn, s3_conn, cup_conn, deploy_target_bucket,
                  deploy_target_bucket_key_compound, account_id) -> None:
         from syndicate.core import CONF_PATH
         self.appsync_conn = appsync_conn
         self.s3_conn = s3_conn
+        self.cup_conn = cup_conn
         self.conf_path = CONF_PATH
         self.deploy_target_bucket_key_compound = \
             deploy_target_bucket_key_compound
@@ -76,22 +82,42 @@ class AppSyncResource(BaseResource):
         extract_to = self._extract_zip(archive_path, name)
         auth_type = meta.get('primary_auth_type')
         extra_auth_types = meta.get('extra_auth_types', [])
-        lambda_auth_config = meta.get('lambda_auth_config', {})
+        lambda_auth_config = meta.get('lambda_authorizer_config', {})
+        user_pool_config = meta.get('user_pool_config', {})
 
         if auth_type == AWS_LAMBDA_TYPE:
-            lambda_arn = self.build_lambda_arn(
-                region=lambda_auth_config.get(
-                    'lambda_authorizer_config', {}).pop(AWS_REGION_PARAMETER, None),
-                name=lambda_auth_config.get(
-                    'lambda_authorizer_config', {}).pop('lambda_name', None))
-            lambda_auth_config['authorizer_uri'] = lambda_arn
+            lambda_region = lambda_auth_config.pop(AWS_REGION_PARAMETER, None)
+            lambda_name = lambda_auth_config.pop('resource_name', None)
+            if not lambda_region or not lambda_name:
+                lambda_auth_config = {}
+                USER_LOG.error(
+                    f"Authorization type '{auth_type}' can't be configured "
+                    f"for AppSync '{name}' because lambda resource name or "
+                    f"aws region is not specified")
+            else:
+                lambda_arn = self.build_lambda_arn(
+                    region=lambda_region,
+                    name=lambda_name)
+                lambda_auth_config['authorizer_uri'] = lambda_arn
+
+        if auth_type == AWS_CUP_TYPE:
+            cup_name = user_pool_config.pop('resource_name', None)
+            cup_id = self.cup_conn.if_pool_exists_by_name(cup_name)
+            if cup_id:
+                user_pool_config['user_pool_id'] = cup_id
+            else:
+                user_pool_config = {}
+                USER_LOG.error(
+                    f"Authorization type '{auth_type}' can't be configured "
+                    f"for AppSync '{name}' because Cognito User Pool "
+                    f"{cup_name} not found")
 
         updated_extra_auth_types, is_extra_auth_api_key = \
-            self._process_extra_auth(extra_auth_types)
+            self._process_extra_auth(extra_auth_types, name)
 
         api_id = self.appsync_conn.create_graphql_api(
             name, auth_type=auth_type, tags=meta.get('tags'),
-            user_pool_config=meta.get('user_pool_config'),
+            user_pool_config=user_pool_config,
             open_id_config=meta.get('open_id_config'),
             lambda_auth_config=lambda_auth_config,
             log_config=meta.get('log_config'),
@@ -99,7 +125,11 @@ class AppSyncResource(BaseResource):
             extra_auth_types=updated_extra_auth_types)
 
         if auth_type == 'API_KEY' or is_extra_auth_api_key:
-            self.appsync_conn.create_api_key(api_id)
+            api_key_expiration = meta.get('api_key_expiration_days', 7)
+            now = time.time()
+            api_key_expires = \
+                int(now + api_key_expiration * ONE_DAY_IN_SECONDS)
+            self.appsync_conn.create_api_key(api_id, expires=api_key_expires)
 
         if schema_path := meta.get('schema_path'):
             schema_full_path = build_path(extract_to, schema_path)
@@ -310,20 +340,58 @@ class AppSyncResource(BaseResource):
         archive_path = meta['deployment_package']
         extract_to = self._extract_zip(archive_path, name)
         api_id = api['apiId']
-        updated_extra_auth_types = []
+        auth_type = meta.get('primary_auth_type')
         extra_auth_types = meta.get('extra_auth_types', [])
+        lambda_auth_config = meta.get('lambda_authorizer_config', {})
+        user_pool_config = meta.get('user_pool_config', {})
 
-        for auth in extra_auth_types:
-            updated_extra_auth_types.append(dict_keys_to_camel_case(auth))
+        if auth_type == AWS_LAMBDA_TYPE:
+            lambda_region = lambda_auth_config.pop(AWS_REGION_PARAMETER, None)
+            lambda_name = lambda_auth_config.pop('resource_name', None)
+            if not lambda_region or not lambda_name:
+                lambda_auth_config = {}
+                USER_LOG.error(
+                    f"Authorization type '{auth_type}' can't be configured "
+                    f"for AppSync '{name}' because lambda resource name or "
+                    f"aws region is not specified")
+            else:
+                lambda_arn = self.build_lambda_arn(
+                    region=lambda_region,
+                    name=lambda_name)
+                lambda_auth_config['authorizer_uri'] = lambda_arn
+
+        if auth_type == AWS_CUP_TYPE:
+            cup_name = user_pool_config.pop('resource_name', None)
+            cup_id = self.cup_conn.if_pool_exists_by_name(cup_name)
+            if cup_id:
+                user_pool_config['user_pool_id'] = cup_id
+            else:
+                user_pool_config = {}
+                USER_LOG.error(
+                    f"Authorization type '{auth_type}' can't be configured "
+                    f"for AppSync '{name}' because Cognito User Pool "
+                    f"{cup_name} not found")
+
+        updated_extra_auth_types, is_extra_auth_api_key = \
+            self._process_extra_auth(extra_auth_types, name)
 
         self.appsync_conn.update_graphql_api(
-            api_id, name, auth_type=meta.get('primary_auth_type'),
-            user_pool_config=meta.get('user_pool_config'),
+            api_id, name, auth_type=auth_type,
+            user_pool_config=user_pool_config,
             open_id_config=meta.get('open_id_config'),
-            lambda_auth_config=meta.get('lambda_auth_config'),
+            lambda_auth_config=lambda_auth_config,
             log_config=meta.get('log_config'),
             xray_enabled=meta.get('xray_enabled'),
             extra_auth_types=updated_extra_auth_types)
+
+        if auth_type == 'API_KEY' or is_extra_auth_api_key:
+            if not self.get_active_api_keys(api_id):
+                api_key_expiration = meta.get('api_key_expiration_days', 7)
+                now = time.time()
+                api_key_expires = \
+                    int(now + api_key_expiration * ONE_DAY_IN_SECONDS)
+                self.appsync_conn.create_api_key(
+                    api_id, expires=api_key_expires)
 
         if schema_path := meta.get('schema_path'):
             schema_full_path = build_path(extract_to, schema_path)
@@ -426,18 +494,51 @@ class AppSyncResource(BaseResource):
                 zf.extractall(extract_to)
         return extract_to
 
-    def _process_extra_auth(self, extra_auth_types):
+    def _process_extra_auth(self, extra_auth_types, api_name):
         is_extra_auth_api_key = False
         result = []
         for auth in extra_auth_types:
-            if auth['authentication_type'] == 'API_KEY':
-                is_extra_auth_api_key = True
             if auth['authentication_type'] == AWS_LAMBDA_TYPE:
-                lambda_arn = self.build_lambda_arn(
-                    region=auth.get('lambda_authorizer_config', {}).pop(
-                        AWS_REGION_PARAMETER, None),
-                    name=auth.get('lambda_authorizer_config', {}).pop(
-                        'lambda_name', None))
-                auth['authorizer_uri'] = lambda_arn
-            result.append(dict_keys_to_camel_case(auth))
+                lambda_region = \
+                    auth.get('lambda_authorizer_config', {}).pop(
+                        AWS_REGION_PARAMETER, None)
+                lambda_name = \
+                    auth.get('lambda_authorizer_config', {}).pop(
+                        'resource_name', None)
+                if not lambda_region or not lambda_name:
+                    USER_LOG.error(
+                        f"Authorization type '{AWS_LAMBDA_TYPE}' can't be "
+                        f"configured for AppSync '{api_name}' because lambda "
+                        f"resource name or aws region is not specified")
+                else:
+                    lambda_arn = self.build_lambda_arn(
+                        region=lambda_region,
+                        name=lambda_name)
+                    auth['lambda_authorizer_config']['authorizer_uri'] = \
+                        lambda_arn
+                    result.append(dict_keys_to_camel_case(auth))
+            elif auth['authentication_type'] == AWS_CUP_TYPE:
+                cup_name = \
+                    auth.get('user_pool_config', {}).pop(
+                        'resource_name', None)
+                cup_id = self.cup_conn.if_pool_exists_by_name(cup_name)
+                if not cup_id:
+                    USER_LOG.error(
+                        f"Authorization type '{AWS_CUP_TYPE}' can't be "
+                        f"configured for AppSync '{api_name}' because Cognito "
+                        f"User Pool '{cup_name}' not found")
+                else:
+                    auth['user_pool_config']['user_pool_id'] = cup_id
+                    result.append(dict_keys_to_camel_case(auth))
+            elif auth['authentication_type'] == 'API_KEY':
+                result.append(dict_keys_to_camel_case(auth))
+                is_extra_auth_api_key = True
+            else:
+                result.append(dict_keys_to_camel_case(auth))
+
         return result, is_extra_auth_api_key
+
+    def get_active_api_keys(self, api_id):
+        api_keys = self.appsync_conn.list_api_keys(api_id)
+        now = time.time()
+        return [api_key for api_key in api_keys if api_key['expires'] > now]

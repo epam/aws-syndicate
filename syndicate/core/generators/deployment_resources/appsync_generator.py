@@ -289,6 +289,7 @@ class AppSyncAuthorizationGenerator(AppSyncConfigurationGenerator):
             if lambda_config:
                 self._dict['lambda_authorizer_config'] = lambda_config
             if cognito_config:
+                cognito_config['default_action'] = 'DENY'
                 self._dict['user_pool_config'] = cognito_config
         elif authorizer_type == 'extra':
             new_auth_type = authentication_config['authentication_type']
@@ -324,7 +325,7 @@ class AppSyncAuthorizationGenerator(AppSyncConfigurationGenerator):
                 return {
                     'authentication_type': 'AWS_LAMBDA',
                     'lambda_authorizer_config': {
-                        'authorizer_result_ttl': 300,
+                        'authorizer_result_ttl_in_seconds': 300,
                         'resource_name': lambda_name,
                         'aws_region': region
                     }

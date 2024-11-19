@@ -780,6 +780,7 @@ def _generate_syncapp_config(resource_name, schema_file_name, tags=None):
         "name": resource_name,
         "resource_type": "appsync",
         "primary_auth_type": "API_KEY",
+        "api_key_expiration_days": 7,
         "schema_path": schema_file_name,
         "data_sources": [],
         "resolvers": [],
