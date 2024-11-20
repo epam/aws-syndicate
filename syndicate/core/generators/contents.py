@@ -790,7 +790,18 @@ def _generate_syncapp_config(resource_name, schema_file_name, tags=None):
 
 
 def _generate_syncapp_default_schema():
-    return '## Your schema here'
+    content = '''# Define the structure of your API with the GraphQL
+# schema definition language (SDL) here.
+
+type Query {
+	test: String
+}
+
+schema {
+	query: Query
+}
+    '''
+    return content
 
 
 def _generate_syncapp_js_resolver_code():

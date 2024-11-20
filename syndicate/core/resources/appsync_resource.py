@@ -141,7 +141,18 @@ class AppSyncResource(BaseResource):
             with open(schema_full_path, 'r') as file:
                 schema_definition = file.read()
 
-            self.appsync_conn.create_schema(api_id, schema_definition)
+            status, details = \
+                self.appsync_conn.create_schema(api_id, schema_definition)
+            if status != 'SUCCESS':
+                error_message = (
+                    f"An error occurred when creating schema. "
+                    f"Operation status: '{status}'. ")
+                if details:
+                    error_message += f"Details: '{details}'"
+                raise AssertionError(error_message)
+            else:
+                _LOG.info(
+                    f"Schema of the AppSync '{name}' created successfully")
 
         data_sources_meta = meta.get('data_sources', [])
         for data_source_meta in data_sources_meta:
@@ -403,7 +414,18 @@ class AppSyncResource(BaseResource):
             with open(schema_full_path, 'r') as file:
                 schema_definition = file.read()
 
-            self.appsync_conn.create_schema(api_id, schema_definition)
+            status, details = \
+                self.appsync_conn.create_schema(api_id, schema_definition)
+            if status != 'SUCCESS':
+                error_message = (
+                    f"An error occurred when updating schema. "
+                    f"Operation status: '{status}'. ")
+                if details:
+                    error_message += f"Details: '{details}'"
+                raise AssertionError(error_message)
+            else:
+                _LOG.info(
+                    f"Schema of the AppSync '{name}' updated successfully")
 
         types = self.appsync_conn.list_types(api_id)
         existent_resolvers = []

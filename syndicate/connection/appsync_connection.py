@@ -97,10 +97,19 @@ class AppSyncConnection(object):
         return self.client.create_graphql_api(**params)['graphqlApi']['apiId']
 
     def create_schema(self, api_id: str, definition: str):
-        return self.client.start_schema_creation(
+        response = self.client.start_schema_creation(
             apiId=api_id,
             definition=str.encode(definition)
-        )['status']
+        )
+        status = response['status']
+        details = response.get('details', '')
+        while status == 'PROCESSING':
+            response = self.client.get_schema_creation_status(
+                apiId=api_id
+            )
+            status = response['status']
+            details = response.get('details', '')
+        return status, details
 
     def create_type(self, api_id: str, definition: str, format: str):
         params = dict(

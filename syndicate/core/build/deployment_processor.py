@@ -364,9 +364,9 @@ def process_response(response, output: dict):
 
         if isinstance(exceptions, list):
             errors.extend(exceptions)
-            _LOG.error('\n'.join(exceptions))
+            USER_LOG.error('\n'.join(exceptions))
         else:
-            _LOG.error(str(exceptions))
+            USER_LOG.error(str(exceptions))
             errors.append(str(exceptions))
 
     return errors
