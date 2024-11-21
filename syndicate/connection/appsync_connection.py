@@ -13,6 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+import time
 
 from boto3 import client
 
@@ -104,6 +105,7 @@ class AppSyncConnection(object):
         status = response['status']
         details = response.get('details', '')
         while status == 'PROCESSING':
+            time.sleep(2)
             response = self.client.get_schema_creation_status(
                 apiId=api_id
             )

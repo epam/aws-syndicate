@@ -105,11 +105,13 @@ def data_source(ctx, **kwargs):
 @click.option('--api_name', required=True, type=str,
               help="AppSync API name to add resolver to")
 @click.option('--type_name', required=True, type=str,
-              help="The name of the type")
+              help="The name of the type defined in the API schema")
 @click.option('--field_name', required=True, type=str,
-              help="The name of the field to attach the resolver to")
+              help="The name of the field defined in the API schema to attach "
+                   "the resolver to")
 @click.option('--data_source_name', required=True, type=str,
-              help="The name of the data source to associate the resolver with")
+              help="The name of the data source to associate the resolver "
+                   "with")
 @click.option('--runtime', type=click.Choice(APPSYNC_RESOLVER_RUNTIMES),
               required=True, help="Resolver runtime")
 @verbose_option
