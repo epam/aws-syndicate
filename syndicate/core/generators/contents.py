@@ -875,6 +875,17 @@ will be passed as the event to AWS Lambda.
         }
     }
             '''
+        case 'PIPELINE':
+            content = \
+'''## By default in a before template, all you need is a valid JSON payload.
+## You can also stash data to be made available to the functions in the pipeline.
+## Examples: 
+## - $ctx.stash.put("email", $ctx.args.email)
+## - $ctx.stash.put("badgeNumber", $ctx.args.input.badgeNumber)
+## - $ctx.stash.put("username", $ctx.identity.username)
+
+{}
+'''
     return content
 
 
@@ -889,4 +900,8 @@ def _generate_syncapp_vtl_resolver_resp_mt(data_source_type):
 '''## Pass back the result from DynamoDB. **
 $util.toJson($ctx.result)
                 '''
+        case 'PIPELINE':
+            content = \
+'''## The after mapping template is used to collect the final value that is returned by the resolver.
+$util.toJson($ctx.result)'''
     return content

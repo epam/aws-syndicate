@@ -18,6 +18,8 @@ from click import confirm as click_confirm
 
 
 APPSYNC_RESOLVERS_DIR = 'resolvers'
+APPSYNC_FUNCTIONS_DIR = 'functions'
+DEFAULT_FUNC_VTL_RMT_VERSION = '2018-05-29'
 
 _LOG = get_logger(__name__)
 USER_LOG = get_user_logger()
@@ -112,13 +114,14 @@ class AppSyncDataSourceGenerator(AppSyncConfigurationGenerator):
         return super()._resolve_configuration()
 
 
-class AppSyncResolverGenerator(AppSyncConfigurationGenerator):
+class AppSyncFunctionGenerator(AppSyncConfigurationGenerator):
     CONFIGURATION = {
-        'type_name': str,
-        'field_name': str,
+        'name': str,
+        'description': str,
         'data_source_name': str,
         'runtime': str,
         'code_path': None,
+        'function_version': None,
         'request_mapping_template_path': None,
         'response_mapping_template_path': None,
     }
@@ -140,6 +143,131 @@ class AppSyncResolverGenerator(AppSyncConfigurationGenerator):
         if error_message:
             raise ValueError(error_message)
 
+        current_func_name = self._dict['name']
+        functions = self.appsync_config.get('functions', [])
+        for function in functions:
+            if function['name'].lower() == current_func_name.lower():
+                message = (f"The function with the name '{current_func_name}' "
+                           f"already exists.")
+                if click_confirm(f"{message} Overwrite?"):
+                    _LOG.warning(
+                        f"Overwriting function '{current_func_name}'")
+                    functions.remove(function)
+                else:
+                    _LOG.warning(f"Skipping function'{current_func_name}'")
+                    raise RuntimeError
+
+        functions.append(self._resolve_configuration())
+        self.appsync_config['functions'] = functions
+        self._save_config()
+
+    def _resolve_configuration(self, defaults_dict=None):
+        runtime = self._dict.get('runtime')
+        internal_path_to_func = PurePath(
+            APPSYNC_FUNCTIONS_DIR,
+            self._dict.get('name').lower()).as_posix()
+
+        path_to_func = PurePath(
+            self.appsync_path,
+            internal_path_to_func).as_posix()
+
+        paths_to_code = PurePath(
+            path_to_func,
+            APPSYNC_JS_RESOLVER_CODE_DEFAULT_FILE_NAME).as_posix()
+
+        paths_to_req_mapping_template = PurePath(
+            path_to_func,
+            APPSYNC_VTL_RESOLVER_REQ_MT_DEFAULT_FILE_NAME).as_posix()
+        paths_to_resp_mapping_template = PurePath(
+            path_to_func,
+            APPSYNC_VTL_RESOLVER_RESP_MT_DEFAULT_FILE_NAME).as_posix()
+
+        if not Path(path_to_func).exists():
+            _mkdir(path_to_func)
+        if runtime == 'JS':
+            Path(paths_to_req_mapping_template).unlink(missing_ok=True)
+            Path(paths_to_resp_mapping_template).unlink(missing_ok=True)
+            self._dict['code_path'] = PurePath(
+                internal_path_to_func,
+                APPSYNC_JS_RESOLVER_CODE_DEFAULT_FILE_NAME).as_posix()
+            code_content = _generate_syncapp_js_resolver_code()
+            _touch(paths_to_code)
+            _write_content_to_file(paths_to_code, code_content)
+        if runtime == 'VTL':
+            Path(paths_to_code).unlink(missing_ok=True)
+            req_mapping_template = _generate_syncapp_vtl_resolver_req_mt(
+                self._dict['data_source_type'])
+            resp_mapping_template = _generate_syncapp_vtl_resolver_resp_mt(
+                self._dict['data_source_type'])
+
+            self._dict['function_version'] = DEFAULT_FUNC_VTL_RMT_VERSION
+            self._dict['request_mapping_template_path'] = PurePath(
+                internal_path_to_func,
+                APPSYNC_VTL_RESOLVER_REQ_MT_DEFAULT_FILE_NAME).as_posix()
+            self._dict['response_mapping_template_path'] = PurePath(
+                internal_path_to_func,
+                APPSYNC_VTL_RESOLVER_RESP_MT_DEFAULT_FILE_NAME).as_posix()
+
+            _touch(paths_to_req_mapping_template)
+            _write_content_to_file(paths_to_req_mapping_template,
+                                   req_mapping_template)
+
+            _touch(paths_to_resp_mapping_template)
+            _write_content_to_file(paths_to_resp_mapping_template,
+                                   resp_mapping_template)
+
+        return super()._resolve_configuration()
+
+
+class AppSyncResolverGenerator(AppSyncConfigurationGenerator):
+    CONFIGURATION = {
+        'kind': str,
+        'type_name': str,
+        'field_name': str,
+        'data_source_name': None,
+        'runtime': str,
+        'pipeline_config': None,
+        'code_path': None,
+        'request_mapping_template_path': None,
+        'response_mapping_template_path': None,
+    }
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def write(self):
+        if self._dict['kind'] == 'UNIT':
+            data_sources = self.appsync_config.get('data_sources', [])
+            current_ds_name = self._dict.get('data_source_name')
+            error_message = (
+                f"Data source '{current_ds_name}' not found in the SyncApp "
+                f"'{self.appsync_name}' definition.")
+            for data_source in data_sources:
+                if current_ds_name == data_source['name']:
+                    self._dict['data_source_type'] = data_source['type']
+                    error_message = None
+                    break
+            if error_message:
+                raise ValueError(error_message)
+        elif self._dict['kind'] == 'PIPELINE':
+            functions = self.appsync_config.get('functions', [])
+            current_functions = self._dict.get('function_name', ())
+            absent_funcs = []
+            for func_name in set(current_functions):
+                func_exist = False
+                for func_conf in functions:
+                    if func_conf['name'].lower() == func_name.lower():
+                        func_exist = True
+                        break
+                if not func_exist:
+                    absent_funcs.append(func_name)
+            if absent_funcs:
+                raise ValueError(
+                    f"The next function/s '{absent_funcs}' not found in the "
+                    f"SyncApp '{self.appsync_name}' definition.")
+            self._dict['pipeline_config'] = {
+                'functions': current_functions
+            }
         resolvers = self.appsync_config.get('resolvers', [])
         current_type_name = self._dict.get('type_name')
         current_field_name = self._dict.get('field_name')
@@ -151,12 +279,15 @@ class AppSyncResolverGenerator(AppSyncConfigurationGenerator):
                            f"and field '{current_field_name}' already exists.")
                 if click_confirm(f"{message} Overwrite?"):
                     _LOG.warning(
-                        f"Overwriting resolver for the type '{current_ds_name}' "
-                        f" and field '{current_field_name}'")
+                        f"Overwriting resolver for the type "
+                        f"'{current_type_name}' and field "
+                        f"'{current_field_name}'")
                     resolvers.remove(resolver)
                 else:
                     _LOG.warning(
-                        f"Skipping data source '{current_ds_name}'")
+                        f"Skipping resolver for the type "
+                        f"'{current_type_name}' and field "
+                        f"'{current_field_name}'")
                     raise RuntimeError
 
         resolvers.append(self._resolve_configuration())
@@ -197,10 +328,13 @@ class AppSyncResolverGenerator(AppSyncConfigurationGenerator):
             _write_content_to_file(paths_to_code, code_content)
         if runtime == 'VTL':
             Path(paths_to_code).unlink(missing_ok=True)
+            data_source_type = (
+                self._dict['data_source_type']
+                if self._dict['kind'] == 'UNIT' else 'PIPELINE')
             req_mapping_template = _generate_syncapp_vtl_resolver_req_mt(
-                self._dict['data_source_type'])
+                data_source_type)
             resp_mapping_template = _generate_syncapp_vtl_resolver_resp_mt(
-                self._dict['data_source_type'])
+                data_source_type)
 
             self._dict['request_mapping_template_path'] = PurePath(
                 internal_path_to_field,

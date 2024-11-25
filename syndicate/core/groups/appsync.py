@@ -1,20 +1,21 @@
 import os
+from functools import partial
 
 import click
 
 from syndicate.core.constants import APPSYNC_TYPE, APPSYNC_DATA_SOURCE_TYPES, \
     APPSYNC_AUTHENTICATION_TYPES, APPSYNC_AUTHORIZATION_TYPES, \
-    APPSYNC_RESOLVER_RUNTIMES
+    APPSYNC_RESOLVER_RUNTIMES, APPSYNC_RESOLVER_KINDS
 from syndicate.core.generators.appsync import generate_appsync
 from syndicate.core.generators.deployment_resources import \
     BaseConfigurationGenerator
 from syndicate.core.generators.deployment_resources.appsync_generator import \
     AppSyncDataSourceGenerator, AppSyncAuthorizationGenerator, \
-    AppSyncResolverGenerator
+    AppSyncResolverGenerator, AppSyncFunctionGenerator
 from syndicate.core.generators.lambda_function import PROJECT_PATH_PARAM
 from syndicate.core.helper import OrderedGroup, resolve_project_path, \
     DictParamType, check_tags, verbose_option, timeit, OptionRequiredIf, \
-    ValidRegionParamType
+    ValidRegionParamType, validate_incompatible_options
 
 
 @click.group(name=APPSYNC_TYPE, cls=OrderedGroup)
@@ -101,17 +102,52 @@ def data_source(ctx, **kwargs):
                f"'{kwargs['api_name']}' successfully")
 
 
+@appsync.command(name='function')
+@click.option('--api_name', required=True, type=str,
+              help="AppSync API name to add function to")
+@click.option('--name', required=True, type=str,
+              help="Function name")
+@click.option('--description', type=str,
+              help="Function description")
+@click.option('--data_source_name', required=True, type=str,
+              help="The name of the data source to associate the function "
+                   "with")
+@click.option('--runtime', type=click.Choice(APPSYNC_RESOLVER_RUNTIMES),
+              required=True, help="Function runtime")
+@verbose_option
+@click.pass_context
+@timeit()
+def function(ctx, **kwargs):
+    """Adds function to an existing SyncApp API"""
+    kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
+    try:
+        generator = AppSyncFunctionGenerator(**kwargs)
+    except ValueError as e:
+        raise click.BadParameter(e)
+    _generate(generator)
+    click.echo(f"The function '{kwargs['name']}' was added to AppSync API "
+               f"'{kwargs['api_name']}' successfully")
+
+
 @appsync.command(name='resolver')
 @click.option('--api_name', required=True, type=str,
               help="AppSync API name to add resolver to")
+@click.option('--kind', type=click.Choice(APPSYNC_RESOLVER_KINDS),
+              required=True, default='UNIT', is_eager=True,
+              help="The resolver type.")
 @click.option('--type_name', required=True, type=str,
               help="The name of the type defined in the API schema")
 @click.option('--field_name', required=True, type=str,
               help="The name of the field defined in the API schema to attach "
                    "the resolver to")
-@click.option('--data_source_name', required=True, type=str,
+@click.option('--data_source_name', type=str, cls=OptionRequiredIf,
+              required_if='kind', required_if_values=['UNIT'],
               help="The name of the data source to associate the resolver "
                    "with")
+@click.option('--function_name', type=str, multiple=True,
+              callback=partial(validate_incompatible_options,
+                               incompatible_options=['data_source_name']),
+              help="The name of the function to add to the resolver")
 @click.option('--runtime', type=click.Choice(APPSYNC_RESOLVER_RUNTIMES),
               required=True, help="Resolver runtime")
 @verbose_option
