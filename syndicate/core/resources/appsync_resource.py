@@ -21,9 +21,11 @@ USER_LOG = get_user_logger()
 
 API_REQUIRED_PARAMS = ['schema_path']
 DATA_SOURCE_REQUIRED_PARAMS = ['name', 'type']
-RESOLVER_REQUIRED_PARAMS = ['type_name', 'field_name', 'runtime',
-                            'data_source_name']
+RESOLVER_REQUIRED_PARAMS = ['type_name', 'field_name', 'runtime']
 RESOLVER_DEFAULT_KIND = 'UNIT'
+
+DEFAULT_FUNC_VTL_VERSION = '2018-05-29'
+FUNCTION_REQUIRED_PARAMS = ['runtime', 'data_source_name']
 
 AWS_REGION_PARAMETER = 'aws_region'
 AWS_LAMBDA_TYPE = 'AWS_LAMBDA'
@@ -160,14 +162,24 @@ class AppSyncResource(BaseResource):
             if not params:
                 continue
             self.appsync_conn.create_data_source(api_id, **params)
+        functions_config = []
+        functions_meta = meta.get('functions', [])
+        for func_meta in functions_meta:
+            params = self._build_function_params_from_meta(
+                func_meta, extract_to)
+            if not params:
+                continue
+            func_config = self.appsync_conn.create_function(api_id, params)
+            functions_config.append(func_config)
 
-        if resolvers_meta := meta.get('resolvers', []):
-            for resolver_meta in resolvers_meta:
-                params = self._build_resolver_params_from_meta(
-                    resolver_meta, extract_to)
-                if not params:
-                    continue
-                self.appsync_conn.create_resolver(api_id, **params)
+        resolvers_meta = meta.get('resolvers', [])
+        for resolver_meta in resolvers_meta:
+            params = self._build_resolver_params_from_meta(
+                resolver_meta, extract_to, functions_config)
+            if not params:
+                continue
+            self.appsync_conn.create_resolver(api_id, **params)
+
         shutil.rmtree(extract_to, ignore_errors=True)
         _LOG.info(f'Created AppSync GraphQL API {api_id}')
         return self.describe_graphql_api(name=name, meta=meta, api_id=api_id)
@@ -229,7 +241,9 @@ class AppSyncResource(BaseResource):
         return f'arn:aws:iam::{self.account_id}:role/{name}'
 
     @staticmethod
-    def _build_resolver_params_from_meta(resolver_meta, artifacts_path):
+    def _build_resolver_params_from_meta(resolver_meta, artifacts_path,
+                                         existing_functions=None):
+        existing_functions = existing_functions or []
         type_name = resolver_meta.get('type_name')
         field_name = resolver_meta.get('field_name')
         try:
@@ -246,9 +260,34 @@ class AppSyncResource(BaseResource):
         resolver_params = {
             'type_name': type_name,
             'field_name': field_name,
-            'data_source_name': resolver_meta['data_source_name'],
-            'kind': resolver_meta.get('kind', RESOLVER_DEFAULT_KIND)
         }
+        kind = resolver_meta.get('kind', RESOLVER_DEFAULT_KIND)
+        resolver_params['kind'] = kind
+        if kind == RESOLVER_DEFAULT_KIND:
+            resolver_params['data_source_name'] = \
+                resolver_meta['data_source_name']
+        elif kind == 'PIPELINE':
+            _LOG.info("Trying to resolve functions IDs")
+            function_names = \
+                resolver_meta.get('pipeline_config', {}).get('functions', [])
+            function_ids = []
+            for func_name in function_names:
+                func_id = None
+                for func_info in existing_functions:
+                    if func_name == func_info['name']:
+                        func_id = func_info['functionId']
+                        function_ids.append(func_id)
+                        _LOG.debug(
+                            f"Successfully resolved ID '{func_id}' for the "
+                            f"function '{func_name}'")
+                        break
+                if not func_id:
+                    _LOG.warning(f"ID for the function '{func_name}' was "
+                                 f"not resolved")
+
+            resolver_params['pipeline_config'] = {
+                'functions': function_ids
+            }
 
         if resolver_meta.get('runtime') in ('JS', 'APPSYNC_JS'):
             runtime = {
@@ -303,6 +342,80 @@ class AppSyncResource(BaseResource):
             resolver_params['max_batch_size'] = max_batch_size
 
         return resolver_params
+
+    @staticmethod
+    def _build_function_params_from_meta(func_meta, artifacts_path):
+        func_name = func_meta['name']
+        _LOG.debug(f"Building parameters for the function '{func_name}'")
+        try:
+            validate_params(func_name, func_meta, FUNCTION_REQUIRED_PARAMS)
+        except AssertionError as e:
+            _LOG.warning(str(e))
+            _LOG.warning(f"Skipping function '{func_name}'...")
+            return
+
+        function_params = {
+            'name': func_name,
+            'data_source_name': func_meta['data_source_name']
+        }
+
+        if description := func_meta.get('description'):
+            function_params['description'] = description
+
+        if func_meta.get('runtime') in ('JS', 'APPSYNC_JS'):
+            runtime = {
+                'name': 'APPSYNC_JS',
+                'runtimeVersion': '1.0.0'
+            }
+            function_params['runtime'] = runtime
+        else:
+            runtime = None
+
+        if runtime:
+            code_path = build_path(artifacts_path,
+                                   func_meta.get('code_path'))
+            if not os.path.exists(code_path):
+                raise AssertionError(
+                    f"Function '{func_name}' code file not found.")
+
+            with open(code_path, 'r') as file:
+                code = file.read()
+            function_params['code'] = code
+        else:
+            _LOG.debug('Runtime is not JS')
+            function_params['function_version'] = \
+                func_meta.get('function_version', DEFAULT_FUNC_VTL_VERSION)
+            request_template_path = build_path(
+                artifacts_path,
+                func_meta.get('request_mapping_template_path'))
+            if not os.path.exists(request_template_path):
+                raise AssertionError(
+                    f"Function '{func_name}' request mapping template file "
+                    f"not found.")
+            else:
+                with open(request_template_path, 'r') as file:
+                    request_mapping_template = file.read()
+
+            response_template_path = build_path(
+                artifacts_path,
+                func_meta.get('response_mapping_template_path'))
+            if not os.path.exists(response_template_path):
+                raise AssertionError(
+                    f"Function '{func_name}' response mapping template file "
+                    f"not found.")
+            else:
+                with open(response_template_path, 'r') as file:
+                    response_mapping_template = file.read()
+
+            function_params['request_mapping_template'] = \
+                request_mapping_template
+            function_params['response_mapping_template'] = \
+                response_mapping_template
+
+        if max_batch_size := func_meta.get('max_batch_size'):
+            function_params['max_batch_size'] = max_batch_size
+
+        return function_params
 
     def build_graphql_api_arn(self, api_id: str) -> str:
         return f'arn:aws:appsync:{self.appsync_conn.client.meta.region_name}' \
@@ -427,6 +540,65 @@ class AppSyncResource(BaseResource):
                 _LOG.info(
                     f"Schema of the AppSync '{name}' updated successfully")
 
+        existent_sources = self.appsync_conn.list_data_sources(api_id)
+        data_sources_meta = meta.get('data_sources', [])
+        for source_meta in data_sources_meta:
+            to_create = True
+            for source in existent_sources:
+                if source['name'] == source_meta['name']:
+                    # update an existent one
+                    to_create = False
+                    params = self._build_data_source_params_from_meta(
+                        source_meta)
+                    if not params:
+                        break
+                    _LOG.debug(f"Updating data source '{source['name']}'")
+                    self.appsync_conn.update_data_source(api_id, **params)
+                    existent_sources.remove(source)
+                    break
+
+            # create a new one
+            if to_create:
+                params = self._build_data_source_params_from_meta(source_meta)
+                if not params:
+                    continue
+                _LOG.debug(f"Creating data source '{source_meta['name']}'")
+                self.appsync_conn.create_data_source(api_id, **params)
+
+        for source in existent_sources:
+            self.appsync_conn.delete_data_source(api_id, source['name'])
+
+        actual_funcs = []
+        existent_funcs = self.appsync_conn.list_functions(api_id)
+        funcs_meta = meta.get('functions', [])
+        for func_meta in funcs_meta:
+            to_create = True
+            for func_conf in existent_funcs:
+                if func_meta['name'] == func_conf['name']:
+                    # update an existent one
+                    to_create = False
+                    params = self._build_function_params_from_meta(
+                        func_meta, extract_to
+                    )
+                    if not params:
+                        break
+                    _LOG.debug(f"Updating function '{func_conf['name']}'")
+                    actual_funcs.append(
+                        self.appsync_conn.update_function(
+                            api_id, func_conf['functionId'], params))
+                    existent_funcs.remove(func_conf)
+                    break
+            # create a new one
+            if to_create:
+                params = self._build_function_params_from_meta(
+                    func_meta, extract_to
+                )
+                if not params:
+                    break
+                _LOG.debug(f"Creating function '{func_meta['name']}'")
+                actual_funcs.append(
+                    self.appsync_conn.create_function(api_id, params))
+
         types = self.appsync_conn.list_types(api_id)
         existent_resolvers = []
         for t in types:
@@ -442,9 +614,12 @@ class AppSyncResource(BaseResource):
                     # update an existent one
                     to_create = False
                     params = self._build_resolver_params_from_meta(
-                            resolver_meta, extract_to)
+                            resolver_meta, extract_to, actual_funcs)
                     if not params:
                         break
+                    _LOG.debug(
+                        f"Updating resolver for type '{resolver['typeName']}' "
+                        f"and field '{resolver['fieldName']}'")
                     self.appsync_conn.update_resolver(api_id, **params)
                     existent_resolvers.remove(resolver)
                     break
@@ -452,9 +627,12 @@ class AppSyncResource(BaseResource):
             # create a new one
             if to_create:
                 params = self._build_resolver_params_from_meta(
-                            resolver_meta, extract_to)
+                            resolver_meta, extract_to, actual_funcs)
                 if not params:
                     continue
+                _LOG.debug(
+                    f"Creating resolver for type '{resolver_meta['typeName']}' "
+                    f"and field '{resolver_meta['fieldName']}'")
                 self.appsync_conn.create_resolver(api_id, **params)
 
         for resolver in existent_resolvers:
@@ -462,31 +640,8 @@ class AppSyncResource(BaseResource):
                                               type_name=resolver['typeName'],
                                               field_name=resolver['fieldName'])
 
-        existent_sources = self.appsync_conn.list_data_sources(api_id)
-        data_sources_meta = meta.get('data_sources', [])
-        for source_meta in data_sources_meta:
-            to_create = True
-            for source in existent_sources:
-                if source['name'] == source_meta['name']:
-                    # update an existent one
-                    to_create = False
-                    params = self._build_data_source_params_from_meta(
-                        source_meta)
-                    if not params:
-                        break
-                    self.appsync_conn.update_data_source(api_id, **params)
-                    existent_sources.remove(source)
-                    break
-
-            # create a new one
-            if to_create:
-                params = self._build_data_source_params_from_meta(source_meta)
-                if not params:
-                    continue
-                self.appsync_conn.create_data_source(api_id, **params)
-
-        for source in existent_sources:
-            self.appsync_conn.delete_data_source(api_id, source['name'])
+        for func_conf in existent_funcs:
+            self.appsync_conn.delete_function(api_id, func_conf['functionId'])
 
         _LOG.info(f'Updated AppSync GraphQL API {api_id}')
         return self.describe_graphql_api(name=name, meta=meta, api_id=api_id)

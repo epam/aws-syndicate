@@ -77,26 +77,35 @@ def assemble_appsync(project_path, bundles_dir, **kwargs):
             with open(conf_file_path, 'w') as file:
                 json.dump(appsync_conf, file)
 
-            resolvers = appsync_conf.get('resolvers')
-            resolvers_path = []
-            for resolver in resolvers:
-                if resolver_file_path := resolver.get(
+            resolvers = appsync_conf.get('resolvers', [])
+            functions = appsync_conf.get('functions', [])
+            artifact_items = resolvers + functions
+            artifacts_path = []
+            for artifact_item in artifact_items:
+                if artifact_file_path := artifact_item.get(
                         'request_mapping_template_path'):
-                    resolvers_path.append(resolver_file_path)
-                if resolver_file_path := resolver.get(
+                    artifacts_path.append(artifact_file_path)
+                if artifact_file_path := artifact_item.get(
                         'response_mapping_template_path'):
-                    resolvers_path.append(resolver_file_path)
-                if resolver_file_path := resolver.get('code_path'):
-                    resolvers_path.append(resolver_file_path)
+                    artifacts_path.append(artifact_file_path)
+                if artifact_file_path := artifact_item.get('code_path'):
+                    artifacts_path.append(artifact_file_path)
 
             with zipfile.ZipFile(zip_file_path, 'w') as zipf:
                 zipf.write(schema_path, schema_filepath)
 
-                # to archive only resolvers in config
-                for path in resolvers_path:
-                    resolver_path = build_path(appsync_src_path, path)
-                    if os.path.exists(resolver_path):
-                        zipf.write(resolver_path, path)
+                # to archive only resolvers and functions in config
+                for path in artifacts_path:
+                    artifacts_path = build_path(appsync_src_path, path)
+                    if os.path.exists(artifacts_path):
+                        zipf.write(artifacts_path, path)
+                        _LOG.debug(
+                            f"File from the path '{artifacts_path}' "
+                            f"successfully added to the AppSync deployment "
+                            f"package")
+                    else:
+                        raise AssertionError(
+                            f"File not found by the path '{artifacts_path}'")
 
             if os.path.getsize(zip_file_path) == 0:
                 raise AssertionError(

@@ -148,15 +148,24 @@ class AppSyncConnection(object):
             else:
                 raise e
 
+    def create_function(self, api_id: str, func_params: dict):
+        params = dict_keys_to_camel_case(func_params)
+        params['apiId'] = api_id
+
+        return self.client.create_function(**params)['functionConfiguration']
+
     def create_resolver(self, api_id: str, type_name: str, field_name: str,
-                        runtime: str = None, data_source_name: str = None,
-                        code: str = None, request_mapping_template: str = None,
+                        kind: str, runtime: str = None,
+                        data_source_name: str = None, code: str = None,
+                        request_mapping_template: str = None,
                         response_mapping_template: str = None,
-                        kind: str = None, max_batch_size: int = None):
+                        max_batch_size: int = None,
+                        pipeline_config: dict = None):
         params = dict(
             apiId=api_id,
             typeName=type_name,
-            fieldName=field_name
+            fieldName=field_name,
+            kind=kind
         )
         if runtime:
             params['runtime'] = runtime
@@ -168,8 +177,8 @@ class AppSyncConnection(object):
             params['requestMappingTemplate'] = request_mapping_template
         if response_mapping_template:
             params['responseMappingTemplate'] = response_mapping_template
-        if kind:
-            params['kind'] = kind
+        if pipeline_config:
+            params['pipelineConfig'] = pipeline_config
         if max_batch_size:
             params['maxBatchSize'] = max_batch_size
 
@@ -291,6 +300,17 @@ class AppSyncConnection(object):
 
         return result
 
+    def list_functions(self, api_id: str) -> list:
+        result = []
+        try:
+            paginator = self.client.get_paginator('list_functions')
+            for response in paginator.paginate(apiId=api_id):
+                result.extend(response['functions'])
+        except self.client.exceptions.NotFoundException:
+            pass
+
+        return result
+
     def get_schema(self, api_id: str, format: str = None):
         return self.client.get_introspection_schema(
             apiId=api_id,
@@ -322,16 +342,27 @@ class AppSyncConnection(object):
 
         return self.client.update_data_source(**params)['dataSource']
 
+    def update_function(self, api_id: str, function_id: str,
+                        func_params: dict):
+        params = dict_keys_to_camel_case(func_params)
+        params.update({
+            'apiId': api_id,
+            'functionId': function_id
+        })
+        return self.client.update_function(**params)['functionConfiguration']
+
     def update_resolver(self, api_id: str, type_name: str, field_name: str,
-                        runtime: str = None, data_source_name: str = None,
+                        kind: str, runtime: str = None,
+                        data_source_name: str = None,
                         request_mapping_template: str = None,
                         response_mapping_template: str = None,
-                        code: str = None, kind: str = None,
-                        max_batch_size: int = None):
+                        code: str = None, max_batch_size: int = None,
+                        pipeline_config: dict = None):
         params = dict(
             apiId=api_id,
             typeName=type_name,
-            fieldName=field_name
+            fieldName=field_name,
+            kind=kind
         )
         if runtime:
             params['runtime'] = runtime
@@ -343,10 +374,10 @@ class AppSyncConnection(object):
             params['requestMappingTemplate'] = request_mapping_template
         if response_mapping_template:
             params['responseMappingTemplate'] = response_mapping_template
-        if kind:
-            params['kind'] = kind
         if max_batch_size:
             params['maxBatchSize'] = max_batch_size
+        if pipeline_config:
+            params['pipelineConfig'] = pipeline_config
 
         return self.client.update_resolver(**params)['resolver']
 
@@ -393,7 +424,22 @@ class AppSyncConnection(object):
             name=name
         )
 
+    def delete_function(self, api_id: str, func_id: str):
+        try:
+            return self.client.delete_function(
+                apiId=api_id,
+                functionId=func_id
+            )
+        except Exception as e:
+            message = ('Cannot delete a function which is currently used by a '
+                       'resolver')
+            if message in str(e):
+                _LOG.warn(str(e))
+            else:
+                raise
+
     def delete_resolver(self, api_id: str, type_name: str, field_name: str):
+
         return self.client.delete_resolver(
             apiId=api_id,
             typeName=type_name,

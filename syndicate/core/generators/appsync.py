@@ -62,8 +62,8 @@ def generate_appsync(name, project_path, tags):
         _mkdir(src_path)
 
     default_schema_content = _generate_syncapp_default_schema()
-    config_content = _generate_syncapp_config(name, APPSYNC_SCHEMA_DEFAULT_FILE_NAME,
-                                              tags)
+    config_content = _generate_syncapp_config(
+        name, APPSYNC_SCHEMA_DEFAULT_FILE_NAME, tags)
 
     for file_name in APPSYNC_FILES:
         path_to_file = PurePath(src_path, file_name).as_posix()

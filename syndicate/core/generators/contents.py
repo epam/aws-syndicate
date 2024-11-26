@@ -784,6 +784,7 @@ def _generate_syncapp_config(resource_name, schema_file_name, tags=None):
         "schema_path": schema_file_name,
         "data_sources": [],
         "resolvers": [],
+        "functions": [],
         "tags": tags or {},
     }
     return _stringify(config_content)
