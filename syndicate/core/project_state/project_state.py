@@ -273,7 +273,7 @@ class ProjectState:
             if self._is_event_matching(event, bundle_name, modification_ops)
         )
         latest_event = next(filtered_events, None)
-        if latest_event.get('operation') == CLEAN_ACTION:
+        if latest_event and latest_event.get('operation') == CLEAN_ACTION:
             # in case bundle was deleted manually but present in .syndicate
             return self.get_latest_deployed_or_updated_bundle()
 
