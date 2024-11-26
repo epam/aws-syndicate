@@ -34,16 +34,32 @@ def build_py_package_name(lambda_name, lambda_version):
     return '{0}-{1}.zip'.format(lambda_name, lambda_version)
 
 
-def zip_dir(basedir: str, name: str, archive_subfolder: str = None):
-    assert os.path.isdir(basedir)
+def zip_dir(
+        basedir: str,
+        name: str,
+        archive_subfolder: str = None,
+) -> None:
+    """ Compresses a directory into a zip file """
+    assert os.path.isdir(basedir), \
+        f"The specified base directory does not exist: {basedir}"
+
     with closing(zipfile.ZipFile(name, "w", zipfile.ZIP_DEFLATED)) as z:
         for root, dirs, files in os.walk(basedir, followlinks=True):
             archive_root = os.path.join(
                 archive_subfolder, os.path.relpath(root, basedir)) \
                 if archive_subfolder else os.path.relpath(root, basedir)
             for fn in files:
-                absfn = os.path.join(root, fn)
-                zfn = os.path.join(archive_root, fn)
+                absfn = os.path.normpath(os.path.join(root, fn))
+                zfn = os.path.normpath(os.path.join(archive_root, fn))
+
+                if len(absfn) > 260:
+                    raise ValueError(
+                        f"The path '{absfn}' exceeds the maximum allowed length"
+                        f" of 260 characters. Please consider reducing the "
+                        f"length of the file or directory names, or reorganizing "
+                        "your directory structure to have shorter paths"
+                    )
+
                 z.write(absfn, zfn)
 
 
