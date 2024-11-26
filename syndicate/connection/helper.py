@@ -89,7 +89,8 @@ def retry(retry_timeout=DEFAULT_RETRY_TIMEOUT_SEC,
                 'UpdateGatewayResponse',
                 'Cannot delete, found existing JobQueue relationship',
                 'Cannot delete, resource is being modified',
-                'Please try again'
+                'Please try again',
+                'Too Many Requests'
             ]
             resource_not_found_error_codes = [
                 'NoSuchEntity',

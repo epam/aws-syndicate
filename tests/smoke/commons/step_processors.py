@@ -45,7 +45,6 @@ def process_steps(steps: dict[str: List[dict]],
                                        '--replace_output'])
         if UPDATE_COMMAND in command_to_execute:
             command_to_execute.extend(['--bundle_name', UPDATED_BUNDLE_NAME,
-                                       '--deploy_name', DEPLOY_NAME,
                                        '--replace_output'])
         execution_datetime = datetime.utcnow()
 

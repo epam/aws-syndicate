@@ -1,6 +1,10 @@
+from datetime import datetime
+
 DEPLOY_NAME = 'autotest'
 BUNDLE_NAME = 'happy_path_autotest'
-UPDATED_BUNDLE_NAME = 'happy_path_autotest_updated'
+UPDATED_BUNDLE_NAME = 'happy_path_autotest_updated_{time}'.format(
+    time=datetime.now().isoformat().replace(':', '_')
+)
 
 BUILD_COMMAND = 'build'
 DEPLOY_COMMAND = 'deploy'
