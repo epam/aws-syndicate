@@ -43,6 +43,9 @@ The project aims to be used to test aws-syndicate functionality.
     "sdct-at-table": {
       "resource_type": "dynamodb_table"
     },
+    "sdct-at-reservation": {
+      "resource_type": "dynamodb_table"
+    },
     "sdct-at-cw-rule": {
       "resource_type": "cloudwatch_rule"
     },
@@ -116,6 +119,9 @@ The project aims to be used to test aws-syndicate functionality.
       "resource_type": "sns_topic"
     },
     "sdct-at-table": {
+      "resource_type": "dynamodb_table"
+    },
+    "sdct-at-reservation": {
       "resource_type": "dynamodb_table"
     },
     "sdct-at-cw-rule": {

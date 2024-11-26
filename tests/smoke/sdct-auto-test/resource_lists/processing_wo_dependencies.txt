@@ -12,6 +12,7 @@
 "sdct-at-queue": "",
 "sdct-at-topic": "",
 "sdct-at-table": "",
+"sdct-at-reservation": "",
 "sdct-at-cw-rule": "",
 "sdct-at-s3-bucket": "",
 "sdct-at-swagger-ui": ""

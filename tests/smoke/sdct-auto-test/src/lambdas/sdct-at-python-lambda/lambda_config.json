@@ -14,6 +14,11 @@
       "resource_type": "sqs_trigger",
       "target_queue": "sdct-at-queue",
       "batch_size": 10
+    },
+    {
+      "target_table": "sdct-at-reservation",
+      "resource_type": "dynamodb_trigger",
+      "batch_size": 1
     }
   ],
   "env_variables": {},

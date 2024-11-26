@@ -15,10 +15,10 @@ from smoke.commons.constants import DEPLOY_OUTPUT_DIR
 from smoke.commons.utils import deep_get, transform_tags
 
 config = Config(
-   retries={
-      'max_attempts': 10,
-      'mode': 'standard'
-   }
+    retries={
+        'max_attempts': 10,
+        'mode': 'standard'
+    }
 )
 
 session = boto3.session.Session()
@@ -26,15 +26,14 @@ lambda_client = boto3.client('lambda', config=config)
 api_gw_client = boto3.client('apigateway', config=config)
 sqs_client = boto3.client('sqs', config=config)
 sns_client = boto3.client('sns', config=config)
-logs_client = boto3.client('logs', config=config)
 dynamodb_client = boto3.client('dynamodb', config=config)
 dynamodb = boto3.resource('dynamodb', config=config)
-xray_client = boto3.client('xray', config=config)
 eventbridge_client = boto3.client('events', config=config)
 s3_client = boto3.client('s3', config=config)
 cognito_client = boto3.client('cognito-idp', config=config)
 iam_client = boto3.client('iam', config=config)
 sts_client = boto3.client('sts', config=config)
+cloudtrail_client = boto3.client('cloudtrail', config=config)
 
 ACCOUNT_ID = sts_client.get_caller_identity()['Account']
 REGION = sts_client.meta.region_name
@@ -73,6 +72,10 @@ def if_s3_object_modified(bucket_name, file_key, modified_since: datetime):
     except s3_client.exceptions.NoSuchKey:
         print(f'Not found key {file_key} in the bucket {bucket_name}')
         return
+    except ClientError as e:
+        if 'Not Modified' in str(e):
+            print(f'File {file_key} was not modified')
+        return
     return file_obj
 
 
@@ -98,7 +101,7 @@ def get_iam_role(role_name: str) -> Union[dict | None]:
     except iam_client.exceptions.NoSuchEntityException:
         print(f'Role \'{role_name}\' not found')
         return
-    return response
+    return response or {}
 
 
 def get_function_configuration(lambda_name: str) -> Union[dict | None]:
@@ -522,3 +525,36 @@ def get_sns_topic_subscriptions(topic_arn: str) -> list:
         return []
 
     return result
+
+
+def get_lambda_envs(lambda_name: str, qualifier: str = None):
+    params = {
+        'FunctionName': lambda_name
+    }
+    if qualifier:
+        params['Qualifier'] = qualifier
+
+    try:
+        result = lambda_client.get_function_configuration(**params)
+        return result.get('Environment', {})
+    except lambda_client.exceptions.ResourceNotFoundException:
+        return {}
+
+
+def get_cloudtrail_event(event_name: str, event_value: str,
+                         start_time: datetime = None,
+                         end_time: datetime = None):
+    params = {
+        'LookupAttributes': [
+            {
+                'AttributeKey': event_name,
+                'AttributeValue': event_value
+            }
+        ]
+    }
+    if start_time:
+        params['StartTime'] = params
+    if end_time:
+        params['EndTime'] = end_time
+    response = cloudtrail_client.lookup_events(**params)
+    return response.get('Events', [])

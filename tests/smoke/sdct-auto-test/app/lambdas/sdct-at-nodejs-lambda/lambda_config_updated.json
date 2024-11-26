@@ -6,7 +6,7 @@
   "iam_role_name": "sdct-at-nodejs-lambda-role",
   "runtime": "nodejs20.x",
   "memory": 128,
-  "timeout": 100,
+  "timeout": 200,
   "lambda_path": "lambdas\\sdct-at-nodejs-lambda",
   "dependencies": [
     {
@@ -14,9 +14,16 @@
       "resource_type": "cognito_idp"
     }
   ],
-  "event_sources": [],
+  "event_sources": [
+    {
+    "resource_type": "sns_topic_trigger",
+    "target_topic": "sdct-at-topic",
+    "region": "${region}"
+    }
+  ],
   "env_variables": {
-    "region": "${region}",
+    "new_region": "${region}",
+    "region": "updated_${region}",
     "tables_table": "${tables_table}",
     "reservations_table": "${reservations_table}",
     "cup_id": {
@@ -35,10 +42,8 @@
   "url_config": {},
   "ephemeral_storage": 512,
   "tags": {
-    "tests": "smoke",
-    "project": "sdct-auto-test"
-  },
-  "layers": [
-    "sdct-at-nodejs-lambda_layer"
-  ]
+      "updated_tests": "updated_smoke",
+      "project": "sdct-auto-test"
+    },
+  "layers": []
 }

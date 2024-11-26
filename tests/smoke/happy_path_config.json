@@ -39,13 +39,93 @@
             {
               "index": 3,
               "name": "build_meta",
-              "description": "Check if all resources with tags in build meta exist",
+              "description": "Check if all resources exist in build meta",
+              "resources": {
+                "sdct-at-lambda-basic-execution-policy": {
+                  "resource_type": "iam_policy"
+                },
+                "sdct-at-java-lambda-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-java-lambda": {
+                  "resource_type": "lambda"
+                },
+                "sdct-at-java-lambda_layer": {
+                  "resource_type": "lambda_layer"
+                },
+                "sdct-at-dotnet-lambda-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-dotnet-lambda": {
+                  "resource_type": "lambda"
+                },
+                "sdct-at-dotnet-lambda_layer": {
+                  "resource_type": "lambda_layer"
+                },
+                "sdct-at-python-lambda-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-python-lambda": {
+                  "resource_type": "lambda"
+                },
+                "sdct-at-python-lambda_layer": {
+                  "resource_type": "lambda_layer"
+                },
+                "sdct-at-queue": {
+                  "resource_type": "sqs_queue"
+                },
+                "sdct-at-topic": {
+                  "resource_type": "sns_topic"
+                },
+                "sdct-at-table": {
+                  "resource_type": "dynamodb_table"
+                },
+                "sdct-at-reservation": {
+                  "resource_type": "dynamodb_table"
+                },
+                "sdct-at-cw-rule": {
+                  "resource_type": "cloudwatch_rule"
+                },
+                "sdct-at-nodejs-lambda-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-nodejs-lambda": {
+                  "resource_type": "lambda"
+                },
+                "sdct-at-nodejs-lambda_layer": {
+                  "resource_type": "lambda_layer"
+                },
+                "${booking_userpool}": {
+                  "resource_type": "cognito_idp"
+                },
+                "sdct-at-api-gw": {
+                  "resource_type": "api_gateway"
+                },
+                "sdct-at-s3-bucket": {
+                  "resource_type": "s3_bucket"
+                },
+                "sdct-at-swagger-ui": {
+                  "resource_type": "swagger_ui"
+                },
+                "sdct-at-open-api-gw": {
+                  "resource_type": "api_gateway_oas_v3"
+                }
+              },
+              "depends_on": [
+                1
+              ]
+            },
+            {
+              "index": 4,
+              "name": "build_meta_content",
+              "description": "Check if all resources in build meta contain required meta",
               "resources": {
                 "sdct-at-lambda-basic-execution-policy": {
                   "resource_type": "iam_policy",
                   "tags": {
                     "tests": "smoke",
-                    "project": "sdct-auto-test"
+                    "project": "sdct-auto-test",
+                    "project-level-tag": "set-from-resource"
                   }
                 },
                 "sdct-at-java-lambda-role": {
@@ -120,6 +200,13 @@
                     "project": "sdct-auto-test"
                   }
                 },
+                "sdct-at-reservation": {
+                  "resource_type": "dynamodb_table",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test"
+                  }
+                },
                 "sdct-at-cw-rule": {
                   "resource_type": "cloudwatch_rule",
                   "tags": {
@@ -139,6 +226,21 @@
                   "tags": {
                     "tests": "smoke",
                     "project": "sdct-auto-test"
+                  },
+                  "env_variables": {
+                    "region": "${region}",
+                    "tables_table": "${tables_table}",
+                    "reservations_table": "${reservations_table}",
+                    "cup_id": {
+                      "resource_name": "${booking_userpool}",
+                      "resource_type": "cognito_idp",
+                      "parameter": "id"
+                    },
+                    "cup_client_id": {
+                      "resource_name": "${booking_userpool}",
+                      "resource_type": "cognito_idp",
+                      "parameter": "client_id"
+                    }
                   }
                 },
                 "sdct-at-nodejs-lambda_layer": {
@@ -253,6 +355,9 @@
                 "sdct-at-table": {
                   "resource_type": "dynamodb_table"
                 },
+                "sdct-at-reservation": {
+                  "resource_type": "dynamodb_table"
+                },
                 "sdct-at-cw-rule": {
                   "resource_type": "cloudwatch_rule"
                 },
@@ -335,6 +440,9 @@
                   "resource_type": "sns_topic"
                 },
                 "sdct-at-table": {
+                  "resource_type": "dynamodb_table"
+                },
+                "sdct-at-reservation": {
                   "resource_type": "dynamodb_table"
                 },
                 "sdct-at-cw-rule": {
@@ -450,6 +558,9 @@
                 "sdct-at-table": {
                   "resource_type": "dynamodb_table"
                 },
+                "sdct-at-reservation": {
+                  "resource_type": "dynamodb_table"
+                },
                 "sdct-at-cw-rule": {
                   "resource_type": "cloudwatch_rule"
                 },
@@ -523,6 +634,9 @@
                 "sdct-at-table": {
                   "resource_type": "dynamodb_table"
                 },
+                "sdct-at-reservation": {
+                  "resource_type": "dynamodb_table"
+                },
                 "sdct-at-cw-rule": {
                   "resource_type": "cloudwatch_rule"
                 },
@@ -563,7 +677,6 @@
                   "tags": {
                     "tests": "smoke",
                     "project": "sdct-auto-test",
-                    "resource-level-tag": "set-from-project",
                     "project-level-tag": "set-from-project"
                   }
                 },
@@ -572,7 +685,6 @@
                   "tags": {
                     "tests": "smoke",
                     "project": "sdct-auto-test",
-                    "resource-level-tag": "set-from-project",
                     "project-level-tag": "set-from-project"
                   }
                 },
@@ -581,7 +693,6 @@
                   "tags": {
                     "tests": "smoke",
                     "project": "sdct-auto-test",
-                    "resource-level-tag": "set-from-project",
                     "project-level-tag": "set-from-project"
                   }
                 },
@@ -590,7 +701,6 @@
                   "tags": {
                     "tests": "smoke",
                     "project": "sdct-auto-test",
-                    "resource-level-tag": "set-from-project",
                     "project-level-tag": "set-from-project"
                   }
                 },
@@ -599,7 +709,6 @@
                   "tags": {
                     "tests": "smoke",
                     "project": "sdct-auto-test",
-                    "resource-level-tag": "set-from-project",
                     "project-level-tag": "set-from-project"
                   }
                 },
@@ -608,7 +717,6 @@
                   "tags": {
                     "tests": "smoke",
                     "project": "sdct-auto-test",
-                    "resource-level-tag": "set-from-project",
                     "project-level-tag": "set-from-project"
                   }
                 },
@@ -617,7 +725,6 @@
                   "tags": {
                     "tests": "smoke",
                     "project": "sdct-auto-test",
-                    "resource-level-tag": "set-from-project",
                     "project-level-tag": "set-from-project"
                   }
                 },
@@ -626,7 +733,6 @@
                   "tags": {
                     "tests": "smoke",
                     "project": "sdct-auto-test",
-                    "resource-level-tag": "set-from-project",
                     "project-level-tag": "set-from-project"
                   }
                 },
@@ -635,7 +741,14 @@
                   "tags": {
                     "tests": "smoke",
                     "project": "sdct-auto-test",
-                    "resource-level-tag": "set-from-project",
+                    "project-level-tag": "set-from-project"
+                  }
+                },
+                "sdct-at-reservation": {
+                  "resource_type": "dynamodb_table",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test",
                     "project-level-tag": "set-from-project"
                   }
                 },
@@ -644,7 +757,6 @@
                   "tags": {
                     "tests": "smoke",
                     "project": "sdct-auto-test",
-                    "resource-level-tag": "set-from-project",
                     "project-level-tag": "set-from-project"
                   }
                 },
@@ -653,7 +765,6 @@
                   "tags": {
                     "tests": "smoke",
                     "project": "sdct-auto-test",
-                    "resource-level-tag": "set-from-project",
                     "project-level-tag": "set-from-project"
                   }
                 },
@@ -662,7 +773,6 @@
                   "tags": {
                     "tests": "smoke",
                     "project": "sdct-auto-test",
-                    "resource-level-tag": "set-from-project",
                     "project-level-tag": "set-from-project"
                   }
                 },
@@ -671,7 +781,6 @@
                   "tags": {
                     "tests": "smoke",
                     "project": "sdct-auto-test",
-                    "resource-level-tag": "set-from-project",
                     "project-level-tag": "set-from-project"
                   }
                 },
@@ -680,7 +789,6 @@
                   "tags": {
                     "tests": "smoke",
                     "project": "sdct-auto-test",
-                    "resource-level-tag": "set-from-project",
                     "project-level-tag": "set-from-project"
                   }
                 },
@@ -689,7 +797,6 @@
                   "tags": {
                     "tests": "smoke",
                     "project": "sdct-auto-test",
-                    "resource-level-tag": "set-from-project",
                     "project-level-tag": "set-from-project"
                   }
                 }
@@ -706,8 +813,7 @@
                   "tags": {
                     "tests": "smoke",
                     "project": "sdct-auto-test",
-                    "resource-level-tag": "set-from-resource",
-                    "project-level-tag": "set-from-project"
+                    "project-level-tag": "set-from-resource"
                   }
                 }
               },
@@ -724,7 +830,6 @@
                   "tags": {
                     "tests": "smoke",
                     "project": "sdct-auto-test",
-                    "resource-level-tag": "set-from-project",
                     "project-level-tag": "set-from-project"
                   }
                 }
@@ -736,20 +841,48 @@
               "name": "lambda_trigger_existence",
               "description": "Check if lambda trigger exists",
               "triggers": {
-                "sdct-at-python-lambda": [{
-                  "resource_name": "sdct-at-queue",
-                  "resource_type": "sqs_queue"
-                }],
-                "sdct-at-java-lambda": [{
-                  "resource_name": "sdct-at-cw-rule",
-                  "resource_type": "cloudwatch_rule"
-                }],
-                "sdct-at-dotnet-lambda": [{
-                  "resource_name": "sdct-at-topic",
-                  "resource_type": "sns_topic"
-                }]
+                "sdct-at-python-lambda:learn": [
+                  {
+                    "resource_name": "sdct-at-queue",
+                    "resource_type": "sqs_queue"
+                  },
+                  {
+                    "resource_name": "sdct-at-reservation",
+                    "resource_type": "dynamodb_trigger"
+                  }
+                ],
+                "sdct-at-java-lambda:learn": [
+                  {
+                    "resource_name": "sdct-at-cw-rule",
+                    "resource_type": "cloudwatch_rule"
+                  }
+                ],
+                "sdct-at-dotnet-lambda:learn": [
+                  {
+                    "resource_name": "sdct-at-topic",
+                    "resource_type": "sns_topic"
+                  }
+                ]
+              },
+              "depends_on": [1, 4]
             },
-              "depends_on": [1, 5]
+            {
+              "index": 9,
+              "name": "lambda_env_existence",
+              "description": "Check if lambda environment variables exist",
+              "env_variables": {
+                "sdct-at-dotnet-lambda": {
+                  "DOTNET_SHARED_STORE": "/opt/dotnetcore/store/"
+                },
+                "sdct-at-nodejs-lambda": {
+                  "cup_client_id": "*",
+                  "cup_id": "*",
+                  "reservations_table": "cmtr-sdct-at-reservation-test",
+                  "tables_table": "cmtr-sdct-at-table-test",
+                  "region": "eu-central-1"
+                }
+              },
+              "depends_on": [1, 4]
             }
           ]
         }
@@ -770,42 +903,15 @@
             },
             {
               "index": 2,
-              "name": "resource_modification",
-              "description": "Check resource modification",
-              "resources": {
-                "sdct-at-java-lambda": {
-                  "resource_type": "lambda"
-                },
-                "sdct-at-dotnet-lambda": {
-                  "resource_type": "lambda"
-                },
-                "sdct-at-python-lambda": {
-                  "resource_type": "lambda"
-                },
-                "sdct-at-nodejs-lambda": {
-                  "resource_type": "lambda"
-                }
-              },
+              "name": "artifacts_existence",
+              "description": "Check if deployment output file exists",
+              "succeeded_deploy": true,
+              "update": true,
+              "artifacts_list": ["autotest.json"],
               "depends_on": [1]
             },
             {
               "index": 3,
-              "name": "artifacts_existence",
-              "description": "Check if deployment output file exists",
-              "succeeded_deploy": true,
-              "artifacts_list": [
-                "autotest.json"
-              ],
-              "depends_on": [1]
-            },
-            {
-              "index": 4,
-              "name": "outputs_modification",
-              "description": "Check the time of output.json file last modification",
-              "depends_on": [3]
-            },
-            {
-              "index": 5,
               "name": "deployment_output",
               "description": "Check if all resources present in deployment output",
               "succeeded_deploy": true,
@@ -849,78 +955,7 @@
                 "sdct-at-table": {
                   "resource_type": "dynamodb_table"
                 },
-                "sdct-at-cw-rule": {
-                  "resource_type": "cloudwatch_rule"
-                },
-                "sdct-at-s3-bucket": {
-                  "resource_type": "s3_bucket"
-                },
-                "sdct-at-swagger-ui": {
-                  "resource_type": "swagger_ui"
-                },
-                "sdct-at-nodejs-lambda-role": {
-                  "resource_type": "iam_role"
-                },
-                "sdct-at-nodejs-lambda": {
-                  "resource_type": "lambda"
-                },
-                "sdct-at-nodejs-lambda_layer": {
-                  "resource_type": "lambda_layer"
-                },
-                "sdct-at-cup": {
-                  "resource_type": "cognito_idp"
-                },
-                "sdct-at-api-gw": {
-                  "resource_type": "api_gateway"
-                },
-                "sdct-at-open-api-gw": {
-                  "resource_type": "api_gateway_oas_v3"
-                }
-              },
-              "depends_on": [3]
-            },
-            {
-              "index": 6,
-              "name": "resource_existence",
-              "description": "Check if all resources present in account",
-              "resources": {
-                "sdct-at-lambda-basic-execution-policy": {
-                  "resource_type": "iam_policy"
-                },
-                "sdct-at-java-lambda-role": {
-                  "resource_type": "iam_role"
-                },
-                "sdct-at-java-lambda": {
-                  "resource_type": "lambda"
-                },
-                "sdct-at-java-lambda_layer": {
-                  "resource_type": "lambda_layer"
-                },
-                "sdct-at-dotnet-lambda-role": {
-                  "resource_type": "iam_role"
-                },
-                "sdct-at-dotnet-lambda": {
-                  "resource_type": "lambda"
-                },
-                "sdct-at-dotnet-lambda_layer": {
-                  "resource_type": "lambda_layer"
-                },
-                "sdct-at-python-lambda-role": {
-                  "resource_type": "iam_role"
-                },
-                "sdct-at-python-lambda": {
-                  "resource_type": "lambda"
-                },
-                "sdct-at-python-lambda_layer": {
-                  "resource_type": "lambda_layer"
-                },
-                "sdct-at-queue": {
-                  "resource_type": "sqs_queue"
-                },
-                "sdct-at-topic": {
-                  "resource_type": "sns_topic"
-                },
-                "sdct-at-table": {
+                "sdct-at-reservation": {
                   "resource_type": "dynamodb_table"
                 },
                 "sdct-at-cw-rule": {
@@ -952,6 +987,64 @@
                 }
               },
               "depends_on": [1]
+            },
+            {
+              "index": 4,
+              "name": "resource_modification",
+              "description": "Check resource modification",
+              "resources": {
+                "sdct-at-java-lambda": {
+                  "resource_type": "lambda"
+                },
+                "sdct-at-dotnet-lambda": {
+                  "resource_type": "lambda"
+                },
+                "sdct-at-python-lambda": {
+                  "resource_type": "lambda"
+                },
+                "sdct-at-nodejs-lambda": {
+                  "resource_type": "lambda"
+                },
+                "sdct-at-java-lambda-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-lambda-basic-execution-policy": {
+                  "resource_type": "iam_policy"
+                }
+              },
+              "depends_on": [1]
+            },
+            {
+              "index": 5,
+              "name": "lambda_env_existence",
+              "description": "Check if lambda environment variables were updated",
+              "env_variables": {
+                "sdct-at-nodejs-lambda": {
+                  "new_region": "eu-central-1",
+                  "region": "updated_eu-central-1",
+                  "tables_table": "cmtr-sdct-at-table-test",
+                  "reservations_table": "cmtr-sdct-at-reservation-test",
+                  "cup_client_id": "*",
+                  "cup_id": "*"
+                }
+              },
+              "depends_on": [1, 2]
+            },
+            {
+              "index": 6,
+              "name": "tag_existence",
+              "description": "Check if tags were updated",
+              "resources": {
+                "sdct-at-nodejs-lambda": {
+                  "resource_type": "lambda",
+                  "tags": {
+                    "updated_tests": "updated_smoke",
+                    "project": "sdct-auto-test",
+                    "project-level-tag": "set-from-project"
+                  }
+                }
+              },
+              "depends_on": [1, 2]
             }
           ]
         }
@@ -1031,6 +1124,9 @@
                   "resource_type": "sns_topic"
                 },
                 "sdct-at-table": {
+                  "resource_type": "dynamodb_table"
+                },
+                "sdct-at-reservation": {
                   "resource_type": "dynamodb_table"
                 },
                 "sdct-at-cw-rule": {
@@ -1115,6 +1211,9 @@
                   "resource_type": "sns_topic"
                 },
                 "sdct-at-table": {
+                  "resource_type": "dynamodb_table"
+                },
+                "sdct-at-reservation": {
                   "resource_type": "dynamodb_table"
                 },
                 "sdct-at-cw-rule": {
@@ -1222,6 +1321,9 @@
                   "resource_type": "sns_topic"
                 },
                 "sdct-at-table": {
+                  "resource_type": "dynamodb_table"
+                },
+                "sdct-at-reservation": {
                   "resource_type": "dynamodb_table"
                 },
                 "sdct-at-cw-rule": {

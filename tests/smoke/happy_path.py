@@ -11,7 +11,7 @@ sys.path.append(parent_dir)
 from commons.step_processors import process_steps
 from commons.constants import STAGES_CONFIG_PARAM, INIT_PARAMS_CONFIG_PARAM, \
     OUTPUT_FILE_CONFIG_PARAM, DEPENDS_ON_CONFIG_PARAM, \
-    STAGE_PASSED_REPORT_PARAM, BUNDLE_NAME, DEPLOY_NAME, CLEAN_COMMAND
+    STAGE_PASSED_REPORT_PARAM, BUNDLE_NAME, UPDATED_BUNDLE_NAME, CLEAN_COMMAND
 from commons.utils import save_json, full_path
 from commons.connections import delete_s3_folder
 
@@ -37,12 +37,12 @@ def build_parser() -> argparse.ArgumentParser:
 def force_clean(deploy_bucket, only_bundle=False):
     print('\nCleaning bundle' + ' and resources' if not only_bundle else '')
     if not only_bundle:
-        command_to_execute = ['syndicate', 'clean', '--bundle_name',
-                              BUNDLE_NAME, '--deploy_name', DEPLOY_NAME]
+        command_to_execute = ['syndicate', 'clean']
         exec_result = subprocess.run(command_to_execute, check=False,
                                      capture_output=True, text=True)
         print(f'Execution return code: {exec_result.returncode}')
     delete_s3_folder(deploy_bucket, BUNDLE_NAME)
+    delete_s3_folder(deploy_bucket, UPDATED_BUNDLE_NAME)
 
 
 def main(verbose: bool, config: str):

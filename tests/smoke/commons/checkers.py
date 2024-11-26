@@ -8,7 +8,7 @@ sys.path.append(parent_dir)
 
 from commons.constants import BUNDLE_NAME, DEPLOY_NAME, \
     RESOURCE_TYPE_CONFIG_PARAM, RESOURCE_NAME_CONFIG_PARAM, \
-    RESOURCE_META_CONFIG_PARAM
+    RESOURCE_META_CONFIG_PARAM, UPDATED_BUNDLE_NAME
 from commons.utils import deep_get, find_max_lambda_layer_version, \
     compare_dicts
 from commons import connections
@@ -29,7 +29,6 @@ def artifacts_existence_checker(artifact: str,
 def build_meta_checker(build_meta: dict, resources: dict):
     results = {}
     invalid_resources = []  # missing or invalid type
-    invalid_tags = []
     for resource_name, resource_meta in resources.items():
         if not (resource_data := build_meta.pop(resource_name, {})):
             invalid_resources.append(resource_name)
@@ -40,17 +39,55 @@ def build_meta_checker(build_meta: dict, resources: dict):
             invalid_resources.append(resource_name)
             continue
 
-        if resource_data.get('tags', {}) != resource_meta.get('tags', {}):
-            invalid_tags.append({resource_name: resource_data.get('tags', {})})
-
     redundant_resources = list(build_meta.keys())
 
     if invalid_resources:
         results['invalid_resources'] = invalid_resources
     if redundant_resources:
         results['redundant_resources'] = redundant_resources
-    if invalid_tags:
-        results['invalid_tags'] = invalid_tags
+
+    return results if results else True
+
+
+def build_meta_content_checker(build_meta: dict, resources: dict):
+    results = {}
+    missing_tags = []
+    redundant_tags = []
+    missing_envs = []
+    redundant_envs = []
+    for resource_name, resource_meta in resources.items():
+        if not (resource_data := build_meta.pop(resource_name, {})):
+            continue
+
+        if resource_data.get('resource_type') != \
+                resource_meta.get('resource_type'):
+            continue
+
+        if (build_tags := resource_data.get('tags', {})) != \
+                (meta_tags := resource_meta.get('tags', {})):
+            missing_tags.append({
+                resource_name: dict(set(meta_tags.items()) - set(build_tags.items()))})
+            redundant_tags.append({
+                resource_name: dict(set(build_tags.items()) - set(meta_tags.items()))})
+
+        if (build_envs := resource_data.get('env_variables', {})) != \
+                (meta_envs := resource_meta.get('env_variables', {})):
+            for key, value in build_envs.items():
+                if not meta_envs.get(key) or meta_envs[key] != value:
+                    redundant_envs.append({resource_name: {key: value}})
+
+            for key, value in meta_envs.items():
+                if not build_envs.get(key) or build_envs[key] != value:
+                    missing_envs.append({resource_name: {key: value}})
+
+    if missing_tags:
+        results['missing_tags'] = missing_tags
+    if redundant_tags:
+        results['redundant_tags'] = redundant_tags
+    if missing_envs:
+        results['missing_envs'] = missing_envs
+    if redundant_envs:
+        results['redundant_envs'] = redundant_envs
 
     return results if results else True
 
@@ -91,29 +128,13 @@ def deployment_output_checker(output: dict, resources: dict,
     return results if results else True
 
 
-def outputs_modification_checker(deploy_target_bucket: str,
-                                 update_time: str | datetime,
-                                 succeeded_deploy):
-    if succeeded_deploy:
-        file_key = f'{BUNDLE_NAME}/outputs/{DEPLOY_NAME}.json'
-    else:
-        file_key = f'{BUNDLE_NAME}/outputs/{DEPLOY_NAME}_failed.json'
-    response = connections.if_s3_object_modified(
-        bucket_name=deploy_target_bucket,
-        file_key=file_key,
-        modified_since=update_time)
-    if not response:
-        return False
-    return True
-
-
 def lambda_triggers_checker(lambda_name: str, triggers: list) -> dict:
     result = {}
     missing_arns = []
-    redundant_arns = []
     sqs_arn = 'arn:aws:sqs:{0}:{1}:{2}'
     sns_arn = 'arn:aws:sns:{0}:{1}:{2}'
     event_arn = 'arn:aws:events:{0}:{1}:rule/{2}'
+    dynamodb_stream_arn = 'arn:aws:dynamodb:{0}:{1}:table/{2}/stream/'
     lambda_arn = 'arn:aws:lambda:{0}:{1}:function:{2}'
 
     for trigger in triggers:
@@ -128,10 +149,8 @@ def lambda_triggers_checker(lambda_name: str, triggers: list) -> dict:
                             REGION, ACCOUNT_ID, lambda_name):
                     trigger_found = True
                     break
-            if trigger_found:
-                continue
-
-            missing_arns.append(arn)
+            if not trigger_found:
+                missing_arns.append(arn)
 
         elif trigger[RESOURCE_TYPE_CONFIG_PARAM] == 'sqs_queue':
             trigger_arn = sqs_arn.format(REGION, ACCOUNT_ID, trigger_name)
@@ -139,7 +158,17 @@ def lambda_triggers_checker(lambda_name: str, triggers: list) -> dict:
             event_arns = set(event.get('EventSourceArn') for event in events)
             if trigger_arn not in event_arns:
                 missing_arns.append(trigger_arn)
-            redundant_arns.extend(event_arns - {trigger_arn})
+
+        elif trigger[RESOURCE_TYPE_CONFIG_PARAM] == 'dynamodb_trigger':
+            trigger_arn = dynamodb_stream_arn.format(REGION, ACCOUNT_ID,
+                                                     trigger_name)
+            events = connections.get_lambda_event_source_mappings(lambda_name)
+            for event in events:
+                if event.get('EventSourceArn').startswith(trigger_arn):
+                    trigger_found = True
+                    break
+            if not trigger_found:
+                missing_arns.append(trigger_arn)
 
         elif trigger[RESOURCE_TYPE_CONFIG_PARAM] in (
                 'cloudwatch_rule', 'eventbridge_rule'):
@@ -149,15 +178,33 @@ def lambda_triggers_checker(lambda_name: str, triggers: list) -> dict:
                 if lambda_name in target['Arn']:
                     trigger_found = True
                     break
-            if trigger_found:
-                continue
-
-            missing_arns.append(arn)
+            if not trigger_found:
+                missing_arns.append(arn)
 
     if missing_arns:
         result['missing_triggers'] = missing_arns
-    if redundant_arns:
-        result['redundant_triggers'] = redundant_arns
+
+    return result
+
+
+def lambda_envs_checker(lambda_name: str, envs: dict,
+                        qualifier: str = None) -> dict:
+    missing_envs = {}
+    result = {}
+    lambda_envs = connections.get_lambda_envs(lambda_name, qualifier).get(
+        'Variables', {})
+
+    for key, value in envs.items():
+        if not lambda_envs.get(key) or (
+                lambda_envs[key] != value and value != '*'):
+            missing_envs[key] = value
+        else:
+            lambda_envs.pop(key)
+
+    if missing_envs:
+        result['missing_envs'] = missing_envs
+    if lambda_envs:
+        result['redundant_envs'] = lambda_envs
 
     return result
 
@@ -349,7 +396,6 @@ TYPE_EXISTENCE_FUNC_MAPPING = {
 
 TYPE_MODIFICATION_FUNC_MAPPING = {
     'iam_policy': policy_modification_checker,
-    'iam_role': ...,
     'lambda': lambda_modification_checker,
     'lambda_layer': lambda_layer_modification_checker
 }

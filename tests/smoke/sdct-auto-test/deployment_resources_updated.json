@@ -18,7 +18,8 @@
             "dynamodb:GetRecords",
             "dynamodb:GetShardIterator",
             "dynamodb:DescribeStream",
-            "dynamodb:ListStreams"
+            "dynamodb:ListStreams",
+            "s3:PutObject"
           ],
           "Effect": "Allow",
           "Resource": "*"
@@ -28,13 +29,15 @@
     },
     "resource_type": "iam_policy",
     "tags": {
-      "tests": "smoke",
+      "tests": "updated_smoke",
       "project": "sdct-auto-test",
       "project-level-tag": "set-from-resource"
     }
   },
   "sdct-at-java-lambda-role": {
-    "predefined_policies": [],
+    "predefined_policies": [
+      "AmazonS3ReadOnlyAccess"
+    ],
     "principal_service": "lambda",
     "custom_policies": [
       "sdct-at-lambda-basic-execution-policy"

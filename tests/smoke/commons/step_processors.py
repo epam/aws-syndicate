@@ -7,12 +7,13 @@ from pathlib import Path
 parent_dir = str(Path(__file__).resolve().parent.parent)
 sys.path.append(parent_dir)
 
-from commons.constants import STEPS_CONFIG_PARAM, \
+from commons.constants import STEPS_CONFIG_PARAM, UPDATED_BUNDLE_NAME, \
     COMMAND_CONFIG_PARAM, CHECKS_CONFIG_PARAM, NAME_CONFIG_PARAM, \
     DESCRIPTION_CONFIG_PARAM, DEPENDS_ON_CONFIG_PARAM, BUILD_COMMAND, \
     BUNDLE_NAME, DEPLOY_COMMAND, UPDATE_COMMAND, DEPLOY_NAME, \
     INDEX_CONFIG_PARAM, STAGE_PASSED_REPORT_PARAM
 from commons.handlers import HANDLERS_MAPPING
+from commons.utils import UpdateContent
 
 
 def process_steps(steps: dict[str: List[dict]],
@@ -43,14 +44,30 @@ def process_steps(steps: dict[str: List[dict]],
                                        '--deploy_name', DEPLOY_NAME,
                                        '--replace_output'])
         if UPDATE_COMMAND in command_to_execute:
-            command_to_execute.extend(['--bundle_name', BUNDLE_NAME,
+            command_to_execute.extend(['--bundle_name', UPDATED_BUNDLE_NAME,
                                        '--deploy_name', DEPLOY_NAME,
                                        '--replace_output'])
-
-        print(f'Run command: {command_to_execute}')
         execution_datetime = datetime.utcnow()
-        exec_result = subprocess.run(command_to_execute, check=False,
-                                     capture_output=True, text=True)
+
+        with UpdateContent(
+                command=command_to_execute,
+                lambda_paths=[
+                    'sdct-auto-test/app/lambdas/sdct-at-nodejs-lambda'
+                ],
+                resources_paths=['sdct-auto-test']):
+            if UPDATE_COMMAND in command_to_execute:
+                build_command = ['syndicate', 'build',
+                                 '--bundle_name', UPDATED_BUNDLE_NAME]
+                if verbose:
+                    build_command.append('--verbose')
+                print(f'Run command: {build_command}')
+                subprocess.run(build_command, check=False,
+                               capture_output=True, text=True)
+
+            print(f'Run command: {command_to_execute}')
+            exec_result = subprocess.run(command_to_execute, check=False,
+                                         shell=True,
+                                         capture_output=True, text=True)
         for check in step[CHECKS_CONFIG_PARAM]:
             index = check[INDEX_CONFIG_PARAM]
             depends_on = check.pop(DEPENDS_ON_CONFIG_PARAM, None)

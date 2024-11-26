@@ -166,10 +166,6 @@ tests
           }
         }
         ```
-- `outputs_modification`: - Checks the time of the output.json file's last modification. 
-  - parameters:
-    - `deploy_target_bucket` (str) [REQUIRED] - the syndicate deployment bucket.
-    - `succeeded_deploy` (bool) - defines whether succeeded or failed deployment output needs to be checked.
 
 ## How to run
 ### Prerequisites
