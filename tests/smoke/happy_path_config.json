@@ -1005,9 +1005,6 @@
                 "sdct-at-nodejs-lambda": {
                   "resource_type": "lambda"
                 },
-                "sdct-at-java-lambda-role": {
-                  "resource_type": "iam_role"
-                },
                 "sdct-at-lambda-basic-execution-policy": {
                   "resource_type": "iam_policy"
                 }
