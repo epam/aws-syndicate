@@ -34,6 +34,27 @@ def build_py_package_name(lambda_name, lambda_version):
     return '{0}-{1}.zip'.format(lambda_name, lambda_version)
 
 
+def write_to_zip(
+        z: zipfile.ZipFile,
+        absfn: str,
+        zfn: str,
+) -> None:
+    """ Helper function to write files to the zip archive. """
+    try:
+        z.write(absfn, zfn)
+    except FileNotFoundError as e:
+        mxfn = absfn if len(absfn) > len(zfn) else zfn
+        if len(mxfn) > 260:
+            raise ValueError(
+                f"The path '{mxfn}' exceeds 260 characters (length: {len(mxfn)}"
+                f" characters). Was this expected? If not, the file might be "
+                f"missing. Please verify the file's existence and consider "
+                f"shortening your path if necessary to avoid potential issues "
+                f"with path length limitations"
+            )
+        raise e
+
+
 def zip_dir(
         basedir: str,
         name: str,
@@ -51,16 +72,7 @@ def zip_dir(
             for fn in files:
                 absfn = os.path.normpath(os.path.join(root, fn))
                 zfn = os.path.normpath(os.path.join(archive_root, fn))
-
-                if len(absfn) > 260:
-                    raise ValueError(
-                        f"The path '{absfn}' exceeds the maximum allowed length"
-                        f" of 260 characters. Please consider reducing the "
-                        f"length of the file or directory names, or reorganizing "
-                        "your directory structure to have shorter paths"
-                    )
-
-                z.write(absfn, zfn)
+                write_to_zip(z, absfn, zfn)
 
 
 def run_external_command(command: list):
