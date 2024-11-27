@@ -44,6 +44,16 @@ tests
 #### `sdct-auto-test` Subdirectory
 - Contains the aws-project on which testing will be carried out. More details about the project can be found [here](sdct-auto-test/README.md)
 
+### `lambda_config_updated.json` and `deployment_resources_updated.json`
+- Lambda and overall resources configuration files with the `_updated` suffix are required to test the `syndicate update` command. 
+The content of these files apply to the current corresponding configs while the resources are being updated. 
+Afterwards, the original configs return the original content. Example: 
+  1. Start testing `syndicate update` stage;
+  2. Change content of `app/lambdas/sdct-at-nodejs-lambda/lambda_config.json` file to content of `app/lambdas/sdct-at-nodejs-lambda/lambda_config_updated.json`;
+  3. Build bundle with updated configuration;
+  4. Wait for `syndicate update` to finish executing (successfully or not, whatever);
+  5. Return original content of `app/lambdas/sdct-at-nodejs-lambda/lambda_config.json` file.
+
 ## Configuration
 
 ### Config structure
@@ -155,7 +165,7 @@ tests
         ```
     - `deploy_target_bucket` (str) - the syndicate deployment bucket. Required for swagger_ui existence check.
     - `reverse_check` (bool) - defines whether the check result must be swapped to the opposite.
-- `resource_modification`: Checks if resources were modified. 
+- `resource_modification` - Checks if resources were modified. 
   - parameters: 
     - `resources` (dict) [REQUIRED] - Information about resources to check.  
         structure:
@@ -163,6 +173,59 @@ tests
         {
           "$RESOURCE_NAME": {
             "resource_type": "$RESOURCE_TYPE"
+          }
+        }
+      ```
+- `tag_existence` - Checks whether resources has specific tags. 
+  - parameters:
+    - `resources` (dict) [REQUIRED] - Information about resources to check.  
+        structure:
+        ```json
+        {
+          "$RESOURCE_NAME": {
+            "resource_type": "$RESOURCE_TYPE",
+            "tags": {
+              "tag_name1": "tag_value1",
+              "tag_name2": "tag_value2",
+              ...
+              "tag_nameN": "tag_valueN"
+            }
+          }
+        }
+        ```
+    - `reverse_check` (bool) - defines whether the check result must be swapped to the opposite.
+- `lambda_trigger_existence` - Checks whether lambda has triggers. 
+  - parameters:
+    - `triggers` (dict) [REQUIRED] - Information about lambdas to check. Lambda name could include alias or version 
+in this format: `name:alias`  
+        structure:
+        ```json
+        {
+          "triggers": {
+            "$LAMBDA_NAME:alias_or_version_optional": [
+              {
+                "resource_name": "trigger_name",
+                "resource_type": "sqs_queue|dynamodb_trigger|sns_topic|cloudwatch_rule"
+              },
+              ...
+            ]
+          }
+        }
+        ```
+- `lambda_env_existence` - Checks whether lambdas has specific environment variables. 
+  - parameters:
+    - `env_variables` (dict) [REQUIRED] - Information about lambdas to check. Lambda name could include alias or version 
+in this format: `name:alias`. `*` in env value means value does not matter and only the presence of a particular key will be checked.
+        structure:
+        ```json
+        {
+          "env_variables": {
+            "$LAMBDA_NAME1:alias_or_version_optional": {
+              "DOTNET_SHARED_STORE": "/opt/dotnetcore/store/"
+            },
+            "$LAMBDA_NAME2": {
+                "cup_id": "*"
+            }
           }
         }
         ```
