@@ -16,15 +16,19 @@
 from boto3 import client
 from syndicate.commons.log_helper import get_logger
 
-_LOG = get_logger(
-    'syndicate.connection.resource_groups_tagging_api_connection')
+_LOG = get_logger('syndicate.connection.resource_groups_tagging_api_connection')
 
 
 class ResourceGroupsTaggingAPIConnection:
     """Resource Groups Tagging API connection class."""
 
-    def __init__(self, region=None, aws_access_key_id=None,
-                 aws_secret_access_key=None, aws_session_token=None):
+    def __init__(
+            self,
+            region=None,
+            aws_access_key_id=None,
+            aws_secret_access_key=None,
+            aws_session_token=None,
+    ):
         self.region = region
         self.aws_access_key_id = aws_access_key_id
         self.aws_secret_access_key = aws_secret_access_key
@@ -35,14 +39,34 @@ class ResourceGroupsTaggingAPIConnection:
                              aws_session_token=aws_session_token)
         _LOG.debug('Opened new Resource Groups Tagging API connection.')
 
-    def tag_resources(self, resources_arns: list, tags: dict):
-        params = dict(ResourceARNList=resources_arns,
-                      Tags=tags)
-        response = self.client.tag_resources(**params)
-        return response.get('FailedResourcesMap')
+    def tag_resources(
+            self,
+            resources_arns: list,
+            tags: dict,
+    ) -> dict:
+        params = dict(ResourceARNList=resources_arns, Tags=tags)
+        try:
+            response = self.client.tag_resources(**params)
+            return response.get('FailedResourcesMap')
+        except Exception as e:
+            error_message = str(e)
+            failed_resources_map = \
+                {arn: {'ErrorMessage': error_message} for arn in resources_arns}
+            _LOG.warning(error_message)
+            return failed_resources_map
 
-    def untag_resources(self, resources_arns: list, tag_keys: list):
-        params = dict(ResourceARNList=resources_arns,
-                      TagKeys=tag_keys)
-        response = self.client.untag_resources(**params)
-        return response.get('FailedResourcesMap')
+    def untag_resources(
+            self,
+            resources_arns: list,
+            tag_keys: list,
+    ) -> dict:
+        params = dict(ResourceARNList=resources_arns, TagKeys=tag_keys)
+        try:
+            response = self.client.untag_resources(**params)
+            return response.get('FailedResourcesMap')
+        except Exception as e:
+            error_message = str(e)
+            failed_resources_map = \
+                {arn: {'ErrorMessage': error_message} for arn in resources_arns}
+            _LOG.warning(error_message)
+            return failed_resources_map

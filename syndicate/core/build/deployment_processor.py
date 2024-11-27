@@ -542,12 +542,16 @@ def create_deployment_resources(deploy_name, bundle_name,
 
 
 @exit_on_exception
-def update_deployment_resources(bundle_name, deploy_name, replace_output=False,
-                                update_only_types=None,
-                                update_only_resources=None,
-                                excluded_resources=None,
-                                excluded_types=None,
-                                force=False):
+def update_deployment_resources(
+        bundle_name: str,
+        deploy_name: str,
+        replace_output: bool = False,
+        update_only_types: tuple = None,
+        update_only_resources: tuple = None,
+        excluded_resources: tuple = None,
+        excluded_types: tuple = None,
+        force: bool = False,
+) -> bool:
     from syndicate.core import PROCESSOR_FACADE, PROJECT_STATE
     from click import confirm as click_confirm
     latest_bundle = PROJECT_STATE.get_latest_deployed_or_updated_bundle(
@@ -615,18 +619,20 @@ def update_deployment_resources(bundle_name, deploy_name, replace_output=False,
 
     _LOG.info('Going to updates tags')
     preprocess_tags(output)
-    _update_tags(old_output, output)
+    tag_success = _update_tags(old_output, output)
 
     create_deploy_output(bundle_name=bundle_name,
                          deploy_name=deploy_name,
                          output={**old_output, **output},
                          success=success,
                          replace_output=replace_output)
-    if success:
+    if success and tag_success:
         remove_failed_deploy_output(bundle_name, deploy_name)
     else:
-        USER_LOG.warn("There were errors during the updating of resources. "
-                      "More details can be found in the log file.")
+        USER_LOG.warning(
+            "There were errors during the updating of resources. More details "
+            "can be found in the log file"
+        )
 
     return success
 
@@ -768,16 +774,23 @@ def _apply_dynamic_changes(resources, output):
     concurrent.futures.wait(futures, timeout=None, return_when=ALL_COMPLETED)
 
 
-def _apply_post_deployment_tags(output: dict):
+def _apply_post_deployment_tags(
+        output: dict,
+) -> bool:
     from syndicate.core import RESOURCES_PROVIDER
-    tags_resource = RESOURCES_PROVIDER.tags_api()
-    tags_resource.apply_post_deployment_tags(output)
+    tags_resource: RESOURCES_PROVIDER = RESOURCES_PROVIDER.tags_api()
+    success: bool = tags_resource.apply_post_deployment_tags(output)
+    return success
 
 
-def _update_tags(old_output: dict, new_output: dict):
+def _update_tags(
+        old_output: dict,
+        new_output: dict,
+) -> bool:
     from syndicate.core import RESOURCES_PROVIDER
-    tags_resource = RESOURCES_PROVIDER.tags_api()
-    tags_resource.update_tags(old_output, new_output)
+    tags_resource: RESOURCES_PROVIDER = RESOURCES_PROVIDER.tags_api()
+    success: bool = tags_resource.update_tags(old_output, new_output)
+    return success
 
 
 def compare_deploy_resources(first, second):
