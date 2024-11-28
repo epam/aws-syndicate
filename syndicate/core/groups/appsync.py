@@ -77,16 +77,16 @@ def api(name, project_path, tags):
               help="Data source description")
 @click.option('--type', type=click.Choice(APPSYNC_DATA_SOURCE_TYPES),
               default='NONE', help="Data source type")
-@click.option('--service_role_name', type=str, cls=OptionRequiredIf,
-              required_if='type',
-              required_if_values=['AWS_LAMBDA', 'AMAZON_DYNAMODB'],
-              help="Data source service role name")
 @click.option('--resource_name', type=str, cls=OptionRequiredIf,
               required_if_values=['AWS_LAMBDA', 'AMAZON_DYNAMODB'],
               required_if='type', help="Data source resource name")
 @click.option('--region', type=ValidRegionParamType(),
               help="The region where the resource is located. If not "
                    "specified, sets the default value from syndicate config")
+@click.option('--service_role_name', type=str, cls=OptionRequiredIf,
+              required_if='type',
+              required_if_values=['AWS_LAMBDA', 'AMAZON_DYNAMODB'],
+              help="The name of the role to access the data source resource")
 @verbose_option
 @click.pass_context
 @timeit()

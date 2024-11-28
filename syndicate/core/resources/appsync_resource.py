@@ -46,12 +46,14 @@ ONE_DAY_IN_SECONDS = 86400
 
 class AppSyncResource(BaseResource):
 
-    def __init__(self, appsync_conn, s3_conn, cup_conn, deploy_target_bucket,
-                 deploy_target_bucket_key_compound, account_id) -> None:
+    def __init__(self, appsync_conn, s3_conn, cup_conn, cw_logs_conn,
+                 deploy_target_bucket, deploy_target_bucket_key_compound,
+                 account_id) -> None:
         from syndicate.core import CONF_PATH
         self.appsync_conn = appsync_conn
         self.s3_conn = s3_conn
         self.cup_conn = cup_conn
+        self.cw_logs_conn = cw_logs_conn
         self.conf_path = CONF_PATH
         self.deploy_target_bucket_key_compound = \
             deploy_target_bucket_key_compound
@@ -122,7 +124,9 @@ class AppSyncResource(BaseResource):
             user_pool_config=user_pool_config,
             open_id_config=meta.get('open_id_config'),
             lambda_auth_config=lambda_auth_config,
-            log_config=meta.get('log_config'),
+            log_config=self._resolve_log_config(
+                meta.get('log_config', {}), name
+            ),
             xray_enabled=meta.get('xray_enabled'),
             extra_auth_types=updated_extra_auth_types)
 
@@ -417,6 +421,26 @@ class AppSyncResource(BaseResource):
 
         return function_params
 
+    def _resolve_log_config(self, log_config: dict, api_name: str) -> dict:
+        if log_config.pop('logging_enabled', False):
+            _LOG.debug(
+                f"Building log_config parameters for the AppSync '{api_name}'"
+            )
+            log_role_name = log_config.pop('cloud_watch_logs_role_name', None)
+            if log_role_name:
+                log_config['cloud_watch_logs_role_arn'] = \
+                    self._build_iam_role_arn(log_role_name)
+            else:
+                _LOG.warning(
+                    f"Cloud watch logs can't be configured for the AppSync "
+                    f"'{api_name}' because 'cloud_watch_logs_role_name' not "
+                    f"specified"
+                )
+                log_config = {}
+        else:
+            log_config = {}
+        return log_config
+
     def build_graphql_api_arn(self, api_id: str) -> str:
         return f'arn:aws:appsync:{self.appsync_conn.client.meta.region_name}' \
                f':{self.account_id}:apis/{api_id}'
@@ -443,6 +467,10 @@ class AppSyncResource(BaseResource):
         api_id = config['description']['apiId']
         try:
             self.appsync_conn.delete_graphql_api(api_id)
+            group_names = self.cw_logs_conn.get_log_group_names()
+            for each in group_names:
+                if api_id == each.split('/')[-1]:
+                    self.cw_logs_conn.delete_log_group_name(each)
             _LOG.info(f'GraphQL API {api_id} was removed.')
             return {arn: config}
         except ClientError as e:
@@ -504,7 +532,9 @@ class AppSyncResource(BaseResource):
             user_pool_config=user_pool_config,
             open_id_config=meta.get('open_id_config'),
             lambda_auth_config=lambda_auth_config,
-            log_config=meta.get('log_config'),
+            log_config=self._resolve_log_config(
+                meta.get('log_config', {}), name
+            ),
             xray_enabled=meta.get('xray_enabled'),
             extra_auth_types=updated_extra_auth_types)
 

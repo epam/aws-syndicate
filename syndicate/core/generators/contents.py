@@ -785,6 +785,12 @@ def _generate_syncapp_config(resource_name, schema_file_name, tags=None):
         "data_sources": [],
         "resolvers": [],
         "functions": [],
+        "log_config": {
+            "logging_enabled": False,
+            "field_log_level": "ERROR",
+            "cloud_watch_logs_role_name": '',
+            'exclude_verbose_content': False
+        },
         "tags": tags or {},
     }
     return _stringify(config_content)
@@ -825,7 +831,7 @@ export function response(ctx) {
     // Update with response logic
     return ctx.result;
 }
-    '''
+'''
     return default_code
 
 
@@ -838,7 +844,7 @@ subscriptions or otherwise transform data without hitting a backend data source.
 The value of 'payload' is forwarded to $ctx.result in the response mapping template.
 *#
 {
-    "version": "2017-02-28",
+    "version": "2018-05-29",
     "payload": {
         "hello": "local",
     }
@@ -850,17 +856,17 @@ The value of 'payload' is forwarded to $ctx.result in the response mapping templ
 will be passed as the event to AWS Lambda.
 *#
 {
-  "version" : "2017-02-28",
+  "version" : "2018-05-29",
   "operation": "Invoke",
   "payload": $util.toJson($context.args)
 }
-            '''
+                            '''
         case 'AMAZON_DYNAMODB':
             content = \
 '''## Below example shows how to look up an item with a Primary Key of "id" from GraphQL arguments
 ## The helper $util.dynamodb.toDynamoDBJson automatically converts to a DynamoDB formatted request
 ## There is a "context" object with arguments, identity, headers, and parent field information you can access.
-## It also has a shorthand notation avaialable:
+## It also has a shorthand notation available:
 ##  - $context or $ctx is the root object
 ##  - $ctx.arguments or $ctx.args contains arguments
 ##  - $ctx.identity has caller information, such as $ctx.identity.username
@@ -869,13 +875,13 @@ will be passed as the event to AWS Lambda.
 ## Read more: https://docs.aws.amazon.com/appsync/latest/devguide/resolver-mapping-template-reference.html
 
 {
-        "version": "2017-02-28",
-        "operation": "GetItem",
-        "key": {
-            "id": $util.dynamodb.toDynamoDBJson($ctx.args.id),
-        }
+    "version": "2018-05-29",
+    "operation": "GetItem",
+    "key": {
+        "id": $util.dynamodb.toDynamoDBJson($ctx.args.id),
     }
-            '''
+}
+'''
         case 'PIPELINE':
             content = \
 '''## By default in a before template, all you need is a valid JSON payload.
@@ -900,7 +906,7 @@ def _generate_syncapp_vtl_resolver_resp_mt(data_source_type):
             content = \
 '''## Pass back the result from DynamoDB. **
 $util.toJson($ctx.result)
-                '''
+'''
         case 'PIPELINE':
             content = \
 '''## The after mapping template is used to collect the final value that is returned by the resolver.

@@ -89,7 +89,7 @@ class AppSyncConnection(object):
             lambda_auth_config = dict_keys_to_camel_case(lambda_auth_config)
             params['lambdaAuthorizerConfig'] = lambda_auth_config
         if log_config:
-            params['logConfig'] = log_config
+            params['logConfig'] = dict_keys_to_camel_case(log_config)
         if xray_enabled:
             params['xrayEnabled'] = xray_enabled
         if extra_auth_types:
@@ -405,7 +405,7 @@ class AppSyncConnection(object):
             lambda_auth_config = dict_keys_to_camel_case(lambda_auth_config)
             params['lambdaAuthorizerConfig'] = lambda_auth_config
         if log_config:
-            params['logConfig'] = log_config
+            params['logConfig'] = dict_keys_to_camel_case(log_config)
         if xray_enabled:
             params['xrayEnabled'] = xray_enabled
         if extra_auth_types:

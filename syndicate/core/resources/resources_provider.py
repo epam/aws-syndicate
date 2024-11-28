@@ -150,6 +150,7 @@ class ResourceProvider:
                     appsync_conn=self._conn_provider.appsync(),
                     s3_conn=self._conn_provider.s3(),
                     cup_conn=self._conn_provider.cognito_identity_provider(),
+                    cw_logs_conn=self._conn_provider.cw_logs(),
                     deploy_target_bucket_key_compound=
                     self.config.deploy_target_bucket_key_compound,
                     deploy_target_bucket=self.config.deploy_target_bucket,
