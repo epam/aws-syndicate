@@ -13,6 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+import functools
 import os
 import shutil
 import subprocess
@@ -34,27 +35,26 @@ def build_py_package_name(lambda_name, lambda_version):
     return '{0}-{1}.zip'.format(lambda_name, lambda_version)
 
 
-def write_to_zip(
-        z: zipfile.ZipFile,
-        absfn: str,
-        zfn: str,
-) -> None:
-    """ Helper function to write files to the zip archive. """
-    try:
-        z.write(absfn, zfn)
-    except FileNotFoundError as e:
-        mxfn = absfn if len(absfn) > len(zfn) else zfn
-        if len(mxfn) > 260:
+def file_path_length_checker(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except FileNotFoundError as e:
+            path_from_e = e.filename
+            if len(path_from_e) < 260:
+                raise e
             raise ValueError(
-                f"The path '{mxfn}' exceeds 260 characters (length: {len(mxfn)}"
-                f" characters). Was this expected? If not, the file might be "
-                f"missing. Please verify the file's existence and consider "
-                f"shortening your path if necessary to avoid potential issues "
+                f"The path '{path_from_e}' exceeds 260 characters (length: "
+                f"{len(path_from_e)} characters). This might be the reason for "
+                f"the FileNotFoundError. Please verify the file's existence and"
+                f" consider shortening your path if necessary to avoid issues "
                 f"with path length limitations"
             )
-        raise e
+    return wrapper
 
 
+@file_path_length_checker
 def zip_dir(
         basedir: str,
         name: str,
@@ -72,7 +72,7 @@ def zip_dir(
             for fn in files:
                 absfn = os.path.normpath(os.path.join(root, fn))
                 zfn = os.path.normpath(os.path.join(archive_root, fn))
-                write_to_zip(z, absfn, zfn)
+                z.write(absfn, zfn)
 
 
 def run_external_command(command: list):
