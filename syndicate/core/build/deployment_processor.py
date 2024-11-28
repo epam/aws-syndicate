@@ -779,7 +779,7 @@ def _apply_post_deployment_tags(
 ) -> bool:
     from syndicate.core import RESOURCES_PROVIDER
     tags_resource: RESOURCES_PROVIDER = RESOURCES_PROVIDER.tags_api()
-    success: bool = tags_resource.apply_post_deployment_tags(output)
+    success: bool = tags_resource.safe_apply_tags(output)
     return success
 
 
@@ -789,7 +789,7 @@ def _update_tags(
 ) -> bool:
     from syndicate.core import RESOURCES_PROVIDER
     tags_resource: RESOURCES_PROVIDER = RESOURCES_PROVIDER.tags_api()
-    success: bool = tags_resource.update_tags(old_output, new_output)
+    success: bool = tags_resource.safe_update_tags(old_output, new_output)
     return success
 
 

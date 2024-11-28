@@ -42,7 +42,7 @@ def tags(ctx):
 def apply(ctx):
     """Assign tags from config to deployed resources"""
     output = ctx.obj['output']
-    ctx.obj['tags_resource'].apply_tags(output)
+    ctx.obj['tags_resource'].safe_apply_tags(output)
 
 
 @tags.command(name='remove')
@@ -51,4 +51,4 @@ def apply(ctx):
 def remove(ctx):
     """Remove tags from config from deployed resources"""
     output = ctx.obj['output']
-    ctx.obj['tags_resource'].remove_tags(output)
+    ctx.obj['tags_resource'].safe_remove_tags(output)

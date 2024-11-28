@@ -70,11 +70,56 @@ class TagsApiResource:
                 arns.append(arn)
         return arns
 
-    def apply_tags(
+    def remove_tags(
+            self,
+            output: dict,
+    ) -> dict:
+        failed_untags = {}
+        for tags, res_group in self._group_output_by_tags(output):
+            arns = self._extract_arns(res_group)
+            with ThreadPoolExecutor() as executor:
+                futures = [
+                    executor.submit(
+                        self.connection.untag_resources,
+                        batch,
+                        list(tags.keys()),
+                    ) for batch in chunks(arns, 20)
+                ]
+                for future in as_completed(futures):
+                    failed = future.result() or {}
+                    failed_untags.update(failed)
+        if failed_untags:
+            USER_LOG.warning(
+                f"Can't remove tags from resources: {[*failed_untags]}"
+            )
+        else:
+            _LOG.info(f'Tags were successfully removed from all resources')
+        return failed_untags
+
+    def safe_remove_tags(
             self,
             output: dict,
     ) -> bool:
-        failed_arns = []
+        try:
+            failed = self.remove_tags(output)
+            error_message = [
+                f"'{k}': {v['ErrorMessage']}" for k, v in failed.items()
+            ]
+            error_message = "\n".join(error_message)
+        except Exception as e:
+            error_message = str(e)
+        if not error_message:
+            return True
+        USER_LOG.warning(
+            f"The next error occurred during resources tagging\n{error_message}"
+        )
+        return False
+
+    def apply_tags(
+            self,
+            output: dict,
+    ) -> dict:
+        failed_tags = {}
         for tags, res_group in self._group_output_by_tags(output):
             arns = self._extract_arns(res_group)
             with ThreadPoolExecutor() as executor:
@@ -83,54 +128,44 @@ class TagsApiResource:
                     for batch in chunks(arns, 20)
                 ]
                 for future in as_completed(futures):
-                    failed = future.result()
-                    if failed:
-                        failed_arns.extend(failed.keys())
-        if failed_arns:
-            USER_LOG.warning(f"Can't apply tags for resources: {failed_arns}")
-            return False
-        _LOG.info('Tags were successfully applied')
-        return True
+                    failed = future.result() or {}
+                    failed_tags.update(failed)
+        if failed_tags:
+            USER_LOG.warning(
+                f"Can't apply tags for resources: {[*failed_tags]}"
+            )
+        else:
+            _LOG.info('Tags were successfully applied')
+        return failed_tags
 
-    def remove_tags(
+    def safe_apply_tags(
             self,
             output: dict,
     ) -> bool:
-        failed_arns = []
-        for tags, res_group in self._group_output_by_tags(output):
-            arns = self._extract_arns(res_group)
-            with ThreadPoolExecutor() as executor:
-                futures = [
-                    executor.submit(
-                        self.connection.untag_resources, batch, list(tags.keys())
-                    ) for batch in chunks(arns, 20)
-                ]
-                for future in as_completed(futures):
-                    failed = future.result()
-                    if failed:
-                        failed_arns.extend(failed.keys())
-        if failed_arns:
-            USER_LOG.warning(f"Can't remove tags from resources: {failed_arns}")
-            return False
-        _LOG.info(f'Tags were successfully removed from all resources')
-        return True
-
-    def apply_post_deployment_tags(
-            self,
-            output: dict,
-    ) -> bool:
-        output = {k: v for k, v in output.items() if
-                  v['resource_meta']['resource_type'] in
-                  self.post_deploy_tagging_types}
-        success = self.apply_tags(output)
-        return success
+        try:
+            output = {k: v for k, v in output.items() if
+                      v['resource_meta']['resource_type'] in
+                      self.post_deploy_tagging_types}
+            failed = self.apply_tags(output)
+            error_message = [
+                f"'{k}': {v['ErrorMessage']}" for k, v in failed.items()
+            ]
+            error_message = "\n".join(error_message)
+        except Exception as e:
+            error_message = str(e)
+        if not error_message:
+            return True
+        USER_LOG.warning(
+            f"The next error occurred during resources tagging\n{error_message}"
+        )
+        return False
 
     def update_tags(
             self,
             old_output: dict,
             new_output: dict,
-    ) -> bool:
-        failed_arns = []
+    ) -> dict:
+        failed_updates = {}
         for arn, res_meta in new_output.items():
             arns = []
             res_type = res_meta['resource_meta']['resource_type']
@@ -142,8 +177,9 @@ class TagsApiResource:
             to_tag = {k: v for k, v in new_res_tags.items()
                       if k not in old_res_tags.keys() or
                       v != old_res_tags.get(k)}
-            to_untag = [k for k in old_res_tags.keys()
-                        if k not in new_res_tags.keys()]
+            to_untag = [
+                k for k in old_res_tags.keys() if k not in new_res_tags.keys()
+            ]
             preprocess_arn = \
                 self.resource_type_to_preprocessor_mapping.get(res_type)
             if preprocess_arn:
@@ -156,18 +192,38 @@ class TagsApiResource:
 
             if to_tag:
                 failed_tag = self.connection.tag_resources(arns, to_tag)
-                if failed_tag:
-                    failed_arns.append(arn)
+                failed_updates.update(failed_tag or {})
 
             if to_untag:
                 failed_untag = self.connection.untag_resources(arns, to_untag)
-                if failed_untag:
-                    failed_arns.append(arn)
-        if failed_arns:
-            USER_LOG.warning(f"Can't update tags for resources {failed_arns}")
-            return False
-        _LOG.info('Tags were updated successfully')
-        return True
+                failed_updates.update(failed_untag or {})
+        if failed_updates:
+            USER_LOG.warning(
+                f"Can't update tags for resources {[*failed_updates]}"
+            )
+        else:
+            _LOG.info('Tags were updated successfully')
+        return failed_updates
+
+    def safe_update_tags(
+            self,
+            old_output: dict,
+            new_output: dict,
+    ) -> bool:
+        try:
+            failed = self.update_tags(old_output, new_output)
+            error_message = [
+                f"'{k}': {v['ErrorMessage']}" for k, v in failed.items()
+            ]
+            error_message = "\n".join(error_message)
+        except Exception as e:
+            error_message = str(e)
+        if not error_message:
+            return True
+        USER_LOG.warning(
+            f"The next error occurred during resources tagging\n{error_message}"
+        )
+        return False
 
     @staticmethod
     def _group_output_by_tags(output: dict) -> list[tuple]:
