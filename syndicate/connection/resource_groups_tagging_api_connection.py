@@ -45,15 +45,8 @@ class ResourceGroupsTaggingAPIConnection:
             tags: dict,
     ) -> dict:
         params = dict(ResourceARNList=resources_arns, Tags=tags)
-        try:
-            response = self.client.tag_resources(**params)
-            return response.get('FailedResourcesMap')
-        except Exception as e:
-            error_message = str(e)
-            failed_resources_map = \
-                {arn: {'ErrorMessage': error_message} for arn in resources_arns}
-            _LOG.warning(error_message)
-            return failed_resources_map
+        response = self.client.tag_resources(**params)
+        return response.get('FailedResourcesMap')
 
     def untag_resources(
             self,
@@ -61,12 +54,5 @@ class ResourceGroupsTaggingAPIConnection:
             tag_keys: list,
     ) -> dict:
         params = dict(ResourceARNList=resources_arns, TagKeys=tag_keys)
-        try:
-            response = self.client.untag_resources(**params)
-            return response.get('FailedResourcesMap')
-        except Exception as e:
-            error_message = str(e)
-            failed_resources_map = \
-                {arn: {'ErrorMessage': error_message} for arn in resources_arns}
-            _LOG.warning(error_message)
-            return failed_resources_map
+        response = self.client.untag_resources(**params)
+        return response.get('FailedResourcesMap')
