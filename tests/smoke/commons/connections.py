@@ -237,12 +237,12 @@ def get_cup_id(name: str) -> Union[str | None]:
     return
 
 
-def describe_swagger_ui(name: str, deployment_bucket: str, bundle_name: str,
+def describe_swagger_ui(name: str, deployment_bucket: str, bundle_path: str,
                         deploy_name: str) -> Union[dict | None]:
     success_deploy_key = \
-        f'{bundle_name}/{DEPLOY_OUTPUT_DIR}/{deploy_name}.json'
+        f'{bundle_path}/{DEPLOY_OUTPUT_DIR}/{deploy_name}.json'
     failed_deploy_key = \
-        f'{bundle_name}/{DEPLOY_OUTPUT_DIR}/{deploy_name}_failed.json'
+        f'{bundle_path}/{DEPLOY_OUTPUT_DIR}/{deploy_name}_failed.json'
     deploy_output = (
             get_s3_bucket_file_content(deployment_bucket,
                                        success_deploy_key) or

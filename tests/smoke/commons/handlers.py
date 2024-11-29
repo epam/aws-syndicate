@@ -11,7 +11,7 @@ from commons.checkers import exit_code_checker, artifacts_existence_checker, \
     build_meta_checker, TYPE_EXISTENCE_FUNC_MAPPING, lambda_triggers_checker, \
     lambda_envs_checker, build_meta_content_checker, TYPE_TAGS_FUNC_MAPPING
 from commons.utils import populate_resources_prefix_suffix, \
-    populate_prefix_suffix
+    populate_prefix_suffix, split_deploy_bucket_path
 from commons import connections
 from commons.constants import DEPLOY_OUTPUT_DIR, RESOURCE_TYPE_CONFIG_PARAM, \
     BUNDLE_NAME, DEPLOY_NAME, SWAGGER_UI_RESOURCE_TYPE, TAGS_CONFIG_PARAM, \
@@ -33,15 +33,18 @@ def artifacts_existence_handler(artifacts_list: list,
                                 succeeded_deploy: Optional[bool] = None,
                                 update: Optional[bool] = None,
                                 **kwargs):
+    deploy_bucket, path = split_deploy_bucket_path(deploy_target_bucket)
     bundle_dir = UPDATED_BUNDLE_NAME if update else BUNDLE_NAME
     missing_resources = []
     for artifact in artifacts_list:
         if succeeded_deploy is not None:
-            file_key = f'{bundle_dir}/{DEPLOY_OUTPUT_DIR}/{artifact}'
+            file_key = '/'.join([
+                *path, bundle_dir, DEPLOY_OUTPUT_DIR, artifact
+            ])
         else:
-            file_key = f'{bundle_dir}/{artifact}'
+            file_key = '/'.join([*path, bundle_dir, artifact])
         is_file_exists = artifacts_existence_checker(file_key,
-                                                     deploy_target_bucket)
+                                                     deploy_bucket)
         if is_file_exists and reverse_check:
             missing_resources.append(artifact)
         elif not is_file_exists and not reverse_check:
@@ -51,9 +54,10 @@ def artifacts_existence_handler(artifacts_list: list,
 
 
 def build_meta_handler(resources: dict, deploy_target_bucket: str, **kwargs):
+    deploy_bucket, path = split_deploy_bucket_path(deploy_target_bucket)
+    file_key = '/'.join([*path, BUNDLE_NAME, 'build_meta.json'])
     build_meta = connections.get_s3_bucket_file_content(
-        bucket_name=deploy_target_bucket,
-        file_key=f'{BUNDLE_NAME}/build_meta.json')
+        bucket_name=deploy_bucket, file_key=file_key)
     if not build_meta:
         return False
 
@@ -64,9 +68,11 @@ def build_meta_handler(resources: dict, deploy_target_bucket: str, **kwargs):
 
 def build_meta_content_handler(resources: dict, deploy_target_bucket: str,
                                **kwargs):
+    deploy_bucket, path = split_deploy_bucket_path(deploy_target_bucket)
+    file_key = '/'.join([*path, BUNDLE_NAME, 'build_meta.json'])
     build_meta = connections.get_s3_bucket_file_content(
-        bucket_name=deploy_target_bucket,
-        file_key=f'{BUNDLE_NAME}/build_meta.json')
+        bucket_name=deploy_bucket,
+        file_key=file_key)
     if not build_meta:
         return False
 
@@ -81,14 +87,15 @@ def deployment_output_handler(deploy_target_bucket: str, resources: dict,
                               prefix: Optional[str] = None,
                               suffix: Optional[str] = None,
                               update: Optional[bool] = False, **kwargs):
+    deploy_bucket, path = split_deploy_bucket_path(deploy_target_bucket)
     bundle_dir = UPDATED_BUNDLE_NAME if update else BUNDLE_NAME
+    output_path = '/'.join([*path, bundle_dir, DEPLOY_OUTPUT_DIR, DEPLOY_NAME])
     if succeeded_deploy:
-        output_path = f'{bundle_dir}/{DEPLOY_OUTPUT_DIR}/{DEPLOY_NAME}.json'
+        output_path += '.json'
     else:
-        output_path = \
-            f'{bundle_dir}/{DEPLOY_OUTPUT_DIR}/{DEPLOY_NAME}_failed.json'
+        output_path += '_failed.json'
 
-    output = connections.get_s3_bucket_file_content(deploy_target_bucket,
+    output = connections.get_s3_bucket_file_content(deploy_bucket,
                                                     output_path)
     output_json = json.loads(output)
     return deployment_output_checker(
@@ -115,7 +122,8 @@ def resource_existence_handler(resources: dict, deploy_target_bucket: str,
             non_checked_resources[res_name] = res_type
             continue
         if res_type == SWAGGER_UI_RESOURCE_TYPE:
-            is_exist = func(res_name, deploy_target_bucket)
+            deploy_bucket, path = split_deploy_bucket_path(deploy_target_bucket)
+            is_exist = func(res_name, deploy_bucket, path)
         else:
             is_exist = func(res_name)
         if not is_exist:

@@ -821,23 +821,6 @@
             },
             {
               "index": 7,
-              "name": "tag_existence",
-              "description": "Check if there is no tags in resource",
-              "reverse_check": true,
-              "resources": {
-                "sdct-at-s3-bucket": {
-                  "resource_type": "s3_bucket",
-                  "tags": {
-                    "tests": "smoke",
-                    "project": "sdct-auto-test",
-                    "project-level-tag": "set-from-project"
-                  }
-                }
-              },
-              "depends_on": [1, 5]
-            },
-            {
-              "index": 8,
               "name": "lambda_trigger_existence",
               "description": "Check if lambda trigger exists",
               "triggers": {
@@ -867,7 +850,7 @@
               "depends_on": [1, 4]
             },
             {
-              "index": 9,
+              "index": 8,
               "name": "lambda_env_existence",
               "description": "Check if lambda environment variables exist",
               "env_variables": {

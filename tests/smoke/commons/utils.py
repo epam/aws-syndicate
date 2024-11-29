@@ -12,7 +12,7 @@ def save_json(output_file, data):
         json.dump(data, file, ensure_ascii=False, indent=4)
 
 
-def find_max_lambda_layer_version(layer_versions):
+def find_max_lambda_layer_version(layer_versions: list[dict]):
     if not layer_versions:
         return None
 
@@ -55,7 +55,8 @@ def populate_resources_prefix_suffix(resources: dict,
     return final_resources
 
 
-def populate_prefix_suffix(resource: str, prefix: Optional[str] = None,
+def populate_prefix_suffix(resource: str,
+                           prefix: Optional[str] = None,
                            suffix: Optional[str] = None) -> str:
     res_name = resource
     if prefix:
@@ -65,7 +66,7 @@ def populate_prefix_suffix(resource: str, prefix: Optional[str] = None,
     return res_name
 
 
-def transform_tags(original_tags):
+def transform_tags(original_tags: list[dict]):
     """
     Transforms one tag dictionary to another
     {
@@ -84,14 +85,14 @@ def transform_tags(original_tags):
     transformed_tags = {}
 
     for tag in original_tags:
-        key = tag['Key']
-        value = tag['Value']
+        key = tag.get('Key', '')
+        value = tag.get('Value')
         transformed_tags[key] = value
 
     return transformed_tags
 
 
-def compare_dicts(dict1, dict2):
+def compare_dicts(dict1: dict, dict2: dict) -> Optional[set]:
     """
     return None if equals, otherwise return missing elements from second dict
     """
@@ -105,7 +106,9 @@ def compare_dicts(dict1, dict2):
 
 class UpdateContent(object):
 
-    def __init__(self, command, lambda_paths, resources_paths):
+    def __init__(self, command: str,
+                 lambda_paths: list[str],
+                 resources_paths: list[str]):
         parent_dir = str(Path(__file__).resolve().parent.parent)
         self.lambda_conf_paths = []
         self.deployment_resources_paths = []
@@ -146,3 +149,10 @@ class UpdateContent(object):
 
             for path, content in self.resources_initial_content.items():
                 json.dump(content, open(path, 'w'), indent=2)
+
+
+def split_deploy_bucket_path(deploy_target_bucket: str) -> tuple[str, list]:
+    if '/' in deploy_target_bucket:
+        bucket = deploy_target_bucket.split('/')[0]
+        return bucket, deploy_target_bucket.split('/')[1:]
+    return deploy_target_bucket, []

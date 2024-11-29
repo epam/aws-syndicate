@@ -255,11 +255,12 @@ def cognito_idp_existence_checker(name: str) -> bool:
     return True if connections.get_cup_id(name) else False
 
 
-def swagger_ui_existence_checker(name: str, deployment_bucket: str) -> bool:
+def swagger_ui_existence_checker(name: str, deployment_bucket: str,
+                                 path: str = []) -> bool:
     description = connections.describe_swagger_ui(
         name=name,
         deployment_bucket=deployment_bucket,
-        bundle_name=BUNDLE_NAME,
+        bundle_path='/'.join([*path, BUNDLE_NAME]),
         deploy_name=DEPLOY_NAME)
     if description:
         target_bucket = description.get('target_bucket', '')
