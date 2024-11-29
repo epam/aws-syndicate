@@ -42,7 +42,11 @@ def tags(ctx):
 def apply(ctx):
     """Assign tags from config to deployed resources"""
     output = ctx.obj['output']
-    ctx.obj['tags_resource'].safe_apply_tags(output)
+    success = ctx.obj['tags_resource'].safe_apply_tags(output)
+    if success:
+        click.echo("Tags applied successfully")
+    else:
+        click.echo("Tags applied with errors. More details in the log file")
 
 
 @tags.command(name='remove')
@@ -51,4 +55,8 @@ def apply(ctx):
 def remove(ctx):
     """Remove tags from config from deployed resources"""
     output = ctx.obj['output']
-    ctx.obj['tags_resource'].safe_remove_tags(output)
+    success = ctx.obj['tags_resource'].safe_remove_tags(output)
+    if success:
+        click.echo("Tags removed successfully")
+    else:
+        click.echo("Tags removed with errors. More details in the log file")

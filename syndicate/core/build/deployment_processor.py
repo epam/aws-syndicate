@@ -481,6 +481,7 @@ def create_deployment_resources(deploy_name, bundle_name,
         remove_failed_deploy_output(bundle_name, deploy_name)
 
     if not success:
+        tag_success = True
         if rollback_on_error is True:
             USER_LOG.info(
                 "Deployment failed, `rollback_on_error` is enabled,"
@@ -501,7 +502,7 @@ def create_deployment_resources(deploy_name, bundle_name,
 
         else:
             _LOG.info('Going to apply post deployment tags')
-            _apply_post_deployment_tags(output)
+            tag_success = _apply_post_deployment_tags(output)
 
             USER_LOG.info('Going to create deploy output')
             output = {**latest_deploy_output, **output} \
@@ -525,7 +526,7 @@ def create_deployment_resources(deploy_name, bundle_name,
         USER_LOG.info('Dynamic changes were applied successfully')
 
         _LOG.info('Going to apply post deployment tags')
-        _apply_post_deployment_tags(output)
+        tag_success = _apply_post_deployment_tags(output)
 
         USER_LOG.info('Going to create deploy output')
         output = {**latest_deploy_output, **output} \
@@ -538,7 +539,7 @@ def create_deployment_resources(deploy_name, bundle_name,
 
     if not (success is False and rollback_on_error is True):
         USER_LOG.info(f'Deploy output for {deploy_name} was created.')
-    return success
+    return success and tag_success
 
 
 @exit_on_exception

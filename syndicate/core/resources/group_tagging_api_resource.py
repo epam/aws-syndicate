@@ -130,12 +130,9 @@ class TagsApiResource:
                 for future in as_completed(futures):
                     failed = future.result() or {}
                     failed_tags.update(failed)
-        if failed_tags:
-            USER_LOG.warning(
-                f"Can't apply tags for resources: {[*failed_tags]}"
-            )
-        else:
+        if not failed_tags:
             _LOG.info('Tags were successfully applied')
+
         return failed_tags
 
     def safe_apply_tags(
@@ -155,8 +152,9 @@ class TagsApiResource:
             error_message = str(e)
         if not error_message:
             return True
-        USER_LOG.warning(
-            f"The next error occurred during resources tagging\n{error_message}"
+        USER_LOG.error(
+            f"The next error/s occurred during resources "
+            f"tagging\n{error_message}"
         )
         return False
 
@@ -197,12 +195,9 @@ class TagsApiResource:
             if to_untag:
                 failed_untag = self.connection.untag_resources(arns, to_untag)
                 failed_updates.update(failed_untag or {})
-        if failed_updates:
-            USER_LOG.warning(
-                f"Can't update tags for resources {[*failed_updates]}"
-            )
-        else:
+        if not failed_updates:
             _LOG.info('Tags were updated successfully')
+
         return failed_updates
 
     def safe_update_tags(
@@ -220,8 +215,9 @@ class TagsApiResource:
             error_message = str(e)
         if not error_message:
             return True
-        USER_LOG.warning(
-            f"The next error occurred during resources tagging\n{error_message}"
+        USER_LOG.error(
+            f"The next error/s occurred during updating resources "
+            f"tags\n{error_message}"
         )
         return False
 

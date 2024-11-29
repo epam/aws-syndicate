@@ -45,11 +45,11 @@ def file_path_length_checker(func):
             if len(path_from_e) < 260:
                 raise e
             raise ValueError(
-                f"The path '{path_from_e}' exceeds 260 characters (length: "
-                f"{len(path_from_e)} characters). This might be the reason for "
-                f"the FileNotFoundError. Please verify the file's existence and"
-                f" consider shortening your path if necessary to avoid issues "
-                f"with path length limitations"
+                f"The path '{path_from_e}' has exceeded the 260-character "
+                f"length (current length: '{len(path_from_e)}'). This may "
+                f"have caused the FileNotFoundError. Please verify that the "
+                f"file exists and consider shortening the path or increasing "
+                f"the maximum path length allowed by the operating system."
             )
     return wrapper
 
