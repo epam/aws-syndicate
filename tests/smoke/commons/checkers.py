@@ -197,6 +197,10 @@ def lambda_envs_checker(lambda_name: str, envs: dict,
     for key, value in envs.items():
         if not lambda_envs.get(key) or (
                 lambda_envs[key] != value and value != '*'):
+            if '*' in value:
+                if all(v in lambda_envs[key] for v in value.split('*')):
+                    lambda_envs.pop(key)
+                    continue
             missing_envs[key] = value
         else:
             lambda_envs.pop(key)
