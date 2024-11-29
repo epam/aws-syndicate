@@ -483,10 +483,15 @@ class ProjectState:
 
         modified_lock = {
             LOCK_LAST_MODIFICATION_DATE: timestamp,
-            LOCK_LOCKED_TILL: locked_till_timestamp if locked else None,
+            LOCK_IS_LOCKED: locked,
             LOCK_INITIATOR: getpass.getuser()
         }
+        if locked:
+            modified_lock[LOCK_LOCKED_TILL] = locked_till_timestamp
+
         if lock:
+            if not locked:
+                lock.pop(LOCK_LOCKED_TILL, None)
             lock.update(modified_lock)
         else:
             locks.update({lock_name: modified_lock})
