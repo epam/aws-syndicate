@@ -10,5 +10,5 @@ region: eu-central-1
 resources_prefix: cmtr-
 resources_suffix: -test
 tags:
-  resource-level-tag: set-from-project
+  project-level-tag: set-from-project
 

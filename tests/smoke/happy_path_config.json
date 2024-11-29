@@ -1002,8 +1002,8 @@
                 "sdct-at-nodejs-lambda": {
                   "new_region": "eu-central-1",
                   "region": "updated_eu-central-1",
-                  "tables_table": "cmtr-sdct-at-table-test",
-                  "reservations_table": "cmtr-sdct-at-reservation-test",
+                  "tables_table": "*sdct-at-table*",
+                  "reservations_table": "*sdct-at-reservation*",
                   "cup_client_id": "*",
                   "cup_id": "*"
                 }
