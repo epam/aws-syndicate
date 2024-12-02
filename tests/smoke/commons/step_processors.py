@@ -66,7 +66,7 @@ def process_steps(steps: dict[str: List[dict]],
 
             print(f'Run command: {command_to_execute}')
             exec_result = subprocess.run(command_to_execute, check=False,
-                                         shell=True, env=os.environ.copy(),
+                                         env=os.environ.copy(),
                                          capture_output=True, text=True)
             print(f'stdout: {exec_result.stdout}')
             print(f'stderr: {exec_result.stderr}')
