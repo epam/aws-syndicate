@@ -13,6 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+import functools
 import os
 import shutil
 import subprocess
@@ -34,16 +35,43 @@ def build_py_package_name(lambda_name, lambda_version):
     return '{0}-{1}.zip'.format(lambda_name, lambda_version)
 
 
-def zip_dir(basedir: str, name: str, archive_subfolder: str = None):
-    assert os.path.isdir(basedir)
+def file_path_length_checker(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except FileNotFoundError as e:
+            path_from_e = e.filename
+            if len(path_from_e) < 260:
+                raise e
+            raise ValueError(
+                f"The path '{path_from_e}' has exceeded the 260-character "
+                f"length (current length: '{len(path_from_e)}'). This may "
+                f"have caused the FileNotFoundError. Please verify that the "
+                f"file exists and consider shortening the path or increasing "
+                f"the maximum path length allowed by the operating system."
+            )
+    return wrapper
+
+
+@file_path_length_checker
+def zip_dir(
+        basedir: str,
+        name: str,
+        archive_subfolder: str = None,
+) -> None:
+    """ Compresses a directory into a zip file """
+    assert os.path.isdir(basedir), \
+        f"The specified base directory does not exist: {basedir}"
+
     with closing(zipfile.ZipFile(name, "w", zipfile.ZIP_DEFLATED)) as z:
         for root, dirs, files in os.walk(basedir, followlinks=True):
             archive_root = os.path.join(
                 archive_subfolder, os.path.relpath(root, basedir)) \
                 if archive_subfolder else os.path.relpath(root, basedir)
             for fn in files:
-                absfn = os.path.join(root, fn)
-                zfn = os.path.join(archive_root, fn)
+                absfn = os.path.normpath(os.path.join(root, fn))
+                zfn = os.path.normpath(os.path.join(archive_root, fn))
                 z.write(absfn, zfn)
 
 
