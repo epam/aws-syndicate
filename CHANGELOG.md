@@ -27,6 +27,7 @@ of each other or without specifying a specific platform (using default platform 
 - Fixed a bug when the latest deployment section was updated when the `deploy` command ended with the ABORTED status
 - Fixed an issue related to locking the state
 - Added empty deployment package handling for lambda layer
+- Fixed bug when meta output processor process the resource name incorrectly
 
 # [1.14.1] - 2024-10-08
 - Added support lambda layers with runtime DotNet
