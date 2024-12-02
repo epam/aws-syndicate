@@ -67,6 +67,7 @@ def process_steps(steps: dict[str: List[dict]],
             exec_result = subprocess.run(command_to_execute, check=False,
                                          shell=True,
                                          capture_output=True, text=True)
+            print(f'stdout: {exec_result.stdout}')
             print(f'stderr: {exec_result.stderr}')
         for check in step[CHECKS_CONFIG_PARAM]:
             index = check[INDEX_CONFIG_PARAM]
