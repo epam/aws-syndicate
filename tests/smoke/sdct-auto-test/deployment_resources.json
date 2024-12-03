@@ -18,7 +18,8 @@
             "dynamodb:GetRecords",
             "dynamodb:GetShardIterator",
             "dynamodb:DescribeStream",
-            "dynamodb:ListStreams"
+            "dynamodb:ListStreams",
+            "sts:AssumeRole"
           ],
           "Effect": "Allow",
           "Resource": "*"
