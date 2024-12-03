@@ -84,12 +84,9 @@ def main(verbose: bool, config: str):
         raise e
     finally:
         only_bundle = False
-        if CLEAN_COMMAND in result[STAGES_CONFIG_PARAM] and any(
-                not i['stage_passed'] for i in result[STAGES_CONFIG_PARAM][CLEAN_COMMAND]):
+        if CLEAN_COMMAND in result[STAGES_CONFIG_PARAM] and all(
+                i['stage_passed'] for i in result[STAGES_CONFIG_PARAM][CLEAN_COMMAND]):
             print('Only bundle is True')
-            for i in result[STAGES_CONFIG_PARAM][CLEAN_COMMAND]:
-                print(f'Description: {i["description"]}')
-                print(f'Stage passed: {i["stage_passed"]}')
             only_bundle = True
         force_clean(init_params.get('deploy_target_bucket'), only_bundle)
 
