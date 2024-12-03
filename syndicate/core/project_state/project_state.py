@@ -267,12 +267,19 @@ class ProjectState:
         :latest_if_not_found: - If True, the method will retry fetching the
         latest event without reference to the bundle name.
         """
-        modification_ops = [DEPLOY_ACTION, UPDATE_ACTION]
+        if bundle_name:
+            modification_ops = [DEPLOY_ACTION, UPDATE_ACTION, CLEAN_ACTION]
+        else:
+            modification_ops = [DEPLOY_ACTION, UPDATE_ACTION]
         filtered_events = (
             event for event in self.events
             if self._is_event_matching(event, bundle_name, modification_ops)
         )
         latest_event = next(filtered_events, None)
+        if latest_event and latest_event.get('operation') == CLEAN_ACTION:
+            # in case bundle was deleted manually but present in .syndicate
+            return self.get_latest_deployed_or_updated_bundle()
+
         if not latest_event and latest_if_not_found:
             return self.get_latest_deployed_or_updated_bundle()
         return latest_event.get('bundle_name') if latest_event else None
