@@ -51,9 +51,9 @@ def process_steps(steps: dict[str: List[dict]],
 
         with UpdateContent(
                 command=command_to_execute,
-                lambda_paths=[
-                    'sdct-auto-test/app/lambdas/sdct-at-nodejs-lambda'
-                ],
+                lambda_paths=[os.path.join('sdct-auto-test',
+                                           'app', 'lambdas',
+                                           'sdct-at-nodejs-lambda')],
                 resources_paths=['sdct-auto-test']):
             if UPDATE_COMMAND in command_to_execute:
                 build_command = ['syndicate', 'build',

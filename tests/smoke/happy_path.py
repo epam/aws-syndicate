@@ -1,5 +1,6 @@
 import argparse
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -43,8 +44,8 @@ def force_clean(deploy_bucket, only_bundle=False):
         print(f'Execution return code: {exec_result.returncode}')
 
     deploy_bucket, path = split_deploy_bucket_path(deploy_bucket)
-    delete_s3_folder(deploy_bucket, '/'.join([*path, BUNDLE_NAME]))
-    delete_s3_folder(deploy_bucket, '/'.join([*path, UPDATED_BUNDLE_NAME]))
+    delete_s3_folder(deploy_bucket, os.path.join(*path, BUNDLE_NAME))
+    delete_s3_folder(deploy_bucket, os.path.join(*path, UPDATED_BUNDLE_NAME))
 
 
 def main(verbose: bool, config: str):
