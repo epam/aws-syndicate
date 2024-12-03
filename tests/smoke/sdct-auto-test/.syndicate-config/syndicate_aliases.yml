@@ -2,3 +2,5 @@ account_id: ACCOUNT_ID
 lambdas_alias_name: learn
 region: eu-central-1
 booking_userpool: sdct-at-cup
+reservations_table: sdct-at-reservation
+tables_table: sdct-at-table
