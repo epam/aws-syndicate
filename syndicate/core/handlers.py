@@ -434,9 +434,18 @@ def update(bundle_name, deploy_name, replace_output, update_only_resources,
               help='Preserve deploy output json file after resources removal')
 @verbose_option
 @timeit(action_name=CLEAN_ACTION)
-def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
-          clean_only_resources_path, clean_externals, excluded_resources,
-          excluded_resources_path, excluded_types, preserve_state):
+def clean(
+        deploy_name: str,
+        bundle_name: str,
+        clean_only_types: tuple | None = None,
+        clean_only_resources: tuple | None = None,
+        clean_only_resources_path: str | None = None,
+        clean_externals: bool = False,
+        excluded_resources: tuple | None = None,
+        excluded_resources_path: str | None = None,
+        excluded_types: tuple | None = None,
+        preserve_state: bool = False,
+):
     """
     Cleans the application infrastructure
     """

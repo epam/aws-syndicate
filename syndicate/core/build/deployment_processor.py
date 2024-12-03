@@ -639,23 +639,23 @@ def update_deployment_resources(
 
 
 @exit_on_exception
-def remove_deployment_resources(deploy_name, bundle_name,
-                                clean_only_resources=None,
-                                clean_only_types=None,
-                                excluded_resources=None,
-                                excluded_types=None,
-                                clean_externals=None,
-                                preserve_state=None):
-
+def remove_deployment_resources(
+        deploy_name: str,
+        bundle_name: str,
+        clean_only_resources: tuple | None = None,
+        clean_only_types: tuple | None = None,
+        excluded_resources: tuple | None = None,
+        excluded_types: tuple | None = None,
+        clean_externals: bool = False,
+        preserve_state: bool = False,
+):
     is_regular_output = True
     try:
         output = load_deploy_output(bundle_name, deploy_name)
         _LOG.info('Output file was loaded successfully')
     except AssertionError:
         try:
-            output = load_failed_deploy_output(
-                bundle_name, deploy_name
-            )
+            output = load_failed_deploy_output(bundle_name, deploy_name)
             is_regular_output = False
         except AssertionError:
             USER_LOG.error("Deployment to clean not found.")
@@ -665,8 +665,7 @@ def remove_deployment_resources(deploy_name, bundle_name,
 
     clean_only_resources = _resolve_names(clean_only_resources)
     excluded_resources = _resolve_names(excluded_resources)
-    _LOG.info(
-        'Prefixes and suffixes of any resource names have been resolved.')
+    _LOG.info('Prefixes and suffixes of any resource names have been resolved')
 
     if clean_externals:
         new_output = {
@@ -701,17 +700,23 @@ def remove_deployment_resources(deploy_name, bundle_name,
     return _post_remove_output_handling(
         deploy_name=deploy_name,
         bundle_name=bundle_name,
-        preserve_state=preserve_state,
         output=output,
         new_output=new_output,
         is_regular_output=is_regular_output,
-        success=success
+        success=success,
+        preserve_state=preserve_state,
     )
 
 
-def _post_remove_output_handling(deploy_name, bundle_name, preserve_state,
-                                 output, new_output, is_regular_output,
-                                 success):
+def _post_remove_output_handling(
+        deploy_name: str,
+        bundle_name: str,
+        output: dict,
+        new_output: dict,
+        is_regular_output: bool,
+        success: bool,
+        preserve_state: bool = False,
+) -> bool | dict:
     if output == new_output:
         if not preserve_state:
             # remove output from bucket
@@ -727,9 +732,10 @@ def _post_remove_output_handling(deploy_name, bundle_name, preserve_state,
                              replace_output=True)
 
         if not success:
-            USER_LOG.warn(
-                "There were errors during the cleaning of resources. "
-                "More details can be found in the log file.")
+            USER_LOG.warning(
+                "There were errors during the cleaning of resources. More "
+                "details can be found in the log file"
+            )
             return success
         return {'operation': PARTIAL_CLEAN_ACTION}
     return success
