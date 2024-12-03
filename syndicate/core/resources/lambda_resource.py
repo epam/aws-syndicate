@@ -1208,6 +1208,7 @@ class LambdaResource(BaseResource):
     @retry()
     def _remove_lambda(self, arn, config):
         # can't describe lambda event sources with $LATEST version in arn
+        original_arn = arn
         arn = arn.replace(':$LATEST', '')
         lambda_name = config['resource_name']
         event_sources_meta = config['resource_meta'].get('event_sources', [])
@@ -1220,11 +1221,11 @@ class LambdaResource(BaseResource):
                 if lambda_name == each.split('/')[-1]:
                     self.cw_logs_conn.delete_log_group_name(each)
             _LOG.info('Lambda %s was removed.', lambda_name)
-            return {arn: config}
+            return {original_arn: config}
         except ClientError as e:
             if e.response['Error']['Code'] == 'ResourceNotFoundException':
                 _LOG.warn('Lambda %s is not found', lambda_name)
-                return {arn: config}
+                return {original_arn: config}
             else:
                 raise e
 
