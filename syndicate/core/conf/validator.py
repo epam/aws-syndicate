@@ -16,6 +16,8 @@
 import datetime
 import os
 import re
+from typing import Any
+
 from syndicate.core.conf.bucket_view import NAMED_S3_URI_PATTERN
 from syndicate.commons.log_helper import get_user_logger
 
@@ -220,20 +222,29 @@ class ConfigValidator:
                 f'{key} value must be one of {ALL_REGIONS}, but is {value}'
             ]
 
-    def _validate_bundle_bucket_name(self, key, value):
-        str_error = self._assert_value_is_str(key=key,
-                                              value=value)
+    def _validate_bundle_bucket_name(
+            self,
+            key: str,
+            value: str,
+    ) -> list:
+        str_error = self._assert_value_is_str(key=key, value=value)
         if str_error:
             return [str_error]
 
         errors = []
-        # check min length
-        name = re.compile(
-            NAMED_S3_URI_PATTERN).match(value).groupdict().get('name')
+        match = re.compile(NAMED_S3_URI_PATTERN).match(value)
+        if not match:
+            errors.append(
+                f"The value '{value}' does not match the expected S3 URI format"
+            )
+            return errors
+
+        name = match.groupdict().get('name')
         if len(name) < MIN_BUCKET_NAME_LEN or len(name) > MAX_BUCKET_NAME_LEN:
-            errors.append(f'The length of {key} must be between '
-                          f'{MIN_BUCKET_NAME_LEN} and {MAX_BUCKET_NAME_LEN} '
-                          f'characters long but not {len(name)}')
+            errors.append(
+                f'The length of {key} must be between {MIN_BUCKET_NAME_LEN} and'
+                f' {MAX_BUCKET_NAME_LEN} characters long but not {len(name)}'
+            )
         return errors
 
     def _validate_project_mapping(self, key, value):
@@ -422,7 +433,10 @@ class ConfigValidator:
             return [f'\'{key}\' value must be between 0 and 300 minutes']
 
     @staticmethod
-    def _assert_value_is_str(key, value):
+    def _assert_value_is_str(
+            key: str,
+            value: Any,
+    ) -> str | None:
         if type(value) is not str:
             return f'{key} must be type of string'
 

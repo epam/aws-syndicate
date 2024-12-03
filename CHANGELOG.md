@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Ensure `zip_dir` validates the existence of the base directory before proceeding with the zipping process
 - Fix `tag_resources` and `untag_resources` to handle exceptions properly
 - Update `apply_tags`, `remove_tags`, and `update_tags` to return success status
+- Fix `clean` command for `output` folder to correctly resolve ARN for Lambda and properly process and remove the `outputs` folder if Lambda is part of the deployment
+- Fix bucket name resolver to raise a user-friendly message if the bucket name does not match the specified regex
 
 # [1.15.0] - 2024-10-28
 - Added `--skip_tests` option to `build`, `test` and `assemble_java_mvn` commands to not run tests during or after 

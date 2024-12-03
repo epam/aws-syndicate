@@ -114,10 +114,9 @@ def resolve_bundle_directory(bundle_name):
     return build_path(resolve_all_bundles_directory(), bundle_name)
 
 
-def assert_bundle_bucket_exists():
+def assert_bundle_bucket_exists() -> None:
     from syndicate.core import CONFIG, CONN
-    if not CONN.s3().is_bucket_exists(
-            CONFIG.deploy_target_bucket):
+    if not CONN.s3().is_bucket_exists(CONFIG.deploy_target_bucket):
         raise AssertionError(
             f'Bundles bucket {CONFIG.deploy_target_bucket} does not exist. '
             f'Please use \'create_deploy_target_bucket\' to create the bucket.'

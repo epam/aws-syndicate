@@ -44,8 +44,13 @@ def _backup_deploy_output(filename, output):
         backup_file.close()
 
 
-def create_deploy_output(bundle_name, deploy_name, output, success,
-                         replace_output=False):
+def create_deploy_output(
+        bundle_name: str,
+        deploy_name: str,
+        output: dict,
+        success: bool,
+        replace_output: bool = False,
+) -> None:
     from syndicate.core import CONFIG, CONN
     _LOG.debug('Going to preprocess resources tags in output')
     preprocess_tags(output)
@@ -53,54 +58,64 @@ def create_deploy_output(bundle_name, deploy_name, output, success,
     key = _build_output_key(bundle_name=bundle_name,
                             deploy_name=deploy_name,
                             is_regular_output=success)
-    key_compound = PurePath(CONFIG.deploy_target_bucket_key_compound,
-                            key).as_posix()
-    if CONN.s3().is_file_exists(CONFIG.deploy_target_bucket,
-                                key_compound) and not replace_output:
-        _LOG.warn(
-            'Output file for deploy {0} already exists.'.format(deploy_name))
+    key_compound = \
+        PurePath(CONFIG.deploy_target_bucket_key_compound, key).as_posix()
+    if CONN.s3().is_file_exists(CONFIG.deploy_target_bucket, key_compound) \
+            and not replace_output:
+        _LOG.warning(f'Output file for deploy {deploy_name} already exists')
     else:
         CONN.s3().put_object(output_str, key_compound,
                              CONFIG.deploy_target_bucket,
                              'application/json')
-        _LOG.info('Output file with name {} has been {}'.format(
-            key, 'replaced' if replace_output else 'created'))
+        _LOG.info(
+            f"Output file with name {key} has been "
+            f"{'replaced' if replace_output else 'created'}"
+        )
 
 
-def remove_deploy_output(bundle_name, deploy_name):
+def remove_deploy_output(
+        bundle_name: str,
+        deploy_name: str,
+) -> None:
     from syndicate.core import CONFIG, CONN
     key = _build_output_key(bundle_name=bundle_name,
                             deploy_name=deploy_name,
                             is_regular_output=True)
-    key_compound = PurePath(CONFIG.deploy_target_bucket_key_compound,
-                            key).as_posix()
-    if CONN.s3().is_file_exists(CONFIG.deploy_target_bucket,
-                                key_compound):
+    key_compound = \
+        PurePath(CONFIG.deploy_target_bucket_key_compound, key).as_posix()
+    if CONN.s3().is_file_exists(CONFIG.deploy_target_bucket, key_compound):
         CONN.s3().remove_object(CONFIG.deploy_target_bucket, key_compound)
     else:
-        _LOG.warn(
-            'Output file for deploy {0} does not exist.'.format(deploy_name))
+        _LOG.warning(f'Output file for deploy {deploy_name} does not exist')
 
 
-def remove_failed_deploy_output(bundle_name, deploy_name):
+def remove_failed_deploy_output(
+        bundle_name: str,
+        deploy_name: str,
+) -> None:
     from syndicate.core import CONFIG, CONN
     key = _build_output_key(bundle_name=bundle_name,
                             deploy_name=deploy_name,
                             is_regular_output=False)
-    key_compound = PurePath(CONFIG.deploy_target_bucket_key_compound,
-                            key).as_posix()
-    if CONN.s3().is_file_exists(CONFIG.deploy_target_bucket,
-                                key_compound):
-        _LOG.debug(f"Going to remove failed output '{key_compound}' from the "
-                   f"bucket '{CONFIG.deploy_target_bucket}'")
+    key_compound = \
+        PurePath(CONFIG.deploy_target_bucket_key_compound, key).as_posix()
+    if CONN.s3().is_file_exists(CONFIG.deploy_target_bucket, key_compound):
+        _LOG.debug(
+            f"Going to remove failed output '{key_compound}' from the bucket "
+            f"'{CONFIG.deploy_target_bucket}'"
+        )
         CONN.s3().remove_object(CONFIG.deploy_target_bucket, key_compound)
     else:
-        _LOG.warn(
-            'Failed output file for deploy {0} does not exist.'.format(
-                deploy_name))
+        _LOG.warning(
+            f'Failed output file for deploy {deploy_name} does not exist'
+        )
 
 
-def load_deploy_output(bundle_name, deploy_name, failsafe: bool = False):
+def load_deploy_output(
+        bundle_name: str,
+        deploy_name: str,
+        failsafe: bool = False,
+) -> dict | bool:
     """
     :param bundle_name:
     :param deploy_name:
@@ -111,20 +126,22 @@ def load_deploy_output(bundle_name, deploy_name, failsafe: bool = False):
     key = _build_output_key(bundle_name=bundle_name,
                             deploy_name=deploy_name,
                             is_regular_output=True)
-    key_compound = PurePath(CONFIG.deploy_target_bucket_key_compound,
-                            key).as_posix()
-    if CONN.s3().is_file_exists(
-            CONFIG.deploy_target_bucket, key_compound):
-        output_file = CONN.s3().load_file_body(
-            CONFIG.deploy_target_bucket, key_compound)
+    key_compound = \
+        PurePath(CONFIG.deploy_target_bucket_key_compound, key).as_posix()
+    if CONN.s3().is_file_exists(CONFIG.deploy_target_bucket, key_compound):
+        output_file = \
+            CONN.s3().load_file_body(CONFIG.deploy_target_bucket, key_compound)
         return json.loads(output_file)
     else:
         if failsafe:
-            _LOG.warn(f'Deploy name {deploy_name} does not exist. '
-                      f'Failsafe status - {failsafe}.')
+            _LOG.warning(
+                f'Deploy name {deploy_name} does not exist. '
+                f'Failsafe status - {failsafe}'
+            )
             return False
-        raise AssertionError(f'Deploy name {deploy_name} does not exist. '
-                             f'Cannot find output file.')
+        raise AssertionError(
+            f'Deploy name {deploy_name} does not exist. Cannot find output file'
+        )
 
 
 def load_failed_deploy_output(bundle_name, deploy_name,
@@ -250,7 +267,7 @@ def create_bundles_bucket():
 def load_bundle(bundle_name, src_account_id, src_bucket_region,
                 src_bucket_name, role_name):
     from syndicate.core import CONFIG, RESOURCES_PROVIDER
-    _assert_bundle_bucket_exists()
+    assert_bundle_bucket_exists()
     try:
         _LOG.debug(
             'Going to assume {0} role from {1} account'.format(role_name,
