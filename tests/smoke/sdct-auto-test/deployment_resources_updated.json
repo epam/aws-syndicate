@@ -19,7 +19,8 @@
             "dynamodb:GetShardIterator",
             "dynamodb:DescribeStream",
             "dynamodb:ListStreams",
-            "s3:PutObject"
+            "s3:PutObject",
+            "sts:AssumeRole"
           ],
           "Effect": "Allow",
           "Resource": "*"
