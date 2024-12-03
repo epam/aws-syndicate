@@ -36,7 +36,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def force_clean(deploy_bucket, only_bundle=False):
-    print('\nCleaning bundle' + ' and resources' if not only_bundle else '')
+    print(f'\nCleaning bundle {"and resources" if not only_bundle else ""}')
     if not only_bundle:
         command_to_execute = ['syndicate', 'clean']
         exec_result = subprocess.run(command_to_execute, check=False,
@@ -85,8 +85,11 @@ def main(verbose: bool, config: str):
     finally:
         only_bundle = False
         if CLEAN_COMMAND in result[STAGES_CONFIG_PARAM] and any(
-                not i['stage_passed'] for i in result[
-                    STAGES_CONFIG_PARAM][CLEAN_COMMAND]):
+                not i['stage_passed'] for i in result[STAGES_CONFIG_PARAM][CLEAN_COMMAND]):
+            print('Only bundle is True')
+            for i in result[STAGES_CONFIG_PARAM][CLEAN_COMMAND]:
+                print(f'Description: {i["description"]}')
+                print(f'Stage passed: {i["stage_passed"]}')
             only_bundle = True
         force_clean(init_params.get('deploy_target_bucket'), only_bundle)
 
