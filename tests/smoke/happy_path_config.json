@@ -303,7 +303,7 @@
             {
               "index": 2,
               "name": "artifacts_existence",
-              "description": "Check if deployment output file exists",
+              "description": "Check if succeeded deployment output file exists in S3 bucket",
               "succeeded_deploy": true,
               "artifacts_list": [
                 "autotest.json"
@@ -507,7 +507,7 @@
             {
               "index": 2,
               "name": "artifacts_existence",
-              "description": "Check if deployment output file exists",
+              "description": "Check if succeeded deployment output file exists in S3 bucket",
               "succeeded_deploy": true,
               "artifacts_list": [
                 "autotest.json"
@@ -875,7 +875,7 @@
     "update": {
       "steps": [
         {
-          "description": "Updating without dependencies",
+          "description": "Updating resources",
           "command": ["syndicate", "update", "--force"],
           "checks": [
             {
@@ -887,7 +887,7 @@
             {
               "index": 2,
               "name": "artifacts_existence",
-              "description": "Check if deployment output file exists",
+              "description": "Check if succeeded deployment output file exists in S3 bucket",
               "succeeded_deploy": true,
               "update": true,
               "artifacts_list": ["autotest.json"],
@@ -974,7 +974,7 @@
             {
               "index": 4,
               "name": "resource_modification",
-              "description": "Check resource modification",
+              "description": "Check if resources were modified",
               "resources": {
                 "sdct-at-java-lambda": {
                   "resource_type": "lambda"
@@ -1054,7 +1054,7 @@
             {
               "index": 2,
               "name": "artifacts_existence",
-              "description": "Check if deployment output file exists",
+              "description": "Check if succeeded deployment output file exists in S3 bucket",
               "succeeded_deploy": true,
               "artifacts_list": [
                 "autotest.json"
@@ -1064,7 +1064,7 @@
             {
               "index": 3,
               "name": "deployment_output",
-              "description": "Check if all resources present in deployment output",
+              "description": "Check if all resources present in succeeded deployment output",
               "succeeded_deploy": true,
               "resources": {
                 "sdct-at-lambda-basic-execution-policy": {
@@ -1152,7 +1152,7 @@
             {
               "index": 5,
               "name": "resource_existence",
-              "description": "Check if all resources present in account",
+              "description": "Check if all resources present in account and were not deleted",
               "resources": {
                 "sdct-at-lambda-basic-execution-policy": {
                   "resource_type": "iam_policy"
@@ -1238,7 +1238,7 @@
           ]
         },
         {
-          "description": "Clean resources",
+          "description": "Clean all remaining resources",
           "command": ["syndicate", "clean"],
           "checks": [
             {
@@ -1250,7 +1250,7 @@
             {
               "index": 2,
               "name": "artifacts_existence",
-              "description": "Check if deployment output file exists",
+              "description": "Check if succeeded deployment output file exists in S3 bucket",
               "succeeded_deploy": true,
               "reverse_check": true,
               "artifacts_list": [
@@ -1338,7 +1338,8 @@
             }
           ]
         }
-      ]
+      ],
+      "depends_on": ["build", "deploy"]
     }
   }
 }

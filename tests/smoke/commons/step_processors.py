@@ -1,3 +1,4 @@
+import os
 import subprocess
 from datetime import datetime
 from typing import List, Optional
@@ -50,9 +51,9 @@ def process_steps(steps: dict[str: List[dict]],
 
         with UpdateContent(
                 command=command_to_execute,
-                lambda_paths=[
-                    'sdct-auto-test/app/lambdas/sdct-at-nodejs-lambda'
-                ],
+                lambda_paths=[os.path.join('sdct-auto-test',
+                                           'app', 'lambdas',
+                                           'sdct-at-nodejs-lambda')],
                 resources_paths=['sdct-auto-test']):
             if UPDATE_COMMAND in command_to_execute:
                 build_command = ['syndicate', 'build',
@@ -65,8 +66,9 @@ def process_steps(steps: dict[str: List[dict]],
 
             print(f'Run command: {command_to_execute}')
             exec_result = subprocess.run(command_to_execute, check=False,
-                                         shell=True,
+                                         env=os.environ.copy(),
                                          capture_output=True, text=True)
+            print(f'stdout: {exec_result.stdout}')
             print(f'stderr: {exec_result.stderr}')
         for check in step[CHECKS_CONFIG_PARAM]:
             index = check[INDEX_CONFIG_PARAM]
