@@ -201,7 +201,6 @@
   },
   "sdct-at-s3-bucket": {
     "resource_type": "s3_bucket",
-    "acl": "public-read",
     "cors": [],
     "policy": {
       "Version": "2012-10-17",
@@ -215,15 +214,16 @@
           ],
           "Resource": [
             "arn:aws:s3:::sdct-at-s3-bucket/*"
-          ]
+          ],
+          "Condition": {
+						"IpAddress": {
+							"aws:SourceIp": [
+								"10.10.10.10/32"
+					]
+				}
+			}
         }
       ]
-    },
-    "public_access_block": {
-      "block_public_acls": false,
-      "ignore_public_acls": false,
-      "block_public_policy": false,
-      "restrict_public_buckets": false
     },
     "website_hosting": {
       "enabled": true,
