@@ -1,0 +1,8 @@
+{
+  "name": "sdct-at-nodejs-lambda_layer",
+  "resource_type": "lambda_layer",
+  "runtimes": [
+    "nodejs20.x"
+  ],
+  "deployment_package": "sdct-at-nodejs-lambda_layer_layer.zip"
+}
