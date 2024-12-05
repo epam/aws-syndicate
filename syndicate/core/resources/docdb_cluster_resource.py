@@ -42,10 +42,10 @@ class DocumentDBClusterResource(BaseResource):
 
     def describe_documentdb_cluster(self, identifier, meta):
         if not identifier:
-            return
+            return {}
         response = self.connection.describe_db_clusters(identifier)
         if not response:
-            return
+            return {}
         arn = f'arn:aws:rds:{self.region}:{self.account_id}:' \
               f'cluster:{identifier}'
         return {
@@ -93,16 +93,19 @@ class DocumentDBClusterResource(BaseResource):
         return self.describe_documentdb_cluster(identifier=name, meta=meta)
 
     def remove_db_cluster(self, args):
-        self.create_pool(self._remove_db_cluster, args)
+        return self.create_pool(self._remove_db_cluster, args)
 
     @unpack_kwargs
     def _remove_db_cluster(self, arn, config):
         cluster = config['description']
         try:
-            self.connection.delete_db_cluster(cluster)
+            self.connection.delete_db_cluster(cluster,
+                                              log_not_found_error=False)
             _LOG.info(f'DocumentDB cluster \'{cluster}\' was removed')
+            return {arn: config}
         except ClientError as e:
             if e.response['Error']['Code'] == 'ResourceNotFoundException':
                 _LOG.warn(f'DocumentDB cluster \'{cluster}\' is not found')
+                return {arn: config}
             else:
                 raise e

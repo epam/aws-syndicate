@@ -88,7 +88,7 @@ class S3Resource(BaseResource):
         location_response = self.s3_conn.get_bucket_location(name)
         bucket_policy = self.s3_conn.get_bucket_policy(name)
         if not location_response:
-            return
+            return {}
         response = {
             'bucket_acl': acl_response,
             'location': location_response,
@@ -178,17 +178,20 @@ class S3Resource(BaseResource):
             return []
 
     def remove_buckets(self, args):
-        self.create_pool(self._remove_bucket, args)
+        return self.create_pool(self._remove_bucket, args)
 
     @unpack_kwargs
     def _remove_bucket(self, arn, config):
         bucket_name = config['resource_name']
         try:
-            self.s3_conn.remove_bucket(bucket_name=bucket_name)
+            self.s3_conn.remove_bucket(bucket_name=bucket_name,
+                                       log_not_found_error=False)
             _LOG.info('S3 bucket {0} was removed.'.format(bucket_name))
+            return {arn: config}
         except ClientError as e:
             if e.response['Error']['Code'] == 'NoSuchBucket':
                 _LOG.warn('S3 bucket {0} is not found'.format(bucket_name))
+                return {arn: config}
             else:
                 raise e
 

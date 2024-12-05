@@ -127,9 +127,11 @@ class ApiGatewayConnection(object):
         )
         _LOG.debug("API Gateway updated successfully.")
 
-    def remove_api(self, api_id):
+    def remove_api(self, api_id, log_not_found_error=True):
         """
         :type api_id: str
+        :type log_not_found_error: boolean, parameter is needed for proper
+        log handling in the retry decorator
         """
         self.client.delete_rest_api(restApiId=api_id)
 

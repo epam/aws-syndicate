@@ -27,7 +27,7 @@ from syndicate.core.build.meta_processor import S3_PATH_NAME
 from syndicate.core.constants import DEFAULT_LOGS_EXPIRATION
 from syndicate.core.decorators import threading_lock
 from syndicate.core.helper import (unpack_kwargs,
-                                   exit_on_exception)
+                                   exit_on_exception, is_zip_empty)
 from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import (
     build_description_obj, validate_params, assert_required_params, if_updated)
@@ -208,7 +208,7 @@ class LambdaResource(BaseResource):
         if not response:
             response = self.lambda_conn.get_function(lambda_name=name)
         if not response:
-            return
+            return {}
         arn = self.build_lambda_arn_with_alias(response, meta.get('alias'))
 
         del response['Configuration']['FunctionArn']
@@ -1202,26 +1202,30 @@ class LambdaResource(BaseResource):
             func(self, lambda_name, lambda_arn, event_source)
 
     def remove_lambdas(self, args):
-        self.create_pool(self._remove_lambda, args)
+        return self.create_pool(self._remove_lambda, args)
 
     @unpack_kwargs
     @retry()
     def _remove_lambda(self, arn, config):
         # can't describe lambda event sources with $LATEST version in arn
+        original_arn = arn
         arn = arn.replace(':$LATEST', '')
         lambda_name = config['resource_name']
         event_sources_meta = config['resource_meta'].get('event_sources', [])
         try:
-            self.lambda_conn.delete_lambda(lambda_name)
+            self.lambda_conn.delete_lambda(lambda_name,
+                                           log_not_found_error=False)
             self.remove_lambda_triggers(lambda_name, arn, event_sources_meta)
             group_names = self.cw_logs_conn.get_log_group_names()
             for each in group_names:
                 if lambda_name == each.split('/')[-1]:
                     self.cw_logs_conn.delete_log_group_name(each)
             _LOG.info('Lambda %s was removed.', lambda_name)
+            return {original_arn: config}
         except ClientError as e:
             if e.response['Error']['Code'] == 'ResourceNotFoundException':
                 _LOG.warn('Lambda %s is not found', lambda_name)
+                return {original_arn: config}
             else:
                 raise e
 
@@ -1245,6 +1249,12 @@ class LambdaResource(BaseResource):
         file_name = key.split('/')[-1]
         self.s3_conn.download_file(self.deploy_target_bucket, key_compound,
                                    file_name)
+        if is_zip_empty(file_name):
+            message = f'Can not create layer \'{name}\' because of empty ' \
+                      f'deployment package zip file.'
+            _LOG.error(message)
+            return {}, [message]
+
         with open(file_name, 'rb') as file_data:
             file_body = file_data.read()
         import hashlib
@@ -1254,15 +1264,14 @@ class LambdaResource(BaseResource):
                                                        name)
         if existing_version:
             existing_layer_arn = existing_version['LayerVersionArn']
-            _LOG.info('Layer {} with same content already '
-                      'exists in layer version {}.'.format(name,
-                                                           existing_layer_arn))
+            _LOG.info(f'Layer {name} with same content already '
+                      f'exists in layer version {existing_layer_arn}.')
             return {
                 existing_layer_arn: build_description_obj(
                     response=existing_version, name=name, meta=meta
                 )}
 
-        _LOG.debug('Creating lambda layer %s', name)
+        _LOG.debug(f'Creating lambda layer {name}')
 
         args = {'layer_name': name, 'runtimes': meta['runtimes'],
                 's3_bucket': self.deploy_target_bucket,
@@ -1276,9 +1285,8 @@ class LambdaResource(BaseResource):
             args['architectures'] = meta['architectures']
         response = self.lambda_conn.create_layer(**args)
 
-        _LOG.info(
-            'Lambda Layer {0} version {1} was successfully created'.format(
-                name, response['Version']))
+        _LOG.info(f'Lambda Layer {name} version {response["Version"]} '
+                  f'was successfully created')
         layer_arn = response['LayerArn'] + ':' + str(response['Version'])
         del response['LayerArn']
         return {
@@ -1300,14 +1308,39 @@ class LambdaResource(BaseResource):
         try:
             for arn in [layer['LayerVersionArn'] for layer in layers_list]:
                 layer_version = arn.split(':')[-1]
-                self.lambda_conn.delete_layer(arn)
+                self.lambda_conn.delete_layer(arn, log_not_found_error=False)
                 _LOG.info('Lambda layer {0} version {1} was removed.'.format(
                     layer_name, layer_version))
+            return {arn: config}
         except ClientError as e:
             if e.response['Error']['Code'] == 'ResourceNotFoundException':
                 _LOG.warn('Lambda Layer {} is not found'.format(layer_name))
+                return {arn: config}
             else:
                 raise e
+
+    def describe_lambda_layer(self, name, meta, response=None):
+        if not response:
+            layer_versions = self.lambda_conn.list_lambda_layer_versions(
+                name=name
+            )
+            if not layer_versions:
+                _LOG.warn(f'No versions available for layer {name}')
+                return {}
+            else:
+                latest_version = max(
+                    layer_versions, key=lambda x: x['Version'])
+                response = self.lambda_conn.get_layer_version(
+                    name=name,
+                    version=latest_version['Version']
+                )
+        if not response:
+            return {}
+
+        arn = response.pop('LayerArn')
+        return {
+            arn: build_description_obj(response, name, meta)
+        }
 
     @staticmethod
     def _resolve_snap_start(meta: dict) -> Optional[str]:

@@ -53,12 +53,24 @@ Response must contain just created `syndicate-demo-api`:
 }
 ```
 
-##### 7. Trigger deployed lambda using aws-cli:
-   
-`aws lambda invoke --function-name lambda_example --payload '{"username": "example@gmail.com", "password": "some text"}' --cli-binary-format raw-in-base64-out response.json`
+##### 7. Trigger deployed lambda using API Gateway:
+Using Postman, curl or other tool trigger lambda via API endpoint. 
+API URL scheme: `https://{api-id}.execute-api.{region}.amazonaws.com/{stage-name}/{endpoint}`. 
+Example: `https://bzztcmtw94.execute-api.eu-central-1.amazonaws.com/dev/singnup`
+Use such payload: `{"email": "example@gmail.com", "password": "Some_text123!"}'`
 
-Response content will be stored in `response.json`:
+Response content for `/singnup` endpoint:
+```json
+{
+    "statusCode": 200,
+    "headers": {
+        "Content-Type": "application/json"
+    },
+    "body": {"message": "User example@gmail.com was created."}
+}
+```
 
+Response content for `/login` endpoint:
 ```json
 {
     "statusCode": 200,

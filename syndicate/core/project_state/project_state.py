@@ -267,12 +267,19 @@ class ProjectState:
         :latest_if_not_found: - If True, the method will retry fetching the
         latest event without reference to the bundle name.
         """
-        modification_ops = [DEPLOY_ACTION, UPDATE_ACTION]
+        if bundle_name:
+            modification_ops = [DEPLOY_ACTION, UPDATE_ACTION, CLEAN_ACTION]
+        else:
+            modification_ops = [DEPLOY_ACTION, UPDATE_ACTION]
         filtered_events = (
             event for event in self.events
             if self._is_event_matching(event, bundle_name, modification_ops)
         )
         latest_event = next(filtered_events, None)
+        if latest_event and latest_event.get('operation') == CLEAN_ACTION:
+            # in case bundle was deleted manually but present in .syndicate
+            return self.get_latest_deployed_or_updated_bundle()
+
         if not latest_event and latest_if_not_found:
             return self.get_latest_deployed_or_updated_bundle()
         return latest_event.get('bundle_name') if latest_event else None
@@ -421,9 +428,10 @@ class ProjectState:
             params.pop('operation')
             params['is_succeeded'] = params.pop('status')
 
-            if not (status is False and rollback_on_error is True):
-                params.pop('rollback_on_error')
-                self._set_latest_deploy_info(**params)
+            if params['is_succeeded'] != ABORTED_STATUS:
+                if not (status is False and rollback_on_error is True):
+                    params.pop('rollback_on_error')
+                    self._set_latest_deploy_info(**params)
 
         if operation == CLEAN_ACTION and status is True:
             self._delete_latest_deploy_info()
@@ -433,6 +441,8 @@ class ProjectState:
                 kwargs['status'] = SUCCEEDED_STATUS
             case False:
                 kwargs['status'] = FAILED_STATUS
+            case status if status == ABORTED_STATUS:
+                kwargs['status'] = ABORTED_STATUS
 
         kwargs = {
             key: value for key, value in kwargs.items() if value is not None
@@ -473,10 +483,15 @@ class ProjectState:
 
         modified_lock = {
             LOCK_LAST_MODIFICATION_DATE: timestamp,
-            LOCK_LOCKED_TILL: locked_till_timestamp if locked else None,
+            LOCK_IS_LOCKED: locked,
             LOCK_INITIATOR: getpass.getuser()
         }
+        if locked:
+            modified_lock[LOCK_LOCKED_TILL] = locked_till_timestamp
+
         if lock:
+            if not locked:
+                lock.pop(LOCK_LOCKED_TILL, None)
             lock.update(modified_lock)
         else:
             locks.update({lock_name: modified_lock})

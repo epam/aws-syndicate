@@ -188,15 +188,20 @@ class EC2Connection(object):
         response = self.client.describe_images(**params)
         return response['Images']
 
-    def describe_instances(self, filters):
+    def describe_instances(self, filters, instance_ids=None):
+        params = {}
         result_list = []
-        response = self.client.describe_instances(Filters=filters)
+        if filters:
+            params['Filters'] = filters
+        if instance_ids:
+            params['InstanceIds'] = instance_ids
+        response = self.client.describe_instances(**params)
         result_list.extend([reservation['Instances'][0]
                             for reservation in response['Reservations']])
         token = response.get('NextToken')
         while token:  # value is 'null' if there is no token
-            response = self.client.describe_instances(Filters=filters,
-                                                      NextToken=token)
+            params['NextToken'] = token
+            response = self.client.describe_instances(**params)
             result_list.extend([reservation['Instances'][0]
                                 for reservation in response['Reservations']])
             token = response.get('NextToken')
@@ -270,6 +275,11 @@ class EC2Connection(object):
             return launched_instances[0]
 
     def modify_instance_attribute(self, **kwargs):
+        """
+        log_not_found_error parameter is needed for proper log handling in the
+        retry decorator
+        """
+        kwargs.pop('log_not_found_error', None)
         if not kwargs['InstanceId']:
             raise AssertionError('InstanceId must be specified')
         self.client.modify_instance_attribute(**kwargs)
@@ -452,7 +462,12 @@ class EC2Connection(object):
                 raise e
         return result_list
 
-    def delete_launch_template(self, lt_name=None, lt_id=None):
+    def delete_launch_template(self, lt_name=None, lt_id=None,
+                               log_not_found_error=True):
+        """
+        log_not_found_error parameter is needed for proper log handling in the
+        retry decorator
+        """
         params = dict()
         if lt_name is not None and lt_id is not None:
             _LOG.warn('Both the launch template name and ID are specified. '

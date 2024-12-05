@@ -377,10 +377,12 @@ class LambdaConnection(object):
             marker = response.get('NextMarker')
         return versions
 
-    def delete_lambda(self, func_name):
+    def delete_lambda(self, func_name, log_not_found_error=True):
         """ Delete Lambda.
 
         :param func_name: str
+        :param log_not_found_error: boolean, parameter is needed for proper log
+        handling in the retry decorator
         """
         self.client.delete_function(FunctionName=func_name)
 
@@ -602,7 +604,7 @@ class LambdaConnection(object):
         params = dict(FunctionName=lambda_name)
         if ephemeral_storage:
             params['EphemeralStorage'] = {'Size': ephemeral_storage}
-        if layers:
+        if layers is not None:
             params['Layers'] = layers
         if role:
             params['Role'] = role
@@ -687,7 +689,15 @@ class LambdaConnection(object):
     def get_lambda_layer_by_arn(self, arn):
         return self.client.get_layer_version_by_arn(Arn=arn)
 
-    def delete_layer(self, arn):
+    def get_layer_version(self, name, version):
+        return self.client.get_layer_version(LayerName=name,
+                                             VersionNumber=version)
+
+    def delete_layer(self, arn, log_not_found_error=True):
+        """
+        log_not_found_error parameter is needed for proper log handling in the
+        retry decorator
+        """
         version = arn.split(':')[len(arn.split(':')) - 1]
         arn = arn[:-len(version) - 1]
         return self.client.delete_layer_version(

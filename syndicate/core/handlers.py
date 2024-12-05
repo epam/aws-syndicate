@@ -19,6 +19,7 @@ import sys
 from functools import partial
 
 import click
+from click.exceptions import Exit
 from tabulate import tabulate
 from logging import DEBUG
 
@@ -129,10 +130,16 @@ def syndicate():
 @click.option('--errors_allowed', is_flag=True,
               help='Flag to return successful response even if some tests '
                    'fail')
+@click.option('--skip_tests', is_flag=True, default=False,
+              help='Flag to not run tests')
 @verbose_option
 @timeit(action_name=TEST_ACTION)
-def test(suite, test_folder_name, errors_allowed):
+def test(suite, test_folder_name, errors_allowed, skip_tests):
     """Discovers and runs tests inside python project configuration path."""
+    if skip_tests:
+        click.echo('Skipping tests...')
+        return
+
     click.echo('Running tests...')
     import subprocess
     from syndicate.core import CONFIG
@@ -160,11 +167,14 @@ def test(suite, test_folder_name, errors_allowed):
     if result.returncode != 0:
         _LOG.error(f'{result.stdout}\n{result.stderr}\n{"-" * 70}')
         if not errors_allowed:
-            click.echo('Some tests failed. Exiting.')
+            click.echo(
+                'Some tests failed. See details in the log file. Exiting...')
             sys.exit(result.returncode)
-
-    _LOG.info(f'{result.stdout}\n{result.stderr}\n{"-" * 70}')
-    click.echo('Tests passed.')
+        else:
+            USER_LOG.warn('Some tests failed. See details in the log file.')
+    else:
+        _LOG.info(f'{result.stdout}\n{result.stderr}\n{"-" * 70}')
+        click.echo('Tests passed.')
 
 
 @syndicate.command(name=BUILD_ACTION)
@@ -175,12 +185,15 @@ def test(suite, test_folder_name, errors_allowed):
 @click.option('--force_upload', '-F', is_flag=True, default=False,
               help='Flag to override existing bundle with the same name')
 @click.option('--errors_allowed', is_flag=True, default=False,
-              help='Flag to continue bundle building if some tests fail')
+              help='Flag to continue building the bundle if any errors occur '
+                   'while building dependencies or tests fail')
+@click.option('--skip_tests', is_flag=True, default=False,
+              help='Flag to skip lambda tests')
 @verbose_option
 @click.pass_context
 @check_deploy_bucket_exists
 @timeit(action_name=BUILD_ACTION)
-def build(ctx, bundle_name, force_upload, errors_allowed):
+def build(ctx, bundle_name, force_upload, errors_allowed, skip_tests):
     """
     Builds bundle of an application
     """
@@ -188,9 +201,10 @@ def build(ctx, bundle_name, force_upload, errors_allowed):
         click.echo(f'Bundle name \'{bundle_name}\' already exists '
                    f'in deploy bucket. Please use another bundle '
                    f'name or delete the bundle')
-        return
-    ctx.invoke(test, errors_allowed=errors_allowed)
-    ctx.invoke(assemble, bundle_name=bundle_name, force_upload=force_upload)
+        raise Exit(1)
+    ctx.invoke(test, errors_allowed=errors_allowed, skip_tests=skip_tests)
+    ctx.invoke(assemble, bundle_name=bundle_name,
+               errors_allowed=errors_allowed, force_upload=force_upload)
     ctx.invoke(package_meta, bundle_name=bundle_name)
     ctx.invoke(upload, bundle_name=bundle_name, force_upload=force_upload)
 
@@ -259,11 +273,13 @@ def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
     """
     from syndicate.core import PROJECT_STATE
     PROJECT_STATE.current_bundle = bundle_name
+    if not bundle_name or not deploy_name:
+        return ABORTED_STATUS
     if not if_bundle_exist(bundle_name=bundle_name):
         click.echo(
             f'The bundle name \'{bundle_name}\' does not exist in deploy '
             f'bucket. Please verify the bundle name and try again.')
-        return False
+        return ABORTED_STATUS
 
     if deploy_only_resources_path and os.path.exists(
             deploy_only_resources_path):
@@ -341,11 +357,13 @@ def update(bundle_name, deploy_name, replace_output, update_only_resources,
     from syndicate.core import PROJECT_STATE
     click.echo(f'Bundle name: {bundle_name}')
     PROJECT_STATE.current_bundle = bundle_name
+    if not bundle_name or not deploy_name:
+        return ABORTED_STATUS
     if not if_bundle_exist(bundle_name=bundle_name):
         click.echo(
             f'The bundle name \'{bundle_name}\' does not exist in deploy '
             f'bucket. Please verify the bundle name and try again.')
-        return False
+        return ABORTED_STATUS
 
     if update_only_resources_path and os.path.exists(
             update_only_resources_path):
@@ -427,15 +445,17 @@ def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
     click.echo(f'Deploy name: {deploy_name}')
     separator = ', '
     PROJECT_STATE.current_bundle = bundle_name
+    if not bundle_name or not deploy_name:
+        return ABORTED_STATUS
     if not if_bundle_exist(bundle_name=bundle_name):
         click.echo(
             f'The bundle name \'{bundle_name}\' does not exist in deploy '
             f'bucket. Please verify the bundle name and try again.')
-        return False
+        return ABORTED_STATUS
     if not is_deploy_exist(bundle_name=bundle_name, deploy_name=deploy_name):
         click.echo(f'The deploy name \'{deploy_name}\' is invalid. '
                    f'Please verify the deploy name and try again.')
-        return False
+        return ABORTED_STATUS
 
     if clean_only_types:
         click.echo(f'Clean only types: {separator.join(clean_only_types)}')
@@ -471,6 +491,8 @@ def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
 
     if result == ABORTED_STATUS:
         click.echo('Clean of resources has been aborted')
+    elif result is False:
+        click.echo('AWS resources were removed with errors.')
     else:
         click.echo('AWS resources were removed.')
     return result
@@ -630,9 +652,12 @@ def profiler(bundle_name, deploy_name, from_date, to_date):
               help='Identifier that indicates whether a locally existing'
                    ' bundle should be deleted and a new one created using'
                    ' the same path.')
+@click.option('--skip_tests', is_flag=True, default=False,
+              help='Flag to not run tests')
 @verbose_option
 @timeit(action_name=ASSEMBLE_JAVA_MVN_ACTION)
-def assemble_java_mvn(bundle_name, project_path, force_upload):
+def assemble_java_mvn(bundle_name, project_path, force_upload, skip_tests,
+                      errors_allowed=False):
     """
     Builds Java lambdas
 
@@ -640,14 +665,17 @@ def assemble_java_mvn(bundle_name, project_path, force_upload):
     :param bundle_name: name of the bundle
     :param project_path: path to project folder
     :param force_upload: force upload identification
+    :param skip_tests: force skipping tests
+    :param errors_allowed: not used for java, but need to unify the
+    `assemble` commands interface
     :return:
     """
     click.echo(f'Command compile java project path: {project_path}')
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
                        runtime=RUNTIME_JAVA,
-                       force_upload=force_upload
-                       )
+                       force_upload=force_upload,
+                       skip_tests=skip_tests)
     click.echo('Java artifacts were prepared successfully.')
 
 
@@ -670,9 +698,13 @@ def assemble_java_mvn(bundle_name, project_path, force_upload):
               help='Identifier that indicates whether a locally existing'
                    ' bundle should be deleted and a new one created using'
                    ' the same path.')
+@click.option('--errors_allowed', is_flag=True, default=False,
+              help='Flag to continue building the bundle if any errors occur '
+                   'while building dependencies')
 @verbose_option
 @timeit(action_name=ASSEMBLE_PYTHON_ACTION)
-def assemble_python(bundle_name, project_path, force_upload):
+def assemble_python(bundle_name, project_path, force_upload, errors_allowed,
+                    skip_tests=False):
     """
     Builds Python lambdas
 
@@ -680,14 +712,17 @@ def assemble_python(bundle_name, project_path, force_upload):
     :param bundle_name: name of the bundle
     :param project_path: path to project folder
     :param force_upload: force upload identification
+    :param errors_allowed: allows to ignore dependency errors
+    :param skip_tests: not used for python, but need to unify the
+    `assemble` commands interface
     :return:
     """
     click.echo(f'Command assemble python: project_path: {project_path} ')
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
                        runtime=RUNTIME_PYTHON,
-                       force_upload=force_upload
-                       )
+                       force_upload=force_upload,
+                       errors_allowed=errors_allowed)
     click.echo('Python artifacts were prepared successfully.')
 
 
@@ -710,7 +745,8 @@ def assemble_python(bundle_name, project_path, force_upload):
                    ' the same path.')
 @verbose_option
 @timeit(action_name=ASSEMBLE_NODE_ACTION)
-def assemble_node(bundle_name, project_path, force_upload):
+def assemble_node(bundle_name, project_path, force_upload,
+                  errors_allowed=False, skip_tests=False):
     """
     Builds NodeJS lambdas
 
@@ -718,6 +754,10 @@ def assemble_node(bundle_name, project_path, force_upload):
     :param bundle_name: name of the bundle
     :param project_path: path to project folder
     :param force_upload: force upload identification
+    :param errors_allowed: not used for NodeJS, but need to unify the
+    `assemble` commands interface
+    :param skip_tests: not used for NodeJS, but need to unify the
+    `assemble` commands interface
     :return:
     """
     click.echo(f'Command assemble node: project_path: {project_path} ')
@@ -748,7 +788,8 @@ def assemble_node(bundle_name, project_path, force_upload):
                    ' the same path.')
 @verbose_option
 @timeit(action_name=ASSEMBLE_DOTNET_ACTION)
-def assemble_dotnet(bundle_name, project_path, force_upload):
+def assemble_dotnet(bundle_name, project_path, force_upload,
+                    errors_allowed=False, skip_tests=False):
     """
     Builds DotNet lambdas
 
@@ -756,6 +797,10 @@ def assemble_dotnet(bundle_name, project_path, force_upload):
     :param bundle_name: name of the bundle
     :param project_path: path to project folder
     :param force_upload: force upload identification
+    :param errors_allowed: not used for DotNet, but need to unify the
+    `assemble` commands interface
+    :param skip_tests: not used for DotNet, but need to unify the
+    `assemble` commands interface
     :return:
     """
     click.echo(f'Command assemble dotnet: project_path: {project_path} ')
@@ -816,10 +861,13 @@ RUNTIME_LANG_TO_BUILD_MAPPING = {
               help='Identifier that indicates whether a locally existing'
                    ' bundle should be deleted and a new one created using'
                    ' the same path.')
+@click.option('--errors_allowed', is_flag=True, default=False,
+              help='Flag to continue building the bundle if any errors occur '
+                   'while building dependencies. Only for Python runtime.')
 @verbose_option
 @click.pass_context
 @timeit(action_name=ASSEMBLE_ACTION)
-def assemble(ctx, bundle_name, force_upload):
+def assemble(ctx, bundle_name, force_upload, errors_allowed):
     """
     Builds the application artifacts
 
@@ -827,6 +875,8 @@ def assemble(ctx, bundle_name, force_upload):
     :param ctx:
     :param bundle_name: name of the bundle to which the artifacts
         will be associated
+    :param force_upload: force upload identification
+    :param errors_allowed: allows to ignore dependency errors. Only for python
     :return:
     """
     click.echo(f'Building artifacts, bundle: {bundle_name}')
@@ -840,7 +890,8 @@ def assemble(ctx, bundle_name, force_upload):
             func = RUNTIME_LANG_TO_BUILD_MAPPING.get(key)
             if func:
                 ctx.invoke(func, bundle_name=bundle_name,
-                           project_path=value, force_upload=force_upload)
+                           project_path=value, force_upload=force_upload,
+                           errors_allowed=errors_allowed)
             else:
                 click.echo(f'Build tool is not supported: {key}')
     else:

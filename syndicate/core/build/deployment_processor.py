@@ -21,8 +21,9 @@ from functools import cmp_to_key
 
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.build.bundle_processor import create_deploy_output, \
-    load_deploy_output, load_failed_deploy_output,load_meta_resources, \
-    remove_failed_deploy_output, load_latest_deploy_output
+    load_deploy_output, load_failed_deploy_output, load_meta_resources, \
+    remove_failed_deploy_output, load_latest_deploy_output, \
+    remove_deploy_output
 from syndicate.core.build.meta_processor import resolve_meta, \
     populate_s3_paths, resolve_resource_name, get_meta_from_output, \
     resolve_tags, preprocess_tags
@@ -45,6 +46,7 @@ USER_LOG = get_user_logger()
 def _process_resources(resources, handlers_mapping, describe_handlers=None,
                        pass_context=False, output=None):
     output = output or {}
+    errors = []
     args = []
     resource_type = None
     is_succeeded = True
@@ -65,7 +67,9 @@ def _process_resources(resources, handlers_mapping, describe_handlers=None,
                 USER_LOG.info(f'Processing {resource_type} resources')
                 func = handlers_mapping[resource_type]
                 response = func(args)
-                process_response(response=response, output=output)
+                response_errors = process_response(response=response,
+                                                   output=output)
+                errors.extend(response_errors)
 
                 del args[:]
                 args.append(_build_args(name=res_name,
@@ -78,7 +82,12 @@ def _process_resources(resources, handlers_mapping, describe_handlers=None,
             func = handlers_mapping[resource_type]
 
             response = func(args)
-            process_response(response=response, output=output)
+            response_errors = process_response(response=response,
+                                               output=output)
+            errors.extend(response_errors)
+
+        if errors:
+            is_succeeded = False
 
     except Exception as e:
         USER_LOG.exception('Error occurred while {0} '
@@ -89,9 +98,14 @@ def _process_resources(resources, handlers_mapping, describe_handlers=None,
     if not is_succeeded:
         for item in args:
             func = describe_handlers[item['meta']['resource_type']]
-            response = func(item['name'], item['meta'])
+            try:
+                response = func(item['name'], item['meta'])
+            except Exception as e:
+                response = ({}, [str(e)])
             if response:
-                process_response(response=response, output=output)
+                response_errors = process_response(response=response,
+                                                   output=output)
+                errors.extend(response_errors)
 
     return is_succeeded, output
 
@@ -105,6 +119,7 @@ def _process_resources_with_dependencies(resources, handlers_mapping,
     output = output or {}
     resource_type = None
     is_succeeded = True
+    errors = []
     try:
         for res_name, res_meta in resources:
             args = []
@@ -160,12 +175,17 @@ def _process_resources_with_dependencies(resources, handlers_mapping,
                 current_resource_type = resource_type
             func = handlers_mapping[resource_type]
             response = func(args)
-            process_response(response=response, output=output)
+            response_errors = process_response(response=response,
+                                               output=output)
+            errors.extend(response_errors)
 
             res_meta['processed'] = True
             overall_res_index = overall_resources.index(
                 (res_name, res_meta))
             overall_resources[overall_res_index][-1]['processed'] = True
+
+        if errors:
+            is_succeeded = False
 
     except Exception as e:
         if 'An infinite loop' in str(e):
@@ -178,9 +198,14 @@ def _process_resources_with_dependencies(resources, handlers_mapping,
     if not is_succeeded:
         for item in args:
             func = describe_handlers[item['meta']['resource_type']]
-            response = func(item['name'], item['meta'])
+            try:
+                response = func(item['name'], item['meta'])
+            except Exception as e:
+                response = ({}, [str(e)])
             if response:
-                process_response(response=response, output=output)
+                response_errors = process_response(response=response,
+                                                   output=output)
+                errors.extend(response_errors)
 
     return is_succeeded, output
 
@@ -261,7 +286,7 @@ def update_resources(resources, old_resources):
     to_remove = [i for i, res in enumerate(resources) if
                  res[0] not in old_resources]
     for i in reversed(to_remove):
-        _LOG.info(f'Skipping resource {resources[i][0]} due to absence in '
+        _LOG.warn(f'Skipping resource {resources[i][0]} due to absence in '
                   f'initial deployment output.')
         resources.pop(i)
 
@@ -273,6 +298,8 @@ def update_resources(resources, old_resources):
 
 def clean_resources(output):
     from syndicate.core import PROCESSOR_FACADE
+    clean_output = {}
+    errors = []
     args = []
     resource_type = None
     # clean all resources
@@ -287,14 +314,22 @@ def clean_resources(output):
         elif res_type != resource_type:
             USER_LOG.info('Removing {0} resources ...'.format(resource_type))
             func = PROCESSOR_FACADE.remove_handlers()[resource_type]
-            func(args)
+            result = func(args)
+            response_errors = process_response(result, clean_output)
+            errors.extend(response_errors)
             del args[:]
             args.append({'arn': arn, 'config': config})
             resource_type = res_type
     if args:
         USER_LOG.info('Removing {0} resources ...'.format(resource_type))
         func = PROCESSOR_FACADE.remove_handlers()[resource_type]
-        func(args)
+        result = func(args)
+        response_errors = process_response(result, clean_output)
+        errors.extend(response_errors)
+
+    removed_resources_arn = list(clean_output.keys())
+    success = False if errors else True
+    return success, removed_resources_arn
 
 
 def continue_deploy_resources(resources, latest_deploy_output):
@@ -307,22 +342,33 @@ def continue_deploy_resources(resources, latest_deploy_output):
     if not resources:
         USER_LOG.info('Skipping deployment because all specified resources '
                       'already deployed')
-        return True, latest_deploy_output
+        return True, latest_deploy_output, []
 
     return deploy_resources(resources)
 
 
 def process_response(response, output: dict):
+    errors = []
 
     if isinstance(response, dict):
         output.update(response)
     elif isinstance(response, tuple):
         result, exceptions = response
-        if result:
-            output.update(result)
-        raise Exception(exceptions[0])
 
-    return output
+        if isinstance(result, dict):
+            output.update(result)
+        else:
+            _LOG.warn(f'Got unexpected response. Expect dict. '
+                      f'Got \'{type(response)}\', \'{str(response)}\'')
+
+        if isinstance(exceptions, list):
+            errors.extend(exceptions)
+            _LOG.error('\n'.join(exceptions))
+        else:
+            _LOG.error(str(exceptions))
+            errors.append(str(exceptions))
+
+    return errors
 
 
 def __move_output_content(args, failed_output, updated_output):
@@ -369,8 +415,13 @@ def create_deployment_resources(deploy_name, bundle_name,
                                 replace_output=False,
                                 rollback_on_error=False):
 
-    is_ld_output_regular, latest_deploy_output = load_latest_deploy_output()
-    if is_ld_output_regular is True:
+    is_ld_output_regular, latest_deploy_output = load_latest_deploy_output(
+        failsafe=True)
+    if latest_deploy_output is False:
+        USER_LOG.warning(f'The latest deploy output is absent. The current '
+                         f'deployment will be performed without taking into '
+                         f'account the latest deployment.')
+    elif is_ld_output_regular is True:
         _LOG.info(f'The latest deployment has status succeeded. '
                   f'Loaded output:\n {prettify_json(latest_deploy_output)}')
     elif is_ld_output_regular is False:
@@ -379,7 +430,7 @@ def create_deployment_resources(deploy_name, bundle_name,
 
     resources = load_meta_resources(bundle_name)
     # validate_deployment_packages(resources)
-    _LOG.debug('{0} file was loaded successfully'.format(BUILD_META_FILE_NAME))
+    _LOG.debug(f'{BUILD_META_FILE_NAME} file was loaded successfully')
 
     resources = resolve_meta(resources)
     _LOG.debug('Names were resolved')
@@ -414,8 +465,14 @@ def create_deployment_resources(deploy_name, bundle_name,
 
     _LOG.info('Going to deploy AWS resources')
     if continue_deploy:
-        success, output = continue_deploy_resources(resources_list,
-                                                    latest_deploy_output)
+        if latest_deploy_output is False:
+            USER_LOG.warning(
+                f'The latest deploy output is absent. The command will be '
+                f'executed without taking into account the '
+                f'`--continue_deploy` parameter.')
+        success, output = continue_deploy_resources(
+            resources_list,
+            latest_deploy_output if latest_deploy_output else {})
     else:
         success, output = deploy_resources(resources_list)
 
@@ -447,11 +504,18 @@ def create_deployment_resources(deploy_name, bundle_name,
             _apply_post_deployment_tags(output)
 
             USER_LOG.info('Going to create deploy output')
+            output = {**latest_deploy_output, **output} \
+                if latest_deploy_output else output
             create_deploy_output(bundle_name=bundle_name,
                                  deploy_name=deploy_name,
-                                 output={**latest_deploy_output, **output},
+                                 output=output,
                                  success=success,
                                  replace_output=replace_output)
+
+            USER_LOG.warn(
+                "There were errors during the deployment of resources. "
+                "More details can be found in the log file.")
+
     else:
         USER_LOG.info('AWS resources were deployed successfully')
 
@@ -464,14 +528,16 @@ def create_deployment_resources(deploy_name, bundle_name,
         _apply_post_deployment_tags(output)
 
         USER_LOG.info('Going to create deploy output')
+        output = {**latest_deploy_output, **output} \
+            if latest_deploy_output else output
         create_deploy_output(bundle_name=bundle_name,
                              deploy_name=deploy_name,
-                             output={**latest_deploy_output, **output},
+                             output=output,
                              success=success,
                              replace_output=replace_output)
 
     if not (success is False and rollback_on_error is True):
-        USER_LOG.info('Deploy output for {0} was created.'.format(deploy_name))
+        USER_LOG.info(f'Deploy output for {deploy_name} was created.')
     return success
 
 
@@ -558,6 +624,10 @@ def update_deployment_resources(bundle_name, deploy_name, replace_output=False,
                          replace_output=replace_output)
     if success:
         remove_failed_deploy_output(bundle_name, deploy_name)
+    else:
+        USER_LOG.warn("There were errors during the updating of resources. "
+                      "More details can be found in the log file.")
+
     return success
 
 
@@ -572,17 +642,19 @@ def remove_deployment_resources(deploy_name, bundle_name,
 
     is_regular_output = True
     try:
-        output = new_output = load_deploy_output(bundle_name, deploy_name)
+        output = load_deploy_output(bundle_name, deploy_name)
         _LOG.info('Output file was loaded successfully')
     except AssertionError:
         try:
-            output = new_output = load_failed_deploy_output(
+            output = load_failed_deploy_output(
                 bundle_name, deploy_name
             )
             is_regular_output = False
         except AssertionError:
             USER_LOG.error("Deployment to clean not found.")
             return ABORTED_STATUS
+
+    new_output = copy.deepcopy(output)
 
     clean_only_resources = _resolve_names(clean_only_resources)
     excluded_resources = _resolve_names(excluded_resources)
@@ -611,7 +683,13 @@ def remove_deployment_resources(deploy_name, bundle_name,
         USER_LOG.info('Going to clean AWS resources')
     else:
         _LOG.info('Clean skipped because resources to clean absent')
-    clean_resources(resources_list)
+
+    success, removed_resources_arn = clean_resources(resources_list)
+    _LOG.debug(f'Removed successfully: \'{removed_resources_arn}\'')
+
+    new_output = {k: v for k, v in new_output.items() if k in
+                  removed_resources_arn}
+
     # remove new_output from bucket
     return _post_remove_output_handling(
         deploy_name=deploy_name,
@@ -619,26 +697,35 @@ def remove_deployment_resources(deploy_name, bundle_name,
         preserve_state=preserve_state,
         output=output,
         new_output=new_output,
-        is_regular_output=is_regular_output
+        is_regular_output=is_regular_output,
+        success=success
     )
 
 
 def _post_remove_output_handling(deploy_name, bundle_name, preserve_state,
-                                 output, new_output, is_regular_output):
+                                 output, new_output, is_regular_output,
+                                 success):
     if output == new_output:
         if not preserve_state:
             # remove output from bucket
             remove_failed_deploy_output(bundle_name, deploy_name)
+            remove_deploy_output(bundle_name, deploy_name)
     else:
         for key, value in new_output.items():
-            output.pop(key)
+            output.pop(key, None)
         create_deploy_output(bundle_name=bundle_name,
                              deploy_name=deploy_name,
                              output=output,
                              success=is_regular_output,
                              replace_output=True)
+
+        if not success:
+            USER_LOG.warn(
+                "There were errors during the cleaning of resources. "
+                "More details can be found in the log file.")
+            return success
         return {'operation': PARTIAL_CLEAN_ACTION}
-    return True
+    return success
 
 
 def _apply_dynamic_changes(resources, output):

@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [1.15.0] - 2024-10-28
+- Added `--skip_tests` option to `build`, `test` and `assemble_java_mvn` commands to not run tests during or after 
+building the bundle
+- Added `--errors_allowed` option to `assemble_python` and `assemble` commands
+- Improved logic of option `--errors_allowed` to allow dependency installing if it is not possible to find a 
+requirement that fits a specific platform. In this case, the dependencies will be installed independently 
+of each other or without specifying a specific platform (using default platform `any`). Python-specific feature
+- Fixed updating lambda layers when the lambda no longer has layers
+- Fixed logging not found exceptions during the clean operation
+- Fixed handling of deployment output in case of failures on the stage describe resources in case of deploy/update fail
+- Implemented handling of failures during the clean action
+- Improved error message if errors occur during Python requirements installation
+- Changed log level from info to warn if updating of the resource skipped because of absence in the deployment output
+- Fixed deploying a new bundle if latest deploy output is missing
+- Fixed a bug when the latest deployment section was updated when the `deploy` command ended with the ABORTED status
+- Fixed an issue related to locking the state
+- Added empty deployment package handling for lambda layer
+- Fixed bug when meta output processor process the resource name incorrectly
+- Fix `clean` command for `output` folder to correctly resolve ARN for Lambda and properly process and remove the `outputs` folder if Lambda is part of the deployment
+
 # [1.14.1] - 2024-10-08
 - Added support lambda layers with runtime DotNet
 - Tagging added to `oas_v3 openapi` API Gateway.

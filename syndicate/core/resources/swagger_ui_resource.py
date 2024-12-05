@@ -118,7 +118,7 @@ class SwaggerUIResource(BaseResource):
             'policy': self.s3_conn.get_bucket_policy(target_bucket)
         }
         if not bucket_description['location']:
-            return
+            return {}
         response = {
             'host_description': bucket_description
         }
@@ -153,6 +153,7 @@ class SwaggerUIResource(BaseResource):
         if not self.s3_conn.is_bucket_exists(target_bucket):
             USER_LOG.info(f'Target bucket with name \'{target_bucket}\' not '
                           f'found')
+            return {arn: config}
         else:
             self.s3_conn.remove_object(bucket_name=target_bucket,
                                        file_name=INDEX_FILE_NAME)
@@ -161,3 +162,4 @@ class SwaggerUIResource(BaseResource):
                 file_name=SWAGGER_UI_SPEC_NAME_TEMPLATE.format(
                     name=pure_name))
             USER_LOG.info(f'Swagger UI \'{resource_name}\' removed')
+            return {arn: config}
