@@ -1,5 +1,6 @@
 import json
 import os
+import yaml
 from functools import reduce
 from pathlib import Path
 from typing import Union, Any, Optional
@@ -156,3 +157,19 @@ def split_deploy_bucket_path(deploy_target_bucket: str) -> tuple[str, list]:
         bucket = deploy_target_bucket.split('/')[0]
         return bucket, deploy_target_bucket.split('/')[1:]
     return deploy_target_bucket, []
+
+
+def read_sdct_conf() -> Optional[str]:
+    conf_path = os.environ.get('SDCT_CONF')
+    if not conf_path:
+        return
+
+    aliases_conf_file_path = os.path.join(conf_path, 'syndicate_aliases.yml')
+    with open(aliases_conf_file_path, 'r') as file:
+        try:
+            content = yaml.safe_load(file)
+        except yaml.YAMLError as exc:
+            print(f'Cannot parse {aliases_conf_file_path}: {exc}')
+            return
+
+    return content.get('lambdas_alias_name')

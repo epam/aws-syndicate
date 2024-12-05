@@ -214,12 +214,12 @@
             "arn:aws:s3:::sdct-at-s3-bucket/*"
           ],
           "Condition": {
-						"IpAddress": {
-							"aws:SourceIp": [
-								"10.10.10.10/32"
-					]
-				}
-			}
+            "IpAddress": {
+              "aws:SourceIp": [
+                "10.10.10.10/32"
+              ]
+            }
+          }
         }
       ]
     },

@@ -1,3 +1,7 @@
+## 2024-12-05
+### Changed
+- Changed the way to pass lambda alias to checkers - use read_sdct_conf() function from util file instead pass it with lambda name
+
 ## 2024-11-28
 ### Added
 - Added more logs
