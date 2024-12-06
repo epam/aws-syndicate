@@ -32,6 +32,7 @@ of each other or without specifying a specific platform (using default platform 
 - Fixed an issue related to locking the state
 - Added empty deployment package handling for lambda layer
 - Fixed bug when meta output processor process the resource name incorrectly
+- Fix `clean` command for `output` folder to correctly resolve ARN for Lambda and properly process and remove the `outputs` folder if Lambda is part of the deployment
 
 # [1.14.1] - 2024-10-08
 - Added support lambda layers with runtime DotNet
