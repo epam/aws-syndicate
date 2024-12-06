@@ -17,7 +17,7 @@ import inspect
 import json
 import time
 from pathlib import Path
-from typing import Generator, Optional, List, Iterable
+from typing import Generator, Optional, List, Iterable, Any
 
 import botocore
 from botocore.exceptions import ClientError
@@ -67,14 +67,14 @@ class EC2Connection(object):
             elif isinstance(name, str):
                 filters.append({'Name': 'group-name', 'Values': [name]})
             else:
-                _LOG.warn('Unacceptable name type: %s', type(name))
+                _LOG.warning('Unacceptable name type: %s', type(name))
         if sg_id:
             if isinstance(sg_id, list):
                 filters.append({'Name': 'group-id', 'Values': sg_id})
             elif isinstance(sg_id, str):
                 filters.append({'Name': 'group-id', 'Values': [sg_id]})
             else:
-                _LOG.warn(
+                _LOG.warning(
                     f'Unacceptable security group id type: {type(sg_id)}')
         if vpc_id:
             filters.append({'Name': 'vpc-id', 'Values': [vpc_id]})
@@ -89,7 +89,7 @@ class EC2Connection(object):
             elif isinstance(name, str):
                 filters.append({'Name': 'region-name', 'Values': [name]})
             else:
-                _LOG.warn('Unacceptable name type: %s', type(name))
+                _LOG.warning('Unacceptable name type: %s', type(name))
         return self.client.describe_regions(Filters=filters)['Regions']
 
     def get_default_vpc_id(self):
@@ -134,7 +134,12 @@ class EC2Connection(object):
         if group:
             return group['GroupId']
 
-    def get_key_pairs(self, dry_run=False, key_names=None, filters=None):
+    def get_key_pairs(
+            self,
+            dry_run: bool = False,
+            key_names: list | None = None,
+            filters: list | None = None,
+    ) -> dict | list[dict]:
         """
         :type dry_run: bool
         :type key_names: list
@@ -365,61 +370,83 @@ class EC2Connection(object):
             params['PublicIp'] = public_ip
         return self.client.associate_address(**params)
 
-    def create_launch_template(self, name, lt_data, version_description=None,
-                               tags=None):
-        params = dict()
-        params['LaunchTemplateName'] = name
-        params['LaunchTemplateData'] = lt_data
+    def create_launch_template(
+            self,
+            name: str,
+            lt_data: dict,
+            version_description:str | None = None,
+            tags: list[dict[str, Any]] | None = None,
+    ) -> dict:
+        params = {
+            'LaunchTemplateName': name,
+            'LaunchTemplateData': lt_data,
+        }
         if version_description is not None:
             params['VersionDescription'] = version_description
 
         if tags:
             params['TagSpecifications'] = [{
-                'ResourceType': 'instance',
-                'Tags': tags
+                'ResourceType': 'launch-template',
+                'Tags': tags,
             }]
         return self.client.create_launch_template(**params)
 
-    def create_launch_template_version(self, lt_name=None, lt_id=None,
-                                       source_version=None, lt_data=None,
-                                       version_description=None):
-        params = dict()
-        if source_version is not None:
-            params['SourceVersion'] = source_version
-        if lt_data is not None:
-            params['LaunchTemplateData'] = lt_data
-        if version_description is not None:
-            params['VersionDescription'] = version_description
+    def create_launch_template_version(
+            self,
+            lt_name: str | None = None,
+            lt_id: str | None = None,
+            source_version: str | None = None,
+            lt_data: dict | None = None,
+            version_description = None,
+            tags: list[dict[str, str]] | None = None,
+    ) -> dict | None:
+        if not lt_name and not lt_id:
+            _LOG.error(
+                'A launch template version cannot be created without the name '
+                'or ID of the launch template'
+            )
+            return None
 
-        if lt_name is not None and lt_id is not None:
-            _LOG.warn('Both the launch template name and ID are specified. '
-                      'The request will be made by ID.')
-            params['LaunchTemplateId'] = lt_id
+        params = {
+            'LaunchTemplateId': lt_id if lt_id else None,
+            'LaunchTemplateName': lt_name if not lt_id else None,
+            'SourceVersion': source_version,
+            'VersionDescription': version_description,
+            'LaunchTemplateData': lt_data or {},
+        }
+        # TODO: support Resource tags
+        # if tags:
+        #     params['LaunchTemplateData'].update({
+        #         'TagSpecifications': [{
+        #             'ResourceType': 'launch-template',
+        #             'Tags': tags,
+        #         }]
+        #     })
+        if lt_name and lt_id:
+            _LOG.warning(
+                'Both the launch template name and ID are specified. The '
+                'request will be made by ID'
+            )
+        return self.client.create_launch_template_version(
+            **{k: v for k, v in params.items() if v is not None}
+        )
 
-        elif lt_name is not None:
-            params['LaunchTemplateName'] = lt_name
-
-        elif lt_id is not None:
-            params['LaunchTemplateId'] = lt_id
-
-        else:
-            _LOG.error('A launch template version can not be created without '
-                       'the name or ID of the launch template.')
-            return
-        return self.client.create_launch_template_version(**params)
-
-    def describe_launch_templates(self, lt_name=None, lt_id=None):
+    def describe_launch_templates(
+            self,
+            lt_name: str | None = None,
+            lt_id = None,
+    ) -> list:
         result_list = list()
         params = dict()
         if lt_name is not None and lt_id is not None:
-            _LOG.warn('Both the launch template name and ID are specified. '
-                      'The request will be made by ID.')
+            _LOG.warning('Both the launch template name and ID are specified. '
+                         'The request will be made by ID.')
             if isinstance(lt_id, list):
                 params['LaunchTemplateIds'] = lt_id
             elif isinstance(lt_id, str):
                 params['LaunchTemplateIds'] = [lt_id]
             else:
-                _LOG.warn(
+                _LOG.warning(
                     f'Unsupported launch template ID type {type(lt_id)}')
 
         elif lt_name is not None:
@@ -428,7 +455,7 @@ class EC2Connection(object):
             elif isinstance(lt_name, str):
                 params['LaunchTemplateNames'] = [lt_name]
             else:
-                _LOG.warn(
+                _LOG.warning(
                     f'Unsupported launch template name type {type(lt_name)}')
 
         elif lt_id is not None:
@@ -437,7 +464,7 @@ class EC2Connection(object):
             elif isinstance(lt_id, str):
                 params['LaunchTemplateIds'] = [lt_id]
             else:
-                _LOG.warn(
+                _LOG.warning(
                     f'Unsupported launch template ID type {type(lt_id)}')
         try:
             response = self.client.describe_launch_templates(**params) if (
@@ -457,21 +484,27 @@ class EC2Connection(object):
                     'InvalidLaunchTemplateId.NotFound' in str(e)):
                 dynamic_message = f"by name '{lt_name}'" if lt_name else \
                     f"by ID '{lt_id}'"
-                _LOG.warn(f"Launch template not found by {dynamic_message}")
+                _LOG.warning(f"Launch template not found by {dynamic_message}")
             else:
                 raise e
         return result_list
 
-    def delete_launch_template(self, lt_name=None, lt_id=None,
-                               log_not_found_error=True):
+    def delete_launch_template(
+            self,
+            lt_name = None,
+            lt_id = None,
+            log_not_found_error: bool = True,
+    ) -> None:
         """
         log_not_found_error parameter is needed for proper log handling in the
         retry decorator
         """
         params = dict()
         if lt_name is not None and lt_id is not None:
-            _LOG.warn('Both the launch template name and ID are specified. '
-                      'The request will be made by ID.')
+            _LOG.warning(
+                'Both the launch template name and ID are specified. The '
+                'request will be made by ID.'
+            )
             params['LaunchTemplateId'] = lt_id
 
         elif lt_name is not None:
@@ -485,14 +518,20 @@ class EC2Connection(object):
                 'removing the launch template.')
         self.client.delete_launch_template(**params)
 
-    def modify_launch_template(self, default_version, lt_name=None,
-                               lt_id=None):
+    def modify_launch_template(
+            self,
+            default_version,
+            lt_name=None,
+            lt_id=None,
+    ) -> None:
         params = dict()
         params['DefaultVersion'] = default_version
 
         if lt_name is not None and lt_id is not None:
-            _LOG.warn('Both the launch template name and ID are specified. '
-                      'The request will be made by ID.')
+            _LOG.warning(
+                'Both the launch template name and ID are specified. The '
+                'request will be made by ID.'
+            )
             params['LaunchTemplateId'] = lt_id
 
         elif lt_name is not None:
@@ -510,10 +549,11 @@ class EC2Connection(object):
 
 class InstanceTypes:
     @staticmethod
-    def from_api(region_name: Optional[str] = None,
-                 current_generation: Optional[bool] = None,
-                 arch: Optional[List] = None,
-                 ) -> Generator[str, None, None]:
+    def from_api(
+            region_name: Optional[str] = None,
+            current_generation: Optional[bool] = None,
+            arch: Optional[List] = None,
+    ) -> Generator[str, None, None]:
         filters = []
         if isinstance(current_generation, bool):
             filters.append({
