@@ -824,7 +824,7 @@
               "name": "lambda_trigger_existence",
               "description": "Check if lambda trigger exists",
               "triggers": {
-                "sdct-at-python-lambda:learn": [
+                "sdct-at-python-lambda": [
                   {
                     "resource_name": "sdct-at-queue",
                     "resource_type": "sqs_queue"
@@ -834,13 +834,13 @@
                     "resource_type": "dynamodb_trigger"
                   }
                 ],
-                "sdct-at-java-lambda:learn": [
+                "sdct-at-java-lambda": [
                   {
                     "resource_name": "sdct-at-cw-rule",
                     "resource_type": "cloudwatch_rule"
                   }
                 ],
-                "sdct-at-dotnet-lambda:learn": [
+                "sdct-at-dotnet-lambda": [
                   {
                     "resource_name": "sdct-at-topic",
                     "resource_type": "sns_topic"

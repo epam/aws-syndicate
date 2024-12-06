@@ -209,13 +209,12 @@ Afterwards, the original configs return the original content. Example:
     - `reverse_check` (bool) - defines whether the check result must be swapped to the opposite.
 - `lambda_trigger_existence` - Checks whether lambda has triggers. 
   - parameters:
-    - `triggers` (dict) [REQUIRED] - Information about lambdas to check. Lambda name could include alias or version 
-in this format: `name:alias`  
+    - `triggers` (dict) [REQUIRED] - Information about lambdas to check:
         structure:
         ```json5
         {
           "triggers": {
-            "$LAMBDA_NAME:alias_or_version_optional": [
+            "$LAMBDA_NAME": [
               {
                 "resource_name": "trigger_name",
                 "resource_type": "sqs_queue|dynamodb_trigger|sns_topic|cloudwatch_rule"
@@ -227,13 +226,13 @@ in this format: `name:alias`
         ```
 - `lambda_env_existence` - Checks whether lambdas has specific environment variables. 
   - parameters:
-    - `env_variables` (dict) [REQUIRED] - Information about lambdas to check. Lambda name could include alias or version 
-in this format: `name:alias`. `*` in env value means value does not matter and only the presence of a particular key will be checked.
+    - `env_variables` (dict) [REQUIRED] - Information about lambdas to check. `*` in env value means value does 
+not matter and only the presence of a particular key will be checked.
         structure:
         ```json5
         {
           "env_variables": {
-            "$LAMBDA_NAME1:alias_or_version_optional": {
+            "$LAMBDA_NAME1": {
               "DOTNET_SHARED_STORE": "/opt/dotnetcore/store/"
             },
             "$LAMBDA_NAME2": {
@@ -244,24 +243,7 @@ in this format: `name:alias`. `*` in env value means value does not matter and o
         ```
 
 ### Temporary checks conditions
-- Use aliases and tags from `tests/smoke/sdct-auto-test/.syndicate-config/syndicate_aliases.yml` and 
-`tests/smoke/sdct-auto-test/.syndicate-config/syndicate.yml` unless change aliases and tags in happy_path_config.json:
-```json5
-{
-  "index": 7,
-  "name": "lambda_trigger_existence",
-  "description": "Check if lambda trigger exists",
-  "triggers": {
-    "sdct-at-java-lambda:learn": [ // alias "learn"
-      {
-        "resource_name": "sdct-at-cw-rule",
-        "resource_type": "cloudwatch_rule"
-      }
-    ]
-  },
-  "depends_on": [1, 4]
-}
-```
+- Use tags from `tests/smoke/sdct-auto-test/.syndicate-config/syndicate.yml` unless change them in happy_path_config.json:
 ```json5
 {
   "index": 6,
