@@ -231,3 +231,5 @@ TAGS_RESOURCE_TYPE_CONFIG = {
     'untaggable': [SWAGGER_UI_TYPE, SNS_PLATFORM_APPLICATION_TYPE,
                    LAMBDA_LAYER_TYPE]
 }
+
+EC2_LT_RESOURCE_TAGS = ('instance', 'volume', 'elastic-gpu', 'network-interface', 'spot-instances-request')
