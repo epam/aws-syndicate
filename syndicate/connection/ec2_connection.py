@@ -25,6 +25,7 @@ from boto3 import client
 
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import apply_methods_decorator, retry
+from syndicate.core.constants import EC2_LT_RESOURCE_TAGS
 
 _LOG = get_logger('syndicate.connection.ec2_connection')
 
@@ -370,12 +371,52 @@ class EC2Connection(object):
             params['PublicIp'] = public_ip
         return self.client.associate_address(**params)
 
+    def resolve_resource_tags(  # noqa Reason: @apply_methods_decorator(retry())
+            self,
+            resource_tags: dict[str, dict[str, str]],
+    ) -> list[dict | None]:
+        base_error_message = (
+            "Failed to process 'resource_tags' for the EC2 launch template. "
+            "This step will be skipped."
+        )
+        if not isinstance(resource_tags, dict):
+            _LOG.error(
+                f"{base_error_message} Reason: 'resource_tags' should be a "
+                f"dictionary."
+            )
+            return []
+
+        resource_tag_specs = []
+        for resource_type, tags_dict in resource_tags.items():
+            if not isinstance(tags_dict, dict):
+                _LOG.error(
+                    f"{base_error_message} The value for key '{resource_type}' "
+                    f"is not a dictionary as expected"
+                )
+                return []
+            if resource_type not in EC2_LT_RESOURCE_TAGS:
+                _LOG.error(
+                    f"{base_error_message} "
+                    f"Encountered an invalid resource type '{resource_type}'. "
+                    f"Valid types include: {EC2_LT_RESOURCE_TAGS}"
+                )
+                return []
+
+            tag_list = [{'Key': k, 'Value': v} for k, v in tags_dict.items()]
+            resource_tag_specs.append({
+                'ResourceType': resource_type,
+                'Tags': tag_list,
+            })
+
+        return resource_tag_specs
+
     def create_launch_template(
             self,
             name: str,
             lt_data: dict,
-            version_description:str | None = None,
+            version_description: str | None = None,
             tags: list[dict[str, Any]] | None = None,
+            resource_tags: dict[str, dict[str, str]] | None = None,
     ) -> dict:
         params = {
             'LaunchTemplateName': name,
@@ -383,12 +424,17 @@ class EC2Connection(object):
         }
         if version_description is not None:
             params['VersionDescription'] = version_description
-
         if tags:
             params['TagSpecifications'] = [{
                 'ResourceType': 'launch-template',
                 'Tags': tags,
             }]
+        if resource_tags:
+            resource_tag_specs = self.resolve_resource_tags(resource_tags)
+            if 'TagSpecifications' not in lt_data:
+                lt_data['TagSpecifications'] = []
+            lt_data['TagSpecifications'].extend(resource_tag_specs)
+
         return self.client.create_launch_template(**params)
 
     def create_launch_template_version(
@@ -397,8 +443,8 @@ class EC2Connection(object):
             lt_id: str | None = None,
             source_version: str | None = None,
             lt_data: dict | None = None,
-            version_description = None,
-            tags: list[dict[str, str]] | None = None,
+            version_description: str | None = None,
+            resource_tags: dict[str, dict[str, str]] | None = None,
     ) -> dict | None:
         if not lt_name and not lt_id:
             _LOG.error(
@@ -408,25 +454,23 @@ class EC2Connection(object):
             return None
 
         params = {
-            'LaunchTemplateId': lt_id if lt_id else None,
+            'LaunchTemplateId': lt_id or None,
             'LaunchTemplateName': lt_name if not lt_id else None,
-            'SourceVersion': source_version,
-            'VersionDescription': version_description,
+            'SourceVersion': source_version or None,
+            'VersionDescription': version_description or None,
             'LaunchTemplateData': lt_data or {},
         }
-        # TODO: support Resource tags
-        # if tags:
-        #     params['LaunchTemplateData'].update({
-        #         'TagSpecifications': [{
-        #             'ResourceType': 'launch-template',
-        #             'Tags': tags,
-        #         }]
-        #     })
         if lt_name and lt_id:
             _LOG.warning(
                 'Both the launch template name and ID are specified. The '
                 'request will be made by ID'
             )
+        if resource_tags:
+            resource_tag_specs = self.resolve_resource_tags(resource_tags)
+            if 'TagSpecifications' not in lt_data:
+                lt_data['TagSpecifications'] = []
+            lt_data['TagSpecifications'].extend(resource_tag_specs)
+
         return self.client.create_launch_template_version(
             **{k: v for k, v in params.items() if v is not None}
         )

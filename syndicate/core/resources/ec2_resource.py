@@ -262,12 +262,14 @@ class Ec2Resource(BaseResource):
             name: str,
             meta: dict,
     ) -> dict:
+        resource_tags = meta.get('launch_template_data').get('resource_tags')
         lt_data = self._prepare_launch_template_data(meta)
         response = self.ec2_conn.create_launch_template(
             name=name,
             lt_data=dict_keys_to_capitalized_camel_case(lt_data),
             version_description=meta.get('version_description'),
             tags=meta.get('tags'),
+            resource_tags=resource_tags,
         )
         return self.describe_launch_template(
             name=name, meta=meta, response=response,
@@ -301,6 +303,7 @@ class Ec2Resource(BaseResource):
             meta: dict[str, Any],
             context: dict | None,
     ):
+        resource_tags = meta.get('launch_template_data').get('resource_tags')
         lt_data: dict = self._prepare_launch_template_data(meta)
         lt_description = self.ec2_conn.describe_launch_templates(lt_name=name)
         if not lt_description:
@@ -312,8 +315,7 @@ class Ec2Resource(BaseResource):
             source_version=str(lt_latest_version),
             lt_data=dict_keys_to_capitalized_camel_case(lt_data),
             version_description=meta.get('version_description'),
-            # TODO: resource tags
-            tags=meta.get('tags'),
+            resource_tags=resource_tags,
         )
         response = self.ec2_conn.modify_launch_template(
             lt_name=name,
@@ -330,6 +332,7 @@ class Ec2Resource(BaseResource):
         from syndicate.core import CONFIG
         lt_data = meta['launch_template_data']
         lt_imds = lt_data.pop('imds_support', None)
+        lt_data.pop('resource_tags', None)
         image_id = lt_data.get('image_id')
         if image_id:
             image_data = self.ec2_conn.describe_image(image_id=image_id)
