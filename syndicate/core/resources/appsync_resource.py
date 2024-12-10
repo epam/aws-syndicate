@@ -74,6 +74,7 @@ class AppSyncResource(BaseResource):
         :type name: str
         :type meta: dict
         """
+        extract_to = None
         validate_params(name, meta, API_REQUIRED_PARAMS)
 
         api = self.appsync_conn.get_graphql_api_by_name(name)
@@ -82,8 +83,9 @@ class AppSyncResource(BaseResource):
             return self.describe_graphql_api(
                 name=name, meta=meta, api_id=api['apiId'])
 
-        archive_path = meta['deployment_package']
-        extract_to = self._extract_zip(archive_path, name)
+        archive_path = meta.get('deployment_package')
+        if archive_path:
+            extract_to = self._extract_zip(archive_path, name)
         auth_type = meta.get('primary_auth_type')
         extra_auth_types = meta.get('extra_auth_types', [])
         lambda_auth_config = meta.get('lambda_authorizer_config', {})
@@ -139,12 +141,12 @@ class AppSyncResource(BaseResource):
 
         if schema_path := meta.get('schema_path'):
             schema_full_path = build_path(extract_to, schema_path)
-            if not os.path.exists(schema_full_path):
+            if not extract_to or not os.path.exists(schema_full_path):
                 raise AssertionError(
                     f'\'{schema_full_path}\' file not found for '
                     f'AppSync \'{name}\'')
 
-            with open(schema_full_path, 'r') as file:
+            with open(schema_full_path, 'r', encoding='utf-8') as file:
                 schema_definition = file.read()
 
             status, details = \
@@ -166,6 +168,7 @@ class AppSyncResource(BaseResource):
             if not params:
                 continue
             self.appsync_conn.create_data_source(api_id, **params)
+
         functions_config = []
         functions_meta = meta.get('functions', [])
         for func_meta in functions_meta:
@@ -184,7 +187,8 @@ class AppSyncResource(BaseResource):
                 continue
             self.appsync_conn.create_resolver(api_id, **params)
 
-        shutil.rmtree(extract_to, ignore_errors=True)
+        if extract_to:
+            shutil.rmtree(extract_to, ignore_errors=True)
         _LOG.info(f'Created AppSync GraphQL API {api_id}')
         return self.describe_graphql_api(name=name, meta=meta, api_id=api_id)
 
@@ -305,12 +309,12 @@ class AppSyncResource(BaseResource):
         if runtime:
             code_path = build_path(artifacts_path,
                                    resolver_meta.get('code_path'))
-            if not os.path.exists(code_path):
+            if not artifacts_path or not os.path.exists(code_path):
                 raise AssertionError(
                     f"Resolver code file for type '{type_name}' and field "
                     f"'{field_name}' not found.")
 
-            with open(code_path, 'r') as file:
+            with open(code_path, 'r', encoding='utf-8') as file:
                 code = file.read()
             resolver_params['code'] = code
         else:
@@ -318,23 +322,25 @@ class AppSyncResource(BaseResource):
             request_template_path = build_path(
                 artifacts_path,
                 resolver_meta.get('request_mapping_template_path'))
-            if not os.path.exists(request_template_path):
+            if not artifacts_path or not os.path.exists(request_template_path):
                 raise AssertionError(
                     f"Resolver request mapping template file for type "
                     f"'{type_name}' and field '{field_name}' not found.")
             else:
-                with open(request_template_path, 'r') as file:
+                with open(request_template_path, 'r',
+                          encoding='utf-8') as file:
                     request_mapping_template = file.read()
 
             response_template_path = build_path(
                 artifacts_path,
                 resolver_meta.get('response_mapping_template_path'))
-            if not os.path.exists(response_template_path):
+            if not artifacts_path or not os.path.exists(response_template_path):
                 raise AssertionError(
                     f"Resolver response mapping template file for type "
                     f"'{type_name}' and field '{field_name}' not found.")
             else:
-                with open(response_template_path, 'r') as file:
+                with open(response_template_path, 'r',
+                          encoding='utf-8') as file:
                     response_mapping_template = file.read()
 
             resolver_params['request_mapping_template'] = \
@@ -378,11 +384,11 @@ class AppSyncResource(BaseResource):
         if runtime:
             code_path = build_path(artifacts_path,
                                    func_meta.get('code_path'))
-            if not os.path.exists(code_path):
+            if not artifacts_path or not os.path.exists(code_path):
                 raise AssertionError(
                     f"Function '{func_name}' code file not found.")
 
-            with open(code_path, 'r') as file:
+            with open(code_path, 'r', encoding='utf-8') as file:
                 code = file.read()
             function_params['code'] = code
         else:
@@ -392,23 +398,25 @@ class AppSyncResource(BaseResource):
             request_template_path = build_path(
                 artifacts_path,
                 func_meta.get('request_mapping_template_path'))
-            if not os.path.exists(request_template_path):
+            if not artifacts_path or not os.path.exists(request_template_path):
                 raise AssertionError(
                     f"Function '{func_name}' request mapping template file "
                     f"not found.")
             else:
-                with open(request_template_path, 'r') as file:
+                with open(request_template_path, 'r',
+                          encoding='utf-8') as file:
                     request_mapping_template = file.read()
 
             response_template_path = build_path(
                 artifacts_path,
                 func_meta.get('response_mapping_template_path'))
-            if not os.path.exists(response_template_path):
+            if not artifacts_path or not os.path.exists(response_template_path):
                 raise AssertionError(
                     f"Function '{func_name}' response mapping template file "
                     f"not found.")
             else:
-                with open(response_template_path, 'r') as file:
+                with open(response_template_path, 'r',
+                          encoding='utf-8') as file:
                     response_mapping_template = file.read()
 
             function_params['request_mapping_template'] = \
@@ -485,12 +493,16 @@ class AppSyncResource(BaseResource):
 
     @unpack_kwargs
     def _update_graphql_api(self, name, meta, context):
+        extract_to = None
         api = self.appsync_conn.get_graphql_api_by_name(name)
         if not api:
             raise AssertionError(f'{name} GraphQL API does not exist.')
 
-        archive_path = meta['deployment_package']
-        extract_to = self._extract_zip(archive_path, name)
+        archive_path = meta.get('deployment_package')
+        if archive_path:
+            extract_to = self._extract_zip(archive_path, name)
+        else:
+            _LOG.warning('Cannot find appsync deployment package!')
         api_id = api['apiId']
         auth_type = meta.get('primary_auth_type')
         extra_auth_types = meta.get('extra_auth_types', [])
@@ -549,12 +561,12 @@ class AppSyncResource(BaseResource):
 
         if schema_path := meta.get('schema_path'):
             schema_full_path = build_path(extract_to, schema_path)
-            if not os.path.exists(schema_full_path):
+            if not extract_to or not os.path.exists(schema_full_path):
                 raise AssertionError(
                     f'\'{schema_full_path}\' file not found for '
                     f'AppSync \'{name}\'')
 
-            with open(schema_full_path, 'r') as file:
+            with open(schema_full_path, 'r', encoding='utf-8') as file:
                 schema_definition = file.read()
 
             status, details = \

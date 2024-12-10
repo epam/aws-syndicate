@@ -250,10 +250,13 @@ class AppSyncResolverGenerator(AppSyncConfigurationGenerator):
             if error_message:
                 raise ValueError(error_message)
         elif self._dict['kind'] == 'PIPELINE':
-            functions = self.appsync_config.get('functions', [])
-            current_functions = self._dict.get('function_name', ())
+            if (functions := self.appsync_config.get('functions', [])) is None:
+                functions = []
+            if (curr_functions := self._dict.get('function_name', [])) is None:
+                curr_functions = []
             absent_funcs = []
-            for func_name in set(current_functions):
+
+            for func_name in set(curr_functions):
                 func_exist = False
                 for func_conf in functions:
                     if func_conf['name'].lower() == func_name.lower():
@@ -266,7 +269,7 @@ class AppSyncResolverGenerator(AppSyncConfigurationGenerator):
                     f"The next function/s '{absent_funcs}' not found in the "
                     f"SyncApp '{self.appsync_name}' definition.")
             self._dict['pipeline_config'] = {
-                'functions': current_functions
+                'functions': curr_functions
             }
         resolvers = self.appsync_config.get('resolvers', [])
         current_type_name = self._dict.get('type_name')
