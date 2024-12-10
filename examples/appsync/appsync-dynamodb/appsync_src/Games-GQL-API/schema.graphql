@@ -1,0 +1,43 @@
+input AddGameInput {
+	name: String!
+	mode: String!
+}
+
+input AddPlayerInput {
+	game_name: String!
+	email: AWSEmail!
+	nic: String!
+}
+
+type Game {
+	id: ID!
+	name: String!
+	mode: GameMode!
+	players: [Player]
+}
+
+enum GameMode {
+	singlePlayer
+	multiPlayer
+}
+
+type Player {
+	id: ID!
+	email: AWSEmail!
+	nic: String!
+}
+
+type Mutation {
+	addGame(input: AddGameInput): Game
+	addPlayer(input: AddPlayerInput): Player
+}
+
+type Query {
+	showGame(name: String!): Game
+	showPlayer(game_name: String!, email: AWSEmail!): Player
+}
+
+schema {
+	query: Query
+	mutation: Mutation
+}

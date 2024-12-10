@@ -1,0 +1,21 @@
+## Pass back the result from DynamoDB. **
+#if($ctx.result.items.size() == 0)
+    $util.error("Game not found.", "NotFoundError")
+
+#else
+    #set($game = {})
+    #set($players = [])
+    #set($game_name = $ctx.stash.game_name)
+    #foreach($item in $ctx.result.items)
+        #if($item["SK"] == $game_name)
+            #set ($game = $item)
+            $util.qr($game.put( "name", $game_name ))
+        #else
+            $util.qr($players.add($item))
+        #end
+    #end
+
+    $util.qr($game.put( "players", $players ))
+
+    $util.toJson($game)
+#end

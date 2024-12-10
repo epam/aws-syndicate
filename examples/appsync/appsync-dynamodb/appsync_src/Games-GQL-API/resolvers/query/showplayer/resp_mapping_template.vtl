@@ -1,0 +1,8 @@
+## Pass back the result from DynamoDB. **
+#if($ctx.result.items.size() == 0)
+    $util.error("Player not found.", "NotFoundError")
+
+#else
+    #set($player = $ctx.result.items[0])
+    $util.toJson($player)
+#end
