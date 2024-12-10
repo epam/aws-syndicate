@@ -1,0 +1,14 @@
+account_id: ACCOUNT_ID
+aws_access_key_id: ACCESS_KEY_ID
+aws_secret_access_key: SECRET_ACCESS_KEY
+deploy_target_bucket: YOUR_BUCKET_NAME
+extended_prefix_mode: true
+project_path: YOUR_PATH/lambda-with-url-and-layers
+region: REGION
+resources_prefix: demo-
+resources_suffix: -dev
+tags:
+  Env: dev
+  Stage: demo
+use_temp_creds: false
+
