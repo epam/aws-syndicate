@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update `apply_tags`, `remove_tags`, and `update_tags` to return success status
 - Fix `clean` command for `output` folder to correctly resolve ARN for Lambda and properly process and remove the `outputs` folder if Lambda is part of the deployment
 - Fix bucket name resolver to raise a user-friendly message if the bucket name does not match the specified regex
+- Fix `deploy` for `ec2 launch template` with tags
+- Add resource tags for `ec2 launch-template` and  for versions in update and deploy operations
 
 # [1.15.0] - 2024-10-28
 - Added `--skip_tests` option to `build`, `test` and `assemble_java_mvn` commands to not run tests during or after 
