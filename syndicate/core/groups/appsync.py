@@ -134,7 +134,7 @@ def function(ctx, **kwargs):
               help="AppSync API name to add resolver to")
 @click.option('--kind', type=click.Choice(APPSYNC_RESOLVER_KINDS),
               required=True, default='UNIT', is_eager=True,
-              help="The resolver type.")
+              help="The kind of resolver.")
 @click.option('--type_name', required=True, type=str,
               help="The name of the type defined in the API schema")
 @click.option('--field_name', required=True, type=str,
