@@ -1,0 +1,4 @@
+account_id: ACCOUNT_ID
+region: REGION_NAME
+deploy_target_bucket: BUCKET_NAME
+project_path: PROJECT_FOLDER
