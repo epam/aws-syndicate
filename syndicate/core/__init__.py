@@ -55,8 +55,8 @@ CONF_PATH = os.environ.get('SDCT_CONF')
 CONFIG: ConfigHolder = None
 CONN = None
 CREDENTIALS = None
-RESOURCES_PROVIDER = None
-PROCESSOR_FACADE = None
+RESOURCES_PROVIDER: ResourceProvider = None
+PROCESSOR_FACADE: ProcessorFacade = None
 PROJECT_STATE: ProjectState = None
 
 

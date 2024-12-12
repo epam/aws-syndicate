@@ -78,18 +78,28 @@ class OASV3Exporter(ConfigurationExporter):
             api_id=api_id,
             stage_name=api_stage)
         if not specification:
-            USER_LOG.warn(f'API Gateway not found by the ARN: "{api_arn}"')
+            USER_LOG.warning(f'API Gateway not found by the ARN: "{api_arn}"')
             return api_id, None
         if self.extended_prefix_mode:
-            specification['info']['title'] = (
+            specification['info']['title'] = \
                 self._remove_prefix_suffix_from_string(
-                    specification['info']['title'],
-                    self.prefix,
-                    self.suffix))
+                    string=specification['info']['title'],
+                    prefix=self.prefix,
+                    suffix=self.suffix,
+                )
             self._remove_prefix_suffix_from_arn(
-                specification,
-                self.prefix,
-                self.suffix)
+                spec=specification,
+                prefix=self.prefix,
+                suffix=self.suffix,
+            )
+        # Add tags to the OpenAPI specification under 'x-syndicate-openapi-tags'
+        tags = self.resources_provider.api_gw().describe_tags(api_arn)
+        if tags:
+            syndicate_tags = {}
+            for key, value in tags.items():
+                syndicate_tags[key] = value
+            specification['x-syndicate-openapi-tags'] = syndicate_tags
+
         return api_id, specification
 
     def _remove_prefix_suffix_from_arn(self, spec: dict, prefix: str,

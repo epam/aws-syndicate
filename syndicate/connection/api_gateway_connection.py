@@ -117,6 +117,14 @@ class ApiGatewayConnection(object):
                          f"and stage name: {stage_name}")
             return None
 
+    def describe_tags(self, api_arn) -> dict | None:
+        try:
+            response = self.client.get_tags(resourceArn=api_arn)
+            return response
+        except self.client.exceptions.BadRequestException as e:
+            _LOG.error(f"Failed to retrieve tags for ARN {api_arn}: {str(e)}")
+            return None
+
     def update_openapi(self, api_id, openapi_context):
         # Update the API Gateway with the OpenAPI definition
         self.client.put_rest_api(

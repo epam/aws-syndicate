@@ -130,7 +130,7 @@ class ResourceProvider:
                     region=self.credentials.get('region'))
             return self._sns_resource
 
-        def api_gw(self):
+        def api_gw(self) -> ApiGatewayResource:
             if not self._api_gateway_resource:
                 self._api_gateway_resource = ApiGatewayResource(
                     apigw_conn=self._conn_provider.api_gateway(),

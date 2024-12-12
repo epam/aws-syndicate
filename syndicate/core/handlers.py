@@ -1049,27 +1049,32 @@ def copy_bundle(ctx, bundle_name, src_account_id, src_bucket_region,
 
 
 @syndicate.command(name=EXPORT_ACTION)
-@click.option('--resource_type',
-              type=click.Choice(['api_gateway']), required=True,
+@click.option('--resource_type', '-rt', required=True,
+              type=click.Choice(['api_gateway']),
               help='The type of resource to export configuration')
-@click.option('--dsl',
-              type=click.Choice(['oas_v3']), default='oas_v3',
-              help='DSL of output specification')
+@click.option('--dsl', default='oas_v3',
+              type=click.Choice(['oas_v3']),
+              help='DSL of output specification. Default: oas_v3')
 @click.option('--deploy_name', '-d', nargs=1, callback=resolve_default_value,
               help='Name of the deploy. This parameter allows the framework '
-                   'to decide,which exactly output file should be used. If '
+                   'to decide, which exactly output file should be used. If '
                    'not specified, resolves the latest deploy name')
-@click.option('--bundle_name',
-              callback=resolve_default_value,
-              help='Name of the bundle to export from. '
-                   'Default value: name of the latest built bundle')
-@click.option('--output_dir',
+@click.option('--bundle_name', '-b', callback=resolve_default_value,
+              help='Name of the bundle to export from. Default value: name of '
+                   'the latest built bundle')
+@click.option('--output_dir', '-od',
               help='The directory where an exported configuration will be '
                    'saved. If not specified, the directory with the name '
                    '"export" will be created in the project root directory to '
                    'store export files')
 @verbose_option
-def export(resource_type, dsl, deploy_name, bundle_name, output_dir):
+def export(
+        resource_type: str,
+        dsl: str,
+        deploy_name: str,
+        bundle_name: str,
+        output_dir: str | None = None,
+):
     """
     Exports a configuration of the specified resource type to the file in a
     specified DSL
@@ -1081,11 +1086,13 @@ def export(resource_type, dsl, deploy_name, bundle_name, output_dir):
     param: output_dir: the directory where an exported specification will be
     saved
     """
-    export_specification(deploy_name=deploy_name,
-                         bundle_name=bundle_name,
-                         output_directory=output_dir,
-                         resource_type=resource_type,
-                         dsl=dsl)
+    export_specification(
+        resource_type=resource_type,
+        dsl=dsl,
+        deploy_name=deploy_name,
+        bundle_name=bundle_name,
+        output_directory=output_dir,
+    )
     if resource_type == 'api_gateway' and dsl == 'oas_v3':
         click.secho('Please note the AWS API Gateway-specific extensions are '
                     'used to define the API in OAS v3 that starting with '
