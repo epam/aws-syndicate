@@ -697,7 +697,7 @@ class ApiGatewayResource(BaseResource):
         return json.loads(response['body'].read().decode("utf-8")) \
             if isinstance(response, dict) else None
 
-    def describe_tags(self, api_arn) -> dict | None:
+    def describe_tags(self, api_arn: str) -> dict | None:
         tag_response = self.connection.describe_tags(api_arn=api_arn)
         tags = tag_response.get('tags', {})
         return tags

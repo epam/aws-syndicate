@@ -117,7 +117,7 @@ class ApiGatewayConnection(object):
                          f"and stage name: {stage_name}")
             return None
 
-    def describe_tags(self, api_arn) -> dict | None:
+    def describe_tags(self, api_arn: str) -> dict | None:
         try:
             response = self.client.get_tags(resourceArn=api_arn)
             return response
