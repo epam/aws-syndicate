@@ -22,7 +22,8 @@
         "attributeValues": {
             "id": $util.dynamodb.toDynamoDBJson($id),
             "email": $util.dynamodb.toDynamoDBJson($ctx.args.input.email),
-            "nic": $util.dynamodb.toDynamoDBJson($ctx.args.input.nic)
+            "nic": $util.dynamodb.toDynamoDBJson($ctx.args.input.nic),
+            "personal_info": $util.dynamodb.toDynamoDBJson($ctx.args.input.personal_info)
         },
         "condition": {
             "expression": "attribute_not_exists(PK) and attribute_not_exists(SK)"

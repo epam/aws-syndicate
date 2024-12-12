@@ -7,6 +7,7 @@ input AddPlayerInput {
 	game_name: String!
 	email: AWSEmail!
 	nic: String!
+	personal_info: AWSJSON!
 }
 
 type Game {
@@ -25,6 +26,13 @@ type Player {
 	id: ID!
 	email: AWSEmail!
 	nic: String!
+	personal_info: PersonalInfo!
+}
+
+type PersonalInfo {
+    age: Int!
+    country: String!
+    phone_number: AWSPhone
 }
 
 type Mutation {

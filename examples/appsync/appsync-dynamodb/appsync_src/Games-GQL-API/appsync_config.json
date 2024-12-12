@@ -1,1 +1,87 @@
-{"name": "Games-GQL-API", "resource_type": "appsync", "primary_auth_type": "API_KEY", "api_key_expiration_days": 7, "schema_path": "schema.graphql", "data_sources": [{"name": "gamesDB", "type": "AMAZON_DYNAMODB", "service_role_name": "appsync_role", "dynamodb_config": {"table_name": "GamesDB", "aws_region": "eu-central-1"}}], "resolvers": [{"kind": "UNIT", "type_name": "Mutation", "field_name": "addGame", "data_source_name": "gamesDB", "runtime": "VTL", "request_mapping_template_path": "resolvers/mutation/addgame/req_mapping_template.vtl", "response_mapping_template_path": "resolvers/mutation/addgame/resp_mapping_template.vtl"}, {"kind": "UNIT", "type_name": "Query", "field_name": "showGame", "data_source_name": "gamesDB", "runtime": "VTL", "request_mapping_template_path": "resolvers/query/showgame/req_mapping_template.vtl", "response_mapping_template_path": "resolvers/query/showgame/resp_mapping_template.vtl"}, {"kind": "UNIT", "type_name": "Query", "field_name": "showPlayer", "data_source_name": "gamesDB", "runtime": "VTL", "request_mapping_template_path": "resolvers/query/showplayer/req_mapping_template.vtl", "response_mapping_template_path": "resolvers/query/showplayer/resp_mapping_template.vtl"}, {"kind": "PIPELINE", "type_name": "Mutation", "field_name": "addPlayer", "runtime": "VTL", "pipeline_config": {"functions": ["getGameItem", "addPlayer"]}, "request_mapping_template_path": "resolvers/mutation/addplayer/req_mapping_template.vtl", "response_mapping_template_path": "resolvers/mutation/addplayer/resp_mapping_template.vtl"}], "functions": [{"name": "getGameItem", "description": "", "data_source_name": "gamesDB", "runtime": "VTL", "function_version": "2018-05-29", "request_mapping_template_path": "functions/getgameitem/req_mapping_template.vtl", "response_mapping_template_path": "functions/getgameitem/resp_mapping_template.vtl"}, {"name": "addPlayer", "description": "", "data_source_name": "gamesDB", "runtime": "VTL", "function_version": "2018-05-29", "request_mapping_template_path": "functions/addplayer/req_mapping_template.vtl", "response_mapping_template_path": "functions/addplayer/resp_mapping_template.vtl"}], "log_config": {"logging_enabled": true, "field_log_level": "ERROR", "cloud_watch_logs_role_name": "appsync_role", "exclude_verbose_content": false}, "tags": {}, "deployment_package": "appsync_Games-GQL-API.zip"}
+{
+  "name": "Games-GQL-API",
+  "resource_type": "appsync",
+  "primary_auth_type": "API_KEY",
+  "api_key_expiration_days": 7,
+  "schema_path": "schema.graphql",
+  "data_sources": [
+    {
+      "name": "gamesDB",
+      "type": "AMAZON_DYNAMODB",
+      "service_role_name": "appsync_role",
+      "dynamodb_config": {
+        "table_name": "GamesDB",
+        "aws_region": "eu-central-1"
+      }
+    }
+  ],
+  "resolvers": [
+    {
+      "kind": "UNIT",
+      "type_name": "Mutation",
+      "field_name": "addGame",
+      "data_source_name": "gamesDB",
+      "runtime": "VTL",
+      "request_mapping_template_path": "resolvers/mutation/addgame/req_mapping_template.vtl",
+      "response_mapping_template_path": "resolvers/mutation/addgame/resp_mapping_template.vtl"
+    },
+    {
+      "kind": "UNIT",
+      "type_name": "Query",
+      "field_name": "showGame",
+      "data_source_name": "gamesDB",
+      "runtime": "JS",
+      "code_path": "resolvers/query/showgame/code.js"
+    },
+    {
+      "kind": "UNIT",
+      "type_name": "Query",
+      "field_name": "showPlayer",
+      "data_source_name": "gamesDB",
+      "runtime": "JS",
+      "code_path": "resolvers/query/showplayer/code.js"
+    },
+    {
+      "kind": "PIPELINE",
+      "type_name": "Mutation",
+      "field_name": "addPlayer",
+      "runtime": "VTL",
+      "pipeline_config": {
+        "functions": [
+          "getGameItem",
+          "addPlayer"
+        ]
+      },
+      "request_mapping_template_path": "resolvers/mutation/addplayer/req_mapping_template.vtl",
+      "response_mapping_template_path": "resolvers/mutation/addplayer/resp_mapping_template.vtl"
+    }
+  ],
+  "functions": [
+    {
+      "name": "getGameItem",
+      "description": "",
+      "data_source_name": "gamesDB",
+      "runtime": "VTL",
+      "function_version": "2018-05-29",
+      "request_mapping_template_path": "functions/getgameitem/req_mapping_template.vtl",
+      "response_mapping_template_path": "functions/getgameitem/resp_mapping_template.vtl"
+    },
+    {
+      "name": "addPlayer",
+      "description": "",
+      "data_source_name": "gamesDB",
+      "runtime": "VTL",
+      "function_version": "2018-05-29",
+      "request_mapping_template_path": "functions/addplayer/req_mapping_template.vtl",
+      "response_mapping_template_path": "functions/addplayer/resp_mapping_template.vtl"
+    }
+  ],
+  "log_config": {
+    "logging_enabled": true,
+    "field_log_level": "ERROR",
+    "cloud_watch_logs_role_name": "appsync_role",
+    "exclude_verbose_content": false
+  },
+  "tags": {},
+  "deployment_package": "appsync_Games-GQL-API.zip"
+}
