@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [1.15.1] - 2024-11-27
+- Update `zip_dir` to handle cases where the full path length exceeds 260 characters with a more informative error message
+- Ensure `zip_dir` validates the existence of the base directory before proceeding with the zipping process
+- Fix `tag_resources` and `untag_resources` to handle exceptions properly
+- Update `apply_tags`, `remove_tags`, and `update_tags` to return success status
+- Fix `clean` command for `output` folder to correctly resolve ARN for Lambda and properly process and remove the `outputs` folder if Lambda is part of the deployment
+- Fix bucket name resolver to raise a user-friendly message if the bucket name does not match the specified regex
+- Fix `deploy` for `ec2 launch template` with tags
+- Add resource tags for `ec2 launch-template` and  for versions in update and deploy operations
+
 # [1.15.0] - 2024-10-28
 - Added new resource type `appsync`
 - Added `--skip_tests` option to `build`, `test` and `assemble_java_mvn` commands to not run tests during or after 
@@ -22,6 +32,8 @@ of each other or without specifying a specific platform (using default platform 
 - Fixed a bug when the latest deployment section was updated when the `deploy` command ended with the ABORTED status
 - Fixed an issue related to locking the state
 - Added empty deployment package handling for lambda layer
+- Fixed bug when meta output processor process the resource name incorrectly
+- Fix `clean` command for `output` folder to correctly resolve ARN for Lambda and properly process and remove the `outputs` folder if Lambda is part of the deployment
 
 # [1.14.1] - 2024-10-08
 - Added support lambda layers with runtime DotNet

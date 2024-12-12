@@ -252,3 +252,5 @@ APPSYNC_RESOLVER_RUNTIMES = ['JS', 'VTL']
 APPSYNC_AUTHORIZATION_TYPES = ['primary', 'extra']
 APPSYNC_AUTHENTICATION_TYPES = [
     'API_KEY', 'AWS_IAM', 'AWS_LAMBDA', 'AMAZON_COGNITO_USER_POOLS']
+
+EC2_LT_RESOURCE_TAGS = ('instance', 'volume', 'elastic-gpu', 'network-interface', 'spot-instances-request')

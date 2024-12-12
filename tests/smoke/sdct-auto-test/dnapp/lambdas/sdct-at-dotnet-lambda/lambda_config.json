@@ -1,0 +1,31 @@
+{
+  "version": "1.0",
+  "name": "sdct-at-dotnet-lambda",
+  "func_name": "SimpleLambdaFunction::SimpleLambdaFunction.Function::FunctionHandler",
+  "resource_type": "lambda",
+  "iam_role_name": "sdct-at-dotnet-lambda-role",
+  "runtime": "dotnet8",
+  "memory": 128,
+  "timeout": 100,
+  "lambda_path": "lambdas\\sdct-at-dotnet-lambda",
+  "dependencies": [],
+  "event_sources": [
+    {
+    "resource_type": "sns_topic_trigger",
+    "target_topic": "sdct-at-topic",
+    "region": "${region}"
+    }
+  ],
+  "env_variables": {},
+  "publish_version": true,
+  "alias": "${lambdas_alias_name}",
+  "url_config": {},
+  "ephemeral_storage": 512,
+  "tags": {
+      "tests": "smoke",
+      "project": "sdct-auto-test"
+    },
+  "layers": [
+    "sdct-at-dotnet-lambda_layer"
+  ]
+}

@@ -241,11 +241,11 @@ def transform(bundle_name, dsl, output_dir):
               help='Types of the resources to deploy')
 @click.option('--deploy_only_resources', '-resources', multiple=True,
               help='Names of the resources to deploy')
-@click.option('--deploy_only_resources_path', '-path', nargs=1,
+@click.option('--deploy_only_resources_path', '-path', nargs=1, type=str,
               help='Path to file containing names of the resources to deploy')
 @click.option('--excluded_resources', '-exresources', multiple=True,
               help='Names of the resources to skip while deploy.')
-@click.option('--excluded_resources_path', '-expath', nargs=1,
+@click.option('--excluded_resources_path', '-expath', nargs=1, type=str,
               help='Path to file containing names of the resources to skip '
                    'while deploy')
 @click.option('--excluded_types', '-extypes', multiple=True,
@@ -261,10 +261,19 @@ def transform(bundle_name, dsl, output_dir):
 @check_deploy_name_for_duplicates
 @check_deploy_bucket_exists
 @timeit(action_name=DEPLOY_ACTION)
-def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
-           deploy_only_resources_path, excluded_resources,
-           excluded_resources_path, excluded_types, continue_deploy,
-           replace_output, rollback_on_error):
+def deploy(
+        deploy_name: str,
+        bundle_name: str,
+        deploy_only_types: tuple | None = None,
+        deploy_only_resources: tuple | None = None,
+        deploy_only_resources_path: str | None = None,
+        excluded_resources: tuple | None = None,
+        excluded_resources_path: str | None = None,
+        excluded_types: tuple | None = None,
+        continue_deploy: bool = False,
+        replace_output: bool = False,
+        rollback_on_error: bool = False,
+):
     """
     Deploys the application infrastructure
     """
@@ -292,18 +301,19 @@ def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
         excluded_resources = tuple(
             set(excluded_resources + tuple(excluded_resources_list)))
         if excluded_resources:
-            click.echo(
-                f'Resources to deploy: {list(excluded_resources)}')
+            click.echo(f'Resources to deploy: {list(excluded_resources)}')
 
-    deploy_success = create_deployment_resources(deploy_name, bundle_name,
-                                                 continue_deploy,
-                                                 deploy_only_resources,
-                                                 deploy_only_types,
-                                                 excluded_resources,
-                                                 excluded_types,
-                                                 replace_output,
-                                                 rollback_on_error
-                                                 )
+    deploy_success = create_deployment_resources(
+        deploy_name=deploy_name,
+        bundle_name=bundle_name,
+        deploy_only_types=deploy_only_types,
+        deploy_only_resources=deploy_only_resources,
+        excluded_resources=excluded_resources,
+        excluded_types=excluded_types,
+        continue_deploy=continue_deploy,
+        replace_output=replace_output,
+        rollback_on_error=rollback_on_error,
+    )
 
     message = 'Backend resources were deployed{suffix}.'.format(
         suffix='' if deploy_success else (
@@ -345,9 +355,18 @@ def deploy(deploy_name, bundle_name, deploy_only_types, deploy_only_resources,
 @check_deploy_name_for_duplicates
 @check_deploy_bucket_exists
 @timeit(action_name=UPDATE_ACTION)
-def update(bundle_name, deploy_name, replace_output, update_only_resources,
-           update_only_resources_path, update_only_types, excluded_resources,
-           excluded_resources_path, excluded_types, force):
+def update(
+        bundle_name: str,
+        deploy_name: str,
+        update_only_types: tuple | None = None,
+        update_only_resources: tuple | None = None,
+        update_only_resources_path: str | None = None,
+        excluded_resources: tuple | None = None,
+        excluded_resources_path: str | None = None,
+        excluded_types: tuple | None = None,
+        replace_output: bool = False,
+        force: bool = False,
+):
     """
     Updates infrastructure from the provided bundle
     """
@@ -431,9 +450,18 @@ def update(bundle_name, deploy_name, replace_output, update_only_resources,
               help='Preserve deploy output json file after resources removal')
 @verbose_option
 @timeit(action_name=CLEAN_ACTION)
-def clean(deploy_name, bundle_name, clean_only_types, clean_only_resources,
-          clean_only_resources_path, clean_externals, excluded_resources,
-          excluded_resources_path, excluded_types, preserve_state):
+def clean(
+        deploy_name: str,
+        bundle_name: str,
+        clean_only_types: tuple | None = None,
+        clean_only_resources: tuple | None = None,
+        clean_only_resources_path: str | None = None,
+        clean_externals: bool = False,
+        excluded_resources: tuple | None = None,
+        excluded_resources_path: str | None = None,
+        excluded_types: tuple | None = None,
+        preserve_state: bool = False,
+):
     """
     Cleans the application infrastructure
     """

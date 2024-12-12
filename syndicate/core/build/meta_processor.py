@@ -664,8 +664,18 @@ def get_meta_from_output(output: dict):
     for arn, data in output.items():
         resource_meta = data.get('resource_meta')
         resource_name = data.get('resource_name')
-        resource_name = resource_name.replace(CONFIG.resources_suffix, '')
-        resource_name = resource_name.replace(CONFIG.resources_prefix, '')
+
+        suffix_index = resource_name.rfind(CONFIG.resources_suffix)
+        if suffix_index != -1:  # if found
+            resource_name = \
+                resource_name[:suffix_index] + \
+                resource_name[suffix_index + len(CONFIG.resources_suffix):]
+
+        prefix_index = resource_name.find(CONFIG.resources_prefix)
+        if prefix_index != -1:
+            resource_name = \
+                resource_name[:prefix_index] + \
+                resource_name[prefix_index + len(CONFIG.resources_prefix):]
 
         meta.update({resource_name: resource_meta})
 

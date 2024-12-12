@@ -98,7 +98,8 @@ def retry(retry_timeout=DEFAULT_RETRY_TIMEOUT_SEC,
                 'being altered',
                 'An error occurred (ConcurrentModificationException) when '
                 'calling the UpdateResolver operation: Schema is currently '
-                'being altered'
+                'being altered',
+                'Too Many Requests'
             ]
             resource_not_found_error_codes = [
                 'NoSuchEntity',

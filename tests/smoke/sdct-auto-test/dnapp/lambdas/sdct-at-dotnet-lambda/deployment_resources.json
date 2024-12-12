@@ -1,0 +1,14 @@
+{
+  "sdct-at-dotnet-lambda-role": {
+    "predefined_policies": [],
+    "principal_service": "lambda",
+    "custom_policies": [
+      "sdct-at-lambda-basic-execution-policy"
+    ],
+    "resource_type": "iam_role",
+    "tags": {
+      "tests": "smoke",
+      "project": "sdct-auto-test"
+    }
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "version": "1.0",
+  "name": "api_handler",
+  "func_name": "SimpleLambdaFunction::SimpleLambdaFunction.Function::FunctionHandler",
+  "resource_type": "lambda",
+  "iam_role_name": "api_handler-role",
+  "runtime": "dotnet8",
+  "memory": 128,
+  "timeout": 100,
+  "lambda_path": "lambdas\\api_handler",
+  "event_sources": [],
+  "dependencies": [
+    {
+      "resource_name": "${demo_userpool}",
+      "resource_type": "cognito_idp"
+    }
+  ],
+  "env_variables": {
+    "region": "${region}",
+    "cup_id": {
+      "resource_name": "${demo_userpool}",
+      "resource_type": "cognito_idp",
+      "parameter": "id"
+    },
+    "cup_client_id": {
+      "resource_name": "${demo_userpool}",
+      "resource_type": "cognito_idp",
+      "parameter": "client_id"
+    }
+  },
+  "publish_version": true,
+  "alias": "${lambdas_alias_name}",
+  "logs_expiration": "${logs_expiration}",
+  "url_config": {},
+  "ephemeral_storage": 512,
+  "tags": {}
+}

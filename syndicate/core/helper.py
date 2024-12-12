@@ -545,6 +545,66 @@ class DictParamType(click.types.StringParamType):
                f'{self.ITEMS_SEPARATOR}KEY2{self.KEY_VALUE_SEPARATOR}VALUE2'
 
 
+class DeepDictParamType(click.types.StringParamType):
+    name = 'deep-dict'
+    ITEMS_SEPARATOR = ','
+    SUB_KEY_VALUE_SEPARATOR = ':'
+    MAIN_KEY_VALUE_SEPARATOR = ';'
+
+    def convert(
+            self,
+            value: str,
+            param: click.Parameter | None,
+            ctx: click.Context | None,
+    ) -> dict[str, dict[str, str]]:
+        """
+        Convert a string representation of nested key-value pairs into a
+        dictionary of dictionaries
+
+        **Example**::
+            Input: 'volume;Name:DBStorage01,Environment:Prod'
+            Output: {'volume': {'Name': 'DBStorage01', 'Environment': 'Prod'}}
+        """
+        value = super().convert(value, param, ctx)
+        result = {}
+
+        try:
+            main_parts = value.split(self.MAIN_KEY_VALUE_SEPARATOR)
+            if len(main_parts) != 2:
+                raise ValueError(
+                    "Expected exactly one main key-value separator (';')"
+                )
+            main_key = main_parts[0].strip()
+            sub_items = main_parts[1].strip()
+
+            sub_dict = {}
+            for item in sub_items.split(self.ITEMS_SEPARATOR):
+                sub_parts = item.split(self.SUB_KEY_VALUE_SEPARATOR)
+                if len(sub_parts) != 2:
+                    raise ValueError(
+                        "Expected exactly one sub key-value separator (':')"
+                    )
+                sub_key = sub_parts[0].strip()
+                sub_value = sub_parts[1].strip()
+                sub_dict[sub_key] = sub_value
+
+            result[main_key] = sub_dict
+        except ValueError as e:
+            raise BadParameter(
+                f'Wrong format: "{value}". Expected format is: '
+                f'"main_key1;sub_key1:val1,sub_key2:val2" or similar. '
+                f'\nError: {str(e)}'
+            )
+        return result
+
+    def get_metavar(self, param) -> str:
+        return (
+            f'MAIN_KEY1{self.MAIN_KEY_VALUE_SEPARATOR}'
+            f'SUB_KEY1{self.SUB_KEY_VALUE_SEPARATOR}VALUE1{self.ITEMS_SEPARATOR}'
+            f'SUB_KEY2{self.SUB_KEY_VALUE_SEPARATOR}VALUE2'
+        )
+
+
 def check_bundle_bucket_name(ctx, param, value):
     try:
         from syndicate.core.resources.s3_resource import validate_bucket_name
