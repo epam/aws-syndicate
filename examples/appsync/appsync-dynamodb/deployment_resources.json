@@ -1,0 +1,52 @@
+{
+  "appsync_policy": {
+    "policy_content": {
+      "Statement": [
+        {
+          "Action": [
+            "logs:CreateLogGroup",
+            "logs:CreateLogStream",
+            "logs:PutLogEvents",
+            "dynamodb:GetItem",
+            "dynamodb:Query",
+            "dynamodb:PutItem",
+            "dynamodb:Batch*",
+            "dynamodb:DeleteItem",
+            "ssm:PutParameter",
+            "ssm:GetParameter",
+            "kms:Decrypt"
+          ],
+          "Effect": "Allow",
+          "Resource": "*"
+        }
+      ],
+      "Version": "2012-10-17"
+    },
+    "resource_type": "iam_policy",
+    "tags": {}
+  },
+  "appsync_role": {
+    "resource_type": "iam_role",
+    "principal_service": "appsync",
+    "predefined_policies": [],
+    "custom_policies": [
+      "appsync_policy"
+    ],
+    "allowed_accounts": [],
+    "instance_profile": false,
+    "permissions_boundary": "",
+    "tags": {}
+  },
+  "GamesDB": {
+    "resource_type": "dynamodb_table",
+    "hash_key_name": "PK",
+    "hash_key_type": "S",
+    "sort_key_name": "SK",
+    "sort_key_type": "S",
+    "read_capacity": 1,
+    "write_capacity": 1,
+    "global_indexes": [],
+    "autoscaling": [],
+    "tags": {}
+  }
+}

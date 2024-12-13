@@ -455,81 +455,81 @@ def get_logger(log_name, level=log_level):
 """
 
 PYTHON_TESTS_INIT_CONTENT = \
-"""import sys
-from pathlib import Path
-
-SOURCE_FOLDER = 'src'
-
-
-class ImportFromSourceContext:
-    \"\"\"Context object to import lambdas and packages. It's necessary because
-    root path is not the path to the syndicate project but the path where
-    lambdas are accumulated - SOURCE_FOLDER \"\"\"
-
-    def __init__(self, source_folder=SOURCE_FOLDER):
-        self.source_folder = source_folder
-        self.assert_source_path_exists()
-
-    @property
-    def project_path(self) -> Path:
-        return Path(__file__).parent.parent
-
-    @property
-    def source_path(self) -> Path:
-        return Path(self.project_path, self.source_folder)
-
-    def assert_source_path_exists(self):
-        source_path = self.source_path
-        if not source_path.exists():
-            print(f'Source path "{source_path}" does not exist.',
-                  file=sys.stderr)
-            sys.exit(1)
-
-    def _add_source_to_path(self):
-        source_path = str(self.source_path)
-        if source_path not in sys.path:
-            sys.path.append(source_path)
-
-    def _remove_source_from_path(self):
-        source_path = str(self.source_path)
-        if source_path in sys.path:
-            sys.path.remove(source_path)
-
-    def __enter__(self):
-        self._add_source_to_path()
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self._remove_source_from_path()
-
-"""
+    """import sys
+    from pathlib import Path
+    
+    SOURCE_FOLDER = 'src'
+    
+    
+    class ImportFromSourceContext:
+        \"\"\"Context object to import lambdas and packages. It's necessary because
+        root path is not the path to the syndicate project but the path where
+        lambdas are accumulated - SOURCE_FOLDER \"\"\"
+    
+        def __init__(self, source_folder=SOURCE_FOLDER):
+            self.source_folder = source_folder
+            self.assert_source_path_exists()
+    
+        @property
+        def project_path(self) -> Path:
+            return Path(__file__).parent.parent
+    
+        @property
+        def source_path(self) -> Path:
+            return Path(self.project_path, self.source_folder)
+    
+        def assert_source_path_exists(self):
+            source_path = self.source_path
+            if not source_path.exists():
+                print(f'Source path "{source_path}" does not exist.',
+                      file=sys.stderr)
+                sys.exit(1)
+    
+        def _add_source_to_path(self):
+            source_path = str(self.source_path)
+            if source_path not in sys.path:
+                sys.path.append(source_path)
+    
+        def _remove_source_from_path(self):
+            source_path = str(self.source_path)
+            if source_path in sys.path:
+                sys.path.remove(source_path)
+    
+        def __enter__(self):
+            self._add_source_to_path()
+    
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            self._remove_source_from_path()
+    
+    """
 
 PYTHON_TESTS_INIT_LAMBDA_TEMPLATE = \
-"""import unittest
-import importlib
-from tests import ImportFromSourceContext
-
-with ImportFromSourceContext():
-    LAMBDA_HANDLER = importlib.import_module('lambdas.{lambda_name}.handler')
-
-
-class {camel_lambda_name}LambdaTestCase(unittest.TestCase):
-    \"\"\"Common setups for this lambda\"\"\"
-
-    def setUp(self) -> None:
-        self.HANDLER = LAMBDA_HANDLER.{camel_lambda_name}()
-
-"""
+    """import unittest
+    import importlib
+    from tests import ImportFromSourceContext
+    
+    with ImportFromSourceContext():
+        LAMBDA_HANDLER = importlib.import_module('lambdas.{lambda_name}.handler')
+    
+    
+    class {camel_lambda_name}LambdaTestCase(unittest.TestCase):
+        \"\"\"Common setups for this lambda\"\"\"
+    
+        def setUp(self) -> None:
+            self.HANDLER = LAMBDA_HANDLER.{camel_lambda_name}()
+    
+    """
 
 PYTHON_TESTS_BASIC_TEST_CASE_TEMPLATE = \
-"""from tests.{test_lambda_folder} import {camel_lambda_name}LambdaTestCase
-
-
-class TestSuccess({camel_lambda_name}LambdaTestCase):
-
-    def test_success(self):
-        self.assertEqual(self.HANDLER.handle_request(dict(), dict()), 200)
-
-"""
+    """from tests.{test_lambda_folder} import {camel_lambda_name}LambdaTestCase
+    
+    
+    class TestSuccess({camel_lambda_name}LambdaTestCase):
+    
+        def test_success(self):
+            self.assertEqual(self.HANDLER.handle_request(dict(), dict()), 200)
+    
+    """
 
 S3_BUCKET_PUBLIC_READ_POLICY = {
     "Version": "2012-10-17",
@@ -644,12 +644,12 @@ def _generate_node_layer_package_file(layer_name):
 
 def _generate_node_layer_package_lock_file(layer_name):
     return _stringify({
-            "name": layer_name,
-            "version": "1.0.0",
-            "lockfileVersion": 1,
-            "requires": True,
-            "dependencies": {}
-        })
+        "name": layer_name,
+        "version": "1.0.0",
+        "lockfileVersion": 1,
+        "requires": True,
+        "dependencies": {}
+    })
 
 
 def _generate_nodejs_node_lambda_config(lambda_name, lambda_relative_path,
@@ -768,8 +768,147 @@ def _generate_lambda_role_config(role_name, tags, stringify=True):
 
 def _generate_swagger_ui_config(resource_name, path_to_spec, target_bucket):
     return _stringify({
-            "name": resource_name,
-            "resource_type": "swagger_ui",
-            "path_to_spec": path_to_spec,
-            "target_bucket": target_bucket
-        })
+        "name": resource_name,
+        "resource_type": "swagger_ui",
+        "path_to_spec": path_to_spec,
+        "target_bucket": target_bucket
+    })
+
+
+def _generate_syncapp_config(resource_name, schema_file_name, tags=None):
+    config_content = {
+        "name": resource_name,
+        "resource_type": "appsync",
+        "primary_auth_type": "API_KEY",
+        "api_key_expiration_days": 7,
+        "schema_path": schema_file_name,
+        "data_sources": [],
+        "resolvers": [],
+        "functions": [],
+        "log_config": {
+            "logging_enabled": False,
+            "field_log_level": "ERROR",
+            "cloud_watch_logs_role_name": '',
+            'exclude_verbose_content': False
+        },
+        "tags": tags or {},
+    }
+    return _stringify(config_content)
+
+
+def _generate_syncapp_default_schema():
+    content = '''# Define the structure of your API with the GraphQL
+# schema definition language (SDL) here.
+
+type Query {
+	test: String
+}
+
+schema {
+	query: Query
+}
+    '''
+    return content
+
+
+def _generate_syncapp_js_resolver_code():
+    default_code = '''/**
+ * Sends a request to the attached data source
+ * @param {import('@aws-appsync/utils').Context} ctx the context
+ * @returns {*} the request
+ */
+export function request(ctx) {
+    // Update with custom logic or select a code sample.
+    return {};
+}
+
+/**
+ * Returns the resolver result
+ * @param {import('@aws-appsync/utils').Context} ctx the context
+ * @returns {*} the result
+ */
+export function response(ctx) {
+    // Update with response logic
+    return ctx.result;
+}
+'''
+    return default_code
+
+
+def _generate_syncapp_vtl_resolver_req_mt(data_source_type):
+    match data_source_type:
+        case 'NONE':
+            content = \
+'''#**Resolvers with None data sources can locally publish events that fire
+subscriptions or otherwise transform data without hitting a backend data source.
+The value of 'payload' is forwarded to $ctx.result in the response mapping template.
+*#
+{
+    "version": "2018-05-29",
+    "payload": {
+        "hello": "local",
+    }
+}
+            '''
+        case 'AWS_LAMBDA':
+            content = \
+'''#**The value of 'payload' after the template has been evaluated
+will be passed as the event to AWS Lambda.
+*#
+{
+  "version" : "2018-05-29",
+  "operation": "Invoke",
+  "payload": $util.toJson($context.args)
+}
+                            '''
+        case 'AMAZON_DYNAMODB':
+            content = \
+'''## Below example shows how to look up an item with a Primary Key of "id" from GraphQL arguments
+## The helper $util.dynamodb.toDynamoDBJson automatically converts to a DynamoDB formatted request
+## There is a "context" object with arguments, identity, headers, and parent field information you can access.
+## It also has a shorthand notation available:
+##  - $context or $ctx is the root object
+##  - $ctx.arguments or $ctx.args contains arguments
+##  - $ctx.identity has caller information, such as $ctx.identity.username
+##  - $ctx.request.headers contains headers, such as $context.request.headers.xyz
+##  - $ctx.source is a map of the parent field, for instance $ctx.source.xyz
+## Read more: https://docs.aws.amazon.com/appsync/latest/devguide/resolver-mapping-template-reference.html
+
+{
+    "version": "2018-05-29",
+    "operation": "GetItem",
+    "key": {
+        "id": $util.dynamodb.toDynamoDBJson($ctx.args.id),
+    }
+}
+'''
+        case 'PIPELINE':
+            content = \
+'''## By default in a before template, all you need is a valid JSON payload.
+## You can also stash data to be made available to the functions in the pipeline.
+## Examples: 
+## - $ctx.stash.put("email", $ctx.args.email)
+## - $ctx.stash.put("badgeNumber", $ctx.args.input.badgeNumber)
+## - $ctx.stash.put("username", $ctx.identity.username)
+
+{}
+'''
+    return content
+
+
+def _generate_syncapp_vtl_resolver_resp_mt(data_source_type):
+    match data_source_type:
+        case 'NONE':
+            content = '''$util.toJson($context.result)'''
+        case 'AWS_LAMBDA':
+            content = '''$util.toJson($context.result)'''
+        case 'AMAZON_DYNAMODB':
+            content = \
+'''## Pass back the result from DynamoDB. **
+$util.toJson($ctx.result)
+'''
+        case 'PIPELINE':
+            content = \
+'''## The after mapping template is used to collect the final value that is returned by the resolver.
+$util.toJson($ctx.result)'''
+    return content

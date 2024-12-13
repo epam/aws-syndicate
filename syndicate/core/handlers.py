@@ -28,12 +28,9 @@ from syndicate.core.export.export_processor import export_specification
 from syndicate.core.transform.transform_processor import generate_build_meta
 from syndicate.core import initialize_connection, \
     initialize_project_state, initialize_signal_handling
-from syndicate.core.build.artifact_processor import (RUNTIME_NODEJS,
-                                                     assemble_artifacts,
-                                                     RUNTIME_JAVA,
-                                                     RUNTIME_PYTHON,
-                                                     RUNTIME_SWAGGER_UI,
-                                                     RUNTIME_DOTNET)
+from syndicate.core.build.artifact_processor import RUNTIME_NODEJS, \
+    assemble_artifacts, RUNTIME_JAVA, RUNTIME_PYTHON, RUNTIME_SWAGGER_UI, \
+    RUNTIME_DOTNET, RUNTIME_APPSYNC
 from syndicate.core.build.bundle_processor import (create_bundles_bucket,
                                                    load_bundle,
                                                    upload_bundle_to_s3,
@@ -53,7 +50,7 @@ from syndicate.core.conf.validator import (JAVA_LANGUAGE_NAME,
                                            PYTHON_LANGUAGE_NAME,
                                            NODEJS_LANGUAGE_NAME,
                                            SWAGGER_UI_NAME,
-                                           DOTNET_LANGUAGE_NAME)
+                                           DOTNET_LANGUAGE_NAME, APPSYNC_NAME)
 from syndicate.core.decorators import (check_deploy_name_for_duplicates,
                                        check_deploy_bucket_exists)
 from syndicate.core.groups.generate import (generate,
@@ -74,12 +71,12 @@ from syndicate.core.project_state.project_state import (MODIFICATION_LOCK,
 from syndicate.core.project_state.status_processor import project_state_status
 from syndicate.core.project_state.sync_processor import sync_project_state
 from syndicate.core.constants import TEST_ACTION, BUILD_ACTION, \
-    DEPLOY_ACTION, UPDATE_ACTION, CLEAN_ACTION, SYNC_ACTION, \
+    DEPLOY_ACTION, UPDATE_ACTION, CLEAN_ACTION, SYNC_ACTION, ABORTED_STATUS, \
     STATUS_ACTION, WARMUP_ACTION, PROFILER_ACTION, ASSEMBLE_JAVA_MVN_ACTION, \
     ASSEMBLE_PYTHON_ACTION, ASSEMBLE_NODE_ACTION, ASSEMBLE_ACTION, \
     PACKAGE_META_ACTION, CREATE_DEPLOY_TARGET_BUCKET_ACTION, UPLOAD_ACTION, \
     COPY_BUNDLE_ACTION, EXPORT_ACTION, ASSEMBLE_SWAGGER_UI_ACTION, \
-    ABORTED_STATUS, ASSEMBLE_DOTNET_ACTION
+    ASSEMBLE_DOTNET_ACTION, ASSEMBLE_APPSYNC_ACTION
 
 INIT_COMMAND_NAME = 'init'
 SYNDICATE_PACKAGE_NAME = 'aws-syndicate'
@@ -871,12 +868,44 @@ def assemble_swagger_ui(**kwargs):
     click.echo('Swagger UI artifacts were prepared successfully.')
 
 
+@syndicate.command(name=ASSEMBLE_APPSYNC_ACTION)
+@timeit()
+@click.option('--bundle_name', '-b', nargs=1,
+              callback=generate_default_bundle_name,
+              help='Name of the bundle, to which the build artifacts are '
+                   'gathered and later used for the deployment. '
+                   'Default value: $ProjectName_%Y%m%d.%H%M%S')
+@click.option('--project_path', '-path', nargs=1,
+              callback=resolve_path_callback, required=True,
+              help='The path to the project. Related files will be packed '
+                   'into a zip archive.')
+@verbose_option
+@timeit(action_name=ASSEMBLE_APPSYNC_ACTION)
+def assemble_appsync(**kwargs):
+    """
+        Builds AppSync artifacts
+
+        \f
+        :param bundle_name: name of the bundle
+        :param project_path: path to project folder
+        :return:
+        """
+    bundle_name = kwargs.get('bundle_name')
+    project_path = kwargs.get('project_path')
+    click.echo(f'Command assemble AppSync: project_path: {project_path} ')
+    assemble_artifacts(bundle_name=bundle_name,
+                       project_path=project_path,
+                       runtime=RUNTIME_APPSYNC)
+    click.echo('AppSync artifacts were prepared successfully.')
+
+
 RUNTIME_LANG_TO_BUILD_MAPPING = {
     JAVA_LANGUAGE_NAME: assemble_java_mvn,
     PYTHON_LANGUAGE_NAME: assemble_python,
     NODEJS_LANGUAGE_NAME: assemble_node,
     DOTNET_LANGUAGE_NAME: assemble_dotnet,
-    SWAGGER_UI_NAME: assemble_swagger_ui
+    SWAGGER_UI_NAME: assemble_swagger_ui,
+    APPSYNC_NAME: assemble_appsync
 }
 
 

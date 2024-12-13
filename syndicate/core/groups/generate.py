@@ -26,6 +26,7 @@ from syndicate.core.generators.project import (generate_project_structure,
                                                PROJECT_PROCESSORS)
 from syndicate.core.generators.swagger_ui import generate_swagger_ui
 from syndicate.core.groups import RUNTIME_JAVA
+from syndicate.core.groups.appsync import appsync
 from syndicate.core.groups.meta import meta
 from syndicate.core.helper import (timeit, OrderedGroup,
                                    check_bundle_bucket_name,
@@ -283,3 +284,4 @@ def swagger_ui(name, path_to_spec, target_bucket, project_path):
 
 
 generate.add_command(meta)
+generate.add_command(appsync)

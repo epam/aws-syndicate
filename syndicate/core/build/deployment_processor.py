@@ -307,6 +307,7 @@ def update_resources(
     return _process_resources(
         resources=resources,
         handlers_mapping=PROCESSOR_FACADE.update_handlers(),
+        describe_handlers=PROCESSOR_FACADE.describe_handlers(),
         pass_context=True)
 
 
@@ -382,9 +383,9 @@ def process_response(
 
         if isinstance(exceptions, list):
             errors.extend(exceptions)
-            _LOG.error('\n'.join(exceptions))
+            USER_LOG.error('\n'.join(exceptions))
         else:
-            _LOG.error(str(exceptions))
+            USER_LOG.error(str(exceptions))
             errors.append(str(exceptions))
 
     return errors

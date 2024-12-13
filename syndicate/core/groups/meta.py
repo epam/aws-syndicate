@@ -11,6 +11,7 @@ from syndicate.core.constants import (
 from syndicate.core.generators.deployment_resources import *
 from syndicate.core.generators.deployment_resources.api_gateway_generator import \
     ApiGatewayAuthorizerGenerator
+
 from syndicate.core.generators.deployment_resources.ec2_launch_template_generator import \
     EC2LaunchTemplateGenerator
 from syndicate.core.generators.lambda_function import PROJECT_PATH_PARAM

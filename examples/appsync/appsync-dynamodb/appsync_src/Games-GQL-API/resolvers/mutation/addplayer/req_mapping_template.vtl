@@ -1,0 +1,10 @@
+## By default in a before template, all you need is a valid JSON payload.
+## You can also stash data to be made available to the functions in the pipeline.
+## Examples: 
+## - $ctx.stash.put("email", $ctx.args.email)
+## - $ctx.stash.put("badgeNumber", $ctx.args.input.badgeNumber)
+## - $ctx.stash.put("username", $ctx.identity.username)
+
+$util.qr($ctx.stash.put("id", $util.autoId()))
+
+{}

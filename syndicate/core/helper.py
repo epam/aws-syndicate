@@ -463,17 +463,26 @@ class OrderedGroup(click.Group):
 class OptionRequiredIf(click.Option):
     def __init__(self, *args, **kwargs):
         self.required_if = kwargs.pop('required_if')
+        self.required_if_values = kwargs.pop('required_if_values', [])
         if not self.required_if:
             raise AssertionError("'required_if' param must be specified")
         super().__init__(*args, **kwargs)
 
     def handle_parse_result(self, ctx, opts, args):
         is_current_present: bool = self.name in opts
-        is_required_present: bool = self.required_if in opts
-        if is_current_present ^ is_required_present:
-            raise click.UsageError(f"options: '{self.name}' and "
-                                   f"'{self.required_if}' "
-                                   f"must be specified together")
+        if self.required_if_values:
+            is_required_ok: bool = \
+                opts.get(self.required_if) in self.required_if_values
+            message = (
+                f"Option '{self.name}' and '{self.required_if}' must be "
+                f"specified together, and '{self.required_if}' must have one "
+                f"of the next values {self.required_if_values}")
+        else:
+            is_required_ok: bool = self.required_if in opts
+            message = (f"options: '{self.name}' and '{self.required_if}' "
+                       f"must be specified together")
+        if is_current_present ^ is_required_ok:
+            raise click.UsageError(message)
         else:
             return super().handle_parse_result(ctx, opts, args)
 
@@ -773,6 +782,8 @@ def is_zip_empty(zip_path):
 
 def check_file_extension(ctx, param, value, extensions):
     for extension in extensions:
+        if value is None:
+            return
         if value.lower().endswith(extension):
             return value
     raise BadParameter(f'Only files with extensions {extensions} are '
