@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 # [1.16.0] - 2024-12-13
 - Added support for the AppSync resource
 - Added the possibility to generate `s3_bucket` meta for static website hosting without public access
+- Added an example of lambda function URL configuration to the Python example 'lambda-basic'
 - Update `zip_dir` to handle cases where the full path length exceeds 260 characters with a more informative error message
 - Ensure `zip_dir` validates the existence of the base directory before proceeding with the zipping process
 - Fix `tag_resources` and `untag_resources` to handle exceptions properly
