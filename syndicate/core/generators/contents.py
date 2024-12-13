@@ -531,11 +531,11 @@ PYTHON_TESTS_BASIC_TEST_CASE_TEMPLATE = \
     
     """
 
-S3_BUCKET_PUBLIC_READ_POLICY = {
+S3_BUCKET_WEBSITE_HOSTING_POLICY = {
     "Version": "2012-10-17",
     "Statement": [
         {
-            "Sid": "PublicReadGetObject",
+            "Sid": "WebSiteHostingGetObject",
             "Effect": "Allow",
             "Principal": "*",
             "Action": [
@@ -543,7 +543,14 @@ S3_BUCKET_PUBLIC_READ_POLICY = {
             ],
             "Resource": [
                 "arn:aws:s3:::{bucket_name}/*"
-            ]
+            ],
+            "Condition": {
+                "IpAddress": {
+                    "aws:SourceIp": [
+                        "XXX.XXX.XXX.XXX/32"
+                    ]
+                }
+            }
         }
     ]
 }
@@ -839,60 +846,60 @@ def _generate_syncapp_vtl_resolver_req_mt(data_source_type):
     match data_source_type:
         case 'NONE':
             content = \
-'''#**Resolvers with None data sources can locally publish events that fire
-subscriptions or otherwise transform data without hitting a backend data source.
-The value of 'payload' is forwarded to $ctx.result in the response mapping template.
-*#
-{
-    "version": "2018-05-29",
-    "payload": {
-        "hello": "local",
-    }
-}
-            '''
+                '''#**Resolvers with None data sources can locally publish events that fire
+                subscriptions or otherwise transform data without hitting a backend data source.
+                The value of 'payload' is forwarded to $ctx.result in the response mapping template.
+                *#
+                {
+                    "version": "2018-05-29",
+                    "payload": {
+                        "hello": "local",
+                    }
+                }
+                            '''
         case 'AWS_LAMBDA':
             content = \
-'''#**The value of 'payload' after the template has been evaluated
-will be passed as the event to AWS Lambda.
-*#
-{
-  "version" : "2018-05-29",
-  "operation": "Invoke",
-  "payload": $util.toJson($context.args)
-}
-                            '''
+                '''#**The value of 'payload' after the template has been evaluated
+                will be passed as the event to AWS Lambda.
+                *#
+                {
+                  "version" : "2018-05-29",
+                  "operation": "Invoke",
+                  "payload": $util.toJson($context.args)
+                }
+                                            '''
         case 'AMAZON_DYNAMODB':
             content = \
-'''## Below example shows how to look up an item with a Primary Key of "id" from GraphQL arguments
-## The helper $util.dynamodb.toDynamoDBJson automatically converts to a DynamoDB formatted request
-## There is a "context" object with arguments, identity, headers, and parent field information you can access.
-## It also has a shorthand notation available:
-##  - $context or $ctx is the root object
-##  - $ctx.arguments or $ctx.args contains arguments
-##  - $ctx.identity has caller information, such as $ctx.identity.username
-##  - $ctx.request.headers contains headers, such as $context.request.headers.xyz
-##  - $ctx.source is a map of the parent field, for instance $ctx.source.xyz
-## Read more: https://docs.aws.amazon.com/appsync/latest/devguide/resolver-mapping-template-reference.html
-
-{
-    "version": "2018-05-29",
-    "operation": "GetItem",
-    "key": {
-        "id": $util.dynamodb.toDynamoDBJson($ctx.args.id),
-    }
-}
-'''
+                '''## Below example shows how to look up an item with a Primary Key of "id" from GraphQL arguments
+                ## The helper $util.dynamodb.toDynamoDBJson automatically converts to a DynamoDB formatted request
+                ## There is a "context" object with arguments, identity, headers, and parent field information you can access.
+                ## It also has a shorthand notation available:
+                ##  - $context or $ctx is the root object
+                ##  - $ctx.arguments or $ctx.args contains arguments
+                ##  - $ctx.identity has caller information, such as $ctx.identity.username
+                ##  - $ctx.request.headers contains headers, such as $context.request.headers.xyz
+                ##  - $ctx.source is a map of the parent field, for instance $ctx.source.xyz
+                ## Read more: https://docs.aws.amazon.com/appsync/latest/devguide/resolver-mapping-template-reference.html
+                
+                {
+                    "version": "2018-05-29",
+                    "operation": "GetItem",
+                    "key": {
+                        "id": $util.dynamodb.toDynamoDBJson($ctx.args.id),
+                    }
+                }
+                '''
         case 'PIPELINE':
             content = \
-'''## By default in a before template, all you need is a valid JSON payload.
-## You can also stash data to be made available to the functions in the pipeline.
-## Examples: 
-## - $ctx.stash.put("email", $ctx.args.email)
-## - $ctx.stash.put("badgeNumber", $ctx.args.input.badgeNumber)
-## - $ctx.stash.put("username", $ctx.identity.username)
-
-{}
-'''
+                '''## By default in a before template, all you need is a valid JSON payload.
+                ## You can also stash data to be made available to the functions in the pipeline.
+                ## Examples: 
+                ## - $ctx.stash.put("email", $ctx.args.email)
+                ## - $ctx.stash.put("badgeNumber", $ctx.args.input.badgeNumber)
+                ## - $ctx.stash.put("username", $ctx.identity.username)
+                
+                {}
+                '''
     return content
 
 
@@ -904,11 +911,11 @@ def _generate_syncapp_vtl_resolver_resp_mt(data_source_type):
             content = '''$util.toJson($context.result)'''
         case 'AMAZON_DYNAMODB':
             content = \
-'''## Pass back the result from DynamoDB. **
-$util.toJson($ctx.result)
-'''
+                '''## Pass back the result from DynamoDB. **
+                $util.toJson($ctx.result)
+                '''
         case 'PIPELINE':
             content = \
-'''## The after mapping template is used to collect the final value that is returned by the resolver.
-$util.toJson($ctx.result)'''
+                '''## The after mapping template is used to collect the final value that is returned by the resolver.
+                $util.toJson($ctx.result)'''
     return content

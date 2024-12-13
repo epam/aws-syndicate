@@ -209,15 +209,8 @@ def dynamodb_autoscaling(ctx, **kwargs):
               help='Specifies whether Amazon S3 should restrict public bucket '
                    'policies for this bucket. Default value is True')
 @click.option('--static_website_hosting', type=bool, required=False,
-              callback=partial(validate_incompatible_options,
-                               incompatible_options=['block_public_acls',
-                                                     'ignore_public_acls',
-                                                     'restrict_public_buckets',
-                                                     'block_public_policy']),
               help='Specifies whether the S3 bucket should be configured for '
-                   'static WEB site hosting. If specified public read access '
-                   'will be configured for all S3 bucket objects! Default '
-                   'value is False')
+                   'static WEB site hosting. Default value is False')
 @click.option('--tags', type=DictParamType(), callback=check_tags,
               help='The resource tags')
 @verbose_option
