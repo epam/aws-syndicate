@@ -39,14 +39,14 @@ def assemble_java_mvn_lambdas(project_path: str, bundles_dir: str,
     # copy java artifacts to the target folder
     target_path = os.path.join(CONFIG.project_path, MVN_TARGET_DIRECTORY)
     for root, dirs, files in os.walk(target_path):
-        for file in _filter_meta_files(files):
+        for file in _filter_bundle_files(files):
             shutil.copyfile(build_path(root, file),
                             build_path(bundles_dir, file))
     shutil.rmtree(target_path, ignore_errors=True)
     _LOG.info('Java mvn project was processed successfully')
 
 
-def _filter_meta_files(files: list[str]) -> list[str]:
+def _filter_bundle_files(files: list[str]) -> list[str]:
     filtered_files = []
     exclude_prefix = 'original-'
 
