@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix bucket name resolver to raise a user-friendly message if the bucket name does not match the specified regex
 - Fix `deploy` for `ec2 launch template` with tags
 - Add resource tags for `ec2 launch-template` and  for versions in update and deploy operations
+- Add support tags for `OAS V3` as part of the `oas_v3.json` file, using the `x-syndicate-openapi-tags` key
 
 # [1.15.0] - 2024-10-28
 - Added new resource type `appsync`

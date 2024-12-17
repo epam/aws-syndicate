@@ -23,14 +23,20 @@ RESOURCE_TYPES_MAPPING = {
 }
 
 
-def export_specification(deploy_name, bundle_name, output_directory,
-                         resource_type, dsl):
+def export_specification(
+        *,
+        resource_type: str,
+        dsl: str,
+        deploy_name: str,
+        bundle_name: str,
+        output_directory: str | None = None,
+):
     processor_type = EXPORT_PROCESSORS.get(resource_type)
     processor = processor_type()
     resource_key = RESOURCE_TYPES_MAPPING.get(resource_type)
     output = load_deploy_output(bundle_name, deploy_name)
-    resource_meta = {key: value for key, value in output.items() if
-                     resource_key in key}
+    resource_meta = \
+        {key: value for key, value in output.items() if resource_key in key}
     if not resource_meta:
         raise AssertionError(f'Meta for the resource type "{resource_key}" '
                              f'not found in the deploy name "{deploy_name}".')
@@ -44,15 +50,16 @@ def export_specification(deploy_name, bundle_name, output_directory,
         try:
             specification = json.dumps(specification, indent=2)
         except json.JSONDecodeError as e:
-            click.echo(f'An error occurred when serialising specification. '
-                       f'{e}')
+            click.echo(f'An error occurred when serialising specification. {e}')
             sys.exit(1)
         _LOG.info(f'Specification for resource "{arn}" exported successfully')
         filename = resource_id + '_' + OAS_V3_FILE_NAME
         output_path = build_path(output_dir_path, filename)
         if os.path.exists(output_path):
-            USER_LOG.warn(f'Specification file "{filename}" already exists '
-                          f'and will be overwritten.')
+            USER_LOG.warning(
+                f'Specification file "{filename}" already exists and will be '
+                f'overwritten.'
+            )
         with open(output_path, 'w') as output_file:
             output_file.write(specification)
         _LOG.info(f'Specification saved successfully to the file '

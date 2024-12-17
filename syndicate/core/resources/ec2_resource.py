@@ -66,7 +66,7 @@ class Ec2Resource(BaseResource):
         image_id = meta['image_id']
         image_data = self.ec2_conn.describe_image(image_id=image_id)
         if not image_data:
-            raise AssertionError('Image id {0} is invalid'.format(image_id))
+            raise AssertionError(f'Image id {image_id} is invalid')
 
         instance_type = meta.get('instance_type')
         if not instance_type:
@@ -76,8 +76,7 @@ class Ec2Resource(BaseResource):
 
         key_name = meta.get('key_name')
         if not self.ec2_conn.if_key_pair_exists(key_name):
-            raise AssertionError('There is no key pair with name: {0}'
-                                 .format(key_name))
+            raise AssertionError(f'There is no key pair with name: {key_name}')
 
         availability_zone = meta.get('availability_zone')
         subnet = meta.get('subnet_id')
@@ -90,13 +89,13 @@ class Ec2Resource(BaseResource):
             if subnet and subnet not in \
                     [subnet_ids['SubnetId'] for subnet_ids in subnet_list]:
                 raise AssertionError(
-                    'There is no available Subnets with name {0} '
-                    'in Availability Zone {1}.'
-                        .format(subnet, availability_zone))
+                    f'There is no available Subnets with name {subnet} in '
+                    f'Availability Zone {availability_zone}.'
+                )
             if availability_zone not in self.ec2_conn.get_azs():
                 raise AssertionError(
-                    'There is no Availability Zone with name: {0}'
-                        .format(availability_zone))
+                    f'There is no Availability Zone with name: {availability_zone}'
+                )
 
         security_groups_names = meta.get('security_group_names')
         if security_groups_names:
@@ -133,9 +132,7 @@ class Ec2Resource(BaseResource):
             if instance_profiles:
                 iam_profile_meta = instance_profiles[0]
                 iam_instance_profile_arn = iam_profile_meta['Arn']
-                iam_instance_profile_object = {
-                    'Arn': iam_instance_profile_arn
-                }
+                iam_instance_profile_object = {'Arn': iam_instance_profile_arn}
 
         # launching instance
         response = self.ec2_conn.launch_instance(
@@ -161,12 +158,12 @@ class Ec2Resource(BaseResource):
             if str(disable_api_termination).lower() == 'true':
                 self.ec2_conn.modify_instance_attribute(
                     InstanceId=response['InstanceId'],
-                    DisableApiTermination={
-                        'Value': True
-                    }
+                    DisableApiTermination={'Value': True},
                 )
-        _LOG.info('Created EC2 instance %s. '
-                  'Waiting for instance network interfaces configuring.', name)
+        _LOG.info(
+            f'Created EC2 instance {name}. Waiting for instance network '
+            f'interfaces configuring.'
+        )
         sleep(30)  # time for vm to become running
         return self.describe_ec2(name, meta, response)
 

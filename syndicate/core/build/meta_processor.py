@@ -389,8 +389,11 @@ def _look_for_configs(nested_files: list[str], resources_meta: dict[str, Any],
             resource = {
                 "definition": openapi_spec,
                 "resource_type": API_GATEWAY_OAS_V3_TYPE,
-                "deploy_stage": deploy_stage
+                "deploy_stage": deploy_stage,
             }
+            tags = openapi_spec.get("x-syndicate-openapi-tags")
+            if tags:
+                resource["tags"] = tags
             res = _check_duplicated_resources(
                 resources_meta, api_gateway_name, resource
             )
@@ -411,8 +414,8 @@ def _look_for_configs(nested_files: list[str], resources_meta: dict[str, Any],
                 try:
                     resource_type = resource['resource_type']
                 except KeyError:
-                    error_message = ("There is no 'resource_type' "
-                                     "in {0}").format(resource_name)
+                    error_message = \
+                        f"There is no 'resource_type' in {resource_name}"
                     _LOG.error(error_message)
                     raise AssertionError(error_message)
                 if resource_type not in RESOURCE_LIST:
