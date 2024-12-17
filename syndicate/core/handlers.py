@@ -374,6 +374,8 @@ def update(
     click.echo(f'Bundle name: {bundle_name}')
     PROJECT_STATE.current_bundle = bundle_name
     if not bundle_name or not deploy_name:
+        click.echo(f'The bundle name or/and deploy name does not exist. '
+                   f'Please verify them and try again.')
         return ABORTED_STATUS
     if not if_bundle_exist(bundle_name=bundle_name):
         click.echo(
