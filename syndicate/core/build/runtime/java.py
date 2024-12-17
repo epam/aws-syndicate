@@ -22,10 +22,11 @@ from syndicate.core.helper import build_path, execute_command_by_path
 _LOG = get_logger('java_runtime_assembler')
 
 MVN_TARGET_DIRECTORY = 'target'
+VALID_EXTENSIONS = ('.jar', '.war', '.zip')
 
 
-def assemble_java_mvn_lambdas(project_path, bundles_dir, skip_tests=False,
-                              **kwargs):
+def assemble_java_mvn_lambdas(project_path: str, bundles_dir: str,
+                              skip_tests: bool = False, **kwargs):
     from syndicate.core import CONFIG
     src_path = build_path(CONFIG.project_path, project_path)
     _LOG.info(f'Java sources are located by path: {src_path}')
@@ -36,11 +37,26 @@ def assemble_java_mvn_lambdas(project_path, bundles_dir, skip_tests=False,
         path=CONFIG.project_path)
 
     # copy java artifacts to the target folder
-    for root, dirs, files in os.walk(os.path.join(CONFIG.project_path,
-                                                  MVN_TARGET_DIRECTORY)):
-        for file in files:
-            if file.endswith(".jar") or file.endswith(".war") \
-                    or file.endswith(".zip"):
-                shutil.copyfile(build_path(root, file),
-                                build_path(bundles_dir, file))
+    target_path = os.path.join(CONFIG.project_path, MVN_TARGET_DIRECTORY)
+    for root, dirs, files in os.walk(target_path):
+        for file in _filter_meta_files(files):
+            shutil.copyfile(build_path(root, file),
+                            build_path(bundles_dir, file))
+    shutil.rmtree(target_path, ignore_errors=True)
     _LOG.info('Java mvn project was processed successfully')
+
+
+def _filter_meta_files(files: list[str]) -> list[str]:
+    filtered_files = []
+    exclude_prefix = 'original-'
+
+    # to exclude redundant original-<lambda_name>.jar file
+    # but do not exclude lambda jar if its name starts with 'original-'
+    if sum(1 for item in files if item.startswith('original-')) > 1:
+        exclude_prefix = 'original-original-'
+
+    for file in files:
+        if file.endswith(VALID_EXTENSIONS) and not \
+                (file.startswith(exclude_prefix) and file.endswith('.jar')):
+            filtered_files.append(file)
+    return filtered_files
