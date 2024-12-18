@@ -279,9 +279,14 @@ def deploy(
     """
     from syndicate.core import PROJECT_STATE
     PROJECT_STATE.current_bundle = bundle_name
-    if not bundle_name or not deploy_name:
-        click.echo(f'The bundle name or/and deploy name does not exist. '
-                   f'Please verify them and try again.')
+
+    if not bundle_name:
+        click.echo(f'The bundle name is undefined or invalid, '
+                   f'please verify it and try again.')
+        return ABORTED_STATUS
+    if not deploy_name:
+        click.echo(f'The deploy name is undefined or invalid, '
+                   f'please verify it and try again.')
         return ABORTED_STATUS
     if not if_bundle_exist(bundle_name=bundle_name):
         click.echo(
@@ -375,9 +380,14 @@ def update(
     from syndicate.core import PROJECT_STATE
     click.echo(f'Bundle name: {bundle_name}')
     PROJECT_STATE.current_bundle = bundle_name
-    if not bundle_name or not deploy_name:
-        click.echo(f'The bundle name or/and deploy name does not exist. '
-                   f'Please verify them and try again.')
+
+    if not bundle_name:
+        click.echo(f'The bundle name is undefined or invalid, '
+                   f'please verify it and try again.')
+        return ABORTED_STATUS
+    if not deploy_name:
+        click.echo(f'The deploy name is undefined or invalid, '
+                   f'please verify it and try again.')
         return ABORTED_STATUS
     if not if_bundle_exist(bundle_name=bundle_name):
         click.echo(
@@ -474,9 +484,14 @@ def clean(
     click.echo(f'Deploy name: {deploy_name}')
     separator = ', '
     PROJECT_STATE.current_bundle = bundle_name
-    if not bundle_name or not deploy_name:
-        click.echo(f'The bundle name or/and deploy name does not exist. '
-                   f'Please verify them and try again.')
+
+    if not bundle_name:
+        click.echo(f'The bundle name is undefined or invalid, '
+                   f'please verify it and try again.')
+        return ABORTED_STATUS
+    if not deploy_name:
+        click.echo(f'The deploy name is undefined or invalid, '
+                   f'please verify it and try again.')
         return ABORTED_STATUS
     if not if_bundle_exist(bundle_name=bundle_name):
         click.echo(
