@@ -271,7 +271,7 @@ class LambdaConnection(object):
 
         return self.client.create_alias(**params)
 
-    def get_alias(self, function_name, name):
+    def get_aliases(self, function_name: str, name: str = None) -> dict:
         all_aliases = {}
         next_marker = 1  # to enter the loop
         while next_marker:
@@ -288,6 +288,14 @@ class LambdaConnection(object):
             if all_aliases.get(name):
                 return all_aliases.get(name)
             next_marker = response.get('NextMarker')
+        return all_aliases
+
+    def delete_alias(self, function_name: str, name: str) -> None:
+        _LOG.debug(f'Removing lamba\'s \'{function_name}\' alias \'{name}\'')
+        self.client.delete_alias(
+            FunctionName=function_name,
+            Name=name
+        )
 
     def add_event_source(self, func_name, stream_arn, batch_size=10,
                          batch_window: Optional[int] = None,
