@@ -39,14 +39,6 @@ ACCOUNT_ID = sts_client.get_caller_identity()['Account']
 REGION = sts_client.meta.region_name
 
 
-def get_lambda_alias(function_name, alias_name):
-    try:
-        return lambda_client.get_alias(FunctionName=function_name,
-                                       Name=alias_name)
-    except lambda_client.exceptions.ResourceNotFoundException:
-        return None
-
-
 def get_s3_bucket_file_content(bucket_name, file_key):
     try:
         file_obj = s3_client.get_object(Bucket=bucket_name, Key=file_key)

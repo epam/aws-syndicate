@@ -166,18 +166,12 @@ class TagsApiResource:
         failed_updates = {}
         for arn, res_meta in new_output.items():
             arns = []
+            base_arn = None
             res_type = res_meta['resource_meta']['resource_type']
+
             if res_type in self.untaggable_resource_types:
                 continue
-            old_res_meta = old_output.get(arn)
-            old_res_tags = old_res_meta['resource_meta'].get('tags', {})
-            new_res_tags = res_meta['resource_meta'].get('tags', {})
-            to_tag = {k: v for k, v in new_res_tags.items()
-                      if k not in old_res_tags.keys() or
-                      v != old_res_tags.get(k)}
-            to_untag = [
-                k for k in old_res_tags.keys() if k not in new_res_tags.keys()
-            ]
+
             preprocess_arn = \
                 self.resource_type_to_preprocessor_mapping.get(res_type)
             if preprocess_arn:
@@ -185,8 +179,27 @@ class TagsApiResource:
 
             if isinstance(arn, list):
                 arns.extend(arn)
+                base_arn = arn[0]
             else:
                 arns.append(arn)
+
+            if base_arn:
+                for old_arn in old_output.keys():
+                    if old_arn.startswith(base_arn):
+                        old_res_meta = old_output[old_arn]
+                        break
+            else:
+                old_res_meta = old_output.get(arn)
+            old_res_tags = old_res_meta['resource_meta'].get('tags', {})
+            new_res_tags = res_meta['resource_meta'].get('tags', {})
+
+            to_tag = {k: v for k, v in new_res_tags.items()
+                      if k not in old_res_tags.keys() or
+                      v != old_res_tags.get(k)}
+
+            to_untag = [
+                k for k in old_res_tags.keys() if k not in new_res_tags.keys()
+            ]
 
             if to_tag:
                 failed_tag = self.connection.tag_resources(arns, to_tag)

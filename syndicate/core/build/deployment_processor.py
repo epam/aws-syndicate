@@ -32,7 +32,8 @@ from syndicate.core.constants import (BUILD_META_FILE_NAME,
                                       CLEAN_RESOURCE_TYPE_PRIORITY,
                                       DEPLOY_RESOURCE_TYPE_PRIORITY,
                                       UPDATE_RESOURCE_TYPE_PRIORITY,
-                                      PARTIAL_CLEAN_ACTION, ABORTED_STATUS)
+                                      PARTIAL_CLEAN_ACTION, ABORTED_STATUS,
+                                      LAMBDA_TYPE, LAMBDA_LAYER_TYPE)
 from syndicate.core.helper import exit_on_exception, prettify_json
 from syndicate.core.build.helper import assert_bundle_bucket_exists, \
     construct_deploy_s3_key_path
@@ -253,7 +254,7 @@ def update_failed_output(res_name, res_meta, resource_type, output):
 
 def deploy_resources(
         resources: list,
-        output = None,
+        output=None,
 ) -> tuple[bool, Any]:
     from syndicate.core import PROCESSOR_FACADE
     process_with_dependency = False
@@ -646,6 +647,11 @@ def update_deployment_resources(
     preprocess_tags(output)
     tag_success = _update_tags(old_output, output)
 
+    _LOG.info('Going to resolve updated resources duplication')
+    duplicates = _detect_duplicates(old_output, output)
+    for duplicate in duplicates:
+        old_output.pop(duplicate)
+
     create_deploy_output(bundle_name=bundle_name,
                          deploy_name=deploy_name,
                          output={**old_output, **output},
@@ -922,3 +928,23 @@ def is_deploy_exist(bundle_name, deploy_name):
     bucket = CONFIG.deploy_target_bucket
     return CONN.s3().get_keys_by_prefix(bucket, key_compound) or \
         CONN.s3().get_keys_by_prefix(bucket, failed_key_compound)
+
+
+def _detect_duplicates(output: dict, new_output: dict) -> list:
+    duplicates = []
+    for arn, meta in new_output.items():
+        res_type = meta['resource_meta']['resource_type']
+        res_name = meta['resource_name']
+        if res_type in [LAMBDA_TYPE, LAMBDA_LAYER_TYPE]:
+            base_arn = arn[:arn.index(res_name) + len(res_name)]
+            duplicates.extend(
+                [
+                    k for k in output.keys()
+                    if k != arn and k.startswith(base_arn)
+                ]
+            )
+    if duplicates:
+        _LOG.info(
+            f'The next duplicated ARNs will be removed from the output file '
+            f'{duplicates}')
+    return duplicates
