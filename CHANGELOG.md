@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix `deploy` for `ec2 launch template` with tags
 - Add resource tags for `ec2 launch-template` and  for versions in update and deploy operations
 - Add support tags for `OAS V3` as part of the `oas_v3.json` file, using the `x-syndicate-openapi-tags` key
+- Improve the assembling of the Java lambda artifacts by removing the redundant original-<lambda_name>.jar file from the bundle
+- Remove the directory 'target' that contains temporary files after assembling lambda artifacts
 
 # [1.15.0] - 2024-10-28
 - Added `--skip_tests` option to `build`, `test` and `assemble_java_mvn` commands to not run tests during or after 
