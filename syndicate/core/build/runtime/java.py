@@ -28,22 +28,26 @@ VALID_EXTENSIONS = ('.jar', '.war', '.zip')
 def assemble_java_mvn_lambdas(project_path: str, bundles_dir: str,
                               skip_tests: bool = False, **kwargs):
     from syndicate.core import CONFIG
-    src_path = build_path(CONFIG.project_path, project_path)
-    _LOG.info(f'Java sources are located by path: {src_path}')
-    _LOG.info(f'Going to process java mvn project by path: '
-              f'{CONFIG.project_path}')
-    execute_command_by_path(
-        command='mvn clean install' + (' -DskipTests' if skip_tests else ''),
-        path=CONFIG.project_path)
-
-    # copy java artifacts to the target folder
     target_path = os.path.join(CONFIG.project_path, MVN_TARGET_DIRECTORY)
-    for root, dirs, files in os.walk(target_path):
-        for file in _filter_bundle_files(files):
-            shutil.copyfile(build_path(root, file),
-                            build_path(bundles_dir, file))
-    shutil.rmtree(target_path, ignore_errors=True)
-    _LOG.info('Java mvn project was processed successfully')
+
+    try:
+        src_path = build_path(CONFIG.project_path, project_path)
+        _LOG.info(f'Java sources are located by path: {src_path}')
+        _LOG.info(f'Going to process java mvn project by path: '
+                  f'{CONFIG.project_path}')
+        execute_command_by_path(
+            command='mvn clean install' +
+                    (' -DskipTests' if skip_tests else ''),
+            path=CONFIG.project_path)
+
+        # copy java artifacts to the target folder
+        for root, dirs, files in os.walk(target_path):
+            for file in _filter_bundle_files(files):
+                shutil.copyfile(build_path(root, file),
+                                build_path(bundles_dir, file))
+        _LOG.info('Java mvn project was processed successfully')
+    finally:
+        shutil.rmtree(target_path, ignore_errors=True)
 
 
 def _filter_bundle_files(files: list[str]) -> list[str]:
