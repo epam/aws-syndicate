@@ -244,7 +244,7 @@ def _generate_python_lambdas(**kwargs):
             fault_message=f'\nLambda {lambda_name} already exists.\nOverride '
                           f'the Lambda function? [y/n]: ')
         if not answer:
-            _LOG.info(CANCEL_MESSAGE.format(lambda_name))
+            USER_LOG.info(CANCEL_MESSAGE.format(lambda_name))
             continue
 
         PYTHON_LAMBDA_FILES.append(
@@ -343,7 +343,7 @@ def _generate_java_lambdas(**kwargs):
             if not click_confirm(
                     f'\nLambda {lambda_name} already exists.\nOverride '
                     f'the Lambda function?'):
-                _LOG.info(CANCEL_MESSAGE.format(lambda_name))
+                USER_LOG.info(CANCEL_MESSAGE.format(lambda_name))
                 continue
         _write_content_to_file(
             java_handler_file_name,
@@ -416,7 +416,7 @@ def _generate_nodejs_lambdas(**kwargs):
             fault_message=f'\nLambda {lambda_name} already exists.\n'
                           f'Override the Lambda function? [y/n]: ')
         if not answer:
-            _LOG.info(CANCEL_MESSAGE.format(lambda_name))
+            USER_LOG.info(CANCEL_MESSAGE.format(lambda_name))
             continue
 
         for file in NODEJS_LAMBDA_FILES:
@@ -477,7 +477,7 @@ def _generate_dotnet_lambdas(**kwargs):
             fault_message=f'\nLambda {lambda_name} already exists.\n'
                           f'Override the Lambda function? [y/n]: ')
         if not answer:
-            _LOG.info(CANCEL_MESSAGE.format(lambda_name))
+            USER_LOG.info(CANCEL_MESSAGE.format(lambda_name))
             continue
 
         for file in DOTNET_LAMBDA_FILES:
