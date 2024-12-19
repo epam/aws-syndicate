@@ -27,7 +27,8 @@ import yaml
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.constants import BUILD_ACTION, \
     DEPLOY_ACTION, UPDATE_ACTION, CLEAN_ACTION, PACKAGE_META_ACTION, \
-    ABORTED_STATUS, SUCCEEDED_STATUS, FAILED_STATUS
+    ABORTED_STATUS, SUCCEEDED_STATUS, FAILED_STATUS, FAILED_RETURN_CODE, \
+    OK_RETURN_CODE, ABORTED_RETURN_CODE
 from syndicate.core.constants import DATE_FORMAT_ISO_8601
 from syndicate.core.groups import RUNTIME_JAVA, RUNTIME_NODEJS, RUNTIME_PYTHON, \
     RUNTIME_SWAGGER_UI, RUNTIME_DOTNET, RUNTIME_APPSYNC
@@ -418,16 +419,26 @@ class ProjectState:
 
     def log_execution_event(self, **kwargs):
         operation = kwargs.get('operation')
-
         status = kwargs.get('status')
         rollback_on_error = kwargs.get('rollback_on_error')
-        if status not in [True, False, ABORTED_STATUS]:
+        valid_statuses = {True, False, ABORTED_STATUS, FAILED_RETURN_CODE,
+                          OK_RETURN_CODE, ABORTED_RETURN_CODE}
+
+        if status not in valid_statuses:
             kwargs.pop('status', None)
 
-        if operation in [DEPLOY_ACTION]:
+        if status in {OK_RETURN_CODE, FAILED_RETURN_CODE, ABORTED_RETURN_CODE}:
+            status = {
+                OK_RETURN_CODE: True,
+                FAILED_RETURN_CODE: False,
+                ABORTED_RETURN_CODE: ABORTED_STATUS
+            }.get(status)
+
+        if operation == DEPLOY_ACTION:
             params = kwargs.copy()
             params.pop('operation')
-            params['is_succeeded'] = params.pop('status')
+            params.pop('status')
+            params['is_succeeded'] = status
 
             if params['is_succeeded'] != ABORTED_STATUS:
                 if not (status is False and rollback_on_error is True):

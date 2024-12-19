@@ -19,7 +19,6 @@ import sys
 from functools import partial
 
 import click
-from click.exceptions import Exit
 from tabulate import tabulate
 from logging import DEBUG
 
@@ -35,24 +34,23 @@ from syndicate.core.build.bundle_processor import (create_bundles_bucket,
                                                    load_bundle,
                                                    upload_bundle_to_s3,
                                                    if_bundle_exist)
-from syndicate.core.build.deployment_processor import is_deploy_exist, \
+from syndicate.core.build.deployment_processor import \
     create_deployment_resources, remove_deployment_resources, \
     update_deployment_resources
 from syndicate.core.build.meta_processor import create_meta
 from syndicate.core.build.profiler_processor import (get_metric_statistics,
                                                      process_metrics)
-from syndicate.core.build.warmup_processor import (process_deploy_resources,
-                                                   process_api_gw_resources,
-                                                   warm_upper,
-                                                   process_existing_api_gw_id,
-                                                   process_inputted_api_gw_id)
+from syndicate.core.build.warmup_processor import process_api_gw_resources, \
+    warm_upper, process_existing_api_gw_id, process_inputted_api_gw_id
 from syndicate.core.conf.validator import (JAVA_LANGUAGE_NAME,
                                            PYTHON_LANGUAGE_NAME,
                                            NODEJS_LANGUAGE_NAME,
                                            SWAGGER_UI_NAME,
                                            DOTNET_LANGUAGE_NAME, APPSYNC_NAME)
 from syndicate.core.decorators import (check_deploy_name_for_duplicates,
-                                       check_deploy_bucket_exists)
+                                       check_deploy_bucket_exists,
+                                       check_bundle_deploy_names_for_existence,
+                                       return_code_manager)
 from syndicate.core.groups.generate import (generate,
                                             GENERATE_PROJECT_COMMAND_NAME,
                                             GENERATE_CONFIG_COMMAND_NAME)
@@ -76,7 +74,8 @@ from syndicate.core.constants import TEST_ACTION, BUILD_ACTION, \
     ASSEMBLE_PYTHON_ACTION, ASSEMBLE_NODE_ACTION, ASSEMBLE_ACTION, \
     PACKAGE_META_ACTION, CREATE_DEPLOY_TARGET_BUCKET_ACTION, UPLOAD_ACTION, \
     COPY_BUNDLE_ACTION, EXPORT_ACTION, ASSEMBLE_SWAGGER_UI_ACTION, \
-    ASSEMBLE_DOTNET_ACTION, ASSEMBLE_APPSYNC_ACTION
+    ASSEMBLE_DOTNET_ACTION, ASSEMBLE_APPSYNC_ACTION, OK_RETURN_CODE, \
+    FAILED_RETURN_CODE, ABORTED_RETURN_CODE
 
 INIT_COMMAND_NAME = 'init'
 SYNDICATE_PACKAGE_NAME = 'aws-syndicate'
@@ -112,10 +111,11 @@ def syndicate():
                    'Please verify that you have provided path to '
                    'correct config files '
                    'or execute `syndicate generate config` command.')
-        sys.exit(1)
+        sys.exit(FAILED_RETURN_CODE)
 
 
 @syndicate.command(name=TEST_ACTION)
+@return_code_manager
 @click.option('--suite', default='unittest',
               type=click.Choice(['unittest', 'pytest', 'nose'],
                                 case_sensitive=False),
@@ -135,7 +135,7 @@ def test(suite, test_folder_name, errors_allowed, skip_tests):
     """Discovers and runs tests inside python project configuration path."""
     if skip_tests:
         click.echo('Skipping tests...')
-        return
+        return OK_RETURN_CODE
 
     click.echo('Running tests...')
     import subprocess
@@ -150,7 +150,7 @@ def test(suite, test_folder_name, errors_allowed, skip_tests):
             _LOG.info(msg)
         else:
             USER_LOG.info(msg)
-        return
+        return OK_RETURN_CODE
     test_lib_command_mapping = {
         'unittest': f'{sys.executable} -m unittest discover {test_folder} -v',
         'pytest': 'pytest --no-header -v',
@@ -161,20 +161,23 @@ def test(suite, test_folder_name, errors_allowed, skip_tests):
     result = subprocess.run(command, cwd=project_path, shell=True,
                             capture_output=True, text=True)
 
-    if result.returncode != 0:
+    if result.returncode != OK_RETURN_CODE:
         _LOG.error(f'{result.stdout}\n{result.stderr}\n{"-" * 70}')
         if not errors_allowed:
             click.echo(
                 'Some tests failed. See details in the log file. Exiting...')
-            sys.exit(result.returncode)
+            return result.returncode
         else:
             USER_LOG.warn('Some tests failed. See details in the log file.')
+            return OK_RETURN_CODE
     else:
         _LOG.info(f'{result.stdout}\n{result.stderr}\n{"-" * 70}')
         click.echo('Tests passed.')
+        return OK_RETURN_CODE
 
 
 @syndicate.command(name=BUILD_ACTION)
+@return_code_manager
 @click.option('--bundle_name', '-b', nargs=1,
               callback=generate_default_bundle_name,
               help='Name of the bundle to build. '
@@ -198,15 +201,32 @@ def build(ctx, bundle_name, force_upload, errors_allowed, skip_tests):
         click.echo(f'Bundle name \'{bundle_name}\' already exists '
                    f'in deploy bucket. Please use another bundle '
                    f'name or delete the bundle')
-        raise Exit(1)
-    ctx.invoke(test, errors_allowed=errors_allowed, skip_tests=skip_tests)
-    ctx.invoke(assemble, bundle_name=bundle_name,
-               errors_allowed=errors_allowed, force_upload=force_upload)
-    ctx.invoke(package_meta, bundle_name=bundle_name)
-    ctx.invoke(upload, bundle_name=bundle_name, force_upload=force_upload)
+        return FAILED_RETURN_CODE
+
+    test_code = ctx.invoke(test,
+                           errors_allowed=errors_allowed,
+                           skip_tests=skip_tests)
+    if test_code != OK_RETURN_CODE:
+        return test_code
+
+    assemble_code = ctx.invoke(assemble, bundle_name=bundle_name,
+                               errors_allowed=errors_allowed,
+                               force_upload=force_upload)
+    if assemble_code != OK_RETURN_CODE:
+        return assemble_code
+
+    meta_code = ctx.invoke(package_meta, bundle_name=bundle_name)
+    if meta_code != OK_RETURN_CODE:
+        return meta_code
+
+    upload_code = ctx.invoke(upload,
+                             bundle_name=bundle_name,
+                             force_upload=force_upload)
+    return upload_code
 
 
 @syndicate.command(name='transform')
+@return_code_manager
 @click.option('--bundle_name',
               callback=resolve_default_value,
               help='Name of the bundle to transform. '
@@ -228,9 +248,11 @@ def transform(bundle_name, dsl, output_dir):
     generate_build_meta(bundle_name=bundle_name,
                         dsl_list=dsl,
                         output_directory=output_dir)
+    return OK_RETURN_CODE
 
 
 @syndicate.command(name=DEPLOY_ACTION)
+@return_code_manager
 @sync_lock(lock_type=MODIFICATION_LOCK)
 @click.option('--deploy_name', '-d', callback=resolve_default_value,
               help='Name of the deploy. Default value: name of the project')
@@ -261,6 +283,7 @@ def transform(bundle_name, dsl, output_dir):
 @check_deploy_name_for_duplicates
 @check_deploy_bucket_exists
 @timeit(action_name=DEPLOY_ACTION)
+@check_bundle_deploy_names_for_existence()
 def deploy(
         deploy_name: str,
         bundle_name: str,
@@ -279,20 +302,6 @@ def deploy(
     """
     from syndicate.core import PROJECT_STATE
     PROJECT_STATE.current_bundle = bundle_name
-
-    if not bundle_name:
-        click.echo(f'The bundle name is undefined or invalid, '
-                   f'please verify it and try again.')
-        return ABORTED_STATUS
-    if not deploy_name:
-        click.echo(f'The deploy name is undefined or invalid, '
-                   f'please verify it and try again.')
-        return ABORTED_STATUS
-    if not if_bundle_exist(bundle_name=bundle_name):
-        click.echo(
-            f'The bundle name \'{bundle_name}\' does not exist in deploy '
-            f'bucket. Please verify the bundle name and try again.')
-        return ABORTED_STATUS
 
     if deploy_only_resources_path and os.path.exists(
             deploy_only_resources_path):
@@ -329,10 +338,14 @@ def deploy(
         )
     )
     click.echo(message)
-    return deploy_success
+
+    if not deploy_success:
+        return FAILED_RETURN_CODE
+    return OK_RETURN_CODE
 
 
 @syndicate.command(name=UPDATE_ACTION)
+@return_code_manager
 @sync_lock(lock_type=MODIFICATION_LOCK)
 @click.option('--bundle_name', '-b', callback=resolve_default_value,
               help='Name of the bundle to deploy. '
@@ -362,6 +375,7 @@ def deploy(
 @check_deploy_name_for_duplicates
 @check_deploy_bucket_exists
 @timeit(action_name=UPDATE_ACTION)
+@check_bundle_deploy_names_for_existence()
 def update(
         bundle_name: str,
         deploy_name: str,
@@ -380,20 +394,6 @@ def update(
     from syndicate.core import PROJECT_STATE
     click.echo(f'Bundle name: {bundle_name}')
     PROJECT_STATE.current_bundle = bundle_name
-
-    if not bundle_name:
-        click.echo(f'The bundle name is undefined or invalid, '
-                   f'please verify it and try again.')
-        return ABORTED_STATUS
-    if not deploy_name:
-        click.echo(f'The deploy name is undefined or invalid, '
-                   f'please verify it and try again.')
-        return ABORTED_STATUS
-    if not if_bundle_exist(bundle_name=bundle_name):
-        click.echo(
-            f'The bundle name \'{bundle_name}\' does not exist in deploy '
-            f'bucket. Please verify the bundle name and try again.')
-        return ABORTED_STATUS
 
     if update_only_resources_path and os.path.exists(
             update_only_resources_path):
@@ -422,19 +422,19 @@ def update(
         replace_output=replace_output,
         force=force)
     if success is True:
-        update_success = True
         click.echo('Update of resources has been successfully completed')
+        return OK_RETURN_CODE
     elif success == ABORTED_STATUS:
-        update_success = False
         click.echo('Update of resources has been aborted')
+        # not ABORTED_RETURN_CODE because of event status in .syndicate file
+        return FAILED_RETURN_CODE
     else:
-        update_success = False
         click.echo('Something went wrong during resources update')
-
-    return update_success
+        return FAILED_RETURN_CODE
 
 
 @syndicate.command(name=CLEAN_ACTION)
+@return_code_manager
 @sync_lock(lock_type=MODIFICATION_LOCK)
 @click.option('--deploy_name', '-d', nargs=1, callback=resolve_default_value,
               help='Name of the deploy. This parameter allows the framework '
@@ -464,6 +464,7 @@ def update(
               help='Preserve deploy output json file after resources removal')
 @verbose_option
 @timeit(action_name=CLEAN_ACTION)
+@check_bundle_deploy_names_for_existence(check_deploy_existence=True)
 def clean(
         deploy_name: str,
         bundle_name: str,
@@ -484,24 +485,6 @@ def clean(
     click.echo(f'Deploy name: {deploy_name}')
     separator = ', '
     PROJECT_STATE.current_bundle = bundle_name
-
-    if not bundle_name:
-        click.echo(f'The bundle name is undefined or invalid, '
-                   f'please verify it and try again.')
-        return ABORTED_STATUS
-    if not deploy_name:
-        click.echo(f'The deploy name is undefined or invalid, '
-                   f'please verify it and try again.')
-        return ABORTED_STATUS
-    if not if_bundle_exist(bundle_name=bundle_name):
-        click.echo(
-            f'The bundle name \'{bundle_name}\' does not exist in deploy '
-            f'bucket. Please verify the bundle name and try again.')
-        return ABORTED_STATUS
-    if not is_deploy_exist(bundle_name=bundle_name, deploy_name=deploy_name):
-        click.echo(f'The deploy name \'{deploy_name}\' is invalid. '
-                   f'Please verify the deploy name and try again.')
-        return ABORTED_STATUS
 
     if clean_only_types:
         click.echo(f'Clean only types: {separator.join(clean_only_types)}')
@@ -537,14 +520,17 @@ def clean(
 
     if result == ABORTED_STATUS:
         click.echo('Clean of resources has been aborted')
+        return ABORTED_RETURN_CODE
     elif result is False:
         click.echo('AWS resources were removed with errors.')
+        return FAILED_RETURN_CODE
     else:
         click.echo('AWS resources were removed.')
-    return result
+    return OK_RETURN_CODE
 
 
 @syndicate.command(name=SYNC_ACTION)
+@return_code_manager
 @verbose_option
 @check_deploy_bucket_exists
 @timeit()
@@ -553,10 +539,12 @@ def sync():
     Syncs the state of local project state file (.syndicate) and
     the remote one.
     """
-    return sync_project_state()
+    sync_project_state()
+    return OK_RETURN_CODE
 
 
 @syndicate.command(name=STATUS_ACTION)
+@return_code_manager
 @click.option('--events', flag_value='events',
               callback=partial(validate_incompatible_options,
                                incompatible_options=['resources']),
@@ -575,9 +563,11 @@ def status(events, resources):
     modification, locks summary, latest event, project resources.
     """
     click.echo(project_state_status(category=events or resources))
+    return OK_RETURN_CODE
 
 
 @syndicate.command(name=WARMUP_ACTION)
+@return_code_manager
 @sync_lock(lock_type=WARMUP_LOCK)
 @click.option('--bundle_name', '-b', nargs=1, callback=resolve_default_value,
               help='Name of the bundle. If not specified, resolves the latest '
@@ -599,25 +589,14 @@ def status(events, resources):
 @verbose_option
 @check_deploy_bucket_exists
 @timeit(action_name=WARMUP_ACTION)
+@check_bundle_deploy_names_for_existence()
 def warmup(bundle_name, deploy_name, api_gw_id, stage_name, lambda_auth,
            header_name, header_value):
     """
     Warmups Lambda functions
     """
 
-    if bundle_name and deploy_name:
-        click.echo(f'Deploy name: {deploy_name}')
-        if not if_bundle_exist(bundle_name=bundle_name):
-            click.echo(f'Bundle name \'{bundle_name}\' does not exists '
-                       'in deploy bucket. Please use another bundle '
-                       'name or create the bundle')
-            return
-
-        paths_to_be_triggered, resource_path_warmup_key_mapping = \
-            process_deploy_resources(deploy_name=deploy_name,
-                                     bundle_name=bundle_name)
-
-    elif api_gw_id:
+    if api_gw_id:
         paths_to_be_triggered, resource_path_warmup_key_mapping = \
             process_inputted_api_gw_id(api_id=api_gw_id, stage_name=stage_name,
                                        echo=click.echo)
@@ -628,7 +607,7 @@ def warmup(bundle_name, deploy_name, api_gw_id, stage_name, lambda_auth,
 
     if not paths_to_be_triggered or not resource_path_warmup_key_mapping:
         click.echo('No resources to warm up')
-        return
+        return OK_RETURN_CODE
     resource_method_mapping, resource_warmup_key_mapping = \
         process_api_gw_resources(paths_to_be_triggered=paths_to_be_triggered,
                                  resource_path_warmup_key_mapping=
@@ -638,9 +617,11 @@ def warmup(bundle_name, deploy_name, api_gw_id, stage_name, lambda_auth,
                lambda_auth=lambda_auth, header_name=header_name,
                header_value=header_value)
     click.echo('Application resources have been warmed up.')
+    return OK_RETURN_CODE
 
 
 @syndicate.command(name=PROFILER_ACTION)
+@return_code_manager
 @click.option('--bundle_name', '-b', nargs=1, callback=resolve_default_value,
               help='The name of the bundle from which to select lambdas for '
                    'collecting metrics. If not specified, resolves the latest '
@@ -660,10 +641,12 @@ def warmup(bundle_name, deploy_name, api_gw_id, stage_name, lambda_auth,
                    'format: 2022-02-02T02:02:02Z')
 @verbose_option
 @check_deploy_bucket_exists
+@check_bundle_deploy_names_for_existence(check_deploy_existence=True)
 def profiler(bundle_name, deploy_name, from_date, to_date):
     """
     Displays application Lambda metrics
     """
+
     metric_value_dict = get_metric_statistics(bundle_name, deploy_name,
                                               from_date, to_date)
     for lambda_name, metrics in metric_value_dict.items():
@@ -675,13 +658,14 @@ def profiler(bundle_name, deploy_name, from_date, to_date):
             click.echo('No executions found')
         click.echo(tabulate(prettify_metrics_dict, headers='keys',
                             stralign='right'))
+    return OK_RETURN_CODE
 
 
 # =============================================================================
 
 
 @syndicate.command(name=ASSEMBLE_JAVA_MVN_ACTION)
-@timeit()
+@return_code_manager
 @click.option('--bundle_name', '-b', nargs=1,
               callback=generate_default_bundle_name,
               help='Name of the bundle, to which the build artifacts are '
@@ -723,10 +707,11 @@ def assemble_java_mvn(bundle_name, project_path, force_upload, skip_tests,
                        force_upload=force_upload,
                        skip_tests=skip_tests)
     click.echo('Java artifacts were prepared successfully.')
+    return OK_RETURN_CODE
 
 
 @syndicate.command(name=ASSEMBLE_PYTHON_ACTION)
-@timeit()
+@return_code_manager
 @click.option('--bundle_name', '-b', nargs=1,
               callback=generate_default_bundle_name,
               help='Name of the bundle, to which the build artifacts are '
@@ -770,10 +755,11 @@ def assemble_python(bundle_name, project_path, force_upload, errors_allowed,
                        force_upload=force_upload,
                        errors_allowed=errors_allowed)
     click.echo('Python artifacts were prepared successfully.')
+    return OK_RETURN_CODE
 
 
 @syndicate.command(name=ASSEMBLE_NODE_ACTION)
-@timeit()
+@return_code_manager
 @click.option('--bundle_name', '-b', nargs=1,
               callback=generate_default_bundle_name,
               help='Name of the bundle, to which the build artifacts are '
@@ -813,10 +799,11 @@ def assemble_node(bundle_name, project_path, force_upload,
                        force_upload=force_upload
                        )
     click.echo('NodeJS artifacts were prepared successfully.')
+    return OK_RETURN_CODE
 
 
 @syndicate.command(name=ASSEMBLE_DOTNET_ACTION)
-@timeit()
+@return_code_manager
 @click.option('--bundle_name', '-b', nargs=1,
               callback=generate_default_bundle_name,
               help='Name of the bundle, to which the build artifacts are '
@@ -856,10 +843,11 @@ def assemble_dotnet(bundle_name, project_path, force_upload,
                        force_upload=force_upload
                        )
     click.echo('DotNet artifacts were prepared successfully.')
+    return OK_RETURN_CODE
 
 
 @syndicate.command(name=ASSEMBLE_SWAGGER_UI_ACTION)
-@timeit()
+@return_code_manager
 @click.option('--bundle_name', '-b', nargs=1,
               callback=generate_default_bundle_name,
               help='Name of the bundle, to which the build artifacts are '
@@ -887,10 +875,11 @@ def assemble_swagger_ui(**kwargs):
                        project_path=project_path,
                        runtime=RUNTIME_SWAGGER_UI)
     click.echo('Swagger UI artifacts were prepared successfully.')
+    return OK_RETURN_CODE
 
 
 @syndicate.command(name=ASSEMBLE_APPSYNC_ACTION)
-@timeit()
+@return_code_manager
 @click.option('--bundle_name', '-b', nargs=1,
               callback=generate_default_bundle_name,
               help='Name of the bundle, to which the build artifacts are '
@@ -918,6 +907,7 @@ def assemble_appsync(**kwargs):
                        project_path=project_path,
                        runtime=RUNTIME_APPSYNC)
     click.echo('AppSync artifacts were prepared successfully.')
+    return OK_RETURN_CODE
 
 
 RUNTIME_LANG_TO_BUILD_MAPPING = {
@@ -931,6 +921,7 @@ RUNTIME_LANG_TO_BUILD_MAPPING = {
 
 
 @syndicate.command(name=ASSEMBLE_ACTION)
+@return_code_manager
 @click.option('--bundle_name', '-b', callback=generate_default_bundle_name,
               help='Bundle\'s name to build the lambdas in. '
                    'Default value: $ProjectName_%Y%m%d.%H%M%S')
@@ -967,16 +958,21 @@ def assemble(ctx, bundle_name, force_upload, errors_allowed):
         for key, value in build_mapping_dict.items():
             func = RUNTIME_LANG_TO_BUILD_MAPPING.get(key)
             if func:
-                ctx.invoke(func, bundle_name=bundle_name,
-                           project_path=value, force_upload=force_upload,
-                           errors_allowed=errors_allowed)
+                return_code = ctx.invoke(func, bundle_name=bundle_name,
+                                         project_path=value,
+                                         force_upload=force_upload,
+                                         errors_allowed=errors_allowed)
+                return return_code
             else:
                 click.echo(f'Build tool is not supported: {key}')
+                return FAILED_RETURN_CODE
     else:
         click.echo('Projects to be built are not found')
+        return FAILED_RETURN_CODE
 
 
 @syndicate.command(name=PACKAGE_META_ACTION)
+@return_code_manager
 @click.option('--bundle_name', '-b', required=True,
               callback=verify_bundle_callback,
               help='Bundle\'s name to package the current meta in')
@@ -995,6 +991,7 @@ def package_meta(bundle_name):
     create_meta(project_path=CONFIG.project_path,
                 bundle_name=bundle_name)
     click.echo('Meta was configured successfully.')
+    return OK_RETURN_CODE
 
 
 @syndicate.command(name=CREATE_DEPLOY_TARGET_BUCKET_ACTION)
@@ -1011,6 +1008,7 @@ def create_deploy_target_bucket():
 
 
 @syndicate.command(name=UPLOAD_ACTION)
+@return_code_manager
 @click.option('--bundle_name', '-b',
               callback=resolve_and_verify_bundle_callback,
               help='Bundle name to which the build artifacts are gathered '
@@ -1040,6 +1038,7 @@ def upload(bundle_name, force_upload=False):
     handle_futures_progress_bar(futures)
 
     click.echo('Bundle was uploaded successfully')
+    return OK_RETURN_CODE
 
 
 @syndicate.command(name=COPY_BUNDLE_ACTION)

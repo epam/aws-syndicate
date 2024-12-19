@@ -254,3 +254,7 @@ APPSYNC_AUTHENTICATION_TYPES = [
     'API_KEY', 'AWS_IAM', 'AWS_LAMBDA', 'AMAZON_COGNITO_USER_POOLS']
 
 EC2_LT_RESOURCE_TAGS = ('instance', 'volume', 'elastic-gpu', 'network-interface', 'spot-instances-request')
+
+OK_RETURN_CODE = 0
+FAILED_RETURN_CODE = 1
+ABORTED_RETURN_CODE = 2
