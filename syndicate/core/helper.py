@@ -34,7 +34,8 @@ import click
 from click import BadParameter
 from tqdm import tqdm
 
-from syndicate.commons.log_helper import get_logger, get_user_logger
+from syndicate.commons.log_helper import get_logger, get_user_logger, \
+    LOG_FORMAT_FOR_CONSOLE
 from syndicate.core.conf.processor import path_resolver
 from syndicate.core.conf.validator import ConfigValidator, ALL_REGIONS
 from syndicate.core.constants import (BUILD_META_FILE_NAME,
@@ -850,11 +851,14 @@ def set_debug_log_level(ctx, param, value):
                    logging.root.manager.loggerDict if
                    name.startswith('syndicate') or
                    name.startswith('user-syndicate')]
+        console_formatter = logging.Formatter(LOG_FORMAT_FOR_CONSOLE)
+        console_handler = logging.StreamHandler()
+        console_handler.setFormatter(console_formatter)
         for logger in loggers:
             if not logger.isEnabledFor(logging.DEBUG):
                 logger.setLevel(logging.DEBUG)
                 if logger.name == 'syndicate':
-                    logger.addHandler(logging.StreamHandler())
+                    logger.addHandler(console_handler)
         _LOG.debug('The logs level was set to DEBUG')
 
 

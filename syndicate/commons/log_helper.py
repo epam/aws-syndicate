@@ -32,6 +32,7 @@ USER_NAME = getpass.getuser()
 LOG_FORMAT_FOR_FILE = ('%(asctime)s [%(levelname)s] USER:{} %(filename)s:'
                        '%(lineno)d:%(funcName)s LOG: %(message)s'
                        .format(USER_NAME))
+LOG_FORMAT_FOR_CONSOLE = ('%(levelname)s: %(message)s')
 
 
 def get_project_log_file_path() -> str:
@@ -61,12 +62,14 @@ log_file_path = get_project_log_file_path()
 
 # formatter
 formatter = Formatter(LOG_FORMAT_FOR_FILE)
+# console formatter
+console_formatter = Formatter(LOG_FORMAT_FOR_CONSOLE)
 # file output
 file_handler = logging.FileHandler(filename=log_file_path)
 file_handler.setFormatter(formatter)
 # console output
 console_handler = logging.StreamHandler()
-console_handler.setFormatter(formatter)
+console_handler.setFormatter(console_formatter)
 
 user_logger = getLogger(f'user-{LOG_NAME}')
 user_logger.addHandler(console_handler)
