@@ -40,8 +40,9 @@ from syndicate.core.build.deployment_processor import \
 from syndicate.core.build.meta_processor import create_meta
 from syndicate.core.build.profiler_processor import (get_metric_statistics,
                                                      process_metrics)
-from syndicate.core.build.warmup_processor import process_api_gw_resources, \
-    warm_upper, process_existing_api_gw_id, process_inputted_api_gw_id
+from syndicate.core.build.warmup_processor import process_deploy_resources, \
+    process_api_gw_resources, warm_upper, process_existing_api_gw_id, \
+    process_inputted_api_gw_id
 from syndicate.core.conf.validator import (JAVA_LANGUAGE_NAME,
                                            PYTHON_LANGUAGE_NAME,
                                            NODEJS_LANGUAGE_NAME,
@@ -595,12 +596,14 @@ def warmup(bundle_name, deploy_name, api_gw_id, stage_name, lambda_auth,
     """
     Warmups Lambda functions
     """
-
-    if api_gw_id:
+    if bundle_name and deploy_name:
+        paths_to_be_triggered, resource_path_warmup_key_mapping = \
+            process_deploy_resources(deploy_name=deploy_name,
+                                     bundle_name=bundle_name)
+    elif api_gw_id:
         paths_to_be_triggered, resource_path_warmup_key_mapping = \
             process_inputted_api_gw_id(api_id=api_gw_id, stage_name=stage_name,
                                        echo=click.echo)
-
     else:
         paths_to_be_triggered, resource_path_warmup_key_mapping = \
             process_existing_api_gw_id(stage_name=stage_name, echo=click.echo)
