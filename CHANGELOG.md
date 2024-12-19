@@ -4,12 +4,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [1.16.0] - 2024-12-13
+# [1.16.0] - 2024-12-17
 - Added support for the AppSync resource
 - Added the possibility to generate `s3_bucket` meta for static website hosting without public access
 - Added an example of lambda function URL configuration to the Python example 'lambda-basic'
+- Improved `modification_lock` resolving to avoid conflicts in case of work a few users with the same project
 - Update `zip_dir` to handle cases where the full path length exceeds 260 characters with a more informative error message
 - Ensure `zip_dir` validates the existence of the base directory before proceeding with the zipping process
+- Fixed duplication lambda function and lambda layer records in the output file after updating the resources
+- Fixed issue related to lambda function updating in case of changing lambda's alias name
 - Fix `tag_resources` and `untag_resources` to handle exceptions properly
 - Update `apply_tags`, `remove_tags`, and `update_tags` to return success status
 - Fix `clean` command for `output` folder to correctly resolve ARN for Lambda and properly process and remove the `outputs` folder if Lambda is part of the deployment
@@ -21,7 +24,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Remove the directory 'target' that contains temporary files after assembling lambda artifacts
 
 # [1.15.0] - 2024-10-28
-- Added new resource type `appsync`
 - Added `--skip_tests` option to `build`, `test` and `assemble_java_mvn` commands to not run tests during or after 
 building the bundle
 - Added `--errors_allowed` option to `assemble_python` and `assemble` commands

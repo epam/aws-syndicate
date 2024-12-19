@@ -295,8 +295,8 @@ class ProjectState:
 
         return matches_operation and matches_bundle_name and status
 
-    def is_lock_free(self, lock_name):
-        lock = self.locks.get(lock_name)
+    def is_lock_free(self, lock_name=None, lock_config=None):
+        lock = lock_config or self.locks.get(lock_name)
         if not lock:
             return True
         elif not lock.get(LOCK_IS_LOCKED):
@@ -327,6 +327,9 @@ class ProjectState:
                 locks.update({lock_name: other_lock})
             elif other_lock is None:
                 other_locks.update({lock_name: lock})
+            elif (not self.is_lock_free(lock_config=other_lock) and
+                  getpass.getuser() != other_lock.get(LOCK_INITIATOR)):
+                locks.update({lock_name: other_lock})
             elif (lock.get(LOCK_LAST_MODIFICATION_DATE) <
                   other_lock.get(LOCK_LAST_MODIFICATION_DATE)):
                 locks.update({lock_name: other_lock})

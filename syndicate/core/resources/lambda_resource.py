@@ -550,23 +550,31 @@ class LambdaResource(BaseResource):
             f'Version {updated_version} for lambda {name} published')
 
         alias_name = meta.get('alias')
+        aliases = list(
+            self.lambda_conn.get_aliases(function_name=name).keys()
+        )
         if alias_name:
-            alias = self.lambda_conn.get_alias(function_name=name,
-                                               name=alias_name)
-            if not alias:
-                self.lambda_conn.create_alias(
-                    function_name=name,
-                    name=alias_name,
-                    version=updated_version)
-                _LOG.info(
-                    f'Alias {alias_name} has been created for lambda {name}')
-            else:
+            if alias_name in aliases:
                 self.lambda_conn.update_alias(
                     function_name=name,
                     alias_name=alias_name,
                     function_version=updated_version)
                 _LOG.info(
                     f'Alias {alias_name} has been updated for lambda {name}')
+            else:
+                self.lambda_conn.create_alias(
+                    function_name=name,
+                    name=alias_name,
+                    version=updated_version)
+                _LOG.info(
+                    f'Alias {alias_name} has been created for lambda {name}')
+        for alias in aliases:
+            if alias != alias_name:
+                self.lambda_conn.delete_alias(
+                    function_name=name,
+                    name=alias
+                )
+                aliases.remove(alias)
 
         url_config = meta.get('url_config')
         if url_config:
