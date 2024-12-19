@@ -156,21 +156,22 @@ def generate_lambda_function(project_path, runtime, lambda_names, tags):
 
     lambdas_path = os.path.join(src_path, FOLDER_LAMBDAS)
 
-    processor(project_path=project_path, lambda_names=lambda_names,
-              lambdas_path=lambdas_path, project_state=project_state,
-              tags=tags)
+    generated_lambdas = processor(
+        project_path=project_path, lambda_names=lambda_names,
+        lambdas_path=lambdas_path, project_state=project_state,
+        tags=tags)
 
     tests_generator = TESTS_MODULE_PROCESSORS.get(runtime)
     [tests_generator(project_path, name) for name in lambda_names]
 
     project_state.save()
-    if len(lambda_names) == 1:
-        USER_LOG.info(f'Lambda {lambda_names[0]} has been successfully '
+    if len(generated_lambdas) == 1:
+        USER_LOG.info(f'Lambda {generated_lambdas[0]} has been successfully '
                       f'added to the project.')
-    else:
-        generated_lambdas = ', '.join(lambda_names)
+    elif len(generated_lambdas) > 1:
+        generated_lambda_names = ', '.join(generated_lambdas)
         USER_LOG.info(f'The following lambdas have been successfully '
-                      f'added to the project: {generated_lambdas}')
+                      f'added to the project: {generated_lambda_names}')
 
 
 def generate_lambda_layer(name, runtime, project_path, lambda_names=None):
@@ -198,9 +199,16 @@ def generate_lambda_layer(name, runtime, project_path, lambda_names=None):
 
     layers_path = os.path.join(src_path, FOLDER_LAMBDAS, FOLDER_LAYERS)
 
-    processor(layer_name=name, layers_path=layers_path, runtime=runtime)
+    result = processor(
+        layer_name=name,
+        layers_path=layers_path,
+        runtime=runtime
+    )
 
     project_state.save()
+
+    if result is None:
+        return
 
     USER_LOG.info(f'Layer \'{name}\' has been successfully '
                   f'added to the project.')
@@ -220,6 +228,7 @@ def _generate_python_lambdas(**kwargs):
     lambda_names = kwargs.get(LAMBDA_NAMES_PARAM)
     project_state = kwargs.get(PROJECT_STATE_PARAM)
     tags = kwargs.get(TAGS_PARAM)
+    generated_lambdas = []
 
     if not os.path.exists(lambdas_path):
         _mkdir(lambdas_path, exist_ok=True)
@@ -274,6 +283,9 @@ def _generate_python_lambdas(**kwargs):
         project_state.add_lambda(lambda_name=lambda_name, runtime='python')
 
         _LOG.info(f'Lambda {lambda_name} created')
+        generated_lambdas.append(lambda_name)
+
+    return generated_lambdas
 
 
 def __lambda_name_to_class_name(lambda_name):
@@ -290,6 +302,7 @@ def _generate_java_lambdas(**kwargs):
     project_name = project_state.name
     lambda_names = kwargs.get(LAMBDA_NAMES_PARAM, [])
     tags = kwargs.get(TAGS_PARAM)
+    generated_lambdas = []
 
     _generate_java_project_hierarchy(project_name=project_name,
                                      full_project_path=project_path)
@@ -351,6 +364,9 @@ def _generate_java_lambdas(**kwargs):
 
         project_state.add_lambda(lambda_name=lambda_name, runtime=RUNTIME_JAVA)
         _LOG.info(f'Lambda {lambda_name} created')
+        generated_lambdas.append(lambda_name)
+
+    return generated_lambdas
 
 
 def _generate_java_package_name(project_name):
@@ -387,6 +403,7 @@ def _generate_nodejs_lambdas(**kwargs):
     lambda_names = kwargs.get(LAMBDA_NAMES_PARAM, [])
     project_state = kwargs.get(PROJECT_STATE_PARAM)
     tags = kwargs.get(TAGS_PARAM)
+    generated_lambdas = []
 
     if not os.path.exists(lambdas_path):
         _mkdir(lambdas_path, exist_ok=True)
@@ -437,6 +454,9 @@ def _generate_nodejs_lambdas(**kwargs):
                                lambda_def)
         project_state.add_lambda(lambda_name=lambda_name, runtime=RUNTIME_NODEJS)
         _LOG.info(f'Lambda {lambda_name} created')
+        generated_lambdas.append(lambda_name)
+
+    return generated_lambdas
 
 
 def _generate_dotnet_lambdas(**kwargs):
@@ -444,6 +464,7 @@ def _generate_dotnet_lambdas(**kwargs):
     lambda_names = kwargs.get(LAMBDA_NAMES_PARAM, [])
     project_state = kwargs.get(PROJECT_STATE_PARAM)
     tags = kwargs.get(TAGS_PARAM)
+    generated_lambdas = []
 
     if not os.path.exists(lambdas_path):
         _mkdir(lambdas_path, exist_ok=True)
@@ -489,6 +510,9 @@ def _generate_dotnet_lambdas(**kwargs):
         project_state.add_lambda(lambda_name=lambda_name,
                                  runtime=RUNTIME_DOTNET)
         _LOG.info(f'Lambda {lambda_name} created')
+        generated_lambdas.append(lambda_name)
+
+    return generated_lambdas
 
 
 def _generate_python_layer(**kwargs):
@@ -519,6 +543,8 @@ def _generate_python_layer(**kwargs):
     _write_content_to_file(os.path.join(layer_folder, FILE_LOCAL_REQUIREMENTS),
                            LOCAL_REQUIREMENTS_FILE_CONTENT)
 
+    return layer_name
+
 
 def _generate_nodejs_layer(**kwargs):
     layer_name = kwargs.get(LAYER_NAME_PARAM)
@@ -548,6 +574,8 @@ def _generate_nodejs_layer(**kwargs):
     _write_content_to_file(os.path.join(layer_folder, FILE_PACKAGE_LOCK),
                            _generate_node_layer_package_lock_file(layer_name))
 
+    return layer_name
+
 
 def _generate_dotnet_layer(**kwargs):
     layer_name = kwargs.get(LAYER_NAME_PARAM)
@@ -574,6 +602,8 @@ def _generate_dotnet_layer(**kwargs):
     _write_content_to_file(
         os.path.join(layer_folder, FILE_DOTNET_LAYER_PACKAGES),
         DOTNET_LAMBDA_LAYER_CSPROJ_TEMPLATE)
+
+    return layer_name
 
 
 def _link_layer_to_lambdas(lambda_names, layer_name, layer_runtime,
