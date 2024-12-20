@@ -199,9 +199,10 @@ def resolve_default_bundle_name(command_name):
     else:
         bundle_name = PROJECT_STATE.latest_bundle_name
     if not bundle_name:
-        USER_LOG.error('Property \'bundle\' is not specified and could '
-                       'not be resolved due to absence of data about the '
-                       'latest build operation')
+        USER_LOG.error(
+            'Property \'bundle\' could not be resolved from the syndicate '
+            'project state file.'
+        )
         return ABORTED_RETURN_CODE
     return bundle_name
 
