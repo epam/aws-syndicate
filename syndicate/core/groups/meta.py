@@ -3,6 +3,7 @@ import os
 
 import click
 
+from syndicate.commons.log_helper import get_user_logger
 from syndicate.core.constants import (
     S3_BUCKET_ACL_LIST, API_GW_AUTHORIZER_TYPES, CUSTOM_AUTHORIZER_KEY,
     EC2_LAUNCH_TEMPLATE_SUPPORTED_IMDS_VERSIONS, EC2_LT_RESOURCE_TAGS,
@@ -28,6 +29,8 @@ from syndicate.core.helper import resolve_project_path, timeit
 GENERATE_META_GROUP_NAME = 'meta'
 dynamodb_type_param = click.Choice(['S', 'N', 'B'])
 
+USER_LOG = get_user_logger()
+
 
 @click.group(name=GENERATE_META_GROUP_NAME, cls=OrderedGroup)
 @return_code_manager
@@ -40,12 +43,12 @@ dynamodb_type_param = click.Choice(['S', 'N', 'B'])
 def meta(ctx, project_path):
     """Generates deployment resources templates"""
     if not os.access(project_path, os.F_OK):
-        click.echo(f"The provided path {project_path} doesn't exist")
+        USER_LOG.error(f"The provided path {project_path} doesn't exist")
         return FAILED_RETURN_CODE
     elif not os.access(project_path, os.W_OK) or not os.access(project_path,
                                                                os.X_OK):
-        click.echo(f"Incorrect permissions for the provided path "
-                   f"'{project_path}'")
+        USER_LOG.error(f"Incorrect permissions for the provided path "
+                       f"'{project_path}'")
         return FAILED_RETURN_CODE
     ctx.ensure_object(dict)
     ctx.obj[PROJECT_PATH_PARAM] = project_path

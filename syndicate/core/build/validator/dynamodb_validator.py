@@ -17,6 +17,7 @@ import re
 import click
 import sys
 
+from syndicate.commons.log_helper import get_user_logger
 from syndicate.core.build.validator import assert_required_property
 
 HASH_KEY_NAME = 'hash_key_name'
@@ -36,6 +37,9 @@ NAME = 'name'
 LOCAL_INDEXES = 'local_indexes'
 
 dynamodb_valid_key_types = ['S', 'N', 'B']
+
+
+USER_LOG = get_user_logger()
 
 
 def validate_dynamodb(table_name, table_meta):
@@ -196,6 +200,6 @@ def validate_dax_cluster(cluster_name: str, cluster_meta: dict):
                       f'By default it is \'TLS\'')
     if errors:
         errors_string = '\n'.join(errors)
-        click.echo(f'Errors occurred during Dax cluster meta '
-                   f'validation:\n{errors_string}')
+        USER_LOG.error(f'Errors occurred during Dax cluster meta '
+                       f'validation:\n{errors_string}')
         sys.exit(1)
