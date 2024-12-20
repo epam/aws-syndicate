@@ -18,8 +18,9 @@ from functools import partial
 
 import click
 from syndicate.core.conf.generator import generate_configuration_files
-from syndicate.core.constants import SYNDICATE_WIKI_PAGE, \
-    JAVA_LAMBDAS_WIKI_PAGE, SYNDICATE_PROJECT_EXAMPLES_PAGE
+from syndicate.core.constants import SYNDICATE_WIKI_PAGE, FAILED_RETURN_CODE, \
+    JAVA_LAMBDAS_WIKI_PAGE, SYNDICATE_PROJECT_EXAMPLES_PAGE, OK_RETURN_CODE
+from syndicate.core.decorators import return_code_manager
 from syndicate.core.generators.lambda_function import (
     generate_lambda_function, generate_lambda_layer)
 from syndicate.core.generators.project import (generate_project_structure,
@@ -51,6 +52,7 @@ def generate():
 
 
 @generate.command(name=GENERATE_PROJECT_COMMAND_NAME)
+@return_code_manager
 @click.option('--name', nargs=1, required=True, help='The project name')
 @click.option('--path', nargs=1,
               help=PROJECT_PATH_HELP)
@@ -67,13 +69,15 @@ def project(name, path):
     if not os.access(proj_path, os.X_OK | os.W_OK):
         click.echo(
             f"Incorrect permissions for the provided path '{proj_path}'")
-        return
+        return FAILED_RETURN_CODE
     click.echo(f'Project path: {proj_path}')
     generate_project_structure(project_name=name,
                                project_path=proj_path)
+    return OK_RETURN_CODE
 
 
 @generate.command(name='lambda')
+@return_code_manager
 @click.option('--name', multiple=True, type=str,
               required=True, callback=check_lambdas_names,
               help='(multiple) The lambda function name')
@@ -97,12 +101,12 @@ def lambda_function(name, runtime, project_path, tags):
     tags = tags or {}
     if not os.access(project_path, os.F_OK):
         click.echo(f"The provided path {project_path} doesn't exist")
-        return
+        return FAILED_RETURN_CODE
     elif not os.access(project_path, os.W_OK) or not os.access(project_path,
                                                                os.X_OK):
         click.echo(f"Incorrect permissions for the provided path "
                    f"'{project_path}'")
-        return
+        return FAILED_RETURN_CODE
     click.echo(f'Lambda names: {name}')
     click.echo(f'Runtime: {runtime}')
     click.echo(f'Project path: {project_path}')
@@ -110,9 +114,11 @@ def lambda_function(name, runtime, project_path, tags):
                              runtime=runtime,
                              lambda_names=name,
                              tags=tags)
+    return OK_RETURN_CODE
 
 
 @generate.command(name='lambda_layer')
+@return_code_manager
 @click.option('--name', type=str, required=True,
               callback=check_lambda_layer_name,
               help='The lambda layer name')
@@ -144,20 +150,22 @@ def lambda_layer(name, runtime, link_with_lambda, project_path):
         return
     if not os.access(project_path, os.F_OK):
         click.echo(f"The provided path {project_path} doesn't exist")
-        return
+        return FAILED_RETURN_CODE
     elif not os.access(project_path, os.W_OK) or not os.access(project_path,
                                                                os.X_OK):
         click.echo(f"Incorrect permissions for the provided path "
                    f"'{project_path}'")
-        return
+        return FAILED_RETURN_CODE
     click.echo(f'Project path: {project_path}')
     generate_lambda_layer(name=name,
                           runtime=runtime,
                           lambda_names=link_with_lambda,
                           project_path=project_path)
+    return OK_RETURN_CODE
 
 
 @generate.command(name=GENERATE_CONFIG_COMMAND_NAME)
+@return_code_manager
 @click.option('--name',
               required=True,
               help='Name of the configuration to create. '
@@ -246,9 +254,11 @@ def config(name, config_path, project_path, region, access_key, secret_key,
                                  tags=tags,
                                  iam_permissions_boundary=iam_permissions_boundary,
                                  lock_lifetime_minutes=lock_lifetime_minutes)
+    return OK_RETURN_CODE
 
 
 @generate.command(name='swagger_ui')
+@return_code_manager
 @click.option('--name', required=True, type=str,
               help="Swagger UI name")
 @click.option('--path_to_spec', required=True, type=str,
@@ -271,16 +281,17 @@ def swagger_ui(name, path_to_spec, target_bucket, project_path):
     """
     if not os.access(project_path, os.F_OK):
         click.echo(f"The provided path {project_path} doesn't exist")
-        return
+        return FAILED_RETURN_CODE
     elif not os.access(project_path, os.W_OK) or not os.access(project_path,
                                                                os.X_OK):
         click.echo(f"Incorrect permissions for the provided path "
                    f"'{project_path}'")
-        return
+        return FAILED_RETURN_CODE
     generate_swagger_ui(name=name,
                         spec_path=path_to_spec,
                         target_bucket=target_bucket,
                         project_path=project_path)
+    return OK_RETURN_CODE
 
 
 generate.add_command(meta)
