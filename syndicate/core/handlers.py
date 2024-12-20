@@ -968,13 +968,15 @@ def assemble(ctx, bundle_name, force_upload, errors_allowed):
                                          project_path=value,
                                          force_upload=force_upload,
                                          errors_allowed=errors_allowed)
-                return return_code
+                if return_code != OK_RETURN_CODE:
+                    return return_code
             else:
                 click.echo(f'Build tool is not supported: {key}')
                 return FAILED_RETURN_CODE
     else:
         click.echo('Projects to be built are not found')
         return FAILED_RETURN_CODE
+    return OK_RETURN_CODE
 
 
 @syndicate.command(name=PACKAGE_META_ACTION)
