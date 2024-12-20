@@ -424,17 +424,18 @@ class ProjectState:
         operation = kwargs.get('operation')
         status = kwargs.get('status')
         rollback_on_error = kwargs.get('rollback_on_error')
-        valid_statuses = {True, False, ABORTED_STATUS, FAILED_RETURN_CODE,
-                          OK_RETURN_CODE, ABORTED_RETURN_CODE}
+        valid_statuses = {
+            FAILED_RETURN_CODE, OK_RETURN_CODE, ABORTED_RETURN_CODE
+        }
 
         if status not in valid_statuses:
             kwargs.pop('status', None)
-
-        if status in {OK_RETURN_CODE, FAILED_RETURN_CODE, ABORTED_RETURN_CODE}:
+        else:
             status = {
                 OK_RETURN_CODE: True,
                 FAILED_RETURN_CODE: False,
-                ABORTED_RETURN_CODE: ABORTED_STATUS
+                ABORTED_RETURN_CODE: ABORTED_STATUS,
+                None: None
             }.get(status)
 
         if operation == DEPLOY_ACTION:

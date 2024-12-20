@@ -525,6 +525,9 @@ def clean(
     elif result is False:
         click.echo('AWS resources were removed with errors.')
         return FAILED_RETURN_CODE
+    elif type(result) == dict and 'operation' in result:
+        click.echo('AWS resources were removed.')
+        return {**result, 'code': OK_RETURN_CODE}
     else:
         click.echo('AWS resources were removed.')
     return OK_RETURN_CODE
@@ -998,6 +1001,7 @@ def package_meta(bundle_name):
 
 
 @syndicate.command(name=CREATE_DEPLOY_TARGET_BUCKET_ACTION)
+@return_code_manager
 @verbose_option
 @timeit()
 def create_deploy_target_bucket():
@@ -1008,6 +1012,7 @@ def create_deploy_target_bucket():
     click.echo(f'Create deploy target sdk: {CONFIG.deploy_target_bucket}')
     create_bundles_bucket()
     click.echo('Deploy target bucket was created successfully')
+    return OK_RETURN_CODE
 
 
 @syndicate.command(name=UPLOAD_ACTION)
@@ -1045,6 +1050,7 @@ def upload(bundle_name, force_upload=False):
 
 
 @syndicate.command(name=COPY_BUNDLE_ACTION)
+@return_code_manager
 @click.option('--bundle_name', '-b', nargs=1, callback=create_bundle_callback,
               required=True,
               help='The bundle name, to which the build artifacts '
@@ -1098,9 +1104,11 @@ def copy_bundle(ctx, bundle_name, src_account_id, src_bucket_region,
     click.echo('Bundle was downloaded successfully')
     ctx.invoke(upload, bundle_name=bundle_name, force=force_upload)
     click.echo('Bundle was copied successfully')
+    return OK_RETURN_CODE
 
 
 @syndicate.command(name=EXPORT_ACTION)
+@return_code_manager
 @click.option('--resource_type', '-rt', required=True,
               type=click.Choice(['api_gateway']),
               help='The type of resource to export configuration')
@@ -1149,6 +1157,7 @@ def export(
         click.secho('Please note the AWS API Gateway-specific extensions are '
                     'used to define the API in OAS v3 that starting with '
                     '"x-amazon"', fg='yellow')
+    return OK_RETURN_CODE
 
 
 syndicate.add_command(generate)
