@@ -440,8 +440,8 @@ class ProjectState:
 
         if operation == DEPLOY_ACTION:
             params = kwargs.copy()
-            params.pop('operation')
-            params.pop('status')
+            params.pop('operation', None)
+            params.pop('status', None)
             params['is_succeeded'] = status
 
             if params['is_succeeded'] != ABORTED_STATUS:
