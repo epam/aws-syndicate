@@ -332,7 +332,7 @@ def timeit(action_name=None):
             result_action_name = result.get('operation') if \
                 isinstance(result, dict) else None
             if result_action_name:
-                result = result.get('code', OK_RETURN_CODE)
+                result = result.get('return_code', OK_RETURN_CODE)
             if action_name:
                 username = getpass.getuser()
                 duration = round(te - ts, 3)

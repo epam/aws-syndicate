@@ -527,7 +527,7 @@ def clean(
         return FAILED_RETURN_CODE
     elif type(result) == dict and 'operation' in result:
         click.echo('AWS resources were removed.')
-        return {**result, 'code': OK_RETURN_CODE}
+        return {**result, 'return_code': OK_RETURN_CODE}
     else:
         click.echo('AWS resources were removed.')
     return OK_RETURN_CODE
