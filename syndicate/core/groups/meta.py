@@ -3,6 +3,7 @@ import os
 
 import click
 
+from syndicate.commons.log_helper import get_user_logger
 from syndicate.core.constants import (
     S3_BUCKET_ACL_LIST, API_GW_AUTHORIZER_TYPES, CUSTOM_AUTHORIZER_KEY,
     EC2_LAUNCH_TEMPLATE_SUPPORTED_IMDS_VERSIONS, EC2_LT_RESOURCE_TAGS,
@@ -28,6 +29,8 @@ from syndicate.core.helper import resolve_project_path, timeit
 GENERATE_META_GROUP_NAME = 'meta'
 dynamodb_type_param = click.Choice(['S', 'N', 'B'])
 
+USER_LOG = get_user_logger()
+
 
 @click.group(name=GENERATE_META_GROUP_NAME, cls=OrderedGroup)
 @return_code_manager
@@ -40,12 +43,12 @@ dynamodb_type_param = click.Choice(['S', 'N', 'B'])
 def meta(ctx, project_path):
     """Generates deployment resources templates"""
     if not os.access(project_path, os.F_OK):
-        click.echo(f"The provided path {project_path} doesn't exist")
+        USER_LOG.error(f"The provided path {project_path} doesn't exist")
         return FAILED_RETURN_CODE
     elif not os.access(project_path, os.W_OK) or not os.access(project_path,
                                                                os.X_OK):
-        click.echo(f"Incorrect permissions for the provided path "
-                   f"'{project_path}'")
+        USER_LOG.error(f"Incorrect permissions for the provided path "
+                       f"'{project_path}'")
         return FAILED_RETURN_CODE
     ctx.ensure_object(dict)
     ctx.obj[PROJECT_PATH_PARAM] = project_path
@@ -82,8 +85,8 @@ def dax_cluster(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = DaxClusterGenerator(**kwargs)
     _generate(generator)
-    click.echo(f'Dax cluster \'{kwargs["resource_name"]}\' was '
-               f'successfully generated')
+    USER_LOG.info(f'Dax cluster \'{kwargs["resource_name"]}\' was '
+                  f'successfully generated')
     return OK_RETURN_CODE
 
 
@@ -119,7 +122,7 @@ def dynamodb(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = DynamoDBGenerator(**kwargs)
     _generate(generator)
-    click.echo(f"Table '{kwargs['resource_name']}' was added successfully!")
+    USER_LOG.info(f"Table '{kwargs['resource_name']}' was added successfully!")
     return OK_RETURN_CODE
 
 
@@ -147,7 +150,7 @@ def dynamodb_global_index(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = DynamoDBGlobalIndexGenerator(**kwargs)
     _generate(generator)
-    click.echo(f"Global index '{kwargs['name']}' was added successfully")
+    USER_LOG.info(f"Global index '{kwargs['name']}' was added successfully")
     return OK_RETURN_CODE
 
 
@@ -187,8 +190,8 @@ def dynamodb_autoscaling(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = DynamoDBAutoscalingGenerator(**kwargs)
     _generate(generator)
-    click.echo(f"Autoscaling setting to table '{kwargs['table_name']}' was "
-               f"added successfully")
+    USER_LOG.info(f"Autoscaling setting to table '{kwargs['table_name']}' was "
+                  f"added successfully")
     return OK_RETURN_CODE
 
 
@@ -233,8 +236,8 @@ def s3_bucket(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = S3Generator(**kwargs)
     _generate(generator)
-    click.echo(f"S3 bucket '{kwargs['resource_name']}' was "
-               f"added successfully!")
+    USER_LOG.info(f"S3 bucket '{kwargs['resource_name']}' was "
+                  f"added successfully!")
     return OK_RETURN_CODE
 
 
@@ -258,8 +261,8 @@ def api_gateway(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = ApiGatewayGenerator(**kwargs)
     _generate(generator)
-    click.echo(f"Api gateway '{kwargs['resource_name']}' was "
-               f"added successfully")
+    USER_LOG.info(f"Api gateway '{kwargs['resource_name']}' was "
+                  f"added successfully")
     return OK_RETURN_CODE
 
 
@@ -279,8 +282,8 @@ def web_socket_api_gateway(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = WebSocketApiGatewayGenerator(**kwargs)
     _generate(generator)
-    click.echo(f"Api gateway '{kwargs['resource_name']}' was "
-               f"added successfully")
+    USER_LOG.info(f"Api gateway '{kwargs['resource_name']}' was "
+                  f"added successfully")
     return OK_RETURN_CODE
 
 
@@ -308,8 +311,8 @@ def api_gateway_authorizer(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = ApiGatewayAuthorizerGenerator(**kwargs)
     _generate(generator)
-    click.echo(f"Authorizer '{kwargs['name']}' was added to API gateway "
-               f"'{kwargs['api_name']}' successfully")
+    USER_LOG.info(f"Authorizer '{kwargs['name']}' was added to API gateway "
+                  f"'{kwargs['api_name']}' successfully")
     return OK_RETURN_CODE
 
 
@@ -330,8 +333,8 @@ def api_gateway_resource(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = ApiGatewayResourceGenerator(**kwargs)
     _generate(generator)
-    click.echo(f"Resource '{kwargs['path']}' was added to API gateway "
-               f"'{kwargs['api_name']}' successfully")
+    USER_LOG.info(f"Resource '{kwargs['path']}' was added to API gateway "
+                  f"'{kwargs['api_name']}' successfully")
     return OK_RETURN_CODE
 
 
@@ -380,8 +383,8 @@ def api_gateway_resource_method(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = ApiGatewayResourceMethodGenerator(**kwargs)
     _generate(generator)
-    click.echo(f"Method '{kwargs['method']}' was added to API gateway "
-               f"resource '{kwargs['path']}' successfully")
+    USER_LOG.info(f"Method '{kwargs['method']}' was added to API gateway "
+                  f"resource '{kwargs['path']}' successfully")
     return OK_RETURN_CODE
 
 
@@ -408,8 +411,8 @@ def iam_policy(ctx, **kwargs):
             raise click.BadParameter(str(e), param_hint='policy_content')
     generator = IAMPolicyGenerator(**kwargs)
     _generate(generator)
-    click.echo(f"Iam policy '{kwargs['resource_name']}' was "
-               f"added successfully")
+    USER_LOG.info(f"Iam policy '{kwargs['resource_name']}' was "
+                  f"added successfully")
     return OK_RETURN_CODE
 
 
@@ -441,8 +444,8 @@ def iam_role(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = IAMRoleGenerator(**kwargs)
     _generate(generator)
-    click.echo(f"Iam role '{kwargs['resource_name']}' was "
-               f"added successfully")
+    USER_LOG.info(f"Iam role '{kwargs['resource_name']}' was "
+                  f"added successfully")
     return OK_RETURN_CODE
 
 
@@ -462,8 +465,8 @@ def kinesis_stream(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = KinesisStreamGenerator(**kwargs)
     _generate(generator)
-    click.echo(f"Kinesis stream '{kwargs['resource_name']}' was "
-               f"added successfully")
+    USER_LOG.info(f"Kinesis stream '{kwargs['resource_name']}' was "
+                  f"added successfully")
     return OK_RETURN_CODE
 
 
@@ -483,8 +486,8 @@ def sns_topic(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = SNSTopicGenerator(**kwargs)
     _generate(generator)
-    click.echo(f"SNS topic '{kwargs['resource_name']}' was "
-               f"added successfully")
+    USER_LOG.info(f"SNS topic '{kwargs['resource_name']}' was "
+                  f"added successfully")
     return OK_RETURN_CODE
 
 
@@ -504,8 +507,8 @@ def step_function(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = StepFunctionGenerator(**kwargs)
     _generate(generator)
-    click.echo(f"Step function '{kwargs['resource_name']}' was "
-               f"added successfully")
+    USER_LOG.info(f"Step function '{kwargs['resource_name']}' was "
+                  f"added successfully")
     return OK_RETURN_CODE
 
 
@@ -523,8 +526,8 @@ def step_function_activity(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = StepFunctionActivityGenerator(**kwargs)
     _generate(generator)
-    click.echo(f"Step function activity '{kwargs['resource_name']}' was "
-               f"added successfully")
+    USER_LOG.info(f"Step function activity '{kwargs['resource_name']}' was "
+                  f"added successfully")
     return OK_RETURN_CODE
 
 
@@ -564,8 +567,8 @@ def ec2_instance(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = EC2InstanceGenerator(**kwargs)
     _generate(generator)
-    click.echo(f"EC2 instance '{kwargs['resource_name']}' was added"
-               f"successfully")
+    USER_LOG.info(f"EC2 instance '{kwargs['resource_name']}' was added"
+                  f"successfully")
     return OK_RETURN_CODE
 
 
@@ -621,8 +624,8 @@ def ec2_launch_template(ctx, **kwargs):
 
     generator = EC2LaunchTemplateGenerator(**kwargs)
     _generate(generator)
-    click.echo(f"ec2_launch_template '{kwargs['resource_name']}' was added "
-               f"successfully")
+    USER_LOG.info(f"ec2_launch_template '{kwargs['resource_name']}' was added "
+                  f"successfully")
     return OK_RETURN_CODE
 
 
@@ -681,8 +684,8 @@ def sqs_queue(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = SQSQueueGenerator(**kwargs)
     _generate(generator)
-    click.echo(f"SQS queue '{kwargs['resource_name']}' was added "
-               f"successfully")
+    USER_LOG.info(f"SQS queue '{kwargs['resource_name']}' was added "
+                  f"successfully")
     return OK_RETURN_CODE
 
 
@@ -706,8 +709,8 @@ def sns_application(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = SNSApplicationGenerator(**kwargs)
     _generate(generator)
-    click.echo(f"SNS application '{kwargs['resource_name']}' was added "
-               f"successfully")
+    USER_LOG.info(f"SNS application '{kwargs['resource_name']}' was added "
+                  f"successfully")
     return OK_RETURN_CODE
 
 
@@ -750,8 +753,8 @@ def cognito_user_pool(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = CognitoUserPoolGenerator(**kwargs)
     _generate(generator)
-    click.echo(f"Cognito user pool '{kwargs['resource_name']}' was added "
-               f"successfully")
+    USER_LOG.info(f"Cognito user pool '{kwargs['resource_name']}' was added "
+                  f"successfully")
     return OK_RETURN_CODE
 
 
@@ -777,8 +780,8 @@ def cognito_federated_pool(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = CognitoFederatedPoolGenerator(**kwargs)
     _generate(generator)
-    click.echo(f"Cognito federated pool '{kwargs['resource_name']}' was "
-               f"added successfully")
+    USER_LOG.info(f"Cognito federated pool '{kwargs['resource_name']}' was "
+                  f"added successfully")
     return OK_RETURN_CODE
 
 
@@ -843,8 +846,8 @@ def batch_compenv(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = BatchCompenvGenerator(**kwargs)
     _generate(generator)
-    click.echo(f"Batch compute environment '{kwargs['resource_name']}' was "
-               f"added successfully")
+    USER_LOG.info(f"Batch compute environment '{kwargs['resource_name']}' was "
+                  f"added successfully")
     return OK_RETURN_CODE
 
 
@@ -871,8 +874,8 @@ def batch_jobdef(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = BatchJobdefGenerator(**kwargs)
     _generate(generator)
-    click.echo(f'Batch job definition \'{kwargs["resource_name"]}\' was '
-               f'added successfully')
+    USER_LOG.info(f'Batch job definition \'{kwargs["resource_name"]}\' was '
+                  f'added successfully')
     return OK_RETURN_CODE
 
 
@@ -897,8 +900,8 @@ def batch_jobqueue(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = BatchJobqueueGenerator(**kwargs)
     _generate(generator)
-    click.echo(f"Batch job queue '{kwargs['resource_name']}' was "
-               f"added successfully")
+    USER_LOG.info(f"Batch job queue '{kwargs['resource_name']}' was "
+                  f"added successfully")
     return OK_RETURN_CODE
 
 
@@ -969,8 +972,8 @@ def cloudwatch_alarm(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = CloudWatchAlarmGenerator(**kwargs)
     _generate(generator)
-    click.echo(f"Cloudwatch alarm '{kwargs['resource_name']}' was "
-               f"added successfully")
+    USER_LOG.info(f"Cloudwatch alarm '{kwargs['resource_name']}' was "
+                  f"added successfully")
     return OK_RETURN_CODE
 
 
@@ -999,8 +1002,8 @@ def cloudwatch_event_rule(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = CloudwatchEventRuleGenerator(**kwargs)
     _generate(generator)
-    click.echo(f"Cloudwatch event rule '{kwargs['resource_name']}' was "
-               f"added successfully")
+    USER_LOG.info(f"Cloudwatch event rule '{kwargs['resource_name']}' was "
+                  f"added successfully")
     return OK_RETURN_CODE
 
 
@@ -1030,8 +1033,8 @@ def eventbridge_rule(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = EventBridgeRuleGenerator(**kwargs)
     _generate(generator)
-    click.echo(f"EventBridge rule '{kwargs['resource_name']}' was "
-               f"added successfully")
+    USER_LOG.info(f"EventBridge rule '{kwargs['resource_name']}' was "
+                  f"added successfully")
     return OK_RETURN_CODE
 
 
@@ -1063,8 +1066,8 @@ def documentdb_cluster(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = DocumentDBClusterGenerator(**kwargs)
     _generate(generator)
-    click.echo(f"DocumentDB cluster '{kwargs['resource_name']}' was "
-               f"added successfully")
+    USER_LOG.info(f"DocumentDB cluster '{kwargs['resource_name']}' was "
+                  f"added successfully")
     return OK_RETURN_CODE
 
 
@@ -1092,8 +1095,8 @@ def documentdb_instance(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = DocumentDBInstanceGenerator(**kwargs)
     _generate(generator)
-    click.echo(f"DocumentDB instance '{kwargs['resource_name']}' was "
-               f"added successfully")
+    USER_LOG.info(f"DocumentDB instance '{kwargs['resource_name']}' was "
+                  f"added successfully")
     return OK_RETURN_CODE
 
 

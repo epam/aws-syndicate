@@ -23,7 +23,7 @@ from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import (build_description_obj,
                                              validate_params)
 
-_LOG = get_logger('core.resources.step_function_resource')
+_LOG = get_logger(__name__)
 
 
 class StepFunctionResource(BaseResource):

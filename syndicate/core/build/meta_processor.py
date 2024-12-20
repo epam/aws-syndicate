@@ -44,7 +44,7 @@ DEFAULT_IAM_SUFFIX_LENGTH = 5
 NAME_RESOLVING_BLACKLISTED_KEYS = ['prefix', 'suffix', 'resource_type', 'principal_service', 'integration_type',
                                    'authorization_type']
 
-_LOG = get_logger('syndicate.core.build.meta_processor')
+_LOG = get_logger(__name__)
 USER_LOG = get_user_logger()
 
 

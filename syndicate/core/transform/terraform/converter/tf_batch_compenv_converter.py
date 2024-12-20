@@ -24,8 +24,7 @@ from syndicate.core.transform.terraform.tf_resource_name_builder import \
 from syndicate.core.transform.terraform.tf_resource_reference_builder import \
     build_role_name_ref, build_instance_profile_arn_ref, build_role_arn_ref
 
-_LOG = get_logger('syndicate.core.transform.terraform'
-                  '.converter.tf_batch_compenv_converter')
+_LOG = get_logger(__name__)
 
 ECS_POLICY_ARN = 'arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role'
 BATCH_SERVICE_ROLE = 'arn:aws:iam::aws:policy/service-role/AWSBatchServiceRole'

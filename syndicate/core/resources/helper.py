@@ -22,7 +22,7 @@ from datetime import datetime
 
 T = TypeVar('T')
 
-_LOG = get_logger('syndicate.core.resources.helper')
+_LOG = get_logger(__name__)
 
 
 def validate_params(name, meta, required_params):

@@ -22,7 +22,7 @@ from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import build_description_obj, \
     assert_required_params, assert_possible_values
 
-_LOG = get_logger('syndicate.core.resources.cognito_user_pool_resource')
+_LOG = get_logger(__name__)
 
 
 class CognitoUserPoolResource(BaseResource):

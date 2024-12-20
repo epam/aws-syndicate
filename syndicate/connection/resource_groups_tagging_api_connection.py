@@ -16,7 +16,7 @@
 from boto3 import client
 from syndicate.commons.log_helper import get_logger
 
-_LOG = get_logger('syndicate.connection.resource_groups_tagging_api_connection')
+_LOG = get_logger(__name__)
 
 
 class ResourceGroupsTaggingAPIConnection:

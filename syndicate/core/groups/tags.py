@@ -14,12 +14,17 @@
     limitations under the License.
 """
 import click
+
+from syndicate.commons.log_helper import get_user_logger
 from syndicate.core.build.bundle_processor import load_deploy_output
 from syndicate.core.constants import OK_RETURN_CODE, FAILED_RETURN_CODE
 from syndicate.core.decorators import return_code_manager
 from syndicate.core.helper import verbose_option
 
 TAGS_GROUP_NAME = 'tags'
+
+
+USER_LOG = get_user_logger()
 
 
 @click.group(name=TAGS_GROUP_NAME)
@@ -29,7 +34,7 @@ def tags(ctx):
     """Manage resources tags"""
     from syndicate.core import PROJECT_STATE, RESOURCES_PROVIDER
     if not PROJECT_STATE.latest_deploy:
-        click.echo('No latest deploy')
+        USER_LOG.error('No latest deploy')
         raise click.Abort('No latest deploy')
     deploy_name = PROJECT_STATE.latest_deploy.get('deploy_name')
     bundle_name = PROJECT_STATE.latest_deploy.get('bundle_name')
@@ -49,10 +54,12 @@ def apply(ctx):
     output = ctx.obj['output']
     success = ctx.obj['tags_resource'].safe_apply_tags(output)
     if success:
-        click.echo("Tags applied successfully")
+        USER_LOG.info("Tags applied successfully")
         return OK_RETURN_CODE
     else:
-        click.echo("Tags applied with errors. More details in the log file")
+        USER_LOG.warning(
+            "Tags applied with errors. More details in the log file"
+        )
         return FAILED_RETURN_CODE
 
 
@@ -65,8 +72,10 @@ def remove(ctx):
     output = ctx.obj['output']
     success = ctx.obj['tags_resource'].safe_remove_tags(output)
     if success:
-        click.echo("Tags removed successfully")
+        USER_LOG.info("Tags removed successfully")
         return OK_RETURN_CODE
     else:
-        click.echo("Tags removed with errors. More details in the log file")
+        USER_LOG.warning(
+            "Tags removed with errors. More details in the log file"
+        )
         return FAILED_RETURN_CODE

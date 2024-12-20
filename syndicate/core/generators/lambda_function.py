@@ -46,7 +46,7 @@ from syndicate.core.groups import (RUNTIME_JAVA, RUNTIME_NODEJS,
                                    RUNTIME_NODEJS_LAYER, RUNTIME_DOTNET,
                                    RUNTIME_DOTNET_LAYER)
 
-_LOG = get_logger('syndicate.core.generators.lambda_function')
+_LOG = get_logger(__name__)
 USER_LOG = get_user_logger()
 
 FOLDER_LAMBDAS = 'lambdas'

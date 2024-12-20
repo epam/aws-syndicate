@@ -19,7 +19,7 @@ from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import apply_methods_decorator, retry
 from syndicate.connection.iam_connection import IAMConnection
 
-_LOG = get_logger('syndicate.connection.cognito_identity_connection')
+_LOG = get_logger(__name__)
 
 
 @apply_methods_decorator(retry())

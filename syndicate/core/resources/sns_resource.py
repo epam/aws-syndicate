@@ -26,7 +26,7 @@ from syndicate.core.resources.helper import (build_description_obj,
 
 SNS_CLOUDWATCH_TRIGGER_REQUIRED_PARAMS = ['target_rule']
 
-_LOG = get_logger('core.resources.sns_resource')
+_LOG = get_logger(__name__)
 
 
 class SnsResource(BaseResource):

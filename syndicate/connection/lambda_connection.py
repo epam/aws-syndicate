@@ -25,7 +25,7 @@ from syndicate.connection.helper import apply_methods_decorator, retry
 from syndicate.core.constants import NONE_AUTH_TYPE, IAM_AUTH_TYPE
 from syndicate.core.helper import dict_keys_to_capitalized_camel_case
 
-_LOG = get_logger('lambda_connection')
+_LOG = get_logger(__name__)
 
 AUTH_TYPE_TO_STATEMENT_ID = {
     NONE_AUTH_TYPE: 'FunctionURLAllowPublicAccess-Syndicate',

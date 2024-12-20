@@ -27,7 +27,7 @@ from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import apply_methods_decorator, retry
 from syndicate.core.constants import EC2_LT_RESOURCE_TAGS
 
-_LOG = get_logger('syndicate.connection.ec2_connection')
+_LOG = get_logger(__name__)
 
 
 def create_permissions(ranges):

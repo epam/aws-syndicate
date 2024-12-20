@@ -4,13 +4,14 @@ import boto3
 import requests
 from requests_aws_sign import AWSV4Sign
 
-from syndicate.commons.log_helper import get_logger
+from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core import ResourceProvider
 from syndicate.core.build.bundle_processor import load_deploy_output
 from syndicate.core.conf.processor import ConfigHolder
 from syndicate.core.helper import exit_on_exception
 
-_LOG = get_logger('syndicate.core.build.warmup_processor')
+_LOG = get_logger(__name__)
+USER_LOG = get_user_logger()
 
 NODEJS_RUNTIME = 'nodejs'
 PYTHON_RUNTIME = 'python'
@@ -77,7 +78,7 @@ def _get_api_gw_client():
     return ResourceProvider.instance.api_gw().connection.client
 
 
-def get_api_stage(rest_api_id, user_input_stage_name, echo):
+def get_api_stage(rest_api_id, user_input_stage_name):
     api_gw_client = _get_api_gw_client()
     stages_info = api_gw_client.get_stages(restApiId=rest_api_id)
     stages = stages_info.get('item')
@@ -87,8 +88,8 @@ def get_api_stage(rest_api_id, user_input_stage_name, echo):
         if len(all_stage_names) == 1:
             stage_name = all_stage_names[0]
         else:
-            echo(f'Stage name(s) for {rest_api_id} API ID: '
-                 f'{", ".join(all_stage_names)}')
+            USER_LOG.info(f'Stage name(s) for {rest_api_id} API ID: '
+                          f'{", ".join(all_stage_names)}')
             stage_name = input('Select Stage from existing: ')
             if stage_name not in all_stage_names:
                 raise AssertionError(f'Provided Stage name does not exists')
@@ -218,7 +219,7 @@ def process_deploy_resources(bundle_name, deploy_name):
     return paths_to_be_triggered, resource_path_warmup_key_mapping
 
 
-def process_inputted_api_gw_id(api_id, stage_name, echo):
+def process_inputted_api_gw_id(api_id, stage_name):
     api_gw_client = _get_api_gw_client()
     all_apis = api_gw_client.get_rest_apis().get('items', {})
 
@@ -229,10 +230,10 @@ def process_inputted_api_gw_id(api_id, stage_name, echo):
 
     for rest_api_id in api_id:
         if rest_api_id not in allowed_id:
-            echo(f'Provided {rest_api_id} API ID does not exists')
+            USER_LOG.info(f'Provided {rest_api_id} API ID does not exists')
             continue
 
-        stage_name = get_api_stage(rest_api_id, stage_name, echo=echo)
+        stage_name = get_api_stage(rest_api_id, stage_name)
         paths_to_be_triggered, resource_path_warmup_key_mapping = \
             handle_paths_to_be_triggered(rest_api_id=rest_api_id,
                                          stage_name=stage_name,
@@ -243,13 +244,13 @@ def process_inputted_api_gw_id(api_id, stage_name, echo):
     return paths_to_be_triggered, resource_path_warmup_key_mapping
 
 
-def process_existing_api_gw_id(stage_name, echo):
+def process_existing_api_gw_id(stage_name):
     api_gw_client = _get_api_gw_client()
     all_apis = api_gw_client.get_rest_apis().get('items', {})
 
     all_api_name = {api['name']: api['id'] for api in all_apis}
 
-    echo(f'Existed API Gateway: {", ".join(all_api_name)}')
+    USER_LOG.info(f'Existed API Gateway: {", ".join(all_api_name)}')
     user_input_id = input('Select API from existing (multiple names must be'
                           ' separated by commas): ')
     user_input_id = user_input_id.split(",")
@@ -264,7 +265,7 @@ def process_existing_api_gw_id(stage_name, echo):
 
     for api_name in user_input_id:
         rest_api_id = all_api_name[api_name]
-        stage_name = get_api_stage(rest_api_id, stage_name, echo)
+        stage_name = get_api_stage(rest_api_id, stage_name)
         handle_paths_to_be_triggered(rest_api_id, stage_name,
                                      paths_to_be_triggered,
                                      resource_path_warmup_key_mapping)

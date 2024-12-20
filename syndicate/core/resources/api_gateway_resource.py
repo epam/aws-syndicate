@@ -36,7 +36,7 @@ from syndicate.core.resources.lambda_resource import LambdaResource
 
 API_REQUIRED_PARAMS = ['resources', 'deploy_stage']
 
-_LOG = get_logger('syndicate.core.resources.api_gateway_resource')
+_LOG = get_logger(__name__)
 USER_LOG = get_user_logger()
 
 SUPPORTED_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS',

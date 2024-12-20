@@ -22,6 +22,7 @@ import re
 import subprocess
 import sys
 import logging
+import traceback
 import zipfile
 from datetime import datetime, timedelta
 from functools import wraps
@@ -34,17 +35,19 @@ import click
 from click import BadParameter
 from tqdm import tqdm
 
-from syndicate.commons.log_helper import get_logger, get_user_logger
+from syndicate.commons.log_helper import get_logger, get_user_logger, \
+    LOG_FORMAT_FOR_CONSOLE
 from syndicate.core.conf.processor import path_resolver
 from syndicate.core.conf.validator import ConfigValidator, ALL_REGIONS
 from syndicate.core.constants import (BUILD_META_FILE_NAME,
                                       DEFAULT_SEP, DATE_FORMAT_ISO_8601,
-                                      CUSTOM_AUTHORIZER_KEY, OK_RETURN_CODE)
+                                      CUSTOM_AUTHORIZER_KEY, OK_RETURN_CODE,
+                                      ABORTED_RETURN_CODE)
 from syndicate.core.project_state.project_state import MODIFICATION_LOCK, \
     WARMUP_LOCK, ProjectState
 from syndicate.core.project_state.sync_processor import sync_project_state
 
-_LOG = get_logger('syndicate.core.helper')
+_LOG = get_logger(__name__)
 USER_LOG = get_user_logger()
 
 CONF_PATH = os.environ.get('SDCT_CONF')
@@ -82,8 +85,8 @@ def exit_on_exception(handler_func):
         try:
             return handler_func(*args, **kwargs)
         except Exception as e:
-            USER_LOG.error('An error occurred. See details in the log file')
-            _LOG.exception("Error occurred: %s", str(e))
+            USER_LOG.error(f'An error occurred: {str(e)}')
+            _LOG.exception(traceback.format_exc())
             from syndicate.core import PROJECT_STATE
             PROJECT_STATE.release_lock(MODIFICATION_LOCK)
             sync_project_state()
@@ -196,10 +199,11 @@ def resolve_default_bundle_name(command_name):
     else:
         bundle_name = PROJECT_STATE.latest_bundle_name
     if not bundle_name:
-        click.echo('Property \'bundle\' is not specified and could '
-                   'not be resolved due to absence of data about the '
-                   'latest build operation')
-        return
+        USER_LOG.error(
+            'Property \'bundle\' could not be resolved from the syndicate '
+            'project state file.'
+        )
+        return ABORTED_RETURN_CODE
     return bundle_name
 
 
@@ -851,11 +855,14 @@ def set_debug_log_level(ctx, param, value):
                    logging.root.manager.loggerDict if
                    name.startswith('syndicate') or
                    name.startswith('user-syndicate')]
+        console_formatter = logging.Formatter(LOG_FORMAT_FOR_CONSOLE)
+        console_handler = logging.StreamHandler()
+        console_handler.setFormatter(console_formatter)
         for logger in loggers:
             if not logger.isEnabledFor(logging.DEBUG):
                 logger.setLevel(logging.DEBUG)
                 if logger.name == 'syndicate':
-                    logger.addHandler(logging.StreamHandler())
+                    logger.addHandler(console_handler)
         _LOG.debug('The logs level was set to DEBUG')
 
 

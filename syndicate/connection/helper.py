@@ -21,7 +21,7 @@ from botocore.exceptions import ClientError
 
 from syndicate.commons.log_helper import get_logger
 
-_LOG = get_logger('syndicate.connection.helper')
+_LOG = get_logger(__name__)
 
 LOG_NOT_FOUND_ERROR = 'log_not_found_error'
 

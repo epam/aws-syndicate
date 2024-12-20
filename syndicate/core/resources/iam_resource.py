@@ -25,7 +25,7 @@ from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import (build_description_obj,
                                              resolve_dynamic_identifier)
 
-_LOG = get_logger('syndicate.core.resources.iam_resource')
+_LOG = get_logger(__name__)
 
 
 class IamResource(BaseResource):

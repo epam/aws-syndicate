@@ -40,7 +40,7 @@ from syndicate.core.conf.validator import (LAMBDAS_ALIASES_NAME_CFG,
 from syndicate.core.constants import DEFAULT_LOGS_EXPIRATION
 from syndicate.core.generators import _mkdir
 
-_LOG = get_logger('config_generator')
+_LOG = get_logger(__name__)
 _USER_LOG = get_user_logger()
 
 

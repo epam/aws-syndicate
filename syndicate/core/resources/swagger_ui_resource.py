@@ -30,7 +30,7 @@ from syndicate.core.resources.helper import build_description_obj
 
 INDEX_FILE_NAME = 'index.html'
 
-_LOG = get_logger('syndicate.core.resources.swagger_ui_resource')
+_LOG = get_logger(__name__)
 USER_LOG = get_user_logger()
 
 

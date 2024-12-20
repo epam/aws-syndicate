@@ -26,7 +26,7 @@ from ..cf_transform_utils import (iam_role_logic_name,
                                   iam_instance_profile_logic_name,
                                   batch_compute_env_logic_name)
 
-_LOG = get_logger('cf_batch_compenv_converter')
+_LOG = get_logger(__name__)
 
 
 class CfBatchComputeEnvironmentConverter(CfResourceConverter):

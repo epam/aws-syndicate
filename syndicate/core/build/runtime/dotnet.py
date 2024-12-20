@@ -54,7 +54,7 @@ SYNDICATE_DIR = '.syndicate'
 LOCAL_NUGET_SOURCE_NAME = 'syndicate_local_nuget_source'
 
 
-_LOG = get_logger('dotnet_runtime_assembler')
+_LOG = get_logger(__name__)
 USER_LOG = get_user_logger()
 
 

@@ -20,7 +20,6 @@ from functools import partial
 
 import click
 from tabulate import tabulate
-from logging import DEBUG
 
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.export.export_processor import export_specification
@@ -88,7 +87,7 @@ commands_without_config = (
     HELP_PARAMETER_KEY
 )
 
-_LOG = get_logger('syndicate.core.handlers')
+_LOG = get_logger(__name__)
 USER_LOG = get_user_logger()
 
 
@@ -103,15 +102,15 @@ def syndicate():
     if _not_require_config(sys.argv):
         pass
     elif CONF_PATH:
-        click.echo('Configuration used: ' + CONF_PATH)
+        USER_LOG.info('Configuration used: ' + CONF_PATH)
         initialize_connection()
         initialize_project_state()
         initialize_signal_handling()
     else:
-        click.echo('Environment variable SDCT_CONF is not set! '
-                   'Please verify that you have provided path to '
-                   'correct config files '
-                   'or execute `syndicate generate config` command.')
+        USER_LOG.error('Environment variable SDCT_CONF is not set! '
+                       'Please verify that you have provided path to '
+                       'correct config files '
+                       'or execute `syndicate generate config` command.')
         sys.exit(FAILED_RETURN_CODE)
 
 
@@ -135,10 +134,10 @@ def syndicate():
 def test(suite, test_folder_name, errors_allowed, skip_tests):
     """Discovers and runs tests inside python project configuration path."""
     if skip_tests:
-        click.echo('Skipping tests...')
+        USER_LOG.info('Skipping tests...')
         return OK_RETURN_CODE
 
-    click.echo('Running tests...')
+    USER_LOG.info('Running tests...')
     import subprocess
     from syndicate.core import CONFIG
     project_path = CONFIG.project_path
@@ -146,11 +145,7 @@ def test(suite, test_folder_name, errors_allowed, skip_tests):
     if not os.path.exists(test_folder):
         msg = (f'Tests not found, \'{test_folder_name}\' folder is missing in '
                f'\'{project_path}\'.')
-        if _LOG.level > DEBUG:
-            click.echo(msg)
-            _LOG.info(msg)
-        else:
-            USER_LOG.info(msg)
+        USER_LOG.info(msg)
         return OK_RETURN_CODE
     test_lib_command_mapping = {
         'unittest': f'{sys.executable} -m unittest discover {test_folder} -v',
@@ -165,15 +160,15 @@ def test(suite, test_folder_name, errors_allowed, skip_tests):
     if result.returncode != OK_RETURN_CODE:
         _LOG.error(f'{result.stdout}\n{result.stderr}\n{"-" * 70}')
         if not errors_allowed:
-            click.echo(
+            USER_LOG.error(
                 'Some tests failed. See details in the log file. Exiting...')
             return result.returncode
         else:
-            USER_LOG.warn('Some tests failed. See details in the log file.')
+            USER_LOG.warning('Some tests failed. See details in the log file.')
             return OK_RETURN_CODE
     else:
         _LOG.info(f'{result.stdout}\n{result.stderr}\n{"-" * 70}')
-        click.echo('Tests passed.')
+        USER_LOG.info('Tests passed.')
         return OK_RETURN_CODE
 
 
@@ -199,9 +194,9 @@ def build(ctx, bundle_name, force_upload, errors_allowed, skip_tests):
     Builds bundle of an application
     """
     if if_bundle_exist(bundle_name=bundle_name) and not force_upload:
-        click.echo(f'Bundle name \'{bundle_name}\' already exists '
-                   f'in deploy bucket. Please use another bundle '
-                   f'name or delete the bundle')
+        USER_LOG.error(f'Bundle name \'{bundle_name}\' already exists '
+                       f'in deploy bucket. Please use another bundle '
+                       f'name or delete the bundle')
         return FAILED_RETURN_CODE
 
     test_code = ctx.invoke(test,
@@ -310,7 +305,7 @@ def deploy(
         deploy_only_resources = tuple(
             set(deploy_only_resources + tuple(deploy_resources_list)))
         if deploy_only_resources:
-            click.echo(
+            USER_LOG.info(
                 f'Resources to deploy: {list(deploy_only_resources)}')
 
     if excluded_resources_path and os.path.exists(excluded_resources_path):
@@ -318,7 +313,7 @@ def deploy(
         excluded_resources = tuple(
             set(excluded_resources + tuple(excluded_resources_list)))
         if excluded_resources:
-            click.echo(f'Resources to deploy: {list(excluded_resources)}')
+            USER_LOG.info(f'Resources to deploy: {list(excluded_resources)}')
 
     deploy_success = create_deployment_resources(
         deploy_name=deploy_name,
@@ -334,14 +329,17 @@ def deploy(
 
     message = 'Backend resources were deployed{suffix}.'.format(
         suffix='' if deploy_success else (
-            ' with errors. Rollback is enabled, output file was not created'
+            ' with errors. Rollback is enabled, resources from this '
+            'deployment were cleaned'
             if rollback_on_error else ' with errors. See deploy output file'
         )
     )
-    click.echo(message)
 
     if not deploy_success:
+        USER_LOG.warning(message)
         return FAILED_RETURN_CODE
+
+    USER_LOG.info(message)
     return OK_RETURN_CODE
 
 
@@ -393,7 +391,7 @@ def update(
     Updates infrastructure from the provided bundle
     """
     from syndicate.core import PROJECT_STATE
-    click.echo(f'Bundle name: {bundle_name}')
+    USER_LOG.info(f'Bundle name: {bundle_name}')
     PROJECT_STATE.current_bundle = bundle_name
 
     if update_only_resources_path and os.path.exists(
@@ -402,7 +400,7 @@ def update(
         update_only_resources = tuple(
             set(update_only_resources + tuple(update_resources_list)))
         if update_only_resources:
-            click.echo(
+            USER_LOG.info(
                 f'Resources to update: {list(update_only_resources)}')
 
     if excluded_resources_path and os.path.exists(excluded_resources_path):
@@ -410,7 +408,7 @@ def update(
         excluded_resources = tuple(
             set(excluded_resources + tuple(excluded_resources_list)))
         if excluded_resources:
-            click.echo(
+            USER_LOG.info(
                 f'Resources excluded from update: {list(excluded_resources)}')
 
     success = update_deployment_resources(
@@ -423,14 +421,14 @@ def update(
         replace_output=replace_output,
         force=force)
     if success is True:
-        click.echo('Update of resources has been successfully completed')
+        USER_LOG.info('Update of resources has been successfully completed')
         return OK_RETURN_CODE
     elif success == ABORTED_STATUS:
-        click.echo('Update of resources has been aborted')
+        USER_LOG.warning('Update of resources has been aborted')
         # not ABORTED_RETURN_CODE because of event status in .syndicate file
         return FAILED_RETURN_CODE
     else:
-        click.echo('Something went wrong during resources update')
+        USER_LOG.warning('Something went wrong during resources update')
         return FAILED_RETURN_CODE
 
 
@@ -482,24 +480,24 @@ def clean(
     Cleans the application infrastructure
     """
     from syndicate.core import PROJECT_STATE
-    click.echo('Command clean')
-    click.echo(f'Deploy name: {deploy_name}')
+    USER_LOG.info('Command clean')
+    USER_LOG.info(f'Deploy name: {deploy_name}')
     separator = ', '
     PROJECT_STATE.current_bundle = bundle_name
 
     if clean_only_types:
-        click.echo(f'Clean only types: {separator.join(clean_only_types)}')
+        USER_LOG.info(f'Clean only types: {separator.join(clean_only_types)}')
     if clean_only_resources:
-        click.echo(f'Clean only resources: '
+        USER_LOG.info(f'Clean only resources: '
                    f'{separator.join(clean_only_resources)}')
     if clean_only_resources_path:
-        click.echo(f'Clean only resources path: {clean_only_resources_path}')
+        USER_LOG.info(f'Clean only resources path: {clean_only_resources_path}')
     if excluded_resources:
-        click.echo(f'Excluded resources: {separator.join(excluded_resources)}')
+        USER_LOG.info(f'Excluded resources: {separator.join(excluded_resources)}')
     if excluded_resources_path:
-        click.echo(f'Excluded resources path: {excluded_resources_path}')
+        USER_LOG.info(f'Excluded resources path: {excluded_resources_path}')
     if excluded_types:
-        click.echo(f'Excluded types: {separator.join(excluded_resources)}')
+        USER_LOG.info(f'Excluded types: {separator.join(excluded_resources)}')
     if clean_only_resources_path and os.path.exists(clean_only_resources_path):
         clean_resources_list = json.load(open(clean_only_resources_path))
         clean_only_resources = tuple(
@@ -520,16 +518,16 @@ def clean(
         preserve_state=preserve_state)
 
     if result == ABORTED_STATUS:
-        click.echo('Clean of resources has been aborted')
+        USER_LOG.warning('Clean of resources has been aborted')
         return ABORTED_RETURN_CODE
     elif result is False:
-        click.echo('AWS resources were removed with errors.')
+        USER_LOG.warning('AWS resources were removed with errors.')
         return FAILED_RETURN_CODE
     elif type(result) == dict and 'operation' in result:
-        click.echo('AWS resources were removed.')
+        USER_LOG.info('AWS resources were removed.')
         return {**result, 'return_code': OK_RETURN_CODE}
     else:
-        click.echo('AWS resources were removed.')
+        USER_LOG.info('AWS resources were removed.')
     return OK_RETURN_CODE
 
 
@@ -566,7 +564,7 @@ def status(events, resources):
     Command displays the following content: project name, state, latest
     modification, locks summary, latest event, project resources.
     """
-    click.echo(project_state_status(category=events or resources))
+    USER_LOG.info(project_state_status(category=events or resources))
     return OK_RETURN_CODE
 
 
@@ -605,14 +603,13 @@ def warmup(bundle_name, deploy_name, api_gw_id, stage_name, lambda_auth,
                                      bundle_name=bundle_name)
     elif api_gw_id:
         paths_to_be_triggered, resource_path_warmup_key_mapping = \
-            process_inputted_api_gw_id(api_id=api_gw_id, stage_name=stage_name,
-                                       echo=click.echo)
+            process_inputted_api_gw_id(api_id=api_gw_id, stage_name=stage_name)
     else:
         paths_to_be_triggered, resource_path_warmup_key_mapping = \
-            process_existing_api_gw_id(stage_name=stage_name, echo=click.echo)
+            process_existing_api_gw_id(stage_name=stage_name)
 
     if not paths_to_be_triggered or not resource_path_warmup_key_mapping:
-        click.echo('No resources to warm up')
+        USER_LOG.info('No resources to warm up')
         return OK_RETURN_CODE
     resource_method_mapping, resource_warmup_key_mapping = \
         process_api_gw_resources(paths_to_be_triggered=paths_to_be_triggered,
@@ -622,7 +619,7 @@ def warmup(bundle_name, deploy_name, api_gw_id, stage_name, lambda_auth,
                resource_warmup_key_mapping=resource_warmup_key_mapping,
                lambda_auth=lambda_auth, header_name=header_name,
                header_value=header_value)
-    click.echo('Application resources have been warmed up.')
+    USER_LOG.info('Application resources have been warmed up.')
     return OK_RETURN_CODE
 
 
@@ -658,12 +655,12 @@ def profiler(bundle_name, deploy_name, from_date, to_date):
     for lambda_name, metrics in metric_value_dict.items():
         prettify_metrics_dict = {}
 
-        click.echo(f'{os.linesep}Lambda function name: {lambda_name}')
+        USER_LOG.info(f'{os.linesep}Lambda function name: {lambda_name}')
         prettify_metrics_dict = process_metrics(prettify_metrics_dict, metrics)
         if not prettify_metrics_dict:
-            click.echo('No executions found')
-        click.echo(tabulate(prettify_metrics_dict, headers='keys',
-                            stralign='right'))
+            USER_LOG.warning('No executions found')
+        USER_LOG.info(tabulate(prettify_metrics_dict, headers='keys',
+                               stralign='right'))
     return OK_RETURN_CODE
 
 
@@ -706,13 +703,13 @@ def assemble_java_mvn(bundle_name, project_path, force_upload, skip_tests,
     `assemble` commands interface
     :return:
     """
-    click.echo(f'Command compile java project path: {project_path}')
+    USER_LOG.info(f'Command compile java project path: {project_path}')
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
                        runtime=RUNTIME_JAVA,
                        force_upload=force_upload,
                        skip_tests=skip_tests)
-    click.echo('Java artifacts were prepared successfully.')
+    USER_LOG.info('Java artifacts were prepared successfully.')
     return OK_RETURN_CODE
 
 
@@ -754,13 +751,13 @@ def assemble_python(bundle_name, project_path, force_upload, errors_allowed,
     `assemble` commands interface
     :return:
     """
-    click.echo(f'Command assemble python: project_path: {project_path} ')
+    USER_LOG.info(f'Command assemble python: project_path: {project_path} ')
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
                        runtime=RUNTIME_PYTHON,
                        force_upload=force_upload,
                        errors_allowed=errors_allowed)
-    click.echo('Python artifacts were prepared successfully.')
+    USER_LOG.info('Python artifacts were prepared successfully.')
     return OK_RETURN_CODE
 
 
@@ -798,13 +795,13 @@ def assemble_node(bundle_name, project_path, force_upload,
     `assemble` commands interface
     :return:
     """
-    click.echo(f'Command assemble node: project_path: {project_path} ')
+    USER_LOG.info(f'Command assemble node: project_path: {project_path} ')
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
                        runtime=RUNTIME_NODEJS,
                        force_upload=force_upload
                        )
-    click.echo('NodeJS artifacts were prepared successfully.')
+    USER_LOG.info('NodeJS artifacts were prepared successfully.')
     return OK_RETURN_CODE
 
 
@@ -842,13 +839,13 @@ def assemble_dotnet(bundle_name, project_path, force_upload,
     `assemble` commands interface
     :return:
     """
-    click.echo(f'Command assemble dotnet: project_path: {project_path} ')
+    USER_LOG.info(f'Command assemble dotnet: project_path: {project_path} ')
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
                        runtime=RUNTIME_DOTNET,
                        force_upload=force_upload
                        )
-    click.echo('DotNet artifacts were prepared successfully.')
+    USER_LOG.info('DotNet artifacts were prepared successfully.')
     return OK_RETURN_CODE
 
 
@@ -876,11 +873,11 @@ def assemble_swagger_ui(**kwargs):
         """
     bundle_name = kwargs.get('bundle_name')
     project_path = kwargs.get('project_path')
-    click.echo(f'Command assemble Swagger UI: project_path: {project_path} ')
+    USER_LOG.info(f'Command assemble Swagger UI: project_path: {project_path} ')
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
                        runtime=RUNTIME_SWAGGER_UI)
-    click.echo('Swagger UI artifacts were prepared successfully.')
+    USER_LOG.info('Swagger UI artifacts were prepared successfully.')
     return OK_RETURN_CODE
 
 
@@ -908,11 +905,11 @@ def assemble_appsync(**kwargs):
         """
     bundle_name = kwargs.get('bundle_name')
     project_path = kwargs.get('project_path')
-    click.echo(f'Command assemble AppSync: project_path: {project_path} ')
+    USER_LOG.info(f'Command assemble AppSync: project_path: {project_path} ')
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
                        runtime=RUNTIME_APPSYNC)
-    click.echo('AppSync artifacts were prepared successfully.')
+    USER_LOG.info('AppSync artifacts were prepared successfully.')
     return OK_RETURN_CODE
 
 
@@ -954,7 +951,7 @@ def assemble(ctx, bundle_name, force_upload, errors_allowed):
     :param errors_allowed: allows to ignore dependency errors. Only for python
     :return:
     """
-    click.echo(f'Building artifacts, bundle: {bundle_name}')
+    USER_LOG.info(f'Building artifacts, bundle: {bundle_name}')
     from syndicate.core import PROJECT_STATE
     # Updates stale lambda state aggregation
     PROJECT_STATE.refresh_lambda_state()
@@ -968,13 +965,15 @@ def assemble(ctx, bundle_name, force_upload, errors_allowed):
                                          project_path=value,
                                          force_upload=force_upload,
                                          errors_allowed=errors_allowed)
-                return return_code
+                if return_code != OK_RETURN_CODE:
+                    return return_code
             else:
-                click.echo(f'Build tool is not supported: {key}')
+                USER_LOG.error(f'Build tool is not supported: {key}')
                 return FAILED_RETURN_CODE
     else:
-        click.echo('Projects to be built are not found')
+        USER_LOG.error('Projects to be built are not found')
         return FAILED_RETURN_CODE
+    return OK_RETURN_CODE
 
 
 @syndicate.command(name=PACKAGE_META_ACTION)
@@ -993,10 +992,10 @@ def package_meta(bundle_name):
     :return:
     """
     from syndicate.core import CONFIG
-    click.echo(f'Package meta, bundle: {bundle_name}')
+    USER_LOG.info(f'Package meta, bundle: {bundle_name}')
     create_meta(project_path=CONFIG.project_path,
                 bundle_name=bundle_name)
-    click.echo('Meta was configured successfully.')
+    USER_LOG.info('Meta was configured successfully.')
     return OK_RETURN_CODE
 
 
@@ -1009,9 +1008,9 @@ def create_deploy_target_bucket():
     Creates a bucket in AWS account where all bundles will be uploaded
     """
     from syndicate.core import CONFIG
-    click.echo(f'Create deploy target sdk: {CONFIG.deploy_target_bucket}')
+    USER_LOG.info(f'Create deploy target sdk: {CONFIG.deploy_target_bucket}')
     create_bundles_bucket()
-    click.echo('Deploy target bucket was created successfully')
+    USER_LOG.info('Deploy target bucket was created successfully')
     return OK_RETURN_CODE
 
 
@@ -1038,14 +1037,14 @@ def upload(bundle_name, force_upload=False):
         already exists in an account
     :return:
     """
-    click.echo(f'Upload bundle: {bundle_name}')
+    USER_LOG.info(f'Upload bundle: {bundle_name}')
     if force_upload:
-        click.echo('Force upload')
+        USER_LOG.info('Force upload')
 
     futures = upload_bundle_to_s3(bundle_name=bundle_name, force=force_upload)
     handle_futures_progress_bar(futures)
 
-    click.echo('Bundle was uploaded successfully')
+    USER_LOG.info('Bundle was uploaded successfully')
     return OK_RETURN_CODE
 
 
@@ -1093,17 +1092,17 @@ def copy_bundle(ctx, bundle_name, src_account_id, src_bucket_region,
         already exists in a target account
     :return:
     """
-    click.echo(f'Copy bundle: {bundle_name}')
-    click.echo(f'Bundle name: {bundle_name}')
-    click.echo(f'Source account id: {src_account_id}')
-    click.echo(f'Source bucket region: {src_bucket_region}')
-    click.echo(f'Source bucket name: {src_bucket_name}')
+    USER_LOG.info(f'Copy bundle: {bundle_name}')
+    USER_LOG.info(f'Bundle name: {bundle_name}')
+    USER_LOG.info(f'Source account id: {src_account_id}')
+    USER_LOG.info(f'Source bucket region: {src_bucket_region}')
+    USER_LOG.info(f'Source bucket name: {src_bucket_name}')
     futures = load_bundle(bundle_name, src_account_id, src_bucket_region,
                           src_bucket_name, role_name)
     handle_futures_progress_bar(futures)
-    click.echo('Bundle was downloaded successfully')
+    USER_LOG.info('Bundle was downloaded successfully')
     ctx.invoke(upload, bundle_name=bundle_name, force=force_upload)
-    click.echo('Bundle was copied successfully')
+    USER_LOG.info('Bundle was copied successfully')
     return OK_RETURN_CODE
 
 
@@ -1154,9 +1153,11 @@ def export(
         output_directory=output_dir,
     )
     if resource_type == 'api_gateway' and dsl == 'oas_v3':
-        click.secho('Please note the AWS API Gateway-specific extensions are '
-                    'used to define the API in OAS v3 that starting with '
-                    '"x-amazon"', fg='yellow')
+        USER_LOG.info(
+            'Please note the AWS API Gateway-specific extensions are '
+            'used to define the API in OAS v3 that starting with '
+            '"x-amazon"'
+        )
     return OK_RETURN_CODE
 
 

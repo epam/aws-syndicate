@@ -24,7 +24,7 @@ METRIC_NAMES = ["Invocations", "Errors", "Throttles", "Duration",
                 "DestinationDeliveryFailures", "DeadLetterErrors",
                 "IteratorAge", "ConcurrentExecutions"]
 
-_LOG = get_logger('syndicate.core.build.profiler_processor')
+_LOG = get_logger(__name__)
 
 
 def _get_cw_client():

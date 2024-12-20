@@ -50,7 +50,7 @@ RUNTIME_TO_BUILDER_MAPPING = {
     RUNTIME_APPSYNC: assemble_appsync
 }
 
-_LOG = get_logger('syndicate.core.build.artifact_processor')
+_LOG = get_logger(__name__)
 
 
 def assemble_artifacts(bundle_name, project_path, runtime, force_upload=None,

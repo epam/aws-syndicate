@@ -13,6 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+import traceback
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from syndicate.commons.log_helper import get_logger, get_user_logger
@@ -21,7 +22,7 @@ from syndicate.core.constants import LAMBDA_TYPE, SWAGGER_UI_TYPE, \
     TAGS_RESOURCE_TYPE_CONFIG
 from syndicate.core.resources.helper import chunks
 
-_LOG = get_logger('syndicate.core.resources.group_tagging_api_resource')
+_LOG = get_logger(__name__)
 USER_LOG = get_user_logger()
 
 
@@ -150,6 +151,7 @@ class TagsApiResource:
             error_message = "\n".join(error_message)
         except Exception as e:
             error_message = str(e)
+            _LOG.debug(traceback.format_exc())
         if not error_message:
             return True
         USER_LOG.error(
@@ -226,6 +228,7 @@ class TagsApiResource:
             error_message = "\n".join(error_message)
         except Exception as e:
             error_message = str(e)
+            _LOG.debug(traceback.format_exc())
         if not error_message:
             return True
         USER_LOG.error(
