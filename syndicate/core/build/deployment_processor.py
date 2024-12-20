@@ -537,10 +537,6 @@ def create_deployment_resources(
                                  success=success,
                                  replace_output=replace_output)
 
-            USER_LOG.warning(
-                "There were errors during the deployment of resources. "
-                "More details can be found in the log file.")
-
     else:
         USER_LOG.info('AWS resources were deployed successfully')
 
@@ -659,11 +655,6 @@ def update_deployment_resources(
                          replace_output=replace_output)
     if success and tag_success:
         remove_failed_deploy_output(bundle_name, deploy_name)
-    else:
-        USER_LOG.warning(
-            "There were errors during the updating of resources. More details "
-            "can be found in the log file"
-        )
 
     return success
 
@@ -762,11 +753,8 @@ def _post_remove_output_handling(
                              replace_output=True)
 
         if not success:
-            USER_LOG.warning(
-                "There were errors during the cleaning of resources. More "
-                "details can be found in the log file"
-            )
             return success
+
         return {'operation': PARTIAL_CLEAN_ACTION}
     return success
 
