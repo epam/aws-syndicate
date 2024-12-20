@@ -40,7 +40,8 @@ from syndicate.core.conf.processor import path_resolver
 from syndicate.core.conf.validator import ConfigValidator, ALL_REGIONS
 from syndicate.core.constants import (BUILD_META_FILE_NAME,
                                       DEFAULT_SEP, DATE_FORMAT_ISO_8601,
-                                      CUSTOM_AUTHORIZER_KEY, OK_RETURN_CODE)
+                                      CUSTOM_AUTHORIZER_KEY, OK_RETURN_CODE,
+                                      ABORTED_RETURN_CODE)
 from syndicate.core.project_state.project_state import MODIFICATION_LOCK, \
     WARMUP_LOCK, ProjectState
 from syndicate.core.project_state.sync_processor import sync_project_state
@@ -197,10 +198,10 @@ def resolve_default_bundle_name(command_name):
     else:
         bundle_name = PROJECT_STATE.latest_bundle_name
     if not bundle_name:
-        click.echo('Property \'bundle\' is not specified and could '
-                   'not be resolved due to absence of data about the '
-                   'latest build operation')
-        return
+        USER_LOG.error('Property \'bundle\' is not specified and could '
+                       'not be resolved due to absence of data about the '
+                       'latest build operation')
+        return ABORTED_RETURN_CODE
     return bundle_name
 
 

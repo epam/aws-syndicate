@@ -17,9 +17,12 @@ import os
 from functools import partial
 
 import click
+
+from syndicate.commons.log_helper import get_user_logger
 from syndicate.core.conf.generator import generate_configuration_files
 from syndicate.core.constants import SYNDICATE_WIKI_PAGE, FAILED_RETURN_CODE, \
-    JAVA_LAMBDAS_WIKI_PAGE, SYNDICATE_PROJECT_EXAMPLES_PAGE, OK_RETURN_CODE
+    JAVA_LAMBDAS_WIKI_PAGE, SYNDICATE_PROJECT_EXAMPLES_PAGE, OK_RETURN_CODE, \
+    ABORTED_RETURN_CODE
 from syndicate.core.decorators import return_code_manager
 from syndicate.core.generators.lambda_function import (
     generate_lambda_function, generate_lambda_layer)
@@ -46,6 +49,9 @@ PROJECT_PATH_HELP = 'Path to project folder. ' \
                     'Default value: current working directory'
 
 
+USER_LOG = get_user_logger()
+
+
 @click.group(name=GENERATE_GROUP_NAME, cls=OrderedGroup)
 def generate():
     """Generates project, lambda or configs"""
@@ -63,14 +69,14 @@ def project(name, path):
     Generates project with all the necessary components and in a right
     folders/files hierarchy to start developing in a min.
     """
-    click.echo(f'Project name: {name}')
+    USER_LOG.info(f'Project name: {name}')
 
     proj_path = os.getcwd() if not path else path
     if not os.access(proj_path, os.X_OK | os.W_OK):
-        click.echo(
+        USER_LOG.error(
             f"Incorrect permissions for the provided path '{proj_path}'")
         return FAILED_RETURN_CODE
-    click.echo(f'Project path: {proj_path}')
+    USER_LOG.info(f'Project path: {proj_path}')
     generate_project_structure(project_name=name,
                                project_path=proj_path)
     return OK_RETURN_CODE
@@ -100,16 +106,16 @@ def lambda_function(name, runtime, project_path, tags):
     """
     tags = tags or {}
     if not os.access(project_path, os.F_OK):
-        click.echo(f"The provided path {project_path} doesn't exist")
+        USER_LOG.error(f"The provided path {project_path} doesn't exist")
         return FAILED_RETURN_CODE
     elif not os.access(project_path, os.W_OK) or not os.access(project_path,
                                                                os.X_OK):
-        click.echo(f"Incorrect permissions for the provided path "
-                   f"'{project_path}'")
+        USER_LOG.error(f"Incorrect permissions for the provided path "
+                       f"'{project_path}'")
         return FAILED_RETURN_CODE
-    click.echo(f'Lambda names: {name}')
-    click.echo(f'Runtime: {runtime}')
-    click.echo(f'Project path: {project_path}')
+    USER_LOG.info(f'Lambda names: {name}')
+    USER_LOG.info(f'Runtime: {runtime}')
+    USER_LOG.info(f'Project path: {project_path}')
     generate_lambda_function(project_path=project_path,
                              runtime=runtime,
                              lambda_names=name,
@@ -140,23 +146,25 @@ def lambda_layer(name, runtime, link_with_lambda, project_path):
     Generates required environment for lambda function's layer
     """
     if runtime == RUNTIME_JAVA:
-        click.echo('Generation of lambda layer for Java runtime is currently '
-                   'unsupported. \nA layer for lambda with Java runtime can '
-                   'be added to the project by using the annotation '
-                   '\'@LambdaLayer\'. \nMore details can be found on the '
-                   'aws-syndicate wiki page or in the project examples:\n'
-                   f'{SYNDICATE_WIKI_PAGE + JAVA_LAMBDAS_WIKI_PAGE}'
-                   f'\n{SYNDICATE_PROJECT_EXAMPLES_PAGE + runtime}')
-        return
+        USER_LOG.warning(
+            'Generation of lambda layer for Java runtime is currently '
+            'unsupported. \nA layer for lambda with Java runtime can '
+            'be added to the project by using the annotation '
+            '\'@LambdaLayer\'. \nMore details can be found on the '
+            'aws-syndicate wiki page or in the project examples:\n'
+            f'{SYNDICATE_WIKI_PAGE + JAVA_LAMBDAS_WIKI_PAGE}'
+            f'\n{SYNDICATE_PROJECT_EXAMPLES_PAGE + runtime}'
+        )
+        return ABORTED_RETURN_CODE
     if not os.access(project_path, os.F_OK):
-        click.echo(f"The provided path {project_path} doesn't exist")
+        USER_LOG.error(f"The provided path {project_path} doesn't exist")
         return FAILED_RETURN_CODE
     elif not os.access(project_path, os.W_OK) or not os.access(project_path,
                                                                os.X_OK):
-        click.echo(f"Incorrect permissions for the provided path "
-                   f"'{project_path}'")
+        USER_LOG.error(f"Incorrect permissions for the provided path "
+                       f"'{project_path}'")
         return FAILED_RETURN_CODE
-    click.echo(f'Project path: {project_path}')
+    USER_LOG.info(f'Project path: {project_path}')
     generate_lambda_layer(name=name,
                           runtime=runtime,
                           lambda_names=link_with_lambda,
@@ -280,12 +288,12 @@ def swagger_ui(name, path_to_spec, target_bucket, project_path):
     Generates required environment for Swagger UI
     """
     if not os.access(project_path, os.F_OK):
-        click.echo(f"The provided path {project_path} doesn't exist")
+        USER_LOG.error(f"The provided path {project_path} doesn't exist")
         return FAILED_RETURN_CODE
     elif not os.access(project_path, os.W_OK) or not os.access(project_path,
                                                                os.X_OK):
-        click.echo(f"Incorrect permissions for the provided path "
-                   f"'{project_path}'")
+        USER_LOG.error(f"Incorrect permissions for the provided path "
+                       f"'{project_path}'")
         return FAILED_RETURN_CODE
     generate_swagger_ui(name=name,
                         spec_path=path_to_spec,

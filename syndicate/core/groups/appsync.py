@@ -3,6 +3,7 @@ from functools import partial
 
 import click
 
+from syndicate.commons.log_helper import get_user_logger
 from syndicate.core.constants import APPSYNC_TYPE, APPSYNC_DATA_SOURCE_TYPES, \
     APPSYNC_AUTHENTICATION_TYPES, APPSYNC_AUTHORIZATION_TYPES, \
     APPSYNC_RESOLVER_RUNTIMES, APPSYNC_RESOLVER_KINDS, OK_RETURN_CODE, \
@@ -20,6 +21,9 @@ from syndicate.core.helper import OrderedGroup, resolve_project_path, \
     ValidRegionParamType, validate_incompatible_options
 
 
+USER_LOG = get_user_logger()
+
+
 @click.group(name=APPSYNC_TYPE, cls=OrderedGroup)
 @return_code_manager
 @click.option('--project_path', nargs=1,
@@ -31,12 +35,12 @@ from syndicate.core.helper import OrderedGroup, resolve_project_path, \
 def appsync(ctx, project_path):
     """Generates AppSync env and resource meta"""
     if not os.access(project_path, os.F_OK):
-        click.echo(f"The provided path {project_path} doesn't exist")
+        USER_LOG.error(f"The provided path {project_path} doesn't exist")
         return FAILED_RETURN_CODE
     elif not os.access(project_path, os.W_OK) or not os.access(project_path,
                                                                os.X_OK):
-        click.echo(f"Incorrect permissions for the provided path "
-                   f"'{project_path}'")
+        USER_LOG.error(f"Incorrect permissions for the provided path "
+                       f"'{project_path}'")
         return FAILED_RETURN_CODE
     ctx.ensure_object(dict)
     ctx.obj[PROJECT_PATH_PARAM] = project_path
@@ -61,12 +65,12 @@ def api(name, project_path, tags):
     Generates required environment for AppSync API
     """
     if not os.access(project_path, os.F_OK):
-        click.echo(f"The provided path {project_path} doesn't exist")
+        USER_LOG.error(f"The provided path {project_path} doesn't exist")
         return FAILED_RETURN_CODE
     elif not os.access(project_path, os.W_OK) or not os.access(project_path,
                                                                os.X_OK):
-        click.echo(f"Incorrect permissions for the provided path "
-                   f"'{project_path}'")
+        USER_LOG.error(f"Incorrect permissions for the provided path "
+                       f"'{project_path}'")
         return FAILED_RETURN_CODE
     generate_appsync(name=name,
                      project_path=project_path,
@@ -105,8 +109,8 @@ def data_source(ctx, **kwargs):
     except ValueError as e:
         raise click.BadParameter(e)
     _generate(generator)
-    click.echo(f"Data source '{kwargs['name']}' was added to AppSync API "
-               f"'{kwargs['api_name']}' successfully")
+    USER_LOG.info(f"Data source '{kwargs['name']}' was added to AppSync API "
+                  f"'{kwargs['api_name']}' successfully")
     return OK_RETURN_CODE
 
 
@@ -134,8 +138,8 @@ def function(ctx, **kwargs):
     except ValueError as e:
         raise click.BadParameter(e)
     _generate(generator)
-    click.echo(f"The function '{kwargs['name']}' was added to AppSync API "
-               f"'{kwargs['api_name']}' successfully")
+    USER_LOG.info(f"The function '{kwargs['name']}' was added to AppSync API "
+                  f"'{kwargs['api_name']}' successfully")
     return OK_RETURN_CODE
 
 
@@ -172,9 +176,9 @@ def resolver(ctx, **kwargs):
     except ValueError as e:
         raise click.BadParameter(e)
     _generate(generator)
-    click.echo(f"The resolver of the type '{kwargs['type_name']}'  for the "
-               f"field '{kwargs['field_name']}' was added to AppSync API "
-               f"'{kwargs['api_name']}' successfully")
+    USER_LOG.info(f"The resolver of the type '{kwargs['type_name']}'  for the "
+                  f"field '{kwargs['field_name']}' was added to AppSync API "
+                  f"'{kwargs['api_name']}' successfully")
     return OK_RETURN_CODE
 
 
@@ -207,9 +211,9 @@ def authorization(ctx, **kwargs):
     except ValueError as e:
         raise click.BadParameter(e)
     _generate(generator)
-    click.echo(f"The '{kwargs['type']}' authorization of type "
-               f"'{kwargs['auth_type']}' was added to AppSync API "
-               f"'{kwargs['api_name']}' successfully")
+    USER_LOG.info(f"The '{kwargs['type']}' authorization of type "
+                  f"'{kwargs['auth_type']}' was added to AppSync API "
+                  f"'{kwargs['api_name']}' successfully")
     return OK_RETURN_CODE
 
 

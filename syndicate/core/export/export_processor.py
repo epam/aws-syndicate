@@ -50,7 +50,9 @@ def export_specification(
         try:
             specification = json.dumps(specification, indent=2)
         except json.JSONDecodeError as e:
-            click.echo(f'An error occurred when serialising specification. {e}')
+            USER_LOG.error(
+                f'An error occurred when serialising specification. {e}'
+            )
             sys.exit(1)
         _LOG.info(f'Specification for resource "{arn}" exported successfully')
         filename = resource_id + '_' + OAS_V3_FILE_NAME
@@ -64,5 +66,7 @@ def export_specification(
             output_file.write(specification)
         _LOG.info(f'Specification saved successfully to the file '
                   f'"{output_path}"')
-        click.echo(f'Specification of the "{resource_key}" with ARN "{arn}" '
-                   f'saved successfully to the file "{output_path}"')
+        USER_LOG.info(
+            f'Specification of the "{resource_key}" with ARN "{arn}" '
+            f'saved successfully to the file "{output_path}"'
+        )
