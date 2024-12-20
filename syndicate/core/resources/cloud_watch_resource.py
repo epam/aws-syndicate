@@ -25,7 +25,7 @@ from syndicate.core.resources.helper import (build_description_obj,
                                              create_args_for_multi_region,
                                              validate_params)
 
-_LOG = get_logger('syndicate.core.resources.cloud_watch_resource')
+_LOG = get_logger(__name__)
 ARN_KEY = 'Arn'
 
 

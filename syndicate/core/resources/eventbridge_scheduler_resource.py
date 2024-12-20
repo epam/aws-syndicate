@@ -23,7 +23,7 @@ from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import build_description_obj, \
     validate_params, assert_possible_values
 
-_LOG = get_logger('syndicate.core.resources.eventbridge_scheduler_resource')
+_LOG = get_logger(__name__)
 
 REQUIRED_PARAMS = {'name', 'schedule_expression', 'state', 'description',
                    'flexible_time_window'}

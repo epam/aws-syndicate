@@ -38,7 +38,7 @@ from syndicate.core.helper import (build_path, unpack_kwargs,
 from syndicate.core.project_state.project_state import BUILD_MAPPINGS
 from syndicate.core.resources.helper import validate_params
 
-_LOG = get_logger('nodejs_runtime_assembler')
+_LOG = get_logger(__name__)
 
 
 _JS_EXT = "*.js"

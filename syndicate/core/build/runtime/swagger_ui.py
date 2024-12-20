@@ -26,7 +26,7 @@ from syndicate.core.helper import build_path
 FILE_DEPLOYMENT_RESOURCES = 'deployment_resources.json'
 INDEX_FILE_NAME = 'index.html'
 
-_LOG = get_logger('syndicate.core.generators.swagger_ui')
+_LOG = get_logger(__name__)
 USER_LOG = get_user_logger()
 
 

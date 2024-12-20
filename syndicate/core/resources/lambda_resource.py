@@ -44,7 +44,7 @@ KINESIS_TRIGGER_REQUIRED_PARAMS = ['target_stream', 'batch_size',
 
 PROVISIONED_CONCURRENCY = 'provisioned_concurrency'
 
-_LOG = get_logger('syndicate.core.resources.lambda_resource')
+_LOG = get_logger(__name__)
 USER_LOG = get_user_logger()
 
 LAMBDA_MAX_CONCURRENCY = 'max_concurrency'

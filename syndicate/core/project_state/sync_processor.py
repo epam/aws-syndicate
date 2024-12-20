@@ -17,7 +17,7 @@ from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.project_state.project_state import PROJECT_STATE_FILE
 from syndicate.core.project_state.project_state import ProjectState
 
-_LOG = get_logger('sync-processor')
+_LOG = get_logger(__name__)
 USER_LOG = get_user_logger()
 
 

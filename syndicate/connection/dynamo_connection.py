@@ -24,7 +24,7 @@ from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import apply_methods_decorator, retry
 
 
-_LOG = get_logger('syndicate.connection.dynamo_connection')
+_LOG = get_logger(__name__)
 
 DEFAULT_READ_CAPACITY = DEFAULT_WRITE_CAPACITY = 5
 

@@ -29,7 +29,7 @@ from syndicate.core.project_state.project_state import BUILD_MAPPINGS
 SWAGGER_UI_RUNTIME = 'swagger_ui'
 INDEX_FILE_NAME = 'index.html'
 
-_LOG = get_logger('syndicate.core.generators.swagger_ui')
+_LOG = get_logger(__name__)
 USER_LOG = get_user_logger()
 
 

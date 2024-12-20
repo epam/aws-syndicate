@@ -31,7 +31,7 @@ from syndicate.core.generators.contents import (_get_lambda_default_policy,
 from syndicate.core.groups import (RUNTIME_JAVA, RUNTIME_NODEJS,
                                    RUNTIME_PYTHON, RUNTIME_DOTNET)
 
-_LOG = get_logger('syndicate.core.generators.project')
+_LOG = get_logger(__name__)
 
 SLASH_SYMBOL = '/'
 FOLDER_LAMBDAS = 'lambdas'

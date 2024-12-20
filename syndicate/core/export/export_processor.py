@@ -11,7 +11,7 @@ from syndicate.core.export.configuration_exporter import OASV3Exporter
 from syndicate.core.helper import build_path
 
 
-_LOG = get_logger('syndicate.core.export.export_processor')
+_LOG = get_logger(__name__)
 USER_LOG = get_user_logger()
 
 EXPORT_PROCESSORS = {

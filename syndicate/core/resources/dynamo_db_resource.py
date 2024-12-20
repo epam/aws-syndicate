@@ -28,7 +28,7 @@ AUTOSCALING_REQUIRED_PARAMS = ['resource_name', 'dimension',
 
 DYNAMODB_TABLE_REQUIRED_PARAMS = ['hash_key_name', 'hash_key_type']
 
-_LOG = get_logger('syndicate.core.resources.dynamo_db_resource')
+_LOG = get_logger(__name__)
 
 
 class DynamoDBResource(AbstractExternalResource, BaseResource):

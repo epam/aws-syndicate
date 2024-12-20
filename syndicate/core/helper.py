@@ -45,7 +45,7 @@ from syndicate.core.project_state.project_state import MODIFICATION_LOCK, \
     WARMUP_LOCK, ProjectState
 from syndicate.core.project_state.sync_processor import sync_project_state
 
-_LOG = get_logger('syndicate.core.helper')
+_LOG = get_logger(__name__)
 USER_LOG = get_user_logger()
 
 CONF_PATH = os.environ.get('SDCT_CONF')

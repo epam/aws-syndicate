@@ -26,7 +26,7 @@ from syndicate.core.transform.cloudformation.cloudformation_transformer import \
     CloudFormationTransformer
 from syndicate.core.transform.terraform.terraform_transformer import TerraformTransformer
 
-_LOG = get_logger('syndicate.core.build.transform_processor')
+_LOG = get_logger(__name__)
 
 TERRAFORM_DSL = 'terraform'
 CLOUD_FORMATION_DSL = 'cloudformation'

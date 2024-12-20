@@ -21,7 +21,7 @@ import click
 
 from syndicate.commons.log_helper import get_logger, get_user_logger
 
-_LOG = get_logger('syndicate.core.decorators')
+_LOG = get_logger(__name__)
 USER_LOG = get_user_logger()
 
 lock = threading.Lock()

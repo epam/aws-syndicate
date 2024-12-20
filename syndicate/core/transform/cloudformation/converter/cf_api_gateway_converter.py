@@ -39,7 +39,7 @@ from ..cf_transform_utils import (to_logic_name,
                                   lambda_function_logic_name,
                                   api_gateway_method_logic_name)
 
-_LOG = get_logger('cf_api_gateway_converter')
+_LOG = get_logger(__name__)
 
 
 class CfApiGatewayConverter(CfResourceConverter):

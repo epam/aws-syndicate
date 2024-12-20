@@ -6,8 +6,7 @@ from syndicate.core.generators.deployment_resources.base_generator import \
 from syndicate.core.constants import EC2_LAUNCH_TEMPLATE_TYPE
 
 
-_LOG = get_logger('syndicate.core.generators.deployment_resources.'
-                  'ec2_launch_template_generator')
+_LOG = get_logger(__name__)
 
 
 class EC2LaunchTemplateGenerator(BaseDeploymentResourceGenerator):

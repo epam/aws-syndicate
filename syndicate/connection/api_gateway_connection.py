@@ -35,7 +35,7 @@ REQ_VALIDATOR_PARAM_VALIDATE_PARAMS = 'validateRequestParameters'
 REQ_VALIDATOR_PARAM_VALIDATE_BODY = 'validateRequestBody'
 REQ_VALIDATOR_PARAM_NAME = 'name'
 
-_LOG = get_logger('syndicate.connection.api_gateway_connection')
+_LOG = get_logger(__name__)
 
 
 @apply_methods_decorator(retry())

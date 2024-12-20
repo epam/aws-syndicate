@@ -88,7 +88,7 @@ commands_without_config = (
     HELP_PARAMETER_KEY
 )
 
-_LOG = get_logger('syndicate.core.handlers')
+_LOG = get_logger(__name__)
 USER_LOG = get_user_logger()
 
 

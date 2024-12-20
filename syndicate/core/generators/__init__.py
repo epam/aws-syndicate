@@ -17,7 +17,7 @@ import os
 
 from syndicate.commons.log_helper import get_logger
 
-_LOG = get_logger('syndicate.core.generators')
+_LOG = get_logger(__name__)
 
 FILE_LAMBDA_HANDLER_PYTHON = 'handler.py'
 FILE_LAMBDA_HANDLER_NODEJS = 'index.js'

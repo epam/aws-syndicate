@@ -14,10 +14,14 @@
     limitations under the License.
 """
 import concurrent
+import traceback
 from concurrent.futures import ALL_COMPLETED
 from concurrent.futures.thread import ThreadPoolExecutor
 
 from syndicate.commons import deep_get
+from syndicate.commons.log_helper import get_logger
+
+_LOG = get_logger(__name__)
 
 
 class BaseResource:
@@ -58,6 +62,10 @@ class BaseResource:
                                 'Unknown'))
                     exceptions.append(
                         f'Caused by resource named {resource_name}. {e}')
+                    _LOG.debug(
+                        f'An error occurred when processing the resource '
+                        f'\'{resource_name}\'. {traceback.format_exc()}'
+                    )
 
             return (responses, exceptions) if exceptions else responses
         finally:

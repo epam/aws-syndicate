@@ -172,7 +172,7 @@ JAVA_ROOT_POM_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
 PYTHON_LAMBDA_HANDLER_TEMPLATE = """from commons.log_helper import get_logger
 from commons.abstract_lambda import AbstractLambda
 
-_LOG = get_logger('LambdaName-handler')
+_LOG = get_logger(__name__)
 
 
 class LambdaName(AbstractLambda):
@@ -334,7 +334,7 @@ ABSTRACT_LAMBDA_CONTENT = """from abc import abstractmethod
 from commons import ApplicationException, build_response
 from commons.log_helper import get_logger
 
-_LOG = get_logger('abstract-lambda')
+_LOG = get_logger(__name__)
 
 
 class AbstractLambda:

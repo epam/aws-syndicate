@@ -25,7 +25,7 @@ CLOUDWATCH_ALARM_REQUIRED_PARAMS = ['metric_name', 'namespace', 'period',
                                     'threshold', 'evaluation_periods',
                                     'comparison_operator', 'statistic']
 
-_LOG = get_logger('syndicate.core.resources.alarm_resource')
+_LOG = get_logger(__name__)
 
 
 class CloudWatchAlarmResource(BaseResource):

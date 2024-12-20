@@ -41,7 +41,7 @@ from syndicate.core.build.helper import assert_bundle_bucket_exists, \
 BUILD_META = 'build_meta'
 DEPLOYMENT_OUTPUT = 'deployment_output'
 
-_LOG = get_logger('syndicate.core.build.deployment_processor')
+_LOG = get_logger(__name__)
 USER_LOG = get_user_logger()
 
 

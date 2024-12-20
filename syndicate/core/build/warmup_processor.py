@@ -10,7 +10,7 @@ from syndicate.core.build.bundle_processor import load_deploy_output
 from syndicate.core.conf.processor import ConfigHolder
 from syndicate.core.helper import exit_on_exception
 
-_LOG = get_logger('syndicate.core.build.warmup_processor')
+_LOG = get_logger(__name__)
 
 NODEJS_RUNTIME = 'nodejs'
 PYTHON_RUNTIME = 'python'

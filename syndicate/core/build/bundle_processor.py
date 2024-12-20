@@ -29,7 +29,7 @@ from syndicate.core.constants import (ARTIFACTS_FOLDER, BUILD_META_FILE_NAME,
                                       DEFAULT_SEP)
 from syndicate.core.helper import build_path, unpack_kwargs
 
-_LOG = get_logger('syndicate.core.build.bundle_processor')
+_LOG = get_logger(__name__)
 
 
 def _build_output_key(bundle_name, deploy_name, is_regular_output):

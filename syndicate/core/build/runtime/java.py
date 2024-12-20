@@ -19,7 +19,7 @@ import shutil
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.helper import build_path, execute_command_by_path
 
-_LOG = get_logger('java_runtime_assembler')
+_LOG = get_logger(__name__)
 
 MVN_TARGET_DIRECTORY = 'target'
 VALID_EXTENSIONS = ('.jar', '.war', '.zip')

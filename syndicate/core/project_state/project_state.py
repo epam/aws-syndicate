@@ -66,7 +66,7 @@ OPERATION_LOCK_MAPPINGS = {
 KEEP_EVENTS_DAYS = 30
 LEAVE_LATEST_EVENTS = 20
 
-_LOG = get_logger('project-state')
+_LOG = get_logger(__name__)
 
 
 class ProjectState:
