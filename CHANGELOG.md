@@ -4,15 +4,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [1.16.0] - 2024-12-17
+# [1.16.0] - 2024-12-19
 - Added support for the AppSync resource
 - Added the possibility to generate `s3_bucket` meta for static website hosting without public access
 - Added an example of lambda function URL configuration to the Python example 'lambda-basic'
 - Improved `modification_lock` resolving to avoid conflicts in case of work a few users with the same project
+- Improved logging during generation lambda functions and lambda layers
 - Update `zip_dir` to handle cases where the full path length exceeds 260 characters with a more informative error message
 - Ensure `zip_dir` validates the existence of the base directory before proceeding with the zipping process
 - Fixed duplication lambda function and lambda layer records in the output file after updating the resources
 - Fixed issue related to lambda function updating in case of changing lambda's alias name
+- Fixed issue related to tests generation for lambda function with runtime Python
 - Fix `tag_resources` and `untag_resources` to handle exceptions properly
 - Update `apply_tags`, `remove_tags`, and `update_tags` to return success status
 - Fix `clean` command for `output` folder to correctly resolve ARN for Lambda and properly process and remove the `outputs` folder if Lambda is part of the deployment
