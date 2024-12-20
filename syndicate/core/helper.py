@@ -39,7 +39,7 @@ from syndicate.core.conf.processor import path_resolver
 from syndicate.core.conf.validator import ConfigValidator, ALL_REGIONS
 from syndicate.core.constants import (BUILD_META_FILE_NAME,
                                       DEFAULT_SEP, DATE_FORMAT_ISO_8601,
-                                      CUSTOM_AUTHORIZER_KEY)
+                                      CUSTOM_AUTHORIZER_KEY, OK_RETURN_CODE)
 from syndicate.core.project_state.project_state import MODIFICATION_LOCK, \
     WARMUP_LOCK, ProjectState
 from syndicate.core.project_state.sync_processor import sync_project_state
@@ -304,7 +304,7 @@ def sync_lock(lock_type):
             else:
                 raise AssertionError(f'The project {lock_type} is locked.')
             try:
-                func(*args, **kwargs)
+                result = func(*args, **kwargs)
             except Exception as e:
                 _LOG.exception("Error occurred: %s", str(e))
                 from syndicate.core import PROJECT_STATE
@@ -313,6 +313,7 @@ def sync_lock(lock_type):
                 sys.exit(1)
             PROJECT_STATE.release_lock(lock_type)
             sync_project_state()
+            return result
 
         return wrapper
 
@@ -331,7 +332,7 @@ def timeit(action_name=None):
             result_action_name = result.get('operation') if \
                 isinstance(result, dict) else None
             if result_action_name:
-                result = True
+                result = result.get('return_code', OK_RETURN_CODE)
             if action_name:
                 username = getpass.getuser()
                 duration = round(te - ts, 3)

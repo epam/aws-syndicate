@@ -5,7 +5,9 @@ import click
 
 from syndicate.core.constants import APPSYNC_TYPE, APPSYNC_DATA_SOURCE_TYPES, \
     APPSYNC_AUTHENTICATION_TYPES, APPSYNC_AUTHORIZATION_TYPES, \
-    APPSYNC_RESOLVER_RUNTIMES, APPSYNC_RESOLVER_KINDS
+    APPSYNC_RESOLVER_RUNTIMES, APPSYNC_RESOLVER_KINDS, OK_RETURN_CODE, \
+    FAILED_RETURN_CODE
+from syndicate.core.decorators import return_code_manager
 from syndicate.core.generators.appsync import generate_appsync
 from syndicate.core.generators.deployment_resources import \
     BaseConfigurationGenerator
@@ -19,6 +21,7 @@ from syndicate.core.helper import OrderedGroup, resolve_project_path, \
 
 
 @click.group(name=APPSYNC_TYPE, cls=OrderedGroup)
+@return_code_manager
 @click.option('--project_path', nargs=1,
               help="Path to the project folder. Default value: the one "
                    "from the current config if it exists. "
@@ -29,17 +32,19 @@ def appsync(ctx, project_path):
     """Generates AppSync env and resource meta"""
     if not os.access(project_path, os.F_OK):
         click.echo(f"The provided path {project_path} doesn't exist")
-        return
+        return FAILED_RETURN_CODE
     elif not os.access(project_path, os.W_OK) or not os.access(project_path,
                                                                os.X_OK):
         click.echo(f"Incorrect permissions for the provided path "
                    f"'{project_path}'")
-        return
+        return FAILED_RETURN_CODE
     ctx.ensure_object(dict)
     ctx.obj[PROJECT_PATH_PARAM] = project_path
+    return OK_RETURN_CODE
 
 
 @appsync.command(name='api')
+@return_code_manager
 @click.option('--name', required=True, type=str,
               help="AppSync API name")
 @click.option('--project_path', nargs=1,
@@ -57,18 +62,20 @@ def api(name, project_path, tags):
     """
     if not os.access(project_path, os.F_OK):
         click.echo(f"The provided path {project_path} doesn't exist")
-        return
+        return FAILED_RETURN_CODE
     elif not os.access(project_path, os.W_OK) or not os.access(project_path,
                                                                os.X_OK):
         click.echo(f"Incorrect permissions for the provided path "
                    f"'{project_path}'")
-        return
+        return FAILED_RETURN_CODE
     generate_appsync(name=name,
                      project_path=project_path,
                      tags=tags)
+    return OK_RETURN_CODE
 
 
 @appsync.command(name='data_source')
+@return_code_manager
 @click.option('--api_name', required=True, type=str,
               help="AppSync API name to add data source to")
 @click.option('--name', required=True, type=str,
@@ -100,9 +107,11 @@ def data_source(ctx, **kwargs):
     _generate(generator)
     click.echo(f"Data source '{kwargs['name']}' was added to AppSync API "
                f"'{kwargs['api_name']}' successfully")
+    return OK_RETURN_CODE
 
 
 @appsync.command(name='function')
+@return_code_manager
 @click.option('--api_name', required=True, type=str,
               help="AppSync API name to add function to")
 @click.option('--name', required=True, type=str,
@@ -127,9 +136,11 @@ def function(ctx, **kwargs):
     _generate(generator)
     click.echo(f"The function '{kwargs['name']}' was added to AppSync API "
                f"'{kwargs['api_name']}' successfully")
+    return OK_RETURN_CODE
 
 
 @appsync.command(name='resolver')
+@return_code_manager
 @click.option('--api_name', required=True, type=str,
               help="AppSync API name to add resolver to")
 @click.option('--kind', type=click.Choice(APPSYNC_RESOLVER_KINDS),
@@ -164,9 +175,11 @@ def resolver(ctx, **kwargs):
     click.echo(f"The resolver of the type '{kwargs['type_name']}'  for the "
                f"field '{kwargs['field_name']}' was added to AppSync API "
                f"'{kwargs['api_name']}' successfully")
+    return OK_RETURN_CODE
 
 
 @appsync.command(name='authorization')
+@return_code_manager
 @click.option('--api_name', required=True, type=str,
               help="AppSync API name to add authorization to")
 @click.option('--type', required=True,
@@ -197,6 +210,7 @@ def authorization(ctx, **kwargs):
     click.echo(f"The '{kwargs['type']}' authorization of type "
                f"'{kwargs['auth_type']}' was added to AppSync API "
                f"'{kwargs['api_name']}' successfully")
+    return OK_RETURN_CODE
 
 
 def _generate(generator: BaseConfigurationGenerator):
