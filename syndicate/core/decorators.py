@@ -14,6 +14,7 @@
     limitations under the License.
 """
 import sys
+import traceback
 from logging import DEBUG
 import threading
 from functools import wraps
@@ -132,8 +133,13 @@ def check_bundle_deploy_names_for_existence(check_deploy_existence=False):
 def return_code_manager(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
-        from syndicate.core.constants import OK_RETURN_CODE
-        return_code = func(*args, **kwargs)
+        from syndicate.core.constants import OK_RETURN_CODE, FAILED_RETURN_CODE
+        try:
+            return_code = func(*args, **kwargs)
+        except Exception as e:
+            USER_LOG.error(str(e))
+            _LOG.error(traceback.format_exc())
+            sys.exit(FAILED_RETURN_CODE)
         if return_code != OK_RETURN_CODE:
             sys.exit(return_code)
 
