@@ -22,6 +22,7 @@ import re
 import subprocess
 import sys
 import logging
+import traceback
 import zipfile
 from datetime import datetime, timedelta
 from functools import wraps
@@ -84,8 +85,8 @@ def exit_on_exception(handler_func):
         try:
             return handler_func(*args, **kwargs)
         except Exception as e:
-            USER_LOG.error('An error occurred. See details in the log file')
-            _LOG.exception("Error occurred: %s", str(e))
+            USER_LOG.error(f'An error occurred: {str(e)}')
+            _LOG.exception(traceback.format_exc())
             from syndicate.core import PROJECT_STATE
             PROJECT_STATE.release_lock(MODIFICATION_LOCK)
             sync_project_state()

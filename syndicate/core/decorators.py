@@ -134,7 +134,7 @@ def return_code_manager(func):
             return_code = func(*args, **kwargs)
         except Exception as e:
             USER_LOG.error(e.__str__())
-            _LOG.error(traceback.format_exc())
+            _LOG.exception(traceback.format_exc())
             sys.exit(FAILED_RETURN_CODE)
         if return_code != OK_RETURN_CODE:
             sys.exit(return_code)
