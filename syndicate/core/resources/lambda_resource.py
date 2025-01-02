@@ -396,7 +396,7 @@ class LambdaResource(BaseResource):
                 principal=url_config.get('principal'),
                 source_arn=url_config.get('source_arn')
             )
-            print(f'{name}:{alias if alias else ""}: {url}')
+            USER_LOG.info(f'{name}:{alias if alias else ""} URL: {url}')
 
         arn = self.build_lambda_arn_with_alias(lambda_def, alias) \
             if publish_version or alias else \

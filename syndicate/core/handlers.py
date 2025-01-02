@@ -207,6 +207,7 @@ def build(ctx, bundle_name, force_upload, errors_allowed, skip_tests):
 
     assemble_code = ctx.invoke(assemble, bundle_name=bundle_name,
                                errors_allowed=errors_allowed,
+                               skip_tests=skip_tests,
                                force_upload=force_upload)
     if assemble_code != OK_RETURN_CODE:
         return assemble_code
@@ -687,10 +688,13 @@ def profiler(bundle_name, deploy_name, from_date, to_date):
                    ' the same path.')
 @click.option('--skip_tests', is_flag=True, default=False,
               help='Flag to not run tests')
+@click.option('--errors_allowed', is_flag=True, default=False,
+              help='Flag to continue building the bundle in case of errors '
+                   'while building artifacts')
 @verbose_option
 @timeit(action_name=ASSEMBLE_JAVA_MVN_ACTION)
 def assemble_java_mvn(bundle_name, project_path, force_upload, skip_tests,
-                      errors_allowed=False):
+                      errors_allowed):
     """
     Builds Java lambdas
 
@@ -708,7 +712,8 @@ def assemble_java_mvn(bundle_name, project_path, force_upload, skip_tests,
                        project_path=project_path,
                        runtime=RUNTIME_JAVA,
                        force_upload=force_upload,
-                       skip_tests=skip_tests)
+                       skip_tests=skip_tests,
+                       errors_allowed=errors_allowed)
     USER_LOG.info('Java artifacts were prepared successfully.')
     return OK_RETURN_CODE
 
@@ -939,7 +944,7 @@ RUNTIME_LANG_TO_BUILD_MAPPING = {
 @verbose_option
 @click.pass_context
 @timeit(action_name=ASSEMBLE_ACTION)
-def assemble(ctx, bundle_name, force_upload, errors_allowed):
+def assemble(ctx, bundle_name, force_upload, errors_allowed, skip_tests=False):
     """
     Builds the application artifacts
 
@@ -948,7 +953,8 @@ def assemble(ctx, bundle_name, force_upload, errors_allowed):
     :param bundle_name: name of the bundle to which the artifacts
         will be associated
     :param force_upload: force upload identification
-    :param errors_allowed: allows to ignore dependency errors. Only for python
+    :param errors_allowed: allows to ignore errors.
+    :param skip_tests: allows to skip tests
     :return:
     """
     USER_LOG.info(f'Building artifacts, bundle: {bundle_name}')
@@ -964,7 +970,8 @@ def assemble(ctx, bundle_name, force_upload, errors_allowed):
                 return_code = ctx.invoke(func, bundle_name=bundle_name,
                                          project_path=value,
                                          force_upload=force_upload,
-                                         errors_allowed=errors_allowed)
+                                         errors_allowed=errors_allowed,
+                                         skip_tests=skip_tests)
                 if return_code != OK_RETURN_CODE:
                     return return_code
             else:
