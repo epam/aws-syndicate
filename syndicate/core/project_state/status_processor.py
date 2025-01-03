@@ -76,7 +76,8 @@ def process_default_view():
             ['', 'Started at: ', format_time(modification_start_time)],
             ['', 'Ended at: ', format_time(modification_end_time)],
             ['', 'Duration (sec): ', f'{last_modification.get('duration_sec')}'],
-            ['', 'Status: ', f'{last_modification.get('status')}']]
+            ['', 'Status: ', f'{last_modification.get('status')}'],
+        ]
         result.append(tabulate_data(data))
 
     if last_event:
@@ -84,12 +85,14 @@ def process_default_view():
         result.append(LINE_SEP + f'Latest event: {latest_operation}')
         event_start_time = last_event.get('time_start')
         event_end_time = last_event.get('time_end')
-        data = [['', 'Bundle name: ', last_event.get('bundle_name')],
-                ['', 'Initiated by: ', last_event.get('initiator')],
-                ['', 'Started at: ', format_time(event_start_time)],
-                ['', 'Ended at: ', format_time(event_end_time)],
-                ['', 'Duration (sec): ', f'{last_event.get('duration_sec')}'],
-                ['', 'Status: ', f'{last_event.get('status')}']]
+        data = [
+            ['', 'Bundle name: ', last_event.get('bundle_name')],
+            ['', 'Initiated by: ', last_event.get('initiator')],
+            ['', 'Started at: ', format_time(event_start_time)],
+            ['', 'Ended at: ', format_time(event_end_time)],
+            ['', 'Duration (sec): ', f'{last_event.get('duration_sec')}'],
+            ['', 'Status: ', f'{last_event.get('status')}'],
+        ]
         if last_event.get('deploy_name'):
             data.insert(1,
                         ['', 'Deploy name: ', last_event.get('deploy_name')])
@@ -99,8 +102,9 @@ def process_default_view():
     if lambdas:
         headers = ['Type', 'Quantity']
         resources = [['Lambda', len(lambdas)]]
-        result.append(tabulate_data(data=resources, headers=headers,
-                                    tablefmt='simple'))
+        result.append(
+            tabulate_data(data=resources, headers=headers, tablefmt='simple')
+        )
     else:
         result.append(indent('There are no lambdas in this project.'))
     return LINE_SEP + LINE_SEP.join(result)
