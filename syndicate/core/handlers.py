@@ -565,7 +565,7 @@ def status(events, resources):
     Command displays the following content: project name, state, latest
     modification, locks summary, latest event, project resources.
     """
-    USER_LOG.info(project_state_status(category=events or resources))
+    click.echo(project_state_status(category=events or resources))
     return OK_RETURN_CODE
 
 

@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improved `modification_lock` resolving to avoid conflicts in case of work a few users with the same project
 - Improved logging during generation lambda functions and lambda layers
 - Improved user message in case the bundle name was not resolved
+- Improved output of the command `status`
 - Standardized console user messages
 - Added error summary to console log in case of unexpected error occurrence
 - Added parameter `--errors_allowed` to the command `assemble_java_mvn`
