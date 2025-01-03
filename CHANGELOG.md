@@ -29,6 +29,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improve the assembling of the Java lambda artifacts by removing the redundant original-<lambda_name>.jar file from the bundle
 - Remove the directory 'target' that contains temporary files after assembling lambda artifacts
 - Correct the return code of all the commands if they failed or were aborted
+- Java plugin version updated to 1.15.0 with changes:
+  - Added the verification of Lambda resources existence to prevent deploy without Lambda resources
+  - Added support of the syndicate `--errors_allowed` flag to skip build process interruption in case of errors
+- Java template updated to use the Syndicate Java plugin version 1.15.0 for the new lambda generation
+- Java examples updated to use the Syndicate Java plugin version 1.15.0
 
 # [1.15.0] - 2024-10-28
 - Added `--skip_tests` option to `build`, `test` and `assemble_java_mvn` commands to not run tests during or after 
