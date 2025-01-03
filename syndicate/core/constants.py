@@ -50,6 +50,8 @@ APPSYNC_TYPE = 'appsync'
 S3_PATH_NAME = 's3_path'
 EXPORT_DIR_NAME = 'export'
 
+MVN_TARGET_DIR_NAME = 'target'
+
 # == BUILD PARAMS =============================================================
 ARTIFACTS_FOLDER = 'bundles'
 BUILD_META_FILE_NAME = 'build_meta.json'

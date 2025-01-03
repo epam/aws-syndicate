@@ -17,37 +17,41 @@ import os
 import shutil
 
 from syndicate.commons.log_helper import get_logger
+from syndicate.core.constants import MVN_TARGET_DIR_NAME
 from syndicate.core.helper import build_path, execute_command_by_path
 
 _LOG = get_logger(__name__)
 
-MVN_TARGET_DIRECTORY = 'target'
 VALID_EXTENSIONS = ('.jar', '.war', '.zip')
 
 
 def assemble_java_mvn_lambdas(project_path: str, bundles_dir: str,
+                              errors_allowed: bool = False,
                               skip_tests: bool = False, **kwargs):
     from syndicate.core import CONFIG
-    target_path = os.path.join(CONFIG.project_path, MVN_TARGET_DIRECTORY)
+    target_path = os.path.join(CONFIG.project_path, MVN_TARGET_DIR_NAME)
+    src_path = build_path(CONFIG.project_path, project_path)
+    _LOG.info(f'Java sources are located by path: {src_path}')
+    _LOG.info(f'Going to process java mvn project by path: '
+              f'{CONFIG.project_path}')
+    command = ['mvn', 'clean', 'install']
 
-    try:
-        src_path = build_path(CONFIG.project_path, project_path)
-        _LOG.info(f'Java sources are located by path: {src_path}')
-        _LOG.info(f'Going to process java mvn project by path: '
-                  f'{CONFIG.project_path}')
-        execute_command_by_path(
-            command='mvn clean install' +
-                    (' -DskipTests' if skip_tests else ''),
-            path=CONFIG.project_path)
+    if skip_tests:
+        command.append('-DskipTests')
 
-        # copy java artifacts to the target folder
-        for root, dirs, files in os.walk(target_path):
-            for file in _filter_bundle_files(files):
-                shutil.copyfile(build_path(root, file),
-                                build_path(bundles_dir, file))
-        _LOG.info('Java mvn project was processed successfully')
-    finally:
-        shutil.rmtree(target_path, ignore_errors=True)
+    if errors_allowed:
+        command.append('-DerrorsAllowed')
+
+    execute_command_by_path(
+        command=command,
+        path=CONFIG.project_path)
+
+    # copy java artifacts to the target folder
+    for root, dirs, files in os.walk(target_path):
+        for file in _filter_bundle_files(files):
+            shutil.copyfile(build_path(root, file),
+                            build_path(bundles_dir, file))
+    _LOG.info('Java mvn project was processed successfully')
 
 
 def _filter_bundle_files(files: list[str]) -> list[str]:

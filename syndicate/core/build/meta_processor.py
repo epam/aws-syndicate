@@ -14,6 +14,7 @@
     limitations under the License.
 """
 import os
+import shutil
 from json import load
 from typing import Any
 from urllib.parse import urlparse
@@ -34,7 +35,8 @@ from syndicate.core.constants import (API_GATEWAY_TYPE, ARTIFACTS_FOLDER,
                                       OAS_V3_FILE_NAME,
                                       API_GATEWAY_OAS_V3_TYPE, SWAGGER_UI_TYPE,
                                       SWAGGER_UI_CONFIG_FILE_NAME,
-                                      TAGS_RESOURCE_TYPE_CONFIG)
+                                      TAGS_RESOURCE_TYPE_CONFIG,
+                                      MVN_TARGET_DIR_NAME)
 from syndicate.core.helper import (build_path, prettify_json,
                                    resolve_aliases_for_string,
                                    write_content_to_file, validate_tags)
@@ -504,15 +506,21 @@ def _resolve_name_in_arn(arn, old_value, new_value):
     return ':'.join(arn_parts)
 
 
-def create_meta(project_path, bundle_name):
+def create_meta(project_path: str, bundle_name: str) -> None:
     # create overall meta.json with all resource meta info
     meta_path = build_path(project_path, ARTIFACTS_FOLDER,
                            bundle_name)
-    _LOG.info("Bundle path: {0}".format(meta_path))
+    _LOG.info(f'Bundle path: {meta_path}')
     overall_meta = create_resource_json(project_path=project_path,
                                         bundle_name=bundle_name)
     bundle_dir = resolve_bundle_directory(bundle_name=bundle_name)
     write_content_to_file(bundle_dir, BUILD_META_FILE_NAME, overall_meta)
+
+    # remove Java runtime temporary files
+    target_path = build_path(project_path, MVN_TARGET_DIR_NAME)
+    if os.path.exists(target_path):
+        _LOG.debug(f'Removing temporary directory \'{target_path}\'')
+        shutil.rmtree(target_path, ignore_errors=True)
 
 
 def resolve_meta(overall_meta):
