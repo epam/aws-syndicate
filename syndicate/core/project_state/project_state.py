@@ -28,7 +28,7 @@ from syndicate.commons.log_helper import get_logger
 from syndicate.core.constants import BUILD_ACTION, \
     DEPLOY_ACTION, UPDATE_ACTION, CLEAN_ACTION, PACKAGE_META_ACTION, \
     ABORTED_STATUS, SUCCEEDED_STATUS, FAILED_STATUS, FAILED_RETURN_CODE, \
-    OK_RETURN_CODE, ABORTED_RETURN_CODE
+    OK_RETURN_CODE, ABORTED_RETURN_CODE, MODIFICATION_OPS
 from syndicate.core.constants import DATE_FORMAT_ISO_8601
 from syndicate.core.groups import RUNTIME_JAVA, RUNTIME_NODEJS, RUNTIME_PYTHON, \
     RUNTIME_SWAGGER_UI, RUNTIME_DOTNET, RUNTIME_APPSYNC
@@ -254,9 +254,8 @@ class ProjectState:
     @property
     def latest_modification(self):
         events = self.events
-        modification_ops = [DEPLOY_ACTION, UPDATE_ACTION, CLEAN_ACTION]
         latest = next((event for event in events if
-                       event.get('operation') in modification_ops), None)
+                       event.get('operation') in MODIFICATION_OPS), None)
         return latest
 
     def get_latest_deployed_or_updated_bundle(
