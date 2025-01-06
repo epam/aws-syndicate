@@ -70,7 +70,7 @@ public abstract class AbstractMetaGoal extends AbstractMojo {
         }
     }
 
-    public abstract void executeGoal(String absolutePath) throws MojoExecutionException, IOException;
+    public abstract void executeGoal(String absolutePath) throws MojoExecutionException, MojoFailureException, IOException;
 
     public MavenProject getProject() {
         return project;

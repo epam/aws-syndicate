@@ -35,6 +35,7 @@ import feign.Feign;
 import feign.jackson.JacksonDecoder;
 import feign.jackson.JacksonEncoder;
 import org.apache.maven.plugin.MojoExecutionException;
+import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.plugins.annotations.ResolutionScope;
@@ -75,6 +76,9 @@ public class SyndicateMetaGeneratorGoal extends AbstractMetaGoal {
     @Parameter(property = "maven.processor.buildId")
     private String buildId;
 
+    @Parameter(property = "errorsAllowed", defaultValue = "false")
+    private boolean errorsAllowed;
+
     private CredentialResolverChain credentialsResolverChain;
 
     private IAnnotationProcessor<LambdaConfiguration> lambdaAnnotationProcessor;
@@ -93,15 +97,26 @@ public class SyndicateMetaGeneratorGoal extends AbstractMetaGoal {
     }
 
     @Override
-    public void executeGoal(String absolutePath) throws MojoExecutionException, IOException {
+    public void executeGoal(String absolutePath) throws MojoExecutionException, MojoFailureException, IOException {
         Map<String, LambdaConfiguration> lambdaConfiguration =
                 lambdaAnnotationProcessor.generateMeta(absolutePath, packages, project.getVersion(), this.fileName);
         Map<String, LayerConfiguration> layerConfiguration =
                 layerAnnotationProcessor.generateMeta(absolutePath, packages, project.getVersion(), fileName);
 
         Map<String, Object> convertedMeta = convertConfiguration(lambdaConfiguration, layerConfiguration);
-        writeToFile(ProjectUtils.getTargetFolderPath(project), getDeploymentResourcesFileName(), JsonUtils.convertToJson(convertedMeta));
 
+        // prevent deploy if no lambda resources found
+        if (convertedMeta.isEmpty() && !errorsAllowed) {
+            throw new MojoFailureException("No lambda resource found in packages: " + String.join(", ", packages) + ". " +
+                    "AWS Syndicate plugin 'deployment-configuration-maven-plugin' misconfiguration or missing Lambda handlers. " +
+                    "Check pom.xml for correct <packages>..</packages> configuration and ensure Java files contain '@LambdaHandler' annotations. " +
+                    "If you want to skip this error and proceed without lambda resources, " +
+                    "set <errorsAllowed>true</errorsAllowed> in the plugin configuration. or set '-DerrorsAllowed' in the command line. " +
+                    "In scope of Syndicate CLI usage, use '--errors_allowed' flag to skip this error while 'syndicate build' command execution."
+            );
+        }
+
+        writeToFile(ProjectUtils.getTargetFolderPath(project), getDeploymentResourcesFileName(), JsonUtils.convertToJson(convertedMeta));
         // credentials are set up, using Syndicate API to upload meta information
         SyndicateCredentials userCredentials = credentialsResolverChain.resolveCredentialsInChain();
         if (userCredentials != null) {
