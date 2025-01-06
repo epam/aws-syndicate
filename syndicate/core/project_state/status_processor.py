@@ -75,8 +75,8 @@ def process_default_view():
             ['', 'Initiated by: ', last_modification.get('initiator')],
             ['', 'Started at: ', format_time(modification_start_time)],
             ['', 'Ended at: ', format_time(modification_end_time)],
-            ['', 'Duration (sec): ', f'{last_modification.get('duration_sec')}'],
-            ['', 'Status: ', f'{last_modification.get('status')}'],
+            ['', 'Duration (sec): ', f"{last_modification.get('duration_sec')}"],
+            ['', 'Status: ', f"{last_modification.get('status')}"],
         ]
         result.append(tabulate_data(data))
 
@@ -90,8 +90,8 @@ def process_default_view():
             ['', 'Initiated by: ', last_event.get('initiator')],
             ['', 'Started at: ', format_time(event_start_time)],
             ['', 'Ended at: ', format_time(event_end_time)],
-            ['', 'Duration (sec): ', f'{last_event.get('duration_sec')}'],
-            ['', 'Status: ', f'{last_event.get('status')}'],
+            ['', 'Duration (sec): ', f"{last_event.get('duration_sec')}"],
+            ['', 'Status: ', f"{last_event.get('status')}"],
         ]
         if last_event.get('deploy_name'):
             data.insert(1,
