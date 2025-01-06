@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 # [1.16.0] - 2025-01-03
 - Added support for the AppSync resource
 - Added the possibility to generate `s3_bucket` meta for static website hosting without public access
+- Added the possibility to manage CloudWatch logging for API Gateway resources
 - Added an example of lambda function URL configuration to the Python example 'lambda-basic'
 - Improved `modification_lock` resolving to avoid conflicts in case of work a few users with the same project
 - Improved logging during generation lambda functions and lambda layers
