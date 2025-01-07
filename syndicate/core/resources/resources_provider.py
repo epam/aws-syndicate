@@ -137,6 +137,7 @@ class ResourceProvider:
                 self._api_gateway_resource = ApiGatewayResource(
                     apigw_conn=self._conn_provider.api_gateway(),
                     apigw_v2_conn=self._conn_provider.api_gateway_v2(),
+                    cw_logs_conn=self._conn_provider.cw_logs(),
                     lambda_res=self.lambda_resource(),
                     cognito_res=self.cognito_user_pool(),
                     account_id=self.config.account_id,
