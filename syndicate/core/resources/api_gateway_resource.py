@@ -318,11 +318,12 @@ class ApiGatewayResource(BaseResource):
                             _LOG.info(
                                 f'Configuring logging for {resource_path};'
                                 f'log_level: '
-                                f'{log_config.get('log_level', 'ERROR')};'
+                                f"{log_config.get('log_level', 'ERROR')};"
                                 f'data_tracing: '
-                                f'{log_config.get('data_tracing', False)};'
+                                f"{log_config.get('data_tracing', False)};"
                                 f'detailed_metrics: '
-                                f'{log_config.get('detailed_metrics', False)}')
+                                f"{log_config.get('detailed_metrics', False)}"
+                            )
                             patch_operations.append({
                                 'op': OPERATION_REPLACE,
                                 'path': f'/{escaped_resource}/{method}/'
