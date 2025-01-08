@@ -198,7 +198,7 @@ def _check_dotnet_is_installed():
             'It seems like the dotnet SDK is not installed. There is no '
             'ability to build a DotNet bundle. Please, make sure dotnet SDK '
             'is installed and retry to build a bundle.')
-        sys.exit(1)
+        raise
 
 
 def _clean_tmp_files(location, dirs):

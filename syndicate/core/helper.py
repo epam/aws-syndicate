@@ -42,7 +42,7 @@ from syndicate.core.conf.validator import ConfigValidator, ALL_REGIONS
 from syndicate.core.constants import (BUILD_META_FILE_NAME,
                                       DEFAULT_SEP, DATE_FORMAT_ISO_8601,
                                       CUSTOM_AUTHORIZER_KEY, OK_RETURN_CODE,
-                                      ABORTED_RETURN_CODE)
+                                      ABORTED_RETURN_CODE, FAILED_RETURN_CODE)
 from syndicate.core.project_state.project_state import MODIFICATION_LOCK, \
     WARMUP_LOCK, ProjectState
 from syndicate.core.project_state.sync_processor import sync_project_state
@@ -72,7 +72,7 @@ def unpack_kwargs(handler_func):
     return wrapper
 
 
-def exit_on_exception(handler_func):
+def failed_status_code_on_exception(handler_func):
     """ Decorator to catch all exceptions and fail stage execution
 
     :type handler_func: func
@@ -87,10 +87,7 @@ def exit_on_exception(handler_func):
         except Exception as e:
             USER_LOG.error(f'An error occurred: {str(e)}')
             _LOG.exception(traceback.format_exc())
-            from syndicate.core import PROJECT_STATE
-            PROJECT_STATE.release_lock(MODIFICATION_LOCK)
-            sync_project_state()
-            sys.exit(1)
+            return FAILED_RETURN_CODE
 
     return wrapper
 
@@ -106,8 +103,7 @@ def execute_command_by_path(command, path):
     if result.returncode != 0:
         msg = (f'While running the command "{command}" occurred an error:\n'
                f'"{result.stdout}\n{result.stderr}"')
-        USER_LOG.error(msg)
-        sys.exit(result.returncode)
+        raise AssertionError(msg)
     _LOG.info(f'Running the command "{command}"\n{result.stdout}'
               f'\n{result.stderr}')
 
@@ -314,7 +310,7 @@ def sync_lock(lock_type):
                 from syndicate.core import PROJECT_STATE
                 PROJECT_STATE.release_lock(lock_type)
                 sync_project_state()
-                sys.exit(1)
+                raise
             PROJECT_STATE.release_lock(lock_type)
             sync_project_state()
             return result

@@ -200,6 +200,5 @@ def validate_dax_cluster(cluster_name: str, cluster_meta: dict):
                       f'By default it is \'TLS\'')
     if errors:
         errors_string = '\n'.join(errors)
-        USER_LOG.error(f'Errors occurred during Dax cluster meta '
-                       f'validation:\n{errors_string}')
-        sys.exit(1)
+        raise AssertionError(f'Errors occurred during Dax cluster meta '
+                             f'validation:\n{errors_string}')

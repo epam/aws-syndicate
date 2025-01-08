@@ -63,7 +63,8 @@ from syndicate.core.helper import (create_bundle_callback,
                                    generate_default_bundle_name,
                                    resolve_and_verify_bundle_callback,
                                    param_to_lower, verbose_option,
-                                   validate_incompatible_options)
+                                   validate_incompatible_options,
+                                   failed_status_code_on_exception)
 from syndicate.core.project_state.project_state import (MODIFICATION_LOCK,
                                                         WARMUP_LOCK)
 from syndicate.core.project_state.status_processor import project_state_status
@@ -131,6 +132,7 @@ def syndicate():
               help='Flag to not run tests')
 @verbose_option
 @timeit(action_name=TEST_ACTION)
+@failed_status_code_on_exception
 def test(suite, test_folder_name, errors_allowed, skip_tests):
     """Discovers and runs tests inside python project configuration path."""
     if skip_tests:
@@ -187,8 +189,9 @@ def test(suite, test_folder_name, errors_allowed, skip_tests):
               help='Flag to skip lambda tests')
 @verbose_option
 @click.pass_context
-@check_deploy_bucket_exists
 @timeit(action_name=BUILD_ACTION)
+@failed_status_code_on_exception
+@check_deploy_bucket_exists
 def build(ctx, bundle_name, force_upload, errors_allowed, skip_tests):
     """
     Builds bundle of an application
@@ -237,6 +240,7 @@ def build(ctx, bundle_name, force_upload, errors_allowed, skip_tests):
               help='The directory where a transformed template will be saved')
 @verbose_option
 @timeit()
+@failed_status_code_on_exception
 def transform(bundle_name, dsl, output_dir):
     """
     Transforms the meta-description of a bundle to a template
@@ -250,6 +254,8 @@ def transform(bundle_name, dsl, output_dir):
 
 @syndicate.command(name=DEPLOY_ACTION)
 @return_code_manager
+@timeit(action_name=DEPLOY_ACTION)
+@failed_status_code_on_exception
 @sync_lock(lock_type=MODIFICATION_LOCK)
 @click.option('--deploy_name', '-d', callback=resolve_default_value,
               help='Name of the deploy. Default value: name of the project')
@@ -279,7 +285,6 @@ def transform(bundle_name, dsl, output_dir):
 @verbose_option
 @check_deploy_name_for_duplicates
 @check_deploy_bucket_exists
-@timeit(action_name=DEPLOY_ACTION)
 @check_bundle_deploy_names_for_existence()
 def deploy(
         deploy_name: str,
@@ -346,6 +351,8 @@ def deploy(
 
 @syndicate.command(name=UPDATE_ACTION)
 @return_code_manager
+@timeit(action_name=UPDATE_ACTION)
+@failed_status_code_on_exception
 @sync_lock(lock_type=MODIFICATION_LOCK)
 @click.option('--bundle_name', '-b', callback=resolve_default_value,
               help='Name of the bundle to deploy. '
@@ -374,7 +381,6 @@ def deploy(
 @verbose_option
 @check_deploy_name_for_duplicates
 @check_deploy_bucket_exists
-@timeit(action_name=UPDATE_ACTION)
 @check_bundle_deploy_names_for_existence()
 def update(
         bundle_name: str,
@@ -435,6 +441,8 @@ def update(
 
 @syndicate.command(name=CLEAN_ACTION)
 @return_code_manager
+@timeit(action_name=CLEAN_ACTION)
+@failed_status_code_on_exception
 @sync_lock(lock_type=MODIFICATION_LOCK)
 @click.option('--deploy_name', '-d', nargs=1, callback=resolve_default_value,
               help='Name of the deploy. This parameter allows the framework '
@@ -463,7 +471,6 @@ def update(
 @click.option('--preserve_state', is_flag=True,
               help='Preserve deploy output json file after resources removal')
 @verbose_option
-@timeit(action_name=CLEAN_ACTION)
 @check_bundle_deploy_names_for_existence(check_deploy_existence=True)
 def clean(
         deploy_name: str,
@@ -524,7 +531,7 @@ def clean(
     elif result is False:
         USER_LOG.warning('AWS resources were removed with errors.')
         return FAILED_RETURN_CODE
-    elif type(result) == dict and 'operation' in result:
+    elif isinstance(result, dict) and 'operation' in result:
         USER_LOG.info('AWS resources were removed.')
         return {**result, 'return_code': OK_RETURN_CODE}
     else:
@@ -534,9 +541,10 @@ def clean(
 
 @syndicate.command(name=SYNC_ACTION)
 @return_code_manager
+@timeit()
+@failed_status_code_on_exception
 @verbose_option
 @check_deploy_bucket_exists
-@timeit()
 def sync():
     """
     Syncs the state of local project state file (.syndicate) and
@@ -557,8 +565,9 @@ def sync():
                                incompatible_options=['events']),
               help='Show a summary of the project resources')
 @verbose_option
-@check_deploy_bucket_exists
 @timeit()
+@failed_status_code_on_exception
+@check_deploy_bucket_exists
 def status(events, resources):
     """
     Shows the state of a local project state file (.syndicate).
@@ -571,6 +580,8 @@ def status(events, resources):
 
 @syndicate.command(name=WARMUP_ACTION)
 @return_code_manager
+@timeit(action_name=WARMUP_ACTION)
+@failed_status_code_on_exception
 @sync_lock(lock_type=WARMUP_LOCK)
 @click.option('--bundle_name', '-b', nargs=1, callback=resolve_default_value,
               help='Name of the bundle. If not specified, resolves the latest '
@@ -591,7 +602,6 @@ def status(events, resources):
               nargs=1, help='Authentication header value.')
 @verbose_option
 @check_deploy_bucket_exists
-@timeit(action_name=WARMUP_ACTION)
 @check_bundle_deploy_names_for_existence()
 def warmup(bundle_name, deploy_name, api_gw_id, stage_name, lambda_auth,
            header_name, header_value):
@@ -693,6 +703,7 @@ def profiler(bundle_name, deploy_name, from_date, to_date):
                    'while building artifacts')
 @verbose_option
 @timeit(action_name=ASSEMBLE_JAVA_MVN_ACTION)
+@failed_status_code_on_exception
 def assemble_java_mvn(bundle_name, project_path, force_upload, skip_tests,
                       errors_allowed):
     """
@@ -742,6 +753,7 @@ def assemble_java_mvn(bundle_name, project_path, force_upload, skip_tests,
                    'while building dependencies')
 @verbose_option
 @timeit(action_name=ASSEMBLE_PYTHON_ACTION)
+@failed_status_code_on_exception
 def assemble_python(bundle_name, project_path, force_upload, errors_allowed,
                     skip_tests=False):
     """
@@ -785,6 +797,7 @@ def assemble_python(bundle_name, project_path, force_upload, errors_allowed,
                    ' the same path.')
 @verbose_option
 @timeit(action_name=ASSEMBLE_NODE_ACTION)
+@failed_status_code_on_exception
 def assemble_node(bundle_name, project_path, force_upload,
                   errors_allowed=False, skip_tests=False):
     """
@@ -829,6 +842,7 @@ def assemble_node(bundle_name, project_path, force_upload,
                    ' the same path.')
 @verbose_option
 @timeit(action_name=ASSEMBLE_DOTNET_ACTION)
+@failed_status_code_on_exception
 def assemble_dotnet(bundle_name, project_path, force_upload,
                     errors_allowed=False, skip_tests=False):
     """
@@ -867,6 +881,7 @@ def assemble_dotnet(bundle_name, project_path, force_upload,
                    'into a zip archive.')
 @verbose_option
 @timeit(action_name=ASSEMBLE_SWAGGER_UI_ACTION)
+@failed_status_code_on_exception
 def assemble_swagger_ui(**kwargs):
     """
         Builds Swagger UI artifacts
@@ -899,6 +914,7 @@ def assemble_swagger_ui(**kwargs):
                    'into a zip archive.')
 @verbose_option
 @timeit(action_name=ASSEMBLE_APPSYNC_ACTION)
+@failed_status_code_on_exception
 def assemble_appsync(**kwargs):
     """
         Builds AppSync artifacts
@@ -944,6 +960,7 @@ RUNTIME_LANG_TO_BUILD_MAPPING = {
 @verbose_option
 @click.pass_context
 @timeit(action_name=ASSEMBLE_ACTION)
+@failed_status_code_on_exception
 def assemble(ctx, bundle_name, force_upload, errors_allowed, skip_tests=False):
     """
     Builds the application artifacts
@@ -990,6 +1007,7 @@ def assemble(ctx, bundle_name, force_upload, errors_allowed, skip_tests=False):
               help='Bundle\'s name to package the current meta in')
 @verbose_option
 @timeit(action_name=PACKAGE_META_ACTION)
+@failed_status_code_on_exception
 def package_meta(bundle_name):
     """
     Generates metadata about the application infrastructure
@@ -1010,6 +1028,7 @@ def package_meta(bundle_name):
 @return_code_manager
 @verbose_option
 @timeit()
+@failed_status_code_on_exception
 def create_deploy_target_bucket():
     """
     Creates a bucket in AWS account where all bundles will be uploaded
@@ -1032,8 +1051,9 @@ def create_deploy_target_bucket():
               help='Flag to override existing bundle with the same name as '
                    'provided')
 @verbose_option
-@check_deploy_bucket_exists
 @timeit(action_name=UPLOAD_ACTION)
+@failed_status_code_on_exception
+@check_deploy_bucket_exists
 def upload(bundle_name, force_upload=False):
     """
     Uploads bundle from local storage to AWS S3
@@ -1080,6 +1100,7 @@ def upload(bundle_name, force_upload=False):
                    'already exists in a target account')
 @verbose_option
 @timeit()
+@failed_status_code_on_exception
 @click.pass_context
 def copy_bundle(ctx, bundle_name, src_account_id, src_bucket_region,
                 src_bucket_name, role_name, force_upload):
@@ -1134,6 +1155,8 @@ def copy_bundle(ctx, bundle_name, src_account_id, src_bucket_region,
                    '"export" will be created in the project root directory to '
                    'store export files')
 @verbose_option
+@timeit(action_name=EXPORT_ACTION)
+@failed_status_code_on_exception
 def export(
         resource_type: str,
         dsl: str,
