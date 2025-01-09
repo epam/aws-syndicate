@@ -34,7 +34,7 @@ from syndicate.core.constants import (BUILD_META_FILE_NAME,
                                       UPDATE_RESOURCE_TYPE_PRIORITY,
                                       PARTIAL_CLEAN_ACTION, ABORTED_STATUS,
                                       LAMBDA_TYPE, LAMBDA_LAYER_TYPE)
-from syndicate.core.helper import exit_on_exception, prettify_json
+from syndicate.core.helper import prettify_json
 from syndicate.core.build.helper import assert_bundle_bucket_exists, \
     construct_deploy_s3_key_path
 
@@ -426,7 +426,6 @@ def _compare_external_resources(expected_resources):
         raise AssertionError(error)
 
 
-@exit_on_exception
 def create_deployment_resources(
         *,
         deploy_name: str,
@@ -562,7 +561,6 @@ def create_deployment_resources(
     return success and tag_success
 
 
-@exit_on_exception
 def update_deployment_resources(
         *,
         bundle_name: str,
@@ -656,10 +654,9 @@ def update_deployment_resources(
     if success and tag_success:
         remove_failed_deploy_output(bundle_name, deploy_name)
 
-    return success
+    return success and tag_success
 
 
-@exit_on_exception
 def remove_deployment_resources(
         deploy_name: str,
         bundle_name: str,
