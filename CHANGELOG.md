@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 # [1.16.1] - 2025-01-09
 Fixed events registering to the state file(.syndicate) in case of internal errors
+Fixed an issue related to generating the lambda function with runtime Java when the project root file deployment_resources.json is absent.
 
 # [1.16.0] - 2025-01-03
 - Added support for the AppSync resource
