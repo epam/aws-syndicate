@@ -53,7 +53,7 @@ def export_specification(
             USER_LOG.error(
                 f'An error occurred when serialising specification. {e}'
             )
-            sys.exit(1)
+            raise
         _LOG.info(f'Specification for resource "{arn}" exported successfully')
         filename = resource_id + '_' + OAS_V3_FILE_NAME
         output_path = build_path(output_dir_path, filename)

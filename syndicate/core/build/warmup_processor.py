@@ -8,7 +8,6 @@ from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core import ResourceProvider
 from syndicate.core.build.bundle_processor import load_deploy_output
 from syndicate.core.conf.processor import ConfigHolder
-from syndicate.core.helper import exit_on_exception
 
 _LOG = get_logger(__name__)
 USER_LOG = get_user_logger()
@@ -192,7 +191,6 @@ def get_api_gw_link(rest_api_id, stage_name):
     return api_gw_link
 
 
-@exit_on_exception
 def process_deploy_resources(bundle_name, deploy_name):
     output = load_deploy_output(bundle_name, deploy_name)
 

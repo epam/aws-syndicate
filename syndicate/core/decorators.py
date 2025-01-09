@@ -136,7 +136,7 @@ def return_code_manager(func):
             USER_LOG.error(e.__str__())
             _LOG.exception(traceback.format_exc())
             sys.exit(FAILED_RETURN_CODE)
-        if return_code != OK_RETURN_CODE:
+        if return_code is not None and return_code != OK_RETURN_CODE:
             sys.exit(return_code)
 
         return return_code
