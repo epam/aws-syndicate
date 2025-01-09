@@ -993,8 +993,9 @@ def assemble(ctx, bundle_name, force_upload, errors_allowed, skip_tests=False):
                 USER_LOG.error(f'Build tool is not supported: {key}')
                 return FAILED_RETURN_CODE
     else:
-        USER_LOG.error('Projects to be built are not found')
-        return FAILED_RETURN_CODE
+        USER_LOG.info(
+            'Resources for which artifacts need to be built were not found'
+        )
     return OK_RETURN_CODE
 
 
