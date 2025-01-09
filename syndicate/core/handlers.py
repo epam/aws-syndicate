@@ -97,6 +97,7 @@ def _not_require_config(all_params):
 
 
 @click.group(name='syndicate')
+@return_code_manager
 @click.version_option()
 def syndicate():
     from syndicate.core import CONF_PATH
@@ -240,7 +241,6 @@ def build(ctx, bundle_name, force_upload, errors_allowed, skip_tests):
               help='The directory where a transformed template will be saved')
 @verbose_option
 @timeit()
-@failed_status_code_on_exception
 def transform(bundle_name, dsl, output_dir):
     """
     Transforms the meta-description of a bundle to a template
@@ -542,7 +542,6 @@ def clean(
 @syndicate.command(name=SYNC_ACTION)
 @return_code_manager
 @timeit()
-@failed_status_code_on_exception
 @verbose_option
 @check_deploy_bucket_exists
 def sync():
@@ -566,7 +565,6 @@ def sync():
               help='Show a summary of the project resources')
 @verbose_option
 @timeit()
-@failed_status_code_on_exception
 @check_deploy_bucket_exists
 def status(events, resources):
     """
@@ -1028,7 +1026,6 @@ def package_meta(bundle_name):
 @return_code_manager
 @verbose_option
 @timeit()
-@failed_status_code_on_exception
 def create_deploy_target_bucket():
     """
     Creates a bucket in AWS account where all bundles will be uploaded
@@ -1100,7 +1097,6 @@ def upload(bundle_name, force_upload=False):
                    'already exists in a target account')
 @verbose_option
 @timeit()
-@failed_status_code_on_exception
 @click.pass_context
 def copy_bundle(ctx, bundle_name, src_account_id, src_bucket_region,
                 src_bucket_name, role_name, force_upload):
@@ -1155,8 +1151,6 @@ def copy_bundle(ctx, bundle_name, src_account_id, src_bucket_region,
                    '"export" will be created in the project root directory to '
                    'store export files')
 @verbose_option
-@timeit(action_name=EXPORT_ACTION)
-@failed_status_code_on_exception
 def export(
         resource_type: str,
         dsl: str,
