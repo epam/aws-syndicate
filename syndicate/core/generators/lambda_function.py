@@ -354,9 +354,17 @@ def _generate_java_lambdas(**kwargs):
 
         dep_res_path = os.path.join(project_path,
                                     FILE_DEPLOYMENT_RESOURCES)
-        deployment_resources = json.loads(_read_content_from_file(
-            dep_res_path
-        ))
+        if not Path(dep_res_path).is_file():
+            _LOG.warning(
+                'The project root \'deployment_resources.json\' file is '
+                'absent. Creating...'
+            )
+            _touch(dep_res_path)
+            deployment_resources = {}
+        else:
+            deployment_resources = json.loads(_read_content_from_file(
+                dep_res_path
+            ))
         deployment_resources.update(_generate_lambda_role_config(
             lambda_role_name, tags, stringify=False))
         _write_content_to_file(dep_res_path,
