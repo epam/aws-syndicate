@@ -29,10 +29,9 @@ from syndicate.core import initialize_connection, \
 from syndicate.core.build.artifact_processor import RUNTIME_NODEJS, \
     assemble_artifacts, RUNTIME_JAVA, RUNTIME_PYTHON, RUNTIME_SWAGGER_UI, \
     RUNTIME_DOTNET, RUNTIME_APPSYNC
-from syndicate.core.build.bundle_processor import (create_bundles_bucket,
-                                                   load_bundle,
-                                                   upload_bundle_to_s3,
-                                                   if_bundle_exist)
+from syndicate.core.build.bundle_processor import create_bundles_bucket, \
+    load_bundle, upload_bundle_to_s3, if_bundle_exist, \
+    remove_bundle_dir_locally
 from syndicate.core.build.deployment_processor import \
     create_deployment_resources, remove_deployment_resources, \
     update_deployment_resources
@@ -717,10 +716,14 @@ def assemble_java_mvn(bundle_name, project_path, force_upload, skip_tests,
     :return:
     """
     USER_LOG.info(f'Command compile java project path: {project_path}')
+    if force_upload:
+        _LOG.warning(f'Force upload is enabled, going to check if bundle '
+                     f'directory already exists.')
+        remove_bundle_dir_locally(bundle_name)
+
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
                        runtime=RUNTIME_JAVA,
-                       force_upload=force_upload,
                        skip_tests=skip_tests,
                        errors_allowed=errors_allowed)
     USER_LOG.info('Java artifacts were prepared successfully.')
@@ -767,10 +770,14 @@ def assemble_python(bundle_name, project_path, force_upload, errors_allowed,
     :return:
     """
     USER_LOG.info(f'Command assemble python: project_path: {project_path} ')
+    if force_upload:
+        _LOG.warning(f'Force upload is enabled, going to check if bundle '
+                     f'directory already exists.')
+        remove_bundle_dir_locally(bundle_name)
+
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
                        runtime=RUNTIME_PYTHON,
-                       force_upload=force_upload,
                        errors_allowed=errors_allowed)
     USER_LOG.info('Python artifacts were prepared successfully.')
     return OK_RETURN_CODE
@@ -812,11 +819,14 @@ def assemble_node(bundle_name, project_path, force_upload,
     :return:
     """
     USER_LOG.info(f'Command assemble node: project_path: {project_path} ')
+    if force_upload:
+        _LOG.warning(f'Force upload is enabled, going to check if bundle '
+                     f'directory already exists.')
+        remove_bundle_dir_locally(bundle_name)
+
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
-                       runtime=RUNTIME_NODEJS,
-                       force_upload=force_upload
-                       )
+                       runtime=RUNTIME_NODEJS)
     USER_LOG.info('NodeJS artifacts were prepared successfully.')
     return OK_RETURN_CODE
 
@@ -857,11 +867,14 @@ def assemble_dotnet(bundle_name, project_path, force_upload,
     :return:
     """
     USER_LOG.info(f'Command assemble dotnet: project_path: {project_path} ')
+    if force_upload:
+        _LOG.warning(f'Force upload is enabled, going to check if bundle '
+                     f'directory already exists.')
+        remove_bundle_dir_locally(bundle_name)
+
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
-                       runtime=RUNTIME_DOTNET,
-                       force_upload=force_upload
-                       )
+                       runtime=RUNTIME_DOTNET)
     USER_LOG.info('DotNet artifacts were prepared successfully.')
     return OK_RETURN_CODE
 
@@ -972,6 +985,11 @@ def assemble(ctx, bundle_name, force_upload, errors_allowed, skip_tests=False):
     :param skip_tests: allows to skip tests
     :return:
     """
+    if force_upload:
+        _LOG.warning(f'Force upload is enabled, going to check if bundle '
+                     f'directory already exists locally.')
+        remove_bundle_dir_locally(bundle_name)
+
     USER_LOG.info(f'Building artifacts, bundle: {bundle_name}')
     from syndicate.core import PROJECT_STATE
     # Updates stale lambda state aggregation
@@ -984,7 +1002,7 @@ def assemble(ctx, bundle_name, force_upload, errors_allowed, skip_tests=False):
             if func:
                 return_code = ctx.invoke(func, bundle_name=bundle_name,
                                          project_path=value,
-                                         force_upload=force_upload,
+                                         force_upload=False, # because we have already deleted the bundle folder
                                          errors_allowed=errors_allowed,
                                          skip_tests=skip_tests)
                 if return_code != OK_RETURN_CODE:
