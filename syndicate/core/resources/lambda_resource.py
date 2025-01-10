@@ -26,8 +26,7 @@ from syndicate.core.build.bundle_processor import _build_output_key
 from syndicate.core.build.meta_processor import S3_PATH_NAME
 from syndicate.core.constants import DEFAULT_LOGS_EXPIRATION
 from syndicate.core.decorators import threading_lock
-from syndicate.core.helper import (unpack_kwargs,
-                                   exit_on_exception, is_zip_empty)
+from syndicate.core.helper import unpack_kwargs, is_zip_empty
 from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import (
     build_description_obj, validate_params, assert_required_params, if_updated)
@@ -435,7 +434,6 @@ class LambdaResource(BaseResource):
             dl_name) if dl_type and dl_name else None
         return dl_target_arn
 
-    @exit_on_exception
     @unpack_kwargs
     def _update_lambda(self, name, meta, context):
         from syndicate.core import CONFIG
