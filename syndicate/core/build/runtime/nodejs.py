@@ -76,7 +76,8 @@ def assemble_node_lambdas(project_path, bundles_dir, **kwargs):
                 }
                 futures.append(executor.submit(build_node_lambda_layer, arg))
     for future in concurrent.futures.as_completed(futures):
-        _LOG.info(future.result())
+        if future.result():
+            _LOG.info(future.result())
 
 
 @unpack_kwargs

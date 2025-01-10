@@ -78,7 +78,8 @@ def assemble_dotnet_lambdas(project_path, bundles_dir, **kwargs):
                 futures.append(executor.submit(
                     _build_dotnet_lambda_layer_artifact, arg))
     for future in concurrent.futures.as_completed(futures):
-        _LOG.info(future.result())
+        if future.result():
+            _LOG.info(future.result())
 
     futures = []
     for root, sub_dirs, files in os.walk(project_abs_path):
@@ -93,7 +94,8 @@ def assemble_dotnet_lambdas(project_path, bundles_dir, **kwargs):
                 futures.append(executor.submit(
                     _build_dotnet_lambda_artifact, arg))
     for future in concurrent.futures.as_completed(futures):
-        _LOG.info(future.result())
+        if future.result():
+            _LOG.info(future.result())
 
     _clean_tmp_files(bundles_dir, [BUILD_DIR_TMP])
 
@@ -138,8 +140,10 @@ def _build_dotnet_lambda_artifact(item, root, target_folder):
     if exit_code != 0:
         raise RuntimeError(
             f'An error occurred during lambda {lambda_name} packaging. '
-            f'Details:\n{stdout}\n{stderr}'
+            f'Details:\n{stdout or ""}\n{stderr or ""}'
         )
+    _LOG.info(f'Running the command "{command}"\n{stdout or ""}'
+              f'\n{stderr or ""}')
 
     zip_dir(output_path, build_path(target_folder, package_name))
 
@@ -178,8 +182,10 @@ def _build_dotnet_lambda_layer_artifact(item, root, target_folder):
     if exit_code != 0:
         raise RuntimeError(
             f'An error occurred during lambda layer {layer_name} '
-            f'packaging. Details:\n{stdout}\n{stderr}'
+            f'packaging. Details:\n{stdout or ""}\n{stderr or ""}'
         )
+    _LOG.info(f'Running the command "{command}"\n{stdout or ""}'
+              f'\n{stderr or ""}')
 
     zip_dir(
         build_path(target_folder, BUILD_DIR_TMP, LAYER_DIR, layer_name),
@@ -192,8 +198,6 @@ def _check_dotnet_is_installed():
     try:
         exit_code, _, _ = run_external_command(CHECK_DOTNET_INSTALLED_COMMAND)
     except Exception as e:
-        _LOG.debug(f'An error occurred during checking dotnet SDK '
-                   f'installed\n{e}')
         USER_LOG.error(
             'It seems like the dotnet SDK is not installed. There is no '
             'ability to build a DotNet bundle. Please, make sure dotnet SDK '
@@ -229,7 +233,7 @@ def _process_custom_packages(layer_dir, packages):
             raise RuntimeError(
                 f'An error occurred during publishing package \'{package}\' '
                 f'into local NuGet source \'{LOCAL_NUGET_SOURCE_NAME}\'.'
-                f'Details:\n{stdout}\n{stderr}'
+                f'Details:\n{stdout or ""}\n{stderr or ""}'
             )
     _LOG.info(f'All custom packages successfully published to local NuGet '
               f'source \'{LOCAL_NUGET_SOURCE_NAME}\'.')
@@ -252,7 +256,7 @@ def _create_local_nuget_source():
     if exit_code != 0:
         raise RuntimeError(
             f'An error occurred during local NuGet source creation.'
-            f'Details:\n{stdout}\n{stderr}'
+            f'Details:\n{stdout or ""}\n{stderr or ""}'
         )
 
     _LOG.info(f'Syndicate local NuGet source \'{LOCAL_NUGET_SOURCE_NAME}\' '
@@ -264,7 +268,7 @@ def _is_local_source_exist(source_name):
     exit_code, stdout, stderr = run_external_command(command)
     if exit_code != 0:
         raise RuntimeError(
-            f'An error occurred during when attempt to list NuGet sources.'
-            f'Details:\n{stdout}\n{stderr}'
+            f'An error occurred during an attempt to list NuGet sources.'
+            f'Details:\n{stdout or ""}\n{stderr or ""}'
         )
     return True if source_name in stdout else False
