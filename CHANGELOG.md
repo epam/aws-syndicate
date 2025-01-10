@@ -5,9 +5,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 # [1.16.1] - 2025-01-09
-- Fixed events registering to the state file(.syndicate) in case of internal errors
 - Improved logging during building .NET artifacts
 - Unify manage resources via create_pool (+ DynamoDB tables and CloudWatch alarms)
+- Fixed events registering to the state file(.syndicate) in case of internal errors
 - Fixed an issue related to generating the lambda function with runtime Java when the project root file deployment_resources.json is absent
 - Fixed issue related to building a project that contains no lambda functions
 
