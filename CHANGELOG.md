@@ -35,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add resource tags for `ec2 launch-template` and  for versions in update and deploy operations
 - Add support tags for `OAS V3` as part of the `oas_v3.json` file, using the `x-syndicate-openapi-tags` key
 - Remove the directory 'target' that contains temporary files after assembling lambda artifacts
+- Unused library `colorama` removed from the requirements
 - Correct the return code of all the commands if they failed or were aborted
 - Java plugin version updated to 1.15.0 with changes:
   - Added the verification of Lambda resources existence to prevent deploy without Lambda resources
