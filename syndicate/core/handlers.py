@@ -717,8 +717,8 @@ def assemble_java_mvn(bundle_name, project_path, force_upload, skip_tests,
     """
     USER_LOG.info(f'Command compile java project path: {project_path}')
     if force_upload:
-        _LOG.warning(f'Force upload is enabled, going to check if bundle '
-                     f'directory already exists.')
+        _LOG.info(f'Force upload is enabled, going to check if bundle '
+                  f'directory already exists locally.')
         remove_bundle_dir_locally(bundle_name)
 
     assemble_artifacts(bundle_name=bundle_name,
@@ -771,8 +771,8 @@ def assemble_python(bundle_name, project_path, force_upload, errors_allowed,
     """
     USER_LOG.info(f'Command assemble python: project_path: {project_path} ')
     if force_upload:
-        _LOG.warning(f'Force upload is enabled, going to check if bundle '
-                     f'directory already exists.')
+        _LOG.info(f'Force upload is enabled, going to check if bundle '
+                  f'directory already exists locally.')
         remove_bundle_dir_locally(bundle_name)
 
     assemble_artifacts(bundle_name=bundle_name,
@@ -820,8 +820,8 @@ def assemble_node(bundle_name, project_path, force_upload,
     """
     USER_LOG.info(f'Command assemble node: project_path: {project_path} ')
     if force_upload:
-        _LOG.warning(f'Force upload is enabled, going to check if bundle '
-                     f'directory already exists.')
+        _LOG.info(f'Force upload is enabled, going to check if bundle '
+                  f'directory already exists locally.')
         remove_bundle_dir_locally(bundle_name)
 
     assemble_artifacts(bundle_name=bundle_name,
@@ -868,8 +868,8 @@ def assemble_dotnet(bundle_name, project_path, force_upload,
     """
     USER_LOG.info(f'Command assemble dotnet: project_path: {project_path} ')
     if force_upload:
-        _LOG.warning(f'Force upload is enabled, going to check if bundle '
-                     f'directory already exists.')
+        _LOG.info(f'Force upload is enabled, going to check if bundle '
+                  f'directory already exists locally.')
         remove_bundle_dir_locally(bundle_name)
 
     assemble_artifacts(bundle_name=bundle_name,
@@ -986,8 +986,8 @@ def assemble(ctx, bundle_name, force_upload, errors_allowed, skip_tests=False):
     :return:
     """
     if force_upload:
-        _LOG.warning(f'Force upload is enabled, going to check if bundle '
-                     f'directory already exists locally.')
+        _LOG.info(f'Force upload is enabled, going to check if bundle '
+                  f'directory already exists locally.')
         remove_bundle_dir_locally(bundle_name)
 
     USER_LOG.info(f'Building artifacts, bundle: {bundle_name}')
