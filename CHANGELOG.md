@@ -41,6 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added support of the syndicate `--errors_allowed` flag to skip build process interruption in case of errors
 - Java template updated to use the Syndicate Java plugin version 1.15.0 for the new lambda generation
 - Java examples updated to use the Syndicate Java plugin version 1.15.0
+- Fix bug when assembling multiple lambdas with different runtimes with `--force_bundle` flag
 
 # [1.15.0] - 2024-10-28
 - Added `--skip_tests` option to `build`, `test` and `assemble_java_mvn` commands to not run tests during or after 

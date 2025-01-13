@@ -53,24 +53,14 @@ RUNTIME_TO_BUILDER_MAPPING = {
 _LOG = get_logger(__name__)
 
 
-def assemble_artifacts(bundle_name, project_path, runtime, force_upload=None,
-                       errors_allowed=False, skip_tests=False):
+def assemble_artifacts(bundle_name, project_path, runtime,
+                       errors_allowed=False, skip_tests=False, **kwargs):
     if runtime not in SUPPORTED_RUNTIMES:
         raise AssertionError(
             f'Runtime {runtime} is not supported. '
             f'Currently available runtimes:{SUPPORTED_RUNTIMES}')
 
     bundle_dir = resolve_bundle_directory(bundle_name=bundle_name)
-
-    if force_upload is True:
-        _LOG.warning(f"Force upload is True, going to check if bundle"
-                     f" directory already exists.")
-        normalized_bundle_dir = os.path.normpath(bundle_dir)
-        if os.path.exists(normalized_bundle_dir):
-            _LOG.warning(f"Bundle with name: {bundle_name} already exists by"
-                         f" path `{normalized_bundle_dir}`, going to remove"
-                         f" this bundle locally.")
-            shutil.rmtree(normalized_bundle_dir)
 
     os.makedirs(bundle_dir, exist_ok=True)
     _LOG.debug(f'Target directory: {bundle_dir}')

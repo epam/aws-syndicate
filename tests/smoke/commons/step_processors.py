@@ -39,7 +39,8 @@ def process_steps(steps: dict[str: List[dict]],
         if verbose:
             command_to_execute.append('--verbose')
         if BUILD_COMMAND in command_to_execute:
-            command_to_execute.extend(['--bundle_name', BUNDLE_NAME])
+            command_to_execute.extend(['--bundle_name', BUNDLE_NAME,
+                                       '--force_upload'])
         if DEPLOY_COMMAND in command_to_execute:
             command_to_execute.extend(['--bundle_name', BUNDLE_NAME,
                                        '--deploy_name', DEPLOY_NAME,
