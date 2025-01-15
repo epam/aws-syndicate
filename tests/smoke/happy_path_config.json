@@ -32,7 +32,8 @@
                 "sdct-at-nodejs-lambda_layer_layer.zip",
                 "sdct-at-python-lambda-1.0.zip",
                 "sdct-at-python-lambda_layer_layer.zip",
-                "swagger_ui_sdct-at-swagger-ui.zip"
+                "swagger_ui_sdct-at-swagger-ui.zip",
+                "appsync_sdct-at-appsync.zip"
               ],
               "depends_on": [1]
             },
@@ -45,6 +46,9 @@
                   "resource_type": "iam_policy"
                 },
                 "sdct-at-java-lambda-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-appsync-role": {
                   "resource_type": "iam_role"
                 },
                 "sdct-at-java-lambda": {
@@ -107,6 +111,9 @@
                 "sdct-at-swagger-ui": {
                   "resource_type": "swagger_ui"
                 },
+                "sdct-at-appsync": {
+                  "resource_type": "appsync"
+                },
                 "sdct-at-open-api-gw": {
                   "resource_type": "api_gateway_oas_v3"
                 }
@@ -129,6 +136,13 @@
                   }
                 },
                 "sdct-at-java-lambda-role": {
+                  "resource_type": "iam_role",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test"
+                  }
+                },
+                "sdct-at-appsync-role": {
                   "resource_type": "iam_role",
                   "tags": {
                     "tests": "smoke",
@@ -270,6 +284,12 @@
                 "sdct-at-swagger-ui": {
                   "resource_type": "swagger_ui"
                 },
+                "sdct-at-appsync": {
+                  "resource_type": "appsync",
+                  "tags": {
+                    "project-level-tag": "set-from-resource"
+                  }
+                },
                 "sdct-at-open-api-gw": {
                   "resource_type": "api_gateway_oas_v3"
                 }
@@ -322,6 +342,9 @@
                 "sdct-at-java-lambda-role": {
                   "resource_type": "iam_role"
                 },
+                "sdct-at-appsync-role": {
+                  "resource_type": "iam_role"
+                },
                 "sdct-at-java-lambda": {
                   "resource_type": "lambda"
                 },
@@ -366,6 +389,9 @@
                 },
                 "sdct-at-swagger-ui": {
                   "resource_type": "swagger_ui"
+                },
+                "sdct-at-appsync": {
+                  "resource_type": "appsync"
                 }
               },
               "depends_on": [1, 2]
@@ -409,6 +435,9 @@
                 "sdct-at-java-lambda-role": {
                   "resource_type": "iam_role"
                 },
+                "sdct-at-appsync-role": {
+                  "resource_type": "iam_role"
+                },
                 "sdct-at-java-lambda": {
                   "resource_type": "lambda"
                 },
@@ -453,6 +482,9 @@
                 },
                 "sdct-at-swagger-ui": {
                   "resource_type": "swagger_ui"
+                },
+                "sdct-at-appsync": {
+                  "resource_type": "appsync"
                 }
               },
               "depends_on": [1, 2, 3]
@@ -525,6 +557,9 @@
                 "sdct-at-java-lambda-role": {
                   "resource_type": "iam_role"
                 },
+                "sdct-at-appsync-role": {
+                  "resource_type": "iam_role"
+                },
                 "sdct-at-java-lambda": {
                   "resource_type": "lambda"
                 },
@@ -587,6 +622,9 @@
                 },
                 "sdct-at-open-api-gw": {
                   "resource_type": "api_gateway_oas_v3"
+                },
+                "sdct-at-appsync": {
+                  "resource_type": "appsync"
                 }
               }
             },
@@ -601,6 +639,9 @@
                 "sdct-at-java-lambda-role": {
                   "resource_type": "iam_role"
                 },
+                "sdct-at-appsync-role": {
+                  "resource_type": "iam_role"
+                },
                 "sdct-at-java-lambda": {
                   "resource_type": "lambda"
                 },
@@ -663,6 +704,9 @@
                 },
                 "sdct-at-open-api-gw": {
                   "resource_type": "api_gateway_oas_v3"
+                },
+                "sdct-at-appsync": {
+                  "resource_type": "appsync"
                 }
               }
             },
@@ -673,6 +717,14 @@
               "succeeded_deploy": true,
               "resources": {
                 "sdct-at-java-lambda-role": {
+                  "resource_type": "iam_role",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test",
+                    "project-level-tag": "set-from-project"
+                  }
+                },
+                "sdct-at-appsync-role": {
                   "resource_type": "iam_role",
                   "tags": {
                     "tests": "smoke",
@@ -815,6 +867,12 @@
                     "project": "sdct-auto-test",
                     "project-level-tag": "set-from-resource"
                   }
+                },
+                "sdct-at-appsync": {
+                  "resource_type": "appsync",
+                  "tags": {
+                    "project-level-tag": "set-from-resource"
+                  }
                 }
               },
               "depends_on": [1, 5]
@@ -905,6 +963,9 @@
                 "sdct-at-java-lambda-role": {
                   "resource_type": "iam_role"
                 },
+                "sdct-at-appsync-role": {
+                  "resource_type": "iam_role"
+                },
                 "sdct-at-java-lambda": {
                   "resource_type": "lambda"
                 },
@@ -967,6 +1028,9 @@
                 },
                 "sdct-at-open-api-gw": {
                   "resource_type": "api_gateway_oas_v3"
+                },
+                "sdct-at-appsync": {
+                  "resource_type": "appsync"
                 }
               },
               "depends_on": [1]
@@ -1025,6 +1089,25 @@
                 }
               },
               "depends_on": [1, 2]
+            },
+            {
+              "index": 7,
+              "name": "appsync_modification",
+              "description": "Check if appsync configuration was updated",
+              "resources": {
+                "sdct-at-appsync": {
+                  "data_sources": [{
+                    "name": "table",
+                    "type": "AMAZON_DYNAMODB"
+                  }],
+                  "resolvers": [{
+                    "type_name": "Post",
+                    "field_name": "id",
+                    "data_source_name": "table"
+                  }]
+                }
+              },
+              "depends_on": [1, 2]
             }
           ]
         }
@@ -1073,6 +1156,9 @@
                 "sdct-at-java-lambda-role": {
                   "resource_type": "iam_role"
                 },
+                "sdct-at-appsync-role": {
+                  "resource_type": "iam_role"
+                },
                 "sdct-at-java-lambda": {
                   "resource_type": "lambda"
                 },
@@ -1117,6 +1203,9 @@
                 },
                 "sdct-at-swagger-ui": {
                   "resource_type": "swagger_ui"
+                },
+                "sdct-at-appsync": {
+                  "resource_type": "appsync"
                 }
               },
               "depends_on": [1, 2]
@@ -1160,6 +1249,9 @@
                 "sdct-at-java-lambda-role": {
                   "resource_type": "iam_role"
                 },
+                "sdct-at-appsync-role": {
+                  "resource_type": "iam_role"
+                },
                 "sdct-at-java-lambda": {
                   "resource_type": "lambda"
                 },
@@ -1204,6 +1296,9 @@
                 },
                 "sdct-at-swagger-ui": {
                   "resource_type": "swagger_ui"
+                },
+                "sdct-at-appsync": {
+                  "resource_type": "appsync"
                 }
               },
               "depends_on": [1, 2, 3]
@@ -1270,6 +1365,9 @@
                 "sdct-at-java-lambda-role": {
                   "resource_type": "iam_role"
                 },
+                "sdct-at-appsync-role": {
+                  "resource_type": "iam_role"
+                },
                 "sdct-at-java-lambda": {
                   "resource_type": "lambda"
                 },
@@ -1332,6 +1430,9 @@
                 },
                 "sdct-at-open-api-gw": {
                   "resource_type": "api_gateway_oas_v3"
+                },
+                "sdct-at-appsync": {
+                  "resource_type": "appsync"
                 }
               },
               "depends_on": [1]

@@ -109,10 +109,12 @@ class UpdateContent(object):
 
     def __init__(self, command: str,
                  lambda_paths: list[str],
+                 appsync_path: list[str],
                  resources_paths: list[str]):
         parent_dir = str(Path(__file__).resolve().parent.parent)
         self.lambda_conf_paths = []
         self.deployment_resources_paths = []
+        self.appsync_paths = []
 
         for path in lambda_paths:
             self.lambda_conf_paths.append(
@@ -125,9 +127,16 @@ class UpdateContent(object):
                  os.path.join(parent_dir, path,
                               'deployment_resources_updated.json')))
 
+        for path in appsync_path:
+            self.appsync_paths.append(
+                (os.path.join(parent_dir, path, 'appsync_config.json'),
+                 os.path.join(parent_dir, path, 'appsync_config_updated.json'))
+            )
+
         self.command = command
         self.lambda_initial_content = {}
         self.resources_initial_content = {}
+        self.appsync_initial_content = {}
 
     def __enter__(self):
         if UPDATE_COMMAND in self.command:
@@ -143,12 +152,22 @@ class UpdateContent(object):
                 updated_deployment_content = json.load(open(updated_path, 'r'))
                 json.dump(updated_deployment_content, open(path, 'w'), indent=2)
 
+            for path, updated_path in self.appsync_paths:
+                self.appsync_initial_content[path] = json.load(
+                    open(path, 'r')
+                )
+                updated_appsync_content = json.load(open(updated_path, 'r'))
+                json.dump(updated_appsync_content, open(path, 'w'), indent=2)
+
     def __exit__(self, type, value, traceback):
         if UPDATE_COMMAND in self.command:
             for path, content in self.lambda_initial_content.items():
                 json.dump(content, open(path, 'w'), indent=2)
 
             for path, content in self.resources_initial_content.items():
+                json.dump(content, open(path, 'w'), indent=2)
+
+            for path, content in self.appsync_initial_content.items():
                 json.dump(content, open(path, 'w'), indent=2)
 
 

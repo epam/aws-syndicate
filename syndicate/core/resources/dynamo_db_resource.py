@@ -407,3 +407,5 @@ class DynamoDBResource(AbstractExternalResource, BaseResource):
                 self.cw_alarm_conn.remove_alarms(alarm_args)
         except Exception as e:
             raise e
+
+        return {arn: config}

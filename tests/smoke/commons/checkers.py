@@ -212,6 +212,65 @@ def lambda_envs_checker(lambda_name: str, envs: dict,
 
     return result
 
+
+def appsync_modification_checker(appsync_name: str,
+                                 data_sources: list[dict],
+                                 resolvers: list[dict]) -> dict | None:
+    missing_sources = []
+    missing_resolvers = []
+    result = {}
+
+    api_id = connections.get_appsync_id(appsync_name)
+    if not api_id:
+        return
+    actual_data_sources = connections.list_appsync_data_sources(api_id)
+
+    for source in data_sources:
+        break_loop = False
+        for actual_source in actual_data_sources:
+            if source['name'] == actual_source['name'] and \
+                    source['type'] == actual_source['type']:
+                actual_data_sources.remove(actual_source)
+                break_loop = True
+                break
+        if not break_loop:
+            missing_sources.append(source)
+            break
+
+    for res in resolvers:
+        actual_resolvers = connections.list_appsync_resolvers(api_id,
+                                                              res['type_name'])
+        break_loop = False
+        for actual_res in actual_resolvers:
+            if res['type_name'] == actual_res['typeName'] and \
+                    res['field_name'] == actual_res['fieldName'] and \
+                    res['data_source_name'] == actual_res['dataSourceName']:
+                actual_resolvers.remove(actual_res)
+                break_loop = True
+                break
+
+        if not break_loop:
+            missing_resolvers.append(res)
+            break
+
+        if actual_resolvers:
+            result['redundant_resolvers'].extend([
+                {'type_name': a['typeName'], 'field_name': a['fieldName'],
+                 'data_source_name': a['dataSourceName']} for a in
+                actual_resolvers
+            ])
+
+    if missing_sources:
+        result['missing_sources'] = missing_sources
+    if missing_resolvers:
+        result['missing_resolvers'] = missing_resolvers
+    if actual_data_sources:
+        result['redundant_sources'] = [{'name': a['name'], 'type': a['type']}
+                                       for a in actual_data_sources]
+
+    return result
+
+
 # ------------ Resource existence checkers -------------
 
 
@@ -276,6 +335,10 @@ def swagger_ui_existence_checker(name: str, deployment_bucket: str,
                                                             index_document)
         return True if all([bucket_exist, web_site_config, index_doc_exists]) \
             else False
+
+
+def appsync_existence_checker(name: str) -> bool:
+    return True if connections.get_appsync_id(name) else False
 
 
 # ------------ Resource modification checkers -------------
@@ -382,6 +445,13 @@ def cognito_idp_tags_checker(name: str, tags: list) -> dict | bool:
     return True
 
 
+def appsync_tags_checker(name: str, tags: list) -> dict | bool:
+    received_tags = connections.list_appsync_tags(name, tags)
+    if missing_tags := compare_dicts(received_tags, tags):
+        return dict(missing_tags)
+    return True
+
+
 TYPE_EXISTENCE_FUNC_MAPPING = {
     'iam_policy': iam_policy_existence_checker,
     'iam_role': iam_role_existence_checker,
@@ -395,7 +465,8 @@ TYPE_EXISTENCE_FUNC_MAPPING = {
     'cloudwatch_rule': cw_rule_existence_checker,
     's3_bucket': s3_bucket_existence_checker,
     'cognito_idp': cognito_idp_existence_checker,
-    'swagger_ui': swagger_ui_existence_checker
+    'swagger_ui': swagger_ui_existence_checker,
+    'appsync': appsync_existence_checker
 }
 
 
@@ -416,5 +487,6 @@ TYPE_TAGS_FUNC_MAPPING = {
     'dynamodb_table': dynamo_db_tags_checker,
     'cloudwatch_rule': cw_rule_tags_checker,
     's3_bucket': s3_bucket_tags_checker,
-    'cognito_idp': cognito_idp_tags_checker
+    'cognito_idp': cognito_idp_tags_checker,
+    'appsync': appsync_tags_checker
 }

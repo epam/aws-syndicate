@@ -46,6 +46,18 @@
       "project": "sdct-auto-test"
     }
   },
+  "sdct-at-appsync-role": {
+    "predefined_policies": [],
+    "principal_service": "appsync",
+    "custom_policies": [
+      "sdct-at-lambda-basic-execution-policy"
+    ],
+    "resource_type": "iam_role",
+    "tags": {
+      "tests": "smoke",
+      "project": "sdct-auto-test"
+    }
+  },
   "sdct-at-api-gw": {
     "resource_type": "api_gateway",
     "deploy_stage": "api",

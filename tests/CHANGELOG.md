@@ -1,3 +1,7 @@
+## 2025-01-15
+### Added
+- Added appsync tests for build, deploy, update and clean commands
+
 ## 2024-12-05
 ### Changed
 - Changed the way to pass lambda alias to checkers - use read_sdct_conf() function from util file instead pass it with lambda name
