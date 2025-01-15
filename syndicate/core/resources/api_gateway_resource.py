@@ -1144,6 +1144,10 @@ class ApiGatewayResource(BaseResource):
         stage_name = meta.get('deploy_stage')
         resources = meta.get('resources') or {}
         route_selection_expression = meta.get('route_selection_expression')
+        api_gw_describe = self.describe_v2_api_gateway(name, meta)
+        if api_gw_describe:
+            _LOG.info(f'Api gateway with name \'{name}\' exists. Returning')
+            return api_gw_describe
         api_id = self.apigw_v2.create_web_socket_api(
             name=name, route_selection_expression=route_selection_expression,
             tags=meta.get('tags'))
