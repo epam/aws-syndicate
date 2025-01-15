@@ -23,8 +23,8 @@
       "type_name": "Post",
       "field_name": "id",
       "data_source_name": "table",
-      "request_mapping_template_path": "resolvers/post/id/file1.vtl",
-      "response_mapping_template_path": "resolvers/post/id/file2.txt",
+      "request_mapping_template_path": "resolvers/post/id/req_mapping_template.vtl",
+      "response_mapping_template_path": "resolvers/post/id/res_mapping_template.txt",
       "runtime": "VTL"
     }
   ],
