@@ -119,3 +119,5 @@ class CloudWatchAlarmResource(BaseResource):
                 _LOG.warn(f'Alarm {alarm_name} was found despite the '
                           f'`ResourceNotFoundException` error.')
                 raise e
+
+        return {arn: config}
