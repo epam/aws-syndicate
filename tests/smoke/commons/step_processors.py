@@ -55,7 +55,10 @@ def process_steps(steps: dict[str: List[dict]],
                 lambda_paths=[os.path.join('sdct-auto-test',
                                            'app', 'lambdas',
                                            'sdct-at-nodejs-lambda')],
-                resources_paths=['sdct-auto-test']):
+                resources_paths=['sdct-auto-test'],
+                appsync_path=[os.path.join('sdct-auto-test',
+                                           'appsync_src',
+                                           'sdct-at-appsync')]):
             if UPDATE_COMMAND in command_to_execute:
                 build_command = ['syndicate', 'build',
                                  '--bundle_name', UPDATED_BUNDLE_NAME]

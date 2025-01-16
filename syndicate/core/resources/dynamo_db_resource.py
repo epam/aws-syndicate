@@ -392,6 +392,8 @@ class DynamoDBResource(AbstractExternalResource, BaseResource):
         removed_tables, errors = self.dynamodb_conn.remove_tables_by_names(
             [db_name],
             log_not_found_error=False)
+        if errors:
+            raise Exception('; '.join(errors))
         _LOG.info(f'Dynamo DB tables {str(removed_tables)} were removed')
 
         alarm_args = []
@@ -407,3 +409,5 @@ class DynamoDBResource(AbstractExternalResource, BaseResource):
                 self.cw_alarm_conn.remove_alarms(alarm_args)
         except Exception as e:
             raise e
+
+        return {arn: config}
