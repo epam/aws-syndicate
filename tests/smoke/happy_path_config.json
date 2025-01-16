@@ -928,7 +928,9 @@
           ]
         }
       ],
-      "depends_on": ["build"]
+      "depends_on": [
+        "build"
+      ]
     },
     "update": {
       "steps": [
@@ -1096,15 +1098,25 @@
               "description": "Check if appsync configuration was updated",
               "resources": {
                 "sdct-at-appsync": {
-                  "data_sources": [{
-                    "name": "table",
-                    "type": "AMAZON_DYNAMODB"
-                  }],
-                  "resolvers": [{
-                    "type_name": "Post",
-                    "field_name": "id",
-                    "data_source_name": "table"
-                  }]
+                  "data_sources": [
+                    {
+                      "name": "table",
+                      "type": "AMAZON_DYNAMODB"
+                    }
+                  ],
+                  "resolvers": [
+                    {
+                      "type_name": "Post",
+                      "field_name": "id",
+                      "data_source_name": "table"
+                    }
+                  ],
+                  "functions": [
+                    {
+                      "name": "get_device",
+                      "data_source_name": "table"
+                    }
+                  ]
                 }
               },
               "depends_on": [1, 2]

@@ -20,12 +20,22 @@
   ],
   "resolvers": [
     {
+      "kind": "UNIT",
       "type_name": "Post",
       "field_name": "id",
       "data_source_name": "table",
       "request_mapping_template_path": "resolvers/post/id/req_mapping_template.vtl",
       "response_mapping_template_path": "resolvers/post/id/res_mapping_template.txt",
       "runtime": "VTL"
+    }
+  ],
+  "functions": [
+    {
+      "name": "get_device",
+      "description": "Test function",
+      "data_source_name": "table",
+      "runtime": "JS",
+      "code_path": "functions/get_device/code.js"
     }
   ],
   "deployment_package": "appsync_sdct-at-appsync.zip"

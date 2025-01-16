@@ -639,3 +639,16 @@ def list_appsync_resolvers(api_id: str, type_name: str):
         return []
 
     return result
+
+
+def list_appsync_functions(api_id: str):
+    result = []
+    try:
+        paginator = appsync_client.get_paginator('list_functions')
+        for response in paginator.paginate(apiId=api_id):
+            result.extend(response.get('functions'))
+    except appsync_client.exceptions.NotFoundException:
+        print(f'Appsync API \'{api_id}\' not found')
+        return []
+
+    return result

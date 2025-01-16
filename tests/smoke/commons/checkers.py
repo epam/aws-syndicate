@@ -2,6 +2,7 @@ import copy
 from datetime import datetime
 import sys
 from pathlib import Path
+from typing import Optional
 
 parent_dir = str(Path(__file__).resolve().parent.parent)
 sys.path.append(parent_dir)
@@ -215,15 +216,19 @@ def lambda_envs_checker(lambda_name: str, envs: dict,
 
 def appsync_modification_checker(appsync_name: str,
                                  data_sources: list[dict],
-                                 resolvers: list[dict]) -> dict | None:
+                                 resolvers: list[dict],
+                                 functions: Optional[list[dict]] = None) \
+        -> dict | None:
     missing_sources = []
     missing_resolvers = []
+    missing_functions = []
     result = {}
 
     api_id = connections.get_appsync_id(appsync_name)
     if not api_id:
         return
     actual_data_sources = connections.list_appsync_data_sources(api_id)
+    actual_functions = connections.list_appsync_functions(api_id)
 
     for source in data_sources:
         break_loop = False
@@ -235,6 +240,18 @@ def appsync_modification_checker(appsync_name: str,
                 break
         if not break_loop:
             missing_sources.append(source)
+            break
+
+    for func in functions:
+        break_loop = False
+        for actual_func in actual_functions:
+            if func['name'] == actual_func['name'] and \
+                    func['data_source_name'] == actual_func['dataSourceName']:
+                actual_functions.remove(actual_func)
+                break_loop = True
+                break
+        if not break_loop:
+            missing_functions.append(func)
             break
 
     for res in resolvers:
@@ -264,6 +281,8 @@ def appsync_modification_checker(appsync_name: str,
         result['missing_sources'] = missing_sources
     if missing_resolvers:
         result['missing_resolvers'] = missing_resolvers
+    if missing_functions:
+        result['missing_functions'] = missing_functions
     if actual_data_sources:
         result['redundant_sources'] = [{'name': a['name'], 'type': a['type']}
                                        for a in actual_data_sources]
