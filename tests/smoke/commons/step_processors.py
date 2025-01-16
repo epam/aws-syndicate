@@ -39,7 +39,8 @@ def process_steps(steps: dict[str: List[dict]],
         if verbose:
             command_to_execute.append('--verbose')
         if BUILD_COMMAND in command_to_execute:
-            command_to_execute.extend(['--bundle_name', BUNDLE_NAME])
+            command_to_execute.extend(['--bundle_name', BUNDLE_NAME,
+                                       '--force_upload'])
         if DEPLOY_COMMAND in command_to_execute:
             command_to_execute.extend(['--bundle_name', BUNDLE_NAME,
                                        '--deploy_name', DEPLOY_NAME,
@@ -54,7 +55,10 @@ def process_steps(steps: dict[str: List[dict]],
                 lambda_paths=[os.path.join('sdct-auto-test',
                                            'app', 'lambdas',
                                            'sdct-at-nodejs-lambda')],
-                resources_paths=['sdct-auto-test']):
+                resources_paths=['sdct-auto-test'],
+                appsync_path=[os.path.join('sdct-auto-test',
+                                           'appsync_src',
+                                           'sdct-at-appsync')]):
             if UPDATE_COMMAND in command_to_execute:
                 build_command = ['syndicate', 'build',
                                  '--bundle_name', UPDATED_BUNDLE_NAME]

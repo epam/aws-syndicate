@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [1.16.0] - 2025-01-10
+# [1.16.0] - 2025-01-14
 - Added support for the AppSync resource
 - Added the possibility to generate `s3_bucket` meta for static website hosting without public access
 - Added the possibility to manage CloudWatch logging for API Gateway resources
@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed duplication lambda function and lambda layer records in the output file after updating the resources
 - Fixed issue related to lambda function updating in case of changing lambda's alias name
 - Fixed issue related to tests generation for lambda function with runtime Python
+- Fixed duplication of the API Gateway of type `web_socket_api_gateway` during deployment
 - Fix `tag_resources` and `untag_resources` to handle exceptions properly
 - Update `apply_tags`, `remove_tags`, and `update_tags` to return success status
 - Fix `clean` command for `output` folder to correctly resolve ARN for Lambda and properly process and remove the `outputs` folder if Lambda is part of the deployment
@@ -35,12 +36,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add resource tags for `ec2 launch-template` and  for versions in update and deploy operations
 - Add support tags for `OAS V3` as part of the `oas_v3.json` file, using the `x-syndicate-openapi-tags` key
 - Remove the directory 'target' that contains temporary files after assembling lambda artifacts
+- Unused library `colorama` removed from the requirements
 - Correct the return code of all the commands if they failed or were aborted
 - Java plugin version updated to 1.15.0 with changes:
   - Added the verification of Lambda resources existence to prevent deploy without Lambda resources
   - Added support of the syndicate `--errors_allowed` flag to skip build process interruption in case of errors
 - Java template updated to use the Syndicate Java plugin version 1.15.0 for the new lambda generation
 - Java examples updated to use the Syndicate Java plugin version 1.15.0
+- Fix bug when assembling multiple lambdas with different runtimes with `--force_bundle` flag
 
 # [1.15.0] - 2024-10-28
 - Added `--skip_tests` option to `build`, `test` and `assemble_java_mvn` commands to not run tests during or after 

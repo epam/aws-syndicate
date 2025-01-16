@@ -241,6 +241,38 @@ not matter and only the presence of a particular key will be checked.
           }
         }
         ```
+- `appsync_modification` - Checks appsync resource configuration. 
+  - parameters:
+    - `resources` (dict) [REQUIRED] - Appsync configuration to check. Should include `resolvers` and `data_sources`.
+`functions` parameter is optional.
+        structure:
+        ```json5
+          {
+              "resources": {
+                "appsync_name": {
+                  "data_sources": [
+                    {
+                      "name": "table",
+                      "type": "AMAZON_DYNAMODB"
+                    }
+                  ],
+                  "resolvers": [
+                    {
+                      "type_name": "Post",
+                      "field_name": "id",
+                      "data_source_name": "table"
+                    }
+                  ],
+                  "functions": [
+                    {
+                      "name": "get_user",
+                      "data_source_name": "table"
+                    }
+                  ]
+                }
+              }
+          }
+        ```
 
 ### Temporary checks conditions
 - Use tags from `tests/smoke/sdct-auto-test/.syndicate-config/syndicate.yml` unless change them in happy_path_config.json:

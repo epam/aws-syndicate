@@ -5,6 +5,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+os.environ['PYTHONUTF8'] = '1'  # to skip unicodedecodeerror
+
 cur_dir = Path(__file__).resolve().parent
 parent_dir = str(cur_dir.parent)
 sys.path.append(parent_dir)

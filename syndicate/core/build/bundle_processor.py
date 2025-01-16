@@ -15,6 +15,7 @@
 """
 import json
 import os
+import shutil
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import PurePath
 from botocore.exceptions import ClientError
@@ -333,3 +334,16 @@ def _put_package_to_s3(path, path_to_package):
                             path).as_posix()
     CONN.s3().upload_single_file(path_to_package, key_compound,
                                  CONFIG.deploy_target_bucket)
+
+
+def remove_bundle_dir_locally(bundle_name: str):
+    bundle_dir = resolve_bundle_directory(bundle_name=bundle_name)
+    normalized_bundle_dir = os.path.normpath(bundle_dir)
+    if os.path.exists(normalized_bundle_dir):
+        _LOG.warning(f'Going to remove bundle folder '
+                     f'`{normalized_bundle_dir}` locally.')
+        try:
+            shutil.rmtree(normalized_bundle_dir)
+        except Exception as e:
+            _LOG.error(f'Cannot delete folder {normalized_bundle_dir}')
+            raise e
