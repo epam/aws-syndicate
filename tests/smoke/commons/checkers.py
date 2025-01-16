@@ -217,7 +217,7 @@ def lambda_envs_checker(lambda_name: str, envs: dict,
 def appsync_modification_checker(appsync_name: str,
                                  data_sources: list[dict],
                                  resolvers: list[dict],
-                                 functions: Optional[list[dict]] = None) \
+                                 functions: Optional[list[dict]] = []) \
         -> dict | None:
     missing_sources = []
     missing_resolvers = []
