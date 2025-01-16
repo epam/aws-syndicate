@@ -992,8 +992,8 @@ def assemble(ctx, bundle_name, force_upload, errors_allowed, skip_tests=False):
 
     USER_LOG.info(f'Building artifacts, bundle: {bundle_name}')
     from syndicate.core import PROJECT_STATE
-    # Updates stale lambda state aggregation
-    PROJECT_STATE.refresh_lambda_state()
+    # Updates stale state aggregation
+    PROJECT_STATE.refresh_state()
 
     build_mapping_dict: dict = PROJECT_STATE.load_project_build_mapping()
     if build_mapping_dict:

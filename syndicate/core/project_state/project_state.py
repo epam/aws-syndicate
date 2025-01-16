@@ -348,7 +348,7 @@ class ProjectState:
         elif remote_deploy:
             self.latest_deploy = remote_deploy
 
-    def refresh_lambda_state(self):
+    def refresh_state(self):
         """
         Refreshes current Project lambda State, be resolving
         the compatibility with the retained state. Given any consistency
@@ -364,13 +364,18 @@ class ProjectState:
         _stale_lambdas = self.lambdas
         for runtime, source in BUILD_MAPPINGS.items():
             _path = resolve_lambda_path(_project_path, runtime, source)
-            _updated = self._update_lambdas_from_path(_path, runtime)
-            if not _persistence_need and check_lambda_state_consistency(
-                    objected_lambdas=_updated,
-                    subjected_lambdas=_stale_lambdas,
-                    runtime=runtime
-            ):
-                _persistence_need = True
+            if runtime in [RUNTIME_SWAGGER_UI, RUNTIME_APPSYNC]:
+                _updated = self._update_bpm_resources_from_path(_path, runtime)
+                if not _persistence_need and _updated:
+                    _persistence_need = True
+            else:
+                _updated = self._update_lambdas_from_path(_path, runtime)
+                if not _persistence_need and check_lambda_state_consistency(
+                        objected_lambdas=_updated,
+                        subjected_lambdas=_stale_lambdas,
+                        runtime=runtime
+                ):
+                    _persistence_need = True
 
         if _persistence_need:
             self.save()
@@ -406,6 +411,38 @@ class ProjectState:
             lambdas = dict()
             self.dct.update({STATE_LAMBDAS: lambdas})
         lambdas.update({lambda_name: {'runtime': runtime}})
+
+    def _update_bpm_resources_from_path(self,
+                                        path: Union[str, Path],
+                                        runtime: str) -> list:
+        """
+        Non persistently updates ProjectState runtime and
+        any found build project mapping dependent resources from a given path.
+        :parameter path:Path
+        :parameter runtime: str
+        :return: List
+        """
+        try:
+            path = path if isinstance(path, Path) else Path(path)
+        except (TypeError, Exception):
+            _LOG.error(f'Requested path {path} must be of str or Path type.')
+            return []
+
+        _LOG.info(
+            f'Going to resolve any build project mapping dependent resources '
+            f'from a given path: {path.absolute()}.'
+        )
+        build_project_mappings: dict = self.dct.get(
+            STATE_BUILD_PROJECT_MAPPING
+        )
+        _bpm_resources = self._resolve_bpm_resources_from_path(path, runtime)
+        if _bpm_resources and runtime not in build_project_mappings:
+            _LOG.info(
+                f'Going to add build project mapping for the following '
+                f'resource type\'{runtime}\' to the pending ProjectState.')
+            self.add_project_build_mapping(runtime)
+            return _bpm_resources
+        return []
 
     def add_project_build_mapping(self, runtime):
         build_project_mappings = self.dct.get(STATE_BUILD_PROJECT_MAPPING)
@@ -593,3 +630,28 @@ class ProjectState:
                     lambda_list.append(item.name)
 
         return lambda_list
+
+    @staticmethod
+    def _resolve_bpm_resources_from_path(path: Path, runtime: str) -> list:
+        """
+        Resolves a list of names bound to build project mapping dependent
+        resources, retained inside a given path, based on a provided runtime.
+        :parameter path: Path
+        :parameter runtime: str
+        :return: List[str]
+        """
+
+        _config_file_name_suffix = '_config.json'
+        resources = []
+
+        if not path.exists():
+            return resources
+
+        for item in path.iterdir():
+            if not item.is_dir():
+                continue
+            for filename in item.iterdir():
+                if filename.name.endswith(_config_file_name_suffix):
+                    resources.append(filename.name)
+
+        return resources
