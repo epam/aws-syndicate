@@ -30,7 +30,7 @@ from syndicate.core.conf.bucket_view import URIBucketView, RegexViewDigest, \
     NAMED_S3_URI_PATTERN, S3_PATTERN_GROUP_NAMES
 from syndicate.core.helper import handle_interruption
 
-_LOG = get_logger('deployment.__init__')
+_LOG = get_logger(__name__)
 USER_LOG = get_user_logger()
 
 SESSION_TOKEN = 'aws_session_token'
@@ -55,8 +55,8 @@ CONF_PATH = os.environ.get('SDCT_CONF')
 CONFIG: ConfigHolder = None
 CONN = None
 CREDENTIALS = None
-RESOURCES_PROVIDER = None
-PROCESSOR_FACADE = None
+RESOURCES_PROVIDER: ResourceProvider = None
+PROCESSOR_FACADE: ProcessorFacade = None
 PROJECT_STATE: ProjectState = None
 
 

@@ -38,7 +38,7 @@ from syndicate.core.helper import (build_path, unpack_kwargs,
 from syndicate.core.project_state.project_state import BUILD_MAPPINGS
 from syndicate.core.resources.helper import validate_params
 
-_LOG = get_logger('nodejs_runtime_assembler')
+_LOG = get_logger(__name__)
 
 
 _JS_EXT = "*.js"
@@ -76,7 +76,8 @@ def assemble_node_lambdas(project_path, bundles_dir, **kwargs):
                 }
                 futures.append(executor.submit(build_node_lambda_layer, arg))
     for future in concurrent.futures.as_completed(futures):
-        _LOG.info(future.result())
+        if future.result():
+            _LOG.info(future.result())
 
 
 @unpack_kwargs

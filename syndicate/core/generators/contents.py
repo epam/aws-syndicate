@@ -84,7 +84,7 @@ JAVA_ROOT_POM_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
 
     <properties>
         <maven-shade-plugin.version>3.5.2</maven-shade-plugin.version>
-        <syndicate.java.plugin.version>1.14.0</syndicate.java.plugin.version>
+        <syndicate.java.plugin.version>1.15.0</syndicate.java.plugin.version>
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -172,7 +172,7 @@ JAVA_ROOT_POM_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
 PYTHON_LAMBDA_HANDLER_TEMPLATE = """from commons.log_helper import get_logger
 from commons.abstract_lambda import AbstractLambda
 
-_LOG = get_logger('LambdaName-handler')
+_LOG = get_logger(__name__)
 
 
 class LambdaName(AbstractLambda):
@@ -334,7 +334,7 @@ ABSTRACT_LAMBDA_CONTENT = """from abc import abstractmethod
 from commons import ApplicationException, build_response
 from commons.log_helper import get_logger
 
-_LOG = get_logger('abstract-lambda')
+_LOG = get_logger(__name__)
 
 
 class AbstractLambda:
@@ -531,11 +531,11 @@ class TestSuccess({camel_lambda_name}LambdaTestCase):
 
 """
 
-S3_BUCKET_PUBLIC_READ_POLICY = {
+S3_BUCKET_WEBSITE_HOSTING_POLICY = {
     "Version": "2012-10-17",
     "Statement": [
         {
-            "Sid": "PublicReadGetObject",
+            "Sid": "WebSiteHostingGetObject",
             "Effect": "Allow",
             "Principal": "*",
             "Action": [
@@ -543,7 +543,14 @@ S3_BUCKET_PUBLIC_READ_POLICY = {
             ],
             "Resource": [
                 "arn:aws:s3:::{bucket_name}/*"
-            ]
+            ],
+            "Condition": {
+                "IpAddress": {
+                    "aws:SourceIp": [
+                        "XXX.XXX.XXX.XXX/32"
+                    ]
+                }
+            }
         }
     ]
 }
@@ -644,12 +651,12 @@ def _generate_node_layer_package_file(layer_name):
 
 def _generate_node_layer_package_lock_file(layer_name):
     return _stringify({
-            "name": layer_name,
-            "version": "1.0.0",
-            "lockfileVersion": 1,
-            "requires": True,
-            "dependencies": {}
-        })
+        "name": layer_name,
+        "version": "1.0.0",
+        "lockfileVersion": 1,
+        "requires": True,
+        "dependencies": {}
+    })
 
 
 def _generate_nodejs_node_lambda_config(lambda_name, lambda_relative_path,
@@ -768,8 +775,147 @@ def _generate_lambda_role_config(role_name, tags, stringify=True):
 
 def _generate_swagger_ui_config(resource_name, path_to_spec, target_bucket):
     return _stringify({
-            "name": resource_name,
-            "resource_type": "swagger_ui",
-            "path_to_spec": path_to_spec,
-            "target_bucket": target_bucket
-        })
+        "name": resource_name,
+        "resource_type": "swagger_ui",
+        "path_to_spec": path_to_spec,
+        "target_bucket": target_bucket
+    })
+
+
+def _generate_syncapp_config(resource_name, schema_file_name, tags=None):
+    config_content = {
+        "name": resource_name,
+        "resource_type": "appsync",
+        "primary_auth_type": "API_KEY",
+        "api_key_expiration_days": 7,
+        "schema_path": schema_file_name,
+        "data_sources": [],
+        "resolvers": [],
+        "functions": [],
+        "log_config": {
+            "logging_enabled": False,
+            "field_log_level": "ERROR",
+            "cloud_watch_logs_role_name": '',
+            'exclude_verbose_content': False
+        },
+        "tags": tags or {},
+    }
+    return _stringify(config_content)
+
+
+def _generate_syncapp_default_schema():
+    content = '''# Define the structure of your API with the GraphQL
+# schema definition language (SDL) here.
+
+type Query {
+	test: String
+}
+
+schema {
+	query: Query
+}
+    '''
+    return content
+
+
+def _generate_syncapp_js_resolver_code():
+    default_code = '''/**
+ * Sends a request to the attached data source
+ * @param {import('@aws-appsync/utils').Context} ctx the context
+ * @returns {*} the request
+ */
+export function request(ctx) {
+    // Update with custom logic or select a code sample.
+    return {};
+}
+
+/**
+ * Returns the resolver result
+ * @param {import('@aws-appsync/utils').Context} ctx the context
+ * @returns {*} the result
+ */
+export function response(ctx) {
+    // Update with response logic
+    return ctx.result;
+}
+'''
+    return default_code
+
+
+def _generate_syncapp_vtl_resolver_req_mt(data_source_type):
+    match data_source_type:
+        case 'NONE':
+            content = \
+                '''#**Resolvers with None data sources can locally publish events that fire
+                subscriptions or otherwise transform data without hitting a backend data source.
+                The value of 'payload' is forwarded to $ctx.result in the response mapping template.
+                *#
+                {
+                    "version": "2018-05-29",
+                    "payload": {
+                        "hello": "local",
+                    }
+                }
+                            '''
+        case 'AWS_LAMBDA':
+            content = \
+                '''#**The value of 'payload' after the template has been evaluated
+                will be passed as the event to AWS Lambda.
+                *#
+                {
+                  "version" : "2018-05-29",
+                  "operation": "Invoke",
+                  "payload": $util.toJson($context.args)
+                }
+                                            '''
+        case 'AMAZON_DYNAMODB':
+            content = \
+                '''## Below example shows how to look up an item with a Primary Key of "id" from GraphQL arguments
+                ## The helper $util.dynamodb.toDynamoDBJson automatically converts to a DynamoDB formatted request
+                ## There is a "context" object with arguments, identity, headers, and parent field information you can access.
+                ## It also has a shorthand notation available:
+                ##  - $context or $ctx is the root object
+                ##  - $ctx.arguments or $ctx.args contains arguments
+                ##  - $ctx.identity has caller information, such as $ctx.identity.username
+                ##  - $ctx.request.headers contains headers, such as $context.request.headers.xyz
+                ##  - $ctx.source is a map of the parent field, for instance $ctx.source.xyz
+                ## Read more: https://docs.aws.amazon.com/appsync/latest/devguide/resolver-mapping-template-reference.html
+                
+                {
+                    "version": "2018-05-29",
+                    "operation": "GetItem",
+                    "key": {
+                        "id": $util.dynamodb.toDynamoDBJson($ctx.args.id),
+                    }
+                }
+                '''
+        case 'PIPELINE':
+            content = \
+                '''## By default in a before template, all you need is a valid JSON payload.
+                ## You can also stash data to be made available to the functions in the pipeline.
+                ## Examples: 
+                ## - $ctx.stash.put("email", $ctx.args.email)
+                ## - $ctx.stash.put("badgeNumber", $ctx.args.input.badgeNumber)
+                ## - $ctx.stash.put("username", $ctx.identity.username)
+                
+                {}
+                '''
+    return content
+
+
+def _generate_syncapp_vtl_resolver_resp_mt(data_source_type):
+    match data_source_type:
+        case 'NONE':
+            content = '''$util.toJson($context.result)'''
+        case 'AWS_LAMBDA':
+            content = '''$util.toJson($context.result)'''
+        case 'AMAZON_DYNAMODB':
+            content = \
+                '''## Pass back the result from DynamoDB. **
+                $util.toJson($ctx.result)
+                '''
+        case 'PIPELINE':
+            content = \
+                '''## The after mapping template is used to collect the final value that is returned by the resolver.
+                $util.toJson($ctx.result)'''
+    return content

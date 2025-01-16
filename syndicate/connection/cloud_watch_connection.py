@@ -27,7 +27,7 @@ from syndicate.core.constants import (
     POSSIBLE_RETENTION_DAYS, DEFAULT_LOGS_EXPIRATION
 )
 
-_LOG = get_logger('syndicate.connection.cloud_watch_connection')
+_LOG = get_logger(__name__)
 
 
 def get_lambda_log_group_name(lambda_name):

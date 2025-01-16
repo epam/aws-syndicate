@@ -22,7 +22,7 @@ from syndicate.core.project_state.project_state import (
     OPERATION_LOCK_MAPPINGS, MODIFICATION_LOCK, WARMUP_LOCK,
     LOCK_LAST_MODIFICATION_DATE, LOCK_LOCKED_TILL)
 from syndicate.core.project_state.sync_processor import sync_project_state
-from syndicate.core.constants import DATE_FORMAT_ISO_8601
+from syndicate.core.constants import DATE_FORMAT_ISO_8601, MODIFICATION_OPS
 
 LOCKS = {
     MODIFICATION_LOCK: 'modification',
@@ -47,50 +47,64 @@ def process_default_view():
     project_name = PROJECT_STATE.name
     events = PROJECT_STATE.events
     last_event = None
+    latest_operation = None
     is_locked = False
     if events:
         last_event = events[0]
         latest_operation = last_event.get('operation')
         lock_name = OPERATION_LOCK_MAPPINGS.get(latest_operation)
         is_locked = not PROJECT_STATE.is_lock_free(lock_name)
-    state = 'Locked' if is_locked else 'Available'
-    result = ['Project: {}'.format(project_name),
-              'State: {}'.format(state)]
-    last_modification = PROJECT_STATE.latest_modification
-    if last_modification:
-        operation = last_modification.get('operation')
-        result.append(LINE_SEP + 'Latest modification: {}'.format(operation))
-        modification_time = last_modification.get('time_start')
-        data = [['', 'Bundle name: ', last_modification.get('bundle_name')],
-                ['', 'Deploy name: ', last_modification.get('deploy_name')],
-                ['', 'Initiated by: ', last_modification.get('initiator')],
-                ['', 'Started at: ', format_time(modification_time)]]
-        result.append(tabulate_data(data))
 
-    result.append(LINE_SEP + locks_summary(PROJECT_STATE))
+    state = 'Locked' if is_locked else 'Available'
+
+    result = [
+        f'Project: {project_name}',
+        f'State: {state}',
+        LINE_SEP + locks_summary(PROJECT_STATE)
+    ]
+
+    last_modification = PROJECT_STATE.latest_modification
+    if last_modification and latest_operation not in MODIFICATION_OPS:
+        operation = last_modification.get('operation')
+        result.append(LINE_SEP + f'Latest modification: {operation}')
+        modification_start_time = last_modification.get('time_start')
+        modification_end_time = last_modification.get('time_end')
+        data = [
+            ['', 'Bundle name: ', last_modification.get('bundle_name')],
+            ['', 'Deploy name: ', last_modification.get('deploy_name')],
+            ['', 'Initiated by: ', last_modification.get('initiator')],
+            ['', 'Started at: ', format_time(modification_start_time)],
+            ['', 'Ended at: ', format_time(modification_end_time)],
+            ['', 'Duration (sec): ', f"{last_modification.get('duration_sec')}"],
+            ['', 'Status: ', f"{last_modification.get('status')}"],
+        ]
+        result.append(tabulate_data(data))
 
     if last_event:
         latest_operation = last_event.get('operation')
-        result.append(LINE_SEP + 'Latest event: {}'.format(latest_operation))
-        event_time = last_event.get('time_start')
-        duration = last_event.get('duration_sec')
-        data = [['', 'Bundle name: ', last_event.get('bundle_name')],
-                ['', 'Initiated by: ', last_event.get('initiator')],
-                ['', 'Started at: ', format_time(event_time)],
-                ['', 'Duration (sec): ', "{:.3f}".format(duration)]]
+        result.append(LINE_SEP + f'Latest event: {latest_operation}')
+        event_start_time = last_event.get('time_start')
+        event_end_time = last_event.get('time_end')
+        data = [
+            ['', 'Bundle name: ', last_event.get('bundle_name')],
+            ['', 'Initiated by: ', last_event.get('initiator')],
+            ['', 'Started at: ', format_time(event_start_time)],
+            ['', 'Ended at: ', format_time(event_end_time)],
+            ['', 'Duration (sec): ', f"{last_event.get('duration_sec')}"],
+            ['', 'Status: ', f"{last_event.get('status')}"],
+        ]
         if last_event.get('deploy_name'):
             data.insert(1,
                         ['', 'Deploy name: ', last_event.get('deploy_name')])
-        if last_event.get('status'):
-            data.append(['', 'Status: ', last_event.get('status')])
         result.append(tabulate_data(data))
     lambdas = PROJECT_STATE.lambdas
     result.append(LINE_SEP + 'Project resources:')
     if lambdas:
         headers = ['Type', 'Quantity']
         resources = [['Lambda', len(lambdas)]]
-        result.append(tabulate_data(data=resources, headers=headers,
-                                    tablefmt='simple'))
+        result.append(
+            tabulate_data(data=resources, headers=headers, tablefmt='simple')
+        )
     else:
         result.append(indent('There are no lambdas in this project.'))
     return LINE_SEP + LINE_SEP.join(result)

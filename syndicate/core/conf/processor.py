@@ -42,7 +42,7 @@ ALIASES_FILE_NAME = 'syndicate_aliases.yml'
 LEGACY_CONFIG_FILE_NAME = 'sdct.conf'
 LEGACY_ALIASES_FILE_NAME = 'sdct_aliases.conf'
 
-_LOG = get_logger('core.conf.config_holder')
+_LOG = get_logger(__name__)
 
 GLOBAL_AWS_SERVICES = {IAM_ROLE, IAM_POLICY, S3_BUCKET_TYPE}
 

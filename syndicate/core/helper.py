@@ -22,6 +22,7 @@ import re
 import subprocess
 import sys
 import logging
+import traceback
 import zipfile
 from datetime import datetime, timedelta
 from functools import wraps
@@ -34,17 +35,19 @@ import click
 from click import BadParameter
 from tqdm import tqdm
 
-from syndicate.commons.log_helper import get_logger, get_user_logger
+from syndicate.commons.log_helper import get_logger, get_user_logger, \
+    LOG_FORMAT_FOR_CONSOLE
 from syndicate.core.conf.processor import path_resolver
 from syndicate.core.conf.validator import ConfigValidator, ALL_REGIONS
 from syndicate.core.constants import (BUILD_META_FILE_NAME,
                                       DEFAULT_SEP, DATE_FORMAT_ISO_8601,
-                                      CUSTOM_AUTHORIZER_KEY)
+                                      CUSTOM_AUTHORIZER_KEY, OK_RETURN_CODE,
+                                      ABORTED_RETURN_CODE, FAILED_RETURN_CODE)
 from syndicate.core.project_state.project_state import MODIFICATION_LOCK, \
     WARMUP_LOCK, ProjectState
 from syndicate.core.project_state.sync_processor import sync_project_state
 
-_LOG = get_logger('syndicate.core.helper')
+_LOG = get_logger(__name__)
 USER_LOG = get_user_logger()
 
 CONF_PATH = os.environ.get('SDCT_CONF')
@@ -69,7 +72,7 @@ def unpack_kwargs(handler_func):
     return wrapper
 
 
-def exit_on_exception(handler_func):
+def failed_status_code_on_exception(handler_func):
     """ Decorator to catch all exceptions and fail stage execution
 
     :type handler_func: func
@@ -82,12 +85,9 @@ def exit_on_exception(handler_func):
         try:
             return handler_func(*args, **kwargs)
         except Exception as e:
-            USER_LOG.error('An error occurred. See details in the log file')
-            _LOG.exception("Error occurred: %s", str(e))
-            from syndicate.core import PROJECT_STATE
-            PROJECT_STATE.release_lock(MODIFICATION_LOCK)
-            sync_project_state()
-            sys.exit(1)
+            USER_LOG.error(f'An error occurred: {str(e)}')
+            _LOG.exception(traceback.format_exc())
+            return FAILED_RETURN_CODE
 
     return wrapper
 
@@ -103,8 +103,7 @@ def execute_command_by_path(command, path):
     if result.returncode != 0:
         msg = (f'While running the command "{command}" occurred an error:\n'
                f'"{result.stdout}\n{result.stderr}"')
-        USER_LOG.error(msg)
-        sys.exit(result.returncode)
+        raise AssertionError(msg)
     _LOG.info(f'Running the command "{command}"\n{result.stdout}'
               f'\n{result.stderr}')
 
@@ -196,10 +195,11 @@ def resolve_default_bundle_name(command_name):
     else:
         bundle_name = PROJECT_STATE.latest_bundle_name
     if not bundle_name:
-        click.echo('Property \'bundle\' is not specified and could '
-                   'not be resolved due to absence of data about the '
-                   'latest build operation')
-        return
+        USER_LOG.error(
+            'Property \'bundle\' could not be resolved from the syndicate '
+            'project state file.'
+        )
+        return ABORTED_RETURN_CODE
     return bundle_name
 
 
@@ -304,15 +304,16 @@ def sync_lock(lock_type):
             else:
                 raise AssertionError(f'The project {lock_type} is locked.')
             try:
-                func(*args, **kwargs)
+                result = func(*args, **kwargs)
             except Exception as e:
                 _LOG.exception("Error occurred: %s", str(e))
                 from syndicate.core import PROJECT_STATE
                 PROJECT_STATE.release_lock(lock_type)
                 sync_project_state()
-                sys.exit(1)
+                raise
             PROJECT_STATE.release_lock(lock_type)
             sync_project_state()
+            return result
 
         return wrapper
 
@@ -331,7 +332,7 @@ def timeit(action_name=None):
             result_action_name = result.get('operation') if \
                 isinstance(result, dict) else None
             if result_action_name:
-                result = True
+                result = result.get('return_code', OK_RETURN_CODE)
             if action_name:
                 username = getpass.getuser()
                 duration = round(te - ts, 3)
@@ -463,17 +464,26 @@ class OrderedGroup(click.Group):
 class OptionRequiredIf(click.Option):
     def __init__(self, *args, **kwargs):
         self.required_if = kwargs.pop('required_if')
+        self.required_if_values = kwargs.pop('required_if_values', [])
         if not self.required_if:
             raise AssertionError("'required_if' param must be specified")
         super().__init__(*args, **kwargs)
 
     def handle_parse_result(self, ctx, opts, args):
         is_current_present: bool = self.name in opts
-        is_required_present: bool = self.required_if in opts
-        if is_current_present ^ is_required_present:
-            raise click.UsageError(f"options: '{self.name}' and "
-                                   f"'{self.required_if}' "
-                                   f"must be specified together")
+        if self.required_if_values:
+            is_required_ok: bool = \
+                opts.get(self.required_if) in self.required_if_values
+            message = (
+                f"Option '{self.name}' and '{self.required_if}' must be "
+                f"specified together, and '{self.required_if}' must have one "
+                f"of the next values {self.required_if_values}")
+        else:
+            is_required_ok: bool = self.required_if in opts
+            message = (f"options: '{self.name}' and '{self.required_if}' "
+                       f"must be specified together")
+        if is_current_present ^ is_required_ok:
+            raise click.UsageError(message)
         else:
             return super().handle_parse_result(ctx, opts, args)
 
@@ -534,6 +544,66 @@ class DictParamType(click.types.StringParamType):
     def get_metavar(self, param):
         return f'KEY1{self.KEY_VALUE_SEPARATOR}VALUE1' \
                f'{self.ITEMS_SEPARATOR}KEY2{self.KEY_VALUE_SEPARATOR}VALUE2'
+
+
+class DeepDictParamType(click.types.StringParamType):
+    name = 'deep-dict'
+    ITEMS_SEPARATOR = ','
+    SUB_KEY_VALUE_SEPARATOR = ':'
+    MAIN_KEY_VALUE_SEPARATOR = ';'
+
+    def convert(
+            self,
+            value: str,
+            param: click.Parameter | None,
+            ctx: click.Context | None,
+    ) -> dict[str, dict[str, str]]:
+        """
+        Convert a string representation of nested key-value pairs into a
+        dictionary of dictionaries
+
+        **Example**::
+            Input: 'volume;Name:DBStorage01,Environment:Prod'
+            Output: {'volume': {'Name': 'DBStorage01', 'Environment': 'Prod'}}
+        """
+        value = super().convert(value, param, ctx)
+        result = {}
+
+        try:
+            main_parts = value.split(self.MAIN_KEY_VALUE_SEPARATOR)
+            if len(main_parts) != 2:
+                raise ValueError(
+                    "Expected exactly one main key-value separator (';')"
+                )
+            main_key = main_parts[0].strip()
+            sub_items = main_parts[1].strip()
+
+            sub_dict = {}
+            for item in sub_items.split(self.ITEMS_SEPARATOR):
+                sub_parts = item.split(self.SUB_KEY_VALUE_SEPARATOR)
+                if len(sub_parts) != 2:
+                    raise ValueError(
+                        "Expected exactly one sub key-value separator (':')"
+                    )
+                sub_key = sub_parts[0].strip()
+                sub_value = sub_parts[1].strip()
+                sub_dict[sub_key] = sub_value
+
+            result[main_key] = sub_dict
+        except ValueError as e:
+            raise BadParameter(
+                f'Wrong format: "{value}". Expected format is: '
+                f'"main_key1;sub_key1:val1,sub_key2:val2" or similar. '
+                f'\nError: {str(e)}'
+            )
+        return result
+
+    def get_metavar(self, param) -> str:
+        return (
+            f'MAIN_KEY1{self.MAIN_KEY_VALUE_SEPARATOR}'
+            f'SUB_KEY1{self.SUB_KEY_VALUE_SEPARATOR}VALUE1{self.ITEMS_SEPARATOR}'
+            f'SUB_KEY2{self.SUB_KEY_VALUE_SEPARATOR}VALUE2'
+        )
 
 
 def check_bundle_bucket_name(ctx, param, value):
@@ -713,6 +783,8 @@ def is_zip_empty(zip_path):
 
 def check_file_extension(ctx, param, value, extensions):
     for extension in extensions:
+        if value is None:
+            return
         if value.lower().endswith(extension):
             return value
     raise BadParameter(f'Only files with extensions {extensions} are '
@@ -779,11 +851,14 @@ def set_debug_log_level(ctx, param, value):
                    logging.root.manager.loggerDict if
                    name.startswith('syndicate') or
                    name.startswith('user-syndicate')]
+        console_formatter = logging.Formatter(LOG_FORMAT_FOR_CONSOLE)
+        console_handler = logging.StreamHandler()
+        console_handler.setFormatter(console_formatter)
         for logger in loggers:
             if not logger.isEnabledFor(logging.DEBUG):
                 logger.setLevel(logging.DEBUG)
                 if logger.name == 'syndicate':
-                    logger.addHandler(logging.StreamHandler())
+                    logger.addHandler(console_handler)
         _LOG.debug('The logs level was set to DEBUG')
 
 

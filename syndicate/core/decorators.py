@@ -13,15 +13,17 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-from logging import DEBUG
+import sys
+import traceback
 import threading
 from functools import wraps
 from pathlib import PurePath
-import click
 
 from syndicate.commons.log_helper import get_logger, get_user_logger
+from syndicate.core.constants import (ABORTED_RETURN_CODE, OK_RETURN_CODE,
+                                      FAILED_RETURN_CODE)
 
-_LOG = get_logger('syndicate.core.decorators')
+_LOG = get_logger(__name__)
 USER_LOG = get_user_logger()
 
 lock = threading.Lock()
@@ -53,12 +55,8 @@ def check_deploy_name_for_duplicates(func):
                 msg = f'Output file already exists with name ' \
                       f'{output_file_name}. If it should be replaced with ' \
                       f'new one, use --replace_output flag.'
-                if _LOG.level > DEBUG:
-                    _LOG.warn(msg)
-                    click.echo(msg)
-                else:
-                    USER_LOG.warn(msg)
-                return
+                USER_LOG.error(msg)
+                return ABORTED_RETURN_CODE
         return func(*args, **kwargs)
 
     return real_wrapper
@@ -70,11 +68,11 @@ def check_deploy_bucket_exists(func):
         from syndicate.core import CONN
         from syndicate.core import CONFIG
         if not CONN.s3().is_bucket_exists(CONFIG.deploy_target_bucket):
-            click.echo(
+            USER_LOG.error(
                 'Cannot execute command: deploy target bucket does not exist. '
                 'Please create it before executing commands that require '
                 'files to be uploaded to the bucket.')
-            return
+            return ABORTED_RETURN_CODE
         return func(*args, **kwargs)
 
     return real_wrapper
@@ -92,4 +90,54 @@ def threading_lock(func):
         _LOG.info('Lock released')
         return result
 
+    return wrapper
+
+
+def check_bundle_deploy_names_for_existence(check_deploy_existence=False):
+    def internal_check(func):
+        @wraps(func)
+        def real_wrapper(*args, **kwargs):
+            from syndicate.core.build.bundle_processor import if_bundle_exist
+            from syndicate.core.build.deployment_processor import is_deploy_exist
+
+            deploy_name = kwargs.get('deploy_name')
+            bundle_name = kwargs.get('bundle_name')
+            if not bundle_name:
+                USER_LOG.error(f'The bundle name is undefined or invalid, '
+                               f'please verify it and try again.')
+                return ABORTED_RETURN_CODE
+            if not deploy_name:
+                USER_LOG.error(f'The deploy name is undefined or invalid, '
+                               f'please verify it and try again.')
+                return ABORTED_RETURN_CODE
+            if not if_bundle_exist(bundle_name=bundle_name):
+                USER_LOG.error(
+                    f'The bundle name \'{bundle_name}\' does not exist '
+                    f'in deploy bucket. Please verify the bundle name '
+                    f'and try again.')
+                return ABORTED_RETURN_CODE
+            if check_deploy_existence and not is_deploy_exist(
+                    bundle_name=bundle_name, deploy_name=deploy_name):
+                USER_LOG.error(
+                    f'The deploy name \'{deploy_name}\' is invalid. '
+                    f'Please verify the deploy name and try again.')
+                return ABORTED_RETURN_CODE
+            return func(*args, **kwargs)
+        return real_wrapper
+    return internal_check
+
+
+def return_code_manager(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            return_code = func(*args, **kwargs)
+        except Exception as e:
+            USER_LOG.error(e.__str__())
+            _LOG.exception(traceback.format_exc())
+            sys.exit(FAILED_RETURN_CODE)
+        if return_code is not None and return_code != OK_RETURN_CODE:
+            sys.exit(return_code)
+
+        return return_code
     return wrapper

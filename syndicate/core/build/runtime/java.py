@@ -17,30 +17,54 @@ import os
 import shutil
 
 from syndicate.commons.log_helper import get_logger
+from syndicate.core.constants import MVN_TARGET_DIR_NAME
 from syndicate.core.helper import build_path, execute_command_by_path
 
-_LOG = get_logger('java_runtime_assembler')
+_LOG = get_logger(__name__)
 
-MVN_TARGET_DIRECTORY = 'target'
+VALID_EXTENSIONS = ('.jar', '.war', '.zip')
 
 
-def assemble_java_mvn_lambdas(project_path, bundles_dir, skip_tests=False,
-                              **kwargs):
+def assemble_java_mvn_lambdas(project_path: str, bundles_dir: str,
+                              errors_allowed: bool = False,
+                              skip_tests: bool = False, **kwargs):
     from syndicate.core import CONFIG
+    target_path = os.path.join(CONFIG.project_path, MVN_TARGET_DIR_NAME)
     src_path = build_path(CONFIG.project_path, project_path)
     _LOG.info(f'Java sources are located by path: {src_path}')
     _LOG.info(f'Going to process java mvn project by path: '
               f'{CONFIG.project_path}')
+    command = ['mvn', 'clean', 'install']
+
+    if skip_tests:
+        command.append('-DskipTests')
+
+    if errors_allowed:
+        command.append('-DerrorsAllowed')
+
     execute_command_by_path(
-        command='mvn clean install' + (' -DskipTests' if skip_tests else ''),
+        command=command,
         path=CONFIG.project_path)
 
     # copy java artifacts to the target folder
-    for root, dirs, files in os.walk(os.path.join(CONFIG.project_path,
-                                                  MVN_TARGET_DIRECTORY)):
-        for file in files:
-            if file.endswith(".jar") or file.endswith(".war") \
-                    or file.endswith(".zip"):
-                shutil.copyfile(build_path(root, file),
-                                build_path(bundles_dir, file))
+    for root, dirs, files in os.walk(target_path):
+        for file in _filter_bundle_files(files):
+            shutil.copyfile(build_path(root, file),
+                            build_path(bundles_dir, file))
     _LOG.info('Java mvn project was processed successfully')
+
+
+def _filter_bundle_files(files: list[str]) -> list[str]:
+    filtered_files = []
+    exclude_prefix = 'original-'
+
+    # to exclude redundant original-<lambda_name>.jar file
+    # but do not exclude lambda jar if its name starts with 'original-'
+    if sum(1 for item in files if item.startswith('original-')) > 1:
+        exclude_prefix = 'original-original-'
+
+    for file in files:
+        if file.endswith(VALID_EXTENSIONS) and not \
+                (file.startswith(exclude_prefix) and file.endswith('.jar')):
+            filtered_files.append(file)
+    return filtered_files

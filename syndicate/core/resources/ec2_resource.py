@@ -16,6 +16,7 @@
 import base64
 import os
 from time import sleep
+from typing import Any
 
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.ec2_connection import InstanceTypes
@@ -25,7 +26,7 @@ from syndicate.core.helper import unpack_kwargs, \
 from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import build_description_obj, chunks
 
-_LOG = get_logger('syndicate.core.resources.ec2_resource')
+_LOG = get_logger(__name__)
 
 
 class Ec2Resource(BaseResource):
@@ -65,7 +66,7 @@ class Ec2Resource(BaseResource):
         image_id = meta['image_id']
         image_data = self.ec2_conn.describe_image(image_id=image_id)
         if not image_data:
-            raise AssertionError('Image id {0} is invalid'.format(image_id))
+            raise AssertionError(f'Image id {image_id} is invalid')
 
         instance_type = meta.get('instance_type')
         if not instance_type:
@@ -75,8 +76,7 @@ class Ec2Resource(BaseResource):
 
         key_name = meta.get('key_name')
         if not self.ec2_conn.if_key_pair_exists(key_name):
-            raise AssertionError('There is no key pair with name: {0}'
-                                 .format(key_name))
+            raise AssertionError(f'There is no key pair with name: {key_name}')
 
         availability_zone = meta.get('availability_zone')
         subnet = meta.get('subnet_id')
@@ -89,13 +89,13 @@ class Ec2Resource(BaseResource):
             if subnet and subnet not in \
                     [subnet_ids['SubnetId'] for subnet_ids in subnet_list]:
                 raise AssertionError(
-                    'There is no available Subnets with name {0} '
-                    'in Availability Zone {1}.'
-                        .format(subnet, availability_zone))
+                    f'There is no available Subnets with name {subnet} in '
+                    f'Availability Zone {availability_zone}.'
+                )
             if availability_zone not in self.ec2_conn.get_azs():
                 raise AssertionError(
-                    'There is no Availability Zone with name: {0}'
-                        .format(availability_zone))
+                    f'There is no Availability Zone with name: {availability_zone}'
+                )
 
         security_groups_names = meta.get('security_group_names')
         if security_groups_names:
@@ -105,8 +105,9 @@ class Ec2Resource(BaseResource):
                                           for security_group in sg_meta]
             for security_group_name in security_groups_names:
                 if security_group_name not in described_sec_groups_names:
-                    raise AssertionError('Security group {0} does not exist'
-                                         .format(security_group_name))
+                    raise AssertionError(
+                        f'Security group {security_group_name} does not exist'
+                    )
 
         # checking optional parameters
         user_data_file_name = meta.get('userdata_file')
@@ -114,8 +115,10 @@ class Ec2Resource(BaseResource):
         if user_data_file_name:
             user_data_location = os.path.join(CONF_PATH, user_data_file_name)
             if not os.path.isfile(user_data_location):
-                _LOG.warn('There is no user data {0} found by path {1}. '
-                          .format(user_data_file_name, CONF_PATH))
+                _LOG.warning(
+                    f'There is no user data {user_data_file_name} found by path'
+                    f' {CONF_PATH}'
+                )
             else:
                 with open(user_data_location, 'r') as userdata_file:
                     user_data_content = userdata_file.read()
@@ -129,9 +132,7 @@ class Ec2Resource(BaseResource):
             if instance_profiles:
                 iam_profile_meta = instance_profiles[0]
                 iam_instance_profile_arn = iam_profile_meta['Arn']
-                iam_instance_profile_object = {
-                    'Arn': iam_instance_profile_arn
-                }
+                iam_instance_profile_object = {'Arn': iam_instance_profile_arn}
 
         # launching instance
         response = self.ec2_conn.launch_instance(
@@ -150,17 +151,19 @@ class Ec2Resource(BaseResource):
 
         if meta.get('disableApiTermination'):
             disable_api_termination = meta.get('disableApiTermination')
-            _LOG.debug('Found disableApiTermination '
-                       'property: {0}'.format(disable_api_termination))
+            _LOG.debug(
+                f'Found disableApiTermination property: '
+                f'{disable_api_termination}'
+            )
             if str(disable_api_termination).lower() == 'true':
                 self.ec2_conn.modify_instance_attribute(
                     InstanceId=response['InstanceId'],
-                    DisableApiTermination={
-                        'Value': True
-                    }
+                    DisableApiTermination={'Value': True},
                 )
-        _LOG.info('Created EC2 instance %s. '
-                  'Waiting for instance network interfaces configuring.', name)
+        _LOG.info(
+            f'Created EC2 instance {name}. Waiting for instance network '
+            f'interfaces configuring.'
+        )
         sleep(30)  # time for vm to become running
         return self.describe_ec2(name, meta, response)
 
@@ -230,7 +233,12 @@ class Ec2Resource(BaseResource):
                         exceptions.append(str(e))
         return (results, exceptions) if exceptions else results
 
-    def describe_launch_template(self, name, meta, response=None):
+    def describe_launch_template(
+            self,
+            name: str,
+            meta: dict,
+            response = None,
+    ) -> dict:
         if not response:
             response = self.ec2_conn.describe_launch_templates(lt_name=name)
         else:
@@ -246,14 +254,23 @@ class Ec2Resource(BaseResource):
         return self.create_pool(self._create_launch_template_from_meta, args)
 
     @unpack_kwargs
-    def _create_launch_template_from_meta(self, name, meta):
+    def _create_launch_template_from_meta(
+            self,
+            name: str,
+            meta: dict,
+    ) -> dict:
+        resource_tags = meta.get('launch_template_data').get('resource_tags')
         lt_data = self._prepare_launch_template_data(meta)
         response = self.ec2_conn.create_launch_template(
             name=name,
             lt_data=dict_keys_to_capitalized_camel_case(lt_data),
             version_description=meta.get('version_description'),
-            tags=meta.get('tags'))
-        return self.describe_launch_template(name, meta, response)
+            tags=meta.get('tags'),
+            resource_tags=resource_tags,
+        )
+        return self.describe_launch_template(
+            name=name, meta=meta, response=response,
+        )
 
     def remove_launch_templates(self, args):
         return self.create_pool(self._remove_launch_template, args)
@@ -273,12 +290,18 @@ class Ec2Resource(BaseResource):
             else:
                 raise e
 
-    def update_launch_template(self, args):
+    def update_launch_template(self, args: list[dict[str, Any]]):
         return self.create_pool(self._update_launch_template_from_meta, args)
 
     @unpack_kwargs
-    def _update_launch_template_from_meta(self, name, meta, context):
-        lt_data = self._prepare_launch_template_data(meta)
+    def _update_launch_template_from_meta(
+            self,
+            name: str,
+            meta: dict[str, Any],
+            context: dict | None,
+    ):
+        resource_tags = meta.get('launch_template_data').get('resource_tags')
+        lt_data: dict = self._prepare_launch_template_data(meta)
         lt_description = self.ec2_conn.describe_launch_templates(lt_name=name)
         if not lt_description:
             raise AssertionError(
@@ -288,17 +311,25 @@ class Ec2Resource(BaseResource):
             lt_name=name,
             source_version=str(lt_latest_version),
             lt_data=dict_keys_to_capitalized_camel_case(lt_data),
-            version_description=meta.get('version_description')
+            version_description=meta.get('version_description'),
+            resource_tags=resource_tags,
         )
         response = self.ec2_conn.modify_launch_template(
             lt_name=name,
-            default_version=str(lt_latest_version + 1))
-        return self.describe_launch_template(name, meta, response)
+            default_version=str(lt_latest_version + 1)
+        )
+        return self.describe_launch_template(
+            name=name, meta=meta, response=response,
+        )
 
-    def _prepare_launch_template_data(self, meta):
+    def _prepare_launch_template_data(
+            self,
+            meta: dict,
+    ) -> dict:
         from syndicate.core import CONFIG
         lt_data = meta['launch_template_data']
         lt_imds = lt_data.pop('imds_support', None)
+        lt_data.pop('resource_tags', None)
         image_id = lt_data.get('image_id')
         if image_id:
             image_data = self.ec2_conn.describe_image(image_id=image_id)
@@ -354,8 +385,9 @@ class Ec2Resource(BaseResource):
                 user_data_file_path = os.path.join(CONFIG.project_path,
                                                    user_data_file_path)
             if not os.path.isfile(user_data_file_path):
-                _LOG.warn(f'There is no user data found by path '
-                          f'{user_data_file_path}. ')
+                _LOG.warning(
+                    f'There is no user data found by path {user_data_file_path}'
+                )
             else:
                 with open(user_data_file_path, 'r') as userdata_file:
                     user_data_content = userdata_file.read()

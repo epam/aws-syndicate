@@ -9,8 +9,9 @@ sys.path.append(parent_dir)
 from commons.checkers import exit_code_checker, artifacts_existence_checker, \
     TYPE_MODIFICATION_FUNC_MAPPING, deployment_output_checker, \
     build_meta_checker, TYPE_EXISTENCE_FUNC_MAPPING, lambda_triggers_checker, \
-    lambda_envs_checker, build_meta_content_checker, TYPE_TAGS_FUNC_MAPPING
-from commons.utils import populate_resources_prefix_suffix, \
+    lambda_envs_checker, build_meta_content_checker, TYPE_TAGS_FUNC_MAPPING, \
+    appsync_modification_checker
+from commons.utils import populate_resources_prefix_suffix, read_sdct_conf, \
     populate_prefix_suffix, split_deploy_bucket_path
 from commons import connections
 from commons.constants import DEPLOY_OUTPUT_DIR, RESOURCE_TYPE_CONFIG_PARAM, \
@@ -199,13 +200,11 @@ def lambda_trigger_handler(triggers: dict, suffix: Optional[str] = None,
                            prefix: Optional[str] = None,
                            **kwargs) -> bool | dict:
     invalid_lambdas = {}
+    alias = read_sdct_conf()
     for lambda_name, triggers_meta in triggers.items():
-        if ':' in lambda_name:
-            lambda_name, alias = lambda_name.split(':')
-            lambda_name = populate_prefix_suffix(lambda_name, prefix, suffix)
+        lambda_name = populate_prefix_suffix(lambda_name, prefix, suffix)
+        if alias:
             lambda_name += f':{alias}'
-        else:
-            lambda_name = populate_prefix_suffix(lambda_name, prefix, suffix)
 
         for trigger in triggers_meta:
             trigger_name = trigger[RESOURCE_NAME_CONFIG_PARAM]
@@ -235,6 +234,19 @@ def lambda_env_handler(env_variables: dict,
     return invalid_envs if invalid_envs else True
 
 
+def appsync_modification_handler(resources: dict,
+                                 suffix: Optional[str] = None,
+                                 prefix: Optional[str] = None,
+                                 **kwargs) -> bool | dict:
+    invalid_conf = {}
+    for appsync_name, config in resources.items():
+        appsync_name = populate_prefix_suffix(appsync_name, prefix, suffix)
+        if result := appsync_modification_checker(appsync_name, **config):
+            invalid_conf[appsync_name] = result
+
+    return invalid_conf if invalid_conf else True
+
+
 HANDLERS_MAPPING = {
     'exit_code': exit_code_handler,
     'artifacts_existence': artifacts_existence_handler,
@@ -245,5 +257,6 @@ HANDLERS_MAPPING = {
     'resource_modification': resource_modification_handler,
     'tag_existence': tag_existence_handler,
     'lambda_trigger_existence': lambda_trigger_handler,
-    'lambda_env_existence': lambda_env_handler
+    'lambda_env_existence': lambda_env_handler,
+    'appsync_modification': appsync_modification_handler
 }

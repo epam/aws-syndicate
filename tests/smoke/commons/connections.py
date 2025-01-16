@@ -34,17 +34,10 @@ cognito_client = boto3.client('cognito-idp', config=config)
 iam_client = boto3.client('iam', config=config)
 sts_client = boto3.client('sts', config=config)
 cloudtrail_client = boto3.client('cloudtrail', config=config)
+appsync_client = boto3.client('appsync', config=config)
 
 ACCOUNT_ID = sts_client.get_caller_identity()['Account']
 REGION = sts_client.meta.region_name
-
-
-def get_lambda_alias(function_name, alias_name):
-    try:
-        return lambda_client.get_alias(FunctionName=function_name,
-                                       Name=alias_name)
-    except lambda_client.exceptions.ResourceNotFoundException:
-        return None
 
 
 def get_s3_bucket_file_content(bucket_name, file_key):
@@ -235,6 +228,47 @@ def get_cup_id(name: str) -> Union[str | None]:
     else:
         print(f'Cognito User Pool \'{name}\' not found')
     return
+
+
+def get_appsync_id(name: str) -> Union[str | None]:
+    ids = []
+    # todo change list_graphql_apis to list_apis in higher boto3 version
+    paginator = appsync_client.get_paginator('list_graphql_apis')
+    response = paginator.paginate(
+        PaginationConfig={
+            'MaxItems': 60,
+            'PageSize': 10
+        }
+    )
+    for page in response:
+        ids.extend(
+            [appsync['apiId'] for appsync in page['graphqlApis'] if
+             appsync['name'] == name]
+        )
+    next_token = response.resume_token
+    while next_token:
+        response = paginator.paginate(
+            PaginationConfig={
+                'MaxItems': 60,
+                'PageSize': 10,
+                'StartingToken': next_token
+            }
+        )
+        for page in response:
+            ids.extend(
+                [user_pool['apiId'] for user_pool in page['UserPools'] if
+                 user_pool['Name'] == name]
+            )
+        next_token = response.resume_token
+
+    if len(ids) == 1:
+        return ids[0]
+    if len(ids) > 1:
+        print(
+            f'Appsync can\'t be identified unambiguously because '
+            f'there is more than one resource with the name \'{name}\'')
+    else:
+        print(f'Appsync \'{name}\' not found')
 
 
 def describe_swagger_ui(name: str, deployment_bucket: str, bundle_path: str,
@@ -492,6 +526,27 @@ def list_cognito_tags(name: str, tag_keys: list = None) -> Union[dict | None]:
         return result
 
 
+def list_appsync_tags(name: str, tag_keys: list = None) -> Union[dict | None]:
+    cup_id = get_appsync_id(name)
+    arn = f'arn:aws:appsync:{REGION}:{ACCOUNT_ID}:apis/{cup_id}'
+
+    try:
+        response = appsync_client.list_tags_for_resource(resourceArn=arn)
+    except appsync_client.exceptions.NotFoundException:
+        print(f'Appsync \'{name}\' not found')
+        return {}
+
+    response_tags = response.get('tags')
+    if not tag_keys:
+        return response_tags
+    else:
+        result = {}
+        for tag in tag_keys:
+            if tag in response_tags:
+                result[tag] = response_tags[tag]
+        return result
+
+
 def get_lambda_event_source_mappings(name):
     result = []
     paginator = lambda_client.get_paginator('list_event_source_mappings')
@@ -558,3 +613,42 @@ def get_cloudtrail_event(event_name: str, event_value: str,
         params['EndTime'] = end_time
     response = cloudtrail_client.lookup_events(**params)
     return response.get('Events', [])
+
+
+def list_appsync_data_sources(api_id: str):
+    result = []
+    try:
+        paginator = appsync_client.get_paginator('list_data_sources')
+        for response in paginator.paginate(apiId=api_id):
+            result.extend(response.get('dataSources'))
+    except appsync_client.exceptions.NotFoundException:
+        print(f'Appsync API \'{api_id}\' not found')
+        return []
+
+    return result
+
+
+def list_appsync_resolvers(api_id: str, type_name: str):
+    result = []
+    try:
+        paginator = appsync_client.get_paginator('list_resolvers')
+        for response in paginator.paginate(apiId=api_id, typeName=type_name):
+            result.extend(response.get('resolvers'))
+    except appsync_client.exceptions.NotFoundException:
+        print(f'Appsync API \'{api_id}\' with type name {type_name} not found')
+        return []
+
+    return result
+
+
+def list_appsync_functions(api_id: str):
+    result = []
+    try:
+        paginator = appsync_client.get_paginator('list_functions')
+        for response in paginator.paginate(apiId=api_id):
+            result.extend(response.get('functions'))
+    except appsync_client.exceptions.NotFoundException:
+        print(f'Appsync API \'{api_id}\' not found')
+        return []
+
+    return result

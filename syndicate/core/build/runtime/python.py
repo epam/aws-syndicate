@@ -87,8 +87,7 @@ def assemble_python_lambdas(project_path, bundles_dir, errors_allowed,
     for future in result.done:
         exception = future.exception()
         if exception:
-            print(f'\033[91m' + str(exception), file=sys.stderr)
-            sys.exit(1)
+            raise AssertionError(exception)
     _LOG.info('Python project was processed successfully')
 
 

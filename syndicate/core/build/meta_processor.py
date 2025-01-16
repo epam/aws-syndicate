@@ -14,6 +14,7 @@
     limitations under the License.
 """
 import os
+import shutil
 from json import load
 from typing import Any
 from urllib.parse import urlparse
@@ -28,13 +29,14 @@ from syndicate.core.constants import (API_GATEWAY_TYPE, ARTIFACTS_FOLDER,
                                       LAMBDA_CONFIG_FILE_NAME, LAMBDA_TYPE,
                                       RESOURCES_FILE_NAME, RESOURCE_LIST,
                                       IAM_ROLE, LAMBDA_LAYER_TYPE,
-                                      S3_PATH_NAME,
+                                      S3_PATH_NAME, APPSYNC_CONFIG_FILE_NAME,
                                       LAMBDA_LAYER_CONFIG_FILE_NAME,
                                       WEB_SOCKET_API_GATEWAY_TYPE,
                                       OAS_V3_FILE_NAME,
                                       API_GATEWAY_OAS_V3_TYPE, SWAGGER_UI_TYPE,
                                       SWAGGER_UI_CONFIG_FILE_NAME,
-                                      TAGS_RESOURCE_TYPE_CONFIG)
+                                      TAGS_RESOURCE_TYPE_CONFIG,
+                                      MVN_TARGET_DIR_NAME)
 from syndicate.core.helper import (build_path, prettify_json,
                                    resolve_aliases_for_string,
                                    write_content_to_file, validate_tags)
@@ -44,7 +46,7 @@ DEFAULT_IAM_SUFFIX_LENGTH = 5
 NAME_RESOLVING_BLACKLISTED_KEYS = ['prefix', 'suffix', 'resource_type', 'principal_service', 'integration_type',
                                    'authorization_type']
 
-_LOG = get_logger('syndicate.core.build.meta_processor')
+_LOG = get_logger(__name__)
 USER_LOG = get_user_logger()
 
 
@@ -361,7 +363,8 @@ def _look_for_configs(nested_files: list[str], resources_meta: dict[str, Any],
     for each in nested_files:
         if each.endswith(LAMBDA_CONFIG_FILE_NAME) or \
                 each.endswith(LAMBDA_LAYER_CONFIG_FILE_NAME) or \
-                each.endswith(SWAGGER_UI_CONFIG_FILE_NAME):
+                each.endswith(SWAGGER_UI_CONFIG_FILE_NAME) or \
+                each.endswith(APPSYNC_CONFIG_FILE_NAME):
             resource_config_path = os.path.join(path, each)
             _LOG.debug(f'Processing file: {resource_config_path}')
             with open(resource_config_path) as data_file:
@@ -388,8 +391,11 @@ def _look_for_configs(nested_files: list[str], resources_meta: dict[str, Any],
             resource = {
                 "definition": openapi_spec,
                 "resource_type": API_GATEWAY_OAS_V3_TYPE,
-                "deploy_stage": deploy_stage
+                "deploy_stage": deploy_stage,
             }
+            tags = openapi_spec.get("x-syndicate-openapi-tags")
+            if tags:
+                resource["tags"] = tags
             res = _check_duplicated_resources(
                 resources_meta, api_gateway_name, resource
             )
@@ -410,8 +416,8 @@ def _look_for_configs(nested_files: list[str], resources_meta: dict[str, Any],
                 try:
                     resource_type = resource['resource_type']
                 except KeyError:
-                    error_message = ("There is no 'resource_type' "
-                                     "in {0}").format(resource_name)
+                    error_message = \
+                        f"There is no 'resource_type' in {resource_name}"
                     _LOG.error(error_message)
                     raise AssertionError(error_message)
                 if resource_type not in RESOURCE_LIST:
@@ -500,15 +506,21 @@ def _resolve_name_in_arn(arn, old_value, new_value):
     return ':'.join(arn_parts)
 
 
-def create_meta(project_path, bundle_name):
+def create_meta(project_path: str, bundle_name: str) -> None:
     # create overall meta.json with all resource meta info
     meta_path = build_path(project_path, ARTIFACTS_FOLDER,
                            bundle_name)
-    _LOG.info("Bundle path: {0}".format(meta_path))
+    _LOG.info(f'Bundle path: {meta_path}')
     overall_meta = create_resource_json(project_path=project_path,
                                         bundle_name=bundle_name)
     bundle_dir = resolve_bundle_directory(bundle_name=bundle_name)
     write_content_to_file(bundle_dir, BUILD_META_FILE_NAME, overall_meta)
+
+    # remove Java runtime temporary files
+    target_path = build_path(project_path, MVN_TARGET_DIR_NAME)
+    if os.path.exists(target_path):
+        _LOG.debug(f'Removing temporary directory \'{target_path}\'')
+        shutil.rmtree(target_path, ignore_errors=True)
 
 
 def resolve_meta(overall_meta):

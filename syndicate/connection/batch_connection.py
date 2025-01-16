@@ -21,7 +21,7 @@ from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import apply_methods_decorator, retry
 from syndicate.core.helper import dict_keys_to_camel_case
 
-_LOG = get_logger('syndicate.connection.batch_connection')
+_LOG = get_logger(__name__)
 
 
 @apply_methods_decorator(retry())

@@ -27,10 +27,11 @@ import yaml
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.constants import BUILD_ACTION, \
     DEPLOY_ACTION, UPDATE_ACTION, CLEAN_ACTION, PACKAGE_META_ACTION, \
-    ABORTED_STATUS, SUCCEEDED_STATUS, FAILED_STATUS
+    ABORTED_STATUS, SUCCEEDED_STATUS, FAILED_STATUS, FAILED_RETURN_CODE, \
+    OK_RETURN_CODE, ABORTED_RETURN_CODE, MODIFICATION_OPS
 from syndicate.core.constants import DATE_FORMAT_ISO_8601
 from syndicate.core.groups import RUNTIME_JAVA, RUNTIME_NODEJS, RUNTIME_PYTHON, \
-    RUNTIME_SWAGGER_UI, RUNTIME_DOTNET
+    RUNTIME_SWAGGER_UI, RUNTIME_DOTNET, RUNTIME_APPSYNC
 
 CAPITAL_LETTER_REGEX = '[A-Z][^A-Z]*'
 
@@ -56,7 +57,8 @@ BUILD_MAPPINGS = {
     RUNTIME_PYTHON: 'src',
     RUNTIME_NODEJS: 'app',
     RUNTIME_DOTNET: 'dnapp',
-    RUNTIME_SWAGGER_UI: 'swagger_src'
+    RUNTIME_SWAGGER_UI: 'swagger_src',
+    RUNTIME_APPSYNC: 'appsync_src'
 }
 
 OPERATION_LOCK_MAPPINGS = {
@@ -65,7 +67,7 @@ OPERATION_LOCK_MAPPINGS = {
 KEEP_EVENTS_DAYS = 30
 LEAVE_LATEST_EVENTS = 20
 
-_LOG = get_logger('project-state')
+_LOG = get_logger(__name__)
 
 
 class ProjectState:
@@ -252,9 +254,8 @@ class ProjectState:
     @property
     def latest_modification(self):
         events = self.events
-        modification_ops = [DEPLOY_ACTION, UPDATE_ACTION, CLEAN_ACTION]
         latest = next((event for event in events if
-                       event.get('operation') in modification_ops), None)
+                       event.get('operation') in MODIFICATION_OPS), None)
         return latest
 
     def get_latest_deployed_or_updated_bundle(
@@ -293,8 +294,8 @@ class ProjectState:
 
         return matches_operation and matches_bundle_name and status
 
-    def is_lock_free(self, lock_name):
-        lock = self.locks.get(lock_name)
+    def is_lock_free(self, lock_name=None, lock_config=None):
+        lock = lock_config or self.locks.get(lock_name)
         if not lock:
             return True
         elif not lock.get(LOCK_IS_LOCKED):
@@ -325,6 +326,9 @@ class ProjectState:
                 locks.update({lock_name: other_lock})
             elif other_lock is None:
                 other_locks.update({lock_name: lock})
+            elif (not self.is_lock_free(lock_config=other_lock) and
+                  getpass.getuser() != other_lock.get(LOCK_INITIATOR)):
+                locks.update({lock_name: other_lock})
             elif (lock.get(LOCK_LAST_MODIFICATION_DATE) <
                   other_lock.get(LOCK_LAST_MODIFICATION_DATE)):
                 locks.update({lock_name: other_lock})
@@ -417,16 +421,27 @@ class ProjectState:
 
     def log_execution_event(self, **kwargs):
         operation = kwargs.get('operation')
-
         status = kwargs.get('status')
         rollback_on_error = kwargs.get('rollback_on_error')
-        if status not in [True, False, ABORTED_STATUS]:
-            kwargs.pop('status', None)
+        valid_statuses = {
+            FAILED_RETURN_CODE, OK_RETURN_CODE, ABORTED_RETURN_CODE
+        }
 
-        if operation in [DEPLOY_ACTION]:
+        if status not in valid_statuses:
+            kwargs.pop('status', None)
+        else:
+            status = {
+                OK_RETURN_CODE: True,
+                FAILED_RETURN_CODE: False,
+                ABORTED_RETURN_CODE: ABORTED_STATUS,
+                None: None
+            }.get(status)
+
+        if operation == DEPLOY_ACTION:
             params = kwargs.copy()
-            params.pop('operation')
-            params['is_succeeded'] = params.pop('status')
+            params.pop('operation', None)
+            params.pop('status', None)
+            params['is_succeeded'] = status
 
             if params['is_succeeded'] != ABORTED_STATUS:
                 if not (status is False and rollback_on_error is True):

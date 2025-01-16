@@ -35,7 +35,7 @@ REQ_VALIDATOR_PARAM_VALIDATE_PARAMS = 'validateRequestParameters'
 REQ_VALIDATOR_PARAM_VALIDATE_BODY = 'validateRequestBody'
 REQ_VALIDATOR_PARAM_NAME = 'name'
 
-_LOG = get_logger('syndicate.connection.api_gateway_connection')
+_LOG = get_logger(__name__)
 
 
 @apply_methods_decorator(retry())
@@ -115,6 +115,14 @@ class ApiGatewayConnection(object):
         except self.client.exceptions.NotFoundException:
             _LOG.warning(f"Not found api with id: {api_id} "
                          f"and stage name: {stage_name}")
+            return None
+
+    def describe_tags(self, api_arn: str) -> dict | None:
+        try:
+            response = self.client.get_tags(resourceArn=api_arn)
+            return response
+        except self.client.exceptions.BadRequestException as e:
+            _LOG.error(f"Failed to retrieve tags for ARN {api_arn}: {str(e)}")
             return None
 
     def update_openapi(self, api_id, openapi_context):

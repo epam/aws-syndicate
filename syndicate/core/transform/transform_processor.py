@@ -18,7 +18,7 @@ import os
 
 import click
 
-from syndicate.commons.log_helper import get_logger
+from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.build.helper import resolve_bundle_directory
 from syndicate.core.constants import BUILD_META_FILE_NAME
 from syndicate.core.helper import build_path
@@ -26,7 +26,8 @@ from syndicate.core.transform.cloudformation.cloudformation_transformer import \
     CloudFormationTransformer
 from syndicate.core.transform.terraform.terraform_transformer import TerraformTransformer
 
-_LOG = get_logger('syndicate.core.build.transform_processor')
+_LOG = get_logger(__name__)
+USER_LOG = get_user_logger()
 
 TERRAFORM_DSL = 'terraform'
 CLOUD_FORMATION_DSL = 'cloudformation'
@@ -47,7 +48,7 @@ def generate_build_meta(bundle_name, dsl_list, output_directory):
 
         transformer_type = TRANSFORM_PROCESSORS.get(dsl)
         if not transformer_type:
-            click.echo(f'There is no transformer for the dsl: {dsl}')
+            USER_LOG.warning(f'There is no transformer for the dsl: {dsl}')
             continue
 
         transformer = transformer_type(bundle_name=bundle_name)
@@ -64,4 +65,6 @@ def generate_build_meta(bundle_name, dsl_list, output_directory):
                 output_directory, transformer.output_file_name())
         with open(output_path, 'w') as output_file:
             output_file.write(transformed_build_meta)
-        click.echo(f"The '{bundle_name}' bundle is transformed into {dsl} dsl.")
+        USER_LOG.info(
+            f"The '{bundle_name}' bundle is transformed into {dsl} dsl."
+        )

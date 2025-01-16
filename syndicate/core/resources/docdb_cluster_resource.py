@@ -21,7 +21,7 @@ from syndicate.core.helper import (
 from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import build_description_obj
 
-_LOG = get_logger('syndicate.core.resources.documentdb_resource')
+_LOG = get_logger(__name__)
 
 
 class DocumentDBClusterResource(BaseResource):

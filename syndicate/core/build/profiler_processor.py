@@ -4,7 +4,6 @@ from math import ceil
 from syndicate.commons.log_helper import get_logger
 from syndicate.core import ResourceProvider
 from syndicate.core.build.bundle_processor import load_deploy_output
-from syndicate.core.helper import exit_on_exception
 from syndicate.core.constants import DATE_FORMAT_ISO_8601
 from datetime import datetime, timedelta
 
@@ -24,14 +23,13 @@ METRIC_NAMES = ["Invocations", "Errors", "Throttles", "Duration",
                 "DestinationDeliveryFailures", "DeadLetterErrors",
                 "IteratorAge", "ConcurrentExecutions"]
 
-_LOG = get_logger('syndicate.core.build.profiler_processor')
+_LOG = get_logger(__name__)
 
 
 def _get_cw_client():
     return ResourceProvider.instance.cw_alarm().client.client
 
 
-@exit_on_exception
 def get_lambdas_name(bundle_name, deploy_name):
     output = load_deploy_output(bundle_name, deploy_name)
     lambda_output = {key: value for key, value in output.items() if
@@ -39,10 +37,10 @@ def get_lambdas_name(bundle_name, deploy_name):
 
     if not lambda_output:
         _LOG.warning('No Lambdas to describe metrics, exiting')
-        return
+        return []
 
     lambda_names = [definition['resource_name']
-                    for lambda_arn, definition in lambda_output.items()]
+                    for _, definition in lambda_output.items()]
 
     return lambda_names
 

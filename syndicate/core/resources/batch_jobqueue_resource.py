@@ -22,7 +22,7 @@ from syndicate.core.helper import unpack_kwargs
 from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import build_description_obj
 
-_LOG = get_logger('syndicate.core.resources.batch_jobqueue')
+_LOG = get_logger(__name__)
 
 DEFAULT_STATE = 'ENABLED'
 

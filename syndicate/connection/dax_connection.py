@@ -18,7 +18,7 @@ from boto3 import client
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import apply_methods_decorator, retry
 
-_LOG = get_logger('syndicate.connection.dax_connection')
+_LOG = get_logger(__name__)
 
 
 @apply_methods_decorator(retry())

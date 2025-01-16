@@ -29,7 +29,7 @@ from syndicate.core.project_state.project_state import BUILD_MAPPINGS
 SWAGGER_UI_RUNTIME = 'swagger_ui'
 INDEX_FILE_NAME = 'index.html'
 
-_LOG = get_logger('syndicate.core.generators.swagger_ui')
+_LOG = get_logger(__name__)
 USER_LOG = get_user_logger()
 
 
@@ -46,8 +46,8 @@ def generate_swagger_ui(name, spec_path, target_bucket, project_path):
         return
     if not Path.is_absolute(abs_path_to_spec):
         abs_path_to_spec = Path.joinpath(path_to_project, path_to_spec)
-        USER_LOG.info(f'Path to specification file resolved as '
-                      f'\'{abs_path_to_spec}\'')
+        _LOG.info(f'Path to specification file resolved as '
+                  f'\'{abs_path_to_spec}\'')
     if not Path.is_file(abs_path_to_spec):
         raise AssertionError(f'Provided specification file \'{spec_path}\' '
                              f'can\'t be resolved! Please provide the correct '

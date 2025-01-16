@@ -28,7 +28,7 @@ from syndicate.core.constants import \
 
 ALL_TYPES = 'all_types'
 
-_LOG = get_logger('validator')
+_LOG = get_logger(__name__)
 
 
 def common_validate(resource_name, resource_meta, all_meta):

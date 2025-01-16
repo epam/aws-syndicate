@@ -22,15 +22,15 @@ from zipfile import ZipFile
 
 from syndicate.commons import deep_get
 from syndicate.commons.log_helper import get_logger, get_user_logger
-from syndicate.core.constants import SWAGGER_UI_ARTIFACT_NAME_TEMPLATE, \
-    ARTIFACTS_FOLDER, SWAGGER_UI_SPEC_NAME_TEMPLATE, S3_PATH_NAME
+from syndicate.core.constants import ARTIFACTS_FOLDER, S3_PATH_NAME, \
+    SWAGGER_UI_SPEC_NAME_TEMPLATE
 from syndicate.core.helper import build_path, unpack_kwargs
 from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import build_description_obj
 
 INDEX_FILE_NAME = 'index.html'
 
-_LOG = get_logger('syndicate.core.resources.swagger_ui_resource')
+_LOG = get_logger(__name__)
 USER_LOG = get_user_logger()
 
 

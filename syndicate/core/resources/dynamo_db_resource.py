@@ -13,10 +13,10 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-import time
 from botocore.exceptions import ClientError
 
 from syndicate.commons.log_helper import get_logger
+from syndicate.core.helper import unpack_kwargs
 from syndicate.core.resources.abstract_external_resource import AbstractExternalResource
 from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import (build_description_obj,
@@ -28,7 +28,7 @@ AUTOSCALING_REQUIRED_PARAMS = ['resource_name', 'dimension',
 
 DYNAMODB_TABLE_REQUIRED_PARAMS = ['hash_key_name', 'hash_key_type']
 
-_LOG = get_logger('syndicate.core.resources.dynamo_db_resource')
+_LOG = get_logger(__name__)
 
 
 class DynamoDBResource(AbstractExternalResource, BaseResource):
@@ -49,21 +49,8 @@ class DynamoDBResource(AbstractExternalResource, BaseResource):
         :type step: int
         :returns tables create results as list
         """
-        response = dict()
-        waiters = {}
-        tables_chunks = [args[i:i + step] for i in range(0, len(args), step)]
-        for tables_to_create in tables_chunks:
-            for table in tables_to_create:
-                name = table['name']
-                meta = table['meta']
-                response.update(
-                    self._create_dynamodb_table_from_meta(name, meta))
-                table = self.dynamodb_conn.get_table_by_name(name)
-                waiters[table.name] = table.meta.client.get_waiter(
-                    'table_exists')
-            for table_name in waiters:
-                waiters[table_name].wait(TableName=table_name)
-        return response
+        return self.create_pool(job=self._create_dynamodb_table_from_meta,
+                                parameters=args, workers=step)
 
     def update_tables(self, args, step=10):
         """ Only 10 tables can be created, updated or deleted simultaneously.
@@ -74,15 +61,12 @@ class DynamoDBResource(AbstractExternalResource, BaseResource):
         :type step: int
         :returns tables update results as list
         """
-        response = dict()
-        tables_chunks = [args[i:i + step] for i in range(0, len(args), step)]
-        for tables_to_update in tables_chunks:
-            for table in tables_to_update:
-                name = table['name']
-                meta = table['meta']
-                response.update(
-                    self._update_dynamodb_table_from_meta(name, meta))
-        return response
+        return self.create_pool(job=self._update_dynamodb_table_from_meta,
+                                parameters=args, workers=step)
+
+    def remove_dynamodb_tables(self, args, step=10):
+        return self.create_pool(self._remove_tables_from_meta, args,
+                                workers=step)
 
     @staticmethod
     def _determine_table_capacity_mode(table):
@@ -94,7 +78,8 @@ class DynamoDBResource(AbstractExternalResource, BaseResource):
             return 'PROVISIONED'
         return 'PAY_PER_REQUEST'
 
-    def _update_dynamodb_table_from_meta(self, name, meta):
+    @unpack_kwargs
+    def _update_dynamodb_table_from_meta(self, name, meta, context):
         """ Update Dynamo DB table from meta description, specifically:
         capacity (billing) mode, table or gsi capacity units,
         gsi to create or delete, ttl.
@@ -107,7 +92,7 @@ class DynamoDBResource(AbstractExternalResource, BaseResource):
         """
         table = self.dynamodb_conn.get_table_by_name(name)
         if not table:
-            raise AssertionError('{0} table does not exist.'.format(name))
+            raise AssertionError(f'{name} table does not exist.')
 
         existing_capacity_mode = self._determine_table_capacity_mode(table)
         response = self.dynamodb_conn.update_table_capacity(
@@ -239,6 +224,7 @@ class DynamoDBResource(AbstractExternalResource, BaseResource):
             ]
         }
 
+    @unpack_kwargs
     def _create_dynamodb_table_from_meta(self, name, meta):
         """ Create Dynamo DB table from meta description after parameter
         validation.
@@ -396,32 +382,32 @@ class DynamoDBResource(AbstractExternalResource, BaseResource):
 
     @staticmethod
     def build_res_id(dimension, resource_name, table_name):
-        resource_id = 'table/{0}'.format(table_name) \
-            if 'table' in dimension \
-            else 'table/{0}/index/{1}'.format(table_name, resource_name)
+        resource_id = f'table/{table_name}' if 'table' in dimension \
+            else f'table/{table_name}/index/{resource_name}'
         return resource_id
 
-    def remove_dynamodb_tables(self, args):
-        db_names = [x['config']['resource_name'] for x in args]
+    @unpack_kwargs
+    def _remove_tables_from_meta(self, arn, config):
+        db_name = config['resource_name']
         removed_tables, errors = self.dynamodb_conn.remove_tables_by_names(
-            db_names,
+            [db_name],
             log_not_found_error=False)
-        results = {x['arn']: x['config'] for x in args
-                   if x['config']['resource_name'] in removed_tables}
-        _LOG.info('Dynamo DB tables %s were removed', str(removed_tables))
-        alarm_args = []
-        for arg in args:
-            autoscaling = arg['config']['description'].get('Autoscaling')
-            if autoscaling:
-                policies = autoscaling['policies']
-                for policy in policies:
-                    if policy:
-                        alarms = policy.get('Alarms', [])
-                        alarm_args.extend(map(
-                            lambda x: x['AlarmName'], alarms))
-        try:
-            self.cw_alarm_conn.remove_alarms(alarm_args)
-        except Exception as e:
-            errors.append(str(e))
+        if errors:
+            raise Exception('; '.join(errors))
+        _LOG.info(f'Dynamo DB tables {str(removed_tables)} were removed')
 
-        return (results, errors) if errors else results
+        alarm_args = []
+        autoscaling = config['description'].get('Autoscaling')
+        if autoscaling:
+            policies = autoscaling['policies']
+            for policy in policies:
+                if policy:
+                    alarms = policy.get('Alarms', [])
+                    alarm_args.extend(map(lambda x: x['AlarmName'], alarms))
+        try:
+            if alarm_args:
+                self.cw_alarm_conn.remove_alarms(alarm_args)
+        except Exception as e:
+            raise e
+
+        return {arn: config}

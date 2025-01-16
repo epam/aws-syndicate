@@ -26,8 +26,7 @@ from syndicate.core.build.bundle_processor import _build_output_key
 from syndicate.core.build.meta_processor import S3_PATH_NAME
 from syndicate.core.constants import DEFAULT_LOGS_EXPIRATION
 from syndicate.core.decorators import threading_lock
-from syndicate.core.helper import (unpack_kwargs,
-                                   exit_on_exception, is_zip_empty)
+from syndicate.core.helper import unpack_kwargs, is_zip_empty
 from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import (
     build_description_obj, validate_params, assert_required_params, if_updated)
@@ -44,7 +43,7 @@ KINESIS_TRIGGER_REQUIRED_PARAMS = ['target_stream', 'batch_size',
 
 PROVISIONED_CONCURRENCY = 'provisioned_concurrency'
 
-_LOG = get_logger('syndicate.core.resources.lambda_resource')
+_LOG = get_logger(__name__)
 USER_LOG = get_user_logger()
 
 LAMBDA_MAX_CONCURRENCY = 'max_concurrency'
@@ -396,7 +395,7 @@ class LambdaResource(BaseResource):
                 principal=url_config.get('principal'),
                 source_arn=url_config.get('source_arn')
             )
-            print(f'{name}:{alias if alias else ""}: {url}')
+            USER_LOG.info(f'{name}:{alias if alias else ""} URL: {url}')
 
         arn = self.build_lambda_arn_with_alias(lambda_def, alias) \
             if publish_version or alias else \
@@ -435,7 +434,6 @@ class LambdaResource(BaseResource):
             dl_name) if dl_type and dl_name else None
         return dl_target_arn
 
-    @exit_on_exception
     @unpack_kwargs
     def _update_lambda(self, name, meta, context):
         from syndicate.core import CONFIG
@@ -550,23 +548,31 @@ class LambdaResource(BaseResource):
             f'Version {updated_version} for lambda {name} published')
 
         alias_name = meta.get('alias')
+        aliases = list(
+            self.lambda_conn.get_aliases(function_name=name).keys()
+        )
         if alias_name:
-            alias = self.lambda_conn.get_alias(function_name=name,
-                                               name=alias_name)
-            if not alias:
-                self.lambda_conn.create_alias(
-                    function_name=name,
-                    name=alias_name,
-                    version=updated_version)
-                _LOG.info(
-                    f'Alias {alias_name} has been created for lambda {name}')
-            else:
+            if alias_name in aliases:
                 self.lambda_conn.update_alias(
                     function_name=name,
                     alias_name=alias_name,
                     function_version=updated_version)
                 _LOG.info(
                     f'Alias {alias_name} has been updated for lambda {name}')
+            else:
+                self.lambda_conn.create_alias(
+                    function_name=name,
+                    name=alias_name,
+                    version=updated_version)
+                _LOG.info(
+                    f'Alias {alias_name} has been created for lambda {name}')
+        for alias in aliases:
+            if alias != alias_name:
+                self.lambda_conn.delete_alias(
+                    function_name=name,
+                    name=alias
+                )
+                aliases.remove(alias)
 
         url_config = meta.get('url_config')
         if url_config:

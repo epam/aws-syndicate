@@ -1,5 +1,18 @@
 # Testing strategy for AWS Syndicate
 
+## Content
+- [Directory structure](#directory-structure)
+  - [Description of Key Components](#description-of-key-components)
+  - [Files for update](#files-to-update)
+- [Configuration](#configuration)
+  - [Config structure](#config-structure)
+  - [Description of Config Components](#description-of-config-components)
+  - [Available checks](#available-checks)
+  - [Temporary-checks-conditions](#temporary-checks-conditions)
+- [How to run](#how-to-run)
+  - [Prerequisites](#prerequisites)
+  - [Available script parameters](#available-script-parameters)
+
 ## Directory structure
 ```
 tests
@@ -44,7 +57,7 @@ tests
 #### `sdct-auto-test` Subdirectory
 - Contains the aws-project on which testing will be carried out. More details about the project can be found [here](sdct-auto-test/README.md)
 
-### `lambda_config_updated.json` and `deployment_resources_updated.json`
+### Files to update
 - Lambda and overall resources configuration files with the `_updated` suffix are required to test the `syndicate update` command. 
 The content of these files apply to the current corresponding configs while the resources are being updated. 
 Afterwards, the original configs return the original content. Example: 
@@ -57,14 +70,14 @@ Afterwards, the original configs return the original content. Example:
 ## Configuration
 
 ### Config structure
-```json
+```json5
 {
   "init_parameters": {
     "suffix": "-test",
     "deploy_target_bucket": "bucket",
     "prefix": "sdct-",
     "output_file": "output",
-    ...
+    // more params if needed
   },
   "stages": {
     "$STAGE_NAME": {
@@ -115,7 +128,7 @@ Afterwards, the original configs return the original content. Example:
       - `depends_on`: The list of checks indexes, the result of which determines the execution of the current one. If at least one check from the list fails, then the current check will not execute.
       - The parameters of a check may be extended with check-specific parameters. Custom parameters needed for a specific check (see [Checks](#checks))
 
-## Available checks
+### Available checks
 - `exit_code` - Checks the exit code of the command from the `command` section in the step config.
   - parameters:
     - `expected_exit_code` (int) [REQUIRED] - expected exit code of the syndicate after running the command.
@@ -130,7 +143,7 @@ Afterwards, the original configs return the original content. Example:
   - parameters: 
     - `resources` (dict) [REQUIRED] - Information about resources to check.  
       structure:
-      ```json
+      ```json5
       {
         "$RESOURCE_NAME": {
           "resource_type": "$RESOURCE_TYPE"
@@ -143,7 +156,7 @@ Afterwards, the original configs return the original content. Example:
     - `deploy_target_bucket` (str) [REQUIRED] - the syndicate deployment bucket. 
     - `resources` (dict) [REQUIRED] - Information about resources to check.  
       structure:
-      ```json
+      ```json5
       {
         "$RESOURCE_NAME": {
           "resource_type": "$RESOURCE_TYPE"
@@ -156,7 +169,7 @@ Afterwards, the original configs return the original content. Example:
   - parameters:
     - `resources` (dict) [REQUIRED] - Information about resources to check.  
         structure:
-        ```json
+        ```json5
         {
           "$RESOURCE_NAME": {
             "resource_type": "$RESOURCE_TYPE"
@@ -169,7 +182,7 @@ Afterwards, the original configs return the original content. Example:
   - parameters: 
     - `resources` (dict) [REQUIRED] - Information about resources to check.  
         structure:
-        ```json
+        ```json5
         {
           "$RESOURCE_NAME": {
             "resource_type": "$RESOURCE_TYPE"
@@ -180,14 +193,14 @@ Afterwards, the original configs return the original content. Example:
   - parameters:
     - `resources` (dict) [REQUIRED] - Information about resources to check.  
         structure:
-        ```json
+        ```json5
         {
           "$RESOURCE_NAME": {
             "resource_type": "$RESOURCE_TYPE",
             "tags": {
               "tag_name1": "tag_value1",
               "tag_name2": "tag_value2",
-              ...
+              // ...
               "tag_nameN": "tag_valueN"
             }
           }
@@ -196,31 +209,30 @@ Afterwards, the original configs return the original content. Example:
     - `reverse_check` (bool) - defines whether the check result must be swapped to the opposite.
 - `lambda_trigger_existence` - Checks whether lambda has triggers. 
   - parameters:
-    - `triggers` (dict) [REQUIRED] - Information about lambdas to check. Lambda name could include alias or version 
-in this format: `name:alias`  
+    - `triggers` (dict) [REQUIRED] - Information about lambdas to check:
         structure:
-        ```json
+        ```json5
         {
           "triggers": {
-            "$LAMBDA_NAME:alias_or_version_optional": [
+            "$LAMBDA_NAME": [
               {
                 "resource_name": "trigger_name",
                 "resource_type": "sqs_queue|dynamodb_trigger|sns_topic|cloudwatch_rule"
               },
-              ...
+              // ...
             ]
           }
         }
         ```
 - `lambda_env_existence` - Checks whether lambdas has specific environment variables. 
   - parameters:
-    - `env_variables` (dict) [REQUIRED] - Information about lambdas to check. Lambda name could include alias or version 
-in this format: `name:alias`. `*` in env value means value does not matter and only the presence of a particular key will be checked.
+    - `env_variables` (dict) [REQUIRED] - Information about lambdas to check. `*` in env value means value does 
+not matter and only the presence of a particular key will be checked.
         structure:
-        ```json
+        ```json5
         {
           "env_variables": {
-            "$LAMBDA_NAME1:alias_or_version_optional": {
+            "$LAMBDA_NAME1": {
               "DOTNET_SHARED_STORE": "/opt/dotnetcore/store/"
             },
             "$LAMBDA_NAME2": {
@@ -229,14 +241,71 @@ in this format: `name:alias`. `*` in env value means value does not matter and o
           }
         }
         ```
+- `appsync_modification` - Checks appsync resource configuration. 
+  - parameters:
+    - `resources` (dict) [REQUIRED] - Appsync configuration to check. Should include `resolvers` and `data_sources`.
+`functions` parameter is optional.
+        structure:
+        ```json5
+          {
+              "resources": {
+                "appsync_name": {
+                  "data_sources": [
+                    {
+                      "name": "table",
+                      "type": "AMAZON_DYNAMODB"
+                    }
+                  ],
+                  "resolvers": [
+                    {
+                      "type_name": "Post",
+                      "field_name": "id",
+                      "data_source_name": "table"
+                    }
+                  ],
+                  "functions": [
+                    {
+                      "name": "get_user",
+                      "data_source_name": "table"
+                    }
+                  ]
+                }
+              }
+          }
+        ```
+
+### Temporary checks conditions
+- Use tags from `tests/smoke/sdct-auto-test/.syndicate-config/syndicate.yml` unless change them in happy_path_config.json:
+```json5
+{
+  "index": 6,
+  "name": "tag_existence",
+  "description": "Check if tags were updated",
+  "resources": {
+    "sdct-at-nodejs-lambda": {
+      "resource_type": "lambda",
+      "tags": {
+        "updated_tests": "updated_smoke", // tags from resource configuration
+        "project": "sdct-auto-test",  // tags from syndicate.yml
+        "project-level-tag": "set-from-project" // tags from syndicate.yml
+      }
+    }
+  },
+  "depends_on": [1, 2]
+}
+```
 
 ## How to run
 ### Prerequisites
 1. Specify valid credentials in the `.aws/credentials` file or set credentials in the `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN` env variables.
-2. Installed python 3.10+
-3. Install requirements from corresponding `requirements.txt`
-4. Install aws-syndicate
-5. Create aws-syndicate config files and set its path to `SDCT_CONF` env variable
+2. Install python 3.10+.
+3. Install maven.
+4. Install .NET SDK.
+5. Install aws-syndicate from pypi: `pip install aws-syndicate`; or from local folder: `pip install -e PATH_TO_REPO/aws-syndicate`.
+6. Create aws-syndicate config files and set its path to `SDCT_CONF` env variable. Example of syndicate configs in the 
+`tests/smoke/sdct-auto-test/.syndicate-config` folder.
+7. Create deployment bucket if needed: `syndicate create_deploy_target_bucket`.
+8. Example command to run the test via the console: `python3 tests/smoke/happy_path.py --verbose`
 
 ### Available script parameters
   - `-c, --config`: [optional] full path to the config file with described stage checks. Default config is happy_path_config.json

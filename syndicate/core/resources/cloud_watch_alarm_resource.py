@@ -25,7 +25,7 @@ CLOUDWATCH_ALARM_REQUIRED_PARAMS = ['metric_name', 'namespace', 'period',
                                     'threshold', 'evaluation_periods',
                                     'comparison_operator', 'statistic']
 
-_LOG = get_logger('syndicate.core.resources.alarm_resource')
+_LOG = get_logger(__name__)
 
 
 class CloudWatchAlarmResource(BaseResource):
@@ -98,30 +98,26 @@ class CloudWatchAlarmResource(BaseResource):
         return self.describe_alarm(name, meta)
 
     def remove_alarms(self, args):
-        return self._remove_alarms(args)
+        return self.create_pool(self._remove_alarms, args)
 
-    def _remove_alarms(self, args):
-        results = {}
-        errors = []
-        for param_chunk in chunks(args, 100):
-            alarm_names = [x['config']['resource_name'] for x in param_chunk]
-            try:
-                self.client.remove_alarms(alarm_names=alarm_names,
-                                          log_not_found_error=False)
-                _LOG.info('Alarms %s were removed.', str(alarm_names))
-                results.update({x['arn']: x['config'] for x in param_chunk})
+    @unpack_kwargs
+    def _remove_alarms(self, arn, config):
+        alarm_name = config['resource_name']
+        try:
+            self.client.remove_alarms(alarm_names=[alarm_name],
+                                      log_not_found_error=False)
+            _LOG.info(f'Alarm {alarm_name} was removed.')
 
-            except ClientError as e:
-                if e.response['Error']['Code'] == 'ResourceNotFoundException':
-                    _LOG.warn('Alarms %s are not found', str(alarm_names))
-                else:
-                    errors.append(str(e))
-                described_alarms = self.client.alarm_list(alarm_names)
-                described_alarm_names = [x['AlarmName'] for x in
-                                         described_alarms]
-                results.update(
-                    {x['arn']: x['config'] for x in param_chunk
-                     if x['config']['resource_name'] not in
-                     described_alarm_names})
+        except ClientError as e:
+            if e.response['Error']['Code'] == 'ResourceNotFoundException':
+                _LOG.warn(f'Alarm {alarm_name} not found.')
+            else:
+                raise e
+            described_alarms = self.client.alarm_list(alarm_names=[alarm_name])
+            if described_alarms and any(alarm['AlarmName'] == alarm_name
+                                        for alarm in described_alarms):
+                _LOG.warn(f'Alarm {alarm_name} was found despite the '
+                          f'`ResourceNotFoundException` error.')
+                raise e
 
-        return (results, errors) if errors else results
+        return {arn: config}

@@ -15,6 +15,7 @@
 """
 from syndicate.connection import ConnectionProvider
 from syndicate.core.resources.api_gateway_resource import ApiGatewayResource
+from syndicate.core.resources.appsync_resource import AppSyncResource
 from syndicate.core.resources.cloud_watch_alarm_resource import (
     CloudWatchAlarmResource)
 from syndicate.core.resources.cloud_watch_resource import CloudWatchResource
@@ -75,6 +76,7 @@ class ResourceProvider:
         _cw_resource = None
         _sns_resource = None
         _api_gateway_resource = None
+        _appsync_resource = None
         _cognito_identity_resource = None
         _cognito_user_pool_resource = None
         _dynamodb_resource = None
@@ -130,17 +132,32 @@ class ResourceProvider:
                     region=self.credentials.get('region'))
             return self._sns_resource
 
-        def api_gw(self):
+        def api_gw(self) -> ApiGatewayResource:
             if not self._api_gateway_resource:
                 self._api_gateway_resource = ApiGatewayResource(
                     apigw_conn=self._conn_provider.api_gateway(),
                     apigw_v2_conn=self._conn_provider.api_gateway_v2(),
+                    cw_logs_conn=self._conn_provider.cw_logs(),
                     lambda_res=self.lambda_resource(),
                     cognito_res=self.cognito_user_pool(),
                     account_id=self.config.account_id,
                     region=self.config.region
                 )
             return self._api_gateway_resource
+
+        def appsync(self):
+            if not self._appsync_resource:
+                self._appsync_resource = AppSyncResource(
+                    appsync_conn=self._conn_provider.appsync(),
+                    s3_conn=self._conn_provider.s3(),
+                    cup_conn=self._conn_provider.cognito_identity_provider(),
+                    cw_logs_conn=self._conn_provider.cw_logs(),
+                    deploy_target_bucket_key_compound=
+                    self.config.deploy_target_bucket_key_compound,
+                    deploy_target_bucket=self.config.deploy_target_bucket,
+                    account_id=self.config.account_id
+                )
+            return self._appsync_resource
 
         def cognito_identity(self):
             self._cognito_identity_resource = CognitoIdentityResource(

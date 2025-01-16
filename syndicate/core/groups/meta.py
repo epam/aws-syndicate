@@ -1,21 +1,27 @@
 import json
 import os
-from functools import partial
 
 import click
 
-from syndicate.core.constants import S3_BUCKET_ACL_LIST, \
-    API_GW_AUTHORIZER_TYPES, CUSTOM_AUTHORIZER_KEY, \
-    EC2_LAUNCH_TEMPLATE_SUPPORTED_IMDS_VERSIONS
+from syndicate.commons.log_helper import get_user_logger
+from syndicate.core.constants import (
+    S3_BUCKET_ACL_LIST, API_GW_AUTHORIZER_TYPES, CUSTOM_AUTHORIZER_KEY,
+    EC2_LAUNCH_TEMPLATE_SUPPORTED_IMDS_VERSIONS, EC2_LT_RESOURCE_TAGS,
+    FAILED_RETURN_CODE, OK_RETURN_CODE,
+)
+from syndicate.core.decorators import return_code_manager
 from syndicate.core.generators.deployment_resources import *
 from syndicate.core.generators.deployment_resources.api_gateway_generator import \
     ApiGatewayAuthorizerGenerator
+
 from syndicate.core.generators.deployment_resources.ec2_launch_template_generator import \
     EC2LaunchTemplateGenerator
 from syndicate.core.generators.lambda_function import PROJECT_PATH_PARAM
-from syndicate.core.helper import OrderedGroup, OptionRequiredIf, \
-    validate_incompatible_options, validate_authorizer_name_option, \
-    verbose_option, validate_api_gw_path, DictParamType, check_tags
+from syndicate.core.helper import (
+    OrderedGroup, OptionRequiredIf, check_tags,
+    validate_authorizer_name_option, verbose_option, validate_api_gw_path,
+    DictParamType, DeepDictParamType,
+)
 from syndicate.core.helper import ValidRegionParamType
 from syndicate.core.helper import check_bundle_bucket_name
 from syndicate.core.helper import resolve_project_path, timeit
@@ -23,8 +29,11 @@ from syndicate.core.helper import resolve_project_path, timeit
 GENERATE_META_GROUP_NAME = 'meta'
 dynamodb_type_param = click.Choice(['S', 'N', 'B'])
 
+USER_LOG = get_user_logger()
+
 
 @click.group(name=GENERATE_META_GROUP_NAME, cls=OrderedGroup)
+@return_code_manager
 @click.option('--project_path', nargs=1,
               help="Path to the project folder. Default value: the one "
                    "from the current config if it exists. "
@@ -34,18 +43,20 @@ dynamodb_type_param = click.Choice(['S', 'N', 'B'])
 def meta(ctx, project_path):
     """Generates deployment resources templates"""
     if not os.access(project_path, os.F_OK):
-        click.echo(f"The provided path {project_path} doesn't exist")
-        return
+        USER_LOG.error(f"The provided path {project_path} doesn't exist")
+        return FAILED_RETURN_CODE
     elif not os.access(project_path, os.W_OK) or not os.access(project_path,
                                                                os.X_OK):
-        click.echo(f"Incorrect permissions for the provided path "
-                   f"'{project_path}'")
-        return
+        USER_LOG.error(f"Incorrect permissions for the provided path "
+                       f"'{project_path}'")
+        return FAILED_RETURN_CODE
     ctx.ensure_object(dict)
     ctx.obj[PROJECT_PATH_PARAM] = project_path
+    return OK_RETURN_CODE
 
 
 @meta.command(name='dax_cluster')
+@return_code_manager
 @click.option('--resource_name', required=True, type=str,
               help="Dax cluster name")
 @click.option('--node_type', required=True, type=str,
@@ -74,11 +85,13 @@ def dax_cluster(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = DaxClusterGenerator(**kwargs)
     _generate(generator)
-    click.echo(f'Dax cluster \'{kwargs["resource_name"]}\' was '
-               f'successfully generated')
+    USER_LOG.info(f'Dax cluster \'{kwargs["resource_name"]}\' was '
+                  f'successfully generated')
+    return OK_RETURN_CODE
 
 
 @meta.command(name='dynamodb')
+@return_code_manager
 @click.option('--resource_name', required=True, type=str,
               help="DynamoDB table name")
 @click.option('--hash_key_name', required=True, type=str,
@@ -109,10 +122,12 @@ def dynamodb(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = DynamoDBGenerator(**kwargs)
     _generate(generator)
-    click.echo(f"Table '{kwargs['resource_name']}' was added successfully!")
+    USER_LOG.info(f"Table '{kwargs['resource_name']}' was added successfully!")
+    return OK_RETURN_CODE
 
 
 @meta.command(name='dynamodb_global_index')
+@return_code_manager
 @click.option('--table_name', required=True, type=str,
               help="DynamoDB table name to add index to")
 @click.option('--name', required=True, type=str,
@@ -135,10 +150,12 @@ def dynamodb_global_index(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = DynamoDBGlobalIndexGenerator(**kwargs)
     _generate(generator)
-    click.echo(f"Global index '{kwargs['name']}' was added successfully")
+    USER_LOG.info(f"Global index '{kwargs['name']}' was added successfully")
+    return OK_RETURN_CODE
 
 
 @meta.command(name='dynamodb_autoscaling')
+@return_code_manager
 @click.option('--table_name', type=str, required=True,
               help="DynamoDB table name to add autoscaling to")
 @click.option('--policy_name', type=str, required=True,
@@ -173,11 +190,13 @@ def dynamodb_autoscaling(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = DynamoDBAutoscalingGenerator(**kwargs)
     _generate(generator)
-    click.echo(f"Autoscaling setting to table '{kwargs['table_name']}' was "
-               f"added successfully")
+    USER_LOG.info(f"Autoscaling setting to table '{kwargs['table_name']}' was "
+                  f"added successfully")
+    return OK_RETURN_CODE
 
 
 @meta.command(name='s3_bucket')
+@return_code_manager
 @click.option('--resource_name', required=True, type=str,
               help="S3 bucket name", callback=check_bundle_bucket_name)
 @click.option('--location', type=ValidRegionParamType(),
@@ -205,15 +224,8 @@ def dynamodb_autoscaling(ctx, **kwargs):
               help='Specifies whether Amazon S3 should restrict public bucket '
                    'policies for this bucket. Default value is True')
 @click.option('--static_website_hosting', type=bool, required=False,
-              callback=partial(validate_incompatible_options,
-                               incompatible_options=['block_public_acls',
-                                                     'ignore_public_acls',
-                                                     'restrict_public_buckets',
-                                                     'block_public_policy']),
               help='Specifies whether the S3 bucket should be configured for '
-                   'static WEB site hosting. If specified public read access '
-                   'will be configured for all S3 bucket objects! Default '
-                   'value is False')
+                   'static WEB site hosting. Default value is False')
 @click.option('--tags', type=DictParamType(), callback=check_tags,
               help='The resource tags')
 @verbose_option
@@ -224,11 +236,13 @@ def s3_bucket(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = S3Generator(**kwargs)
     _generate(generator)
-    click.echo(f"S3 bucket '{kwargs['resource_name']}' was "
-               f"added successfully!")
+    USER_LOG.info(f"S3 bucket '{kwargs['resource_name']}' was "
+                  f"added successfully!")
+    return OK_RETURN_CODE
 
 
 @meta.command(name='api_gateway')
+@return_code_manager
 @click.option('--resource_name', required=True, type=str,
               help="Api gateway name")
 @click.option('--deploy_stage', required=True, type=str,
@@ -247,11 +261,13 @@ def api_gateway(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = ApiGatewayGenerator(**kwargs)
     _generate(generator)
-    click.echo(f"Api gateway '{kwargs['resource_name']}' was "
-               f"added successfully")
+    USER_LOG.info(f"Api gateway '{kwargs['resource_name']}' was "
+                  f"added successfully")
+    return OK_RETURN_CODE
 
 
 @meta.command(name='web_socket_api_gateway')
+@return_code_manager
 @click.option('--resource_name', required=True, type=str,
               help="Api gateway name")
 @click.option('--deploy_stage', required=True, type=str,
@@ -266,11 +282,13 @@ def web_socket_api_gateway(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = WebSocketApiGatewayGenerator(**kwargs)
     _generate(generator)
-    click.echo(f"Api gateway '{kwargs['resource_name']}' was "
-               f"added successfully")
+    USER_LOG.info(f"Api gateway '{kwargs['resource_name']}' was "
+                  f"added successfully")
+    return OK_RETURN_CODE
 
 
 @meta.command(name='api_gateway_authorizer')
+@return_code_manager
 @click.option('--api_name', required=True, type=str,
               help="Api gateway name to add index to")
 @click.option('--name', required=True, type=str,
@@ -293,11 +311,13 @@ def api_gateway_authorizer(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = ApiGatewayAuthorizerGenerator(**kwargs)
     _generate(generator)
-    click.echo(f"Authorizer '{kwargs['name']}' was added to API gateway "
-               f"'{kwargs['api_name']}' successfully")
+    USER_LOG.info(f"Authorizer '{kwargs['name']}' was added to API gateway "
+                  f"'{kwargs['api_name']}' successfully")
+    return OK_RETURN_CODE
 
 
 @meta.command(name='api_gateway_resource')
+@return_code_manager
 @click.option('--api_name', required=True, type=str,
               help="Api gateway name to add index to")
 @click.option('--path', required=True, callback=validate_api_gw_path,
@@ -313,11 +333,13 @@ def api_gateway_resource(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = ApiGatewayResourceGenerator(**kwargs)
     _generate(generator)
-    click.echo(f"Resource '{kwargs['path']}' was added to API gateway "
-               f"'{kwargs['api_name']}' successfully")
+    USER_LOG.info(f"Resource '{kwargs['path']}' was added to API gateway "
+                  f"'{kwargs['api_name']}' successfully")
+    return OK_RETURN_CODE
 
 
 @meta.command(name='api_gateway_resource_method')
+@return_code_manager
 @click.option('--api_name', required=True, type=str,
               help="Api gateway name to add index to")
 @click.option('--path', required=True, callback=validate_api_gw_path,
@@ -361,11 +383,13 @@ def api_gateway_resource_method(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = ApiGatewayResourceMethodGenerator(**kwargs)
     _generate(generator)
-    click.echo(f"Method '{kwargs['method']}' was added to API gateway "
-               f"resource '{kwargs['path']}' successfully")
+    USER_LOG.info(f"Method '{kwargs['method']}' was added to API gateway "
+                  f"resource '{kwargs['path']}' successfully")
+    return OK_RETURN_CODE
 
 
 @meta.command(name='iam_policy')
+@return_code_manager
 @click.option('--resource_name', required=True, type=str,
               help='IAM policy name')
 @click.option('--policy_content', help='The path to JSON file with IAM policy '
@@ -387,11 +411,13 @@ def iam_policy(ctx, **kwargs):
             raise click.BadParameter(str(e), param_hint='policy_content')
     generator = IAMPolicyGenerator(**kwargs)
     _generate(generator)
-    click.echo(f"Iam policy '{kwargs['resource_name']}' was "
-               f"added successfully")
+    USER_LOG.info(f"Iam policy '{kwargs['resource_name']}' was "
+                  f"added successfully")
+    return OK_RETURN_CODE
 
 
 @meta.command(name='iam_role')
+@return_code_manager
 @click.option('--resource_name', required=True, type=str,
               help="IAM role name")
 @click.option('--principal_service', required=True, type=str,
@@ -418,11 +444,13 @@ def iam_role(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = IAMRoleGenerator(**kwargs)
     _generate(generator)
-    click.echo(f"Iam role '{kwargs['resource_name']}' was "
-               f"added successfully")
+    USER_LOG.info(f"Iam role '{kwargs['resource_name']}' was "
+                  f"added successfully")
+    return OK_RETURN_CODE
 
 
 @meta.command(name='kinesis_stream')
+@return_code_manager
 @click.option('--resource_name', type=str, required=True,
               help="Kinesis stream name")
 @click.option('--shard_count', type=int, required=True,
@@ -437,11 +465,13 @@ def kinesis_stream(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = KinesisStreamGenerator(**kwargs)
     _generate(generator)
-    click.echo(f"Kinesis stream '{kwargs['resource_name']}' was "
-               f"added successfully")
+    USER_LOG.info(f"Kinesis stream '{kwargs['resource_name']}' was "
+                  f"added successfully")
+    return OK_RETURN_CODE
 
 
 @meta.command(name='sns_topic')
+@return_code_manager
 @click.option('--resource_name', type=str, required=True,
               help="SNS topic name")
 @click.option('--region', type=ValidRegionParamType(allowed_all=True),
@@ -456,11 +486,13 @@ def sns_topic(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = SNSTopicGenerator(**kwargs)
     _generate(generator)
-    click.echo(f"SNS topic '{kwargs['resource_name']}' was "
-               f"added successfully")
+    USER_LOG.info(f"SNS topic '{kwargs['resource_name']}' was "
+                  f"added successfully")
+    return OK_RETURN_CODE
 
 
 @meta.command(name='step_function')
+@return_code_manager
 @click.option('--resource_name', type=str, required=True,
               help="Step function name")
 @click.option('--iam_role', type=str, required=True,
@@ -475,11 +507,13 @@ def step_function(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = StepFunctionGenerator(**kwargs)
     _generate(generator)
-    click.echo(f"Step function '{kwargs['resource_name']}' was "
-               f"added successfully")
+    USER_LOG.info(f"Step function '{kwargs['resource_name']}' was "
+                  f"added successfully")
+    return OK_RETURN_CODE
 
 
 @meta.command(name='step_function_activity')
+@return_code_manager
 @click.option('--resource_name', type=str, required=True,
               help="Step function activity name")
 @click.option('--tags', type=DictParamType(), callback=check_tags,
@@ -492,11 +526,13 @@ def step_function_activity(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = StepFunctionActivityGenerator(**kwargs)
     _generate(generator)
-    click.echo(f"Step function activity '{kwargs['resource_name']}' was "
-               f"added successfully")
+    USER_LOG.info(f"Step function activity '{kwargs['resource_name']}' was "
+                  f"added successfully")
+    return OK_RETURN_CODE
 
 
 @meta.command(name='ec2_instance')
+@return_code_manager
 @click.option('--resource_name', type=str, required=True,
               help="Instance name")
 @click.option('--key_name', type=str, required=True,
@@ -531,11 +567,13 @@ def ec2_instance(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = EC2InstanceGenerator(**kwargs)
     _generate(generator)
-    click.echo(f"EC2 instance '{kwargs['resource_name']}' was added"
-               f"successfully")
+    USER_LOG.info(f"EC2 instance '{kwargs['resource_name']}' was added"
+                  f"successfully")
+    return OK_RETURN_CODE
 
 
 @meta.command(name='ec2_launch_template')
+@return_code_manager
 @click.option('--resource_name', type=str, required=True,
               help="Launch template name")
 @click.option('--image_id', type=str, required=True,
@@ -553,26 +591,46 @@ def ec2_instance(ctx, **kwargs):
                    "path to the project path)")
 @click.option('--iam_role', type=str,
               help="Instance IAM role")
-@click.option('--imds_version', type=click.Choice(
-    EC2_LAUNCH_TEMPLATE_SUPPORTED_IMDS_VERSIONS),
+@click.option('--imds_version',
+              type=click.Choice(EC2_LAUNCH_TEMPLATE_SUPPORTED_IMDS_VERSIONS),
               help="IMDS version")
 @click.option('--version_description', type=str,
               help="A description for the version of the launch template")
 @click.option('--tags', type=DictParamType(), callback=check_tags,
-              help='The resource tags')
+              help='The ec2 launch template tags')
+@click.option('--resource_tags', type=DeepDictParamType(), multiple=True,
+              help=f'The resource tags. You can specify tags for the following '
+                   f'{EC2_LT_RESOURCE_TAGS}. To tag a resource after it has '
+                   f'been created')
 @verbose_option
 @click.pass_context
 @timeit()
 def ec2_launch_template(ctx, **kwargs):
     """Generates ec2_launch_template deployment resource template"""
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
+
+    if kwargs["resource_tags"]:
+        kwargs["resource_tags"] = \
+            {k: v for d in kwargs["resource_tags"] for k, v in d.items()}
+        valid_keys = set(EC2_LT_RESOURCE_TAGS)
+        provided_keys = set(kwargs['resource_tags'].keys())
+        # Check if provided keys are all valid
+        if not provided_keys <= valid_keys:
+            invalid_keys = provided_keys - valid_keys
+            raise ValueError(
+                f"Invalid resource tag keys provided: {invalid_keys}. "
+                f"Allowed keys are: {valid_keys}"
+            )
+
     generator = EC2LaunchTemplateGenerator(**kwargs)
     _generate(generator)
-    click.echo(f"ec2_launch_template '{kwargs['resource_name']}' was added "
-               f"successfully")
+    USER_LOG.info(f"ec2_launch_template '{kwargs['resource_name']}' was added "
+                  f"successfully")
+    return OK_RETURN_CODE
 
 
 @meta.command(name='sqs_queue')
+@return_code_manager
 @click.option('--resource_name', type=str, required=True,
               help="SQS queue name")
 @click.option('--region', type=ValidRegionParamType(),
@@ -626,11 +684,13 @@ def sqs_queue(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = SQSQueueGenerator(**kwargs)
     _generate(generator)
-    click.echo(f"SQS queue '{kwargs['resource_name']}' was added "
-               f"successfully")
+    USER_LOG.info(f"SQS queue '{kwargs['resource_name']}' was added "
+                  f"successfully")
+    return OK_RETURN_CODE
 
 
 @meta.command(name="sns_application")
+@return_code_manager
 @click.option('--resource_name', type=str, required=True,
               help="The name of the sns application")
 @click.option('--platform', required=True,
@@ -649,11 +709,13 @@ def sns_application(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = SNSApplicationGenerator(**kwargs)
     _generate(generator)
-    click.echo(f"SNS application '{kwargs['resource_name']}' was added "
-               f"successfully")
+    USER_LOG.info(f"SNS application '{kwargs['resource_name']}' was added "
+                  f"successfully")
+    return OK_RETURN_CODE
 
 
 @meta.command(name="cognito_user_pool")
+@return_code_manager
 @click.option('--resource_name', type=str, required=True,
               help="Cognito user pool name")
 # @click.option('--region', type=ValidRegionParamType(), required=True,
@@ -691,11 +753,13 @@ def cognito_user_pool(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = CognitoUserPoolGenerator(**kwargs)
     _generate(generator)
-    click.echo(f"Cognito user pool '{kwargs['resource_name']}' was added "
-               f"successfully")
+    USER_LOG.info(f"Cognito user pool '{kwargs['resource_name']}' was added "
+                  f"successfully")
+    return OK_RETURN_CODE
 
 
 @meta.command(name="cognito_federated_pool")
+@return_code_manager
 @click.option('--resource_name', type=str, required=True,
               help="Cognito federated pool name")
 @click.option('--auth_role', type=str,
@@ -716,11 +780,13 @@ def cognito_federated_pool(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = CognitoFederatedPoolGenerator(**kwargs)
     _generate(generator)
-    click.echo(f"Cognito federated pool '{kwargs['resource_name']}' was "
-               f"added successfully")
+    USER_LOG.info(f"Cognito federated pool '{kwargs['resource_name']}' was "
+                  f"added successfully")
+    return OK_RETURN_CODE
 
 
 @meta.command(name='batch_compenv')
+@return_code_manager
 @click.option('--resource_name', type=str, required=True,
               help="Batch compute environment name")
 @click.option('--compute_environment_type',
@@ -780,11 +846,13 @@ def batch_compenv(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = BatchCompenvGenerator(**kwargs)
     _generate(generator)
-    click.echo(f"Batch compute environment '{kwargs['resource_name']}' was "
-               f"added successfully")
+    USER_LOG.info(f"Batch compute environment '{kwargs['resource_name']}' was "
+                  f"added successfully")
+    return OK_RETURN_CODE
 
 
 @meta.command(name='batch_jobdef')
+@return_code_manager
 @click.option('--resource_name', type=str, required=True,
               help='Batch job definition name')
 @click.option('--job_definition_type', required=True,
@@ -806,11 +874,13 @@ def batch_jobdef(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = BatchJobdefGenerator(**kwargs)
     _generate(generator)
-    click.echo(f'Batch job definition \'{kwargs["resource_name"]}\' was '
-               f'added successfully')
+    USER_LOG.info(f'Batch job definition \'{kwargs["resource_name"]}\' was '
+                  f'added successfully')
+    return OK_RETURN_CODE
 
 
 @meta.command(name="batch_jobqueue")
+@return_code_manager
 @click.option('--resource_name', type=str, required=True,
               help="Batch job queue name")
 @click.option('--state', type=click.Choice(["ENABLED", "DISABLED"]),
@@ -830,11 +900,13 @@ def batch_jobqueue(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = BatchJobqueueGenerator(**kwargs)
     _generate(generator)
-    click.echo(f"Batch job queue '{kwargs['resource_name']}' was "
-               f"added successfully")
+    USER_LOG.info(f"Batch job queue '{kwargs['resource_name']}' was "
+                  f"added successfully")
+    return OK_RETURN_CODE
 
 
 @meta.command(name="cloudwatch_alarm")
+@return_code_manager
 @click.option('--resource_name', type=str, required=True,
               help="Cloudwatch alarm name")
 @click.option('--metric_name', type=str, required=True,
@@ -900,11 +972,13 @@ def cloudwatch_alarm(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = CloudWatchAlarmGenerator(**kwargs)
     _generate(generator)
-    click.echo(f"Cloudwatch alarm '{kwargs['resource_name']}' was "
-               f"added successfully")
+    USER_LOG.info(f"Cloudwatch alarm '{kwargs['resource_name']}' was "
+                  f"added successfully")
+    return OK_RETURN_CODE
 
 
 @meta.command(name="cloudwatch_event_rule")
+@return_code_manager
 @click.option('--resource_name', type=str, required=True,
               help="Cloudwatch event rule name")
 @click.option('--rule_type', required=True, help="Cloudwatch event rule type",
@@ -928,11 +1002,13 @@ def cloudwatch_event_rule(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = CloudwatchEventRuleGenerator(**kwargs)
     _generate(generator)
-    click.echo(f"Cloudwatch event rule '{kwargs['resource_name']}' was "
-               f"added successfully")
+    USER_LOG.info(f"Cloudwatch event rule '{kwargs['resource_name']}' was "
+                  f"added successfully")
+    return OK_RETURN_CODE
 
 
 @meta.command(name="eventbridge_rule")
+@return_code_manager
 @click.option('--resource_name', type=str, required=True,
               help="EventBridge rule name")
 @click.option('--rule_type', required=True, help="EventBridge rule type",
@@ -957,11 +1033,13 @@ def eventbridge_rule(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = EventBridgeRuleGenerator(**kwargs)
     _generate(generator)
-    click.echo(f"EventBridge rule '{kwargs['resource_name']}' was "
-               f"added successfully")
+    USER_LOG.info(f"EventBridge rule '{kwargs['resource_name']}' was "
+                  f"added successfully")
+    return OK_RETURN_CODE
 
 
 @meta.command(name="documentdb_cluster")
+@return_code_manager
 @click.option('--resource_name', type=str, required=True,
               help="DocumentDB cluster name")
 @click.option('--master_username', type=str, required=True,
@@ -988,11 +1066,13 @@ def documentdb_cluster(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = DocumentDBClusterGenerator(**kwargs)
     _generate(generator)
-    click.echo(f"DocumentDB cluster '{kwargs['resource_name']}' was "
-               f"added successfully")
+    USER_LOG.info(f"DocumentDB cluster '{kwargs['resource_name']}' was "
+                  f"added successfully")
+    return OK_RETURN_CODE
 
 
 @meta.command(name="documentdb_instance")
+@return_code_manager
 @click.option('--resource_name', type=str, required=True,
               help="DocumentDB instance name")
 @click.option('--cluster_identifier', type=str, required=True,
@@ -1015,8 +1095,9 @@ def documentdb_instance(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = DocumentDBInstanceGenerator(**kwargs)
     _generate(generator)
-    click.echo(f"DocumentDB instance '{kwargs['resource_name']}' was "
-               f"added successfully")
+    USER_LOG.info(f"DocumentDB instance '{kwargs['resource_name']}' was "
+                  f"added successfully")
+    return OK_RETURN_CODE
 
 
 def _generate(generator: BaseConfigurationGenerator):

@@ -21,6 +21,7 @@ from syndicate.connection.api_gateway_connection import ApiGatewayConnection, \
     ApiGatewayV2Connection
 from syndicate.connection.application_autoscaling_connection import (
     ApplicationAutoscaling)
+from syndicate.connection.appsync_connection import AppSyncConnection
 from syndicate.connection.batch_connection import BatchConnection
 from syndicate.connection.cloud_watch_connection import (EventConnection,
                                                          LogsConnection,
@@ -72,6 +73,13 @@ class ConnectionProvider(object):
         if region:
             creds = {**creds, 'region': region}
         return ApiGatewayV2Connection(**creds)
+
+    @lru_cache(maxsize=None)
+    def appsync(self, region=None):
+        creds = self.credentials
+        if region:
+            creds = {**creds, 'region': region}
+        return AppSyncConnection(**creds)
 
     @lru_cache(maxsize=None)
     def lambda_conn(self, region=None):

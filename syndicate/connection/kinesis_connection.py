@@ -19,7 +19,7 @@ from botocore.exceptions import ClientError
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import apply_methods_decorator, retry
 
-_LOG = get_logger('syndicate.connection.kinesis_connection')
+_LOG = get_logger(__name__)
 
 
 def validate_shard_count(shard_count):

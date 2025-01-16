@@ -1,0 +1,5 @@
+account_id: ACCOUNT_ID
+region: REGION_NAME
+logs_expiration: 30
+lambdas_alias_name: dev
+storage_bucket_name: STORAGE_BUCKET_NAME

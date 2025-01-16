@@ -21,7 +21,7 @@ from botocore.exceptions import ClientError
 
 from syndicate.commons.log_helper import get_logger
 
-_LOG = get_logger('syndicate.connection.helper')
+_LOG = get_logger(__name__)
 
 LOG_NOT_FOUND_ERROR = 'log_not_found_error'
 
@@ -90,6 +90,15 @@ def retry(retry_timeout=DEFAULT_RETRY_TIMEOUT_SEC,
                 'Cannot delete, found existing JobQueue relationship',
                 'Cannot delete, resource is being modified',
                 'Please try again',
+                'An error occurred (ConcurrentModificationException) when '
+                'calling the CreateDataSource operation: Schema is currently '
+                'being altered',
+                'An error occurred (ConcurrentModificationException) when '
+                'calling the CreateResolver operation: Schema is currently '
+                'being altered',
+                'An error occurred (ConcurrentModificationException) when '
+                'calling the UpdateResolver operation: Schema is currently '
+                'being altered',
                 'Too Many Requests'
             ]
             resource_not_found_error_codes = [
