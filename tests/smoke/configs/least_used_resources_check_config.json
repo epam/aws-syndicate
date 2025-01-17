@@ -3,7 +3,7 @@
     "suffix": "",
     "deploy_target_bucket": "",
     "prefix": "",
-    "output_file": "secondary_output"
+    "output_file": "least_used_output"
   },
   "stages": {
     "build": {

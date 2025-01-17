@@ -1,5 +1,6 @@
-# sdct-auto-test
-The project aims to be used to test aws-syndicate main functionality.
+# sdct-at-ddis
+The project aims to be used to test aws-syndicate main functionality which is used by students in the 
+"Deep Dive into Serverless" course.
 
 ## Project resources
 ```json

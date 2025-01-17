@@ -1,4 +1,4 @@
-# sdct-at-secondary-project
+# sdct-at-least-used-resources
 The project aims to be used to test aws-syndicate secondary functionality.
 
 ## Project resources

@@ -55,7 +55,7 @@ tests
   - **`utils.py`**: Includes utility functions for general purposes like file or complex structure manipulation.
 
 #### `sdct-auto-test` Subdirectory
-- Contains the aws-project on which testing will be carried out. More details about the project can be found [here](sdct-auto-test/README.md)
+- Contains the aws-project on which testing will be carried out. More details about the project can be found [here](sdct-at-ddis/README.md)
 
 ### Files to update
 - Lambda and overall resources configuration files with the `_updated` suffix are required to test the `syndicate update` command. 
