@@ -349,7 +349,7 @@ class ProjectState:
 
     def refresh_state(self):
         """
-        Refreshes current Project lambda State, be resolving
+        Refreshes current Project State, be resolving
         the compatibility with the retained state. Given any consistency
         conflict the ProjectState is re-persisted.
         :return: None
