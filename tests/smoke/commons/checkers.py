@@ -2,6 +2,7 @@ import copy
 from datetime import datetime
 import sys
 from pathlib import Path
+from time import sleep
 from typing import Optional
 
 parent_dir = str(Path(__file__).resolve().parent.parent)
@@ -361,6 +362,7 @@ def appsync_existence_checker(name: str) -> bool:
 
 
 def batch_comp_env_existence_checker(name: str) -> bool:
+    sleep(3)  # in case there was not enough time to delete completely
     return True if connections.get_batch_comp_env(name) else False
 
 
