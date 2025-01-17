@@ -49,8 +49,7 @@ LOCK_INITIATOR = 'initiator'
 MODIFICATION_LOCK = 'modification_lock'
 WARMUP_LOCK = 'warm_up_lock'
 PROJECT_STATE_FILE = '.syndicate'
-INIT_FILE = '__init__.py'
-INDEX_FILE = 'index.js'
+LAMBDA_CONFIG_FILE = 'lambda_config.json'
 
 BUILD_MAPPINGS = {
     RUNTIME_JAVA: 'jsrc/main/java',
@@ -626,7 +625,7 @@ class ProjectState:
                           "lambda by path: {}".format(item.absolute()),
                           file=sys.stderr)
             else:
-                if (item/INIT_FILE).exists() or (item/INDEX_FILE).exists():
+                if (item/LAMBDA_CONFIG_FILE).exists():
                     lambda_list.append(item.name)
 
         return lambda_list
