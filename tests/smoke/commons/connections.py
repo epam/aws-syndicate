@@ -35,6 +35,7 @@ iam_client = boto3.client('iam', config=config)
 sts_client = boto3.client('sts', config=config)
 cloudtrail_client = boto3.client('cloudtrail', config=config)
 appsync_client = boto3.client('appsync', config=config)
+batch_client = boto3.client('batch', config=config)
 
 ACCOUNT_ID = sts_client.get_caller_identity()['Account']
 REGION = sts_client.meta.region_name
@@ -547,6 +548,26 @@ def list_appsync_tags(name: str, tag_keys: list = None) -> Union[dict | None]:
         return result
 
 
+def list_batch_tags(resource_arn: str, tag_keys: list = None) \
+        -> Union[dict | None]:
+    try:
+        response = batch_client.list_tags_for_resource(
+            resourceArn=resource_arn)
+    except appsync_client.exceptions.NotFoundException:
+        print(f'Batch resource with arn \'{resource_arn}\' not found')
+        return {}
+
+    response_tags = response.get('tags')
+    if not tag_keys:
+        return response_tags
+    else:
+        result = {}
+        for tag in tag_keys:
+            if tag in response_tags:
+                result[tag] = response_tags[tag]
+        return result
+
+
 def get_lambda_event_source_mappings(name):
     result = []
     paginator = lambda_client.get_paginator('list_event_source_mappings')
@@ -641,7 +662,7 @@ def list_appsync_resolvers(api_id: str, type_name: str):
     return result
 
 
-def list_appsync_functions(api_id: str):
+def list_appsync_functions(api_id: str) -> list:
     result = []
     try:
         paginator = appsync_client.get_paginator('list_functions')
@@ -652,3 +673,63 @@ def list_appsync_functions(api_id: str):
         return []
 
     return result
+
+
+def get_batch_comp_env(name: str):
+    arns = []
+    paginator = batch_client.get_paginator('describe_compute_environments')
+    for response in paginator.paginate(computeEnvironments=[name]):
+        for env in response.get('computeEnvironments'):
+            if env['computeEnvironmentName'] == name:
+                arns.append(env['computeEnvironmentArn'])
+
+    if len(arns) == 1:
+        return arns[0]
+    if len(arns) > 1:
+        print(
+            f'Batch compute environment can\'t be identified unambiguously '
+            f'because there is more than one resource with the name \'{name}\''
+        )
+    else:
+        print(f'Batch compute environment \'{name}\' not found')
+    return
+
+
+def get_batch_job_queue(name: str):
+    arns = []
+    paginator = batch_client.get_paginator('describe_job_queues')
+    for response in paginator.paginate(jobQueues=[name]):
+        for env in response.get('jobQueues'):
+            if env['jobQueueName'] == name:
+                arns.append(env['jobQueueArn'])
+
+    if len(arns) == 1:
+        return arns[0]
+    if len(arns) > 1:
+        print(
+            f'Batch job queue can\'t be identified unambiguously '
+            f'because there is more than one resource with the name \'{name}\''
+        )
+    else:
+        print(f'Batch job queue \'{name}\' not found')
+    return
+
+
+def get_batch_job_definition(name: str):
+    arns = []
+    paginator = batch_client.get_paginator('describe_job_definitions')
+    for response in paginator.paginate(jobDefinitionName=name):
+        for env in response.get('jobDefinitions'):
+            if env['jobDefinitionName'] == name and env['status'] == 'ACTIVE':
+                arns.append(env['jobDefinitionArn'])
+
+    if len(arns) == 1:
+        return arns[0]
+    if len(arns) > 1:
+        print(
+            f'Batch job definitions can\'t be identified unambiguously '
+            f'because there is more than one resource with the name \'{name}\''
+        )
+    else:
+        print(f'Batch job definitions \'{name}\' not found')
+    return

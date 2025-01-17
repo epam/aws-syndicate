@@ -1,0 +1,4 @@
+account_id: ACCOUNT_ID
+region: eu-central-1
+sg_id: default_security_group_id
+subnet_id: default_vpc_subnet_id

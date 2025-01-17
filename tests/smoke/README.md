@@ -305,7 +305,7 @@ not matter and only the presence of a particular key will be checked.
 6. Create aws-syndicate config files and set its path to `SDCT_CONF` env variable. Example of syndicate configs in the 
 `tests/smoke/sdct-auto-test/.syndicate-config` folder.
 7. Create deployment bucket if needed: `syndicate create_deploy_target_bucket`.
-8. Example command to run the test via the console: `python3 tests/smoke/happy_path.py --verbose`
+8. Example command to run the test via the console: `python3 tests/smoke/entry_point.py --verbose`
 
 ### Available script parameters
   - `-c, --config`: [optional] full path to the config file with described stage checks. Default config is happy_path_config.json

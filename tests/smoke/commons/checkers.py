@@ -360,6 +360,18 @@ def appsync_existence_checker(name: str) -> bool:
     return True if connections.get_appsync_id(name) else False
 
 
+def batch_comp_env_existence_checker(name: str) -> bool:
+    return True if connections.get_batch_comp_env(name) else False
+
+
+def batch_job_queue_existence_checker(name: str) -> bool:
+    return True if connections.get_batch_job_queue(name) else False
+
+
+def batch_job_def_existence_checker(name: str) -> bool:
+    return True if connections.get_batch_job_definition(name) else False
+
+
 # ------------ Resource modification checkers -------------
 
 def policy_modification_checker(resource_name: str,
@@ -471,6 +483,36 @@ def appsync_tags_checker(name: str, tags: list) -> dict | bool:
     return True
 
 
+def batch_comp_env_tags_checker(name: str, tags: list) -> dict | bool:
+    arn = connections.get_batch_comp_env(name)
+    if not arn:
+        return False
+    received_tags = connections.list_batch_tags(arn, tags)
+    if missing_tags := compare_dicts(received_tags, tags):
+        return dict(missing_tags)
+    return True
+
+
+def batch_job_queue_tags_checker(name: str, tags: list) -> dict | bool:
+    arn = connections.get_batch_job_queue(name)
+    if not arn:
+        return False
+    received_tags = connections.list_batch_tags(arn, tags)
+    if missing_tags := compare_dicts(received_tags, tags):
+        return dict(missing_tags)
+    return True
+
+
+def batch_job_definition_tags_checker(name: str, tags: list) -> dict | bool:
+    arn = connections.get_batch_job_definition(name)
+    if not arn:
+        return False
+    received_tags = connections.list_batch_tags(arn, tags)
+    if missing_tags := compare_dicts(received_tags, tags):
+        return dict(missing_tags)
+    return True
+
+
 TYPE_EXISTENCE_FUNC_MAPPING = {
     'iam_policy': iam_policy_existence_checker,
     'iam_role': iam_role_existence_checker,
@@ -485,7 +527,10 @@ TYPE_EXISTENCE_FUNC_MAPPING = {
     's3_bucket': s3_bucket_existence_checker,
     'cognito_idp': cognito_idp_existence_checker,
     'swagger_ui': swagger_ui_existence_checker,
-    'appsync': appsync_existence_checker
+    'appsync': appsync_existence_checker,
+    'batch_compenv': batch_comp_env_existence_checker,
+    'batch_jobqueue': batch_job_queue_existence_checker,
+    'batch_jobdef': batch_job_def_existence_checker
 }
 
 
@@ -507,5 +552,8 @@ TYPE_TAGS_FUNC_MAPPING = {
     'cloudwatch_rule': cw_rule_tags_checker,
     's3_bucket': s3_bucket_tags_checker,
     'cognito_idp': cognito_idp_tags_checker,
-    'appsync': appsync_tags_checker
+    'appsync': appsync_tags_checker,
+    'batch_compenv': batch_comp_env_tags_checker,
+    'batch_jobqueue': batch_job_queue_tags_checker,
+    'batch_jobdef': batch_job_definition_tags_checker
 }

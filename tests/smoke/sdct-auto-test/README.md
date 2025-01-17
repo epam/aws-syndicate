@@ -1,5 +1,5 @@
 # sdct-auto-test
-The project aims to be used to test aws-syndicate functionality.
+The project aims to be used to test aws-syndicate main functionality.
 
 ## Project resources
 ```json
