@@ -35,6 +35,15 @@
                 "sdct-at-batch-job-role": {
                   "resource_type": "iam_role"
                 },
+                "sdct-at-step-function-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-python-lambda-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-python-lambda": {
+                  "resource_type": "lambda"
+                },
                 "sdct-at-compenv": {
                   "resource_type": "batch_compenv"
                 },
@@ -43,6 +52,15 @@
                 },
                 "sdct-at-job-definition": {
                   "resource_type": "batch_jobdef"
+                },
+                "sdct-at-socket-api": {
+                  "resource_type": "web_socket_api_gateway"
+                },
+                "sdct-at-step-function": {
+                  "resource_type": "step_functions"
+                },
+                "sdct-at-cw-alarm": {
+                  "resource_type": "cloudwatch_alarm"
                 }
               },
               "depends_on": [1]
@@ -53,7 +71,32 @@
               "description": "Check if all resources in build meta contain required meta",
               "resources": {
                 "sdct-at-batch-job-role": {
-                  "resource_type": "iam_role"
+                  "resource_type": "iam_role",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test"
+                  }
+                },
+                "sdct-at-step-function-role": {
+                  "resource_type": "iam_role",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test"
+                  }
+                },
+                "sdct-at-python-lambda-role": {
+                  "resource_type": "iam_role",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test"
+                  }
+                },
+                "sdct-at-python-lambda": {
+                  "resource_type": "lambda",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test"
+                  }
                 },
                 "sdct-at-compenv": {
                   "resource_type": "batch_compenv",
@@ -71,6 +114,27 @@
                 },
                 "sdct-at-job-definition": {
                   "resource_type": "batch_jobdef",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test"
+                  }
+                },
+                "sdct-at-socket-api": {
+                  "resource_type": "web_socket_api_gateway",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test"
+                  }
+                },
+                "sdct-at-cw-alarm": {
+                  "resource_type": "cloudwatch_alarm",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test"
+                  }
+                },
+                "sdct-at-step-function": {
+                  "resource_type": "step_functions",
                   "tags": {
                     "tests": "smoke",
                     "project": "sdct-auto-test"
@@ -116,6 +180,15 @@
                 "sdct-at-batch-job-role": {
                   "resource_type": "iam_role"
                 },
+                "sdct-at-step-function-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-python-lambda-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-python-lambda": {
+                  "resource_type": "lambda"
+                },
                 "sdct-at-compenv": {
                   "resource_type": "batch_compenv"
                 },
@@ -124,6 +197,15 @@
                 },
                 "sdct-at-job-definition": {
                   "resource_type": "batch_jobdef"
+                },
+                "sdct-at-socket-api": {
+                  "resource_type": "web_socket_api_gateway"
+                },
+                "sdct-at-step-function": {
+                  "resource_type": "step_functions"
+                },
+                "sdct-at-cw-alarm": {
+                  "resource_type": "cloudwatch_alarm"
                 }
               },
               "depends_on": [1, 2]
@@ -136,6 +218,15 @@
                 "sdct-at-batch-job-role": {
                   "resource_type": "iam_role"
                 },
+                "sdct-at-step-function-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-python-lambda-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-python-lambda": {
+                  "resource_type": "lambda"
+                },
                 "sdct-at-compenv": {
                   "resource_type": "batch_compenv"
                 },
@@ -144,6 +235,15 @@
                 },
                 "sdct-at-job-definition": {
                   "resource_type": "batch_jobdef"
+                },
+                "sdct-at-socket-api": {
+                  "resource_type": "web_socket_api_gateway"
+                },
+                "sdct-at-step-function": {
+                  "resource_type": "step_functions"
+                },
+                "sdct-at-cw-alarm": {
+                  "resource_type": "cloudwatch_alarm"
                 }
               },
               "depends_on": [1, 2, 3]
@@ -186,11 +286,29 @@
                 "sdct-at-batch-job-role": {
                   "resource_type": "iam_role"
                 },
+                "sdct-at-step-function-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-python-lambda-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-python-lambda": {
+                  "resource_type": "lambda"
+                },
                 "sdct-at-compenv": {
                   "resource_type": "batch_compenv"
                 },
                 "sdct-at-job-queue": {
                   "resource_type": "batch_jobqueue"
+                },
+                "sdct-at-socket-api": {
+                  "resource_type": "web_socket_api_gateway"
+                },
+                "sdct-at-step-function": {
+                  "resource_type": "step_functions"
+                },
+                "sdct-at-cw-alarm": {
+                  "resource_type": "cloudwatch_alarm"
                 }
               },
               "depends_on": [1, 2]
@@ -216,11 +334,29 @@
                 "sdct-at-batch-job-role": {
                   "resource_type": "iam_role"
                 },
+                "sdct-at-step-function-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-python-lambda-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-python-lambda": {
+                  "resource_type": "lambda"
+                },
                 "sdct-at-compenv": {
                   "resource_type": "batch_compenv"
                 },
                 "sdct-at-job-queue": {
                   "resource_type": "batch_jobqueue"
+                },
+                "sdct-at-socket-api": {
+                  "resource_type": "web_socket_api_gateway"
+                },
+                "sdct-at-step-function": {
+                  "resource_type": "step_functions"
+                },
+                "sdct-at-cw-alarm": {
+                  "resource_type": "cloudwatch_alarm"
                 }
               },
               "depends_on": [1, 2, 3]
@@ -269,6 +405,15 @@
                 "sdct-at-batch-job-role": {
                   "resource_type": "iam_role"
                 },
+                "sdct-at-step-function-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-python-lambda-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-python-lambda": {
+                  "resource_type": "lambda"
+                },
                 "sdct-at-compenv": {
                   "resource_type": "batch_compenv"
                 },
@@ -277,6 +422,15 @@
                 },
                 "sdct-at-job-definition": {
                   "resource_type": "batch_jobdef"
+                },
+                "sdct-at-socket-api": {
+                  "resource_type": "web_socket_api_gateway"
+                },
+                "sdct-at-step-function": {
+                  "resource_type": "step_functions"
+                },
+                "sdct-at-cw-alarm": {
+                  "resource_type": "cloudwatch_alarm"
                 }
               },
               "depends_on": [1]
@@ -284,7 +438,7 @@
           ]
         }
       ],
-      "depends_on": ["build", "deploy"]
+      "depends_on": ["build"]
     }
   }
 }

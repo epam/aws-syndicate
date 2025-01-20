@@ -362,7 +362,7 @@ def appsync_existence_checker(name: str) -> bool:
 
 
 def batch_comp_env_existence_checker(name: str) -> bool:
-    sleep(3)  # in case there was not enough time to delete completely
+    sleep(5)  # in case there was not enough time to delete completely
     return True if connections.get_batch_comp_env(name) else False
 
 
@@ -372,6 +372,18 @@ def batch_job_queue_existence_checker(name: str) -> bool:
 
 def batch_job_def_existence_checker(name: str) -> bool:
     return True if connections.get_batch_job_definition(name) else False
+
+
+def step_function_existence_checker(name: str) -> bool:
+    return True if connections.get_step_functions(name) else False
+
+
+def cloudwatch_alarm_existence_checker(name: str) -> bool:
+    return True if connections.get_cw_alarm(name) else False
+
+
+def web_socket_api_gateway_existence_checker(name: str) -> bool:
+    return True if connections.get_web_socket_api_gateway(name) else False
 
 
 # ------------ Resource modification checkers -------------
@@ -515,6 +527,36 @@ def batch_job_definition_tags_checker(name: str, tags: list) -> dict | bool:
     return True
 
 
+def step_function_tags_checker(name: str, tags: list) -> dict | bool:
+    arn = connections.get_step_functions(name)
+    if not arn:
+        return False
+    received_tags = connections.list_step_function_tags(arn, tags)
+    if missing_tags := compare_dicts(received_tags, tags):
+        return dict(missing_tags)
+    return True
+
+
+def cloudwatch_alarm_tags_checker(name: str, tags: list) -> dict | bool:
+    arn = connections.get_cw_alarm(name)
+    if not arn:
+        return False
+    received_tags = connections.list_cw_alarm_tags(arn, tags)
+    if missing_tags := compare_dicts(received_tags, tags):
+        return dict(missing_tags)
+    return True
+
+
+def web_socket_api_gateway_tags_checker(name: str, tags: list) -> dict | bool:
+    arn = connections.get_web_socket_api_gateway(name)
+    if not arn:
+        return False
+    received_tags = connections.list_web_socket_api_gateway_tags(arn, tags)
+    if missing_tags := compare_dicts(received_tags, tags):
+        return dict(missing_tags)
+    return True
+
+
 TYPE_EXISTENCE_FUNC_MAPPING = {
     'iam_policy': iam_policy_existence_checker,
     'iam_role': iam_role_existence_checker,
@@ -532,7 +574,10 @@ TYPE_EXISTENCE_FUNC_MAPPING = {
     'appsync': appsync_existence_checker,
     'batch_compenv': batch_comp_env_existence_checker,
     'batch_jobqueue': batch_job_queue_existence_checker,
-    'batch_jobdef': batch_job_def_existence_checker
+    'batch_jobdef': batch_job_def_existence_checker,
+    'web_socket_api_gateway': web_socket_api_gateway_existence_checker,
+    'step_functions': step_function_existence_checker,
+    'cloudwatch_alarm': cloudwatch_alarm_existence_checker
 }
 
 
@@ -557,5 +602,8 @@ TYPE_TAGS_FUNC_MAPPING = {
     'appsync': appsync_tags_checker,
     'batch_compenv': batch_comp_env_tags_checker,
     'batch_jobqueue': batch_job_queue_tags_checker,
-    'batch_jobdef': batch_job_definition_tags_checker
+    'batch_jobdef': batch_job_definition_tags_checker,
+    'web_socket_api_gateway': web_socket_api_gateway_tags_checker,
+    'step_functions': step_function_tags_checker,
+    'cloudwatch_alarm': cloudwatch_alarm_tags_checker
 }

@@ -24,6 +24,7 @@ config = Config(
 session = boto3.session.Session()
 lambda_client = boto3.client('lambda', config=config)
 api_gw_client = boto3.client('apigateway', config=config)
+api_gwv2_client = boto3.client('apigatewayv2', config=config)
 sqs_client = boto3.client('sqs', config=config)
 sns_client = boto3.client('sns', config=config)
 dynamodb_client = boto3.client('dynamodb', config=config)
@@ -36,6 +37,8 @@ sts_client = boto3.client('sts', config=config)
 cloudtrail_client = boto3.client('cloudtrail', config=config)
 appsync_client = boto3.client('appsync', config=config)
 batch_client = boto3.client('batch', config=config)
+sf_client = boto3.client('stepfunctions', config=config)
+cloudwatch_client = boto3.client('cloudwatch', config=config)
 
 ACCOUNT_ID = sts_client.get_caller_identity()['Account']
 REGION = sts_client.meta.region_name
@@ -695,7 +698,7 @@ def get_batch_comp_env(name: str):
     return
 
 
-def get_batch_job_queue(name: str):
+def get_batch_job_queue(name: str) -> Union[dict | None]:
     arns = []
     paginator = batch_client.get_paginator('describe_job_queues')
     for response in paginator.paginate(jobQueues=[name]):
@@ -715,7 +718,7 @@ def get_batch_job_queue(name: str):
     return
 
 
-def get_batch_job_definition(name: str):
+def get_batch_job_definition(name: str) -> Union[dict | None]:
     arns = []
     paginator = batch_client.get_paginator('describe_job_definitions')
     for response in paginator.paginate(jobDefinitionName=name):
@@ -731,5 +734,123 @@ def get_batch_job_definition(name: str):
             f'because there is more than one resource with the name \'{name}\''
         )
     else:
-        print(f'Batch job definitions \'{name}\' not found')
+        print(f'Batch job definition \'{name}\' not found')
     return
+
+
+def get_step_functions(name: str) -> Union[dict | None]:
+    arns = []
+    paginator = sf_client.get_paginator('list_state_machines')
+    for response in paginator.paginate():
+        for state in response.get('stateMachines'):
+            if state['name'] == name:
+                arns.append(state['stateMachineArn'])
+
+    if len(arns) == 1:
+        return arns[0]
+    if len(arns) > 1:
+        print(
+            f'Step Function can\'t be identified unambiguously '
+            f'because there is more than one resource with the name \'{name}\''
+        )
+    else:
+        print(f'Step Function \'{name}\' not found')
+    return
+
+
+def list_step_function_tags(resource_arn: str, tag_keys: list = None) \
+        -> Union[dict | None]:
+    try:
+        response = sf_client.list_tags_for_resource(
+            resourceArn=resource_arn)
+    except sf_client.exceptions.ResourceNotFound:
+        print(f'Step function with arn \'{resource_arn}\' not found')
+        return {}
+
+    response_tags = response.get('tags')
+    if not tag_keys:
+        return response_tags
+    else:
+        result = {}
+        for tag in tag_keys:
+            if tag in response_tags:
+                result[tag] = response_tags[tag]
+        return result
+
+
+def get_cw_alarm(name: str) -> Union[dict | None]:
+    arns = []
+    paginator = cloudwatch_client.get_paginator('describe_alarms')
+    for response in paginator.paginate(AlarmNames=[name]):
+        for state in response.get('MetricAlarms'):
+            arns.append(state['AlarmArn'])
+
+    if len(arns) == 1:
+        return arns[0]
+    if len(arns) > 1:
+        print(
+            f'Cloudwatch Alarm can\'t be identified unambiguously '
+            f'because there is more than one resource with the name \'{name}\''
+        )
+    else:
+        print(f'Cloudwatch Alarm \'{name}\' not found')
+    return
+
+
+def list_cw_alarm_tags(resource_arn: str, tag_keys: list = None) \
+        -> Union[dict | None]:
+    try:
+        response = cloudwatch_client.list_tags_for_resource(
+            ResourceARN=resource_arn)
+    except cloudwatch_client.exceptions.ResourceNotFoundException:
+        print(f'Cloudwatch resource with arn \'{resource_arn}\' not found')
+        return {}
+
+    response_tags = response.get('Tags')
+    if not tag_keys:
+        return response_tags
+    else:
+        result = {}
+        for tag in tag_keys:
+            if tag in response_tags:
+                result[tag] = response_tags[tag]
+        return result
+
+
+def get_web_socket_api_gateway(name: str) -> Union[dict | None]:
+    result = []
+    paginator = api_gwv2_client.get_paginator('get_apis')
+    for response in paginator.paginate():
+        for item in response.get('Items', []):
+            if item['Name'] == name:
+                result.append(item['ApiId'])
+
+    if len(result) == 1:
+        return result[0]
+    if len(result) > 1:
+        print(
+            f'API Gateway can\'t be identified unambiguously '
+            f'because there is more than one resource with the name \'{name}\''
+        )
+    else:
+        print(f'API Gateway \'{name}\' not found')
+
+
+def list_web_socket_api_gateway_tags(resource_arn: str,
+                                     tag_keys: list = None) \
+        -> Union[dict | None]:
+    try:
+        response = api_gwv2_client.get_tags(ResourceArn=resource_arn)
+    except api_gwv2_client.exceptions.NotFoundException:
+        print(f'API Gateway with arn \'{resource_arn}\' not found')
+        return {}
+
+    response_tags = response.get('Tags')
+    if not tag_keys:
+        return response_tags
+    else:
+        result = {}
+        for tag in tag_keys:
+            if tag in response_tags:
+                result[tag] = response_tags[tag]
+        return result

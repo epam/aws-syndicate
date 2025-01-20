@@ -1,3 +1,14 @@
+## 2025-01-21
+### Added
+- Added new syndicate project `sdct-at-least-used-resources` to test rare used resources, such as 
+batch, step function, cloudwatch alarm, etc.
+### Changed
+- Renamed `sdct-auto-test` project to `sdct-at-ddis`
+- Moved all configuration files to the `config` folder
+- Renamed `happy_path.py` to `entry_point.py`
+- Renamed `happy_path_config.json` to `ddis_resources_check_config.json`
+- Changed default configuration filename to `ddis_resources_check_config.json`
+
 ## 2025-01-15
 ### Added
 - Added appsync tests for build, deploy, update and clean commands

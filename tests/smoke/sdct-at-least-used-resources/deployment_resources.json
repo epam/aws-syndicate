@@ -5,7 +5,23 @@
       "AmazonECS_FullAccess"
     ],
     "principal_service": "ecs-tasks",
-    "custom_policies": []
+    "custom_policies": [],
+    "tags": {
+      "tests": "smoke",
+      "project": "sdct-auto-test"
+    }
+  },
+  "sdct-at-step-function-role": {
+    "resource_type": "iam_role",
+    "predefined_policies": [
+      "AWSStepFunctionsReadOnlyAccess"
+    ],
+    "principal_service": "states",
+    "custom_policies": [],
+    "tags": {
+      "tests": "smoke",
+      "project": "sdct-auto-test"
+    }
   },
 
   "sdct-at-compenv": {
@@ -51,7 +67,9 @@
       "image": "some_image",
       "vcpus": 1,
       "memory": 1024,
-      "command": ["python"],
+      "command": [
+        "python"
+      ],
       "environment": [
         {
           "name": "AWS_DEFAULT_REGION",
@@ -61,6 +79,53 @@
       "readonly_root_filesystem": false,
       "job_role_arn": "sdct-at-batch-job-role"
     },
+    "tags": {
+      "tests": "smoke",
+      "project": "sdct-auto-test"
+    }
+  },
+  "sdct-at-socket-api": {
+    "resource_type": "web_socket_api_gateway",
+    "route_selection_expression": "request.body.action",
+    "deploy_stage": "api",
+    "resources": {
+      "$default": {
+        "integration_type": "lambda",
+        "enable_proxy": true,
+        "lambda_name": "sdct-at-python-lambda"
+      }
+    },
+    "tags": {
+      "tests": "smoke",
+      "project": "sdct-auto-test"
+    }
+  },
+  "sdct-at-step-function": {
+    "resource_type": "step_functions",
+    "definition": {
+      "States": {
+        "ExampleState": {
+          "Type": "Succeed"
+        }
+      },
+      "Comment": "A description of your state machine",
+      "StartAt": "ExampleState"
+    },
+    "iam_role": "sdct-at-step-function-role",
+    "tags": {
+      "tests": "smoke",
+      "project": "sdct-auto-test"
+    }
+  },
+  "sdct-at-cw-alarm": {
+    "resource_type": "cloudwatch_alarm",
+    "metric_name": "db_alarm",
+    "namespace": "db",
+    "period": 1200,
+    "evaluation_periods": 1,
+    "threshold": 1.0,
+    "comparison_operator": "GreaterThanOrEqualToThreshold",
+    "statistic": "SampleCount",
     "tags": {
       "tests": "smoke",
       "project": "sdct-auto-test"
