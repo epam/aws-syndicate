@@ -197,6 +197,8 @@ def initialize_project_state():
     else:
         PROJECT_STATE = ProjectState(project_path=CONFIG.project_path)
 
+    sync_project_state()
+
 
 def validate_temp_credentials(aws_access_key_id, aws_secret_access_key,
                               aws_session_token, expiration):

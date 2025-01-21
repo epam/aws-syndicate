@@ -63,10 +63,12 @@ def process_steps(steps: dict[str: List[dict]],
                     build_command.append('--verbose')
                 print(f'Run command: {build_command}')
                 subprocess.run(build_command, check=False,
+                               env=os.environ.copy(),
                                capture_output=True, text=True)
 
             print(f'Run command: {command_to_execute}')
             exec_result = subprocess.run(command_to_execute, check=False,
+                                         encoding='utf-8',
                                          env=os.environ.copy(),
                                          capture_output=True, text=True)
             print(f'stdout: {exec_result.stdout}')

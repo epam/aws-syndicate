@@ -62,8 +62,10 @@ def main(verbose: bool, config: str):
         return True
 
     result = {STAGES_CONFIG_PARAM: {}}
-    with open(config) as file:
-        config_file = json.load(file)
+    with open(config, 'rb') as file:
+        raw_data = file.read()
+        decoded_data = raw_data.decode('utf-8', errors='replace')
+        config_file = json.loads(decoded_data)
 
     init_params = config_file.get(INIT_PARAMS_CONFIG_PARAM, {})
     output_file = full_path(init_params.pop(OUTPUT_FILE_CONFIG_PARAM,
