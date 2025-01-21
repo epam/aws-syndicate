@@ -34,7 +34,7 @@ def assemble_java_mvn_lambdas(project_path: str, bundles_dir: str,
     _LOG.info(f'Java sources are located by path: {src_path}')
     _LOG.info(f'Going to process java mvn project by path: '
               f'{CONFIG.project_path}')
-    command = [shutil.which('mvn') or 'mvn', 'clean', 'install']
+    command = [shutil.which('mvn'), 'clean', 'install']
 
     if skip_tests:
         command.append('-DskipTests')
