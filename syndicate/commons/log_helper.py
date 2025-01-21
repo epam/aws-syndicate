@@ -57,7 +57,7 @@ class ConsoleLogFormatter(logging.Formatter):
         CRITICAL: red + format + reset
     }
 
-    def format(self, record):
+    def format(self, record: logging.LogRecord) -> str:
         log_format = self.FORMATS.get(record.levelno)
         console_formatter = logging.Formatter(log_format)
         return console_formatter.format(record)
@@ -102,13 +102,11 @@ logging_config = {
     'handlers': {
         'file_handler': {
             'class': 'logging.FileHandler',
-            # 'level': LOG_LEVEL,
             'formatter': 'file_formatter',
             'filename': log_file_path
         },
         CONSOLE_HANDLER: {
             'class': 'logging.StreamHandler',
-            # 'level': LOG_LEVEL,
             'formatter': 'console_formatter',
             'stream': 'ext://sys.stdout'
         }
@@ -144,7 +142,7 @@ user_logger = logging.getLogger(USER_LOG_NAME)
 syndicate_logger = logging.getLogger(LOG_NAME)
 
 
-def get_logger(log_name, level=LOG_LEVEL):
+def get_logger(log_name: str, level=LOG_LEVEL):
     """
     :param level:   CRITICAL = 50
                     ERROR = 40
