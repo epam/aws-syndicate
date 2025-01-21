@@ -52,12 +52,9 @@ def process_steps(steps: dict[str: List[dict]],
 
         with UpdateContent(
                 command=command_to_execute,
-                lambda_paths=[os.path.join('sdct-at-ddis',
-                                           'app', 'lambdas',
+                lambda_paths=[os.path.join('app', 'lambdas',
                                            'sdct-at-nodejs-lambda')],
-                resources_paths=['sdct-at-ddis'],
-                appsync_path=[os.path.join('sdct-at-ddis',
-                                           'appsync_src',
+                appsync_path=[os.path.join('appsync_src',
                                            'sdct-at-appsync')]):
             if UPDATE_COMMAND in command_to_execute:
                 build_command = ['syndicate', 'build',

@@ -24,11 +24,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     parser.add_argument(
         '-c', '--config', required=False,
-        default=full_path('main_resources_check_config.json',
+        default=full_path('ddis_resources_check_config.json',
                           os.path.join(str(cur_dir), 'configs')),
         type=full_path,
         help='Full path to the config file with described stage checks. '
-             'Default: configs/main_resources_check_config.json'
+             'Default: configs/ddis_resources_check_config.json'
     )
     parser.add_argument('-v', '--verbose', required=False, default=False,
                         action='store_true',

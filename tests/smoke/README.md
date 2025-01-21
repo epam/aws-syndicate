@@ -32,7 +32,7 @@ tests
 │   │   │   utils.py
 │   │   │   ...
 │   │
-│   └───sdct-auto-test
+│   └───sdct-at-ddis
 │       │   ...
 │   
 └─── ...
@@ -54,7 +54,7 @@ tests
   - **`step_processors.py`**: Implements logic for processing steps of each stage according to the definition in `happy_path_config.json`.
   - **`utils.py`**: Includes utility functions for general purposes like file or complex structure manipulation.
 
-#### `sdct-auto-test` Subdirectory
+#### `sdct-at-ddis` Subdirectory
 - Contains the aws-project on which testing will be carried out. More details about the project can be found [here](sdct-at-ddis/README.md)
 
 ### Files to update
@@ -275,7 +275,7 @@ not matter and only the presence of a particular key will be checked.
         ```
 
 ### Temporary checks conditions
-- Use tags from `tests/smoke/sdct-auto-test/.syndicate-config/syndicate.yml` unless change them in happy_path_config.json:
+- Use tags from `tests/smoke/sdct-at-ddis/.syndicate-config/syndicate.yml` unless change them in happy_path_config.json:
 ```json5
 {
   "index": 6,
@@ -303,7 +303,7 @@ not matter and only the presence of a particular key will be checked.
 4. Install .NET SDK.
 5. Install aws-syndicate from pypi: `pip install aws-syndicate`; or from local folder: `pip install -e PATH_TO_REPO/aws-syndicate`.
 6. Create aws-syndicate config files and set its path to `SDCT_CONF` env variable. Example of syndicate configs in the 
-`tests/smoke/sdct-auto-test/.syndicate-config` folder.
+`tests/smoke/sdct-at-ddis/.syndicate-config` folder.
 7. Create deployment bucket if needed: `syndicate create_deploy_target_bucket`.
 8. Example command to run the test via the console: `python3 tests/smoke/entry_point.py --verbose`
 
