@@ -17,18 +17,22 @@ import os
 import shutil
 
 from syndicate.commons.log_helper import get_logger
+from syndicate.core.build.helper import run_external_command
 from syndicate.core.constants import MVN_TARGET_DIR_NAME
-from syndicate.core.helper import build_path, execute_command_by_path
+from syndicate.core.helper import build_path, execute_command_by_path, USER_LOG
 
 _LOG = get_logger(__name__)
 
 VALID_EXTENSIONS = ('.jar', '.war', '.zip')
+CHECK_MAVEN_INSTALLED_COMMAND = ['mvn', '-version']
 
 
 def assemble_java_mvn_lambdas(project_path: str, bundles_dir: str,
                               errors_allowed: bool = False,
                               skip_tests: bool = False, **kwargs):
     from syndicate.core import CONFIG
+
+    _check_maven_is_installed()
     target_path = os.path.join(CONFIG.project_path, MVN_TARGET_DIR_NAME)
     src_path = build_path(CONFIG.project_path, project_path)
     _LOG.info(f'Java sources are located by path: {src_path}')
@@ -68,3 +72,14 @@ def _filter_bundle_files(files: list[str]) -> list[str]:
                 (file.startswith(exclude_prefix) and file.endswith('.jar')):
             filtered_files.append(file)
     return filtered_files
+
+
+def _check_maven_is_installed():
+    try:
+        exit_code, _, _ = run_external_command(CHECK_MAVEN_INSTALLED_COMMAND)
+    except Exception:
+        USER_LOG.error(
+            'It seems like the Maven is not installed. There is no '
+            'ability to build a Java bundle. Please, make sure Maven '
+            'is installed and retry to build a bundle.')
+        raise
