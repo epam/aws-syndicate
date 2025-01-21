@@ -75,7 +75,9 @@ def _filter_bundle_files(files: list[str]) -> list[str]:
 
 def _check_maven_is_installed():
     try:
-        exit_code, _, _ = run_external_command(CHECK_MAVEN_INSTALLED_COMMAND)
+        path = shutil.which('mvn')
+        if not path:
+            raise Exception
     except Exception:
         USER_LOG.error(
             'It seems like the Maven is not installed. There is no '
