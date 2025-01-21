@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 # [1.16.1] - 2025-01-21
 - Added sync project state to the project state initialization
 - Fixed an issue related to `build_project_mapping` resolving for `appsync`, `swagger_ui`, and `lambda` functions with runtime .NET  resources
-- Separated parameters required to execute maven commands for Windows and for other operating systems
+- Fixed issue with building java artifacts for Unix OS
 
 # [1.16.0] - 2025-01-14
 - Added support for the AppSync resource
