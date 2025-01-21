@@ -96,9 +96,9 @@ def prettify_json(obj):
     return json.dumps(obj, indent=4)
 
 
-def execute_command_by_path(command, path):
-    result = subprocess.run(command, shell=True, cwd=path, capture_output=True,
-                            text=True)
+def execute_command_by_path(command, path, shell=True):
+    result = subprocess.run(command, shell=shell, cwd=path,
+                            capture_output=True, text=True)
 
     if result.returncode != 0:
         msg = (f'While running the command "{command}" occurred an error:\n'

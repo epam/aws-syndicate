@@ -42,9 +42,13 @@ def assemble_java_mvn_lambdas(project_path: str, bundles_dir: str,
     if errors_allowed:
         command.append('-DerrorsAllowed')
 
+    if os.name == 'nt':
+        shell = True
+    else:
+        shell = False
+
     execute_command_by_path(
-        command=command,
-        path=CONFIG.project_path)
+        command=command, path=CONFIG.project_path, shell=shell)
 
     # copy java artifacts to the target folder
     for root, dirs, files in os.walk(target_path):
