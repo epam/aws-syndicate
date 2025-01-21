@@ -34,7 +34,7 @@ def assemble_java_mvn_lambdas(project_path: str, bundles_dir: str,
     _LOG.info(f'Java sources are located by path: {src_path}')
     _LOG.info(f'Going to process java mvn project by path: '
               f'{CONFIG.project_path}')
-    command = ['mvn', 'clean', 'install']
+    command = [shutil.which('mvn') or 'mvn', 'clean', 'install']
 
     if skip_tests:
         command.append('-DskipTests')
@@ -42,13 +42,8 @@ def assemble_java_mvn_lambdas(project_path: str, bundles_dir: str,
     if errors_allowed:
         command.append('-DerrorsAllowed')
 
-    if os.name == 'nt':
-        shell = True
-    else:
-        shell = False
-
     execute_command_by_path(
-        command=command, path=CONFIG.project_path, shell=shell)
+        command=command, path=CONFIG.project_path, shell=False)
 
     # copy java artifacts to the target folder
     for root, dirs, files in os.walk(target_path):
