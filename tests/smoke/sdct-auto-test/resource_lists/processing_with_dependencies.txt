@@ -1,8 +1,0 @@
-{
-"sdct-at-nodejs-lambda-role": "",
-"sdct-at-nodejs-lambda": "",
-"sdct-at-nodejs-lambda_layer": "",
-"sdct-at-cup": "",
-"sdct-at-api-gw": "",
-"sdct-at-open-api-gw": ""
-}

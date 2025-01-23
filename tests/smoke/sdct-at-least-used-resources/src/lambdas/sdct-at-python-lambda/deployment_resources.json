@@ -1,0 +1,12 @@
+{
+  "sdct-at-python-lambda-role": {
+    "predefined_policies": ["AWSLambda_ReadOnlyAccess"],
+    "principal_service": "lambda",
+    "custom_policies": [],
+    "resource_type": "iam_role",
+    "tags": {
+      "tests": "smoke",
+      "project": "sdct-auto-test"
+    }
+  }
+}
