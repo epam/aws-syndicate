@@ -51,6 +51,6 @@ To deploy a Batch Compute Environment, you need to specify **ANY** subnet and se
 errors when executing build and deploy commands. The security group and subnet IDs should be specified in the 
 syndicate_aliases.yml file in the following form:
 ```yml
-sg_id: sg-ID
-subnet_id: subnet-ID
+sg_id: existing_default_security_group_id
+subnet_id: existing_default_vpc_subnet_id
 ```
