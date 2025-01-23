@@ -19,9 +19,13 @@ tests
 │   README.md  
 │
 └───smoke
-│   │   happy_path.py
-│   │   happy_path_config.json
+│   │   entry_point.py
 │   │   requirements.txt
+│   │
+│   └───configs
+│   │   │   ddis_resources_check_config.json
+│   │   │   least_used_resources_check_config.json
+│   │   │   ...
 │   │
 │   └───commons
 │   │   │   checkers.py
@@ -33,6 +37,9 @@ tests
 │   │   │   ...
 │   │
 │   └───sdct-at-ddis
+│   │   │   ...
+│   │
+│   └───sdct-at-least-used-resources
 │       │   ...
 │   
 └─── ...
@@ -41,9 +48,14 @@ tests
 ### Description of Key Components
 
 - **`smoke` directory**: Contains test scripts that are designed to quickly verify the basic functionalities of the system. This directory is intended for smoke testing.
-  - **`happy_path.py`**: Serves as the entry point for a test scenario that verifies the successful passage of basic flows of the system.
-  - **`happy_path_config.json`**: A configuration file that specifies parameters and settings for running the tests. The file name is not strict, it can be passed to the script as a parameter `-c`, `--config`. See the [Configuration](#configuration) section for more details.
+  - **`entry_point.py`**: Serves as the entry point for a test scenario that verifies the successful passage of basic flows of the system.
   - **`requirements.txt`**: Lists all the libraries required to execute the tests.
+
+#### `configs` Subdirectory
+- Contains configuration files that specify parameters and settings for running the tests. 
+The file name is not strict, it can be passed to the script as a parameter `-c`, `--config`. See the [Configuration](#configuration) section for more details.
+  - **`ddis_resources_check_config.json`**: configuration file for the `sdct-at-ddis` project.
+  - **`least_used_resources_check_config.json`**: configuration file for the `sdct-at-least-used-resources` project.
 
 #### `commons` Subdirectory
 - Contains common utility scripts and modules used across different tests:
@@ -51,21 +63,24 @@ tests
   - **`connections.py`**: Manages boto3 connections.
   - **`constants.py`**: Defines constants used throughout the tests.
   - **`handlers.py`**: Contains mappings and functions that are a layer between the checkers and the step processor.
-  - **`step_processors.py`**: Implements logic for processing steps of each stage according to the definition in `happy_path_config.json`.
+  - **`step_processors.py`**: Implements logic for processing steps of each stage according to the definition in configuration file.
   - **`utils.py`**: Includes utility functions for general purposes like file or complex structure manipulation.
 
 #### `sdct-at-ddis` Subdirectory
 - Contains the aws-project on which testing will be carried out. More details about the project can be found [here](sdct-at-ddis/README.md)
+
+#### `sdct-at-least-used-resources` Subdirectory
+- Contains the aws-project with rare used resources. More details about the project can be found [here](sdct-at-least-used-resources/README.md)
 
 ### Files to update
 - Lambda and overall resources configuration files with the `_updated` suffix are required to test the `syndicate update` command. 
 The content of these files apply to the current corresponding configs while the resources are being updated. 
 Afterwards, the original configs return the original content. Example: 
   1. Start testing `syndicate update` stage;
-  2. Change content of `app/lambdas/sdct-at-nodejs-lambda/lambda_config.json` file to content of `app/lambdas/sdct-at-nodejs-lambda/lambda_config_updated.json`;
+  2. Change content of `sdct-at-ddis/app/lambdas/sdct-at-nodejs-lambda/lambda_config.json` file to content of `sdct-at-ddis/app/lambdas/sdct-at-nodejs-lambda/lambda_config_updated.json`;
   3. Build bundle with updated configuration;
   4. Wait for `syndicate update` to finish executing (successfully or not, whatever);
-  5. Return original content of `app/lambdas/sdct-at-nodejs-lambda/lambda_config.json` file.
+  5. Return original content of `sdct-at-ddis/app/lambdas/sdct-at-nodejs-lambda/lambda_config.json` file.
 
 ## Configuration
 
@@ -308,5 +323,5 @@ not matter and only the presence of a particular key will be checked.
 8. Example command to run the test via the console: `python3 tests/smoke/entry_point.py --verbose`
 
 ### Available script parameters
-  - `-c, --config`: [optional] full path to the config file with described stage checks. Default config is happy_path_config.json
+  - `-c, --config`: [optional] full path to the config file with described stage checks. Default config is tests/smoke/configs/ddis_resources_check_config.json
   - `--verbose`: [optional] Enable logging verbose mode. Disabled by default.
