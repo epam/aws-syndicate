@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [1.16.2] - 2025-01-24
+- Fixed an issue related to modification operations event synchronization
+
 # [1.16.1] - 2025-01-21
 - Added sync project state to the project state initialization
 - Fixed an issue related to `build_project_mapping` resolving for `appsync`, `swagger_ui`, and `lambda` functions with runtime .NET  resources
