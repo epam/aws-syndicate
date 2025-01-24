@@ -177,7 +177,7 @@ def dynamodb_global_index(ctx, **kwargs):
                    "specified, sets the default value to 60")
 @click.option('--dimension', type=str,
               help="Autoscaling dimension. If not specified, sets the default"
-                   "the default value to 'dynamodb:table:ReadCapacityUnits'")
+                   "value to 'dynamodb:table:ReadCapacityUnits'")
 @click.option('--role_name', type=str,
               help="The name of the role, which performs autoscaling. If not "
                    "specified, sets the value to default service linked role: "
@@ -290,7 +290,7 @@ def web_socket_api_gateway(ctx, **kwargs):
 @meta.command(name='api_gateway_authorizer')
 @return_code_manager
 @click.option('--api_name', required=True, type=str,
-              help="Api gateway name to add index to")
+              help="Api gateway name to add authorizer to")
 @click.option('--name', required=True, type=str,
               help="Authorizer name")
 @click.option('--type', type=click.Choice(API_GW_AUTHORIZER_TYPES),
@@ -319,12 +319,12 @@ def api_gateway_authorizer(ctx, **kwargs):
 @meta.command(name='api_gateway_resource')
 @return_code_manager
 @click.option('--api_name', required=True, type=str,
-              help="Api gateway name to add index to")
+              help="Api gateway name to add resource to")
 @click.option('--path', required=True, callback=validate_api_gw_path,
               help="Resource path to create")
 @click.option('--enable_cors', type=bool,
-              help="Enables CORS on the resourcemethod. If not specified, sets"
-                   "the default value to False")
+              help="Enables CORS on the resource method. If not specified, "
+                   "sets the default value to False")
 @verbose_option
 @click.pass_context
 @timeit()
@@ -341,9 +341,9 @@ def api_gateway_resource(ctx, **kwargs):
 @meta.command(name='api_gateway_resource_method')
 @return_code_manager
 @click.option('--api_name', required=True, type=str,
-              help="Api gateway name to add index to")
+              help="Api gateway name to add method to")
 @click.option('--path', required=True, callback=validate_api_gw_path,
-              help="Resource path to create")
+              help="Resource path to add method to")
 @click.option('--method', required=True,
               type=click.Choice(['POST', 'GET', 'DELETE', 'PUT', 'HEAD',
                                  'PATCH', 'ANY']),
