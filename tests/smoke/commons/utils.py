@@ -210,6 +210,9 @@ class UpdateContent(object):
 
 
 def split_deploy_bucket_path(deploy_target_bucket: str) -> tuple[str, list]:
+    if deploy_target_bucket.startswith('/'):
+        deploy_target_bucket = '/'.join(deploy_target_bucket.split('/')[1:])
+
     if '/' in deploy_target_bucket:
         bucket = deploy_target_bucket.split('/')[0]
         return bucket, deploy_target_bucket.split('/')[1:]
