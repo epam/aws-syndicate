@@ -160,9 +160,74 @@
     "deploy": {
       "steps": [
         {
+          "description": "IAM resources deployment",
+          "command": [
+            "syndicate", "deploy", "-types", "iam_policy", "-types", "iam_role"
+          ],
+          "checks": [
+            {
+              "index": 1,
+              "name": "exit_code",
+              "description": "Check if actual status code equals expected",
+              "expected_exit_code": 0
+            },
+            {
+              "index": 2,
+              "name": "artifacts_existence",
+              "description": "Check if succeeded deployment output file exists in S3 bucket",
+              "succeeded_deploy": true,
+              "artifacts_list": [
+                "autotest.json"
+              ],
+              "depends_on": [1]
+            },
+            {
+              "index": 3,
+              "name": "deployment_output",
+              "description": "Check if all resources present in deployment output",
+              "succeeded_deploy": true,
+              "resources": {
+                "sdct-at-lambda-execution-policy": {
+                  "resource_type": "iam_policy"
+                },
+                "sdct-at-batch-job-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-step-function-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-lambda-role": {
+                  "resource_type": "iam_role"
+                }
+              },
+              "depends_on": [1, 2]
+            },
+            {
+              "index": 4,
+              "name": "resource_existence",
+              "description": "Check if all resources present in account",
+              "resources": {
+                "sdct-at-lambda-execution-policy": {
+                  "resource_type": "iam_policy"
+                },
+                "sdct-at-batch-job-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-step-function-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-lambda-role": {
+                  "resource_type": "iam_role"
+                }
+              },
+              "depends_on": [1, 2, 3]
+            }
+          ]
+        },
+        {
           "description": "Deployment without dependencies",
           "command": [
-            "syndicate", "deploy"
+            "syndicate", "deploy", "--continue_deploy"
           ],
           "checks": [
             {
