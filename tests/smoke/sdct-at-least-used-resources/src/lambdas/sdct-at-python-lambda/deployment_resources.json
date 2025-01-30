@@ -1,8 +1,32 @@
 {
-  "sdct-at-python-lambda-role": {
-    "predefined_policies": ["AWSLambda_ReadOnlyAccess"],
+  "sdct-at-lambda-execution-policy": {
+    "policy_content": {
+      "Statement": [
+        {
+          "Action": [
+            "logs:CreateLogGroup",
+            "logs:CreateLogStream",
+            "logs:PutLogEvents",
+            "sts:AssumeRole"
+          ],
+          "Effect": "Allow",
+          "Resource": "*"
+        }
+      ],
+      "Version": "2012-10-17"
+    },
+    "resource_type": "iam_policy",
+    "tags": {
+      "tests": "smoke",
+      "project": "sdct-auto-test"
+    }
+  },
+  "sdct-at-lambda-role": {
+    "predefined_policies": [],
     "principal_service": "lambda",
-    "custom_policies": [],
+    "custom_policies": [
+      "sdct-at-lambda-execution-policy"
+    ],
     "resource_type": "iam_role",
     "tags": {
       "tests": "smoke",

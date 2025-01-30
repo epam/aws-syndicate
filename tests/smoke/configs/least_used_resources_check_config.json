@@ -32,13 +32,16 @@
               "name": "build_meta",
               "description": "Check if all resources exist in build meta",
               "resources": {
+                "sdct-at-lambda-execution-policy": {
+                  "resource_type": "iam_policy"
+                },
                 "sdct-at-batch-job-role": {
                   "resource_type": "iam_role"
                 },
                 "sdct-at-step-function-role": {
                   "resource_type": "iam_role"
                 },
-                "sdct-at-python-lambda-role": {
+                "sdct-at-lambda-role": {
                   "resource_type": "iam_role"
                 },
                 "sdct-at-python-lambda": {
@@ -70,6 +73,13 @@
               "name": "build_meta_content",
               "description": "Check if all resources in build meta contain required meta",
               "resources": {
+                "sdct-at-lambda-execution-policy": {
+                  "resource_type": "iam_policy",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test"
+                  }
+                },
                 "sdct-at-batch-job-role": {
                   "resource_type": "iam_role",
                   "tags": {
@@ -84,7 +94,7 @@
                     "project": "sdct-auto-test"
                   }
                 },
-                "sdct-at-python-lambda-role": {
+                "sdct-at-lambda-role": {
                   "resource_type": "iam_role",
                   "tags": {
                     "tests": "smoke",
@@ -177,13 +187,16 @@
               "description": "Check if all resources present in deployment output",
               "succeeded_deploy": true,
               "resources": {
+                "sdct-at-lambda-execution-policy": {
+                  "resource_type": "iam_policy"
+                },
                 "sdct-at-batch-job-role": {
                   "resource_type": "iam_role"
                 },
                 "sdct-at-step-function-role": {
                   "resource_type": "iam_role"
                 },
-                "sdct-at-python-lambda-role": {
+                "sdct-at-lambda-role": {
                   "resource_type": "iam_role"
                 },
                 "sdct-at-python-lambda": {
@@ -215,13 +228,16 @@
               "name": "resource_existence",
               "description": "Check if all resources present in account",
               "resources": {
+                "sdct-at-lambda-execution-policy": {
+                  "resource_type": "iam_policy"
+                },
                 "sdct-at-batch-job-role": {
                   "resource_type": "iam_role"
                 },
                 "sdct-at-step-function-role": {
                   "resource_type": "iam_role"
                 },
-                "sdct-at-python-lambda-role": {
+                "sdct-at-lambda-role": {
                   "resource_type": "iam_role"
                 },
                 "sdct-at-python-lambda": {
@@ -283,13 +299,16 @@
               "description": "Check if all resources present in succeeded deployment output",
               "succeeded_deploy": true,
               "resources": {
+                "sdct-at-lambda-execution-policy": {
+                  "resource_type": "iam_policy"
+                },
                 "sdct-at-batch-job-role": {
                   "resource_type": "iam_role"
                 },
                 "sdct-at-step-function-role": {
                   "resource_type": "iam_role"
                 },
-                "sdct-at-python-lambda-role": {
+                "sdct-at-lambda-role": {
                   "resource_type": "iam_role"
                 },
                 "sdct-at-python-lambda": {
@@ -331,13 +350,16 @@
               "name": "resource_existence",
               "description": "Check if all resources present in account and were not deleted",
               "resources": {
+                "sdct-at-lambda-execution-policy": {
+                  "resource_type": "iam_policy"
+                },
                 "sdct-at-batch-job-role": {
                   "resource_type": "iam_role"
                 },
                 "sdct-at-step-function-role": {
                   "resource_type": "iam_role"
                 },
-                "sdct-at-python-lambda-role": {
+                "sdct-at-lambda-role": {
                   "resource_type": "iam_role"
                 },
                 "sdct-at-python-lambda": {
@@ -408,7 +430,7 @@
                 "sdct-at-step-function-role": {
                   "resource_type": "iam_role"
                 },
-                "sdct-at-python-lambda-role": {
+                "sdct-at-lambda-role": {
                   "resource_type": "iam_role"
                 },
                 "sdct-at-python-lambda": {
