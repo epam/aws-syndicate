@@ -536,11 +536,11 @@ def step_function_activity(ctx, **kwargs):
 @click.option('--resource_name', type=str, required=True,
               help="Instance name")
 @click.option('--key_name', type=str, required=True,
-              help="SHH key to access the instance")
+              help="SSH key to access the instance")
 @click.option('--image_id', type=str, required=True,
               help="Image id to create the instance from")
 @click.option('--instance_type', type=str,
-              help="Instance type")
+              help="Instance type. Default type: t2.micro")
 @click.option('--disable_api_termination', type=bool,
               help="Api termination protection. Default value is True")
 @click.option('--security_group_ids', type=str, multiple=True,
@@ -1051,7 +1051,7 @@ def eventbridge_rule(ctx, **kwargs):
                    "accept connections. Default value is 27017")
 @click.option('--vpc_security_group_ids', type=str, multiple=True,
               help="A list of EC2 VPC security groups to associate with this "
-                   "cluster. Is not specified, default security group is used")
+                   "cluster. If not specified, default security group is used")
 @click.option('--availability_zones', type=str, multiple=True,
               help="A list of Amazon EC2 Availability Zones that instances in "
                    "the cluster can be created in. "

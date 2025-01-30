@@ -11,8 +11,8 @@ from commons.checkers import exit_code_checker, artifacts_existence_checker, \
     build_meta_checker, TYPE_EXISTENCE_FUNC_MAPPING, lambda_triggers_checker, \
     lambda_envs_checker, build_meta_content_checker, TYPE_TAGS_FUNC_MAPPING, \
     appsync_modification_checker
-from commons.utils import populate_resources_prefix_suffix, read_sdct_conf, \
-    populate_prefix_suffix, split_deploy_bucket_path
+from commons.utils import populate_resources_prefix_suffix, \
+    read_syndicate_aliases, populate_prefix_suffix, split_deploy_bucket_path
 from commons import connections
 from commons.constants import DEPLOY_OUTPUT_DIR, RESOURCE_TYPE_CONFIG_PARAM, \
     BUNDLE_NAME, DEPLOY_NAME, SWAGGER_UI_RESOURCE_TYPE, TAGS_CONFIG_PARAM, \
@@ -200,7 +200,7 @@ def lambda_trigger_handler(triggers: dict, suffix: Optional[str] = None,
                            prefix: Optional[str] = None,
                            **kwargs) -> bool | dict:
     invalid_lambdas = {}
-    alias = read_sdct_conf()
+    alias = read_syndicate_aliases().get('lambdas_alias_name')
     for lambda_name, triggers_meta in triggers.items():
         lambda_name = populate_prefix_suffix(lambda_name, prefix, suffix)
         if alias:
