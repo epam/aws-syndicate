@@ -9,31 +9,26 @@ class FirehoseGenerator(BaseDeploymentResourceGenerator):
     RESOURCE_TYPE = FIREHOSE_TYPE
     CONFIGURATION = {
         'stream_type': str,
-        # 'kinesis_stream_source_configuration': dict,
-        's3_destination_configuration': {
-            'role': str,
-            'bucket': str,
+        'kinesis_stream_source_configuration': None,
+        's3_destination_configuration': dict,
+        'tags': dict
+    }
+
+    def __init__(self, **kwargs):
+        kwargs['s3_destination_configuration'] = {
+            'role': kwargs.pop('destination_role'),
+            'bucket': kwargs.pop('destination_bucket'),
             'buffering_hints': {
                 'size_in_mbs': 5,
                 'interval_in_seconds': 300
             },
-            'compression_format': str
-        },
-        'tags': dict
-    }
+            'compression_format': kwargs.pop('compression_format')
+        }
 
-    def write(self):
-        self.CONFIGURATION['s3_destination_configuration'].update(
-            {
-                'role': self._dict.pop('destination_role'),
-                'bucket': self._dict.pop('destination_bucket')
+        if kwargs['stream_type'] == KINESIS_STREAM_FIREHOSE_TYPE:
+            kwargs['kinesis_stream_source_configuration'] = {
+                'kinesis_stream_arn': kwargs.pop('kinesis_stream_arn'),
+                'role': kwargs.pop('kinesis_stream_role')
             }
-        )
 
-        if self._dict['stream_type'] == KINESIS_STREAM_FIREHOSE_TYPE:
-            self.CONFIGURATION['kinesis_stream_source_configuration'] = {
-                    'kinesis_stream_arn': self._dict['kinesis_stream_arn'],
-                    'role': self._dict['kinesis_stream_role']
-                }
-
-        super().write()
+        super().__init__(**kwargs)
