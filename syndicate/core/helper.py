@@ -458,7 +458,8 @@ class OrderedGroup(click.Group):
         self.commands = commands or collections.OrderedDict()
 
     def list_commands(self, ctx):
-        return self.commands
+        commands = super(OrderedGroup, self).list_commands(ctx)
+        return sorted(commands)
 
 
 class OptionRequiredIf(click.Option):
