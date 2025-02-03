@@ -16,7 +16,7 @@ from syndicate.core.generators.deployment_resources.appsync_generator import \
     AppSyncDataSourceGenerator, AppSyncAuthorizationGenerator, \
     AppSyncResolverGenerator, AppSyncFunctionGenerator
 from syndicate.core.generators.lambda_function import PROJECT_PATH_PARAM
-from syndicate.core.helper import OrderedGroup, resolve_project_path, \
+from syndicate.core.helper import resolve_project_path, \
     DictParamType, check_tags, verbose_option, timeit, OptionRequiredIf, \
     ValidRegionParamType, validate_incompatible_options
 
@@ -24,7 +24,7 @@ from syndicate.core.helper import OrderedGroup, resolve_project_path, \
 USER_LOG = get_user_logger()
 
 
-@click.group(name=APPSYNC_TYPE, cls=OrderedGroup)
+@click.group(name=APPSYNC_TYPE)
 @return_code_manager
 @click.option('--project_path', nargs=1,
               help="Path to the project folder. Default value: the one "

@@ -22,7 +22,7 @@ from syndicate.core.generators.deployment_resources.firehose_generator import \
     FirehoseGenerator
 from syndicate.core.generators.lambda_function import PROJECT_PATH_PARAM
 from syndicate.core.helper import (
-    OrderedGroup, OptionRequiredIf, check_tags,
+    OptionRequiredIf, check_tags,
     validate_authorizer_name_option, verbose_option, validate_api_gw_path,
     DictParamType, DeepDictParamType,
 )
@@ -36,7 +36,7 @@ dynamodb_type_param = click.Choice(['S', 'N', 'B'])
 USER_LOG = get_user_logger()
 
 
-@click.group(name=GENERATE_META_GROUP_NAME, cls=OrderedGroup)
+@click.group(name=GENERATE_META_GROUP_NAME)
 @return_code_manager
 @click.option('--project_path', nargs=1,
               help="Path to the project folder. Default value: the one "

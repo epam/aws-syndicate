@@ -32,7 +32,7 @@ from syndicate.core.generators.swagger_ui import generate_swagger_ui
 from syndicate.core.groups import RUNTIME_JAVA
 from syndicate.core.groups.appsync import appsync
 from syndicate.core.groups.meta import meta
-from syndicate.core.helper import (timeit, OrderedGroup,
+from syndicate.core.helper import (timeit,
                                    check_bundle_bucket_name,
                                    resolve_project_path,
                                    check_lambdas_names, DictParamType,
@@ -52,7 +52,7 @@ PROJECT_PATH_HELP = 'Path to project folder. ' \
 USER_LOG = get_user_logger()
 
 
-@click.group(name=GENERATE_GROUP_NAME, cls=OrderedGroup)
+@click.group(name=GENERATE_GROUP_NAME)
 def generate():
     """Generates project, lambda or configs"""
 
