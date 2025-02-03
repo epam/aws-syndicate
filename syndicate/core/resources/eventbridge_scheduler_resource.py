@@ -46,11 +46,7 @@ def prepare_schedule_parameters(meta):
     validate_params(name, meta, REQUIRED_PARAMS)
     params = meta.copy()
 
-    # keys inside "Target" parameters should NOT be changed to PascalCase
-    # syndicate user responsible for providing Target's key-values pairs in proper format
-    target = params.pop('target')
     params = dict_keys_to_capitalized_camel_case(params)
-    params['Target'] = target
 
     assert_possible_values([params.get('State')],
                            ['ENABLED', 'DISABLED']) \
@@ -89,24 +85,20 @@ class EventBridgeSchedulerResource(BaseResource):
         check_params = meta['schedule_content']
         check_params['name'] = name
         params = prepare_schedule_parameters(check_params)
-        group_name = check_params.get('group_name')
-        response = self.connection.describe_schedule(name, group_name)
+        response = self.describe_schedule(name, meta)
         if response:
-            _arn = response['Arn']
-            return self.describe_schedule(name, group_name, meta, _arn,
-                                          response)
+            return response
 
         arn = self.connection.create_schedule(**params)
         _LOG.info(f'Created EventBridge schedule {arn}')
-        return self.describe_schedule(name=name, group_name=group_name,
-                                      meta=meta, arn=arn)
+        return self.describe_schedule(name=name, meta=meta)
 
     def update_schedule(self, args):
         return self.create_pool(self._update_schedule_from_meta, args)
 
     @unpack_kwargs
     def _update_schedule_from_meta(self, name, meta, context):
-        """ Create EventBridge Schedule from meta description after parameter
+        """ Update EventBridge Schedule from meta description after parameter
         validation.
 
         :type name: str
@@ -115,22 +107,22 @@ class EventBridgeSchedulerResource(BaseResource):
         check_params = meta['schedule_content']
         check_params['name'] = name
         group_name = check_params.get('group_name')
-        response = self.connection.describe_schedule(name, group_name)
+        response = self.connection.describe_schedule(name, meta)
         if not response:
             raise AssertionError(f'{name} schedule does not exist.')
 
         params = prepare_schedule_parameters(check_params)
-        _arn = response['Arn']
 
         arn = self.connection.update_schedule(**params)
         _LOG.info(f'Updated EventBridge schedule {arn}')
-        return self.describe_schedule(name=name, group_name=group_name,
-                                      meta=meta, arn=arn)
+        return self.describe_schedule(name=name, meta=meta)
 
-    def describe_schedule(self, name, group_name, meta, arn, response=None):
-        if not response:
-            response = self.connection.describe_schedule(name, group_name)
+    def describe_schedule(self, name, meta):
+        group_name = meta.get('group_name')
+
+        response = self.connection.describe_schedule(name, group_name)
         if response:
+            arn = response['Arn']
             return {
                 arn: build_description_obj(response, name, meta)
             }

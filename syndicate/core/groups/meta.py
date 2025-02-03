@@ -16,11 +16,13 @@ from syndicate.core.generators.deployment_resources.api_gateway_generator import
 
 from syndicate.core.generators.deployment_resources.ec2_launch_template_generator import \
     EC2LaunchTemplateGenerator
+from syndicate.core.generators.deployment_resources.eventbridge_schedule import \
+    EventBridgeScheduleGenerator
 from syndicate.core.generators.deployment_resources.firehose_generator import \
     FirehoseGenerator
 from syndicate.core.generators.lambda_function import PROJECT_PATH_PARAM
 from syndicate.core.helper import (
-    OrderedGroup, OptionRequiredIf, check_tags,
+    OptionRequiredIf, check_tags,
     validate_authorizer_name_option, verbose_option, validate_api_gw_path,
     DictParamType, DeepDictParamType,
 )
@@ -34,7 +36,7 @@ dynamodb_type_param = click.Choice(['S', 'N', 'B'])
 USER_LOG = get_user_logger()
 
 
-@click.group(name=GENERATE_META_GROUP_NAME, cls=OrderedGroup)
+@click.group(name=GENERATE_META_GROUP_NAME)
 @return_code_manager
 @click.option('--project_path', nargs=1,
               help="Path to the project folder. Default value: the one "
@@ -538,11 +540,11 @@ def step_function_activity(ctx, **kwargs):
 @click.option('--resource_name', type=str, required=True,
               help="Instance name")
 @click.option('--key_name', type=str, required=True,
-              help="SHH key to access the instance")
+              help="SSH key to access the instance")
 @click.option('--image_id', type=str, required=True,
               help="Image id to create the instance from")
 @click.option('--instance_type', type=str,
-              help="Instance type")
+              help="Instance type. Default type: t2.micro")
 @click.option('--disable_api_termination', type=bool,
               help="Api termination protection. Default value is True")
 @click.option('--security_group_ids', type=str, multiple=True,
@@ -1053,7 +1055,7 @@ def eventbridge_rule(ctx, **kwargs):
                    "accept connections. Default value is 27017")
 @click.option('--vpc_security_group_ids', type=str, multiple=True,
               help="A list of EC2 VPC security groups to associate with this "
-                   "cluster. Is not specified, default security group is used")
+                   "cluster. If not specified, default security group is used")
 @click.option('--availability_zones', type=str, multiple=True,
               help="A list of Amazon EC2 Availability Zones that instances in "
                    "the cluster can be created in. "
@@ -1143,6 +1145,69 @@ def firehose(ctx, **kwargs):
     _generate(generator)
     USER_LOG.info(f"The Kinesis Data Firehose delivery stream "
                   f"'{kwargs['resource_name']}' was added successfully")
+    return OK_RETURN_CODE
+
+
+@meta.command(name="eventbridge_schedule")
+@return_code_manager
+@click.option('--resource_name', type=str, required=True,
+              help="EventBridge scheduler name")
+@click.option('--schedule_expression', type=str, required=True,
+              help="The expression that defines when the schedule runs. "
+                   "The following formats are supported: "
+                   "at(yyyy-mm-ddThh:mm:ss); rate(value unit); cron(fields)")
+@click.option('--target_arn', type=str, required=True,
+              help="The complete service ARN, including the API operation, in "
+                   "the following format: "
+                   "`arn:aws:scheduler:::aws-sdk:service:apiAction`. "
+                   "For example: arn:aws:scheduler:::aws-sdk:sqs:sendMessage")
+@click.option('--role_arn', type=str, required=True,
+              help="The execution role ARN you want to use for the target. "
+                   "This role must have the permissions to call the "
+                   "API operation you want your schedule to target")
+@click.option('--mode', type=click.Choice(['OFF', 'FLEXIBLE']), default='OFF',
+              help="Determines whether the schedule is invoked within a "
+                   "flexible time window")
+@click.option('--maximum_window_in_minutes', type=click.IntRange(min=5),
+              cls=OptionRequiredIf, required_if='mode',
+              required_if_values=['FLEXIBLE'],
+              help="The maximum time window during which a schedule can be "
+                   "invoked")
+@click.option('--description', type=str,
+              help="Schedule description")
+@click.option('--schedule_expression_timezone', type=str,
+              help="The timezone in which the scheduling expression "
+                   "is evaluated.")
+@click.option('--group_name', type=str,
+              help="The name of the schedule group to associate with this "
+                   "schedule. By default, the default schedule group is used.")
+@click.option('--kms_key_arn', type=str,
+              help="ARN for the customer managed KMS key that scheduler "
+                   "will use to encrypt and decrypt data")
+@click.option('--state', type=click.Choice(['ENABLED', 'DISABLED']),
+              help="Specifies whether the schedule is enabled or disabled")
+@click.option('--start_date', type=str,
+              help=" A date in ISO 8601 or UTC, after which the schedule "
+                   "can begin invoking its target")
+@click.option('--end_date', type=str,
+              help="A date in ISO 8601 or UTC, before which the schedule "
+                   "can invoke its target")
+@click.option('--dead_letter_arn', type=str,
+              help="SQS queue ARN that will be as the destination "
+                   "for the dead-letter queue.")
+@click.option('--tags', type=DictParamType(), callback=check_tags,
+              help='The resource tags')
+@verbose_option
+@click.pass_context
+@timeit()
+def eventbridge_schedule(ctx, **kwargs):
+    """Generates eventbridge scheduler deployment resources template"""
+    kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
+    filtered_kwargs = {k: v for k, v in kwargs.items() if v is not None}
+    generator = EventBridgeScheduleGenerator(**filtered_kwargs)
+    _generate(generator)
+    USER_LOG.info(f"EventBridge scheduler '{kwargs['resource_name']}' was "
+                  f"added successfully")
     return OK_RETURN_CODE
 
 
