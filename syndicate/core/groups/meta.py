@@ -1176,7 +1176,8 @@ def firehose(ctx, **kwargs):
 @click.option('--description', type=str,
               help="Schedule description")
 @click.option('--schedule_expression_timezone', type=str,
-              help="")
+              help="The timezone in which the scheduling expression "
+                   "is evaluated.")
 @click.option('--group_name', type=str,
               help="The name of the schedule group to associate with this "
                    "schedule. By default, the default schedule group is used.")

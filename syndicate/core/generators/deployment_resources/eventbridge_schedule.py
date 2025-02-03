@@ -9,19 +9,14 @@ class EventBridgeScheduleGenerator(BaseDeploymentResourceGenerator):
         'schedule_content': {
             'flexible_time_window': dict,
             'schedule_expression': str,
-            'tags': dict,
             'target': {
                 'arn': str,
                 'role_arn': str,
                 'input': str,
                 'dead_letter_config': dict
-                # 'retry_policy': dict,
-                # 'event_bridge_parameters': dict,
-                # 'kinesis_parameters': dict,
-                # 'sage_maker_pipeline_parameters': dict,
-                # 'sqs_parameters': dict
             }
-        }
+        },
+        'tags': dict,
     }
 
     def __init__(self, **kwargs):
