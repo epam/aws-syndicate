@@ -63,7 +63,8 @@ from syndicate.core.helper import (create_bundle_callback,
                                    resolve_and_verify_bundle_callback,
                                    param_to_lower, verbose_option,
                                    validate_incompatible_options,
-                                   failed_status_code_on_exception)
+                                   failed_status_code_on_exception,
+                                   OrderedGroup)
 from syndicate.core.project_state.project_state import (MODIFICATION_LOCK,
                                                         WARMUP_LOCK)
 from syndicate.core.project_state.status_processor import project_state_status
@@ -95,7 +96,7 @@ def _not_require_config(all_params):
     return any(item in commands_without_config for item in all_params)
 
 
-@click.group(name='syndicate')
+@click.group(name='syndicate', cls=OrderedGroup)
 @return_code_manager
 @click.version_option()
 def syndicate():

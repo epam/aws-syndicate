@@ -19,7 +19,7 @@ from syndicate.commons.log_helper import get_user_logger
 from syndicate.core.build.bundle_processor import load_deploy_output
 from syndicate.core.constants import OK_RETURN_CODE, FAILED_RETURN_CODE
 from syndicate.core.decorators import return_code_manager
-from syndicate.core.helper import verbose_option
+from syndicate.core.helper import verbose_option, OrderedGroup
 
 TAGS_GROUP_NAME = 'tags'
 
@@ -27,7 +27,7 @@ TAGS_GROUP_NAME = 'tags'
 USER_LOG = get_user_logger()
 
 
-@click.group(name=TAGS_GROUP_NAME)
+@click.group(name=TAGS_GROUP_NAME, cls=OrderedGroup)
 @return_code_manager
 @click.pass_context
 def tags(ctx):
