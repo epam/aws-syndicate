@@ -1203,7 +1203,8 @@ def firehose(ctx, **kwargs):
 def eventbridge_schedule(ctx, **kwargs):
     """Generates eventbridge scheduler deployment resources template"""
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
-    generator = EventBridgeScheduleGenerator(**kwargs)
+    filtered_kwargs = {k: v for k, v in kwargs.items() if v is not None}
+    generator = EventBridgeScheduleGenerator(**filtered_kwargs)
     _generate(generator)
     USER_LOG.info(f"EventBridge scheduler '{kwargs['resource_name']}' was "
                   f"added successfully")
