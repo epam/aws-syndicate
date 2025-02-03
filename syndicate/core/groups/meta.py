@@ -18,6 +18,8 @@ from syndicate.core.generators.deployment_resources.ec2_launch_template_generato
     EC2LaunchTemplateGenerator
 from syndicate.core.generators.deployment_resources.eventbridge_schedule import \
     EventBridgeScheduleGenerator
+from syndicate.core.generators.deployment_resources.firehose_generator import \
+    FirehoseGenerator
 from syndicate.core.generators.lambda_function import PROJECT_PATH_PARAM
 from syndicate.core.helper import (
     OrderedGroup, OptionRequiredIf, check_tags,
@@ -1099,6 +1101,50 @@ def documentdb_instance(ctx, **kwargs):
     _generate(generator)
     USER_LOG.info(f"DocumentDB instance '{kwargs['resource_name']}' was "
                   f"added successfully")
+    return OK_RETURN_CODE
+
+
+@meta.command(name='firehose')
+@return_code_manager
+@click.option('--resource_name', type=str, required=True,
+              help='Kinesis Data Firehose delivery stream name')
+@click.option('--stream_type',
+              type=click.Choice(['DirectPut', 'KinesisStreamAsSource']),
+              default='DirectPut', is_eager=True,
+              help='The delivery stream type.')
+@click.option('--kinesis_stream_arn', type=str, cls=OptionRequiredIf,
+              required_if='stream_type',
+              required_if_values=['KinesisStreamAsSource'],
+              help='The ARN of the source Kinesis data stream. [Required if '
+                   'stream_type is \'KinesisStreamAsSource\']')
+@click.option('--kinesis_stream_role', type=str, cls=OptionRequiredIf,
+              required_if='stream_type',
+              required_if_values=['KinesisStreamAsSource'],
+              help='The role name that provides access to the Kinesis data '
+                   'stream source. [Required if stream_type is '
+                   '\'KinesisStreamAsSource\']')
+@click.option('--destination_role', type=str, required=True,
+              help='The role name that provides access to the Kinesis data '
+                   'stream destination S3 bucket.')
+@click.option('--destination_bucket', type=str, required=True,
+              help='The Kinesis data stream destination S3 bucket name.')
+@click.option('--compression_format', type=click.Choice(
+             ['UNCOMPRESSED', 'GZIP', 'ZIP', 'Snappy', 'HADOOP_SNAPPY']),
+              default='UNCOMPRESSED',
+              help='The compression format.')
+@click.option('--tags', type=DictParamType(), callback=check_tags,
+              help='The resource tags')
+@verbose_option
+@click.pass_context
+@timeit()
+def firehose(ctx, **kwargs):
+    """Generates Kinesis Data Firehose delivery stream deployment resources
+    template"""
+    kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
+    generator = FirehoseGenerator(**kwargs)
+    _generate(generator)
+    USER_LOG.info(f"The Kinesis Data Firehose delivery stream "
+                  f"'{kwargs['resource_name']}' was added successfully")
     return OK_RETURN_CODE
 
 
