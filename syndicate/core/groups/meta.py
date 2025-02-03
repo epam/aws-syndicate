@@ -16,6 +16,8 @@ from syndicate.core.generators.deployment_resources.api_gateway_generator import
 
 from syndicate.core.generators.deployment_resources.ec2_launch_template_generator import \
     EC2LaunchTemplateGenerator
+from syndicate.core.generators.deployment_resources.eventbridge_schedule import \
+    EventBridgeScheduleGenerator
 from syndicate.core.generators.lambda_function import PROJECT_PATH_PARAM
 from syndicate.core.helper import (
     OrderedGroup, OptionRequiredIf, check_tags,
@@ -1096,6 +1098,67 @@ def documentdb_instance(ctx, **kwargs):
     generator = DocumentDBInstanceGenerator(**kwargs)
     _generate(generator)
     USER_LOG.info(f"DocumentDB instance '{kwargs['resource_name']}' was "
+                  f"added successfully")
+    return OK_RETURN_CODE
+
+
+@meta.command(name="eventbridge_schedule")
+@return_code_manager
+@click.option('--resource_name', type=str, required=True,
+              help="EventBridge scheduler name")
+@click.option('--schedule_expression', type=str, required=True,
+              help="The expression that defines when the schedule runs. "
+                   "The following formats are supported: "
+                   "at(yyyy-mm-ddThh:mm:ss); rate(value unit); cron(fields)")
+@click.option('--target_arn', type=str, required=True,
+              help="The complete service ARN, including the API operation, in "
+                   "the following format: "
+                   "`arn:aws:scheduler:::aws-sdk:service:apiAction`. "
+                   "For example: arn:aws:scheduler:::aws-sdk:sqs:sendMessage")
+@click.option('--role_arn', type=str, required=True,
+              help="The execution role ARN you want to use for the target. "
+                   "This role must have the permissions to call the "
+                   "API operation you want your schedule to target")
+@click.option('--mode', type=click.Choice(['OFF', 'FLEXIBLE']), default='OFF',
+              help="Determines whether the schedule is invoked within a "
+                   "flexible time window")
+@click.option('--maximum_window_in_minutes', type=click.IntRange(min=5),
+              cls=OptionRequiredIf, required_if='mode',
+              required_if_values=['FLEXIBLE'],
+              help="The maximum time window during which a schedule can be "
+                   "invoked")
+@click.option('--description', type=str,
+              help="Schedule description")
+@click.option('--schedule_expression_timezone', type=str,
+              help="")
+@click.option('--group_name', type=str,
+              help="The name of the schedule group to associate with this "
+                   "schedule. By default, the default schedule group is used.")
+@click.option('--kms_key_arn', type=str,
+              help="ARN for the customer managed KMS key that scheduler "
+                   "will use to encrypt and decrypt data")
+@click.option('--state', type=click.Choice(['ENABLED', 'DISABLED']),
+              help="Specifies whether the schedule is enabled or disabled")
+@click.option('--start_date', type=str,
+              help=" A date in ISO 8601 or UTC, after which the schedule "
+                   "can begin invoking its target")
+@click.option('--end_date', type=str,
+              help="A date in ISO 8601 or UTC, before which the schedule "
+                   "can invoke its target")
+@click.option('--dead_letter_arn', type=str,
+              help="SQS queue ARN that will be as the destination "
+                   "for the dead-letter queue.")
+@click.option('--tags', type=DictParamType(), callback=check_tags,
+              help='The resource tags')
+@verbose_option
+@click.pass_context
+@timeit()
+def eventbridge_schedule(ctx, **kwargs):
+    """Generates eventbridge scheduler deployment resources template"""
+    kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
+    generator = EventBridgeScheduleGenerator(**kwargs)
+    _generate(generator)
+    USER_LOG.info(f"EventBridge scheduler '{kwargs['resource_name']}' was "
                   f"added successfully")
     return OK_RETURN_CODE
 
