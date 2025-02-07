@@ -5,7 +5,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 # [1.17.0] - 2025-02-03
-- Added the possibility to generate meta for the resource `firehose`
+- Added the possibility to generate meta for the resources `firehose` and `eventbridge_schedule`
 - The operation `partial_clean` added to the modification operations list
 - Fix typos in commands help messages
 - Sort available commands in help output alphabetically
