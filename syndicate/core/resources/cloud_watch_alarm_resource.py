@@ -85,8 +85,7 @@ class CloudWatchAlarmResource(BaseResource):
                     params['alarm_actions'].append(arn)
         if lambdas := meta.get('lambdas'):
             for each in lambdas:
-                arn = self.lambda_res.build_lambda_arn(each)
-                if self.lambda_conn.get_function(arn):
+                if arn := self.lambda_res.build_lambda_arn(each):
                     params['alarm_actions'].append(arn)
         if response_plans := meta.get('ssm_response_plan'):
             for each in response_plans:
