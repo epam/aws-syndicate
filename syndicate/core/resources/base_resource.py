@@ -17,6 +17,7 @@ import concurrent
 import traceback
 from concurrent.futures import ALL_COMPLETED
 from concurrent.futures.thread import ThreadPoolExecutor
+from botocore.exceptions import ClientError, BotoCoreError
 
 from syndicate.commons import deep_get
 from syndicate.commons.log_helper import get_logger
@@ -60,9 +61,17 @@ class BaseResource:
                                 param_chunk,
                                 ['config', 'resource_name'],
                                 'Unknown'))
-                    exceptions.append(
-                        f'Caused by resource named {resource_name}. {e}')
-                    _LOG.debug(
+                    if isinstance(e, (ClientError, BotoCoreError)):
+                        exceptions.append(
+                            f'When processing the resource {resource_name} {e}'
+                        )
+                    else:
+                        exceptions.append(
+                            f'When processing the resource {resource_name} '
+                            f'occurred an internal error '
+                            f'({e.__class__.__name__}) {e}'
+                        )
+                    _LOG.exception(
                         f'An error occurred when processing the resource '
                         f'\'{resource_name}\'. {traceback.format_exc()}'
                     )

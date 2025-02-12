@@ -85,7 +85,9 @@ def failed_status_code_on_exception(handler_func):
         try:
             return handler_func(*args, **kwargs)
         except Exception as e:
-            USER_LOG.error(f'An error occurred: {str(e)}')
+            USER_LOG.error(
+                f'An error occurred: {e.__class__.__name__} {str(e)}'
+            )
             _LOG.exception(traceback.format_exc())
             return FAILED_RETURN_CODE
 
