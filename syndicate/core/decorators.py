@@ -133,7 +133,9 @@ def return_code_manager(func):
         try:
             return_code = func(*args, **kwargs)
         except Exception as e:
-            USER_LOG.error(e.__str__())
+            USER_LOG.error(
+                f'An error occurred: {e.__class__.__name__} {str(e)}'
+            )
             _LOG.exception(traceback.format_exc())
             sys.exit(FAILED_RETURN_CODE)
         if return_code is not None and return_code != OK_RETURN_CODE:

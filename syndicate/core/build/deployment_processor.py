@@ -384,7 +384,8 @@ def process_response(
 
         if isinstance(exceptions, list):
             errors.extend(exceptions)
-            USER_LOG.error('\n'.join(exceptions))
+            for each in exceptions:
+                USER_LOG.error(each)
         else:
             USER_LOG.error(str(exceptions))
             errors.append(str(exceptions))
