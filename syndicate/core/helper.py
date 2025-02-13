@@ -102,11 +102,13 @@ def execute_command_by_path(command, path, shell=True):
     result = subprocess.run(command, shell=shell, cwd=path,
                             capture_output=True, text=True)
 
+    pretty_command = \
+        ' '.join(command) if isinstance(command, list) else command
     if result.returncode != 0:
-        msg = (f'While running the command "{command}" occurred an error:\n'
-               f'"{result.stdout}\n{result.stderr}"')
+        msg = (f'While running the command "{pretty_command}" occurred an '
+               f'error:\n"{result.stdout}\n{result.stderr}"')
         raise AssertionError(msg)
-    _LOG.info(f'Running the command "{command}"\n{result.stdout}'
+    _LOG.info(f'Running the command "{pretty_command}"\n{result.stdout}'
               f'\n{result.stderr}')
 
 
