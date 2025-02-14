@@ -85,8 +85,7 @@ class CloudWatchAlarmResource(BaseResource):
                     params['alarm_actions'].append(arn)
         if lambdas := meta.get('lambdas'):
             for each in lambdas:
-                arn = self.lambda_res.build_lambda_arn(each)
-                if self.lambda_conn.get_function(arn):
+                if arn := self._validate_lambda_resource(each):
                     params['alarm_actions'].append(arn)
         if response_plans := meta.get('ssm_response_plan'):
             for each in response_plans:
@@ -121,3 +120,21 @@ class CloudWatchAlarmResource(BaseResource):
                 raise e
 
         return {arn: config}
+
+    def _validate_lambda_resource(self, resource: str) -> str | None:
+        from syndicate.core import CONFIG
+        qualifier = None
+        if ':' in resource:
+            if resource.count(':') > 1:
+                raise Exception(f'Invalid lambda qualifier \'{resource}\'')
+
+            resource_name, qualifier = resource.split(':')
+            resource = f'{CONFIG.resources_prefix}{resource_name}' \
+                       f'{CONFIG.resources_suffix}'
+
+        arn = self.lambda_res.build_lambda_arn(resource)
+        if self.lambda_conn.get_function(arn, qualifier):
+            return arn
+        else:
+            raise Exception(f'Cannot find lambda with arn \'{arn}\' '
+                            f'and qualifier \'{qualifier}\'')

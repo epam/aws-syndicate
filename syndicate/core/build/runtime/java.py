@@ -34,7 +34,16 @@ def assemble_java_mvn_lambdas(project_path: str, bundles_dir: str,
     _LOG.info(f'Java sources are located by path: {src_path}')
     _LOG.info(f'Going to process java mvn project by path: '
               f'{CONFIG.project_path}')
-    command = ['mvn', 'clean', 'install']
+
+    mvn_path = shutil.which('mvn')
+    if mvn_path is None:
+        raise AssertionError(
+            'It seems that Apache Maven is not installed. Therefore, Java '
+            'artifacts cannot be assembled. Please make sure that Apache '
+            'Maven is installed.'
+        )
+
+    command = [mvn_path, 'clean', 'install']
 
     if skip_tests:
         command.append('-DskipTests')
@@ -43,8 +52,7 @@ def assemble_java_mvn_lambdas(project_path: str, bundles_dir: str,
         command.append('-DerrorsAllowed')
 
     execute_command_by_path(
-        command=command,
-        path=CONFIG.project_path)
+        command=command, path=CONFIG.project_path, shell=False)
 
     # copy java artifacts to the target folder
     for root, dirs, files in os.walk(target_path):

@@ -56,6 +56,7 @@ def assemble_node_lambdas(project_path, bundles_dir, **kwargs):
     from syndicate.core import CONFIG
     project_abs_path = Path(CONFIG.project_path, project_path)
     _LOG.info(f'Going to package lambdas starting by path {project_abs_path}')
+    _check_npm_is_installed()
     executor = ThreadPoolExecutor(max_workers=5)
     futures = []
     for root, sub_dirs, files in os.walk(project_abs_path):
@@ -82,7 +83,6 @@ def assemble_node_lambdas(project_path, bundles_dir, **kwargs):
 
 @unpack_kwargs
 def _build_node_artifact(item, root, target_folder):
-    _check_npm_is_installed()
     _LOG.debug(f'Building artifact in {target_folder}')
     lambda_config_dict = json.load(open(build_path(root, item)))
     _LOG.debug(f'Root path: {root}')

@@ -85,7 +85,9 @@ def failed_status_code_on_exception(handler_func):
         try:
             return handler_func(*args, **kwargs)
         except Exception as e:
-            USER_LOG.error(f'An error occurred: {str(e)}')
+            USER_LOG.error(
+                f'An error occurred: {e.__class__.__name__} {str(e)}'
+            )
             _LOG.exception(traceback.format_exc())
             return FAILED_RETURN_CODE
 
@@ -96,15 +98,17 @@ def prettify_json(obj):
     return json.dumps(obj, indent=4)
 
 
-def execute_command_by_path(command, path):
-    result = subprocess.run(command, shell=True, cwd=path, capture_output=True,
-                            text=True)
+def execute_command_by_path(command, path, shell=True):
+    result = subprocess.run(command, shell=shell, cwd=path,
+                            capture_output=True, text=True)
 
+    pretty_command = \
+        ' '.join(command) if isinstance(command, list) else command
     if result.returncode != 0:
-        msg = (f'While running the command "{command}" occurred an error:\n'
-               f'"{result.stdout}\n{result.stderr}"')
+        msg = (f'While running the command "{pretty_command}" occurred an '
+               f'error:\n"{result.stdout}\n{result.stderr}"')
         raise AssertionError(msg)
-    _LOG.info(f'Running the command "{command}"\n{result.stdout}'
+    _LOG.info(f'Running the command "{pretty_command}"\n{result.stdout}'
               f'\n{result.stderr}')
 
 
@@ -450,15 +454,6 @@ def dict_keys_to_capitalized_camel_case(d: dict):
                 dict_keys_to_capitalized_camel_case(value)
 
     return new_d
-
-
-class OrderedGroup(click.Group):
-    def __init__(self, name=None, commands=None, **attrs):
-        super(OrderedGroup, self).__init__(name, commands, **attrs)
-        self.commands = commands or collections.OrderedDict()
-
-    def list_commands(self, ctx):
-        return self.commands
 
 
 class OptionRequiredIf(click.Option):

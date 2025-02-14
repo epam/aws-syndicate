@@ -253,9 +253,9 @@ def transform(bundle_name, dsl, output_dir):
 
 @syndicate.command(name=DEPLOY_ACTION)
 @return_code_manager
+@sync_lock(lock_type=MODIFICATION_LOCK)
 @timeit(action_name=DEPLOY_ACTION)
 @failed_status_code_on_exception
-@sync_lock(lock_type=MODIFICATION_LOCK)
 @click.option('--deploy_name', '-d', callback=resolve_default_value,
               help='Name of the deploy. Default value: name of the project')
 @click.option('--bundle_name', '-b', callback=resolve_default_value,
@@ -350,9 +350,9 @@ def deploy(
 
 @syndicate.command(name=UPDATE_ACTION)
 @return_code_manager
+@sync_lock(lock_type=MODIFICATION_LOCK)
 @timeit(action_name=UPDATE_ACTION)
 @failed_status_code_on_exception
-@sync_lock(lock_type=MODIFICATION_LOCK)
 @click.option('--bundle_name', '-b', callback=resolve_default_value,
               help='Name of the bundle to deploy. '
                    'Default value: name of the latest built bundle')
@@ -440,9 +440,9 @@ def update(
 
 @syndicate.command(name=CLEAN_ACTION)
 @return_code_manager
+@sync_lock(lock_type=MODIFICATION_LOCK)
 @timeit(action_name=CLEAN_ACTION)
 @failed_status_code_on_exception
-@sync_lock(lock_type=MODIFICATION_LOCK)
 @click.option('--deploy_name', '-d', nargs=1, callback=resolve_default_value,
               help='Name of the deploy. This parameter allows the framework '
                    'to decide,which exactly output file should be used. The '
@@ -577,9 +577,9 @@ def status(events, resources):
 
 @syndicate.command(name=WARMUP_ACTION)
 @return_code_manager
+@sync_lock(lock_type=WARMUP_LOCK)
 @timeit(action_name=WARMUP_ACTION)
 @failed_status_code_on_exception
-@sync_lock(lock_type=WARMUP_LOCK)
 @click.option('--bundle_name', '-b', nargs=1, callback=resolve_default_value,
               help='Name of the bundle. If not specified, resolves the latest '
                    'bundle name')
