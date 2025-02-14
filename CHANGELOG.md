@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improved errors logging
 - Added the verification of MVN installation before assembling Java artifacts
 - Added highlighting messages with colors in the user console log according to the level
+- Fixed log message duplication during retries
 
 # [1.16.2] - 2025-01-24
 - Fixed an issue related to modification operations event synchronization

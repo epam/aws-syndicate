@@ -126,6 +126,7 @@ def retry(retry_timeout=DEFAULT_RETRY_TIMEOUT_SEC,
                             _LOG.debug(
                                 f'Traceback:\n {traceback.format_exc()}')
                             retry_flag = True
+                            break
                     if not retry_flag:
                         error_code = e.response['Error']['Code']
                         if (kwargs.get(LOG_NOT_FOUND_ERROR) and error_code in
