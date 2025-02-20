@@ -16,7 +16,7 @@
 from botocore.waiter import WaiterError
 
 from syndicate.commons.exceptions import ResourceNotFoundError, \
-    ParameterValueError
+    InvalidValueError
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.helper import unpack_kwargs
 from syndicate.core.resources.base_resource import BaseResource
@@ -166,7 +166,7 @@ class BatchComputeEnvironmentResource(BaseResource):
             _LOG.warning(
                 f"Invalid state value for compute environment '{arn}': {state}"
             )
-            raise ParameterValueError(
+            raise InvalidValueError(
                 f"Invalid state value for compute environment '{arn}': {state}"
             )
 

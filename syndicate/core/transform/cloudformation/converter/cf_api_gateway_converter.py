@@ -16,7 +16,7 @@
 
 from troposphere import apigateway, GetAtt, Ref, Join
 
-from syndicate.commons.exceptions import ParameterValueError, \
+from syndicate.commons.exceptions import InvalidValueError, \
     ResourceMetadataError, ParameterError, ResourceNotFoundError
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection import ApiGatewayConnection
@@ -66,7 +66,7 @@ class CfApiGatewayConverter(CfResourceConverter):
 
     def _process_resource(self, authorizers_mapping, meta, path, resource_meta, rest_api):
         if not path.startswith('/'):
-            raise ParameterValueError(
+            raise InvalidValueError(
                 "API resource must starts with '/', "
                 f"but found '{path}'")
         enable_cors = str(resource_meta.get('enable_cors')).lower() == 'true'
@@ -155,7 +155,7 @@ class CfApiGatewayConverter(CfResourceConverter):
             'http': self._http_method_integration
         }
         if integration_type not in integration_builders:
-            raise ParameterValueError(
+            raise InvalidValueError(
                 f"'{integration_type}' integration type does not exist."
             )
 

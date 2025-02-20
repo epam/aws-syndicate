@@ -23,7 +23,7 @@ from concurrent.futures.thread import ThreadPoolExecutor
 from pathlib import Path
 
 from syndicate.commons.exceptions import ArtifactAssemblingError, \
-    SDCTEnvironmentError
+    SyndicateEnvironmentError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.build.helper import build_py_package_name, zip_dir, \
     remove_dir, run_external_command
@@ -200,7 +200,7 @@ def _check_dotnet_is_installed():
     try:
         exit_code, _, _ = run_external_command(CHECK_DOTNET_INSTALLED_COMMAND)
     except Exception as e:
-        raise SDCTEnvironmentError(
+        raise SyndicateEnvironmentError(
             'It seems like the dotnet SDK is not installed. There is no '
             'ability to build a DotNet bundle. Please, make sure dotnet SDK '
             'is installed and retry to build a bundle.')
@@ -231,7 +231,7 @@ def _process_custom_packages(layer_dir, packages):
 
         exit_code, stdout, stderr = run_external_command(command)
         if exit_code != 0:
-            raise SDCTEnvironmentError(
+            raise SyndicateEnvironmentError(
                 f'An error occurred during publishing package \'{package}\' '
                 f'into local NuGet source \'{LOCAL_NUGET_SOURCE_NAME}\'.'
                 f'Details:\n{stdout or ""}\n{stderr or ""}'
@@ -255,7 +255,7 @@ def _create_local_nuget_source():
 
     exit_code, stdout, stderr = run_external_command(command)
     if exit_code != 0:
-        raise SDCTEnvironmentError(
+        raise SyndicateEnvironmentError(
             f'An error occurred during local NuGet source creation.'
             f'Details:\n{stdout or ""}\n{stderr or ""}'
         )
@@ -268,7 +268,7 @@ def _is_local_source_exist(source_name):
     command = ['dotnet', 'nuget', 'list', 'source', '--format', 'Short']
     exit_code, stdout, stderr = run_external_command(command)
     if exit_code != 0:
-        raise SDCTEnvironmentError(
+        raise SyndicateEnvironmentError(
             f'An error occurred during an attempt to list NuGet sources.'
             f'Details:\n{stdout or ""}\n{stderr or ""}'
         )

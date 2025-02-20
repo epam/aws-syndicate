@@ -3,7 +3,7 @@ from functools import partial
 
 import click
 
-from syndicate.commons.exceptions import SDCTBaseError, AbortedError
+from syndicate.commons.exceptions import SyndicateBaseError, AbortedError
 from syndicate.commons.log_helper import get_user_logger
 from syndicate.core.constants import APPSYNC_TYPE, APPSYNC_DATA_SOURCE_TYPES, \
     APPSYNC_AUTHENTICATION_TYPES, APPSYNC_AUTHORIZATION_TYPES, \
@@ -108,7 +108,7 @@ def data_source(ctx, **kwargs):
     try:
         generator = AppSyncDataSourceGenerator(**kwargs)
     except Exception as e:
-        if isinstance(e, SDCTBaseError):
+        if isinstance(e, SyndicateBaseError):
             raise click.BadParameter(e)
         raise
     _generate(generator)
@@ -139,7 +139,7 @@ def function(ctx, **kwargs):
     try:
         generator = AppSyncFunctionGenerator(**kwargs)
     except Exception as e:
-        if isinstance(e, SDCTBaseError):
+        if isinstance(e, SyndicateBaseError):
             raise click.BadParameter(e)
         raise
     _generate(generator)
@@ -179,7 +179,7 @@ def resolver(ctx, **kwargs):
     try:
         generator = AppSyncResolverGenerator(**kwargs)
     except Exception as e:
-        if isinstance(e, SDCTBaseError):
+        if isinstance(e, SyndicateBaseError):
             raise click.BadParameter(e)
         raise
     _generate(generator)
@@ -216,7 +216,7 @@ def authorization(ctx, **kwargs):
     try:
         generator = AppSyncAuthorizationGenerator(**kwargs)
     except Exception as e:
-        if isinstance(e, SDCTBaseError):
+        if isinstance(e, SyndicateBaseError):
             raise click.BadParameter(e)
         raise
     _generate(generator)
@@ -233,6 +233,6 @@ def _generate(generator: BaseConfigurationGenerator):
     except AbortedError as e:
         raise click.Abort(e)
     except Exception as e:
-        if isinstance(e, SDCTBaseError):
+        if isinstance(e, SyndicateBaseError):
             raise click.BadParameter(e)
         raise Exception(f"An unexpected error occurred: {e}")

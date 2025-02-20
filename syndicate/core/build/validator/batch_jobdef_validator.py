@@ -13,7 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-from syndicate.commons.exceptions import ParameterError, ParameterValueError
+from syndicate.commons.exceptions import ParameterError, InvalidValueError
 from syndicate.core.build.validator.batch_compenv_validator import _validate_field_type
 
 JOB_DEFINITION_TYPES = ('container', 'multinode')
@@ -422,7 +422,7 @@ def _validate_options_field(field_name, field_value, field_options, prefix='comp
             f"Missing required Job Definition field: '{field_name}'"
         )
     if field_value not in field_options:
-        raise ParameterValueError(
+        raise InvalidValueError(
             f"Job Definition field: '{field_name}': '{str(field_value)}' must "
             f"be one of the following: '{field_options}'"
         )

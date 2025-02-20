@@ -19,7 +19,7 @@ from typing import Optional
 from botocore.exceptions import ClientError
 
 from syndicate.commons.exceptions import ResourceNotFoundError, \
-    ParameterValueError
+    InvalidValueError
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import retry
 from syndicate.core.helper import prettify_json, unpack_kwargs
@@ -183,7 +183,7 @@ class IamResource(BaseResource):
                     )
                 self.iam_conn.attach_policy(name, arn)
         else:
-            raise ParameterValueError(
+            raise InvalidValueError(
                 f"There are no policies for role: '{name}'."
             )
         _LOG.info(f'Created IAM role {name}.')
@@ -222,7 +222,7 @@ class IamResource(BaseResource):
     def _attach_permissions_boundary_to_role(self, permissions_boundary,
                                              role_name):
         if not isinstance(permissions_boundary, str):
-            raise ParameterValueError(
+            raise InvalidValueError(
                 f'Permissions_boundary must have \'str\' type'
                 f'. The type of given param is: '
                 f'\'{type(permissions_boundary).__name__}\''

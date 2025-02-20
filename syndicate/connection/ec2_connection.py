@@ -23,7 +23,7 @@ import botocore
 from botocore.exceptions import ClientError
 from boto3 import client
 
-from syndicate.commons.exceptions import ParameterValueError, ParameterError
+from syndicate.commons.exceptions import InvalidValueError, ParameterError
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import apply_methods_decorator, retry
 from syndicate.core.constants import EC2_LT_RESOURCE_TAGS
@@ -232,7 +232,7 @@ class EC2Connection(object):
         if iam_instance_profile:
             if not iam_instance_profile.get('Arn') \
                     and not iam_instance_profile.get('Name'):
-                raise ParameterValueError(
+                raise InvalidValueError(
                     f"Provided instance profile '{iam_instance_profile}'is "
                     f"not well-formed. Arn or Name nodes required."
                 )

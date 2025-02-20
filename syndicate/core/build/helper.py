@@ -24,7 +24,7 @@ from pathlib import PurePath, Path
 from typing import Union
 
 from syndicate.commons.exceptions import InvalidValueError, InvalidTypeError, \
-    SDCTConfigurationError
+    ConfigurationError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.constants import ARTIFACTS_FOLDER
 from syndicate.core.helper import build_path
@@ -119,7 +119,7 @@ def resolve_bundle_directory(bundle_name):
 def assert_bundle_bucket_exists() -> None:
     from syndicate.core import CONFIG, CONN
     if not CONN.s3().is_bucket_exists(CONFIG.deploy_target_bucket):
-        raise SDCTConfigurationError(
+        raise ConfigurationError(
             f"Bundles bucket '{CONFIG.deploy_target_bucket}' does not exist. "
             f"Please use 'create_deploy_target_bucket' to create the bucket."
         )

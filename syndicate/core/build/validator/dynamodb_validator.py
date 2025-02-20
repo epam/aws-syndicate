@@ -17,7 +17,7 @@ import re
 import click
 import sys
 
-from syndicate.commons.exceptions import ParameterValueError, \
+from syndicate.commons.exceptions import InvalidValueError, \
     ResourceMetadataError
 from syndicate.commons.log_helper import get_user_logger
 from syndicate.core.build.validator import assert_required_property
@@ -59,7 +59,7 @@ def validate_dynamodb(table_name, table_meta):
                 key_type_attr=HASH_KEY_TYPE)
     hash_key_type = table_meta[HASH_KEY_TYPE]
     if hash_key_type not in dynamodb_valid_key_types:
-        raise ParameterValueError(
+        raise InvalidValueError(
             f"Hash key type of Table '{table_name}' is unsupported by "
             f"DynamoDB. Valid types are '{dynamodb_valid_key_types}'"
         )
@@ -72,7 +72,7 @@ def validate_dynamodb(table_name, table_meta):
                     key_type_attr=SORT_KEY_TYPE)
         table_sort_key_type = table_meta[SORT_KEY_TYPE]
         if table_sort_key_type not in dynamodb_valid_key_types:
-            raise ParameterValueError(
+            raise InvalidValueError(
                 f"Sort key type of Table '{table_name}' is unsupported by "
                 f"DynamoDB. Valid types are '{dynamodb_valid_key_types}'"
             )
@@ -97,7 +97,7 @@ def validate_dynamodb(table_name, table_meta):
                                          INDEX_KEY_TYPE),
                                      property_value=index_key_type_value)
             if index_key_type_value not in dynamodb_valid_key_types:
-                raise ParameterValueError(
+                raise InvalidValueError(
                     f"Local Index hash key type of Table '{table_name}' "
                     f"is unsupported by DynamoDB. Valid types are "
                     f"'{dynamodb_valid_key_types}'")
@@ -106,7 +106,7 @@ def validate_dynamodb(table_name, table_meta):
             table_hash_key_name = table_meta[HASH_KEY_NAME]
             if index_key_name != table_hash_key_name or \
                     index_key_type_value != hash_key_type:
-                raise ParameterValueError(
+                raise InvalidValueError(
                     f"Hash key name and type of LocalSecondaryIndex named "
                     f"'{index_name}' must be equal to Table's '{table_name}' "
                     f"one. "
@@ -126,7 +126,7 @@ def validate_dynamodb(table_name, table_meta):
                                      property_value=index_sort_key_type_value)
 
             if index_sort_key_type_value not in dynamodb_valid_key_types:
-                raise ParameterValueError(
+                raise InvalidValueError(
                     f"Local Index sort key type of Table '{table_name}' is "
                     f"unsupported by DynamoDB. Valid types are "
                     f"'{dynamodb_valid_key_types}'"
@@ -134,7 +134,7 @@ def validate_dynamodb(table_name, table_meta):
             # LSI hash key must be equal to table's hash key
             if table_meta.get(SORT_KEY_NAME):
                 if index_sort_key_name == table_meta[SORT_KEY_NAME]:
-                    raise ParameterValueError(
+                    raise InvalidValueError(
                         f"Sort key name of LocalSecondaryIndex "
                         f"named '{index_name}' is equal to Table's "
                         f"'{table_name}' one. Sort key of LSI must differ "

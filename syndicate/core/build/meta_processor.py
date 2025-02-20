@@ -21,7 +21,7 @@ from urllib.parse import urlparse
 
 from syndicate.commons.exceptions import ProjectStateError, \
     ResourceMetadataError, ResourceProcessingError, ParameterError, \
-    ParameterValueError
+    InvalidValueError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.build.helper import (build_py_package_name,
                                          resolve_bundle_directory)
@@ -258,7 +258,7 @@ def _populate_s3_path_lambda(meta, bundle_name):
     if resolver_func:
         resolver_func(meta, bundle_name)
     else:
-        raise ParameterValueError(
+        raise InvalidValueError(
             f"Specified runtime '{runtime.lower()}' in '{meta.get('name')}' "
             f"is not supported. Supported runtimes: "
             f"'{list(RUNTIME_PATH_RESOLVER.keys())}'"
@@ -332,7 +332,7 @@ def extract_deploy_stage_from_openapi_spec(openapi_spec: dict) -> str:
                      urlparse(server_url).path.split('/')
                      if segment]
     if not path_segments:
-        raise ParameterValueError("No path segments found in server URL.")
+        raise InvalidValueError("No path segments found in server URL.")
 
     return path_segments[0]
 
@@ -440,7 +440,7 @@ def _look_for_configs(nested_files: list[str], resources_meta: dict[str, Any],
                         f'resource type. To add a new resource type please '
                         f'request the support team.')
                     _LOG.error(error_message)
-                    raise ParameterValueError(error_message)
+                    raise InvalidValueError(error_message)
                 res = _check_duplicated_resources(resources_meta,
                                                   resource_name, resource)
                 if res:

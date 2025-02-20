@@ -15,7 +15,7 @@
 """
 from botocore.exceptions import ClientError
 
-from syndicate.commons.exceptions import ParameterValueError
+from syndicate.commons.exceptions import InvalidValueError
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.conf.validator import ALL_REGIONS
 from syndicate.core.helper import unpack_kwargs
@@ -200,7 +200,7 @@ class SnsResource(BaseResource):
                                                             topic_name,
                                                             each)
             else:
-                raise ParameterValueError(
+                raise InvalidValueError(
                     f"Invalid value for SNS region: '{region}'."
                     )
         else:

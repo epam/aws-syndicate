@@ -19,7 +19,7 @@ from functools import lru_cache
 from boto3 import client, resource
 from botocore.exceptions import ClientError
 
-from syndicate.commons.exceptions import ParameterValueError
+from syndicate.commons.exceptions import InvalidValueError
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import apply_methods_decorator, retry
 
@@ -535,7 +535,7 @@ class IAMConnection(object):
             for each in allowed_account:
                 principal.append(get_account_role_arn(each))
         else:
-            raise ParameterValueError(
+            raise InvalidValueError(
                 f"Can not '{action}' role. 'allowed_account' must be list "
                 f"or string. Actual type: '{type(allowed_account)}'"
             )
@@ -564,7 +564,7 @@ class IAMConnection(object):
             for each in allowed_service:
                 principal.append("{0}.amazonaws.com".format(each))
         else:
-            raise ParameterValueError(
+            raise InvalidValueError(
                 f"Can not '{action}' role. 'allowed_service' must be list "
                 f"or string. Actual type: '{type(allowed_service)}'"
             )

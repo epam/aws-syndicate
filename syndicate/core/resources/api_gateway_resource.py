@@ -21,7 +21,7 @@ from botocore.exceptions import ClientError
 
 from syndicate.commons import deep_get
 from syndicate.commons.exceptions import ResourceNotFoundError, \
-    ParameterValueError
+    InvalidValueError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.connection import LogsConnection
 from syndicate.core.constants import (
@@ -740,7 +740,7 @@ class ApiGatewayResource(BaseResource):
                         'resources_statement_singleton': resources_statement_singleton
                     })
             else:
-                raise ParameterValueError(
+                raise InvalidValueError(
                     "API resource must starts with '/', but found %s", each)
         return args
 
@@ -998,7 +998,7 @@ class ApiGatewayResource(BaseResource):
                                                         passthrough_behavior,
                                                         enable_proxy)
             else:
-                raise ParameterValueError(
+                raise InvalidValueError(
                     f"Integration type '{integration_type}' is not supported."
                     )
         # third step: setup method responses

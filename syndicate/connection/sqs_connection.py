@@ -18,7 +18,7 @@ import json
 from boto3 import client
 from botocore.exceptions import ClientError
 
-from syndicate.commons.exceptions import ParameterValueError
+from syndicate.commons.exceptions import InvalidValueError
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import apply_methods_decorator, retry
 
@@ -52,19 +52,19 @@ class SqsConnection(object):
         params = dict(QueueName=queue_name)
         if delay_seconds:
             if delay_seconds < 0 or delay_seconds > 900:
-                raise ParameterValueError(
+                raise InvalidValueError(
                     'Delay seconds for queue must be between 0 and 900 seconds'
                 )
             attributes['DelaySeconds'] = str(delay_seconds)
         if maximum_message_size:
             if maximum_message_size < 1024 or maximum_message_size > 262144:
-                raise ParameterValueError(
+                raise InvalidValueError(
                     'Maximum message size must be between 1024 and 262144 bytes'
                 )
             attributes['MaximumMessageSize'] = str(maximum_message_size)
         if message_retention_period:
             if message_retention_period < 60 or message_retention_period > 1209600:
-                raise ParameterValueError(
+                raise InvalidValueError(
                     'Message retention size must be between 60 and 1209600 seconds'
                 )
             attributes['MessageRetentionPeriod'] = str(
@@ -75,7 +75,7 @@ class SqsConnection(object):
             attributes['Policy'] = policy
         if receive_message_wait_time_seconds:
             if receive_message_wait_time_seconds < 0 or receive_message_wait_time_seconds > 20:
-                raise ParameterValueError(
+                raise InvalidValueError(
                     'Receive message wait time must be between 0 and 20 seconds'
                 )
             attributes[
@@ -85,7 +85,7 @@ class SqsConnection(object):
             attributes['RedrivePolicy'] = json.dumps(redrive_policy)
         if visibility_timeout:
             if visibility_timeout < 0 or visibility_timeout > 43200:
-                raise ParameterValueError(
+                raise InvalidValueError(
                     'Visibility timeout must be between 0 and 43200 seconds'
                 )
             attributes['VisibilityTimeout'] = str(visibility_timeout)
@@ -93,7 +93,7 @@ class SqsConnection(object):
             attributes['KmsMasterKeyId'] = kms_master_key_id
         if kms_data_key_reuse_period_seconds:
             if kms_data_key_reuse_period_seconds < 60 or kms_data_key_reuse_period_seconds > 86400:
-                raise ParameterValueError(
+                raise InvalidValueError(
                     'KMS key reuse period must be between 60 and 86400 seconds'
                 )
             attributes[

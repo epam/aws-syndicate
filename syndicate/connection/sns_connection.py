@@ -20,7 +20,7 @@ from boto3 import client
 from botocore.exceptions import ClientError
 
 from syndicate.commons.exceptions import ResourceNotFoundError, \
-    ParameterValueError
+    InvalidValueError
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import apply_methods_decorator, retry
 
@@ -212,12 +212,12 @@ class SNSConnection(object):
         if isinstance(account_id, str):
             account_id = [account_id]
         if not isinstance(account_id, list):
-            raise ParameterValueError(f"Incorrect account id '{account_id}'")
+            raise InvalidValueError(f"Incorrect account id '{account_id}'")
 
         if isinstance(action, str):
             action = [action]
         if not isinstance(action, list):
-            raise ParameterValueError(f"Incorrect action '{action}'")
+            raise InvalidValueError(f"Incorrect action '{action}'")
 
         self.client.add_permission(TopicArn=topic_arn, Label=label,
                                    AWSAccountId=account_id,

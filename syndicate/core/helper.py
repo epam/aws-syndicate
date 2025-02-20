@@ -36,7 +36,8 @@ from click import BadParameter
 from tqdm import tqdm
 
 from syndicate.commons.exceptions import ArtifactAssemblingError, \
-    InvalidValueError, InternalError, ProjectStateError, ParameterValueError
+    InternalError, ProjectStateError, InvalidValueError, \
+    SyndicateBaseError
 from syndicate.commons.log_helper import get_logger, get_user_logger, \
     LOG_NAME, USER_LOG_NAME
 from syndicate.core.conf.processor import path_resolver
@@ -87,10 +88,17 @@ def failed_status_code_on_exception(handler_func):
         try:
             return handler_func(*args, **kwargs)
         except Exception as e:
-            USER_LOG.error(
-                f'An error occurred: {e.__class__.__name__} {str(e)}'
-            )
+            if isinstance(e, BadParameter):
+                message = f"{e.__class__.__name__} {e.message}"
+            elif isinstance(e, SyndicateBaseError):
+                message = f"{e.__class__.__name__} occurred: {str(e)}"
+            else:
+                message = (f'An unexpected error occurred: '
+                           f'{e.__class__.__name__} {str(e)}')
+
+            USER_LOG.error(message)
             _LOG.exception(traceback.format_exc())
+
             return FAILED_RETURN_CODE
 
     return wrapper
@@ -572,7 +580,7 @@ class DeepDictParamType(click.types.StringParamType):
         try:
             main_parts = value.split(self.MAIN_KEY_VALUE_SEPARATOR)
             if len(main_parts) != 2:
-                raise ParameterValueError(
+                raise InvalidValueError(
                     "Expected exactly one main key-value separator (';')"
                 )
             main_key = main_parts[0].strip()
@@ -582,7 +590,7 @@ class DeepDictParamType(click.types.StringParamType):
             for item in sub_items.split(self.ITEMS_SEPARATOR):
                 sub_parts = item.split(self.SUB_KEY_VALUE_SEPARATOR)
                 if len(sub_parts) != 2:
-                    raise ParameterValueError(
+                    raise InvalidValueError(
                         "Expected exactly one sub key-value separator (':')"
                     )
                 sub_key = sub_parts[0].strip()
@@ -590,7 +598,7 @@ class DeepDictParamType(click.types.StringParamType):
                 sub_dict[sub_key] = sub_value
 
             result[main_key] = sub_dict
-        except (ValueError, ParameterValueError) as e:
+        except (ValueError, InvalidValueError) as e:
             raise BadParameter(
                 f'Wrong format: "{value}". Expected format is: '
                 f'"main_key1;sub_key1:val1,sub_key2:val2" or similar. '
@@ -669,7 +677,7 @@ def check_lambda_name(value):
         error = f"lambda name '{value}' cannot end with '-'"
     if error:
         _LOG.error(f"Lambda name validation error: {error}")
-        raise ParameterValueError(error)
+        raise InvalidValueError(error)
     _LOG.info(f"Lambda name: '{value}' passed the validation")
 
 
@@ -678,7 +686,7 @@ def check_lambdas_names(ctx, param, value):
     for lambda_name in value:
         try:
             check_lambda_name(lambda_name)
-        except ParameterValueError as e:
+        except InvalidValueError as e:
             raise click.BadParameter(e.__str__(), ctx, param)
     return value
 

@@ -3,7 +3,7 @@ import os
 
 import click
 
-from syndicate.commons.exceptions import AbortedError,  SDCTBaseError
+from syndicate.commons.exceptions import AbortedError,  SyndicateBaseError
 from syndicate.commons.log_helper import get_user_logger
 from syndicate.core.constants import (
     S3_BUCKET_ACL_LIST, API_GW_AUTHORIZER_TYPES, CUSTOM_AUTHORIZER_KEY,
@@ -1219,6 +1219,6 @@ def _generate(generator: BaseConfigurationGenerator):
     except AbortedError as e:
         raise click.Abort(e)
     except Exception as e:
-        if isinstance(e, SDCTBaseError):
+        if isinstance(e, SyndicateBaseError):
             raise click.BadParameter(e)
         raise Exception(f"An unexpected error occurred: {e}")

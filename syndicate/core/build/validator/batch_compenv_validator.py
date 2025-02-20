@@ -13,7 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-from syndicate.commons.exceptions import ParameterValueError, ParameterError, \
+from syndicate.commons.exceptions import InvalidValueError, ParameterError, \
     InvalidTypeError
 from syndicate.connection.ec2_connection import InstanceTypes
 from syndicate.core.constants import OPTIMAL_INSTANCE_TYPE
@@ -275,12 +275,12 @@ def _validate_compute_resources(compute_resources):
         minv_cpus = compute_resources.get('minv_cpus')
         maxv_cpus = compute_resources.get('maxv_cpus')
         if desiredv_cpus > maxv_cpus:
-            raise ParameterValueError(
+            raise InvalidValueError(
                 "'compute_resources__desired_vcpus' must be smaller or equal "
                 "than 'max_vcpus'."
             )
         if minv_cpus and desiredv_cpus < minv_cpus:
-            raise ParameterValueError(
+            raise InvalidValueError(
                 "'compute_resources__desired_vcpus' must be greater or equal "
                 "than 'min_vcpus'."
             )
@@ -343,7 +343,7 @@ def _validate_options_field(field_name, field_value, field_options, prefix='comp
             f"Missing required Compute Environment field: '{field_name}'"
         )
     if field_value not in field_options:
-        raise ParameterValueError(
+        raise InvalidValueError(
             f"Compute Environment field: '{field_name}': '{str(field_value)}' "
             f"must be one of the following: '{field_options}'"
         )

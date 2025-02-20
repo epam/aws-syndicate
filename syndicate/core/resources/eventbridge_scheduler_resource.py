@@ -16,7 +16,7 @@
 from datetime import datetime, timezone
 
 from syndicate.commons.exceptions import InvalidValueError, \
-    ParameterValueError, ResourceNotFoundError
+    InvalidValueError, ResourceNotFoundError
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.helper import unpack_kwargs
 from syndicate.core.helper import dict_keys_to_capitalized_camel_case
@@ -60,15 +60,15 @@ def prepare_schedule_parameters(meta):
     if 'StartDate' in params:
         start_date = convert_to_datetime(name, params.get('StartDate'))
         if start_date <= datetime.now(timezone.utc):
-            raise ParameterValueError('Start date must be in the future.')
+            raise InvalidValueError('Start date must be in the future.')
     if 'EndDate' in params:
         end_date = convert_to_datetime(name, params.get('EndDate'))
         if start_date <= datetime.now(timezone.utc):
-            raise ParameterValueError('End date must be in the future.')
+            raise InvalidValueError('End date must be in the future.')
 
     if 'StartDate' in params and 'EndDate' in params:
         if start_date >= end_date:
-            raise ParameterValueError(
+            raise InvalidValueError(
                 'Start date must be earlier than end date.'
             )
 

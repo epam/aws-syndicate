@@ -23,7 +23,7 @@ from concurrent.futures.thread import ThreadPoolExecutor
 
 from pathlib import Path
 
-from syndicate.commons.exceptions import SDCTEnvironmentError
+from syndicate.commons.exceptions import SyndicateEnvironmentError
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.build.helper import build_py_package_name, zip_dir
 from syndicate.core.conf.processor import path_resolver
@@ -185,7 +185,7 @@ def _check_npm_is_installed():
     import subprocess
     result = subprocess.call('npm -v', shell=True)
     if result:
-        raise SDCTEnvironmentError(
+        raise SyndicateEnvironmentError(
             'NPM is not installed. There is no ability to build '
             'NodeJS bundle. Please, install npm and retry to build bundle.')
 

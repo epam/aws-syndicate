@@ -16,7 +16,7 @@
 from boto3 import client
 from botocore.exceptions import ClientError
 
-from syndicate.commons.exceptions import ParameterValueError
+from syndicate.commons.exceptions import InvalidValueError
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import apply_methods_decorator, retry
 
@@ -25,7 +25,7 @@ _LOG = get_logger(__name__)
 
 def validate_shard_count(shard_count):
     if not isinstance(shard_count, int) or shard_count > 25:
-        raise ParameterValueError(
+        raise InvalidValueError(
             "Shard count must be a valid integer "
             f"less than 25 (max value per region). "
             f"Actual type: '{type(shard_count).__name__}'"

@@ -19,6 +19,9 @@ import threading
 from functools import wraps
 from pathlib import PurePath
 
+from click import Abort, BadParameter
+
+from syndicate.commons.exceptions import SyndicateBaseError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.constants import (ABORTED_RETURN_CODE, OK_RETURN_CODE,
                                       FAILED_RETURN_CODE)
@@ -133,10 +136,17 @@ def return_code_manager(func):
         try:
             return_code = func(*args, **kwargs)
         except Exception as e:
-            USER_LOG.error(
-                f'An error occurred: {e.__class__.__name__} {str(e)}'
-            )
+            if isinstance(e, BadParameter):
+                message = f"{e.__class__.__name__} {e.message}"
+            elif isinstance(e, SyndicateBaseError):
+                message = f"{e.__class__.__name__} occurred: {str(e)}"
+            else:
+                message = (f'An unexpected error occurred: '
+                           f'{e.__class__.__name__} {str(e)}')
+
+            USER_LOG.error(message)
             _LOG.exception(traceback.format_exc())
+
             sys.exit(FAILED_RETURN_CODE)
         if return_code is not None and return_code != OK_RETURN_CODE:
             sys.exit(return_code)

@@ -19,7 +19,7 @@ from time import sleep
 from typing import Any
 
 from syndicate.commons.exceptions import ResourceNotFoundError, ParameterError, \
-    ParameterValueError
+    InvalidValueError
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.ec2_connection import InstanceTypes
 from syndicate.core import ClientError
@@ -76,7 +76,7 @@ class Ec2Resource(BaseResource):
         if not instance_type:
             raise ParameterError('Instance type must be specified')
         if instance_type not in InstanceTypes.from_botocore():
-            raise ParameterValueError(
+            raise InvalidValueError(
                 f"Not available instance type: '{instance_type}'"
             )
 

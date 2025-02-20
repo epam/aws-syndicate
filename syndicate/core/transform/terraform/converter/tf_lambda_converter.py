@@ -16,7 +16,7 @@
 import json
 
 from syndicate.commons.exceptions import ResourceNotFoundError, \
-    ParameterValueError
+    InvalidValueError
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.cloud_watch_connection import \
     get_lambda_log_group_name
@@ -174,7 +174,7 @@ class LambdaConverter(TerraformResourceConverter):
         table_name = trigger_meta['target_table']
         table = self.template.get_resource_by_name(resource_name=table_name)
         if not table:
-            raise ParameterValueError(
+            raise InvalidValueError(
                 f"Table '{table_name}' specified in '{lambda_name}' trigger "
                 f"meta, but doesnt exist in the lis of resources to deploy"
             )

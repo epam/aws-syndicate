@@ -21,7 +21,7 @@ from pathlib import PurePath
 from botocore.exceptions import ClientError
 
 from syndicate.commons.exceptions import InvalidValueError, \
-    ProjectStateError, SDCTConfigurationError
+    ProjectStateError, ConfigurationError
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection import S3Connection
 from syndicate.core.build.helper import _json_serial, resolve_bundle_directory, \
@@ -288,13 +288,13 @@ def load_bundle(bundle_name, src_account_id, src_bucket_region,
                                    aws_session_token=session_token)
         _LOG.debug('Credentials were assumed successfully')
     except ClientError:
-        raise SDCTConfigurationError(
+        raise ConfigurationError(
             f"Cannot assume '{role_name}' role. Please verify that the role "
             f"exists and has correct trusted relationships to be assumed from "
             f"'{CONFIG.account_id}' account."
         )
     if not src_s3_conn.is_bucket_exists(src_bucket_name):
-        raise SDCTConfigurationError(
+        raise ConfigurationError(
             f"'{src_account_id}' account does not have a '{src_bucket_name}' "
             f"bucket. Please verify that you have configured the correct "
             f"bucket name.")

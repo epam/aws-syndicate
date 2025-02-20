@@ -16,7 +16,7 @@
 import json
 
 from syndicate.commons.exceptions import ParameterError, InvalidValueError, \
-    ResourceProcessingError, ParameterValueError
+    ResourceProcessingError, InvalidValueError
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.conf.processor import GLOBAL_AWS_SERVICES
 from typing import TypeVar, Optional
@@ -100,7 +100,7 @@ def create_args_for_multi_region(args, available_regions):
                     item['region'] = each
                     new_region_args.append(item)
         else:
-            raise ParameterValueError(
+            raise InvalidValueError(
                 f"Invalid value region: '{region}'. Resource: '{name}'."
             )
     return new_region_args

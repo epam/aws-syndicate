@@ -21,7 +21,7 @@ from typing import Optional
 from botocore.exceptions import ClientError
 
 from syndicate.commons.exceptions import ArtifactError, ResourceNotFoundError, \
-    ParameterError, ParameterValueError
+    ParameterError, InvalidValueError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.connection.helper import retry
 from syndicate.core.build.bundle_processor import _build_output_key
@@ -728,7 +728,7 @@ class LambdaResource(BaseResource):
                 "configuration but it is absent"
             )
         if qualifier not in _LAMBDA_PROV_CONCURRENCY_QUALIFIERS:
-            raise ParameterValueError(
+            raise InvalidValueError(
                 f"Parameter 'qualifier' must be one of "
                 f"'{_LAMBDA_PROV_CONCURRENCY_QUALIFIERS}', but it is equal "
                 f"to '${qualifier}'"
@@ -751,7 +751,7 @@ class LambdaResource(BaseResource):
                 get_unresolved_concurrent_executions()
 
         if requested_provisioned_level > max_prov_limit:
-            raise ParameterValueError(
+            raise InvalidValueError(
                 f"Requested provisioned concurrency for "
                 f"lambda '{function_name}' must not be greater "
                 f"than function concurrency limit if any or "
@@ -775,7 +775,7 @@ class LambdaResource(BaseResource):
                 "configuration but it is absent"
             )
         if qualifier not in _LAMBDA_PROV_CONCURRENCY_QUALIFIERS:
-            raise ParameterValueError(
+            raise InvalidValueError(
                 f"Parameter 'qualifier' must be one of "
                 f"'{_LAMBDA_PROV_CONCURRENCY_QUALIFIERS}', but it is equal "
                 f"to '${qualifier}'"

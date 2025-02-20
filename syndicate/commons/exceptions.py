@@ -15,7 +15,7 @@
 """
 
 
-class SDCTBaseError(Exception):
+class SyndicateBaseError(Exception):
     """
     The base exception class for syndicate exceptions.
     """
@@ -23,35 +23,35 @@ class SDCTBaseError(Exception):
 
 
 # =============================================================================
-class SDCTNotImplementedError(SDCTBaseError):
+class SyndicateNotImplementedError(SyndicateBaseError):
     """
     The syndicate not implemented error.
     """
     pass
 
 
-class InternalError(SDCTBaseError):
+class InternalError(SyndicateBaseError):
     """
     The syndicate internal error.
     """
     pass
 
 
-class AbortedError(SDCTBaseError):
+class AbortedError(SyndicateBaseError):
     """
     The operation abortion error.
     """
     pass
 
 
-class InvalidValueError(SDCTBaseError):
+class InvalidValueError(SyndicateBaseError):
     """
     The value error.
     """
     pass
 
 
-class InvalidTypeError(SDCTBaseError):
+class InvalidTypeError(SyndicateBaseError):
     """
     The type error.
     """
@@ -59,7 +59,7 @@ class InvalidTypeError(SDCTBaseError):
 
 
 # =============================================================================
-class ProjectStateError(SDCTBaseError):
+class ProjectStateError(SyndicateBaseError):
     """
     Project state error.
     """
@@ -67,7 +67,7 @@ class ProjectStateError(SDCTBaseError):
 
 
 # =============================================================================
-class SDCTConfigurationError(SDCTBaseError):
+class ConfigurationError(SyndicateBaseError):
     """
     The syndicate configuration error.
     """
@@ -75,7 +75,7 @@ class SDCTConfigurationError(SDCTBaseError):
 
 
 # =============================================================================
-class SDCTEnvironmentError(SDCTBaseError):
+class SyndicateEnvironmentError(SyndicateBaseError):
     """
     The syndicate environment error.
     """
@@ -83,7 +83,7 @@ class SDCTEnvironmentError(SDCTBaseError):
 
 
 # =============================================================================
-class ResourceProcessingError(SDCTBaseError):
+class ResourceProcessingError(SyndicateBaseError):
     """
     The resource processing error.
     """
@@ -122,13 +122,6 @@ class ResourceMetadataError(ResourceProcessingError):
 class ParameterError(ResourceMetadataError):
     """
     The resource metadata parameter error.
-    """
-    pass
-
-
-class ParameterValueError(ResourceMetadataError):
-    """
-    The value of the parameter is invalid.
     """
     pass
 

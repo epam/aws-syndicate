@@ -13,7 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-from syndicate.commons.exceptions import ParameterValueError
+from syndicate.commons.exceptions import InvalidValueError
 from syndicate.core.conf.validator import ALL_REGIONS
 from syndicate.core.resources.helper import check_region_available
 
@@ -36,7 +36,7 @@ def deploy_regions(resource_name, meta):
             if check_region_available(each, ALL_REGIONS, meta):
                 regions.append(each)
     else:
-        raise ParameterValueError(
+        raise InvalidValueError(
             f"Invalid value region: '{region}'. Resource: '{resource_name}'."
         )
     return regions

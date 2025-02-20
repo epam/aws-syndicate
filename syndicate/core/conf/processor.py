@@ -20,7 +20,7 @@ from typing import Union
 
 import yaml
 
-from syndicate.commons.exceptions import SDCTConfigurationError, \
+from syndicate.commons.exceptions import ConfigurationError, \
     InvalidTypeError
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.conf.bucket_view import \
@@ -59,14 +59,22 @@ class ConfigHolder:
         con_path = con_path_yml if \
             os.path.exists(con_path_yml) else con_path_yaml
         self._config_path = con_path
+
+        conf_con_path = os.path.join(dir_path, LEGACY_CONFIG_FILE_NAME)
+
         if os.path.isfile(con_path):
             self._init_yaml_config(dir_path=dir_path, con_path=con_path)
-        else:
+        elif os.path.isfile(conf_con_path):
             self._init_conf_config(dir_path=dir_path)
+        else:
+            raise ConfigurationError(
+                f"The syndicate configuration file is not found in the "
+                f"directory '{dir_path}'"
+            )
 
     def _assert_no_errors(self, errors: list):
         if errors:
-            raise SDCTConfigurationError(
+            raise ConfigurationError(
                 f"The following error occurred while '{self._config_path}' "
                 f"parsing: '{errors}'"
             )
@@ -91,9 +99,6 @@ class ConfigHolder:
 
     def _init_conf_config(self, dir_path):
         con_path = os.path.join(dir_path, LEGACY_CONFIG_FILE_NAME)
-        if not os.path.isfile(con_path):
-            raise SDCTConfigurationError(
-                'sdct.conf does not exist inside %s folder' % dir_path)
 
         self._config_path = con_path
         self._config_dict = load_conf_file_content(self._config_path)
@@ -382,7 +387,7 @@ def add_default_section(file_path):
 
 def load_yaml_file_content(file_path):
     if not os.path.isfile(file_path):
-        raise SDCTConfigurationError(
+        raise ConfigurationError(
             f"There is no file by path: '{file_path}'"
         )
     with open(file_path, 'r') as yaml_file:
@@ -391,7 +396,7 @@ def load_yaml_file_content(file_path):
 
 def load_conf_file_content(file_path):
     if not os.path.isfile(file_path):
-        raise SDCTConfigurationError(
+        raise ConfigurationError(
             f"There is no file by path: '{file_path}'"
         )
 

@@ -21,7 +21,7 @@ import yaml
 from botocore.exceptions import ClientError
 from boto3.session import Session
 
-from syndicate.commons.exceptions import SDCTConfigurationError
+from syndicate.commons.exceptions import ConfigurationError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.connection.sts_connection import STSConnection
 from syndicate.core.conf.processor import (
@@ -58,7 +58,7 @@ def generate_configuration_files(name, config_path, region,
                        "Attempting to load them")
         credentials = Session().get_credentials()
         if not credentials:
-            raise SDCTConfigurationError("No credentials could be found")
+            raise ConfigurationError("No credentials could be found")
 
     try:
         sts = STSConnection(region=region,
@@ -98,12 +98,12 @@ def generate_configuration_files(name, config_path, region,
         project_path = os.getcwd()
     else:
         if not os.path.exists(project_path):
-            raise SDCTConfigurationError(
+            raise ConfigurationError(
                 f'Provided project path {project_path} does not exists')
         project_path = os.path.abspath(project_path)
 
     if use_temp_creds and access_role:
-        raise SDCTConfigurationError(
+        raise ConfigurationError(
             f'Access role mustn\'t be specified if \'use_temp_creds\' '
             f'parameter is equal to True'
         )

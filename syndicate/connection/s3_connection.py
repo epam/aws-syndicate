@@ -21,7 +21,7 @@ from botocore.client import Config
 from botocore.exceptions import ClientError
 
 from syndicate.commons import deep_get
-from syndicate.commons.exceptions import ParameterValueError
+from syndicate.commons.exceptions import InvalidValueError
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import apply_methods_decorator, retry
 
@@ -166,7 +166,7 @@ class S3Connection(object):
                           'us-east-2', 'eu-central-1', 'us-east-1',
                           'eu-north-1']
         if location not in valid_location:
-            raise ParameterValueError(
+            raise InvalidValueError(
                 f"Param 'location' has invalid value. Valid locations: "
                 f"'{valid_location}'"
             )
@@ -532,7 +532,7 @@ class S3Connection(object):
                 elif isinstance(rule[key], str):
                     rule[key] = [rule[key]]
                 else:
-                    raise ParameterValueError(
+                    raise InvalidValueError(
                         f"Value of CORS rule attribute '{key}' has invalid "
                         f"value: '{rule[key]}'. Should be str, int or list"
                     )

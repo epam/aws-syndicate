@@ -15,7 +15,7 @@
 """
 import os
 
-from syndicate.commons.exceptions import SDCTEnvironmentError
+from syndicate.commons.exceptions import SyndicateEnvironmentError
 from syndicate.commons.log_helper import get_logger
 
 _LOG = get_logger(__name__)
@@ -29,7 +29,7 @@ def _touch(path):
         with open(path, 'a'):
             os.utime(path, None)
     except OSError:
-        raise SDCTEnvironmentError(
+        raise SyndicateEnvironmentError(
             f"Can not create new file by path '{path}'. Syndicate does not "
             f"have enough permissions!"
         )
@@ -46,7 +46,7 @@ def _mkdir(path, exist_ok=False, fault_message=None):
         else:
             _LOG.error(e)
     except OSError:
-        raise SDCTEnvironmentError(
+        raise SyndicateEnvironmentError(
             f"Can not create new folder by path '{path}'. Syndicate does not "
             f"have enough permissions!"
         )
