@@ -16,6 +16,7 @@
 from boto3 import client
 from botocore.exceptions import ClientError
 
+from syndicate.commons.exceptions import ParameterValueError
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import apply_methods_decorator, retry
 
@@ -105,12 +106,12 @@ class DocumentDBConnection(object):
         retry decorator
         """
         if skip_final_snapshot and final_db_snapshot_identifier:
-            raise AssertionError(
+            raise ParameterValueError(
                 'Only one of this parameters must set to \'true\': '
                 'skip_final_snapshot, final_db_snapshot_identifier')
 
         if not skip_final_snapshot and not final_db_snapshot_identifier:
-            raise AssertionError(
+            raise ParameterValueError(
                 'One of this parameters must set to \'true\': '
                 'skip_final_snapshot, final_db_snapshot_identifier')
 

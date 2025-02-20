@@ -19,6 +19,7 @@ from datetime import datetime, timedelta, timezone
 
 from botocore.exceptions import ClientError
 
+from syndicate.commons.exceptions import InternalError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.connection import ConnectionProvider
 from syndicate.connection.sts_connection import STSConnection
@@ -177,10 +178,9 @@ def initialize_connection():
             resources_provider=RESOURCES_PROVIDER)
         _LOG.debug('aws-syndicate has been initialized')
     except ClientError as e:
-        message = f'An unexpected error has occurred trying to ' \
-                  f'init connection: {e}'
-        _LOG.error(message)
-        raise AssertionError(message)
+        raise InternalError(
+            f'An unexpected error has occurred trying to init connection: {e}'
+        )
 
 
 def initialize_project_state():

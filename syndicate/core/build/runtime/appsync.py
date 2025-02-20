@@ -18,6 +18,8 @@ import os
 import shutil
 import zipfile
 
+from syndicate.commons.exceptions import ArtifactAssemblingError, \
+    ResourceMetadataError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.constants import APPSYNC_ARTIFACT_NAME_TEMPLATE, \
     APPSYNC_CONFIG_FILE_NAME, APPSYNC_RESOLVERS_FOLDER, RESOURCES_FILE_NAME
@@ -34,10 +36,12 @@ def assemble_appsync(project_path, bundles_dir, **kwargs):
     path_to_project = CONFIG.project_path
     src_path = build_path(path_to_project, project_path)
     if not os.path.exists(src_path):
-        raise AssertionError(
-            f'Appsync sources are not located by path {src_path}')
+        raise ArtifactAssemblingError(
+            f"Appsync sources are not located by path '{src_path}'")
     if not os.listdir(src_path):
-        raise AssertionError(f'Appsync sources path {src_path} is empty')
+        raise ArtifactAssemblingError(
+            f"Appsync sources path '{src_path}' is empty"
+        )
 
     _LOG.info(f'Appsync sources are located by path: {src_path}')
 
@@ -46,13 +50,14 @@ def assemble_appsync(project_path, bundles_dir, **kwargs):
         if os.path.isdir(appsync_src_path):
             _LOG.info(f'Going to process \'{item}\'')
             if not os.listdir(appsync_src_path):
-                raise AssertionError(
-                    f'Appsync path {appsync_src_path} is empty')
+                raise ArtifactAssemblingError(
+                    f"Appsync path '{appsync_src_path}' is empty"
+                )
 
             conf_file_path = build_path(src_path, item,
                                         APPSYNC_CONFIG_FILE_NAME)
             if not os.path.isfile(conf_file_path):
-                raise AssertionError(
+                raise ResourceMetadataError(
                     f'\'{APPSYNC_CONFIG_FILE_NAME}\' file not found for '
                     f'Appsync \'{item}\'.')
 
@@ -66,7 +71,7 @@ def assemble_appsync(project_path, bundles_dir, **kwargs):
             else:
                 schema_path = schema_filepath
             if not os.path.isfile(schema_path):
-                raise AssertionError(
+                raise ArtifactAssemblingError(
                     f'Schema file not found for Appsync \'{item}\' in the '
                     f'path {schema_path}.')
 
@@ -104,11 +109,11 @@ def assemble_appsync(project_path, bundles_dir, **kwargs):
                             f"successfully added to the AppSync deployment "
                             f"package")
                     else:
-                        raise AssertionError(
+                        raise ArtifactAssemblingError(
                             f"File not found by the path '{artifacts_path}'")
 
             if os.path.getsize(zip_file_path) == 0:
-                raise AssertionError(
+                raise ArtifactAssemblingError(
                     f'Appsync archive {zip_file_path} is empty')
 
             shutil.move(zip_file_path, build_path(bundles_dir, artifact_name))

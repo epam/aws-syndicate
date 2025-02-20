@@ -20,6 +20,8 @@ from boto3 import client, resource
 from boto3.dynamodb.conditions import Attr, Key
 from botocore.exceptions import ClientError
 
+from syndicate.commons.exceptions import ResourceProcessingError, \
+    ParameterError
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import apply_methods_decorator, retry
 
@@ -371,7 +373,7 @@ class DynamoConnection(object):
             if index is None or index.get('Backfilling'):
                 return
             if num_attempts >= max_attempts:
-                raise AssertionError('Max attempts exceeded')
+                raise ResourceProcessingError('Max attempts exceeded')
             time.sleep(sleep_amount)
 
     def delete_global_secondary_index(self, table_name, index_name):
@@ -712,13 +714,13 @@ class DynamoConnection(object):
         :type attr_to_select: str
         """
         if table and table_name:
-            raise ValueError("'table' OR 'table_name' must be set.")
+            raise ParameterError("'table' OR 'table_name' must be set.")
         elif table:
             pass  # just use Table object
         elif table_name:
             table = self.get_table_by_name(table_name)
         else:
-            raise ValueError("'table' or 'table_name' must be set.")
+            raise ParameterError("'table' or 'table_name' must be set.")
 
         params = {'ConsistentRead': True, 'Select': attr_to_select}
         if token:
@@ -1040,16 +1042,16 @@ class DynamoConnection(object):
     def _query(self, table_name=None, table=None, key_expr=None, token=None,
                limit=None, select='ALL_ATTRIBUTES'):
         if table and table_name:
-            raise ValueError("'table' OR 'table_name' must be set.")
+            raise ParameterError("'table' OR 'table_name' must be set.")
         elif table:
             pass  # just use Table object
         elif table_name:
             table = self.get_table_by_name(table_name)
         else:
-            raise ValueError("'table' or 'table_name' must be set.")
+            raise ParameterError("'table' or 'table_name' must be set.")
 
         if not key_expr:
-            raise ValueError("'key_expr' must be set.")
+            raise ParameterError("'key_expr' must be set.")
 
         params = {
             'ConsistentRead': True, 'Select': select,

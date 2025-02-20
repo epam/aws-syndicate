@@ -20,6 +20,8 @@ from typing import Union
 
 import yaml
 
+from syndicate.commons.exceptions import SDCTConfigurationError, \
+    InvalidTypeError
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.conf.bucket_view import \
     AbstractBucketView, AbstractViewDigest
@@ -64,9 +66,10 @@ class ConfigHolder:
 
     def _assert_no_errors(self, errors: list):
         if errors:
-            raise AssertionError(f'The following error occurred '
-                                 f'while {self._config_path} '
-                                 f'parsing: {errors}')
+            raise SDCTConfigurationError(
+                f"The following error occurred while '{self._config_path}' "
+                f"parsing: '{errors}'"
+            )
 
     def _init_yaml_config(self, dir_path, con_path):
         config_content = load_yaml_file_content(file_path=con_path)
@@ -89,7 +92,7 @@ class ConfigHolder:
     def _init_conf_config(self, dir_path):
         con_path = os.path.join(dir_path, LEGACY_CONFIG_FILE_NAME)
         if not os.path.isfile(con_path):
-            raise AssertionError(
+            raise SDCTConfigurationError(
                 'sdct.conf does not exist inside %s folder' % dir_path)
 
         self._config_path = con_path
@@ -158,7 +161,7 @@ class ConfigHolder:
         Retrieves bucket view value respectively to a provided attribute name.
         """
         if not isinstance(attribute_name, str):
-            raise KeyError('Name of an attribute must be a string.')
+            raise InvalidTypeError('Name of an attribute must be a string.')
         view = self.deploy_target_bucket_view
         if view and not view.raw:
             view = self._prepare_bucket_view()
@@ -379,14 +382,18 @@ def add_default_section(file_path):
 
 def load_yaml_file_content(file_path):
     if not os.path.isfile(file_path):
-        raise AssertionError(f'There is no file by path: {file_path}')
+        raise SDCTConfigurationError(
+            f"There is no file by path: '{file_path}'"
+        )
     with open(file_path, 'r') as yaml_file:
         return yaml.load(yaml_file, Loader=yaml.FullLoader)
 
 
 def load_conf_file_content(file_path):
     if not os.path.isfile(file_path):
-        raise AssertionError(f'There is no file by path: {file_path}')
+        raise SDCTConfigurationError(
+            f"There is no file by path: '{file_path}'"
+        )
 
     add_default_section(file_path)
 

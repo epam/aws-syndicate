@@ -17,6 +17,7 @@
 import sys
 from pathlib import Path, PurePath
 
+from syndicate.commons.exceptions import InvalidValueError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core import ProjectState
 from syndicate.core.constants import SWAGGER_UI_SPEC_NAME_TEMPLATE, \
@@ -49,9 +50,10 @@ def generate_swagger_ui(name, spec_path, target_bucket, project_path):
         _LOG.info(f'Path to specification file resolved as '
                   f'\'{abs_path_to_spec}\'')
     if not Path.is_file(abs_path_to_spec):
-        raise AssertionError(f'Provided specification file \'{spec_path}\' '
-                             f'can\'t be resolved! Please provide the correct '
-                             f'path.')
+        raise InvalidValueError(
+            f'Provided specification file \'{spec_path}\' can\'t be resolved! '
+            f'Please provide the correct path.'
+        )
 
     project_state = ProjectState(project_path=project_path)
     src_path = PurePath(project_path,

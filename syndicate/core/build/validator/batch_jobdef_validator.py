@@ -13,6 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+from syndicate.commons.exceptions import ParameterError, ParameterValueError
 from syndicate.core.build.validator.batch_compenv_validator import _validate_field_type
 
 JOB_DEFINITION_TYPES = ('container', 'multinode')
@@ -24,7 +25,7 @@ def validate_batch_jobdef(jobdef_name, jobdef_meta):
     :param jobdef_name: name of resource
     :param jobdef_meta: resource definition
 
-    :raises AssertionError in case of invalidity.
+    :raises an exception in case of invalidity.
 
     :return: None
     """
@@ -111,9 +112,9 @@ def validate_batch_jobdef(jobdef_name, jobdef_meta):
 
     if job_definition_type == 'container':
         if not container_properties and not node_properties:
-            raise AssertionError(
-                "Either 'container_properties' or 'node_properties' must be specified "
-                "for 'container' job definition type."
+            raise ParameterError(
+                "Either 'container_properties' or 'node_properties' must be "
+                "specified for 'container' job definition type."
             )
     if container_properties:
         _validate_container_properties(container_properties)
@@ -129,7 +130,7 @@ def _validate_container_properties(container_properties, prefix=None):
     :param prefix: prefix that will be displayed before the variable
      name in case of invalidity.
 
-    :raises AssertionError in case of invalidity.
+    :raises an exception in case of invalidity.
 
     :return: None
     """
@@ -335,7 +336,7 @@ def _validate_node_properties(node_properties):
     Performs check of Batch Job Definition node properties.
     :param node_properties: container properties definition
 
-    :raises AssertionError in case of invalidity.
+    :raises an exception in case of invalidity.
 
     :return: None
     """
@@ -407,7 +408,7 @@ def _validate_options_field(field_name, field_value, field_options, prefix='comp
     :param prefix: prefix that will be displayed before field_name in case of invalidity
     :param required: if field is required and can be empty
 
-    :raises AssertionError in case of invalidity.
+    :raises an exception in case of invalidity.
 
     :return: None
     """
@@ -417,13 +418,13 @@ def _validate_options_field(field_name, field_value, field_options, prefix='comp
     if not required and not field_value:
         return
     if required and not field_value:
-        raise AssertionError(
-            "Missing required Job Definition field: '{0}'".format(field_name)
+        raise ParameterError(
+            f"Missing required Job Definition field: '{field_name}'"
         )
     if field_value not in field_options:
-        raise AssertionError(
-            "Job Definition field: '{0}':'{1}' must be one of the following: {2}"
-                .format(field_name, str(field_value), field_options)
+        raise ParameterValueError(
+            f"Job Definition field: '{field_name}': '{str(field_value)}' must "
+            f"be one of the following: '{field_options}'"
         )
 
 
@@ -435,7 +436,7 @@ def _validate_required_field(field_name, field_value, prefix='', **kwargs):
     :param field_value: value of field to check
     :param prefix: prefix that will be displayed before field_name in case of invalidity
 
-    :raises AssertionError in case of invalidity.
+    :raises an exception in case of invalidity.
 
     :return: None
     """
@@ -443,8 +444,8 @@ def _validate_required_field(field_name, field_value, prefix='', **kwargs):
         field_name = prefix + '__' + field_name
 
     if not field_value:
-        raise AssertionError(
-            "Missing required Job Definition field: {0}".format(field_name)
+        raise ParameterError(
+            f"Missing required Job Definition field: '{field_name}'"
         )
 
 

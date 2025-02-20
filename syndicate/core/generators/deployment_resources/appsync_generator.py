@@ -1,6 +1,7 @@
 import json
 from pathlib import Path, PurePath
 
+from syndicate.commons.exceptions import ResourceMetadataError, AbortedError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.constants import DYNAMO_TABLE_TYPE, IAM_ROLE, \
     COGNITO_USER_POOL_TYPE, APPSYNC_CONFIG_FILE_NAME, \
@@ -42,7 +43,7 @@ class AppSyncConfigurationGenerator(BaseConfigurationGenerator):
         path_to_config = PurePath(self.appsync_path,
                                   APPSYNC_CONFIG_FILE_NAME).as_posix()
         if not Path(path_to_config).is_file():
-            raise ValueError(
+            raise ResourceMetadataError(
                 f"Config file of the AppSync '{self.appsync_name}' not found. "
                 f"Please make sure that the AppSync exists.")
         return json.loads(_read_content_from_file(path_to_config))
@@ -82,7 +83,7 @@ class AppSyncDataSourceGenerator(AppSyncConfigurationGenerator):
                 else:
                     _LOG.warning(
                         f"Skipping data source '{current_ds_name}'")
-                    raise RuntimeError
+                    raise AbortedError
         data_sources.append(self._resolve_configuration())
         self.appsync_config['data_sources'] = data_sources
         self._save_config()
@@ -141,7 +142,7 @@ class AppSyncFunctionGenerator(AppSyncConfigurationGenerator):
                 error_message = None
                 break
         if error_message:
-            raise ValueError(error_message)
+            raise ResourceMetadataError(error_message)
 
         current_func_name = self._dict['name']
         functions = self.appsync_config.get('functions', [])
@@ -155,7 +156,7 @@ class AppSyncFunctionGenerator(AppSyncConfigurationGenerator):
                     functions.remove(function)
                 else:
                     _LOG.warning(f"Skipping function'{current_func_name}'")
-                    raise RuntimeError
+                    raise AbortedError
 
         functions.append(self._resolve_configuration())
         self.appsync_config['functions'] = functions
@@ -248,7 +249,7 @@ class AppSyncResolverGenerator(AppSyncConfigurationGenerator):
                     error_message = None
                     break
             if error_message:
-                raise ValueError(error_message)
+                raise ResourceMetadataError(error_message)
         elif self._dict['kind'] == 'PIPELINE':
             if (functions := self.appsync_config.get('functions', [])) is None:
                 functions = []
@@ -265,7 +266,7 @@ class AppSyncResolverGenerator(AppSyncConfigurationGenerator):
                 if not func_exist:
                     absent_funcs.append(func_name)
             if absent_funcs:
-                raise ValueError(
+                raise ResourceMetadataError(
                     f"The next function/s '{absent_funcs}' not found in the "
                     f"SyncApp '{self.appsync_name}' definition.")
             self._dict['pipeline_config'] = {
@@ -291,7 +292,7 @@ class AppSyncResolverGenerator(AppSyncConfigurationGenerator):
                         f"Skipping resolver for the type "
                         f"'{current_type_name}' and field "
                         f"'{current_field_name}'")
-                    raise RuntimeError
+                    raise AbortedError
 
         resolvers.append(self._resolve_configuration())
         self.appsync_config['resolvers'] = resolvers
@@ -380,14 +381,16 @@ class AppSyncAuthorizationGenerator(AppSyncConfigurationGenerator):
                     self.appsync_config.pop('user_pool_config', None)
                 else:
                     _LOG.warning(f"Skipping primary authorization creation")
-                    raise RuntimeError
+                    raise AbortedError
 
         extra_auth = self.appsync_config.get('extra_auth_types', [])
         self._dict['current_extra_auth'] = extra_auth
         if self._dict['type'] == 'extra':
             if not primary_auth:
-                raise ValueError('Primary authorization is mandatory, '
-                                 'please configure it first')
+                raise ResourceMetadataError(
+                    'Primary authorization is mandatory, please configure it '
+                    'first'
+                )
             new_extra_auth_type = self._dict['auth_type']
             for auth_type in extra_auth:
                 if auth_type['authentication_type'] == new_extra_auth_type:
@@ -398,7 +401,7 @@ class AppSyncAuthorizationGenerator(AppSyncConfigurationGenerator):
                     else:
                         _LOG.warning(
                             f"Skipping extra authorization creation")
-                        raise RuntimeError
+                        raise AbortedError
 
         self.appsync_config.update(self._resolve_configuration())
         self._save_config()
@@ -417,7 +420,7 @@ class AppSyncAuthorizationGenerator(AppSyncConfigurationGenerator):
 
             for extra_auth in self._dict['current_extra_auth']:
                 if primary_auth_type == extra_auth['authentication_type']:
-                    raise ValueError(
+                    raise ResourceMetadataError(
                         f"'{primary_auth_type}' can't be configured as "
                         f" the primary authorization because it is already "
                         f"configured as an extra authorization provider")
@@ -432,7 +435,7 @@ class AppSyncAuthorizationGenerator(AppSyncConfigurationGenerator):
             new_auth_type = authentication_config['authentication_type']
 
             if new_auth_type == self._dict['current_primary_auth']:
-                raise ValueError(
+                raise ResourceMetadataError(
                     f"'{new_auth_type}' can't be configured as "
                     f"an extra authorization provider because it is already "
                     f"configured as the primary authorization")

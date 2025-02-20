@@ -15,6 +15,7 @@
 """
 from botocore.exceptions import ClientError
 
+from syndicate.commons.exceptions import ParameterValueError
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.helper import (
     unpack_kwargs)
@@ -76,12 +77,14 @@ class DocumentDBClusterResource(BaseResource):
         port = meta.get('port', None)
         master_username = meta.get('master_username', None)
         if master_username and master_username[0].isdigit():
-            raise AssertionError(f'The first character of master username '
-                                 f'must be a letter: {master_username}')
+            raise ParameterValueError(
+                f'The first character of master username must be a letter: '
+                f'{master_username}'
+            )
         master_password = meta.get('master_password', None)
         if master_password and any(
                 char in master_password for char in ('"', '@', '/')):
-            raise AssertionError(
+            raise ParameterValueError(
                 f'The password cannot contain forward slash (/), double quote '
                 f'(") or the "at" symbol (@): {master_password}')
         cluster = self.connection.create_db_cluster(

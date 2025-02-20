@@ -1,3 +1,4 @@
+from syndicate.commons.exceptions import ResourceNotFoundError
 from syndicate.core.generators.deployment_resources.base_generator import \
     BaseDeploymentResourceGenerator
 import click
@@ -45,8 +46,8 @@ class IAMRoleGenerator(BaseDeploymentResourceGenerator):
 
         custom_policies = custom_policies - available_policies
         if custom_policies:
-            message = f"Custom policies: {custom_policies} was not found " \
-                      f"in deployment resources"
-            _LOG.error(f"Validation error: {message}")
-            raise ValueError(message)
+            raise ResourceNotFoundError(
+                f"Custom policies: '{custom_policies}' was not found in "
+                f"deployment resources"
+            )
         _LOG.info(f"Validation successfully finished, policies exist")

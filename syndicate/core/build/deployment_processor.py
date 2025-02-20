@@ -20,6 +20,7 @@ from concurrent.futures import ALL_COMPLETED, ThreadPoolExecutor
 from functools import cmp_to_key
 from typing import Any
 
+from syndicate.commons.exceptions import ResourceProcessingError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.build.bundle_processor import create_deploy_output, \
     load_deploy_output, load_failed_deploy_output, load_meta_resources, \
@@ -138,7 +139,7 @@ def _process_resources_with_dependencies(resources, handlers_mapping,
                 continue
 
             if run_count >= len(overall_resources):
-                raise RecursionError(
+                raise ResourceProcessingError(
                     "An infinite loop detected in resource dependencies")
 
             run_count += 1
@@ -424,7 +425,7 @@ def _compare_external_resources(expected_resources):
     if errors:
         import os
         error = f'{os.linesep}'.join(errors.values())
-        raise AssertionError(error)
+        raise ResourceProcessingError(error)
 
 
 def create_deployment_resources(

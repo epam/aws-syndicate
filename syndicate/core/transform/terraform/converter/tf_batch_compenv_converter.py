@@ -15,6 +15,7 @@
 """
 import json
 
+from syndicate.commons.exceptions import ResourceNotFoundError
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.resources.batch_compenv_resource import DEFAULT_STATE
 from syndicate.core.transform.terraform.converter.tf_resource_converter import \
@@ -91,8 +92,9 @@ class BatchComputeEnvConverter(TerraformResourceConverter):
                 return build_role_arn_ref(AWS_BATCH_SERVICE_ROLE)
         role = self.template.get_resource_by_name(service_role)
         if not role:
-            raise AssertionError("IAM role '{}' is not present "
-                                 "in build meta.".format(service_role))
+            raise ResourceNotFoundError(
+                f"IAM role '{service_role}' is not present in build meta."
+            )
         return build_role_arn_ref(role_name=role)
 
 

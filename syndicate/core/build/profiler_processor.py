@@ -1,6 +1,8 @@
 import os
 
 from math import ceil
+
+from syndicate.commons.exceptions import ParameterValueError
 from syndicate.commons.log_helper import get_logger
 from syndicate.core import ResourceProvider
 from syndicate.core.build.bundle_processor import load_deploy_output
@@ -139,8 +141,10 @@ def validate_time_range(from_date, to_date):
         to_date = datetime.utcfromtimestamp(datetime.timestamp(to_date))
     time_range = to_date - from_date
     if time_range <= timedelta(seconds=0):
-        raise AssertionError(f'The parameter from_date must be more than the'
-                             f' parameter to_date.')
+        raise ParameterValueError(
+            f"The parameter 'from_date' must be greater than the parameter "
+            f"'to_date'."
+        )
     return from_date, to_date, time_range
 
 

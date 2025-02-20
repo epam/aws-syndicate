@@ -21,6 +21,7 @@ from shutil import rmtree
 from zipfile import ZipFile
 
 from syndicate.commons import deep_get
+from syndicate.commons.exceptions import ResourceNotFoundError, ParameterError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.constants import ARTIFACTS_FOLDER, S3_PATH_NAME, \
     SWAGGER_UI_SPEC_NAME_TEMPLATE
@@ -63,14 +64,18 @@ class SwaggerUIResource(BaseResource):
                                 name).as_posix()
         target_bucket = meta.get('target_bucket')
         if not target_bucket:
-            raise AssertionError(f'Target bucket for Swagger UI \'{name}\' is '
-                                 f'absent in resource meta')
+            raise ParameterError(
+                f'Target bucket for Swagger UI \'{name}\' is absent in '
+                f'resource meta'
+            )
         if not self.s3_conn.is_bucket_exists(target_bucket):
-            raise AssertionError(f'Target bucket \'{target_bucket}\' for '
-                                 f'Swagger UI \'{name}\' doesn\'t exists')
+            raise ResourceNotFoundError(
+                f'Target bucket \'{target_bucket}\' for Swagger UI \'{name}\' '
+                f'doesn\'t exists'
+            )
         artifact_path = meta.get(S3_PATH_NAME)
         if not artifact_path:
-            raise AssertionError(f'Can\'t resolve Swagger UI artifact path')
+            raise ParameterError(f'Can\'t resolve Swagger UI artifact path')
         artifact_src_path = posixpath.join(
             self.deploy_target_bucket_key_compound, artifact_path)
 

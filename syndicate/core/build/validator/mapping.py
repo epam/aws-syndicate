@@ -13,6 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+from syndicate.commons.exceptions import ResourceMetadataError
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.build.validator.batch_compenv_validator import validate_batch_compenv
 from syndicate.core.build.validator.dynamodb_validator import \
@@ -60,7 +61,7 @@ def common_validate(resource_name, resource_meta, all_meta):
                     f"the resource '{resource_name}' dependency "
                     f"'{dependency}'.")
             if errors:
-                raise AssertionError(str(errors))
+                raise ResourceMetadataError(str(errors))
 
 
 # validation customization

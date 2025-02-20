@@ -2,6 +2,8 @@ import json
 
 import click
 
+from syndicate.commons.exceptions import ResourceNotFoundError, AbortedError, \
+    ResourceMetadataError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.constants import API_GATEWAY_TYPE, \
     COGNITO_USER_POOL_AUTHORIZER_TYPE, CUSTOM_AUTHORIZER_KEY, \
@@ -83,7 +85,7 @@ class ApiGatewayAuthorizerGenerator(ApiGatewayConfigurationGenerator):
         if not paths_with_api:
             message = f"Api gateway '{self.api_gateway_name}' was not found"
             _LOG.error(message)
-            raise ValueError(message)
+            raise ResourceNotFoundError(message)
         self._resolve_provider()
         USER_LOG.info(f"Adding authorizer '{self.name}' to api "
                       f"'{self.api_gateway_name}'...")
@@ -104,7 +106,7 @@ class ApiGatewayAuthorizerGenerator(ApiGatewayConfigurationGenerator):
             if not click.confirm(f"{message} Overwrite?"):
                 USER_LOG.warning(f"Skipping authorizer "
                                  f"'{self.name}'")
-                raise RuntimeError
+                raise AbortedError
         USER_LOG.info(f"Adding authorizer '{self.name}' to api "
                       f"'{self.api_gateway_name}'...")
         if not deployment_resources[self.api_gateway_name].get('authorizers'):
@@ -147,15 +149,17 @@ class ApiGatewayAuthorizerGenerator(ApiGatewayConfigurationGenerator):
         _LOG.info(f"Validating existence of Cognito User Pool: {cup_name}")
         paths_with_cup = self._get_resource_meta_paths(cup_name,
                                                        COGNITO_USER_POOL_TYPE)
-        message = ''
+
         if not paths_with_cup:
-            message = f"Cognito User Pool with name '{cup_name}' not found"
+            raise ResourceNotFoundError(
+                f"Cognito User Pool with name '{cup_name}' not found"
+            )
         elif len(paths_with_cup) > 1:
-            message = (f"More than one Cognito User Pool with the name "
-                       f"'{cup_name}' found")
-        if message:
-            _LOG.error(f'Validation error: {message}')
-            raise ValueError(message)
+            raise ResourceMetadataError(
+                f"More than one Cognito User Pool with the name '{cup_name}' "
+                f"found"
+            )
+
         _LOG.info(f"Validation successfully finished, Cognito User Pool "
                   f"exists")
 
@@ -174,9 +178,10 @@ class ApiGatewayResourceGenerator(ApiGatewayConfigurationGenerator):
         paths_with_api = self._get_resource_meta_paths(self.api_gateway_name,
                                                        API_GATEWAY_TYPE)
         if not paths_with_api:
-            message = f"Api gateway '{self.api_gateway_name}' was not found"
-            _LOG.error(message)
-            raise ValueError(message)
+            raise ResourceNotFoundError(
+                f"Api gateway '{self.api_gateway_name}' was not found"
+            )
+
         USER_LOG.info(f"Adding resource '{self.resource_path}' to api "
                       f"'{self.api_gateway_name}'...")
 
@@ -196,7 +201,7 @@ class ApiGatewayResourceGenerator(ApiGatewayConfigurationGenerator):
             if not click.confirm(f"{message} Overwrite?"):
                 USER_LOG.warning(f"Skipping resource "
                                  f"'{self.resource_path}'")
-                raise RuntimeError
+                raise AbortedError
 
         USER_LOG.info(f"Adding resource '{self.resource_path}' to api "
                       f"'{self.api_gateway_name}'...")
@@ -229,17 +234,17 @@ class ApiGatewayResourceMethodGenerator(ApiGatewayConfigurationGenerator):
         paths_with_api = self._get_resource_meta_paths(self.api_gateway_name,
                                                        API_GATEWAY_TYPE)
         if not paths_with_api:
-            message = f"Api gateway '{self.api_gateway_name}' was not found"
-            _LOG.error(message)
-            raise ValueError(message)
+            raise ResourceNotFoundError(
+                f"Api gateway '{self.api_gateway_name}' was not found"
+            )
 
         path_with_resources = self.get_meta_with_resource(paths_with_api,
                                                           self.resource_path)
         if not path_with_resources:
-            message = f"Resouce '{self.resource_path}' wasn't found in api " \
-                      f"'{self.api_gateway_name}'"
-            _LOG.error(message)
-            raise ValueError(message)
+            raise ResourceMetadataError(
+                f"Resouce '{self.resource_path}' wasn't found in api "
+                f"'{self.api_gateway_name}' definition"
+            )
 
         path_with_api, deployment_resources = path_with_resources
 
@@ -253,7 +258,7 @@ class ApiGatewayResourceMethodGenerator(ApiGatewayConfigurationGenerator):
             if not click.confirm(f"{message} Overwrite?"):
                 USER_LOG.warning(f"Skipping resource "
                                  f"'{self.resource_path}'")
-                raise RuntimeError
+                raise AbortedError
 
         USER_LOG.info(f"Adding method '{self.method}' to resource "
                       f"'{self.resource_path}' to api "
@@ -291,6 +296,7 @@ class ApiGatewayResourceMethodGenerator(ApiGatewayConfigurationGenerator):
                 _LOG.info(f"Validation successfully finished, authorizer "
                           f"'{self._dict['authorization_type']}' exists")
                 return
-        message = f"Authorizer '{self._dict['authorizer_name']}' wasn't found"
-        _LOG.error(f"Validation error: {message}")
-        raise ValueError(message)
+
+        raise ResourceMetadataError(
+            f"Authorizer '{self._dict['authorizer_name']}' wasn't found"
+        )

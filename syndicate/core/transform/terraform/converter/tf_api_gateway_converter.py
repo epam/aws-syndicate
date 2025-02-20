@@ -13,6 +13,8 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+from syndicate.commons.exceptions import ResourceMetadataError, \
+    ResourceNotFoundError
 from syndicate.connection.api_gateway_connection import \
     REQ_VALIDATOR_PARAM_NAME, \
     REQ_VALIDATOR_PARAM_VALIDATE_BODY, REQ_VALIDATOR_PARAM_VALIDATE_PARAMS, \
@@ -76,9 +78,10 @@ class ApiGatewayConverter(TerraformResourceConverter):
                         authorizer_id = auth_mappings.get(
                             authorization_type)
                         if not authorizer_id:
-                            raise AssertionError(
-                                'Authorizer {0} does not exist'.format(
-                                    authorization_type))
+                            raise ResourceMetadataError(
+                                f"Authorizer '{authorization_type}' does not "
+                                f"exist"
+                            )
                         authorization_type = 'CUSTOM'
 
                     method_request_parameters = method_meta.get(
@@ -249,8 +252,8 @@ class ApiGatewayConverter(TerraformResourceConverter):
 
         function = lambda_service.get_function(lambda_name=lambda_name)
         if not function:
-            raise AssertionError(
-                f'Specified lambda {lambda_name} does not exists')
+            raise ResourceNotFoundError(
+                f"Specified lambda '{lambda_name}' does not exists")
 
         version = meta.get('lambda_version')
         alias = meta.get('lambda_alias')

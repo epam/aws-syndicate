@@ -15,6 +15,8 @@
 """
 from botocore.waiter import WaiterError
 
+from syndicate.commons.exceptions import ResourceNotFoundError, \
+    ParameterValueError
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.helper import unpack_kwargs
 from syndicate.core.resources.base_resource import BaseResource
@@ -145,7 +147,9 @@ class BatchComputeEnvironmentResource(BaseResource):
         arn = f'arn:aws:batch:{self.region}:{self.account_id}:' \
               f'compute-environment/{name}'
         if not self._is_compute_env_exist(arn):
-            raise AssertionError(f"Compute environment '{name}' does not exist")
+            raise ResourceNotFoundError(
+                f"Compute environment '{name}' does not exist"
+            )
 
         params = meta['meta'].copy()
         if 'resource_type' in params:
@@ -162,7 +166,7 @@ class BatchComputeEnvironmentResource(BaseResource):
             _LOG.warning(
                 f"Invalid state value for compute environment '{arn}': {state}"
             )
-            raise AssertionError(
+            raise ParameterValueError(
                 f"Invalid state value for compute environment '{arn}': {state}"
             )
 

@@ -15,8 +15,9 @@
 """
 from datetime import datetime, timezone
 
+from syndicate.commons.exceptions import InvalidValueError, \
+    ParameterValueError, ResourceNotFoundError
 from syndicate.commons.log_helper import get_logger
-from syndicate.core import ClientError
 from syndicate.core.helper import unpack_kwargs
 from syndicate.core.helper import dict_keys_to_capitalized_camel_case
 from syndicate.core.resources.base_resource import BaseResource
@@ -36,8 +37,9 @@ def convert_to_datetime(name, date_str):
         else:
             return datetime.utcfromtimestamp(int(date_str))
     except (ValueError, OSError):
-        raise AssertionError(
-            f'Invalid date format: {date_str}. Resource: {name}. Should be ISO8601 or timestamp'
+        raise InvalidValueError(
+            f"Invalid date format: '{date_str}'. "
+            f"Resource: '{name}'. Should be ISO8601 or timestamp"
             )
 
 
@@ -58,15 +60,17 @@ def prepare_schedule_parameters(meta):
     if 'StartDate' in params:
         start_date = convert_to_datetime(name, params.get('StartDate'))
         if start_date <= datetime.now(timezone.utc):
-            raise ValueError('Start date must be in the future.')
+            raise ParameterValueError('Start date must be in the future.')
     if 'EndDate' in params:
         end_date = convert_to_datetime(name, params.get('EndDate'))
         if start_date <= datetime.now(timezone.utc):
-            raise ValueError('End date must be in the future.')
+            raise ParameterValueError('End date must be in the future.')
 
     if 'StartDate' in params and 'EndDate' in params:
         if start_date >= end_date:
-            raise ClientError('Start date must be earlier than end date.')
+            raise ParameterValueError(
+                'Start date must be earlier than end date.'
+            )
 
     return params
 
@@ -109,7 +113,7 @@ class EventBridgeSchedulerResource(BaseResource):
         group_name = check_params.get('group_name')
         response = self.connection.describe_schedule(name, meta)
         if not response:
-            raise AssertionError(f'{name} schedule does not exist.')
+            raise ResourceNotFoundError(f"'{name}' schedule does not exist.")
 
         params = prepare_schedule_parameters(check_params)
 

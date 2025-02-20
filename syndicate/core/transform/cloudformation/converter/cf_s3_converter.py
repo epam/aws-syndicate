@@ -15,6 +15,7 @@
 """
 from troposphere import s3
 
+from syndicate.commons.exceptions import InvalidTypeError
 from .cf_resource_converter import CfResourceConverter
 from ..cf_transform_utils import to_logic_name, s3_bucket_logic_name
 
@@ -106,10 +107,10 @@ class CfS3Converter(CfResourceConverter):
                     elif isinstance(rule[new_key], str):
                         rule[new_key] = [rule[new_key]]
                     else:
-                        raise AssertionError(
-                            'CORS rule attribute {0} has invalid value: {1}. '
-                            'Should be str, int or list'.format(key,
-                                                                rule[key]))
+                        raise InvalidTypeError(
+                            f"CORS rule attribute '{key}' has invalid value: "
+                            f"'{rule[key]}'. Should be str, int or list"
+                        )
                 cors_rules.append(s3.CorsRules.from_dict(title=None, d=rule))
             bucket.CorsConfiguration = \
                 s3.CorsConfiguration(CorsRules=cors_rules)

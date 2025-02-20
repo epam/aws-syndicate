@@ -13,6 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+from syndicate.commons.exceptions import SDCTNotImplementedError
 from .cf_resource_converter import CfResourceConverter
 
 
@@ -21,5 +22,5 @@ class CfSnsApplicationConverter(CfResourceConverter):
     def convert(self, name, meta):
         # The converter may be implemented as a custom CF resource that
         # invokes a lambda which performs a creation of an SNS application.
-        raise NotImplementedError(
+        raise SDCTNotImplementedError(
             'SNS platform application is not supported by CloudFormation.')

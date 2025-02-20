@@ -15,6 +15,8 @@
 """
 import json
 
+from syndicate.commons.exceptions import ParameterError, InvalidValueError, \
+    ResourceProcessingError, ParameterValueError
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.conf.processor import GLOBAL_AWS_SERVICES
 from typing import TypeVar, Optional
@@ -31,10 +33,12 @@ def validate_params(name, meta, required_params):
     existing_parameters_string = ', '.join(existing_parameters)
     for each in required_params:
         if each not in existing_parameters:
-            raise AssertionError(
-                'All required parameters must be specified! Resource: {0}'
-                ' Required parameters: {1}. Given parameters: {2}'.format(
-                    name, parameters_string, existing_parameters_string))
+            raise ParameterError(
+                f"All required parameters must be specified! "
+                f"Resource: '{name}' "
+                f"Required parameters: '{parameters_string}'. "
+                f"Given parameters: '{existing_parameters_string}'"
+            )
 
 
 def validate_date(name, date_str):
@@ -47,9 +51,10 @@ def validate_date(name, date_str):
         datetime.utcfromtimestamp(unix_timestamp)
         return date_str
     except Exception as e:
-        raise AssertionError('Invalid date format: {0}. Resource: {1}'
-            ' Error message: {2}'.format(
-                date_str, name, e))
+        raise InvalidValueError(
+            f"Invalid date format: '{date_str}'. Resource: '{name}' "
+            f"Error message: {e}"
+        )
 
 
 def check_region_available(region_name, available_regions, res_meta=None):
@@ -57,11 +62,13 @@ def check_region_available(region_name, available_regions, res_meta=None):
         return True
     if res_meta:
         res_type = res_meta['resource_type']
-        raise AssertionError(
-            "Region {0} isn't available for resource {1}.".format(region_name,
-                                                                  res_type))
+        raise ResourceProcessingError(
+            f"Region '{region_name}' isn't available for resource '{res_type}'."
+        )
     else:
-        raise AssertionError("Region {0} isn't available.".format(region_name))
+        raise ResourceProcessingError(
+            f"Region '{region_name}' isn't available."
+        )
 
 
 def create_args_for_multi_region(args, available_regions):
@@ -93,9 +100,9 @@ def create_args_for_multi_region(args, available_regions):
                     item['region'] = each
                     new_region_args.append(item)
         else:
-            raise AssertionError(
-                'Invalid value region: {0}. Resource: {1}.'.format(region,
-                                                                   name))
+            raise ParameterValueError(
+                f"Invalid value region: '{region}'. Resource: '{name}'."
+            )
     return new_region_args
 
 
@@ -140,15 +147,15 @@ def assert_required_params(required_params_names, all_params):
     missing = [param for param in required_params_names if
                param not in all_params.keys()]
     if missing:
-        raise AssertionError(f'Missing required parameters: {missing}')
+        raise ParameterError(f"Missing required parameters: '{missing}'")
 
 
 def assert_possible_values(iterable: list, possible: list):
     if not set(iterable).issubset(set(possible)):
-        message = f'Incorrect values in given iteramble: {iterable}. ' \
+        message = f'Incorrect values in given iterable: {iterable}. ' \
                   f'Must be a subset of these: {possible}'
         _LOG.error(message)
-        raise AssertionError(message)
+        raise InvalidValueError(message)
 
 
 def filter_dict_by_shape(d, shape):

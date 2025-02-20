@@ -17,6 +17,7 @@ import uuid
 
 from troposphere import events
 
+from syndicate.commons.exceptions import ParameterError
 from syndicate.core.resources.cloud_watch_resource import \
     validate_cloud_watch_rule_params, get_event_bus_arn
 from .cf_resource_converter import CfResourceConverter
@@ -70,9 +71,9 @@ def _create_api_call_rule(rule_meta, rule_res):
         if operations:
             event_pattern['detail']['eventName'] = operations
     else:
-        raise AssertionError(
-            'aws_service or custom_pattern should be specified for rule '
-            'with "api_call" type! Resource: {0}'.format(rule_res.Name))
+        raise ParameterError(
+            f"'aws_service' or 'custom_pattern' should be specified for rule "
+            f"with 'api_call' type! Resource: '{rule_res.Name}'")
     rule_res.EventPattern = event_pattern
     rule_res.Description = rule_res.Name
     rule_res.State = 'ENABLED'

@@ -4,6 +4,8 @@ import sys
 
 import click
 
+from syndicate.commons.exceptions import ResourceMetadataError, \
+    ResourceProcessingError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.build.bundle_processor import load_deploy_output
 from syndicate.core.constants import OAS_V3_FILE_NAME, API_GATEWAY_TYPE
@@ -38,8 +40,10 @@ def export_specification(
     resource_meta = \
         {key: value for key, value in output.items() if resource_key in key}
     if not resource_meta:
-        raise AssertionError(f'Meta for the resource type "{resource_key}" '
-                             f'not found in the deploy name "{deploy_name}".')
+        raise ResourceMetadataError(
+            f'Meta for the resource type "{resource_key}" not found in the '
+            f'deploy name "{deploy_name}".'
+        )
     _LOG.info(f'Meta for the resource type "{resource_key}" resolved '
               f'successfully')
     output_dir_path = processor.prepare_output_directory(output_directory)
@@ -50,10 +54,9 @@ def export_specification(
         try:
             specification = json.dumps(specification, indent=2)
         except json.JSONDecodeError as e:
-            USER_LOG.error(
+            raise ResourceProcessingError(
                 f'An error occurred when serialising specification. {e}'
             )
-            raise
         _LOG.info(f'Specification for resource "{arn}" exported successfully')
         filename = resource_id + '_' + OAS_V3_FILE_NAME
         output_path = build_path(output_dir_path, filename)

@@ -20,6 +20,8 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import PurePath
 from botocore.exceptions import ClientError
 
+from syndicate.commons.exceptions import InvalidValueError, \
+    ProjectStateError, SDCTConfigurationError
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection import S3Connection
 from syndicate.core.build.helper import _json_serial, resolve_bundle_directory, \
@@ -140,8 +142,8 @@ def load_deploy_output(
                 f'Failsafe status - {failsafe}'
             )
             return False
-        raise AssertionError(
-            f'Deploy name {deploy_name} does not exist. Cannot find output file'
+        raise ProjectStateError(
+            f"Cannot find output file for the deploy name '{deploy_name}'."
         )
 
 
@@ -170,8 +172,9 @@ def load_failed_deploy_output(bundle_name, deploy_name,
             _LOG.warn(f'Deploy name {deploy_name} does not exist. '
                       f'Failsafe status - {failsafe}.')
             return False
-        raise AssertionError(f'Deploy name {deploy_name} does not exist. '
-                             f'Cannot find output file.')
+        raise ProjectStateError(
+            f"Cannot find output file for the deploy name '{deploy_name}'."
+        )
 
 
 def load_latest_deploy_output(failsafe: bool = False):
@@ -190,7 +193,7 @@ def load_latest_deploy_output(failsafe: bool = False):
         return False, load_failed_deploy_output(bundle_name, deploy_name,
                                                 failsafe=failsafe)
     else:
-        raise ValueError(
+        raise InvalidValueError(
             "The latest deployments' status can't be resolved because of "
             "unexpected status. Please check the parameter 'is_succeeded' "
             "value in the 'latest_deploy' section of the syndicate state "
@@ -220,9 +223,10 @@ def if_bundle_exist(bundle_name):
 
 def upload_bundle_to_s3(bundle_name, force):
     if if_bundle_exist(bundle_name) and not force:
-        raise AssertionError('Bundle name {0} already exists '
-                             'in deploy bucket. Please use another bundle '
-                             'name or delete the bundle'.format(bundle_name))
+        raise ProjectStateError(
+            f"Bundle name '{bundle_name}' already exists in deploy bucket. "
+            f"Please use another bundle name or delete the bundle"
+        )
 
     bundle_path = resolve_bundle_directory(bundle_name=bundle_name)
     build_meta_path = build_path(bundle_path, BUILD_META_FILE_NAME)
@@ -284,15 +288,16 @@ def load_bundle(bundle_name, src_account_id, src_bucket_region,
                                    aws_session_token=session_token)
         _LOG.debug('Credentials were assumed successfully')
     except ClientError:
-        raise AssertionError('Cannot assume {0} role. Please verify that '
-                             'the role exists and has correct trusted '
-                             'relationships to be assumed from {1}'
-                             ' account.'.format(role_name, CONFIG.account_id))
+        raise SDCTConfigurationError(
+            f"Cannot assume '{role_name}' role. Please verify that the role "
+            f"exists and has correct trusted relationships to be assumed from "
+            f"'{CONFIG.account_id}' account."
+        )
     if not src_s3_conn.is_bucket_exists(src_bucket_name):
-        raise AssertionError(
-            "{0} account does not have a {1} bucket. Please verify that you "
-            "have configured the correct bucket name.".format(src_account_id,
-                                                              src_bucket_name))
+        raise SDCTConfigurationError(
+            f"'{src_account_id}' account does not have a '{src_bucket_name}' "
+            f"bucket. Please verify that you have configured the correct "
+            f"bucket name.")
     _LOG.info('Going to find S3 keys for bundle: {0}'.format(bundle_name))
     objects = src_s3_conn.list_objects(bucket_name=src_bucket_name,
                                        prefix=bundle_name)
@@ -304,9 +309,10 @@ def load_bundle(bundle_name, src_account_id, src_bucket_region,
                              bundle_name)
     for dirpath, dirnames, files in os.walk(bundle_path):
         if files:
-            raise AssertionError('Bundle name is already exists. '
-                                 'Please, verify that have configured '
-                                 'the correct bundle name.')
+            raise ProjectStateError(
+                'Bundle name is already exists. Please, verify that have '
+                'configured the correct bundle name.'
+            )
 
     # TODO create_pool can be used
     executor = ThreadPoolExecutor(max_workers=10)
