@@ -18,6 +18,10 @@ import shutil
 from json import load
 from typing import Any
 from urllib.parse import urlparse
+
+from syndicate.exceptions import ProjectStateError, \
+    ResourceMetadataError, ResourceProcessingError, ParameterError, \
+    InvalidValueError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.build.helper import (build_py_package_name,
                                          resolve_bundle_directory)
@@ -59,9 +63,10 @@ def validate_deployment_packages(bundle_path, meta_resources):
             nonexistent_packages.append(package_path)
 
     if nonexistent_packages:
-        raise AssertionError('Bundle is not properly configured.'
-                             ' Nonexistent deployment packages: '
-                             '{0}'.format(prettify_json(nonexistent_packages)))
+        raise ProjectStateError(
+            f"Bundle is not properly configured. Nonexistent deployment "
+            f"packages: '{prettify_json(nonexistent_packages)}'."
+        )
 
 
 def artifact_paths(meta_resources):
@@ -94,19 +99,20 @@ def _check_duplicated_resources(initial_meta_dict, additional_item_name,
             # check if APIs have same resources
             for each in list(initial_item['resources'].keys()):
                 if each in list(additional_item['resources'].keys()):
-                    raise AssertionError(
-                        "API '{0}' has duplicated resource '{1}'! Please, "
-                        "change name of one resource or remove one.".format(
-                            additional_item_name, each))
+                    raise ResourceMetadataError(
+                        f"API '{additional_item_name}' has duplicated "
+                        f"resource '{each}'! Please, change name of one "
+                        f"resource or remove one."
+                    )
             # check if APIs have duplicated cluster configurations
             for config in ['cluster_cache_configuration',
                            'cluster_throttling_configuration']:
                 initial_config = initial_item.get(config)
                 additional_config = additional_item.get(config)
                 if initial_config and additional_config:
-                    raise AssertionError(
-                        "API '{0}' has duplicated {1}. Please, remove one "
-                        "configuration.".format(additional_item_name, config)
+                    raise ResourceMetadataError(
+                        f"API '{additional_item_name}' has duplicated "
+                        f"'{config}'. Please, remove one configuration."
                     )
                 if initial_config:
                     additional_item[config] = initial_config
@@ -116,11 +122,10 @@ def _check_duplicated_resources(initial_meta_dict, additional_item_name,
             additional_responses = additional_item.get(
                 'api_method_responses')
             if initial_responses and additional_responses:
-                raise AssertionError(
-                    "API '{0}' has duplicated api method responses "
-                    "configurations. Please, remove one "
-                    "api method responses configuration.".format(
-                        additional_item_name)
+                raise ResourceMetadataError(
+                    f"API '{additional_item_name}' has duplicated api method "
+                    f"responses configurations. Please, remove one api method "
+                    f"responses configuration."
                 )
             if initial_responses:
                 additional_item[
@@ -131,11 +136,10 @@ def _check_duplicated_resources(initial_meta_dict, additional_item_name,
             additional_integration_resp = additional_item.get(
                 'api_method_integration_responses')
             if initial_integration_resp and additional_integration_resp:
-                raise AssertionError(
-                    "API '{0}' has duplicated api method integration "
-                    "responses configurations. Please, remove one "
-                    "api method integration responses configuration.".format(
-                        additional_item_name)
+                raise ResourceMetadataError(
+                    f"API '{additional_item_name}' has duplicated api method "
+                    f"integration responses configurations. Please, remove "
+                    f"one api method integration responses configuration."
                 )
             if initial_integration_resp:
                 additional_item[
@@ -194,7 +198,7 @@ def _check_duplicated_resources(initial_meta_dict, additional_item_name,
         else:
             initial_item_type = initial_item.get("resource_type")
             additional_item_type = additional_item.get("resource_type")
-            raise AssertionError(
+            raise ResourceProcessingError(
                 f"Two resources with equal names were found! "
                 f"Name: '{additional_item_name}', first resource type: "
                 f"'{initial_item_type}', second resource type: "
@@ -219,9 +223,10 @@ def _populate_s3_path_python_node_dotnet(meta, bundle_name):
     prefix = meta.pop('prefix', None)
     suffix = meta.pop('suffix', None)
     if not name or not version:
-        raise AssertionError('Lambda config must contain name and version. '
-                             'Existing configuration'
-                             ': {0}'.format(prettify_json(meta)))
+        raise ParameterError(
+            "Lambda config must contain name and version. Existing "
+            f"configuration: '{prettify_json(meta)}'"
+        )
     else:
         if prefix:
             name = name[len(prefix):]
@@ -234,9 +239,10 @@ def _populate_s3_path_python_node_dotnet(meta, bundle_name):
 def _populate_s3_path_java(meta, bundle_name):
     deployment_package = meta.get('deployment_package')
     if not deployment_package:
-        raise AssertionError('Lambda config must contain deployment_package. '
-                             'Existing configuration'
-                             ': {0}'.format(prettify_json(meta)))
+        raise ParameterError(
+            "Lambda config must contain deployment_package. Existing "
+            f"configuration: '{prettify_json(meta)}'"
+        )
     else:
         meta[S3_PATH_NAME] = build_path(bundle_name, deployment_package)
 
@@ -244,27 +250,28 @@ def _populate_s3_path_java(meta, bundle_name):
 def _populate_s3_path_lambda(meta, bundle_name):
     runtime = meta.get('runtime')
     if not runtime:
-        raise AssertionError(
-            'Lambda config must contain runtime. '
-            'Existing configuration: {0}'.format(prettify_json(meta)))
+        raise ParameterError(
+            "Lambda config must contain runtime. "
+            f"Existing configuration: '{prettify_json(meta)}'"
+        )
     resolver_func = RUNTIME_PATH_RESOLVER.get(runtime.lower())
     if resolver_func:
         resolver_func(meta, bundle_name)
     else:
-        raise AssertionError(
-            'Specified runtime {0} in {1} is not supported. '
-            'Supported runtimes: {2}'.format(
-                runtime.lower(), meta.get('name'),
-                list(RUNTIME_PATH_RESOLVER.keys())))
+        raise InvalidValueError(
+            f"Specified runtime '{runtime.lower()}' in '{meta.get('name')}' "
+            f"is not supported. Supported runtimes: "
+            f"'{list(RUNTIME_PATH_RESOLVER.keys())}'"
+        )
 
 
 def _populate_s3_path_lambda_layer(meta, bundle_name):
     deployment_package = meta.get('deployment_package')
     if not deployment_package:
-        raise AssertionError(
-            'Lambda Layer config must contain deployment_package. '
-            'Existing configuration'
-            ': {0}'.format(prettify_json(meta)))
+        raise ParameterError(
+            "Lambda Layer config must contain deployment_package. "
+            f"'Existing configuration: '{prettify_json(meta)}'"
+        )
     else:
         meta[S3_PATH_NAME] = build_path(bundle_name, deployment_package)
 
@@ -272,9 +279,10 @@ def _populate_s3_path_lambda_layer(meta, bundle_name):
 def _populate_s3_path_ebs(meta, bundle_name):
     deployment_package = meta.get('deployment_package')
     if not deployment_package:
-        raise AssertionError('Beanstalk_app config must contain '
-                             'deployment_package. Existing configuration'
-                             ': {0}'.format(prettify_json(meta)))
+        raise ParameterError(
+            "Beanstalk_app config must contain deployment_package. "
+            f"Existing configuration: '{prettify_json(meta)}'"
+        )
     else:
         meta[S3_PATH_NAME] = build_path(bundle_name, deployment_package)
 
@@ -282,9 +290,10 @@ def _populate_s3_path_ebs(meta, bundle_name):
 def _populate_s3_path_swagger_ui(meta, bundle_name):
     deployment_package = meta.get('deployment_package')
     if not deployment_package:
-        raise AssertionError('Swagger UI config must contain '
-                             'deployment_package. Existing configuration'
-                             ': {0}'.format(prettify_json(meta)))
+        raise ParameterError(
+            "Swagger UI config must contain deployment_package. "
+            f"Existing configuration: '{prettify_json(meta)}'"
+        )
     else:
         meta[S3_PATH_NAME] = build_path(bundle_name, deployment_package)
 
@@ -306,7 +315,9 @@ def extract_deploy_stage_from_openapi_spec(openapi_spec: dict) -> str:
 
     servers = openapi_spec.get('servers', [])
     if not servers:
-        raise ValueError("No server information found in API specification.")
+        raise ParameterError(
+            "No server information found in API specification."
+        )
 
     server_url = servers[0].get('url', '')
     variables = servers[0].get('variables', {})
@@ -321,7 +332,7 @@ def extract_deploy_stage_from_openapi_spec(openapi_spec: dict) -> str:
                      urlparse(server_url).path.split('/')
                      if segment]
     if not path_segments:
-        raise ValueError("No path segments found in server URL.")
+        raise InvalidValueError("No path segments found in server URL.")
 
     return path_segments[0]
 
@@ -353,7 +364,7 @@ def _look_for_configs(nested_files: list[str], resources_meta: dict[str, Any],
                       path: str, bundle_name: str) -> None:
     """ Look for all config files in project structure. Read content and add
     all meta to overall meta if there is no duplicates. If duplicates found -
-    raise AssertionError.
+    raise an exception.
 
     :param nested_files: A list of files in the project
     :param resources_meta: A dictionary of resources metadata
@@ -416,10 +427,12 @@ def _look_for_configs(nested_files: list[str], resources_meta: dict[str, Any],
                 try:
                     resource_type = resource['resource_type']
                 except KeyError:
-                    error_message = \
-                        f"There is no 'resource_type' in {resource_name}"
+                    error_message = (
+                        f"There is no 'resource_type' in {resource_name} "
+                        f"metadata"
+                    )
                     _LOG.error(error_message)
-                    raise AssertionError(error_message)
+                    raise ParameterError(error_message)
                 if resource_type not in RESOURCE_LIST:
                     error_message = (
                         f'Unsupported resource type found: "{resource_type}". '
@@ -427,7 +440,7 @@ def _look_for_configs(nested_files: list[str], resources_meta: dict[str, Any],
                         f'resource type. To add a new resource type please '
                         f'request the support team.')
                     _LOG.error(error_message)
-                    raise KeyError(error_message)
+                    raise InvalidValueError(error_message)
                 res = _check_duplicated_resources(resources_meta,
                                                   resource_name, resource)
                 if res:

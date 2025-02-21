@@ -20,6 +20,8 @@ from hashlib import md5
 from botocore.exceptions import ClientError
 
 from syndicate.commons import deep_get
+from syndicate.exceptions import ResourceNotFoundError, \
+    InvalidValueError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.connection import LogsConnection
 from syndicate.core.constants import (
@@ -548,7 +550,7 @@ class ApiGatewayResource(BaseResource):
                            f'{deep_get(openapi_context, ["info", "title"])}')
                 authorizer[PROVIDER_ARNS_KEY] = new_provider_arns
             else:
-                raise AssertionError(
+                raise ResourceNotFoundError(
                     f'Cognito User Pools can\'t be resolved by ' + 'names: '
                     f'{pools_names}' if pools_names else
                     f'ARNs: {provider_arns}')
@@ -738,7 +740,7 @@ class ApiGatewayResource(BaseResource):
                         'resources_statement_singleton': resources_statement_singleton
                     })
             else:
-                raise AssertionError(
+                raise InvalidValueError(
                     "API resource must starts with '/', but found %s", each)
         return args
 
@@ -877,7 +879,7 @@ class ApiGatewayResource(BaseResource):
             # type is authorizer, so add id to meta
             authorizer_id = authorizers_mapping.get(authorization_type)
             if not authorizer_id:
-                raise AssertionError(
+                raise ResourceNotFoundError(
                     'Authorizer {0} does not exist'.format(authorization_type))
             method_meta['authorizer_id'] = authorizer_id
             authorizer = self.connection.get_authorizer(
@@ -996,8 +998,9 @@ class ApiGatewayResource(BaseResource):
                                                         passthrough_behavior,
                                                         enable_proxy)
             else:
-                raise AssertionError('%s integration type does not exist.',
-                                     integration_type)
+                raise InvalidValueError(
+                    f"Integration type '{integration_type}' is not supported."
+                    )
         # third step: setup method responses
         if resp:
             for response in resp:

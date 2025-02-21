@@ -13,6 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+from syndicate.exceptions import NotImplementedError
 from .cf_resource_converter import CfResourceConverter
 
 

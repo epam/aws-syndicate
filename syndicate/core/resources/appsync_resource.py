@@ -8,6 +8,8 @@ from zipfile import ZipFile
 
 from botocore.exceptions import ClientError
 
+from syndicate.exceptions import ArtifactError, \
+    ResourceProcessingError, ResourceNotFoundError, ParameterError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.constants import ARTIFACTS_FOLDER
 from syndicate.core.helper import build_path, unpack_kwargs, \
@@ -142,9 +144,10 @@ class AppSyncResource(BaseResource):
         if schema_path := meta.get('schema_path'):
             schema_full_path = build_path(extract_to, schema_path)
             if not extract_to or not os.path.exists(schema_full_path):
-                raise AssertionError(
+                raise ArtifactError(
                     f'\'{schema_full_path}\' file not found for '
-                    f'AppSync \'{name}\'')
+                    f'AppSync \'{name}\''
+                )
 
             with open(schema_full_path, 'r', encoding='utf-8') as file:
                 schema_definition = file.read()
@@ -157,7 +160,7 @@ class AppSyncResource(BaseResource):
                     f"Operation status: '{status}'. ")
                 if details:
                     error_message += f"Details: '{details}'"
-                raise AssertionError(error_message)
+                raise ResourceProcessingError(error_message)
             else:
                 _LOG.info(
                     f"Schema of the AppSync '{name}' created successfully")
@@ -197,7 +200,7 @@ class AppSyncResource(BaseResource):
         try:
             validate_params(
                 source_name, source_meta, DATA_SOURCE_REQUIRED_PARAMS)
-        except AssertionError as e:
+        except ParameterError as e:
             _LOG.warning(str(e))
             _LOG.warning(f'Skipping data source \'{source_name}\'...')
             return
@@ -257,7 +260,7 @@ class AppSyncResource(BaseResource):
         try:
             validate_params(type_name + ':' + field_name, resolver_meta,
                             RESOLVER_REQUIRED_PARAMS)
-        except AssertionError as e:
+        except ParameterError as e:
             _LOG.warning(str(e))
             _LOG.warning(f'Skipping resolver for type \'{type_name}\' '
                          f'and field \'{field_name}\'...')
@@ -310,7 +313,7 @@ class AppSyncResource(BaseResource):
             code_path = build_path(artifacts_path,
                                    resolver_meta.get('code_path'))
             if not artifacts_path or not os.path.exists(code_path):
-                raise AssertionError(
+                raise ArtifactError(
                     f"Resolver code file for type '{type_name}' and field "
                     f"'{field_name}' not found.")
 
@@ -323,7 +326,7 @@ class AppSyncResource(BaseResource):
                 artifacts_path,
                 resolver_meta.get('request_mapping_template_path'))
             if not artifacts_path or not os.path.exists(request_template_path):
-                raise AssertionError(
+                raise ArtifactError(
                     f"Resolver request mapping template file for type "
                     f"'{type_name}' and field '{field_name}' not found.")
             else:
@@ -335,7 +338,7 @@ class AppSyncResource(BaseResource):
                 artifacts_path,
                 resolver_meta.get('response_mapping_template_path'))
             if not artifacts_path or not os.path.exists(response_template_path):
-                raise AssertionError(
+                raise ArtifactError(
                     f"Resolver response mapping template file for type "
                     f"'{type_name}' and field '{field_name}' not found.")
             else:
@@ -359,7 +362,7 @@ class AppSyncResource(BaseResource):
         _LOG.debug(f"Building parameters for the function '{func_name}'")
         try:
             validate_params(func_name, func_meta, FUNCTION_REQUIRED_PARAMS)
-        except AssertionError as e:
+        except ParameterError as e:
             _LOG.warning(str(e))
             _LOG.warning(f"Skipping function '{func_name}'...")
             return
@@ -385,7 +388,7 @@ class AppSyncResource(BaseResource):
             code_path = build_path(artifacts_path,
                                    func_meta.get('code_path'))
             if not artifacts_path or not os.path.exists(code_path):
-                raise AssertionError(
+                raise ArtifactError(
                     f"Function '{func_name}' code file not found.")
 
             with open(code_path, 'r', encoding='utf-8') as file:
@@ -399,7 +402,7 @@ class AppSyncResource(BaseResource):
                 artifacts_path,
                 func_meta.get('request_mapping_template_path'))
             if not artifacts_path or not os.path.exists(request_template_path):
-                raise AssertionError(
+                raise ArtifactError(
                     f"Function '{func_name}' request mapping template file "
                     f"not found.")
             else:
@@ -411,7 +414,7 @@ class AppSyncResource(BaseResource):
                 artifacts_path,
                 func_meta.get('response_mapping_template_path'))
             if not artifacts_path or not os.path.exists(response_template_path):
-                raise AssertionError(
+                raise ArtifactError(
                     f"Function '{func_name}' response mapping template file "
                     f"not found.")
             else:
@@ -496,7 +499,7 @@ class AppSyncResource(BaseResource):
         extract_to = None
         api = self.appsync_conn.get_graphql_api_by_name(name)
         if not api:
-            raise AssertionError(f'{name} GraphQL API does not exist.')
+            raise ResourceNotFoundError(f'{name} GraphQL API does not exist.')
 
         archive_path = meta.get('deployment_package')
         if archive_path:
@@ -562,7 +565,7 @@ class AppSyncResource(BaseResource):
         if schema_path := meta.get('schema_path'):
             schema_full_path = build_path(extract_to, schema_path)
             if not extract_to or not os.path.exists(schema_full_path):
-                raise AssertionError(
+                raise ArtifactError(
                     f'\'{schema_full_path}\' file not found for '
                     f'AppSync \'{name}\'')
 
@@ -577,7 +580,7 @@ class AppSyncResource(BaseResource):
                     f"Operation status: '{status}'. ")
                 if details:
                     error_message += f"Details: '{details}'"
-                raise AssertionError(error_message)
+                raise ResourceProcessingError(error_message)
             else:
                 _LOG.info(
                     f"Schema of the AppSync '{name}' updated successfully")
@@ -699,7 +702,7 @@ class AppSyncResource(BaseResource):
 
         if not self.s3_conn.is_file_exists(self.deploy_target_bucket,
                                            artifact_src_path):
-            raise AssertionError(
+            raise ArtifactError(
                 f"Deployment package for Appsync '{name}' not found by the "
                 f"path '{artifact_src_path}'")
 

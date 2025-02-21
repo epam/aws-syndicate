@@ -3,6 +3,7 @@ import os
 
 import click
 
+from syndicate.exceptions import AbortedError,  SyndicateBaseError
 from syndicate.commons.log_helper import get_user_logger
 from syndicate.core.constants import (
     S3_BUCKET_ACL_LIST, API_GW_AUTHORIZER_TYPES, CUSTOM_AUTHORIZER_KEY,
@@ -621,9 +622,9 @@ def ec2_launch_template(ctx, **kwargs):
         # Check if provided keys are all valid
         if not provided_keys <= valid_keys:
             invalid_keys = provided_keys - valid_keys
-            raise ValueError(
-                f"Invalid resource tag keys provided: {invalid_keys}. "
-                f"Allowed keys are: {valid_keys}"
+            raise click.BadParameter(
+                f"Invalid resource tag keys provided: '{invalid_keys}'. "
+                f"Allowed keys are: '{valid_keys}'"
             )
 
     generator = EC2LaunchTemplateGenerator(**kwargs)
@@ -1215,9 +1216,9 @@ def _generate(generator: BaseConfigurationGenerator):
     """Just some common actions for this module are gathered in here"""
     try:
         generator.write()
-    except ValueError as e:
-        raise click.BadParameter(e)
-    except RuntimeError as e:
+    except AbortedError as e:
         raise click.Abort(e)
     except Exception as e:
+        if isinstance(e, SyndicateBaseError):
+            raise click.BadParameter(e)
         raise Exception(f"An unexpected error occurred: {e}")

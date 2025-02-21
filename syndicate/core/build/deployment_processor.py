@@ -20,6 +20,7 @@ from concurrent.futures import ALL_COMPLETED, ThreadPoolExecutor
 from functools import cmp_to_key
 from typing import Any
 
+from syndicate.exceptions import ResourceProcessingError, ProjectStateError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.build.bundle_processor import create_deploy_output, \
     load_deploy_output, load_failed_deploy_output, load_meta_resources, \
@@ -138,7 +139,7 @@ def _process_resources_with_dependencies(resources, handlers_mapping,
                 continue
 
             if run_count >= len(overall_resources):
-                raise RecursionError(
+                raise ResourceProcessingError(
                     "An infinite loop detected in resource dependencies")
 
             run_count += 1
@@ -424,7 +425,7 @@ def _compare_external_resources(expected_resources):
     if errors:
         import os
         error = f'{os.linesep}'.join(errors.values())
-        raise AssertionError(error)
+        raise ResourceProcessingError(error)
 
 
 def create_deployment_resources(
@@ -584,7 +585,7 @@ def update_deployment_resources(
     try:
         old_output = load_deploy_output(latest_bundle, deploy_name)
         _LOG.info('Output file was loaded successfully')
-    except AssertionError:
+    except ProjectStateError:
         try:
             old_output = load_failed_deploy_output(latest_bundle, deploy_name)
             if not force:
@@ -595,7 +596,7 @@ def update_deployment_resources(
 
                 _LOG.warning(
                     'Updating resources despite previous deployment failures')
-        except AssertionError:
+        except ProjectStateError:
             USER_LOG.error('Deployment to update not found.')
             return ABORTED_STATUS
 
@@ -672,11 +673,11 @@ def remove_deployment_resources(
     try:
         output = load_deploy_output(bundle_name, deploy_name)
         _LOG.info('Output file was loaded successfully')
-    except AssertionError:
+    except ProjectStateError:
         try:
             output = load_failed_deploy_output(bundle_name, deploy_name)
             is_regular_output = False
-        except AssertionError:
+        except ProjectStateError:
             USER_LOG.error("Deployment to clean not found.")
             return ABORTED_STATUS
 

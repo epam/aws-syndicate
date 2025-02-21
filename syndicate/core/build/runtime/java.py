@@ -16,6 +16,7 @@
 import os
 import shutil
 
+from syndicate.exceptions import EnvironmentError
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.constants import MVN_TARGET_DIR_NAME
 from syndicate.core.helper import build_path, execute_command_by_path
@@ -37,7 +38,7 @@ def assemble_java_mvn_lambdas(project_path: str, bundles_dir: str,
 
     mvn_path = shutil.which('mvn')
     if mvn_path is None:
-        raise AssertionError(
+        raise EnvironmentError(
             'It seems that Apache Maven is not installed. Therefore, Java '
             'artifacts cannot be assembled. Please make sure that Apache '
             'Maven is installed.'

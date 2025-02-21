@@ -20,6 +20,8 @@ from typing import Optional
 
 from botocore.exceptions import ClientError
 
+from syndicate.exceptions import ArtifactError, ResourceNotFoundError, \
+    ParameterError, InvalidValueError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.connection.helper import retry
 from syndicate.core.build.bundle_processor import _build_output_key
@@ -304,9 +306,11 @@ class LambdaResource(BaseResource):
                                 key).as_posix()
         if not self.s3_conn.is_file_exists(self.deploy_target_bucket,
                                            key_compound):
-            raise AssertionError(f'Error while creating lambda: {name};'
-                                 f'Deployment package {key_compound} does not exist '
-                                 f'in {self.deploy_target_bucket} bucket')
+            raise ArtifactError(
+                f"Error while creating lambda: '{name};"
+                f"Deployment package '{key_compound}' does not exist "
+                f"in '{self.deploy_target_bucket}' bucket"
+            )
 
         lambda_def = self.lambda_conn.get_function(name)
         if lambda_def:
@@ -316,8 +320,10 @@ class LambdaResource(BaseResource):
         role_name = meta['iam_role_name']
         role_arn = self.iam_conn.check_if_role_exists(role_name)
         if not role_arn:
-            raise AssertionError(f'Role {role_name} does not exist; '
-                                 f'Lambda {name} failed to be configured.')
+            raise ResourceNotFoundError(
+                f"Role '{role_name}' does not exist; "
+                f"Lambda '{name}' failed to be configured."
+            )
 
         dl_target_arn = self.get_dl_target_arn(meta=meta,
                                                region=self.region,
@@ -334,9 +340,10 @@ class LambdaResource(BaseResource):
             for layer_name in layer_meta:
                 layer_arn = self.lambda_conn.get_lambda_layer_arn(layer_name)
                 if not layer_arn:
-                    raise AssertionError(
-                        'Could not link lambda layer {} to lambda {} '
-                        'due to layer absence!'.format(layer_name, name))
+                    raise ResourceNotFoundError(
+                        f"Could not link lambda layer '{layer_name}' to "
+                        f"lambda '{name}' due to layer absence!"
+                    )
                 lambda_layers_arns.append(layer_arn)
 
         ephemeral_storage = meta.get('ephemeral_storage', 512)
@@ -447,14 +454,14 @@ class LambdaResource(BaseResource):
                                 key).as_posix()
         if not self.s3_conn.is_file_exists(self.deploy_target_bucket,
                                            key_compound):
-            raise AssertionError(
-                'Deployment package {0} does not exist '
-                'in {1} bucket'.format(key_compound,
-                                       self.deploy_target_bucket))
+            raise ArtifactError(
+                f"Deployment package '{key_compound}' does not exist "
+                f"in '{self.deploy_target_bucket}' bucket'"
+            )
 
         response = self.lambda_conn.get_function(name)
         if not response:
-            raise AssertionError('{0} lambda does not exist.'.format(name))
+            raise ResourceNotFoundError(f"'{name}' lambda does not exist.")
         old_conf = response['Configuration']
 
         publish_version = meta.get('publish_version', False)
@@ -507,9 +514,10 @@ class LambdaResource(BaseResource):
             for layer_name in layer_meta:
                 layer_arn = self.lambda_conn.get_lambda_layer_arn(layer_name)
                 if not layer_arn:
-                    raise AssertionError(
-                        'Could not link lambda layer {} to lambda {} '
-                        'due to layer absence!'.format(layer_name, name))
+                    raise ResourceNotFoundError(
+                        f"Could not link lambda layer '{layer_name}' to "
+                        f"lambda '{name}' due to layer absence!"
+                    )
                 lambda_layers_arns.append(layer_arn)
 
         if env_vars:
@@ -715,13 +723,16 @@ class LambdaResource(BaseResource):
                 lambda_name=function_name)
         qualifier = concurrency.get('qualifier')
         if not qualifier:
-            raise AssertionError('Parameter `qualifier` is required for '
-                                 'concurrency configuration but it is absent')
+            raise ParameterError(
+                "Parameter 'qualifier' is required for concurrency "
+                "configuration but it is absent"
+            )
         if qualifier not in _LAMBDA_PROV_CONCURRENCY_QUALIFIERS:
-            raise AssertionError(
-                f'Parameter `qualifier` must be one of '
-                f'{_LAMBDA_PROV_CONCURRENCY_QUALIFIERS}, but it is equal '
-                f'to ${qualifier}')
+            raise InvalidValueError(
+                f"Parameter 'qualifier' must be one of "
+                f"'{_LAMBDA_PROV_CONCURRENCY_QUALIFIERS}', but it is equal "
+                f"to '${qualifier}'"
+            )
 
         resolved_qualifier = self._resolve_requested_qualifier(lambda_def,
                                                                meta,
@@ -729,9 +740,10 @@ class LambdaResource(BaseResource):
 
         requested_provisioned_level = concurrency.get('value')
         if not requested_provisioned_level:
-            raise AssertionError('Parameter `provisioned_level` is required '
-                                 'for concurrency configuration but '
-                                 'it is absent')
+            raise ParameterError(
+                "Parameter 'provisioned_level' is required for concurrency "
+                "configuration but it is absent"
+            )
         max_prov_limit = self.lambda_conn.describe_function_concurrency(
             name=function_name)
         if not max_prov_limit:
@@ -739,12 +751,14 @@ class LambdaResource(BaseResource):
                 get_unresolved_concurrent_executions()
 
         if requested_provisioned_level > max_prov_limit:
-            raise AssertionError(f'Requested provisioned concurrency for '
-                                 f'lambda {function_name} must not be greater '
-                                 f'than function concurrency limit if any or '
-                                 f'account unreserved concurrency. '
-                                 f'Max is set to {max_prov_limit}; '
-                                 f'Requested: {requested_provisioned_level}')
+            raise InvalidValueError(
+                f"Requested provisioned concurrency for "
+                f"lambda '{function_name}' must not be greater "
+                f"than function concurrency limit if any or "
+                f"account unreserved concurrency. "
+                f"Max is set to '{max_prov_limit}'; "
+                f"Requested: '{requested_provisioned_level}'"
+            )
 
         self.lambda_conn.configure_provisioned_concurrency(
             name=function_name,
@@ -756,12 +770,16 @@ class LambdaResource(BaseResource):
 
     def _resolve_requested_qualifier(self, lambda_def, meta, qualifier):
         if not qualifier:
-            raise AssertionError('Parameter `qualifier` is required for '
-                                 'concurrency configuration but it is absent')
+            raise ParameterError(
+                "Parameter 'qualifier' is required for concurrency "
+                "configuration but it is absent"
+            )
         if qualifier not in _LAMBDA_PROV_CONCURRENCY_QUALIFIERS:
-            raise AssertionError(f'Parameter `qualifier` must be one of '
-                                 f'{_LAMBDA_PROV_CONCURRENCY_QUALIFIERS}, but it is equal '
-                                 f'to ${qualifier}')
+            raise InvalidValueError(
+                f"Parameter 'qualifier' must be one of "
+                f"'{_LAMBDA_PROV_CONCURRENCY_QUALIFIERS}', but it is equal "
+                f"to '${qualifier}'"
+            )
         lambda_def['Alias'] = meta.get('alias')
         resolve_qualifier_req = lambda_def
         resolved_qualifier = self._LAMBDA_QUALIFIER_RESOLVER[qualifier](

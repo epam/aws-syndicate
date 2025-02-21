@@ -17,6 +17,7 @@ import json
 import os
 from pathlib import Path
 
+from syndicate.exceptions import InvalidValueError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core import ProjectState
 from syndicate.core.project_state.project_state import BUILD_MAPPINGS
@@ -126,7 +127,10 @@ DOTNET_LAYER_FILES = [
 def generate_common_module(src_path, runtime):
     runtime_processor = COMMON_MODULE_PROCESSORS.get(runtime)
     if not runtime_processor:
-        raise AssertionError(f'Unable to create a common module in {src_path}')
+        raise InvalidValueError(
+            f"Runtime '{runtime}' is not supported. "
+            f"Currently available runtimes: '{list(COMMON_MODULE_PROCESSORS)}'"
+        )
     runtime_processor(src_path=src_path)
 
 
@@ -145,14 +149,16 @@ def generate_lambda_function(project_path, runtime, lambda_names, tags):
 
     common_module_generator = COMMON_MODULE_PROCESSORS.get(runtime)
     if not common_module_generator:
-        raise AssertionError(f'The runtime {runtime} is not currently '
-                             f'supported to bootstrap the project')
+        raise InvalidValueError(
+            f"The runtime '{runtime}' is not currently supported to bootstrap "
+            f"the project"
+        )
     common_module_generator(src_path=src_path)
     project_state.add_project_build_mapping(runtime=runtime)
 
     processor = LAMBDAS_PROCESSORS.get(runtime)
     if not processor:
-        raise RuntimeError(f'Wrong project runtime {runtime}')
+        raise InvalidValueError(f"Wrong project runtime '{runtime}'")
 
     lambdas_path = os.path.join(src_path, FOLDER_LAMBDAS)
 
@@ -188,14 +194,16 @@ def generate_lambda_layer(name, runtime, project_path, lambda_names=None):
     src_path = os.path.join(project_path, BUILD_MAPPINGS[runtime])
     common_module_generator = COMMON_MODULE_PROCESSORS.get(runtime + '_layer')
     if not common_module_generator:
-        raise AssertionError(f'The layer runtime {runtime} is not currently '
-                             f'supported to bootstrap the project')
+        raise InvalidValueError(
+            f"The layer runtime '{runtime}' is not currently supported to "
+            f"bootstrap the project"
+        )
     common_module_generator(src_path=src_path)
     project_state.add_project_build_mapping(runtime=runtime)
 
     processor = LAYERS_PROCESSORS.get(runtime)
     if not processor:
-        raise RuntimeError(f'Wrong layer runtime {runtime}')
+        raise InvalidValueError(f"Wrong layer runtime '{runtime}'")
 
     layers_path = os.path.join(src_path, FOLDER_LAMBDAS, FOLDER_LAYERS)
 

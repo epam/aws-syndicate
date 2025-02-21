@@ -15,10 +15,12 @@
 """
 from botocore.exceptions import ClientError
 
+from syndicate.exceptions import InvalidValueError, \
+    ResourceNotFoundError
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.helper import unpack_kwargs
 from syndicate.core.resources.base_resource import BaseResource
-from syndicate.core.resources.helper import (build_description_obj, chunks,
+from syndicate.core.resources.helper import (build_description_obj,
                                              validate_params)
 
 CLOUDWATCH_ALARM_REQUIRED_PARAMS = ['metric_name', 'namespace', 'period',
@@ -126,7 +128,9 @@ class CloudWatchAlarmResource(BaseResource):
         qualifier = None
         if ':' in resource:
             if resource.count(':') > 1:
-                raise Exception(f'Invalid lambda qualifier \'{resource}\'')
+                raise InvalidValueError(
+                    f'Invalid lambda qualifier \'{resource}\''
+                )
 
             resource_name, qualifier = resource.split(':')
             resource = f'{CONFIG.resources_prefix}{resource_name}' \
@@ -136,5 +140,7 @@ class CloudWatchAlarmResource(BaseResource):
         if self.lambda_conn.get_function(arn, qualifier):
             return arn
         else:
-            raise Exception(f'Cannot find lambda with arn \'{arn}\' '
-                            f'and qualifier \'{qualifier}\'')
+            raise ResourceNotFoundError(
+                f'Cannot find lambda with arn \'{arn}\' '
+                f'and qualifier \'{qualifier}\''
+            )

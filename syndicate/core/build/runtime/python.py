@@ -28,6 +28,7 @@ from itertools import chain
 from pathlib import Path
 from typing import Union, Optional, List, Set
 
+from syndicate.exceptions import ArtifactAssemblingError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.build.helper import build_py_package_name, zip_dir, \
     remove_dir
@@ -87,7 +88,7 @@ def assemble_python_lambdas(project_path, bundles_dir, errors_allowed,
     for future in result.done:
         exception = future.exception()
         if exception:
-            raise AssertionError(exception)
+            raise ArtifactAssemblingError(exception)
     _LOG.info('Python project was processed successfully')
 
 
@@ -268,7 +269,7 @@ def install_requirements_to(requirements_txt: Union[str, Path],
                            f'requirements: "{failed_requirements}" for '
                            f'package "{to}"')
                 _LOG.error(message)
-                raise RuntimeError(message)
+                raise ArtifactAssemblingError(message)
         elif result.returncode != 0:
             exit_code = result.returncode
     else:
@@ -295,7 +296,7 @@ def install_requirements_to(requirements_txt: Union[str, Path],
                            f'requirements: "{failed_requirements}" for '
                            f'package "{to}"')
                 _LOG.error(message)
-                raise RuntimeError(message)
+                raise ArtifactAssemblingError(message)
 
     if exit_code:
         message = (f'An error: \n"{result.stdout}\n{result.stderr}"\noccurred '
@@ -303,7 +304,7 @@ def install_requirements_to(requirements_txt: Union[str, Path],
                    f'for package "{to}"\nUse --errors_allowed flag to ignore '
                    f'failures in dependencies installation.')
         _LOG.error(message)
-        raise RuntimeError(message)
+        raise ArtifactAssemblingError(message)
     if exit_code == 0:
         _LOG.info(f'\n{result.stdout}\n{result.stderr}')
     _LOG.info('3-rd party dependencies were installed successfully')

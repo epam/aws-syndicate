@@ -17,6 +17,7 @@ import time
 
 from botocore.exceptions import ClientError
 
+from syndicate.exceptions import ResourceNotFoundError
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.helper import unpack_kwargs
 from syndicate.core.resources.base_resource import BaseResource
@@ -109,8 +110,9 @@ class StepFunctionResource(BaseResource):
         iam_role = meta['iam_role']
         role_arn = self.iam_conn.check_if_role_exists(iam_role)
         if not role_arn:
-            raise AssertionError(
-                'IAM role {0} does not exist.'.format(iam_role))
+            raise ResourceNotFoundError(
+                f"IAM role '{iam_role}' does not exist."
+            )
 
         # check resource exists and get arn
         definition = meta['definition']
@@ -142,8 +144,9 @@ class StepFunctionResource(BaseResource):
                 activity_info = self.sf_conn.describe_activity(
                     arn=activity_arn)
                 if not activity_info:
-                    raise AssertionError('Activity does not exists: %s',
-                                         activity_name)
+                    raise ResourceNotFoundError(
+                        f"Activity does not exists: '{activity_name}'"
+                        )
                 activity_arn = activity_info['activityArn']
                 del definition_copy['States'][key]['Activity']
                 definition_copy['States'][key]['Resource'] = activity_arn

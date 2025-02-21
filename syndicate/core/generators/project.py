@@ -16,8 +16,8 @@
 
 import os
 from pathlib import Path
-import yaml
 
+from syndicate.exceptions import InvalidValueError
 from syndicate.commons.log_helper import get_logger
 from syndicate.core import ProjectState
 from syndicate.core.generators import (_touch, _mkdir,
@@ -45,9 +45,9 @@ FILE_GITIGNORE = '.gitignore'
 def generate_project_structure(project_name, project_path):
     try:
         if not os.path.exists(project_path):
-            raise AssertionError(
-                'Path "{}" you have provided does not exist'.format(
-                    project_path))
+            raise InvalidValueError(
+                f"Path '{project_path}' you have provided does not exist"
+            )
 
         full_project_path = os.path.join(project_path, project_name) \
             if (project_path[-1] != SLASH_SYMBOL) \

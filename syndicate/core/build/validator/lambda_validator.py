@@ -13,6 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+from syndicate.exceptions import ResourceMetadataError
 from syndicate.core.constants import IAM_AUTH_TYPE, NONE_AUTH_TYPE, \
     LAMBDA_ARCHITECTURE_LIST
 
@@ -34,7 +35,7 @@ class LambdaValidator:
             self._validate_architecture(architectures)
 
     def _error(self, message):
-        raise AssertionError(message)
+        raise ResourceMetadataError(message)
 
     def _validate_url_config(self, url_config):
         if 'auth_type' not in url_config:

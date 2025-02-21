@@ -4,6 +4,7 @@ import boto3
 import requests
 from requests_aws_sign import AWSV4Sign
 
+from syndicate.exceptions import InvalidValueError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core import ResourceProvider
 from syndicate.core.build.bundle_processor import load_deploy_output
@@ -91,7 +92,9 @@ def get_api_stage(rest_api_id, user_input_stage_name):
                           f'{", ".join(all_stage_names)}')
             stage_name = input('Select Stage from existing: ')
             if stage_name not in all_stage_names:
-                raise AssertionError(f'Provided Stage name does not exists')
+                raise InvalidValueError(
+                    f'Provided Stage name does not exists'
+                )
 
     else:
         if isinstance(user_input_stage_name, str):
@@ -101,7 +104,7 @@ def get_api_stage(rest_api_id, user_input_stage_name):
             stage_name = [stage for stage in user_input_stage_name
                           if stage in all_stage_names]
         if not stage_name:
-            raise AssertionError(
+            raise InvalidValueError(
                 f'Provided Stage name does not exists, available stage '
                 f'name(s): {", ".join(all_stage_names)}')
         stage_name = stage_name[0]
@@ -255,7 +258,7 @@ def process_existing_api_gw_id(stage_name):
     user_input_id = {user_id.strip() for user_id in user_input_id}
 
     if not user_input_id.issubset(all_api_name):
-        raise AssertionError(
+        raise InvalidValueError(
             f'Specify only allowed IDs: {", ".join(all_api_name)}')
 
     paths_to_be_triggered = {}
