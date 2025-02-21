@@ -17,7 +17,7 @@ import json
 import os
 from pathlib import Path
 
-from syndicate.commons.exceptions import InvalidValueError
+from syndicate.exceptions import InvalidValueError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core import ProjectState
 from syndicate.core.project_state.project_state import BUILD_MAPPINGS

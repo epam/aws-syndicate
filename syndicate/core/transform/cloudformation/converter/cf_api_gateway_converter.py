@@ -16,7 +16,7 @@
 
 from troposphere import apigateway, GetAtt, Ref, Join
 
-from syndicate.commons.exceptions import InvalidValueError, \
+from syndicate.exceptions import InvalidValueError, \
     ResourceMetadataError, ParameterError, ResourceNotFoundError
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection import ApiGatewayConnection

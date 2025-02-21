@@ -18,11 +18,11 @@ import os
 import shutil
 import zipfile
 
-from syndicate.commons.exceptions import ArtifactAssemblingError, \
+from syndicate.exceptions import ArtifactAssemblingError, \
     ResourceMetadataError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.constants import APPSYNC_ARTIFACT_NAME_TEMPLATE, \
-    APPSYNC_CONFIG_FILE_NAME, APPSYNC_RESOLVERS_FOLDER, RESOURCES_FILE_NAME
+    APPSYNC_CONFIG_FILE_NAME
 from syndicate.core.helper import build_path
 
 FILE_DEPLOYMENT_RESOURCES = 'deployment_resources.json'

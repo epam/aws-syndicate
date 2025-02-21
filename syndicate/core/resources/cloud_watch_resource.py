@@ -17,7 +17,7 @@ import time
 
 from botocore.exceptions import ClientError
 
-from syndicate.commons.exceptions import InvalidValueError
+from syndicate.exceptions import InvalidValueError
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.conf.validator import ALL_REGIONS
 from syndicate.core.helper import unpack_kwargs

@@ -18,7 +18,7 @@ from uuid import uuid1
 from pathlib import PurePath
 from botocore.exceptions import ClientError
 
-from syndicate.commons.exceptions import ResourceNotFoundError, ArtifactError
+from syndicate.exceptions import ResourceNotFoundError, ArtifactError
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.build.meta_processor import S3_PATH_NAME
 from syndicate.core.helper import unpack_kwargs

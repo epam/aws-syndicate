@@ -13,12 +13,10 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-from time import time
 
 from syndicate.commons import deep_get
-from syndicate.commons.exceptions import ResourceNotFoundError
+from syndicate.exceptions import ResourceNotFoundError
 from syndicate.commons.log_helper import get_logger, get_user_logger
-from syndicate.connection.helper import retry
 from syndicate.core.helper import unpack_kwargs
 from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import build_description_obj

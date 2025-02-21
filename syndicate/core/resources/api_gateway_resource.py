@@ -20,7 +20,7 @@ from hashlib import md5
 from botocore.exceptions import ClientError
 
 from syndicate.commons import deep_get
-from syndicate.commons.exceptions import ResourceNotFoundError, \
+from syndicate.exceptions import ResourceNotFoundError, \
     InvalidValueError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.connection import LogsConnection

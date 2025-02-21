@@ -19,7 +19,7 @@ from json import load
 from typing import Any
 from urllib.parse import urlparse
 
-from syndicate.commons.exceptions import ProjectStateError, \
+from syndicate.exceptions import ProjectStateError, \
     ResourceMetadataError, ResourceProcessingError, ParameterError, \
     InvalidValueError
 from syndicate.commons.log_helper import get_logger, get_user_logger

@@ -1,6 +1,6 @@
 import click
 
-from syndicate.commons.exceptions import AbortedError
+from syndicate.exceptions import AbortedError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.constants import DOCUMENTDB_INSTANCE_TYPE, \
     DOCUMENTDB_CLUSTER_TYPE

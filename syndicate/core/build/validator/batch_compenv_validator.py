@@ -13,7 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-from syndicate.commons.exceptions import InvalidValueError, ParameterError, \
+from syndicate.exceptions import InvalidValueError, ParameterError, \
     InvalidTypeError
 from syndicate.connection.ec2_connection import InstanceTypes
 from syndicate.core.constants import OPTIMAL_INSTANCE_TYPE

@@ -20,7 +20,7 @@ from typing import Optional
 
 from botocore.exceptions import ClientError
 
-from syndicate.commons.exceptions import ArtifactError, ResourceNotFoundError, \
+from syndicate.exceptions import ArtifactError, ResourceNotFoundError, \
     ParameterError, InvalidValueError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.connection.helper import retry

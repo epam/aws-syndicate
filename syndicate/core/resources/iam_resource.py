@@ -18,7 +18,7 @@ from typing import Optional
 
 from botocore.exceptions import ClientError
 
-from syndicate.commons.exceptions import ResourceNotFoundError, \
+from syndicate.exceptions import ResourceNotFoundError, \
     InvalidValueError
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import retry

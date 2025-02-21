@@ -15,8 +15,7 @@
 """
 from datetime import datetime, timezone
 
-from syndicate.commons.exceptions import InvalidValueError, \
-    InvalidValueError, ResourceNotFoundError
+from syndicate.exceptions import InvalidValueError, ResourceNotFoundError
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.helper import unpack_kwargs
 from syndicate.core.helper import dict_keys_to_capitalized_camel_case

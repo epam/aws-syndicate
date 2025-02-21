@@ -1,7 +1,4 @@
-from syndicate.commons.exceptions import ResourceNotFoundError
-from syndicate.core.generators.deployment_resources.base_generator import \
-    BaseDeploymentResourceGenerator
-import click
+from syndicate.exceptions import ResourceNotFoundError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.constants import IAM_ROLE, IAM_POLICY
 from syndicate.core.generators.deployment_resources.base_generator import \

@@ -15,12 +15,12 @@
 """
 from botocore.exceptions import ClientError
 
-from syndicate.commons.exceptions import InvalidValueError, \
+from syndicate.exceptions import InvalidValueError, \
     ResourceNotFoundError
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.helper import unpack_kwargs
 from syndicate.core.resources.base_resource import BaseResource
-from syndicate.core.resources.helper import (build_description_obj, chunks,
+from syndicate.core.resources.helper import (build_description_obj,
                                              validate_params)
 
 CLOUDWATCH_ALARM_REQUIRED_PARAMS = ['metric_name', 'namespace', 'period',

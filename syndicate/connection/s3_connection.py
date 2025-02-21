@@ -13,7 +13,6 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-import io
 from json import dumps
 
 from boto3 import resource
@@ -21,7 +20,7 @@ from botocore.client import Config
 from botocore.exceptions import ClientError
 
 from syndicate.commons import deep_get
-from syndicate.commons.exceptions import InvalidValueError
+from syndicate.exceptions import InvalidValueError
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import apply_methods_decorator, retry
 

@@ -19,9 +19,9 @@ import threading
 from functools import wraps
 from pathlib import PurePath
 
-from click import Abort, BadParameter
+from click import BadParameter
 
-from syndicate.commons.exceptions import SyndicateBaseError
+from syndicate.exceptions import SyndicateBaseError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.constants import (ABORTED_RETURN_CODE, OK_RETURN_CODE,
                                       FAILED_RETURN_CODE)

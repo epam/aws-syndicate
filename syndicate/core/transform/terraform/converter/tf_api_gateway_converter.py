@@ -13,7 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-from syndicate.commons.exceptions import ResourceMetadataError, \
+from syndicate.exceptions import ResourceMetadataError, \
     ResourceNotFoundError
 from syndicate.connection.api_gateway_connection import \
     REQ_VALIDATOR_PARAM_NAME, \

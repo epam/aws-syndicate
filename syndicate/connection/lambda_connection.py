@@ -20,7 +20,7 @@ from typing import Optional, List, Tuple, Iterable
 from boto3 import client
 from botocore.exceptions import ClientError
 
-from syndicate.commons.exceptions import InvalidValueError
+from syndicate.exceptions import InvalidValueError
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import apply_methods_decorator, retry
 from syndicate.core.constants import NONE_AUTH_TYPE, IAM_AUTH_TYPE

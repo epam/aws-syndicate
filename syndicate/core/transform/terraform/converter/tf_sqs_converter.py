@@ -15,7 +15,7 @@
 """
 import json
 
-from syndicate.commons.exceptions import InvalidValueError
+from syndicate.exceptions import InvalidValueError
 from syndicate.core.transform.terraform.converter.tf_resource_converter import \
     TerraformResourceConverter
 from syndicate.core.transform.terraform.tf_helper import deploy_regions

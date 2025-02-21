@@ -19,7 +19,7 @@ from json import dumps, loads
 from boto3 import client
 from botocore.exceptions import ClientError
 
-from syndicate.commons.exceptions import ResourceNotFoundError, \
+from syndicate.exceptions import ResourceNotFoundError, \
     InvalidValueError
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import apply_methods_decorator, retry

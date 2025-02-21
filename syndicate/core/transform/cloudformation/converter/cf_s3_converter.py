@@ -15,7 +15,7 @@
 """
 from troposphere import s3
 
-from syndicate.commons.exceptions import InvalidTypeError
+from syndicate.exceptions import InvalidTypeError
 from .cf_resource_converter import CfResourceConverter
 from ..cf_transform_utils import to_logic_name, s3_bucket_logic_name
 

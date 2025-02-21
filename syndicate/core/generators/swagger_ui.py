@@ -17,7 +17,7 @@
 import sys
 from pathlib import Path, PurePath
 
-from syndicate.commons.exceptions import InvalidValueError
+from syndicate.exceptions import InvalidValueError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core import ProjectState
 from syndicate.core.constants import SWAGGER_UI_SPEC_NAME_TEMPLATE, \

@@ -15,7 +15,7 @@
 """
 import json
 
-from syndicate.commons.exceptions import ResourceNotFoundError
+from syndicate.exceptions import ResourceNotFoundError
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.resources.batch_compenv_resource import DEFAULT_STATE
 from syndicate.core.transform.terraform.converter.tf_resource_converter import \

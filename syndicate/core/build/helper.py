@@ -23,7 +23,7 @@ from datetime import datetime, date
 from pathlib import PurePath, Path
 from typing import Union
 
-from syndicate.commons.exceptions import InvalidValueError, InvalidTypeError, \
+from syndicate.exceptions import InvalidValueError, InvalidTypeError, \
     ConfigurationError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.constants import ARTIFACTS_FOLDER

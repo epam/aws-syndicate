@@ -13,7 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-from syndicate.commons.exceptions import ParameterError, InvalidValueError
+from syndicate.exceptions import ParameterError, InvalidValueError
 from syndicate.core.build.validator.batch_compenv_validator import _validate_field_type
 
 JOB_DEFINITION_TYPES = ('container', 'multinode')

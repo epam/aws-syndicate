@@ -13,7 +13,6 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-import collections
 import concurrent.futures
 import getpass
 import json
@@ -35,7 +34,7 @@ import click
 from click import BadParameter
 from tqdm import tqdm
 
-from syndicate.commons.exceptions import ArtifactAssemblingError, \
+from syndicate.exceptions import ArtifactAssemblingError, \
     InternalError, ProjectStateError, InvalidValueError, \
     SyndicateBaseError
 from syndicate.commons.log_helper import get_logger, get_user_logger, \

@@ -19,7 +19,7 @@ from datetime import datetime, timedelta, timezone
 
 from botocore.exceptions import ClientError
 
-from syndicate.commons.exceptions import InternalError
+from syndicate.exceptions import InternalError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.connection import ConnectionProvider
 from syndicate.connection.sts_connection import STSConnection

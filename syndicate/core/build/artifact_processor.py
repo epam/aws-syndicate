@@ -14,9 +14,8 @@
     limitations under the License.
 """
 import os
-import shutil
 
-from syndicate.commons.exceptions import InvalidValueError
+from syndicate.exceptions import InvalidValueError
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.build.helper import resolve_bundle_directory
 from syndicate.core.build.runtime.dotnet import assemble_dotnet_lambdas

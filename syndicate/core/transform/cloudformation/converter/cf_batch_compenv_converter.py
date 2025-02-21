@@ -15,7 +15,7 @@
 """
 from troposphere import batch
 
-from syndicate.commons.exceptions import ResourceNotFoundError
+from syndicate.exceptions import ResourceNotFoundError
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.helper import dict_keys_to_upper_camel_case
 from syndicate.core.resources.batch_compenv_resource import \

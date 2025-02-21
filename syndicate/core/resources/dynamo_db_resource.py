@@ -15,7 +15,7 @@
 """
 from botocore.exceptions import ClientError
 
-from syndicate.commons.exceptions import ResourceNotFoundError, \
+from syndicate.exceptions import ResourceNotFoundError, \
     ResourceProcessingError
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.helper import unpack_kwargs

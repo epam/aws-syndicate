@@ -3,8 +3,8 @@ from abc import ABC, abstractmethod
 from typing import Union
 from collections.abc import Iterable
 
-from syndicate.commons.exceptions import InvalidTypeError, InternalError, \
-    SyndicateNotImplementedError
+from syndicate.exceptions import InvalidTypeError, InternalError, \
+    NotImplementedError
 
 NAMED_S3_URI_PATTERN = r'^(?P<proto>s3:\/\/)?(?:(?P<name>[0-9a-z\-]+)' \
                        r'(?:\/)?)(?P<key>(?<=\/)(?:[0-9a-z\-_]+(?:\/)?)+)?$'
@@ -98,7 +98,7 @@ class AbstractBucketView(ABC):
     @property
     @abstractmethod
     def name(self):
-        raise SyndicateNotImplementedError
+        raise NotImplementedError
 
     @property
     @abstractmethod

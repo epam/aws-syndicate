@@ -15,7 +15,7 @@
 """
 from troposphere import batch
 
-from syndicate.commons.exceptions import ResourceNotFoundError
+from syndicate.exceptions import ResourceNotFoundError
 from syndicate.core.helper import dict_keys_to_upper_camel_case
 from .cf_resource_converter import CfResourceConverter
 from ..cf_transform_utils import to_logic_name, iam_role_logic_name

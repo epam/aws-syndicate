@@ -18,7 +18,7 @@ import os
 import shutil
 import zipfile
 
-from syndicate.commons.exceptions import ResourceMetadataError, \
+from syndicate.exceptions import ResourceMetadataError, \
     ArtifactAssemblingError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.constants import SWAGGER_UI_SPEC_NAME_TEMPLATE, \

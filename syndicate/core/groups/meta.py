@@ -3,7 +3,7 @@ import os
 
 import click
 
-from syndicate.commons.exceptions import AbortedError,  SyndicateBaseError
+from syndicate.exceptions import AbortedError,  SyndicateBaseError
 from syndicate.commons.log_helper import get_user_logger
 from syndicate.core.constants import (
     S3_BUCKET_ACL_LIST, API_GW_AUTHORIZER_TYPES, CUSTOM_AUTHORIZER_KEY,

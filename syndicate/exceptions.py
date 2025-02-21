@@ -23,7 +23,7 @@ class SyndicateBaseError(Exception):
 
 
 # =============================================================================
-class SyndicateNotImplementedError(SyndicateBaseError):
+class NotImplementedError(SyndicateBaseError):
     """
     The syndicate not implemented error.
     """
@@ -75,7 +75,7 @@ class ConfigurationError(SyndicateBaseError):
 
 
 # =============================================================================
-class SyndicateEnvironmentError(SyndicateBaseError):
+class EnvironmentError(SyndicateBaseError):
     """
     The syndicate environment error.
     """

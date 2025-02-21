@@ -24,7 +24,7 @@ from typing import Union
 
 import yaml
 
-from syndicate.commons.exceptions import InternalError, ProjectStateError
+from syndicate.exceptions import InternalError, ProjectStateError
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.constants import BUILD_ACTION, \
     DEPLOY_ACTION, UPDATE_ACTION, CLEAN_ACTION, PACKAGE_META_ACTION, \

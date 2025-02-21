@@ -2,7 +2,7 @@ import json
 
 import click
 
-from syndicate.commons.exceptions import ResourceNotFoundError, AbortedError, \
+from syndicate.exceptions import ResourceNotFoundError, AbortedError, \
     ResourceMetadataError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.constants import API_GATEWAY_TYPE, \

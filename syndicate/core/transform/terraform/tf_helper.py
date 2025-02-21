@@ -13,7 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-from syndicate.commons.exceptions import InvalidValueError
+from syndicate.exceptions import InvalidValueError
 from syndicate.core.conf.validator import ALL_REGIONS
 from syndicate.core.resources.helper import check_region_available
 

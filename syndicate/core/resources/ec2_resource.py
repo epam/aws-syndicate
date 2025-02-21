@@ -18,7 +18,7 @@ import os
 from time import sleep
 from typing import Any
 
-from syndicate.commons.exceptions import ResourceNotFoundError, ParameterError, \
+from syndicate.exceptions import ResourceNotFoundError, ParameterError, \
     InvalidValueError
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.ec2_connection import InstanceTypes

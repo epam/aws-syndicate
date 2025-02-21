@@ -17,7 +17,7 @@ import time
 
 from botocore.exceptions import ClientError
 
-from syndicate.commons.exceptions import ResourceNotFoundError
+from syndicate.exceptions import ResourceNotFoundError
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.helper import unpack_kwargs
 from syndicate.core.resources.base_resource import BaseResource

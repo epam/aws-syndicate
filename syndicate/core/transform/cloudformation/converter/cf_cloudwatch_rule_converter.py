@@ -17,7 +17,7 @@ import uuid
 
 from troposphere import events
 
-from syndicate.commons.exceptions import ParameterError
+from syndicate.exceptions import ParameterError
 from syndicate.core.resources.cloud_watch_resource import \
     validate_cloud_watch_rule_params, get_event_bus_arn
 from .cf_resource_converter import CfResourceConverter

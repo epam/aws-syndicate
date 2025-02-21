@@ -13,9 +13,9 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-from troposphere import sqs, GetAtt
+from troposphere import sqs
 
-from syndicate.commons.exceptions import InvalidValueError
+from syndicate.exceptions import InvalidValueError
 from syndicate.core.resources.sqs_resource import SqsResource
 from .cf_resource_converter import CfResourceConverter
 from ..cf_transform_utils import to_logic_name, sqs_queue_logic_name

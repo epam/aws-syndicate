@@ -16,9 +16,8 @@
 
 import os
 from pathlib import Path
-import yaml
 
-from syndicate.commons.exceptions import InvalidValueError
+from syndicate.exceptions import InvalidValueError
 from syndicate.commons.log_helper import get_logger
 from syndicate.core import ProjectState
 from syndicate.core.generators import (_touch, _mkdir,

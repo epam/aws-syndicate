@@ -15,7 +15,7 @@
 """
 import os
 
-from syndicate.commons.exceptions import ResourceMetadataError
+from syndicate.exceptions import ResourceMetadataError
 from syndicate.core.constants import \
     EC2_LAUNCH_TEMPLATE_SUPPORTED_IMDS_VERSIONS
 

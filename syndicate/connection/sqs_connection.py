@@ -18,7 +18,7 @@ import json
 from boto3 import client
 from botocore.exceptions import ClientError
 
-from syndicate.commons.exceptions import InvalidValueError
+from syndicate.exceptions import InvalidValueError
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import apply_methods_decorator, retry
 

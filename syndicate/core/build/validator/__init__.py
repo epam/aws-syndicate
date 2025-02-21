@@ -13,7 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-from syndicate.commons.exceptions import ParameterError
+from syndicate.exceptions import ParameterError
 
 
 def assert_required_property(resource_name, property_name, property_value,

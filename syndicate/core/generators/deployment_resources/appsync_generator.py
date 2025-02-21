@@ -1,7 +1,7 @@
 import json
 from pathlib import Path, PurePath
 
-from syndicate.commons.exceptions import ResourceMetadataError, AbortedError
+from syndicate.exceptions import ResourceMetadataError, AbortedError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.constants import DYNAMO_TABLE_TYPE, IAM_ROLE, \
     COGNITO_USER_POOL_TYPE, APPSYNC_CONFIG_FILE_NAME, \

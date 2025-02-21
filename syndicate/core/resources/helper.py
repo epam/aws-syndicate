@@ -15,8 +15,7 @@
 """
 import json
 
-from syndicate.commons.exceptions import ParameterError, InvalidValueError, \
-    ResourceProcessingError, InvalidValueError
+from syndicate.exceptions import ParameterError, ResourceProcessingError, InvalidValueError
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.conf.processor import GLOBAL_AWS_SERVICES
 from typing import TypeVar, Optional

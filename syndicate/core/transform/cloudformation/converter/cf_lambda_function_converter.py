@@ -15,7 +15,7 @@
 """
 from troposphere import GetAtt, Ref, logs, awslambda
 
-from syndicate.commons.exceptions import ResourceNotFoundError
+from syndicate.exceptions import ResourceNotFoundError
 from syndicate.commons.log_helper import get_user_logger
 from syndicate.connection.cloud_watch_connection import \
     get_lambda_log_group_name

@@ -21,7 +21,7 @@ from shutil import rmtree
 from zipfile import ZipFile
 
 from syndicate.commons import deep_get
-from syndicate.commons.exceptions import ResourceNotFoundError, ParameterError
+from syndicate.exceptions import ResourceNotFoundError, ParameterError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.constants import ARTIFACTS_FOLDER, S3_PATH_NAME, \
     SWAGGER_UI_SPEC_NAME_TEMPLATE

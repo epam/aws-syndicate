@@ -20,7 +20,7 @@ from boto3 import client, resource
 from boto3.dynamodb.conditions import Attr, Key
 from botocore.exceptions import ClientError
 
-from syndicate.commons.exceptions import ResourceProcessingError, \
+from syndicate.exceptions import ResourceProcessingError, \
     ParameterError
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import apply_methods_decorator, retry

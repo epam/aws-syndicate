@@ -1,10 +1,7 @@
 import json
 import os
-import sys
 
-import click
-
-from syndicate.commons.exceptions import ResourceMetadataError, \
+from syndicate.exceptions import ResourceMetadataError, \
     ResourceProcessingError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.build.bundle_processor import load_deploy_output

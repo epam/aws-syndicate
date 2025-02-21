@@ -20,7 +20,7 @@ from typing import Union
 
 import yaml
 
-from syndicate.commons.exceptions import ConfigurationError, \
+from syndicate.exceptions import ConfigurationError, \
     InvalidTypeError
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.conf.bucket_view import \

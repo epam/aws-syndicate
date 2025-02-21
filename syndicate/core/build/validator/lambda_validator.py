@@ -13,7 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-from syndicate.commons.exceptions import ResourceMetadataError
+from syndicate.exceptions import ResourceMetadataError
 from syndicate.core.constants import IAM_AUTH_TYPE, NONE_AUTH_TYPE, \
     LAMBDA_ARCHITECTURE_LIST
 

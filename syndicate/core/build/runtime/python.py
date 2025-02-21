@@ -28,7 +28,7 @@ from itertools import chain
 from pathlib import Path
 from typing import Union, Optional, List, Set
 
-from syndicate.commons.exceptions import ArtifactAssemblingError
+from syndicate.exceptions import ArtifactAssemblingError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.build.helper import build_py_package_name, zip_dir, \
     remove_dir

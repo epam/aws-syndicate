@@ -20,7 +20,7 @@ from concurrent.futures import ALL_COMPLETED, ThreadPoolExecutor
 from functools import cmp_to_key
 from typing import Any
 
-from syndicate.commons.exceptions import ResourceProcessingError
+from syndicate.exceptions import ResourceProcessingError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.build.bundle_processor import create_deploy_output, \
     load_deploy_output, load_failed_deploy_output, load_meta_resources, \

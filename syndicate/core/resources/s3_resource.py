@@ -18,13 +18,13 @@ import re
 import string
 from typing import Optional
 
-from syndicate.commons.exceptions import InvalidValueError
+from syndicate.exceptions import InvalidValueError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core import ClientError
 from syndicate.core.constants import S3_BUCKET_ACL_LIST
 from syndicate.core.helper import unpack_kwargs
 from syndicate.core.resources.base_resource import BaseResource
-from syndicate.core.resources.helper import build_description_obj, chunks
+from syndicate.core.resources.helper import build_description_obj
 
 _LOG = get_logger(__name__)
 USER_LOG = get_user_logger()

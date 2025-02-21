@@ -20,7 +20,7 @@ from concurrent.futures.thread import ThreadPoolExecutor
 from botocore.exceptions import ClientError, BotoCoreError
 
 from syndicate.commons import deep_get
-from syndicate.commons.exceptions import SyndicateBaseError
+from syndicate.exceptions import SyndicateBaseError
 from syndicate.commons.log_helper import get_logger
 
 _LOG = get_logger(__name__)

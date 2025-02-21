@@ -3,7 +3,7 @@ from functools import partial
 
 import click
 
-from syndicate.commons.exceptions import SyndicateBaseError, AbortedError
+from syndicate.exceptions import SyndicateBaseError, AbortedError
 from syndicate.commons.log_helper import get_user_logger
 from syndicate.core.constants import APPSYNC_TYPE, APPSYNC_DATA_SOURCE_TYPES, \
     APPSYNC_AUTHENTICATION_TYPES, APPSYNC_AUTHORIZATION_TYPES, \

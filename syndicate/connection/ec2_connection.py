@@ -23,7 +23,7 @@ import botocore
 from botocore.exceptions import ClientError
 from boto3 import client
 
-from syndicate.commons.exceptions import InvalidValueError, ParameterError
+from syndicate.exceptions import InvalidValueError, ParameterError
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import apply_methods_decorator, retry
 from syndicate.core.constants import EC2_LT_RESOURCE_TAGS

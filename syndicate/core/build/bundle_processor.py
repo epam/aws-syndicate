@@ -20,7 +20,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import PurePath
 from botocore.exceptions import ClientError
 
-from syndicate.commons.exceptions import InvalidValueError, \
+from syndicate.exceptions import InvalidValueError, \
     ProjectStateError, ConfigurationError
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection import S3Connection

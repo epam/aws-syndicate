@@ -14,10 +14,8 @@
     limitations under the License.
 """
 import re
-import click
-import sys
 
-from syndicate.commons.exceptions import InvalidValueError, \
+from syndicate.exceptions import InvalidValueError, \
     ResourceMetadataError
 from syndicate.commons.log_helper import get_user_logger
 from syndicate.core.build.validator import assert_required_property

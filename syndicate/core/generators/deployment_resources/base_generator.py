@@ -5,8 +5,8 @@ from pathlib import Path
 
 import click
 
-from syndicate.commons.exceptions import ResourceNotFoundError, \
-    SyndicateNotImplementedError, ParameterError, AbortedError
+from syndicate.exceptions import ResourceNotFoundError, \
+    NotImplementedError, ParameterError, AbortedError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.constants import RESOURCES_FILE_NAME
 from syndicate.core.generators import (_read_content_from_file,
@@ -133,7 +133,7 @@ class BaseConfigurationGenerator:
 
     def write(self):
         """The main method to write resources"""
-        raise SyndicateNotImplementedError()
+        raise NotImplementedError()
 
 
 class BaseDeploymentResourceGenerator(BaseConfigurationGenerator):

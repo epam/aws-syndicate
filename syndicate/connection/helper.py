@@ -19,7 +19,7 @@ from time import sleep
 
 from botocore.exceptions import ClientError
 
-from syndicate.commons.exceptions import ResourceProcessingError
+from syndicate.exceptions import ResourceProcessingError
 from syndicate.commons.log_helper import get_logger
 
 _LOG = get_logger(__name__)

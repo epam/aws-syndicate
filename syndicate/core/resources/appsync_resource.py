@@ -8,7 +8,7 @@ from zipfile import ZipFile
 
 from botocore.exceptions import ClientError
 
-from syndicate.commons.exceptions import ArtifactError, \
+from syndicate.exceptions import ArtifactError, \
     ResourceProcessingError, ResourceNotFoundError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.constants import ARTIFACTS_FOLDER
