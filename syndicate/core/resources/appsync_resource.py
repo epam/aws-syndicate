@@ -9,7 +9,7 @@ from zipfile import ZipFile
 from botocore.exceptions import ClientError
 
 from syndicate.exceptions import ArtifactError, \
-    ResourceProcessingError, ResourceNotFoundError
+    ResourceProcessingError, ResourceNotFoundError, ParameterError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.constants import ARTIFACTS_FOLDER
 from syndicate.core.helper import build_path, unpack_kwargs, \
@@ -200,7 +200,7 @@ class AppSyncResource(BaseResource):
         try:
             validate_params(
                 source_name, source_meta, DATA_SOURCE_REQUIRED_PARAMS)
-        except AssertionError as e:
+        except ParameterError as e:
             _LOG.warning(str(e))
             _LOG.warning(f'Skipping data source \'{source_name}\'...')
             return
@@ -260,7 +260,7 @@ class AppSyncResource(BaseResource):
         try:
             validate_params(type_name + ':' + field_name, resolver_meta,
                             RESOLVER_REQUIRED_PARAMS)
-        except AssertionError as e:
+        except ParameterError as e:
             _LOG.warning(str(e))
             _LOG.warning(f'Skipping resolver for type \'{type_name}\' '
                          f'and field \'{field_name}\'...')
@@ -362,7 +362,7 @@ class AppSyncResource(BaseResource):
         _LOG.debug(f"Building parameters for the function '{func_name}'")
         try:
             validate_params(func_name, func_meta, FUNCTION_REQUIRED_PARAMS)
-        except AssertionError as e:
+        except ParameterError as e:
             _LOG.warning(str(e))
             _LOG.warning(f"Skipping function '{func_name}'...")
             return

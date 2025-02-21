@@ -20,8 +20,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import PurePath
 from botocore.exceptions import ClientError
 
-from syndicate.exceptions import InvalidValueError, \
-    ProjectStateError, ConfigurationError
+from syndicate.exceptions import ProjectStateError, ConfigurationError
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection import S3Connection
 from syndicate.core.build.helper import _json_serial, resolve_bundle_directory, \
@@ -193,7 +192,7 @@ def load_latest_deploy_output(failsafe: bool = False):
         return False, load_failed_deploy_output(bundle_name, deploy_name,
                                                 failsafe=failsafe)
     else:
-        raise InvalidValueError(
+        raise ProjectStateError(
             "The latest deployments' status can't be resolved because of "
             "unexpected status. Please check the parameter 'is_succeeded' "
             "value in the 'latest_deploy' section of the syndicate state "
