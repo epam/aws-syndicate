@@ -18,7 +18,7 @@ import re
 import string
 from typing import Optional
 
-from syndicate.exceptions import InvalidValueError
+from syndicate.exceptions import InvalidValueError, InvalidTypeError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core import ClientError
 from syndicate.core.constants import S3_BUCKET_ACL_LIST
@@ -119,7 +119,7 @@ class S3Resource(BaseResource):
             message = f'Parameters inside public_access_block should have ' \
                       f'bool type'
             _LOG.error(message)
-            raise InvalidValueError(message)
+            raise InvalidTypeError(message)
         self.s3_conn.put_public_access_block(name,
                                              **public_access_block)
 
@@ -144,9 +144,9 @@ class S3Resource(BaseResource):
             error_document = meta['website_hosting'].get('error_document')
             if not all([isinstance(param, str) for param in (index_document,
                                                              error_document)]):
-                raise InvalidValueError(
-                    'Parameters \'index_document\' and '
-                    '\'error_document\' must be \'str\' type'
+                raise InvalidTypeError(
+                    "Value of parameters 'index_document' and "
+                    "'error_document' must be of 'str' type"
                 )
             self.s3_conn.enable_website_hosting(name,
                                                 index_document,

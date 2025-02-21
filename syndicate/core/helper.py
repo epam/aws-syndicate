@@ -621,7 +621,7 @@ def check_bundle_bucket_name(ctx, param, value):
             bucket_name = value.split('/', 1)[0]
         validate_bucket_name(bucket_name)
         return value
-    except ValueError as e:
+    except (ValueError, InvalidValueError) as e:
         raise BadParameter(e.__str__())
 
 
