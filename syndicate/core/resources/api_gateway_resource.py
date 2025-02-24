@@ -1235,6 +1235,9 @@ class ApiGatewayResource(BaseResource):
 
         for path, path_item in openapi_spec.get('paths', {}).items():
             for method, method_data in path_item.items():
+                if not isinstance(method_data, dict):
+                    continue
+
                 integration = method_data.get('x-amazon-apigateway-integration')
                 if not integration or not integration.get('uri'):
                     continue
