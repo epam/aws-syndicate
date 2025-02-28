@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed log message duplication during retries
 - Fixed issue related to deployment API Gateway defined with OpenAPI spec and documented path `Path Item Object` 
 - Added syndicate custom exceptions
+- Clarified warning message about the absence of the syndicate project state file.
 
 # [1.16.2] - 2025-01-24
 - Fixed an issue related to modification operations event synchronization
