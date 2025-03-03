@@ -26,7 +26,12 @@ from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.connection.helper import retry
 from syndicate.core.build.bundle_processor import _build_output_key
 from syndicate.core.build.meta_processor import S3_PATH_NAME
-from syndicate.core.constants import DEFAULT_LOGS_EXPIRATION
+from syndicate.core.constants import DEFAULT_LOGS_EXPIRATION, \
+    DYNAMO_DB_TRIGGER, CLOUD_WATCH_RULE_TRIGGER, EVENT_BRIDGE_RULE_TRIGGER, \
+    S3_TRIGGER, SNS_TOPIC_TRIGGER, KINESIS_TRIGGER, SQS_TRIGGER, \
+    DYNAMODB_TRIGGER_REQUIRED_PARAMS, SQS_TRIGGER_REQUIRED_PARAMS, \
+    CLOUD_WATCH_TRIGGER_REQUIRED_PARAMS, S3_TRIGGER_REQUIRED_PARAMS, \
+    SNS_TRIGGER_REQUIRED_PARAMS, KINESIS_TRIGGER_REQUIRED_PARAMS
 from syndicate.core.decorators import threading_lock
 from syndicate.core.helper import unpack_kwargs, is_zip_empty
 from syndicate.core.resources.base_resource import BaseResource
@@ -34,14 +39,6 @@ from syndicate.core.resources.helper import (
     build_description_obj, validate_params, assert_required_params, if_updated)
 
 LAMBDA_LAYER_REQUIRED_PARAMS = ['runtimes', 'deployment_package']
-
-DYNAMODB_TRIGGER_REQUIRED_PARAMS = ['target_table', 'batch_size']
-CLOUD_WATCH_TRIGGER_REQUIRED_PARAMS = ['target_rule']
-S3_TRIGGER_REQUIRED_PARAMS = ['target_bucket', 's3_events']
-SQS_TRIGGER_REQUIRED_PARAMS = ['target_queue', 'batch_size']
-SNS_TRIGGER_REQUIRED_PARAMS = ['target_topic']
-KINESIS_TRIGGER_REQUIRED_PARAMS = ['target_stream', 'batch_size',
-                                   'starting_position']
 
 PROVISIONED_CONCURRENCY = 'provisioned_concurrency'
 
@@ -59,13 +56,6 @@ _APPLY_SNAP_START_NONE = 'None'
 _SNAP_START_CONFIGURATIONS = [_APPLY_SNAP_START_VERSIONS,
                               _APPLY_SNAP_START_NONE]
 
-DYNAMO_DB_TRIGGER = 'dynamodb_trigger'
-CLOUD_WATCH_RULE_TRIGGER = 'cloudwatch_rule_trigger'
-EVENT_BRIDGE_RULE_TRIGGER = 'eventbridge_rule_trigger'
-S3_TRIGGER = 's3_trigger'
-SNS_TOPIC_TRIGGER = 'sns_topic_trigger'
-KINESIS_TRIGGER = 'kinesis_trigger'
-SQS_TRIGGER = 'sqs_trigger'
 NOT_AVAILABLE = 'N/A'
 
 _DOTNET_LAMBDA_SHARED_STORE_ENV = {
@@ -1051,6 +1041,9 @@ class LambdaResource(BaseResource):
     @retry()
     def _remove_cloud_watch_trigger(self, lambda_name, lambda_arn,
                                     trigger_meta):
+        validate_params(lambda_name, trigger_meta,
+                        CLOUD_WATCH_TRIGGER_REQUIRED_PARAMS)
+
         target_rule = trigger_meta['target_rule']
         targets = []
         if self.cw_events_conn.get_rule(target_rule):
@@ -1074,6 +1067,8 @@ class LambdaResource(BaseResource):
 
     @retry()
     def _remove_sns_topic_trigger(self, lambda_name, lambda_arn, trigger_meta):
+        validate_params(lambda_name, trigger_meta, SNS_TRIGGER_REQUIRED_PARAMS)
+
         target_topic = trigger_meta['target_topic']
         subscriptions = []
         topic_arn = self.sns_conn.get_topic_arn(name=target_topic)
@@ -1101,6 +1096,8 @@ class LambdaResource(BaseResource):
     # operation which will override any other concurrent request otherwise
     @threading_lock
     def _remove_s3_trigger(self, lambda_name, lambda_arn, trigger_meta):
+        validate_params(lambda_name, trigger_meta, S3_TRIGGER_REQUIRED_PARAMS)
+
         target_bucket = trigger_meta['target_bucket']
         if self.s3_conn.is_bucket_exists(target_bucket):
             self.s3_conn.remove_lambda_event_source(
@@ -1117,6 +1114,8 @@ class LambdaResource(BaseResource):
 
     @retry()
     def _remove_sqs_trigger(self, lambda_name, lambda_arn, trigger_meta):
+        validate_params(lambda_name, trigger_meta, SQS_TRIGGER_REQUIRED_PARAMS)
+
         target_queue = trigger_meta['target_queue']
         self._remove_event_source(
             lambda_name=lambda_name, lambda_arn=lambda_arn,
@@ -1124,6 +1123,9 @@ class LambdaResource(BaseResource):
 
     @retry()
     def _remove_dynamodb_trigger(self, lambda_name, lambda_arn, trigger_meta):
+        validate_params(lambda_name, trigger_meta,
+                        DYNAMODB_TRIGGER_REQUIRED_PARAMS)
+
         target_table = trigger_meta['target_table']
         self._remove_event_source(
             lambda_name=lambda_name, lambda_arn=lambda_arn,
@@ -1132,6 +1134,9 @@ class LambdaResource(BaseResource):
     @retry()
     def _remove_kinesis_stream_trigger(self, lambda_name, lambda_arn,
                                        trigger_meta):
+        validate_params(lambda_name, trigger_meta,
+                        KINESIS_TRIGGER_REQUIRED_PARAMS)
+
         target_stream = trigger_meta['target_stream']
         self._remove_event_source(
             lambda_name=lambda_name, lambda_arn=lambda_arn,
