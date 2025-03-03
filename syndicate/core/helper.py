@@ -317,7 +317,8 @@ def sync_lock(lock_type):
                 sync_project_state()
             else:
                 raise ProjectStateError(
-                    f"The project '{lock_type}' is locked."
+                    f"The project '{lock_type}' is locked. Run the command "
+                    f"'syndicate status' for more details."
                 )
             try:
                 result = func(*args, **kwargs)

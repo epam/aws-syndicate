@@ -346,6 +346,29 @@ def clean_resources(output):
 
     removed_resources_arn = list(clean_output.keys())
     success = False if errors else True
+
+    if not success:
+        for arn, config in output:
+            res_name = config['resource_name']
+            res_meta = config['resource_meta']
+            res_type = res_meta['resource_type']
+
+            func = PROCESSOR_FACADE.describe_handlers()[res_type]
+            response = func(res_name, res_meta)
+
+            if response and arn in removed_resources_arn:
+                removed_resources_arn.remove(arn)
+                USER_LOG.warning(
+                    f"Resource '{res_name}' of type '{res_type}' was not "
+                    f"cleaned."
+                )
+            elif not response and arn not in removed_resources_arn:
+                removed_resources_arn.append(arn)
+                USER_LOG.warning(
+                    f"Resource '{res_name}' of type '{res_type}' not found; "
+                    f"it will be removed from the deployment output."
+                )
+
     return success, removed_resources_arn
 
 
@@ -742,6 +765,7 @@ def _post_remove_output_handling(
             # remove output from bucket
             remove_failed_deploy_output(bundle_name, deploy_name)
             remove_deploy_output(bundle_name, deploy_name)
+            success = True
     else:
         for key, value in new_output.items():
             output.pop(key, None)
