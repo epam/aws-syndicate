@@ -77,6 +77,23 @@ NODE_LAMBDA_LAYER_PATH = 'nodejs'
 
 DEFAULT_SEP = '/'
 
+# == LAMBDA FUNCTION EVENT SOURCES PARAMS =====================================
+DYNAMO_DB_TRIGGER = 'dynamodb_trigger'
+CLOUD_WATCH_RULE_TRIGGER = 'cloudwatch_rule_trigger'
+EVENT_BRIDGE_RULE_TRIGGER = 'eventbridge_rule_trigger'
+S3_TRIGGER = 's3_trigger'
+SNS_TOPIC_TRIGGER = 'sns_topic_trigger'
+KINESIS_TRIGGER = 'kinesis_trigger'
+SQS_TRIGGER = 'sqs_trigger'
+
+DYNAMODB_TRIGGER_REQUIRED_PARAMS = ['target_table', 'batch_size']
+CLOUD_WATCH_TRIGGER_REQUIRED_PARAMS = ['target_rule']
+S3_TRIGGER_REQUIRED_PARAMS = ['target_bucket', 's3_events']
+SQS_TRIGGER_REQUIRED_PARAMS = ['target_queue', 'batch_size']
+SNS_TRIGGER_REQUIRED_PARAMS = ['target_topic']
+KINESIS_TRIGGER_REQUIRED_PARAMS = ['target_stream', 'batch_size',
+                                   'starting_position']
+
 DEPLOY_RESOURCE_TYPE_PRIORITY = {
     IAM_POLICY: 1,
     IAM_ROLE: 2,
