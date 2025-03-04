@@ -765,7 +765,12 @@ def _post_remove_output_handling(
             # remove output from bucket
             remove_failed_deploy_output(bundle_name, deploy_name)
             remove_deploy_output(bundle_name, deploy_name)
-            success = True
+            if not success:
+                USER_LOG.warning(
+                    'All resources specified for this operation were cleaned '
+                    'despite errors when cleaning the resources.'
+                )
+                success = True
     else:
         for key, value in new_output.items():
             output.pop(key, None)
