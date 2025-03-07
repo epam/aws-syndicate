@@ -87,12 +87,20 @@ commands_without_config = (
     HELP_PARAMETER_KEY
 )
 
+commands_without_state_sync = (
+    CREATE_DEPLOY_TARGET_BUCKET_ACTION
+)
+
 _LOG = get_logger(__name__)
 USER_LOG = get_user_logger()
 
 
 def _not_require_config(all_params):
     return any(item in commands_without_config for item in all_params)
+
+
+def _not_require_state_sync(all_params):
+    return any(item in commands_without_state_sync for item in all_params)
 
 
 @click.group(name='syndicate')
@@ -105,7 +113,9 @@ def syndicate():
     elif CONF_PATH:
         USER_LOG.info('Configuration used: ' + CONF_PATH)
         initialize_connection()
-        initialize_project_state()
+        initialize_project_state(
+            do_not_sync_state=_not_require_state_sync(sys.argv)
+        )
         initialize_signal_handling()
     else:
         USER_LOG.error('Environment variable SDCT_CONF is not set! '
@@ -1041,8 +1051,10 @@ def create_deploy_target_bucket():
     Creates a bucket in AWS account where all bundles will be uploaded
     """
     from syndicate.core import CONFIG
-    USER_LOG.info(f'Create deploy target sdk: {CONFIG.deploy_target_bucket}')
-    create_bundles_bucket()
+    USER_LOG.info(f'Create deploy target bucket: {CONFIG.deploy_target_bucket}')
+    result = create_bundles_bucket()
+    if not result:
+        return ABORTED_RETURN_CODE
     USER_LOG.info('Deploy target bucket was created successfully')
     return OK_RETURN_CODE
 

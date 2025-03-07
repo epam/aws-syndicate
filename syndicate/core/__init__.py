@@ -183,7 +183,7 @@ def initialize_connection():
         )
 
 
-def initialize_project_state():
+def initialize_project_state(do_not_sync_state=False):
     from syndicate.core.project_state.sync_processor import sync_project_state
     global PROJECT_STATE
     if not ProjectState.check_if_project_state_exists(CONFIG.project_path):
@@ -198,6 +198,9 @@ def initialize_project_state():
         PROJECT_STATE = ProjectState.build_from_structure(CONFIG)
     else:
         PROJECT_STATE = ProjectState(project_path=CONFIG.project_path)
+
+    if do_not_sync_state:
+        return
 
     sync_project_state()
 

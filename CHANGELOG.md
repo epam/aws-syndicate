@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Clarified warning message about the absence of the syndicate project state file.
 - Added lambda function `event_sources` validation on the build stage.
 - Added verification whether the resource was cleaned in case of errors during clean operation.
+- Fixed `lambda_layer` duplication during deployment.
+- Fixed an issue related to deploy target bucket creation
 
 # [1.16.2] - 2025-01-24
 - Fixed an issue related to modification operations event synchronization
