@@ -733,7 +733,8 @@ def assemble_java_mvn(bundle_name, project_path, force_upload, skip_tests,
                        project_path=project_path,
                        runtime=RUNTIME_JAVA,
                        skip_tests=skip_tests,
-                       errors_allowed=errors_allowed)
+                       errors_allowed=errors_allowed,
+                       force_upload=force_upload)
     USER_LOG.info('Java artifacts were prepared successfully.')
     return OK_RETURN_CODE
 
@@ -831,7 +832,8 @@ def assemble_node(bundle_name, project_path, force_upload,
 
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
-                       runtime=RUNTIME_NODEJS)
+                       runtime=RUNTIME_NODEJS,
+                       force_upload=force_upload)
     USER_LOG.info('NodeJS artifacts were prepared successfully.')
     return OK_RETURN_CODE
 
@@ -877,7 +879,8 @@ def assemble_dotnet(bundle_name, project_path, force_upload,
 
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
-                       runtime=RUNTIME_DOTNET)
+                       runtime=RUNTIME_DOTNET,
+                       force_upload=force_upload)
     USER_LOG.info('DotNet artifacts were prepared successfully.')
     return OK_RETURN_CODE
 
@@ -893,6 +896,9 @@ def assemble_dotnet(bundle_name, project_path, force_upload,
               callback=resolve_path_callback, required=True,
               help='The path to the project. Related files will be packed '
                    'into a zip archive.')
+@click.option('--force_upload', '-F', is_flag=True, default=False,
+              help='Flag to override locally existing bundle '
+                   'with the same name')
 @verbose_option
 @timeit(action_name=ASSEMBLE_SWAGGER_UI_ACTION)
 @failed_status_code_on_exception
@@ -908,9 +914,17 @@ def assemble_swagger_ui(**kwargs):
     bundle_name = kwargs.get('bundle_name')
     project_path = kwargs.get('project_path')
     USER_LOG.info(f'Command assemble Swagger UI: project_path: {project_path} ')
+
+    force_upload = kwargs.get('force_upload')
+    if force_upload:
+        _LOG.info(f'Force upload is enabled, going to check if bundle '
+                  f'directory already exists locally.')
+        remove_bundle_dir_locally(bundle_name)
+
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
-                       runtime=RUNTIME_SWAGGER_UI)
+                       runtime=RUNTIME_SWAGGER_UI,
+                       force_upload=force_upload)
     USER_LOG.info('Swagger UI artifacts were prepared successfully.')
     return OK_RETURN_CODE
 
@@ -926,6 +940,9 @@ def assemble_swagger_ui(**kwargs):
               callback=resolve_path_callback, required=True,
               help='The path to the project. Related files will be packed '
                    'into a zip archive.')
+@click.option('--force_upload', '-F', is_flag=True, default=False,
+              help='Flag to override locally existing bundle '
+                   'with the same name')
 @verbose_option
 @timeit(action_name=ASSEMBLE_APPSYNC_ACTION)
 @failed_status_code_on_exception
@@ -941,9 +958,17 @@ def assemble_appsync(**kwargs):
     bundle_name = kwargs.get('bundle_name')
     project_path = kwargs.get('project_path')
     USER_LOG.info(f'Command assemble AppSync: project_path: {project_path} ')
+
+    force_upload = kwargs.get('force_upload')
+    if force_upload:
+        _LOG.info(f'Force upload is enabled, going to check if bundle '
+                  f'directory already exists locally.')
+        remove_bundle_dir_locally(bundle_name)
+
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
-                       runtime=RUNTIME_APPSYNC)
+                       runtime=RUNTIME_APPSYNC,
+                       force_upload=force_upload)
     USER_LOG.info('AppSync artifacts were prepared successfully.')
     return OK_RETURN_CODE
 
