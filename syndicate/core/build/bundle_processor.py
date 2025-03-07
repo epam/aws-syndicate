@@ -21,7 +21,7 @@ from pathlib import PurePath
 from botocore.exceptions import ClientError
 
 from syndicate.exceptions import ProjectStateError, ConfigurationError
-from syndicate.commons.log_helper import get_logger
+from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.connection import S3Connection
 from syndicate.core.build.helper import _json_serial, resolve_bundle_directory, \
     resolve_all_bundles_directory, assert_bundle_bucket_exists
@@ -32,6 +32,7 @@ from syndicate.core.constants import (ARTIFACTS_FOLDER, BUILD_META_FILE_NAME,
 from syndicate.core.helper import build_path, unpack_kwargs
 
 _LOG = get_logger(__name__)
+USER_LOG = get_user_logger()
 
 
 def _build_output_key(bundle_name, deploy_name, is_regular_output):
@@ -254,8 +255,10 @@ def upload_bundle_to_s3(bundle_name, force):
 def create_bundles_bucket():
     from syndicate.core import CONFIG, CONN
     if CONN.s3().is_bucket_exists(CONFIG.deploy_target_bucket):
-        _LOG.info('Bundles bucket {0} already exists'.format(
-            CONFIG.deploy_target_bucket))
+        USER_LOG.warning(
+            f"Bundles bucket '{CONFIG.deploy_target_bucket}' already exists"
+        )
+        return False
     else:
         _LOG.info(
             'Bundles bucket {0} does not exist. Creating bucket..'.format(
@@ -266,6 +269,7 @@ def create_bundles_bucket():
         CONN.s3().put_public_access_block(CONFIG.deploy_target_bucket)
         _LOG.info('{0} bucket created successfully'.format(
             CONFIG.deploy_target_bucket))
+    return True
 
 
 def load_bundle(bundle_name, src_account_id, src_bucket_region,

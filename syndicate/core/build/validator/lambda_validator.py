@@ -138,9 +138,10 @@ class LambdaValidator:
                     break
 
         if errors:
+            errors_string = '\n'.join(errors)
             self._error(
                 f"Lambda '{self._name}' event sources haven't passed "
-                f"validation.\n{'\n'.join(errors)}")
+                f"validation.\n{errors_string}")
 
 
 def validate_lambda(name, meta):
