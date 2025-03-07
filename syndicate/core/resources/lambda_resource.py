@@ -193,7 +193,7 @@ class LambdaResource(BaseResource):
         return self.create_pool(self._update_lambda, args)
 
     def update_lambda_layer(self, args):
-        return self.create_pool(self.create_lambda_layer_from_meta, args)
+        return self.create_pool(self._update_lambda_layer, args)
 
     def describe_lambda(self, name, meta, response=None):
         if not response:
@@ -1284,6 +1284,11 @@ class LambdaResource(BaseResource):
             _LOG.error(message)
             return {}, [message]
 
+        layer_arn = self.lambda_conn.get_lambda_layer_arn(name)
+        if layer_arn:
+            _LOG.warn(f"Layer '{name}' exists. Returning")
+            return self.describe_lambda_layer(name, meta)
+
         with open(file_name, 'rb') as file_data:
             file_body = file_data.read()
         import hashlib
@@ -1316,7 +1321,75 @@ class LambdaResource(BaseResource):
 
         _LOG.info(f'Lambda Layer {name} version {response["Version"]} '
                   f'was successfully created')
-        layer_arn = response['LayerArn'] + ':' + str(response['Version'])
+        layer_arn = response['LayerVersionArn']
+        del response['LayerArn']
+        return {
+            layer_arn: build_description_obj(
+                response, name, meta)
+        }
+
+    @unpack_kwargs
+    def _update_lambda_layer(self, name, meta, context=None):
+        """
+        :param name:
+        :param meta:
+        :param context: because of usage in 'update' flow
+        :return:
+        """
+        from syndicate.core import CONFIG
+        validate_params(name, meta, LAMBDA_LAYER_REQUIRED_PARAMS)
+
+        key = meta[S3_PATH_NAME]
+        key_compound = PurePath(CONFIG.deploy_target_bucket_key_compound,
+                                key).as_posix()
+        file_name = key.split('/')[-1]
+        self.s3_conn.download_file(self.deploy_target_bucket, key_compound,
+                                   file_name)
+        if is_zip_empty(file_name):
+            message = f'Can not create layer \'{name}\' because of empty ' \
+                      f'deployment package zip file.'
+            _LOG.error(message)
+            return {}, [message]
+
+        layer_arn = self.lambda_conn.get_lambda_layer_arn(name)
+        if not layer_arn:
+            raise ResourceNotFoundError(
+                f"Lambda layer '{name}' does not exist."
+            )
+
+        with open(file_name, 'rb') as file_data:
+            file_body = file_data.read()
+        import hashlib
+        hash_object = hashlib.sha256()
+        hash_object.update(file_body)
+        existing_version = self._is_equal_lambda_layer(hash_object.digest(),
+                                                       name)
+        if existing_version:
+            existing_layer_arn = existing_version['LayerVersionArn']
+            _LOG.info(f'Layer {name} with same content already '
+                      f'exists in layer version {existing_layer_arn}.')
+            return {
+                existing_layer_arn: build_description_obj(
+                    response=existing_version, name=name, meta=meta
+                )}
+
+        _LOG.debug(f'Creating lambda layer {name}')
+
+        args = {'layer_name': name, 'runtimes': meta['runtimes'],
+                's3_bucket': self.deploy_target_bucket,
+                's3_key': PurePath(CONFIG.deploy_target_bucket_key_compound,
+                                   meta[S3_PATH_NAME]).as_posix()}
+        if meta.get('description'):
+            args['description'] = meta['description']
+        if meta.get('license'):
+            args['layer_license'] = meta['license']
+        if meta.get('architectures'):
+            args['architectures'] = meta['architectures']
+        response = self.lambda_conn.create_layer(**args)
+
+        _LOG.info(f'Lambda Layer {name} version {response["Version"]} '
+                  f'was successfully created')
+        layer_arn = response['LayerVersionArn']
         del response['LayerArn']
         return {
             layer_arn: build_description_obj(
@@ -1366,7 +1439,8 @@ class LambdaResource(BaseResource):
         if not response:
             return {}
 
-        arn = response.pop('LayerArn')
+        arn = response['LayerVersionArn']
+        del response['LayerArn']
         return {
             arn: build_description_obj(response, name, meta)
         }
