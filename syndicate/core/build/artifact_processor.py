@@ -54,8 +54,7 @@ _LOG = get_logger(__name__)
 
 
 def assemble_artifacts(bundle_name, project_path, runtime,
-                       errors_allowed=False, skip_tests=False,
-                       force_upload=False, **kwargs):
+                       errors_allowed=False, skip_tests=False, **kwargs):
     if runtime not in SUPPORTED_RUNTIMES:
         raise InvalidValueError(
             f"Runtime '{runtime}' is not supported. "
@@ -63,10 +62,7 @@ def assemble_artifacts(bundle_name, project_path, runtime,
 
     bundle_dir = resolve_bundle_directory(bundle_name=bundle_name)
 
-    if force_upload:
-        os.makedirs(bundle_dir, exist_ok=True)
-    else:
-        os.makedirs(bundle_dir)
+    os.makedirs(bundle_dir, exist_ok=True)
 
     _LOG.debug(f'Target directory: {bundle_dir}')
 

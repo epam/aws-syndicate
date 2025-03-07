@@ -733,8 +733,7 @@ def assemble_java_mvn(bundle_name, project_path, force_upload, skip_tests,
                        project_path=project_path,
                        runtime=RUNTIME_JAVA,
                        skip_tests=skip_tests,
-                       errors_allowed=errors_allowed,
-                       force_upload=force_upload)
+                       errors_allowed=errors_allowed)
     USER_LOG.info('Java artifacts were prepared successfully.')
     return OK_RETURN_CODE
 
@@ -785,8 +784,7 @@ def assemble_python(bundle_name, project_path, force_upload, errors_allowed,
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
                        runtime=RUNTIME_PYTHON,
-                       errors_allowed=errors_allowed,
-                       force_upload=force_upload)
+                       errors_allowed=errors_allowed)
     USER_LOG.info('Python artifacts were prepared successfully.')
     return OK_RETURN_CODE
 
@@ -832,8 +830,7 @@ def assemble_node(bundle_name, project_path, force_upload,
 
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
-                       runtime=RUNTIME_NODEJS,
-                       force_upload=force_upload)
+                       runtime=RUNTIME_NODEJS)
     USER_LOG.info('NodeJS artifacts were prepared successfully.')
     return OK_RETURN_CODE
 
@@ -879,8 +876,7 @@ def assemble_dotnet(bundle_name, project_path, force_upload,
 
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
-                       runtime=RUNTIME_DOTNET,
-                       force_upload=force_upload)
+                       runtime=RUNTIME_DOTNET)
     USER_LOG.info('DotNet artifacts were prepared successfully.')
     return OK_RETURN_CODE
 
@@ -923,8 +919,7 @@ def assemble_swagger_ui(**kwargs):
 
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
-                       runtime=RUNTIME_SWAGGER_UI,
-                       force_upload=force_upload)
+                       runtime=RUNTIME_SWAGGER_UI)
     USER_LOG.info('Swagger UI artifacts were prepared successfully.')
     return OK_RETURN_CODE
 
@@ -967,8 +962,7 @@ def assemble_appsync(**kwargs):
 
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
-                       runtime=RUNTIME_APPSYNC,
-                       force_upload=force_upload)
+                       runtime=RUNTIME_APPSYNC)
     USER_LOG.info('AppSync artifacts were prepared successfully.')
     return OK_RETURN_CODE
 
