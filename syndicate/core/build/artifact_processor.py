@@ -63,6 +63,7 @@ def assemble_artifacts(bundle_name, project_path, runtime,
     bundle_dir = resolve_bundle_directory(bundle_name=bundle_name)
 
     os.makedirs(bundle_dir, exist_ok=True)
+
     _LOG.debug(f'Target directory: {bundle_dir}')
 
     assemble_func = RUNTIME_TO_BUILDER_MAPPING.get(runtime)

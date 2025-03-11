@@ -1202,9 +1202,15 @@ class LambdaResource(BaseResource):
                 _build_output_key(
                     bundle_name=bundle_name, deploy_name=deploy_name,
                     is_regular_output=False)).as_posix()
-
-        output_file = self.s3_conn.load_file_body(
-            CONFIG.deploy_target_bucket, key_compound)
+        try:
+            output_file = self.s3_conn.load_file_body(
+                CONFIG.deploy_target_bucket, key_compound)
+        except self.s3_conn.exceptions.NoSuchKey:
+            _LOG.warning(
+                f'Cannot find deployment output {key_compound} in the bucket '
+                f'{CONFIG.deploy_target_bucket}. Cannot process {name} '
+                f'lambda triggers from previous deploy.')
+            output_file = '{}'
         latest_output = json.loads(output_file)
 
         prev_event_sources_meta = []
