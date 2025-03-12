@@ -362,7 +362,7 @@ def appsync_existence_checker(name: str) -> bool:
 
 
 def batch_comp_env_existence_checker(name: str) -> bool:
-    sleep(5)  # in case there was not enough time to delete completely
+    sleep(10)  # in case there was not enough time to delete completely
     return True if connections.get_batch_comp_env(name) else False
 
 
