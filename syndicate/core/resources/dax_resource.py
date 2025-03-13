@@ -13,11 +13,10 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-from time import time
 
 from syndicate.commons import deep_get
+from syndicate.exceptions import ResourceNotFoundError
 from syndicate.commons.log_helper import get_logger, get_user_logger
-from syndicate.connection.helper import retry
 from syndicate.core.helper import unpack_kwargs
 from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import build_description_obj
@@ -42,7 +41,7 @@ class DaxResource(BaseResource):
             message = f'Role {role_name} does not exist; ' \
                       f'Dax cluster {name} failed to be created.'
             _LOG.error(message)
-            raise AssertionError(message)
+            raise ResourceNotFoundError(message)
         subnet_group_name = meta.get('subnet_group_name')
         subnet_ids = meta.get('subnet_ids') or []
         if subnet_ids:

@@ -20,11 +20,18 @@ from typing import Optional
 
 from botocore.exceptions import ClientError
 
+from syndicate.exceptions import ArtifactError, ResourceNotFoundError, \
+    ParameterError, InvalidValueError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.connection.helper import retry
 from syndicate.core.build.bundle_processor import _build_output_key
 from syndicate.core.build.meta_processor import S3_PATH_NAME
-from syndicate.core.constants import DEFAULT_LOGS_EXPIRATION
+from syndicate.core.constants import DEFAULT_LOGS_EXPIRATION, \
+    DYNAMO_DB_TRIGGER, CLOUD_WATCH_RULE_TRIGGER, EVENT_BRIDGE_RULE_TRIGGER, \
+    S3_TRIGGER, SNS_TOPIC_TRIGGER, KINESIS_TRIGGER, SQS_TRIGGER, \
+    DYNAMODB_TRIGGER_REQUIRED_PARAMS, SQS_TRIGGER_REQUIRED_PARAMS, \
+    CLOUD_WATCH_TRIGGER_REQUIRED_PARAMS, S3_TRIGGER_REQUIRED_PARAMS, \
+    SNS_TRIGGER_REQUIRED_PARAMS, KINESIS_TRIGGER_REQUIRED_PARAMS
 from syndicate.core.decorators import threading_lock
 from syndicate.core.helper import unpack_kwargs, is_zip_empty
 from syndicate.core.resources.base_resource import BaseResource
@@ -32,14 +39,6 @@ from syndicate.core.resources.helper import (
     build_description_obj, validate_params, assert_required_params, if_updated)
 
 LAMBDA_LAYER_REQUIRED_PARAMS = ['runtimes', 'deployment_package']
-
-DYNAMODB_TRIGGER_REQUIRED_PARAMS = ['target_table', 'batch_size']
-CLOUD_WATCH_TRIGGER_REQUIRED_PARAMS = ['target_rule']
-S3_TRIGGER_REQUIRED_PARAMS = ['target_bucket', 's3_events']
-SQS_TRIGGER_REQUIRED_PARAMS = ['target_queue', 'batch_size']
-SNS_TRIGGER_REQUIRED_PARAMS = ['target_topic']
-KINESIS_TRIGGER_REQUIRED_PARAMS = ['target_stream', 'batch_size',
-                                   'starting_position']
 
 PROVISIONED_CONCURRENCY = 'provisioned_concurrency'
 
@@ -57,13 +56,6 @@ _APPLY_SNAP_START_NONE = 'None'
 _SNAP_START_CONFIGURATIONS = [_APPLY_SNAP_START_VERSIONS,
                               _APPLY_SNAP_START_NONE]
 
-DYNAMO_DB_TRIGGER = 'dynamodb_trigger'
-CLOUD_WATCH_RULE_TRIGGER = 'cloudwatch_rule_trigger'
-EVENT_BRIDGE_RULE_TRIGGER = 'eventbridge_rule_trigger'
-S3_TRIGGER = 's3_trigger'
-SNS_TOPIC_TRIGGER = 'sns_topic_trigger'
-KINESIS_TRIGGER = 'kinesis_trigger'
-SQS_TRIGGER = 'sqs_trigger'
 NOT_AVAILABLE = 'N/A'
 
 _DOTNET_LAMBDA_SHARED_STORE_ENV = {
@@ -201,7 +193,7 @@ class LambdaResource(BaseResource):
         return self.create_pool(self._update_lambda, args)
 
     def update_lambda_layer(self, args):
-        return self.create_pool(self.create_lambda_layer_from_meta, args)
+        return self.create_pool(self._update_lambda_layer, args)
 
     def describe_lambda(self, name, meta, response=None):
         if not response:
@@ -304,9 +296,11 @@ class LambdaResource(BaseResource):
                                 key).as_posix()
         if not self.s3_conn.is_file_exists(self.deploy_target_bucket,
                                            key_compound):
-            raise AssertionError(f'Error while creating lambda: {name};'
-                                 f'Deployment package {key_compound} does not exist '
-                                 f'in {self.deploy_target_bucket} bucket')
+            raise ArtifactError(
+                f"Error while creating lambda: '{name};"
+                f"Deployment package '{key_compound}' does not exist "
+                f"in '{self.deploy_target_bucket}' bucket"
+            )
 
         lambda_def = self.lambda_conn.get_function(name)
         if lambda_def:
@@ -316,8 +310,10 @@ class LambdaResource(BaseResource):
         role_name = meta['iam_role_name']
         role_arn = self.iam_conn.check_if_role_exists(role_name)
         if not role_arn:
-            raise AssertionError(f'Role {role_name} does not exist; '
-                                 f'Lambda {name} failed to be configured.')
+            raise ResourceNotFoundError(
+                f"Role '{role_name}' does not exist; "
+                f"Lambda '{name}' failed to be configured."
+            )
 
         dl_target_arn = self.get_dl_target_arn(meta=meta,
                                                region=self.region,
@@ -334,9 +330,10 @@ class LambdaResource(BaseResource):
             for layer_name in layer_meta:
                 layer_arn = self.lambda_conn.get_lambda_layer_arn(layer_name)
                 if not layer_arn:
-                    raise AssertionError(
-                        'Could not link lambda layer {} to lambda {} '
-                        'due to layer absence!'.format(layer_name, name))
+                    raise ResourceNotFoundError(
+                        f"Could not link lambda layer '{layer_name}' to "
+                        f"lambda '{name}' due to layer absence!"
+                    )
                 lambda_layers_arns.append(layer_arn)
 
         ephemeral_storage = meta.get('ephemeral_storage', 512)
@@ -447,14 +444,14 @@ class LambdaResource(BaseResource):
                                 key).as_posix()
         if not self.s3_conn.is_file_exists(self.deploy_target_bucket,
                                            key_compound):
-            raise AssertionError(
-                'Deployment package {0} does not exist '
-                'in {1} bucket'.format(key_compound,
-                                       self.deploy_target_bucket))
+            raise ArtifactError(
+                f"Deployment package '{key_compound}' does not exist "
+                f"in '{self.deploy_target_bucket}' bucket'"
+            )
 
         response = self.lambda_conn.get_function(name)
         if not response:
-            raise AssertionError('{0} lambda does not exist.'.format(name))
+            raise ResourceNotFoundError(f"'{name}' lambda does not exist.")
         old_conf = response['Configuration']
 
         publish_version = meta.get('publish_version', False)
@@ -507,9 +504,10 @@ class LambdaResource(BaseResource):
             for layer_name in layer_meta:
                 layer_arn = self.lambda_conn.get_lambda_layer_arn(layer_name)
                 if not layer_arn:
-                    raise AssertionError(
-                        'Could not link lambda layer {} to lambda {} '
-                        'due to layer absence!'.format(layer_name, name))
+                    raise ResourceNotFoundError(
+                        f"Could not link lambda layer '{layer_name}' to "
+                        f"lambda '{name}' due to layer absence!"
+                    )
                 lambda_layers_arns.append(layer_arn)
 
         if env_vars:
@@ -715,13 +713,16 @@ class LambdaResource(BaseResource):
                 lambda_name=function_name)
         qualifier = concurrency.get('qualifier')
         if not qualifier:
-            raise AssertionError('Parameter `qualifier` is required for '
-                                 'concurrency configuration but it is absent')
+            raise ParameterError(
+                "Parameter 'qualifier' is required for concurrency "
+                "configuration but it is absent"
+            )
         if qualifier not in _LAMBDA_PROV_CONCURRENCY_QUALIFIERS:
-            raise AssertionError(
-                f'Parameter `qualifier` must be one of '
-                f'{_LAMBDA_PROV_CONCURRENCY_QUALIFIERS}, but it is equal '
-                f'to ${qualifier}')
+            raise InvalidValueError(
+                f"Parameter 'qualifier' must be one of "
+                f"'{_LAMBDA_PROV_CONCURRENCY_QUALIFIERS}', but it is equal "
+                f"to '${qualifier}'"
+            )
 
         resolved_qualifier = self._resolve_requested_qualifier(lambda_def,
                                                                meta,
@@ -729,9 +730,10 @@ class LambdaResource(BaseResource):
 
         requested_provisioned_level = concurrency.get('value')
         if not requested_provisioned_level:
-            raise AssertionError('Parameter `provisioned_level` is required '
-                                 'for concurrency configuration but '
-                                 'it is absent')
+            raise ParameterError(
+                "Parameter 'provisioned_level' is required for concurrency "
+                "configuration but it is absent"
+            )
         max_prov_limit = self.lambda_conn.describe_function_concurrency(
             name=function_name)
         if not max_prov_limit:
@@ -739,12 +741,14 @@ class LambdaResource(BaseResource):
                 get_unresolved_concurrent_executions()
 
         if requested_provisioned_level > max_prov_limit:
-            raise AssertionError(f'Requested provisioned concurrency for '
-                                 f'lambda {function_name} must not be greater '
-                                 f'than function concurrency limit if any or '
-                                 f'account unreserved concurrency. '
-                                 f'Max is set to {max_prov_limit}; '
-                                 f'Requested: {requested_provisioned_level}')
+            raise InvalidValueError(
+                f"Requested provisioned concurrency for "
+                f"lambda '{function_name}' must not be greater "
+                f"than function concurrency limit if any or "
+                f"account unreserved concurrency. "
+                f"Max is set to '{max_prov_limit}'; "
+                f"Requested: '{requested_provisioned_level}'"
+            )
 
         self.lambda_conn.configure_provisioned_concurrency(
             name=function_name,
@@ -756,12 +760,16 @@ class LambdaResource(BaseResource):
 
     def _resolve_requested_qualifier(self, lambda_def, meta, qualifier):
         if not qualifier:
-            raise AssertionError('Parameter `qualifier` is required for '
-                                 'concurrency configuration but it is absent')
+            raise ParameterError(
+                "Parameter 'qualifier' is required for concurrency "
+                "configuration but it is absent"
+            )
         if qualifier not in _LAMBDA_PROV_CONCURRENCY_QUALIFIERS:
-            raise AssertionError(f'Parameter `qualifier` must be one of '
-                                 f'{_LAMBDA_PROV_CONCURRENCY_QUALIFIERS}, but it is equal '
-                                 f'to ${qualifier}')
+            raise InvalidValueError(
+                f"Parameter 'qualifier' must be one of "
+                f"'{_LAMBDA_PROV_CONCURRENCY_QUALIFIERS}', but it is equal "
+                f"to '${qualifier}'"
+            )
         lambda_def['Alias'] = meta.get('alias')
         resolve_qualifier_req = lambda_def
         resolved_qualifier = self._LAMBDA_QUALIFIER_RESOLVER[qualifier](
@@ -1033,6 +1041,9 @@ class LambdaResource(BaseResource):
     @retry()
     def _remove_cloud_watch_trigger(self, lambda_name, lambda_arn,
                                     trigger_meta):
+        validate_params(lambda_name, trigger_meta,
+                        CLOUD_WATCH_TRIGGER_REQUIRED_PARAMS)
+
         target_rule = trigger_meta['target_rule']
         targets = []
         if self.cw_events_conn.get_rule(target_rule):
@@ -1056,6 +1067,8 @@ class LambdaResource(BaseResource):
 
     @retry()
     def _remove_sns_topic_trigger(self, lambda_name, lambda_arn, trigger_meta):
+        validate_params(lambda_name, trigger_meta, SNS_TRIGGER_REQUIRED_PARAMS)
+
         target_topic = trigger_meta['target_topic']
         subscriptions = []
         topic_arn = self.sns_conn.get_topic_arn(name=target_topic)
@@ -1083,6 +1096,8 @@ class LambdaResource(BaseResource):
     # operation which will override any other concurrent request otherwise
     @threading_lock
     def _remove_s3_trigger(self, lambda_name, lambda_arn, trigger_meta):
+        validate_params(lambda_name, trigger_meta, S3_TRIGGER_REQUIRED_PARAMS)
+
         target_bucket = trigger_meta['target_bucket']
         if self.s3_conn.is_bucket_exists(target_bucket):
             self.s3_conn.remove_lambda_event_source(
@@ -1099,6 +1114,8 @@ class LambdaResource(BaseResource):
 
     @retry()
     def _remove_sqs_trigger(self, lambda_name, lambda_arn, trigger_meta):
+        validate_params(lambda_name, trigger_meta, SQS_TRIGGER_REQUIRED_PARAMS)
+
         target_queue = trigger_meta['target_queue']
         self._remove_event_source(
             lambda_name=lambda_name, lambda_arn=lambda_arn,
@@ -1106,6 +1123,9 @@ class LambdaResource(BaseResource):
 
     @retry()
     def _remove_dynamodb_trigger(self, lambda_name, lambda_arn, trigger_meta):
+        validate_params(lambda_name, trigger_meta,
+                        DYNAMODB_TRIGGER_REQUIRED_PARAMS)
+
         target_table = trigger_meta['target_table']
         self._remove_event_source(
             lambda_name=lambda_name, lambda_arn=lambda_arn,
@@ -1114,6 +1134,9 @@ class LambdaResource(BaseResource):
     @retry()
     def _remove_kinesis_stream_trigger(self, lambda_name, lambda_arn,
                                        trigger_meta):
+        validate_params(lambda_name, trigger_meta,
+                        KINESIS_TRIGGER_REQUIRED_PARAMS)
+
         target_stream = trigger_meta['target_stream']
         self._remove_event_source(
             lambda_name=lambda_name, lambda_arn=lambda_arn,
@@ -1261,6 +1284,11 @@ class LambdaResource(BaseResource):
             _LOG.error(message)
             return {}, [message]
 
+        layer_arn = self.lambda_conn.get_lambda_layer_arn(name)
+        if layer_arn:
+            _LOG.warn(f"Layer '{name}' exists. Returning")
+            return self.describe_lambda_layer(name, meta)
+
         with open(file_name, 'rb') as file_data:
             file_body = file_data.read()
         import hashlib
@@ -1293,7 +1321,75 @@ class LambdaResource(BaseResource):
 
         _LOG.info(f'Lambda Layer {name} version {response["Version"]} '
                   f'was successfully created')
-        layer_arn = response['LayerArn'] + ':' + str(response['Version'])
+        layer_arn = response['LayerVersionArn']
+        del response['LayerArn']
+        return {
+            layer_arn: build_description_obj(
+                response, name, meta)
+        }
+
+    @unpack_kwargs
+    def _update_lambda_layer(self, name, meta, context=None):
+        """
+        :param name:
+        :param meta:
+        :param context: because of usage in 'update' flow
+        :return:
+        """
+        from syndicate.core import CONFIG
+        validate_params(name, meta, LAMBDA_LAYER_REQUIRED_PARAMS)
+
+        key = meta[S3_PATH_NAME]
+        key_compound = PurePath(CONFIG.deploy_target_bucket_key_compound,
+                                key).as_posix()
+        file_name = key.split('/')[-1]
+        self.s3_conn.download_file(self.deploy_target_bucket, key_compound,
+                                   file_name)
+        if is_zip_empty(file_name):
+            message = f'Can not create layer \'{name}\' because of empty ' \
+                      f'deployment package zip file.'
+            _LOG.error(message)
+            return {}, [message]
+
+        layer_arn = self.lambda_conn.get_lambda_layer_arn(name)
+        if not layer_arn:
+            raise ResourceNotFoundError(
+                f"Lambda layer '{name}' does not exist."
+            )
+
+        with open(file_name, 'rb') as file_data:
+            file_body = file_data.read()
+        import hashlib
+        hash_object = hashlib.sha256()
+        hash_object.update(file_body)
+        existing_version = self._is_equal_lambda_layer(hash_object.digest(),
+                                                       name)
+        if existing_version:
+            existing_layer_arn = existing_version['LayerVersionArn']
+            _LOG.info(f'Layer {name} with same content already '
+                      f'exists in layer version {existing_layer_arn}.')
+            return {
+                existing_layer_arn: build_description_obj(
+                    response=existing_version, name=name, meta=meta
+                )}
+
+        _LOG.debug(f'Creating lambda layer {name}')
+
+        args = {'layer_name': name, 'runtimes': meta['runtimes'],
+                's3_bucket': self.deploy_target_bucket,
+                's3_key': PurePath(CONFIG.deploy_target_bucket_key_compound,
+                                   meta[S3_PATH_NAME]).as_posix()}
+        if meta.get('description'):
+            args['description'] = meta['description']
+        if meta.get('license'):
+            args['layer_license'] = meta['license']
+        if meta.get('architectures'):
+            args['architectures'] = meta['architectures']
+        response = self.lambda_conn.create_layer(**args)
+
+        _LOG.info(f'Lambda Layer {name} version {response["Version"]} '
+                  f'was successfully created')
+        layer_arn = response['LayerVersionArn']
         del response['LayerArn']
         return {
             layer_arn: build_description_obj(
@@ -1343,7 +1439,8 @@ class LambdaResource(BaseResource):
         if not response:
             return {}
 
-        arn = response.pop('LayerArn')
+        arn = response['LayerVersionArn']
+        del response['LayerArn']
         return {
             arn: build_description_obj(response, name, meta)
         }

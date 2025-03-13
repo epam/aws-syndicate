@@ -13,6 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+from syndicate.exceptions import ResourceMetadataError
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.build.validator.batch_compenv_validator import validate_batch_compenv
 from syndicate.core.build.validator.dynamodb_validator import \
@@ -22,7 +23,7 @@ from syndicate.core.build.validator.lambda_validator import validate_lambda
 from syndicate.core.build.validator.ec2_launch_template_validator import \
     validate_launch_template
 from syndicate.core.constants import \
-    (LAMBDA_CONFIG_FILE_NAME, LAMBDA_TYPE, DYNAMO_TABLE_TYPE,
+    (LAMBDA_TYPE, DYNAMO_TABLE_TYPE,
      BATCH_COMPENV_TYPE, BATCH_JOBDEF_TYPE, DAX_CLUSTER_TYPE,
      EC2_LAUNCH_TEMPLATE_TYPE, RESOURCE_LIST)
 
@@ -60,7 +61,7 @@ def common_validate(resource_name, resource_meta, all_meta):
                     f"the resource '{resource_name}' dependency "
                     f"'{dependency}'.")
             if errors:
-                raise AssertionError(str(errors))
+                raise ResourceMetadataError(str(errors))
 
 
 # validation customization

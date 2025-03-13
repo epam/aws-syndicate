@@ -3,6 +3,9 @@ from abc import ABC, abstractmethod
 from typing import Union
 from collections.abc import Iterable
 
+from syndicate.exceptions import InvalidTypeError, InternalError, \
+    NotImplementedError
+
 NAMED_S3_URI_PATTERN = r'^(?P<proto>s3:\/\/)?(?:(?P<name>[0-9a-z\-]+)' \
                        r'(?:\/)?)(?P<key>(?<=\/)(?:[0-9a-z\-_]+(?:\/)?)+)?$'
 S3_PATTERN_GROUP_NAMES = ('proto', 'name', 'key')
@@ -15,7 +18,9 @@ class AbstractViewDigest(ABC):
     @abstractmethod
     def parse(self, value: str):
         if not isinstance(value, str):
-            raise TypeError('Value to be parsed must be of string type.')
+            raise InvalidTypeError(
+                'Value to be parsed must be of string type.'
+            )
 
 
 class RegexViewDigest(AbstractViewDigest):
@@ -30,7 +35,7 @@ class RegexViewDigest(AbstractViewDigest):
         """
         super(self.__class__, self).parse(value)
         if not self.expression:
-            raise RuntimeError('No expression has been assigned.')
+            raise InternalError('No expression has been assigned.')
         match = self.expression.match(value)
         return match.groupdict() if match else dict()
 
@@ -51,8 +56,10 @@ class RegexViewDigest(AbstractViewDigest):
             raise exception
 
         if any(each for each in self.groups if each not in pending.groupindex):
-            raise KeyError(f'Pattern {pattern}, must include'
-                           f' named groups {", ".join(self.groups)}')
+            raise InternalError(
+                f"Pattern '{pattern}', must include named groups "
+                f"'{', '.join(self.groups)}'"
+            )
         self._expression = pending
 
     @property
@@ -68,8 +75,10 @@ class RegexViewDigest(AbstractViewDigest):
         if not isinstance(other, Iterable) and any(
             each for each in other if not isinstance(each,str)
         ):
-            raise TypeError('Required groups must be an iterable'
-                            ' and contain only string elements.')
+            raise InvalidTypeError(
+                'Required groups must be an iterable and contain only string '
+                'elements.'
+            )
         self._groups = other
 
 
@@ -102,12 +111,12 @@ class AbstractBucketView(ABC):
         """
         Abstract raw value setter, which provides
         argument type verification.
-        :raises: TypeError
+        :raises: InvalidTypeError
         """
         if not self.digest:
             raise self.BucketViewRuntimeError('View digest hasn\'t been set.')
         if not isinstance(value, str):
-            raise TypeError('Raw value must be of string type.')
+            raise InvalidTypeError('Raw value must be of string type.')
 
     @property
     def digest(self):
@@ -118,8 +127,9 @@ class AbstractBucketView(ABC):
         if isinstance(other, AbstractViewDigest):
             self._digest = other
         else:
-            raise TypeError('View digest-parser must '
-                            'be of AbstractViewDigest type.')
+            raise InvalidTypeError(
+                'View digest-parser must be of AbstractViewDigest type.'
+            )
 
 
 class URIBucketView(AbstractBucketView):

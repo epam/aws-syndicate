@@ -20,6 +20,7 @@ from concurrent.futures import ALL_COMPLETED, ThreadPoolExecutor
 from functools import cmp_to_key
 from typing import Any
 
+from syndicate.exceptions import ResourceProcessingError, ProjectStateError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.build.bundle_processor import create_deploy_output, \
     load_deploy_output, load_failed_deploy_output, load_meta_resources, \
@@ -103,11 +104,16 @@ def _process_resources(
         is_succeeded = False
 
     if not is_succeeded:
-        for item in args:
-            func = describe_handlers[item['meta']['resource_type']]
+        for res_name, res_meta in resources:
+            _LOG.debug(f"Describing the resource '{res_name}'")
+            func = describe_handlers[res_meta['resource_type']]
             try:
-                response = func(item['name'], item['meta'])
+                response = func(res_name, res_meta)
             except Exception as e:
+                _LOG.debug(
+                    f"The next error occurred during the resource "
+                    f"'{res_name}' describing '{e}'"
+                )
                 response = ({}, [str(e)])
             if response:
                 response_errors = process_response(response=response,
@@ -138,7 +144,7 @@ def _process_resources_with_dependencies(resources, handlers_mapping,
                 continue
 
             if run_count >= len(overall_resources):
-                raise RecursionError(
+                raise ResourceProcessingError(
                     "An infinite loop detected in resource dependencies")
 
             run_count += 1
@@ -203,11 +209,16 @@ def _process_resources_with_dependencies(resources, handlers_mapping,
         is_succeeded = False
 
     if not is_succeeded:
-        for item in args:
-            func = describe_handlers[item['meta']['resource_type']]
+        for res_name, res_meta in resources:
+            _LOG.debug(f"Describing the resource '{res_name}'")
+            func = describe_handlers[res_meta['resource_type']]
             try:
-                response = func(item['name'], item['meta'])
+                response = func(res_name, res_meta)
             except Exception as e:
+                _LOG.debug(
+                    f"The next error occurred during the resource "
+                    f"'{res_name}' describing '{e}'"
+                )
                 response = ({}, [str(e)])
             if response:
                 response_errors = process_response(response=response,
@@ -345,6 +356,29 @@ def clean_resources(output):
 
     removed_resources_arn = list(clean_output.keys())
     success = False if errors else True
+
+    if not success:
+        for arn, config in output:
+            res_name = config['resource_name']
+            res_meta = config['resource_meta']
+            res_type = res_meta['resource_type']
+
+            func = PROCESSOR_FACADE.describe_handlers()[res_type]
+            response = func(res_name, res_meta)
+
+            if response and arn in removed_resources_arn:
+                removed_resources_arn.remove(arn)
+                USER_LOG.warning(
+                    f"Resource '{res_name}' of type '{res_type}' was not "
+                    f"cleaned."
+                )
+            elif not response and arn not in removed_resources_arn:
+                removed_resources_arn.append(arn)
+                USER_LOG.warning(
+                    f"Resource '{res_name}' of type '{res_type}' not found; "
+                    f"it will be removed from the deployment output."
+                )
+
     return success, removed_resources_arn
 
 
@@ -384,7 +418,8 @@ def process_response(
 
         if isinstance(exceptions, list):
             errors.extend(exceptions)
-            USER_LOG.error('\n'.join(exceptions))
+            for each in exceptions:
+                USER_LOG.error(each)
         else:
             USER_LOG.error(str(exceptions))
             errors.append(str(exceptions))
@@ -423,7 +458,7 @@ def _compare_external_resources(expected_resources):
     if errors:
         import os
         error = f'{os.linesep}'.join(errors.values())
-        raise AssertionError(error)
+        raise ResourceProcessingError(error)
 
 
 def create_deployment_resources(
@@ -583,7 +618,7 @@ def update_deployment_resources(
     try:
         old_output = load_deploy_output(latest_bundle, deploy_name)
         _LOG.info('Output file was loaded successfully')
-    except AssertionError:
+    except ProjectStateError:
         try:
             old_output = load_failed_deploy_output(latest_bundle, deploy_name)
             if not force:
@@ -594,7 +629,7 @@ def update_deployment_resources(
 
                 _LOG.warning(
                     'Updating resources despite previous deployment failures')
-        except AssertionError:
+        except ProjectStateError:
             USER_LOG.error('Deployment to update not found.')
             return ABORTED_STATUS
 
@@ -671,11 +706,11 @@ def remove_deployment_resources(
     try:
         output = load_deploy_output(bundle_name, deploy_name)
         _LOG.info('Output file was loaded successfully')
-    except AssertionError:
+    except ProjectStateError:
         try:
             output = load_failed_deploy_output(bundle_name, deploy_name)
             is_regular_output = False
-        except AssertionError:
+        except ProjectStateError:
             USER_LOG.error("Deployment to clean not found.")
             return ABORTED_STATUS
 
@@ -740,6 +775,12 @@ def _post_remove_output_handling(
             # remove output from bucket
             remove_failed_deploy_output(bundle_name, deploy_name)
             remove_deploy_output(bundle_name, deploy_name)
+            if not success:
+                USER_LOG.warning(
+                    'All resources specified for this operation were cleaned '
+                    'despite errors when cleaning the resources.'
+                )
+                success = True
     else:
         for key, value in new_output.items():
             output.pop(key, None)

@@ -24,6 +24,7 @@ from typing import Union
 
 import yaml
 
+from syndicate.exceptions import InternalError, ProjectStateError
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.constants import BUILD_ACTION, \
     DEPLOY_ACTION, UPDATE_ACTION, CLEAN_ACTION, PACKAGE_META_ACTION, \
@@ -77,10 +78,9 @@ class ProjectState:
         we need to get ProjectState object without loading from file. All
         the existing functionality remains unimpaired"""
         if not (project_path or dct):
-            message = 'Either project_path or dct of both must be ' \
-                      'specified!'
-            _LOG.error(message)
-            raise AssertionError(message)
+            raise InternalError(
+                "Either 'project_path' or 'dct' of both must be specified!"
+            )
         if project_path:
             self.project_path = project_path
             self.state_path = os.path.join(project_path, PROJECT_STATE_FILE)
@@ -550,8 +550,9 @@ class ProjectState:
 
     def __load_project_state_file(self):
         if not ProjectState.check_if_project_state_exists(self.project_path):
-            raise AssertionError(
-                f'There is no .syndicate file in {self.project_path}')
+            raise ProjectStateError(
+                f"There is no '.syndicate' file in '{self.project_path}'"
+            )
         with open(self.state_path) as state_file:
             return yaml.safe_load(state_file.read())
 

@@ -19,6 +19,7 @@ from time import sleep
 
 from botocore.exceptions import ClientError
 
+from syndicate.exceptions import ResourceProcessingError
 from syndicate.commons.log_helper import get_logger
 
 _LOG = get_logger(__name__)
@@ -126,6 +127,7 @@ def retry(retry_timeout=DEFAULT_RETRY_TIMEOUT_SEC,
                             _LOG.debug(
                                 f'Traceback:\n {traceback.format_exc()}')
                             retry_flag = True
+                            break
                     if not retry_flag:
                         error_code = e.response['Error']['Code']
                         if (kwargs.get(LOG_NOT_FOUND_ERROR) and error_code in
@@ -142,9 +144,10 @@ def retry(retry_timeout=DEFAULT_RETRY_TIMEOUT_SEC,
                     sleep(each)
 
             if last_ex:
-                raise Exception(
+                raise ResourceProcessingError(
                     f"Maximum retries reached for function "
-                    f"{handler_func.__name__} due to {type(last_ex).__name__}: "
-                    f"{str(last_ex)}") from last_ex
+                    f"'{handler_func.__name__}' due to "
+                    f"'{type(last_ex).__name__}': "
+                    f"'{str(last_ex)}'") from last_ex
         return wrapper
     return decorator

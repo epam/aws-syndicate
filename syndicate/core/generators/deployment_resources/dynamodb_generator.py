@@ -1,5 +1,6 @@
-import click
 import json
+
+from syndicate.exceptions import ResourceNotFoundError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.constants import DYNAMO_TABLE_TYPE
 from syndicate.core.generators.deployment_resources.base_generator import \
@@ -45,9 +46,9 @@ class DynamoDBGlobalIndexGenerator(BaseConfigurationGenerator):
         paths_with_table = self._get_resource_meta_paths(self.table_name,
                                                          DYNAMO_TABLE_TYPE)
         if not paths_with_table:
-            message = f"Table '{self.table_name}' was not found"
-            _LOG.error(message)
-            raise ValueError(message)
+            raise ResourceNotFoundError(
+                f"Table '{self.table_name}' was not found"
+            )
         path_with_table = paths_with_table[0]  # table can be declared once
         USER_LOG.info(f"Adding global index to table '{self.table_name}'...")
         deployment_resources = json.loads(_read_content_from_file(
@@ -85,9 +86,9 @@ class DynamoDBAutoscalingGenerator(BaseConfigurationGenerator):
         paths_with_table = self._get_resource_meta_paths(self.table_name,
                                                          DYNAMO_TABLE_TYPE)
         if not paths_with_table:
-            message = f"Table '{self.table_name}' was not found"
-            _LOG.error(message)
-            raise ValueError(message)
+            raise ResourceNotFoundError(
+                f"Table '{self.table_name}' was not found"
+            )
         path_with_table = paths_with_table[0]
         USER_LOG.info(f"Adding autoscaling to table '{self.table_name}'...")
         deployment_resources = json.loads(_read_content_from_file(

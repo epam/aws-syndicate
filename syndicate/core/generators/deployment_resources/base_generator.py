@@ -4,6 +4,9 @@ import re
 from pathlib import Path
 
 import click
+
+from syndicate.exceptions import ResourceNotFoundError, \
+    NotImplementedError, ParameterError, AbortedError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.constants import RESOURCES_FILE_NAME
 from syndicate.core.generators import (_read_content_from_file,
@@ -115,17 +118,17 @@ class BaseConfigurationGenerator:
         _LOG.info(f"Validating existence of lambda: {lambda_name}")
 
         if lambda_name not in PROJECT_STATE.lambdas:
-            message = f"Lambda '{lambda_name}' wasn't found"
-            _LOG.error(f"Validation error: {message}")
-            raise ValueError(message)
+            raise ResourceNotFoundError(
+                f"Lambda '{lambda_name}' wasn't found"
+            )
         _LOG.info(f"Validation successfully finished, lambda exists")
 
     def _validate_resource_existence(self, resource_name, resource_type):
         _LOG.info(f"Validating existence of {resource_type}: {resource_name}")
         if not self._get_resource_meta_paths(resource_name, resource_type):
-            message = f"'{resource_type}' '{resource_name}' wasn't found"
-            _LOG.error(f"Validation error: {message}")
-            raise ValueError(message)
+            raise ResourceNotFoundError(
+                f"'{resource_type}' '{resource_name}' wasn't found"
+            )
         _LOG.info(f"Validation successfully finished")
 
     def write(self):
@@ -142,10 +145,10 @@ class BaseDeploymentResourceGenerator(BaseConfigurationGenerator):
         self._validate_resource_name()
 
         if not self.RESOURCE_TYPE:
-            message = f"RESOURCE_TYPE variable inside class " \
-                      f"'{type(self).__name__}' must be specified"
-            _LOG.error(message)
-            raise AssertionError(message)
+            raise ParameterError(
+                f"RESOURCE_TYPE variable inside class '{type(self).__name__}' "
+                f"must be specified"
+            )
 
     def generate_deployment_resource(self) -> dict:
         """Generates resource meta for current object and returns it"""
@@ -193,7 +196,7 @@ class BaseDeploymentResourceGenerator(BaseConfigurationGenerator):
                 resources_file = duplicated_file
             else:
                 USER_LOG.warning(f"Skipping resource '{self.resource_name}'")
-                raise RuntimeError
+                raise AbortedError
 
         deployment_resources = json.loads(_read_content_from_file(
             resources_file

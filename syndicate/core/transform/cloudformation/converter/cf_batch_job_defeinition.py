@@ -15,6 +15,7 @@
 """
 from troposphere import batch
 
+from syndicate.exceptions import ResourceNotFoundError
 from syndicate.core.helper import dict_keys_to_upper_camel_case
 from .cf_resource_converter import CfResourceConverter
 from ..cf_transform_utils import to_logic_name, iam_role_logic_name
@@ -101,6 +102,7 @@ class CfBatchJobDefinitionConverter(CfResourceConverter):
         existing_role = iam_conn.check_if_role_exists(role_name=role_arn)
         if existing_role:
             return existing_role
-        raise AssertionError(
-            'IAM Role "{}" specified in "{}" batch job definition '
-            'does not exist'.format(role_arn, job_definition_name))
+        raise ResourceNotFoundError(
+            f"IAM Role '{role_arn}' specified in '{job_definition_name}' "
+            f"batch job definition does not exist"
+        )

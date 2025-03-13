@@ -18,6 +18,8 @@ import os
 import shutil
 import zipfile
 
+from syndicate.exceptions import ResourceMetadataError, \
+    ArtifactAssemblingError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.constants import SWAGGER_UI_SPEC_NAME_TEMPLATE, \
     SWAGGER_UI_ARTIFACT_NAME_TEMPLATE, SWAGGER_UI_CONFIG_FILE_NAME
@@ -43,14 +45,14 @@ def assemble_swagger_ui(project_path, bundles_dir, **kwargs):
             conf_file_path = build_path(src_path, item,
                                         SWAGGER_UI_CONFIG_FILE_NAME)
             if not os.path.isfile(conf_file_path):
-                raise AssertionError(
+                raise ResourceMetadataError(
                     f'\'{SWAGGER_UI_CONFIG_FILE_NAME}\' file not found for '
                     f'Swagger UI \'{item}\'.')
 
             index_file_path = build_path(src_path, item,
                                          INDEX_FILE_NAME)
             if not os.path.isfile(index_file_path):
-                raise AssertionError(
+                raise ArtifactAssemblingError(
                     f'\'{index_file_path}\' file not found for '
                     f'Swagger UI \'{item}\'.')
 
@@ -63,7 +65,7 @@ def assemble_swagger_ui(project_path, bundles_dir, **kwargs):
                 USER_LOG.info(f'Path to specification file resolved as '
                               f'\'{spec_path}\'')
             if not os.path.isfile(spec_path):
-                raise AssertionError(
+                raise ArtifactAssemblingError(
                     f'Specification file not found for Swagger UI '
                     f'\'{item}\' in the path {spec_path}.')
 

@@ -19,6 +19,8 @@ from json import dumps, loads
 from boto3 import client
 from botocore.exceptions import ClientError
 
+from syndicate.exceptions import ResourceNotFoundError, \
+    InvalidValueError
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import apply_methods_decorator, retry
 
@@ -77,8 +79,9 @@ class SNSConnection(object):
         """
         topic_arn = self.get_topic_arn(topic_name)
         if topic_arn is None:
-            raise AssertionError(
-                'Topic does not exist: {0}.'.format(topic_name))
+            raise ResourceNotFoundError(
+                f"Topic does not exist: '{topic_name}'."
+            )
         self.client.subscribe(TopicArn=topic_arn,
                               Protocol=protocol,
                               Endpoint=endpoint)
@@ -209,12 +212,12 @@ class SNSConnection(object):
         if isinstance(account_id, str):
             account_id = [account_id]
         if not isinstance(account_id, list):
-            raise AssertionError('Incorrect account id {0}'.format(account_id))
+            raise InvalidValueError(f"Incorrect account id '{account_id}'")
 
         if isinstance(action, str):
             action = [action]
         if not isinstance(action, list):
-            raise AssertionError('Incorrect action {0}'.format(action))
+            raise InvalidValueError(f"Incorrect action '{action}'")
 
         self.client.add_permission(TopicArn=topic_arn, Label=label,
                                    AWSAccountId=account_id,

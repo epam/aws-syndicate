@@ -3,6 +3,7 @@ import os
 
 import click
 
+from syndicate.exceptions import AbortedError,  SyndicateBaseError
 from syndicate.commons.log_helper import get_user_logger
 from syndicate.core.constants import (
     S3_BUCKET_ACL_LIST, API_GW_AUTHORIZER_TYPES, CUSTOM_AUTHORIZER_KEY,
@@ -16,9 +17,13 @@ from syndicate.core.generators.deployment_resources.api_gateway_generator import
 
 from syndicate.core.generators.deployment_resources.ec2_launch_template_generator import \
     EC2LaunchTemplateGenerator
+from syndicate.core.generators.deployment_resources.eventbridge_schedule import \
+    EventBridgeScheduleGenerator
+from syndicate.core.generators.deployment_resources.firehose_generator import \
+    FirehoseGenerator
 from syndicate.core.generators.lambda_function import PROJECT_PATH_PARAM
 from syndicate.core.helper import (
-    OrderedGroup, OptionRequiredIf, check_tags,
+    OptionRequiredIf, check_tags,
     validate_authorizer_name_option, verbose_option, validate_api_gw_path,
     DictParamType, DeepDictParamType,
 )
@@ -32,7 +37,7 @@ dynamodb_type_param = click.Choice(['S', 'N', 'B'])
 USER_LOG = get_user_logger()
 
 
-@click.group(name=GENERATE_META_GROUP_NAME, cls=OrderedGroup)
+@click.group(name=GENERATE_META_GROUP_NAME)
 @return_code_manager
 @click.option('--project_path', nargs=1,
               help="Path to the project folder. Default value: the one "
@@ -177,7 +182,7 @@ def dynamodb_global_index(ctx, **kwargs):
                    "specified, sets the default value to 60")
 @click.option('--dimension', type=str,
               help="Autoscaling dimension. If not specified, sets the default"
-                   "the default value to 'dynamodb:table:ReadCapacityUnits'")
+                   "value to 'dynamodb:table:ReadCapacityUnits'")
 @click.option('--role_name', type=str,
               help="The name of the role, which performs autoscaling. If not "
                    "specified, sets the value to default service linked role: "
@@ -290,7 +295,7 @@ def web_socket_api_gateway(ctx, **kwargs):
 @meta.command(name='api_gateway_authorizer')
 @return_code_manager
 @click.option('--api_name', required=True, type=str,
-              help="Api gateway name to add index to")
+              help="Api gateway name to add authorizer to")
 @click.option('--name', required=True, type=str,
               help="Authorizer name")
 @click.option('--type', type=click.Choice(API_GW_AUTHORIZER_TYPES),
@@ -319,12 +324,12 @@ def api_gateway_authorizer(ctx, **kwargs):
 @meta.command(name='api_gateway_resource')
 @return_code_manager
 @click.option('--api_name', required=True, type=str,
-              help="Api gateway name to add index to")
+              help="Api gateway name to add resource to")
 @click.option('--path', required=True, callback=validate_api_gw_path,
               help="Resource path to create")
 @click.option('--enable_cors', type=bool,
-              help="Enables CORS on the resourcemethod. If not specified, sets"
-                   "the default value to False")
+              help="Enables CORS on the resource method. If not specified, "
+                   "sets the default value to False")
 @verbose_option
 @click.pass_context
 @timeit()
@@ -341,9 +346,9 @@ def api_gateway_resource(ctx, **kwargs):
 @meta.command(name='api_gateway_resource_method')
 @return_code_manager
 @click.option('--api_name', required=True, type=str,
-              help="Api gateway name to add index to")
+              help="Api gateway name to add method to")
 @click.option('--path', required=True, callback=validate_api_gw_path,
-              help="Resource path to create")
+              help="Resource path to add method to")
 @click.option('--method', required=True,
               type=click.Choice(['POST', 'GET', 'DELETE', 'PUT', 'HEAD',
                                  'PATCH', 'ANY']),
@@ -536,11 +541,11 @@ def step_function_activity(ctx, **kwargs):
 @click.option('--resource_name', type=str, required=True,
               help="Instance name")
 @click.option('--key_name', type=str, required=True,
-              help="SHH key to access the instance")
+              help="SSH key to access the instance")
 @click.option('--image_id', type=str, required=True,
               help="Image id to create the instance from")
 @click.option('--instance_type', type=str,
-              help="Instance type")
+              help="Instance type. Default type: t2.micro")
 @click.option('--disable_api_termination', type=bool,
               help="Api termination protection. Default value is True")
 @click.option('--security_group_ids', type=str, multiple=True,
@@ -617,9 +622,9 @@ def ec2_launch_template(ctx, **kwargs):
         # Check if provided keys are all valid
         if not provided_keys <= valid_keys:
             invalid_keys = provided_keys - valid_keys
-            raise ValueError(
-                f"Invalid resource tag keys provided: {invalid_keys}. "
-                f"Allowed keys are: {valid_keys}"
+            raise click.BadParameter(
+                f"Invalid resource tag keys provided: '{invalid_keys}'. "
+                f"Allowed keys are: '{valid_keys}'"
             )
 
     generator = EC2LaunchTemplateGenerator(**kwargs)
@@ -1051,7 +1056,7 @@ def eventbridge_rule(ctx, **kwargs):
                    "accept connections. Default value is 27017")
 @click.option('--vpc_security_group_ids', type=str, multiple=True,
               help="A list of EC2 VPC security groups to associate with this "
-                   "cluster. Is not specified, default security group is used")
+                   "cluster. If not specified, default security group is used")
 @click.option('--availability_zones', type=str, multiple=True,
               help="A list of Amazon EC2 Availability Zones that instances in "
                    "the cluster can be created in. "
@@ -1100,13 +1105,120 @@ def documentdb_instance(ctx, **kwargs):
     return OK_RETURN_CODE
 
 
+@meta.command(name='firehose')
+@return_code_manager
+@click.option('--resource_name', type=str, required=True,
+              help='Kinesis Data Firehose delivery stream name')
+@click.option('--stream_type',
+              type=click.Choice(['DirectPut', 'KinesisStreamAsSource']),
+              default='DirectPut', is_eager=True,
+              help='The delivery stream type.')
+@click.option('--kinesis_stream_arn', type=str, cls=OptionRequiredIf,
+              required_if='stream_type',
+              required_if_values=['KinesisStreamAsSource'],
+              help='The ARN of the source Kinesis data stream. [Required if '
+                   'stream_type is \'KinesisStreamAsSource\']')
+@click.option('--kinesis_stream_role', type=str, cls=OptionRequiredIf,
+              required_if='stream_type',
+              required_if_values=['KinesisStreamAsSource'],
+              help='The role name that provides access to the Kinesis data '
+                   'stream source. [Required if stream_type is '
+                   '\'KinesisStreamAsSource\']')
+@click.option('--destination_role', type=str, required=True,
+              help='The role name that provides access to the Kinesis data '
+                   'stream destination S3 bucket.')
+@click.option('--destination_bucket', type=str, required=True,
+              help='The Kinesis data stream destination S3 bucket name.')
+@click.option('--compression_format', type=click.Choice(
+             ['UNCOMPRESSED', 'GZIP', 'ZIP', 'Snappy', 'HADOOP_SNAPPY']),
+              default='UNCOMPRESSED',
+              help='The compression format.')
+@click.option('--tags', type=DictParamType(), callback=check_tags,
+              help='The resource tags')
+@verbose_option
+@click.pass_context
+@timeit()
+def firehose(ctx, **kwargs):
+    """Generates Kinesis Data Firehose delivery stream deployment resources
+    template"""
+    kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
+    generator = FirehoseGenerator(**kwargs)
+    _generate(generator)
+    USER_LOG.info(f"The Kinesis Data Firehose delivery stream "
+                  f"'{kwargs['resource_name']}' was added successfully")
+    return OK_RETURN_CODE
+
+
+@meta.command(name="eventbridge_schedule")
+@return_code_manager
+@click.option('--resource_name', type=str, required=True,
+              help="EventBridge scheduler name")
+@click.option('--schedule_expression', type=str, required=True,
+              help="The expression that defines when the schedule runs. "
+                   "The following formats are supported: "
+                   "at(yyyy-mm-ddThh:mm:ss); rate(value unit); cron(fields)")
+@click.option('--target_arn', type=str, required=True,
+              help="The complete service ARN, including the API operation, in "
+                   "the following format: "
+                   "`arn:aws:scheduler:::aws-sdk:service:apiAction`. "
+                   "For example: arn:aws:scheduler:::aws-sdk:sqs:sendMessage")
+@click.option('--role_arn', type=str, required=True,
+              help="The execution role ARN you want to use for the target. "
+                   "This role must have the permissions to call the "
+                   "API operation you want your schedule to target")
+@click.option('--mode', type=click.Choice(['OFF', 'FLEXIBLE']), default='OFF',
+              help="Determines whether the schedule is invoked within a "
+                   "flexible time window")
+@click.option('--maximum_window_in_minutes', type=click.IntRange(min=5),
+              cls=OptionRequiredIf, required_if='mode',
+              required_if_values=['FLEXIBLE'],
+              help="The maximum time window during which a schedule can be "
+                   "invoked")
+@click.option('--description', type=str,
+              help="Schedule description")
+@click.option('--schedule_expression_timezone', type=str,
+              help="The timezone in which the scheduling expression "
+                   "is evaluated.")
+@click.option('--group_name', type=str,
+              help="The name of the schedule group to associate with this "
+                   "schedule. By default, the default schedule group is used.")
+@click.option('--kms_key_arn', type=str,
+              help="ARN for the customer managed KMS key that scheduler "
+                   "will use to encrypt and decrypt data")
+@click.option('--state', type=click.Choice(['ENABLED', 'DISABLED']),
+              help="Specifies whether the schedule is enabled or disabled")
+@click.option('--start_date', type=str,
+              help=" A date in ISO 8601 or UTC, after which the schedule "
+                   "can begin invoking its target")
+@click.option('--end_date', type=str,
+              help="A date in ISO 8601 or UTC, before which the schedule "
+                   "can invoke its target")
+@click.option('--dead_letter_arn', type=str,
+              help="SQS queue ARN that will be as the destination "
+                   "for the dead-letter queue.")
+@click.option('--tags', type=DictParamType(), callback=check_tags,
+              help='The resource tags')
+@verbose_option
+@click.pass_context
+@timeit()
+def eventbridge_schedule(ctx, **kwargs):
+    """Generates eventbridge scheduler deployment resources template"""
+    kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
+    filtered_kwargs = {k: v for k, v in kwargs.items() if v is not None}
+    generator = EventBridgeScheduleGenerator(**filtered_kwargs)
+    _generate(generator)
+    USER_LOG.info(f"EventBridge scheduler '{kwargs['resource_name']}' was "
+                  f"added successfully")
+    return OK_RETURN_CODE
+
+
 def _generate(generator: BaseConfigurationGenerator):
     """Just some common actions for this module are gathered in here"""
     try:
         generator.write()
-    except ValueError as e:
-        raise click.BadParameter(e)
-    except RuntimeError as e:
+    except AbortedError as e:
         raise click.Abort(e)
     except Exception as e:
+        if isinstance(e, SyndicateBaseError):
+            raise click.BadParameter(e)
         raise Exception(f"An unexpected error occurred: {e}")

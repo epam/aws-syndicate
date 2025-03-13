@@ -3,6 +3,7 @@ from functools import partial
 
 import click
 
+from syndicate.exceptions import SyndicateBaseError, AbortedError
 from syndicate.commons.log_helper import get_user_logger
 from syndicate.core.constants import APPSYNC_TYPE, APPSYNC_DATA_SOURCE_TYPES, \
     APPSYNC_AUTHENTICATION_TYPES, APPSYNC_AUTHORIZATION_TYPES, \
@@ -16,7 +17,7 @@ from syndicate.core.generators.deployment_resources.appsync_generator import \
     AppSyncDataSourceGenerator, AppSyncAuthorizationGenerator, \
     AppSyncResolverGenerator, AppSyncFunctionGenerator
 from syndicate.core.generators.lambda_function import PROJECT_PATH_PARAM
-from syndicate.core.helper import OrderedGroup, resolve_project_path, \
+from syndicate.core.helper import resolve_project_path, \
     DictParamType, check_tags, verbose_option, timeit, OptionRequiredIf, \
     ValidRegionParamType, validate_incompatible_options
 
@@ -24,7 +25,7 @@ from syndicate.core.helper import OrderedGroup, resolve_project_path, \
 USER_LOG = get_user_logger()
 
 
-@click.group(name=APPSYNC_TYPE, cls=OrderedGroup)
+@click.group(name=APPSYNC_TYPE)
 @return_code_manager
 @click.option('--project_path', nargs=1,
               help="Path to the project folder. Default value: the one "
@@ -106,8 +107,10 @@ def data_source(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     try:
         generator = AppSyncDataSourceGenerator(**kwargs)
-    except ValueError as e:
-        raise click.BadParameter(e)
+    except Exception as e:
+        if isinstance(e, SyndicateBaseError):
+            raise click.BadParameter(e)
+        raise
     _generate(generator)
     USER_LOG.info(f"Data source '{kwargs['name']}' was added to AppSync API "
                   f"'{kwargs['api_name']}' successfully")
@@ -135,8 +138,10 @@ def function(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     try:
         generator = AppSyncFunctionGenerator(**kwargs)
-    except ValueError as e:
-        raise click.BadParameter(e)
+    except Exception as e:
+        if isinstance(e, SyndicateBaseError):
+            raise click.BadParameter(e)
+        raise
     _generate(generator)
     USER_LOG.info(f"The function '{kwargs['name']}' was added to AppSync API "
                   f"'{kwargs['api_name']}' successfully")
@@ -173,8 +178,10 @@ def resolver(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     try:
         generator = AppSyncResolverGenerator(**kwargs)
-    except ValueError as e:
-        raise click.BadParameter(e)
+    except Exception as e:
+        if isinstance(e, SyndicateBaseError):
+            raise click.BadParameter(e)
+        raise
     _generate(generator)
     USER_LOG.info(f"The resolver of the type '{kwargs['type_name']}'  for the "
                   f"field '{kwargs['field_name']}' was added to AppSync API "
@@ -208,8 +215,10 @@ def authorization(ctx, **kwargs):
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     try:
         generator = AppSyncAuthorizationGenerator(**kwargs)
-    except ValueError as e:
-        raise click.BadParameter(e)
+    except Exception as e:
+        if isinstance(e, SyndicateBaseError):
+            raise click.BadParameter(e)
+        raise
     _generate(generator)
     USER_LOG.info(f"The '{kwargs['type']}' authorization of type "
                   f"'{kwargs['auth_type']}' was added to AppSync API "
@@ -221,9 +230,9 @@ def _generate(generator: BaseConfigurationGenerator):
     """Just some common actions for this module are gathered in here"""
     try:
         generator.write()
-    except ValueError as e:
-        raise click.BadParameter(e)
-    except RuntimeError as e:
+    except AbortedError as e:
         raise click.Abort(e)
     except Exception as e:
+        if isinstance(e, SyndicateBaseError):
+            raise click.BadParameter(e)
         raise Exception(f"An unexpected error occurred: {e}")

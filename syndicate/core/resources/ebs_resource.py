@@ -18,6 +18,7 @@ from uuid import uuid1
 from pathlib import PurePath
 from botocore.exceptions import ClientError
 
+from syndicate.exceptions import ResourceNotFoundError, ArtifactError
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.build.meta_processor import S3_PATH_NAME
 from syndicate.core.helper import unpack_kwargs
@@ -74,8 +75,9 @@ class EbsResource(BaseResource):
                     "Value": topic_arn
                 })
             else:
-                raise AssertionError('Cant find notification '
-                                     'topic {0} for EBS.'.format(topic_name))
+                raise ResourceNotFoundError(
+                    f"Cant find notification topic '{topic_name}' for EBS."
+                )
         # check key pair exists
         key_pair_name = meta['ec2_key_pair']
         if self.ec2_conn.if_key_pair_exists(key_pair_name):
@@ -86,8 +88,9 @@ class EbsResource(BaseResource):
                 "Value": key_pair_name
             })
         else:
-            raise AssertionError('Specified key pair '
-                                 'does not exist: {0}.'.format(key_pair_name))
+            raise ResourceNotFoundError(
+                f"Specified key pair does not exist: '{key_pair_name}'."
+            )
         # check ec2 role exists
         iam_role = meta['ec2_role']
         if self.iam_conn.check_if_role_exists(iam_role):
@@ -98,8 +101,9 @@ class EbsResource(BaseResource):
                 "Value": iam_role
             })
         else:
-            raise AssertionError(
-                'Specified iam role does not exist: {0}.'.format(iam_role))
+            raise ResourceNotFoundError(
+                f"Specified iam role does not exist: '{iam_role}'."
+            )
         # check service role exists
         iam_role = meta['ebs_service_role']
         if self.iam_conn.check_if_role_exists(iam_role):
@@ -109,8 +113,9 @@ class EbsResource(BaseResource):
                 "Value": iam_role
             })
         else:
-            raise AssertionError(f'Specified iam role '
-                                 f'does not exist: {iam_role}.')
+            raise ResourceNotFoundError(
+                f"Specified iam role does not exist: '{iam_role}'."
+            )
         image_id = meta.get('image_id')
         if image_id:
             env_settings.append({
@@ -126,8 +131,10 @@ class EbsResource(BaseResource):
         available_stacks = self.ebs_conn. \
             describe_available_solutions_stack_names()
         if stack not in available_stacks:
-            raise AssertionError(f'No solution stack named {stack} found.'
-                                 f' Available:\n{available_stacks}')
+            raise ResourceNotFoundError(
+                f'No solution stack named {stack} found.'
+                f' Available:\n{available_stacks}'
+            )
         vpc_id = next(
             (option for option in env_settings if
              option['OptionName'] == 'VPCId'),
@@ -180,8 +187,10 @@ class EbsResource(BaseResource):
                                 key).as_posix()
         if not self.s3_conn.is_file_exists(self.deploy_target_bucket,
                                            key_compound):
-            raise AssertionError(f'Deployment package does not exist in '
-                                 f'{self.deploy_target_bucket} bucket')
+            raise ArtifactError(
+                f'Deployment package does not exist in '
+                f'{self.deploy_target_bucket} bucket'
+            )
 
         # create VERSION
         version_label = env_name + str(uuid1())

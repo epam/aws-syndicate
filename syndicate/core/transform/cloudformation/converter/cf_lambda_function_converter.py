@@ -15,6 +15,7 @@
 """
 from troposphere import GetAtt, Ref, logs, awslambda
 
+from syndicate.exceptions import ResourceNotFoundError
 from syndicate.commons.log_helper import get_user_logger
 from syndicate.connection.cloud_watch_connection import \
     get_lambda_log_group_name
@@ -91,8 +92,10 @@ class CfLambdaFunctionConverter(CfResourceConverter):
                 layer_logic_name = lambda_layer_logic_name(layer_name)
                 layer = self.get_resource(layer_logic_name)
                 if not layer:
-                    raise AssertionError("Lambda layer '{}' is not present "
-                                         "in build meta.".format(layer_name))
+                    raise ResourceNotFoundError(
+                        f"Lambda layer '{layer_name}' is not present in build "
+                        f"meta."
+                    )
                 lambda_layers.append(layer.ref())
             lambda_function.Layers = lambda_layers
 
@@ -238,8 +241,9 @@ class CfLambdaFunctionConverter(CfResourceConverter):
 
         topic = self.get_resource(sns_topic_logic_name(topic_name))
         if not topic:
-            raise AssertionError(
-                'Topic does not exist: {0}.'.format(topic_name))
+            raise ResourceNotFoundError(
+                f"Topic does not exist: '{topic_name}'."
+            )
 
         # region = trigger_meta.get('region') TODO: support region param
 

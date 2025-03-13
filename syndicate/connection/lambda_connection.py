@@ -20,6 +20,7 @@ from typing import Optional, List, Tuple, Iterable
 from boto3 import client
 from botocore.exceptions import ClientError
 
+from syndicate.exceptions import InvalidValueError
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import apply_methods_decorator, retry
 from syndicate.core.constants import NONE_AUTH_TYPE, IAM_AUTH_TYPE
@@ -41,8 +42,8 @@ def _str_list_to_list(param, param_name):
     elif isinstance(param, str):
         result = [param]
     else:
-        raise ValueError(
-            '{} must be a str or an iterable of strings.'.format(param_name))
+        raise InvalidValueError(
+            f"'{param_name}' must be a str or an iterable of strings.")
     return result
 
 
@@ -729,9 +730,11 @@ class LambdaConnection(object):
     def configure_provisioned_concurrency(self, name, qualifier,
                                           concurrent_executions):
         if type(concurrent_executions) is not int:
-            raise AssertionError(
-                f'Parameter `concurrent_executions` '
-                f'must be type of int, but not {type(concurrent_executions)}')
+            raise InvalidValueError(
+                f"Parameter 'concurrent_executions' "
+                f"must be type of int, but not "
+                f"'{type(concurrent_executions).__name__}'"
+            )
         return self.client.put_provisioned_concurrency_config(
             FunctionName=name,
             Qualifier=qualifier,

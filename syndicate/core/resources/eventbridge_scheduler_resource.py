@@ -15,8 +15,8 @@
 """
 from datetime import datetime, timezone
 
+from syndicate.exceptions import InvalidValueError, ResourceNotFoundError
 from syndicate.commons.log_helper import get_logger
-from syndicate.core import ClientError
 from syndicate.core.helper import unpack_kwargs
 from syndicate.core.helper import dict_keys_to_capitalized_camel_case
 from syndicate.core.resources.base_resource import BaseResource
@@ -36,8 +36,9 @@ def convert_to_datetime(name, date_str):
         else:
             return datetime.utcfromtimestamp(int(date_str))
     except (ValueError, OSError):
-        raise AssertionError(
-            f'Invalid date format: {date_str}. Resource: {name}. Should be ISO8601 or timestamp'
+        raise InvalidValueError(
+            f"Invalid date format: '{date_str}'. "
+            f"Resource: '{name}'. Should be ISO8601 or timestamp"
             )
 
 
@@ -46,11 +47,7 @@ def prepare_schedule_parameters(meta):
     validate_params(name, meta, REQUIRED_PARAMS)
     params = meta.copy()
 
-    # keys inside "Target" parameters should NOT be changed to PascalCase
-    # syndicate user responsible for providing Target's key-values pairs in proper format
-    target = params.pop('target')
     params = dict_keys_to_capitalized_camel_case(params)
-    params['Target'] = target
 
     assert_possible_values([params.get('State')],
                            ['ENABLED', 'DISABLED']) \
@@ -62,15 +59,17 @@ def prepare_schedule_parameters(meta):
     if 'StartDate' in params:
         start_date = convert_to_datetime(name, params.get('StartDate'))
         if start_date <= datetime.now(timezone.utc):
-            raise ValueError('Start date must be in the future.')
+            raise InvalidValueError('Start date must be in the future.')
     if 'EndDate' in params:
         end_date = convert_to_datetime(name, params.get('EndDate'))
         if start_date <= datetime.now(timezone.utc):
-            raise ValueError('End date must be in the future.')
+            raise InvalidValueError('End date must be in the future.')
 
     if 'StartDate' in params and 'EndDate' in params:
         if start_date >= end_date:
-            raise ClientError('Start date must be earlier than end date.')
+            raise InvalidValueError(
+                'Start date must be earlier than end date.'
+            )
 
     return params
 
@@ -89,24 +88,20 @@ class EventBridgeSchedulerResource(BaseResource):
         check_params = meta['schedule_content']
         check_params['name'] = name
         params = prepare_schedule_parameters(check_params)
-        group_name = check_params.get('group_name')
-        response = self.connection.describe_schedule(name, group_name)
+        response = self.describe_schedule(name, meta)
         if response:
-            _arn = response['Arn']
-            return self.describe_schedule(name, group_name, meta, _arn,
-                                          response)
+            return response
 
         arn = self.connection.create_schedule(**params)
         _LOG.info(f'Created EventBridge schedule {arn}')
-        return self.describe_schedule(name=name, group_name=group_name,
-                                      meta=meta, arn=arn)
+        return self.describe_schedule(name=name, meta=meta)
 
     def update_schedule(self, args):
         return self.create_pool(self._update_schedule_from_meta, args)
 
     @unpack_kwargs
     def _update_schedule_from_meta(self, name, meta, context):
-        """ Create EventBridge Schedule from meta description after parameter
+        """ Update EventBridge Schedule from meta description after parameter
         validation.
 
         :type name: str
@@ -115,22 +110,22 @@ class EventBridgeSchedulerResource(BaseResource):
         check_params = meta['schedule_content']
         check_params['name'] = name
         group_name = check_params.get('group_name')
-        response = self.connection.describe_schedule(name, group_name)
+        response = self.connection.describe_schedule(name, meta)
         if not response:
-            raise AssertionError(f'{name} schedule does not exist.')
+            raise ResourceNotFoundError(f"'{name}' schedule does not exist.")
 
         params = prepare_schedule_parameters(check_params)
-        _arn = response['Arn']
 
         arn = self.connection.update_schedule(**params)
         _LOG.info(f'Updated EventBridge schedule {arn}')
-        return self.describe_schedule(name=name, group_name=group_name,
-                                      meta=meta, arn=arn)
+        return self.describe_schedule(name=name, meta=meta)
 
-    def describe_schedule(self, name, group_name, meta, arn, response=None):
-        if not response:
-            response = self.connection.describe_schedule(name, group_name)
+    def describe_schedule(self, name, meta):
+        group_name = meta.get('group_name')
+
+        response = self.connection.describe_schedule(name, group_name)
         if response:
+            arn = response['Arn']
             return {
                 arn: build_description_obj(response, name, meta)
             }

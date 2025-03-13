@@ -15,6 +15,8 @@
 """
 import json
 
+from syndicate.exceptions import ResourceNotFoundError, \
+    InvalidValueError
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.cloud_watch_connection import \
     get_lambda_log_group_name
@@ -66,8 +68,10 @@ class LambdaConverter(TerraformResourceConverter):
         if not role_arn:
             iam_role = self.template.get_resource_by_name(iam_role_name)
             if not iam_role:
-                raise AssertionError(f'Role {iam_role_name} does not exist; '
-                                     f'Lambda {name} failed to be configured.')
+                raise ResourceNotFoundError(
+                    f"Role '{iam_role_name}' does not exist; Lambda '{name}' "
+                    f"failed to be configured."
+                )
             role_arn = build_role_arn_ref(iam_role_name)
 
         lambda_layers_arns = []
@@ -77,7 +81,7 @@ class LambdaConverter(TerraformResourceConverter):
                 layer = self.template.get_resource_by_name(
                     lambda_layer_name(layer_name=layer_name))
                 if not layer:
-                    raise AssertionError(
+                    raise ResourceNotFoundError(
                         f"Lambda layer '{layer_name}' is not present "
                         "in build meta.")
                 layer_ref = build_ref_to_lambda_layer_arn(
@@ -170,9 +174,10 @@ class LambdaConverter(TerraformResourceConverter):
         table_name = trigger_meta['target_table']
         table = self.template.get_resource_by_name(resource_name=table_name)
         if not table:
-            raise AssertionError(f'Table {table_name} specified in '
-                                 f'{lambda_name} trigger meta, but doesnt'
-                                 f' exist in the lis of resources to deploy')
+            raise InvalidValueError(
+                f"Table '{table_name}' specified in '{lambda_name}' trigger "
+                f"meta, but doesnt exist in the lis of resources to deploy"
+            )
         if table['stream_enabled']:
             table.update({'stream_enabled': 'true',
                           'stream_view_type': 'NEW_AND_OLD_IMAGES'})

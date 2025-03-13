@@ -13,7 +13,6 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-import collections
 import concurrent.futures
 import getpass
 import json
@@ -35,8 +34,11 @@ import click
 from click import BadParameter
 from tqdm import tqdm
 
+from syndicate.exceptions import ArtifactAssemblingError, \
+    InternalError, ProjectStateError, InvalidValueError, \
+    SyndicateBaseError
 from syndicate.commons.log_helper import get_logger, get_user_logger, \
-    LOG_FORMAT_FOR_CONSOLE
+    LOG_NAME, USER_LOG_NAME
 from syndicate.core.conf.processor import path_resolver
 from syndicate.core.conf.validator import ConfigValidator, ALL_REGIONS
 from syndicate.core.constants import (BUILD_META_FILE_NAME,
@@ -85,8 +87,17 @@ def failed_status_code_on_exception(handler_func):
         try:
             return handler_func(*args, **kwargs)
         except Exception as e:
-            USER_LOG.error(f'An error occurred: {str(e)}')
+            if isinstance(e, BadParameter):
+                message = f"{e.__class__.__name__} {e.message}"
+            elif isinstance(e, SyndicateBaseError):
+                message = f"{e.__class__.__name__} occurred: {str(e)}"
+            else:
+                message = (f'An unexpected error occurred: '
+                           f'{e.__class__.__name__} {str(e)}')
+
+            USER_LOG.error(message)
             _LOG.exception(traceback.format_exc())
+
             return FAILED_RETURN_CODE
 
     return wrapper
@@ -100,11 +111,13 @@ def execute_command_by_path(command, path, shell=True):
     result = subprocess.run(command, shell=shell, cwd=path,
                             capture_output=True, text=True)
 
+    pretty_command = \
+        ' '.join(command) if isinstance(command, list) else command
     if result.returncode != 0:
-        msg = (f'While running the command "{command}" occurred an error:\n'
-               f'"{result.stdout}\n{result.stderr}"')
-        raise AssertionError(msg)
-    _LOG.info(f'Running the command "{command}"\n{result.stdout}'
+        msg = (f'While running the command "{pretty_command}" occurred an '
+               f'error:\n"{result.stdout}\n{result.stderr}"')
+        raise ArtifactAssemblingError(msg)
+    _LOG.info(f'Running the command "{pretty_command}"\n{result.stdout}'
               f'\n{result.stderr}')
 
 
@@ -124,7 +137,7 @@ def _find_alias_and_replace(some_string):
     alias_name = some_string[first_index + 2:second_index]
     res_alias = CONFIG.resolve_alias(alias_name)
     if not res_alias:
-        raise AssertionError('Can not found alias for {0}'.format(alias_name))
+        raise InvalidValueError(f"Can not find alias for '{alias_name}'")
     result = (
             some_string[:first_index] + res_alias + some_string[
                                                     second_index + 1:])
@@ -143,8 +156,9 @@ def resolve_aliases_for_string(string_value):
                 while True:
                     input_string = _find_alias_and_replace(input_string)
             else:
-                raise AssertionError('Broken alias in value: {0}.'.format(
-                    string_value))
+                raise InvalidValueError(
+                    "Broken alias in value: '{string_value}'."
+                )
         return input_string
     except ValueError:
         return input_string
@@ -226,9 +240,9 @@ def resolve_default_value(ctx, param, value):
     command_name = ctx.info_name
     param_resolver = param_resolver_map.get(param.name)
     if not param_resolver:
-        raise AssertionError(
-            f'There is no resolver of default value '
-            f'for param {param.name}')
+        raise InternalError(
+            f"There is no resolver of default value "
+            f"for param {param.name}")
     resolved_value = param_resolver(command_name=command_name)
     USER_LOG.info(f'Resolved value of {param.name}: {resolved_value}')
     return resolved_value
@@ -302,7 +316,10 @@ def sync_lock(lock_type):
                 PROJECT_STATE.acquire_lock(lock_type)
                 sync_project_state()
             else:
-                raise AssertionError(f'The project {lock_type} is locked.')
+                raise ProjectStateError(
+                    f"The project '{lock_type}' is locked. Run the command "
+                    f"'syndicate status' for more details."
+                )
             try:
                 result = func(*args, **kwargs)
             except Exception as e:
@@ -452,21 +469,12 @@ def dict_keys_to_capitalized_camel_case(d: dict):
     return new_d
 
 
-class OrderedGroup(click.Group):
-    def __init__(self, name=None, commands=None, **attrs):
-        super(OrderedGroup, self).__init__(name, commands, **attrs)
-        self.commands = commands or collections.OrderedDict()
-
-    def list_commands(self, ctx):
-        return self.commands
-
-
 class OptionRequiredIf(click.Option):
     def __init__(self, *args, **kwargs):
         self.required_if = kwargs.pop('required_if')
         self.required_if_values = kwargs.pop('required_if_values', [])
         if not self.required_if:
-            raise AssertionError("'required_if' param must be specified")
+            raise InternalError("'required_if' param must be specified")
         super().__init__(*args, **kwargs)
 
     def handle_parse_result(self, ctx, opts, args):
@@ -572,7 +580,7 @@ class DeepDictParamType(click.types.StringParamType):
         try:
             main_parts = value.split(self.MAIN_KEY_VALUE_SEPARATOR)
             if len(main_parts) != 2:
-                raise ValueError(
+                raise InvalidValueError(
                     "Expected exactly one main key-value separator (';')"
                 )
             main_key = main_parts[0].strip()
@@ -582,7 +590,7 @@ class DeepDictParamType(click.types.StringParamType):
             for item in sub_items.split(self.ITEMS_SEPARATOR):
                 sub_parts = item.split(self.SUB_KEY_VALUE_SEPARATOR)
                 if len(sub_parts) != 2:
-                    raise ValueError(
+                    raise InvalidValueError(
                         "Expected exactly one sub key-value separator (':')"
                     )
                 sub_key = sub_parts[0].strip()
@@ -590,7 +598,7 @@ class DeepDictParamType(click.types.StringParamType):
                 sub_dict[sub_key] = sub_value
 
             result[main_key] = sub_dict
-        except ValueError as e:
+        except (ValueError, InvalidValueError) as e:
             raise BadParameter(
                 f'Wrong format: "{value}". Expected format is: '
                 f'"main_key1;sub_key1:val1,sub_key2:val2" or similar. '
@@ -614,7 +622,7 @@ def check_bundle_bucket_name(ctx, param, value):
             bucket_name = value.split('/', 1)[0]
         validate_bucket_name(bucket_name)
         return value
-    except ValueError as e:
+    except (ValueError, InvalidValueError) as e:
         raise BadParameter(e.__str__())
 
 
@@ -669,7 +677,7 @@ def check_lambda_name(value):
         error = f"lambda name '{value}' cannot end with '-'"
     if error:
         _LOG.error(f"Lambda name validation error: {error}")
-        raise ValueError(error)
+        raise InvalidValueError(error)
     _LOG.info(f"Lambda name: '{value}' passed the validation")
 
 
@@ -678,7 +686,7 @@ def check_lambdas_names(ctx, param, value):
     for lambda_name in value:
         try:
             check_lambda_name(lambda_name)
-        except ValueError as e:
+        except InvalidValueError as e:
             raise click.BadParameter(e.__str__(), ctx, param)
     return value
 
@@ -849,15 +857,15 @@ def set_debug_log_level(ctx, param, value):
     if value:
         loggers = [logging.getLogger(name) for name in
                    logging.root.manager.loggerDict if
-                   name.startswith('syndicate') or
-                   name.startswith('user-syndicate')]
-        console_formatter = logging.Formatter(LOG_FORMAT_FOR_CONSOLE)
-        console_handler = logging.StreamHandler()
-        console_handler.setFormatter(console_formatter)
+                   name.startswith(LOG_NAME) or
+                   name.startswith(USER_LOG_NAME)]
+
+        console_handler = logging.getLogger(USER_LOG_NAME).handlers[0]
+
         for logger in loggers:
             if not logger.isEnabledFor(logging.DEBUG):
                 logger.setLevel(logging.DEBUG)
-                if logger.name == 'syndicate':
+                if logger.name == LOG_NAME:
                     logger.addHandler(console_handler)
         _LOG.debug('The logs level was set to DEBUG')
 
