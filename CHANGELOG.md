@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [1.17.1] - 2025-03-13
+- Fixed records duplication in the deployment output in case of deployment after changing `lambda` `alias` name and existence of the lambda  
+
 # [1.17.0] - 2025-03-03
 - Added the possibility to generate meta for the resources `firehose` and `eventbridge_schedule`
 - The operation `partial_clean` added to the modification operations list
