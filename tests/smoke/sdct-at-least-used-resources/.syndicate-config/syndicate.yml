@@ -5,9 +5,9 @@ account_id:
 deploy_target_bucket: 
 extended_prefix_mode: true
 iam_permissions_boundary:
-project_path: FULL_PATH\aws-syndicate\tests\smoke\sdct-auto-test
+project_path: FULL_PATH\aws-syndicate\tests\smoke\sdct-at-least-used-resources
 region: eu-central-1
-resources_prefix: cmtr-
+resources_prefix: lur-
 resources_suffix: -test
 tags:
   project-level-tag: set-from-project

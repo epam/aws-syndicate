@@ -1,5 +1,6 @@
-# sdct-auto-test
-The project aims to be used to test aws-syndicate functionality.
+# sdct-at-ddis
+The project aims to be used to test aws-syndicate main functionality which is used by students in the 
+"Deep Dive into Serverless" course.
 
 ## Project resources
 ```json
@@ -8,6 +9,9 @@ The project aims to be used to test aws-syndicate functionality.
       "resource_type": "iam_policy"
     },
     "sdct-at-java-lambda-role": {
+      "resource_type": "iam_role"
+    }, 
+    "sdct-at-appsync-role": {
       "resource_type": "iam_role"
     },
     "sdct-at-java-lambda": {
@@ -72,6 +76,9 @@ The project aims to be used to test aws-syndicate functionality.
     },
     "sdct-at-open-api-gw": {
       "resource_type": "api_gateway_oas_v3"
+    },
+    "sdct-at-appsync": {
+      "resource_type": "appsync"
     }
 }
 ```
@@ -86,6 +93,9 @@ The project aims to be used to test aws-syndicate functionality.
       "resource_type": "iam_policy"
     },
     "sdct-at-java-lambda-role": {
+      "resource_type": "iam_role"
+    },
+    "sdct-at-appsync-role": {
       "resource_type": "iam_role"
     },
     "sdct-at-java-lambda": {
@@ -132,6 +142,9 @@ The project aims to be used to test aws-syndicate functionality.
     },
     "sdct-at-swagger-ui": {
       "resource_type": "swagger_ui"
+    },
+    "sdct-at-appsync": {
+      "resource_type": "appsync"
     }
 }
 ```
