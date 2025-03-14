@@ -1,3 +1,9 @@
+## 2025-03-14
+### Added
+- Added prefixes to test project configurations and information about their usage to the readme file.
+### Changed
+- Changed waiting time from 5 to 10 seconds in batch_comp_env_existence_checker.
+
 ## 2025-01-21
 ### Added
 - Added new syndicate project `sdct-at-least-used-resources` to test rare used resources, such as 

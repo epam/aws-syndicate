@@ -7,7 +7,7 @@ extended_prefix_mode: true
 iam_permissions_boundary:
 project_path: FULL_PATH\aws-syndicate\tests\smoke\sdct-auto-test
 region: eu-central-1
-resources_prefix: cmtr-
+resources_prefix: ddis-
 resources_suffix: -test
 tags:
   project-level-tag: set-from-project

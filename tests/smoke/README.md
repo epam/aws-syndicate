@@ -311,6 +311,10 @@ not matter and only the presence of a particular key will be checked.
 ```
 
 ## How to run
+
+### Important notice
+- Utilizing various prefixes and/or suffixes in extended prefix mode for different test projects (e.g., sdct-at-ddis, sdct-at-least-used-resources) is essential for conducting simultaneous tests due to the duplication of resource names across different test projects.  
+
 ### Prerequisites
 1. Specify valid credentials in the `.aws/credentials` file or set credentials in the `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN` env variables.
 2. Install python 3.10+.

@@ -2,7 +2,7 @@
   "init_parameters": {
     "suffix": "",
     "deploy_target_bucket": "",
-    "prefix": "",
+    "prefix": "lur-",
     "output_file": "least_used_output"
   },
   "stages": {

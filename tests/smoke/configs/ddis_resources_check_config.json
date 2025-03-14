@@ -2,7 +2,7 @@
   "init_parameters": {
     "suffix": "",
     "deploy_target_bucket": "",
-    "prefix": "",
+    "prefix": "ddis-",
     "output_file": "output"
   },
   "stages": {
