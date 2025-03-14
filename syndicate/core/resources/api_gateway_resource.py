@@ -19,7 +19,7 @@ from hashlib import md5
 
 from botocore.exceptions import ClientError
 
-from syndicate.commons import deep_get
+from syndicate.commons import deep_get, skip_if_error
 from syndicate.exceptions import ResourceNotFoundError, \
     InvalidValueError
 from syndicate.commons.log_helper import get_logger, get_user_logger
@@ -81,6 +81,14 @@ _REQUEST_VALIDATORS = {
 
 _DISABLE_THROTTLING_VALUE = -1
 OPERATION_REPLACE = 'replace'
+
+# This error occurs in case of an attempt to clean lambda permissions from a
+# different account/region
+REMOVE_LAMBDA_PERMISSIONS_ERROR = \
+    ('An error occurred (AccessDeniedException) when calling the GetPolicy '
+     'operation')
+
+PROCEED_REMOVING_API_GW_ERRORS = (REMOVE_LAMBDA_PERMISSIONS_ERROR,)
 
 
 class ApiGatewayResource(BaseResource):
@@ -588,6 +596,7 @@ class ApiGatewayResource(BaseResource):
                 exists_ok=True
             )
 
+    @skip_if_error(error_patterns=PROCEED_REMOVING_API_GW_ERRORS)
     def remove_lambdas_permissions(self, api_gateway_id, api_lambdas_arns):
         for lambda_arn in api_lambdas_arns:
             existing_permissions = self.get_lambda_permissions_for_api(
