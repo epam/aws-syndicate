@@ -31,7 +31,7 @@ from syndicate.core.build.artifact_processor import RUNTIME_NODEJS, \
     RUNTIME_DOTNET, RUNTIME_APPSYNC
 from syndicate.core.build.bundle_processor import create_bundles_bucket, \
     load_bundle, upload_bundle_to_s3, if_bundle_exist, \
-    remove_bundle_dir_locally
+    remove_bundle_dir_locally, if_bundle_exist_locally
 from syndicate.core.build.deployment_processor import \
     create_deployment_resources, remove_deployment_resources, \
     update_deployment_resources
@@ -776,6 +776,10 @@ def assemble_python(bundle_name, project_path, force_upload, errors_allowed,
     :return:
     """
     USER_LOG.info(f'Command assemble python: project_path: {project_path} ')
+
+    if if_bundle_exist_locally(bundle_name) and not force_upload:
+        raise FileExistsError(f'Cannot assemble bundle {bundle_name} - folder '
+                              f'with such name exists in the bundle folder.')
     if force_upload:
         _LOG.info(f'Force upload is enabled, going to check if bundle '
                   f'directory already exists locally.')
@@ -823,6 +827,10 @@ def assemble_node(bundle_name, project_path, force_upload,
     :return:
     """
     USER_LOG.info(f'Command assemble node: project_path: {project_path} ')
+
+    if if_bundle_exist_locally(bundle_name) and not force_upload:
+        raise FileExistsError(f'Cannot assemble bundle {bundle_name} - folder '
+                              f'with such name exists in the bundle folder.')
     if force_upload:
         _LOG.info(f'Force upload is enabled, going to check if bundle '
                   f'directory already exists locally.')
@@ -869,6 +877,10 @@ def assemble_dotnet(bundle_name, project_path, force_upload,
     :return:
     """
     USER_LOG.info(f'Command assemble dotnet: project_path: {project_path} ')
+
+    if if_bundle_exist_locally(bundle_name) and not force_upload:
+        raise FileExistsError(f'Cannot assemble bundle {bundle_name} - folder '
+                              f'with such name exists in the bundle folder.')
     if force_upload:
         _LOG.info(f'Force upload is enabled, going to check if bundle '
                   f'directory already exists locally.')
@@ -912,6 +924,9 @@ def assemble_swagger_ui(**kwargs):
     USER_LOG.info(f'Command assemble Swagger UI: project_path: {project_path} ')
 
     force_upload = kwargs.get('force_upload')
+    if if_bundle_exist_locally(bundle_name) and not force_upload:
+        raise FileExistsError(f'Cannot assemble bundle {bundle_name} - folder '
+                              f'with such name exists in the bundle folder.')
     if force_upload:
         _LOG.info(f'Force upload is enabled, going to check if bundle '
                   f'directory already exists locally.')
@@ -955,6 +970,10 @@ def assemble_appsync(**kwargs):
     USER_LOG.info(f'Command assemble AppSync: project_path: {project_path} ')
 
     force_upload = kwargs.get('force_upload')
+
+    if if_bundle_exist_locally(bundle_name) and not force_upload:
+        raise FileExistsError(f'Cannot assemble bundle {bundle_name} - folder '
+                              f'with such name exists in the bundle folder.')
     if force_upload:
         _LOG.info(f'Force upload is enabled, going to check if bundle '
                   f'directory already exists locally.')
@@ -1005,6 +1024,9 @@ def assemble(ctx, bundle_name, force_upload, errors_allowed, skip_tests=False):
     :param skip_tests: allows to skip tests
     :return:
     """
+    if if_bundle_exist_locally(bundle_name) and not force_upload:
+        raise FileExistsError(f'Cannot assemble bundle {bundle_name} - folder '
+                              f'with such name exists in the bundle folder.')
     if force_upload:
         _LOG.info(f'Force upload is enabled, going to check if bundle '
                   f'directory already exists locally.')
