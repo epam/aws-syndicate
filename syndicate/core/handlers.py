@@ -76,6 +76,7 @@ from syndicate.core.constants import TEST_ACTION, BUILD_ACTION, \
     COPY_BUNDLE_ACTION, EXPORT_ACTION, ASSEMBLE_SWAGGER_UI_ACTION, \
     ASSEMBLE_DOTNET_ACTION, ASSEMBLE_APPSYNC_ACTION, OK_RETURN_CODE, \
     FAILED_RETURN_CODE, ABORTED_RETURN_CODE
+from syndicate.exceptions import ProjectStateError
 
 INIT_COMMAND_NAME = 'init'
 SYNDICATE_PACKAGE_NAME = 'aws-syndicate'
@@ -724,6 +725,12 @@ def assemble_java_mvn(bundle_name, project_path, force_upload, skip_tests,
     :return:
     """
     USER_LOG.info(f'Command compile java project path: {project_path}')
+
+    if if_bundle_exist_locally(bundle_name) and not force_upload:
+        raise ProjectStateError(
+            f'Bundle name \'{bundle_name}\' already exists locally. Please '
+            f'use another bundle name or delete the existing'
+        )
     if force_upload:
         _LOG.info(f'Force upload is enabled, going to check if bundle '
                   f'directory already exists locally.')
@@ -778,8 +785,10 @@ def assemble_python(bundle_name, project_path, force_upload, errors_allowed,
     USER_LOG.info(f'Command assemble python: project_path: {project_path} ')
 
     if if_bundle_exist_locally(bundle_name) and not force_upload:
-        raise FileExistsError(f'Cannot assemble bundle {bundle_name} - folder '
-                              f'with such name exists in the bundle folder.')
+        raise ProjectStateError(
+            f'Bundle name \'{bundle_name}\' already exists locally. Please '
+            f'use another bundle name or delete the existing'
+        )
     if force_upload:
         _LOG.info(f'Force upload is enabled, going to check if bundle '
                   f'directory already exists locally.')
@@ -829,8 +838,10 @@ def assemble_node(bundle_name, project_path, force_upload,
     USER_LOG.info(f'Command assemble node: project_path: {project_path} ')
 
     if if_bundle_exist_locally(bundle_name) and not force_upload:
-        raise FileExistsError(f'Cannot assemble bundle {bundle_name} - folder '
-                              f'with such name exists in the bundle folder.')
+        raise ProjectStateError(
+            f'Bundle name \'{bundle_name}\' already exists locally. Please '
+            f'use another bundle name or delete the existing'
+        )
     if force_upload:
         _LOG.info(f'Force upload is enabled, going to check if bundle '
                   f'directory already exists locally.')
@@ -879,8 +890,10 @@ def assemble_dotnet(bundle_name, project_path, force_upload,
     USER_LOG.info(f'Command assemble dotnet: project_path: {project_path} ')
 
     if if_bundle_exist_locally(bundle_name) and not force_upload:
-        raise FileExistsError(f'Cannot assemble bundle {bundle_name} - folder '
-                              f'with such name exists in the bundle folder.')
+        raise ProjectStateError(
+            f'Bundle name \'{bundle_name}\' already exists locally. Please '
+            f'use another bundle name or delete the existing'
+        )
     if force_upload:
         _LOG.info(f'Force upload is enabled, going to check if bundle '
                   f'directory already exists locally.')
@@ -925,8 +938,10 @@ def assemble_swagger_ui(**kwargs):
 
     force_upload = kwargs.get('force_upload')
     if if_bundle_exist_locally(bundle_name) and not force_upload:
-        raise FileExistsError(f'Cannot assemble bundle {bundle_name} - folder '
-                              f'with such name exists in the bundle folder.')
+        raise ProjectStateError(
+            f'Bundle name \'{bundle_name}\' already exists locally. Please '
+            f'use another bundle name or delete the existing'
+        )
     if force_upload:
         _LOG.info(f'Force upload is enabled, going to check if bundle '
                   f'directory already exists locally.')
@@ -972,8 +987,10 @@ def assemble_appsync(**kwargs):
     force_upload = kwargs.get('force_upload')
 
     if if_bundle_exist_locally(bundle_name) and not force_upload:
-        raise FileExistsError(f'Cannot assemble bundle {bundle_name} - folder '
-                              f'with such name exists in the bundle folder.')
+        raise ProjectStateError(
+            f'Bundle name \'{bundle_name}\' already exists locally. Please '
+            f'use another bundle name or delete the existing'
+        )
     if force_upload:
         _LOG.info(f'Force upload is enabled, going to check if bundle '
                   f'directory already exists locally.')
@@ -1025,8 +1042,10 @@ def assemble(ctx, bundle_name, force_upload, errors_allowed, skip_tests=False):
     :return:
     """
     if if_bundle_exist_locally(bundle_name) and not force_upload:
-        raise FileExistsError(f'Cannot assemble bundle {bundle_name} - folder '
-                              f'with such name exists in the bundle folder.')
+        raise ProjectStateError(
+            f'Bundle name \'{bundle_name}\' already exists locally. Please '
+            f'use another bundle name or delete the existing'
+        )
     if force_upload:
         _LOG.info(f'Force upload is enabled, going to check if bundle '
                   f'directory already exists locally.')
