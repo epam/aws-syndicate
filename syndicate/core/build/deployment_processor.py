@@ -104,11 +104,16 @@ def _process_resources(
         is_succeeded = False
 
     if not is_succeeded:
-        for item in args:
-            func = describe_handlers[item['meta']['resource_type']]
+        for res_name, res_meta in resources:
+            _LOG.debug(f"Describing the resource '{res_name}'")
+            func = describe_handlers[res_meta['resource_type']]
             try:
-                response = func(item['name'], item['meta'])
+                response = func(res_name, res_meta)
             except Exception as e:
+                _LOG.debug(
+                    f"The next error occurred during the resource "
+                    f"'{res_name}' describing '{e}'"
+                )
                 response = ({}, [str(e)])
             if response:
                 response_errors = process_response(response=response,
@@ -204,11 +209,16 @@ def _process_resources_with_dependencies(resources, handlers_mapping,
         is_succeeded = False
 
     if not is_succeeded:
-        for item in args:
-            func = describe_handlers[item['meta']['resource_type']]
+        for res_name, res_meta in resources:
+            _LOG.debug(f"Describing the resource '{res_name}'")
+            func = describe_handlers[res_meta['resource_type']]
             try:
-                response = func(item['name'], item['meta'])
+                response = func(res_name, res_meta)
             except Exception as e:
+                _LOG.debug(
+                    f"The next error occurred during the resource "
+                    f"'{res_name}' describing '{e}'"
+                )
                 response = ({}, [str(e)])
             if response:
                 response_errors = process_response(response=response,

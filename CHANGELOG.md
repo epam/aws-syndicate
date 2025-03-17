@@ -29,6 +29,7 @@ triggers not being able to update
 - Added verification whether the resource was cleaned in case of errors during clean operation.
 - Fixed `lambda_layer` duplication during deployment.
 - Fixed an issue related to deploy target bucket creation
+- Fixed an issue related to the resource absence in deployment output in case of exception
 
 # [1.16.2] - 2025-01-24
 - Fixed an issue related to modification operations event synchronization
