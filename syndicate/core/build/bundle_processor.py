@@ -221,6 +221,15 @@ def if_bundle_exist(bundle_name):
         key_compound)
 
 
+def if_bundle_exist_locally(bundle_name):
+    bundle_dir = resolve_bundle_directory(bundle_name=bundle_name)
+    normalized_bundle_dir = os.path.normpath(bundle_dir)
+    if os.path.exists(normalized_bundle_dir):
+        _LOG.debug(f'Bundle folder `{normalized_bundle_dir}` exists locally.')
+        return True
+    return False
+
+
 def upload_bundle_to_s3(bundle_name, force):
     if if_bundle_exist(bundle_name) and not force:
         raise ProjectStateError(
