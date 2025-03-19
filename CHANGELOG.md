@@ -8,9 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Changed `--force_upload` parameter type for assemble commands from `string` to `flag`
 - Fixed logic of `--force_upload` flag in assemble commands
 - Added `--force_upload` flag to `assemble_appsync` and `assemble_swagger_ui` commands
-- Fixed issue if the last deploy output file was deleted from the s3 bucket, and it would result that lambda
+- Fixed issue if the last deploy output file was deleted from the s3 bucket, and it would result that lambda triggers not being able to update
 - Fixed subnet group deletion during a DAX cluster cleaning
-triggers not being able to update
 - Fixed records duplication in the deployment output in case of deployment after changing `lambda` `alias` name and existence of the lambda
 
 # [1.17.0] - 2025-03-03
