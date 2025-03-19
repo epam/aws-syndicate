@@ -31,7 +31,7 @@ from syndicate.core.build.artifact_processor import RUNTIME_NODEJS, \
     RUNTIME_DOTNET, RUNTIME_APPSYNC
 from syndicate.core.build.bundle_processor import create_bundles_bucket, \
     load_bundle, upload_bundle_to_s3, if_bundle_exist, \
-    remove_bundle_dir_locally
+    remove_bundle_dir_locally, if_bundle_exist_locally
 from syndicate.core.build.deployment_processor import \
     create_deployment_resources, remove_deployment_resources, \
     update_deployment_resources
@@ -76,6 +76,7 @@ from syndicate.core.constants import TEST_ACTION, BUILD_ACTION, \
     COPY_BUNDLE_ACTION, EXPORT_ACTION, ASSEMBLE_SWAGGER_UI_ACTION, \
     ASSEMBLE_DOTNET_ACTION, ASSEMBLE_APPSYNC_ACTION, OK_RETURN_CODE, \
     FAILED_RETURN_CODE, ABORTED_RETURN_CODE
+from syndicate.exceptions import ProjectStateError
 
 INIT_COMMAND_NAME = 'init'
 SYNDICATE_PACKAGE_NAME = 'aws-syndicate'
@@ -698,11 +699,9 @@ def profiler(bundle_name, deploy_name, from_date, to_date):
                    'path for an mvn clean install. The artifacts are copied '
                    'to a folder, which is be later used as the deployment '
                    'bundle (the bundle path: bundles/${bundle_name})')
-@click.option('--force_upload', '-fu', nargs=1,
-              default=False, required=False,
-              help='Identifier that indicates whether a locally existing'
-                   ' bundle should be deleted and a new one created using'
-                   ' the same path.')
+@click.option('--force_upload', '-F', is_flag=True, default=False,
+              help='Flag to override locally existing bundle '
+                   'with the same name')
 @click.option('--skip_tests', is_flag=True, default=False,
               help='Flag to not run tests')
 @click.option('--errors_allowed', is_flag=True, default=False,
@@ -726,6 +725,12 @@ def assemble_java_mvn(bundle_name, project_path, force_upload, skip_tests,
     :return:
     """
     USER_LOG.info(f'Command compile java project path: {project_path}')
+
+    if if_bundle_exist_locally(bundle_name) and not force_upload:
+        raise ProjectStateError(
+            f'Bundle name \'{bundle_name}\' already exists locally. Please '
+            f'use another bundle name or delete the existing'
+        )
     if force_upload:
         _LOG.info(f'Force upload is enabled, going to check if bundle '
                   f'directory already exists locally.')
@@ -754,11 +759,9 @@ def assemble_java_mvn(bundle_name, project_path, force_upload, skip_tests,
                    'found, which are described in the requirements.txt file, '
                    'and internal project dependencies according to the '
                    'described in local_requirements.txt file')
-@click.option('--force_upload', '-fu', nargs=1,
-              default=False, required=False,
-              help='Identifier that indicates whether a locally existing'
-                   ' bundle should be deleted and a new one created using'
-                   ' the same path.')
+@click.option('--force_upload', '-F', is_flag=True, default=False,
+              help='Flag to override locally existing bundle '
+                   'with the same name')
 @click.option('--errors_allowed', is_flag=True, default=False,
               help='Flag to continue building the bundle if any errors occur '
                    'while building dependencies')
@@ -780,6 +783,12 @@ def assemble_python(bundle_name, project_path, force_upload, errors_allowed,
     :return:
     """
     USER_LOG.info(f'Command assemble python: project_path: {project_path} ')
+
+    if if_bundle_exist_locally(bundle_name) and not force_upload:
+        raise ProjectStateError(
+            f'Bundle name \'{bundle_name}\' already exists locally. Please '
+            f'use another bundle name or delete the existing'
+        )
     if force_upload:
         _LOG.info(f'Force upload is enabled, going to check if bundle '
                   f'directory already exists locally.')
@@ -805,11 +814,9 @@ def assemble_python(bundle_name, project_path, force_upload, errors_allowed,
               help='The path to the NodeJS project. The code is '
                    'packed to a zip archive, where the external libraries are '
                    'found, which are described in the package.json file')
-@click.option('--force_upload', '-fu', nargs=1,
-              default=False, required=False,
-              help='Identifier that indicates whether a locally existing'
-                   ' bundle should be deleted and a new one created using'
-                   ' the same path.')
+@click.option('--force_upload', '-F', is_flag=True, default=False,
+              help='Flag to override locally existing bundle '
+                   'with the same name')
 @verbose_option
 @timeit(action_name=ASSEMBLE_NODE_ACTION)
 @failed_status_code_on_exception
@@ -829,6 +836,12 @@ def assemble_node(bundle_name, project_path, force_upload,
     :return:
     """
     USER_LOG.info(f'Command assemble node: project_path: {project_path} ')
+
+    if if_bundle_exist_locally(bundle_name) and not force_upload:
+        raise ProjectStateError(
+            f'Bundle name \'{bundle_name}\' already exists locally. Please '
+            f'use another bundle name or delete the existing'
+        )
     if force_upload:
         _LOG.info(f'Force upload is enabled, going to check if bundle '
                   f'directory already exists locally.')
@@ -853,11 +866,9 @@ def assemble_node(bundle_name, project_path, force_upload,
               help='The path to the NodeJS project. The code is '
                    'packed to a zip archive, where the external libraries are '
                    'found, which are described in the package.json file')
-@click.option('--force_upload', '-fu', nargs=1,
-              default=False, required=False,
-              help='Identifier that indicates whether a locally existing'
-                   ' bundle should be deleted and a new one created using'
-                   ' the same path.')
+@click.option('--force_upload', '-F', is_flag=True, default=False,
+              help='Flag to override locally existing bundle '
+                   'with the same name')
 @verbose_option
 @timeit(action_name=ASSEMBLE_DOTNET_ACTION)
 @failed_status_code_on_exception
@@ -877,6 +888,12 @@ def assemble_dotnet(bundle_name, project_path, force_upload,
     :return:
     """
     USER_LOG.info(f'Command assemble dotnet: project_path: {project_path} ')
+
+    if if_bundle_exist_locally(bundle_name) and not force_upload:
+        raise ProjectStateError(
+            f'Bundle name \'{bundle_name}\' already exists locally. Please '
+            f'use another bundle name or delete the existing'
+        )
     if force_upload:
         _LOG.info(f'Force upload is enabled, going to check if bundle '
                   f'directory already exists locally.')
@@ -900,6 +917,9 @@ def assemble_dotnet(bundle_name, project_path, force_upload,
               callback=resolve_path_callback, required=True,
               help='The path to the project. Related files will be packed '
                    'into a zip archive.')
+@click.option('--force_upload', '-F', is_flag=True, default=False,
+              help='Flag to override locally existing bundle '
+                   'with the same name')
 @verbose_option
 @timeit(action_name=ASSEMBLE_SWAGGER_UI_ACTION)
 @failed_status_code_on_exception
@@ -915,6 +935,18 @@ def assemble_swagger_ui(**kwargs):
     bundle_name = kwargs.get('bundle_name')
     project_path = kwargs.get('project_path')
     USER_LOG.info(f'Command assemble Swagger UI: project_path: {project_path} ')
+
+    force_upload = kwargs.get('force_upload')
+    if if_bundle_exist_locally(bundle_name) and not force_upload:
+        raise ProjectStateError(
+            f'Bundle name \'{bundle_name}\' already exists locally. Please '
+            f'use another bundle name or delete the existing'
+        )
+    if force_upload:
+        _LOG.info(f'Force upload is enabled, going to check if bundle '
+                  f'directory already exists locally.')
+        remove_bundle_dir_locally(bundle_name)
+
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
                        runtime=RUNTIME_SWAGGER_UI)
@@ -933,6 +965,9 @@ def assemble_swagger_ui(**kwargs):
               callback=resolve_path_callback, required=True,
               help='The path to the project. Related files will be packed '
                    'into a zip archive.')
+@click.option('--force_upload', '-F', is_flag=True, default=False,
+              help='Flag to override locally existing bundle '
+                   'with the same name')
 @verbose_option
 @timeit(action_name=ASSEMBLE_APPSYNC_ACTION)
 @failed_status_code_on_exception
@@ -948,6 +983,19 @@ def assemble_appsync(**kwargs):
     bundle_name = kwargs.get('bundle_name')
     project_path = kwargs.get('project_path')
     USER_LOG.info(f'Command assemble AppSync: project_path: {project_path} ')
+
+    force_upload = kwargs.get('force_upload')
+
+    if if_bundle_exist_locally(bundle_name) and not force_upload:
+        raise ProjectStateError(
+            f'Bundle name \'{bundle_name}\' already exists locally. Please '
+            f'use another bundle name or delete the existing'
+        )
+    if force_upload:
+        _LOG.info(f'Force upload is enabled, going to check if bundle '
+                  f'directory already exists locally.')
+        remove_bundle_dir_locally(bundle_name)
+
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
                        runtime=RUNTIME_APPSYNC)
@@ -970,11 +1018,9 @@ RUNTIME_LANG_TO_BUILD_MAPPING = {
 @click.option('--bundle_name', '-b', callback=generate_default_bundle_name,
               help='Bundle\'s name to build the lambdas in. '
                    'Default value: $ProjectName_%Y%m%d.%H%M%S')
-@click.option('--force_upload', '-fu', nargs=1,
-              default=False, required=False,
-              help='Identifier that indicates whether a locally existing'
-                   ' bundle should be deleted and a new one created using'
-                   ' the same path.')
+@click.option('--force_upload', '-F', is_flag=True, default=False,
+              help='Flag to override locally existing bundle '
+                   'with the same name')
 @click.option('--errors_allowed', is_flag=True, default=False,
               help='Flag to continue building the bundle if any errors occur '
                    'while building dependencies. Only for Python runtime.')
@@ -995,6 +1041,11 @@ def assemble(ctx, bundle_name, force_upload, errors_allowed, skip_tests=False):
     :param skip_tests: allows to skip tests
     :return:
     """
+    if if_bundle_exist_locally(bundle_name) and not force_upload:
+        raise ProjectStateError(
+            f'Bundle name \'{bundle_name}\' already exists locally. Please '
+            f'use another bundle name or delete the existing'
+        )
     if force_upload:
         _LOG.info(f'Force upload is enabled, going to check if bundle '
                   f'directory already exists locally.')
