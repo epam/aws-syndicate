@@ -232,6 +232,7 @@ def build(ctx, bundle_name, force_upload, errors_allowed, skip_tests):
     assemble_code = ctx.invoke(
         assemble, bundle_name=bundle_name,
         errors_allowed=errors_allowed, skip_tests=skip_tests,
+        is_chained=True,
         force_upload=True  # because we have already deleted the bundle folder
     )
     if assemble_code != OK_RETURN_CODE:
@@ -722,7 +723,7 @@ def profiler(bundle_name, deploy_name, from_date, to_date):
 @timeit(action_name=ASSEMBLE_JAVA_MVN_ACTION)
 @failed_status_code_on_exception
 def assemble_java_mvn(bundle_name, project_path, force_upload, skip_tests,
-                      errors_allowed):
+                      errors_allowed, is_chained=False):
     """
     Builds Java lambdas
 
@@ -733,15 +734,22 @@ def assemble_java_mvn(bundle_name, project_path, force_upload, skip_tests,
     :param skip_tests: force skipping tests
     :param errors_allowed: not used for java, but need to unify the
     `assemble` commands interface
+    :param is_chained: specifies whether this command is executed independently
+    or as part of a process (like `build` or `assemble` command)
     :return:
     """
     USER_LOG.info(f'Command compile java project path: {project_path}')
 
-    if if_bundle_exist_locally(bundle_name) and not force_upload:
-        raise ProjectStateError(
-            f'Bundle name \'{bundle_name}\' already exists locally. Please '
-            f'use another bundle name or delete the existing'
-        )
+    if not is_chained:
+        if if_bundle_exist_locally(bundle_name) and not force_upload:
+            raise ProjectStateError(
+                f'Bundle name \'{bundle_name}\' already exists locally. '
+                f'Please use another bundle name or delete the existing'
+            )
+        if force_upload:
+            _LOG.info(f'Force upload is enabled, going to check if bundle '
+                      f'directory already exists locally.')
+            remove_bundle_dir_locally(bundle_name)
 
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
@@ -776,7 +784,7 @@ def assemble_java_mvn(bundle_name, project_path, force_upload, skip_tests,
 @timeit(action_name=ASSEMBLE_PYTHON_ACTION)
 @failed_status_code_on_exception
 def assemble_python(bundle_name, project_path, force_upload, errors_allowed,
-                    skip_tests=False):
+                    skip_tests=False, is_chained=False):
     """
     Builds Python lambdas
 
@@ -787,15 +795,21 @@ def assemble_python(bundle_name, project_path, force_upload, errors_allowed,
     :param errors_allowed: allows to ignore dependency errors
     :param skip_tests: not used for python, but need to unify the
     `assemble` commands interface
+    :param is_chained: specifies whether this command is executed independently
+    or as part of a process (like `build` or `assemble` command)
     :return:
     """
     USER_LOG.info(f'Command assemble python: project_path: {project_path} ')
-
-    if if_bundle_exist_locally(bundle_name) and not force_upload:
-        raise ProjectStateError(
-            f'Bundle name \'{bundle_name}\' already exists locally. Please '
-            f'use another bundle name or delete the existing'
-        )
+    if not is_chained:
+        if if_bundle_exist_locally(bundle_name) and not force_upload:
+            raise ProjectStateError(
+                f'Bundle name \'{bundle_name}\' already exists locally. '
+                f'Please use another bundle name or delete the existing'
+            )
+        if force_upload:
+            _LOG.info(f'Force upload is enabled, going to check if bundle '
+                      f'directory already exists locally.')
+            remove_bundle_dir_locally(bundle_name)
 
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
@@ -824,7 +838,7 @@ def assemble_python(bundle_name, project_path, force_upload, errors_allowed,
 @timeit(action_name=ASSEMBLE_NODE_ACTION)
 @failed_status_code_on_exception
 def assemble_node(bundle_name, project_path, force_upload,
-                  errors_allowed=False, skip_tests=False):
+                  errors_allowed=False, skip_tests=False, is_chained=False):
     """
     Builds NodeJS lambdas
 
@@ -836,15 +850,22 @@ def assemble_node(bundle_name, project_path, force_upload,
     `assemble` commands interface
     :param skip_tests: not used for NodeJS, but need to unify the
     `assemble` commands interface
+    :param is_chained: specifies whether this command is executed independently
+    or as part of a process (like `build` or `assemble` command)
     :return:
     """
     USER_LOG.info(f'Command assemble node: project_path: {project_path} ')
 
-    if if_bundle_exist_locally(bundle_name) and not force_upload:
-        raise ProjectStateError(
-            f'Bundle name \'{bundle_name}\' already exists locally. Please '
-            f'use another bundle name or delete the existing'
-        )
+    if not is_chained:
+        if if_bundle_exist_locally(bundle_name) and not force_upload:
+            raise ProjectStateError(
+                f'Bundle name \'{bundle_name}\' already exists locally. '
+                f'Please use another bundle name or delete the existing'
+            )
+        if force_upload:
+            _LOG.info(f'Force upload is enabled, going to check if bundle '
+                      f'directory already exists locally.')
+            remove_bundle_dir_locally(bundle_name)
 
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
@@ -872,7 +893,7 @@ def assemble_node(bundle_name, project_path, force_upload,
 @timeit(action_name=ASSEMBLE_DOTNET_ACTION)
 @failed_status_code_on_exception
 def assemble_dotnet(bundle_name, project_path, force_upload,
-                    errors_allowed=False, skip_tests=False):
+                    errors_allowed=False, skip_tests=False, is_chained=False):
     """
     Builds DotNet lambdas
 
@@ -884,15 +905,22 @@ def assemble_dotnet(bundle_name, project_path, force_upload,
     `assemble` commands interface
     :param skip_tests: not used for DotNet, but need to unify the
     `assemble` commands interface
+    :param is_chained: specifies whether this command is executed independently
+    or as part of a process
     :return:
     """
     USER_LOG.info(f'Command assemble dotnet: project_path: {project_path} ')
 
-    if if_bundle_exist_locally(bundle_name) and not force_upload:
-        raise ProjectStateError(
-            f'Bundle name \'{bundle_name}\' already exists locally. Please '
-            f'use another bundle name or delete the existing'
-        )
+    if not is_chained:
+        if if_bundle_exist_locally(bundle_name) and not force_upload:
+            raise ProjectStateError(
+                f'Bundle name \'{bundle_name}\' already exists locally. '
+                f'Please use another bundle name or delete the existing'
+            )
+        if force_upload:
+            _LOG.info(f'Force upload is enabled, going to check if bundle '
+                      f'directory already exists locally.')
+            remove_bundle_dir_locally(bundle_name)
 
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
@@ -929,14 +957,21 @@ def assemble_swagger_ui(**kwargs):
         """
     bundle_name = kwargs.get('bundle_name')
     project_path = kwargs.get('project_path')
-    USER_LOG.info(f'Command assemble Swagger UI: project_path: {project_path} ')
+    USER_LOG.info(f'Command assemble Swagger UI: project_path: {project_path}')
 
     force_upload = kwargs.get('force_upload')
-    if if_bundle_exist_locally(bundle_name) and not force_upload:
-        raise ProjectStateError(
-            f'Bundle name \'{bundle_name}\' already exists locally. Please '
-            f'use another bundle name or delete the existing'
-        )
+    is_chained = kwargs.get('is_chained')
+
+    if not is_chained:
+        if if_bundle_exist_locally(bundle_name) and not force_upload:
+            raise ProjectStateError(
+                f'Bundle name \'{bundle_name}\' already exists locally. '
+                f'Please use another bundle name or delete the existing'
+            )
+        if force_upload:
+            _LOG.info(f'Force upload is enabled, going to check if bundle '
+                      f'directory already exists locally.')
+            remove_bundle_dir_locally(bundle_name)
 
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
@@ -976,12 +1011,18 @@ def assemble_appsync(**kwargs):
     USER_LOG.info(f'Command assemble AppSync: project_path: {project_path} ')
 
     force_upload = kwargs.get('force_upload')
+    is_chained = kwargs.get('is_chained')
 
-    if if_bundle_exist_locally(bundle_name) and not force_upload:
-        raise ProjectStateError(
-            f'Bundle name \'{bundle_name}\' already exists locally. Please '
-            f'use another bundle name or delete the existing'
-        )
+    if not is_chained:
+        if if_bundle_exist_locally(bundle_name) and not force_upload:
+            raise ProjectStateError(
+                f'Bundle name \'{bundle_name}\' already exists locally. '
+                f'Please use another bundle name or delete the existing'
+            )
+        if force_upload:
+            _LOG.info(f'Force upload is enabled, going to check if bundle '
+                      f'directory already exists locally.')
+            remove_bundle_dir_locally(bundle_name)
 
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
@@ -1015,7 +1056,8 @@ RUNTIME_LANG_TO_BUILD_MAPPING = {
 @click.pass_context
 @timeit(action_name=ASSEMBLE_ACTION)
 @failed_status_code_on_exception
-def assemble(ctx, bundle_name, force_upload, errors_allowed, skip_tests=False):
+def assemble(ctx, bundle_name, force_upload, errors_allowed, skip_tests=False,
+             is_chained=False):
     """
     Builds the application artifacts
 
@@ -1026,6 +1068,8 @@ def assemble(ctx, bundle_name, force_upload, errors_allowed, skip_tests=False):
     :param force_upload: force upload identification
     :param errors_allowed: allows to ignore errors.
     :param skip_tests: allows to skip tests
+    :param is_chained: specifies whether this command is executed independently
+    or as part of a process
     :return:
     """
     if if_bundle_exist_locally(bundle_name) and not force_upload:
@@ -1052,7 +1096,8 @@ def assemble(ctx, bundle_name, force_upload, errors_allowed, skip_tests=False):
                                          project_path=value,
                                          force_upload=True, # because we have already deleted the bundle folder
                                          errors_allowed=errors_allowed,
-                                         skip_tests=skip_tests)
+                                         skip_tests=skip_tests,
+                                         is_chained=True)
                 if return_code != OK_RETURN_CODE:
                     return return_code
             else:
