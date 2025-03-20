@@ -31,7 +31,7 @@ from syndicate.core.build.artifact_processor import RUNTIME_NODEJS, \
     RUNTIME_DOTNET, RUNTIME_APPSYNC
 from syndicate.core.build.bundle_processor import create_bundles_bucket, \
     load_bundle, upload_bundle_to_s3, if_bundle_exist, \
-    remove_bundle_dir_locally, if_bundle_exist_locally
+    remove_bundle_dir_locally
 from syndicate.core.build.deployment_processor import \
     create_deployment_resources, remove_deployment_resources, \
     update_deployment_resources
@@ -213,15 +213,7 @@ def build(ctx, bundle_name, force_upload, errors_allowed, skip_tests):
                 f'Bundle name \'{bundle_name}\' already exists in deploy '
                 f'bucket. Please use another bundle name or delete the bundle'
             )
-        if if_bundle_exist_locally(bundle_name):
-            raise ProjectStateError(
-                f'Bundle name \'{bundle_name}\' already exists locally. '
-                f'Please use another bundle name or delete the existing'
-            )
-    if force_upload:
-        _LOG.info('Force upload is enabled, going to check if bundle '
-                  'directory already exists locally.')
-        remove_bundle_dir_locally(bundle_name)
+    remove_bundle_dir_locally(bundle_name, force_upload)
 
     test_code = ctx.invoke(test,
                            errors_allowed=errors_allowed,
@@ -229,12 +221,11 @@ def build(ctx, bundle_name, force_upload, errors_allowed, skip_tests):
     if test_code != OK_RETURN_CODE:
         return test_code
 
-    assemble_code = ctx.invoke(
-        assemble, bundle_name=bundle_name,
-        errors_allowed=errors_allowed, skip_tests=skip_tests,
-        is_chained=True,
-        force_upload=True  # because we have already deleted the bundle folder
-    )
+    assemble_code = ctx.invoke(assemble,
+                               bundle_name=bundle_name,
+                               errors_allowed=errors_allowed,
+                               skip_tests=skip_tests,
+                               is_chained=True)
     if assemble_code != OK_RETURN_CODE:
         return assemble_code
 
@@ -741,15 +732,7 @@ def assemble_java_mvn(bundle_name, project_path, force_upload, skip_tests,
     USER_LOG.info(f'Command compile java project path: {project_path}')
 
     if not is_chained:
-        if if_bundle_exist_locally(bundle_name) and not force_upload:
-            raise ProjectStateError(
-                f'Bundle name \'{bundle_name}\' already exists locally. '
-                f'Please use another bundle name or delete the existing'
-            )
-        if force_upload:
-            _LOG.info(f'Force upload is enabled, going to check if bundle '
-                      f'directory already exists locally.')
-            remove_bundle_dir_locally(bundle_name)
+        remove_bundle_dir_locally(bundle_name, force_upload)
 
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
@@ -800,16 +783,9 @@ def assemble_python(bundle_name, project_path, force_upload, errors_allowed,
     :return:
     """
     USER_LOG.info(f'Command assemble python: project_path: {project_path} ')
+
     if not is_chained:
-        if if_bundle_exist_locally(bundle_name) and not force_upload:
-            raise ProjectStateError(
-                f'Bundle name \'{bundle_name}\' already exists locally. '
-                f'Please use another bundle name or delete the existing'
-            )
-        if force_upload:
-            _LOG.info(f'Force upload is enabled, going to check if bundle '
-                      f'directory already exists locally.')
-            remove_bundle_dir_locally(bundle_name)
+        remove_bundle_dir_locally(bundle_name, force_upload)
 
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
@@ -857,15 +833,7 @@ def assemble_node(bundle_name, project_path, force_upload,
     USER_LOG.info(f'Command assemble node: project_path: {project_path} ')
 
     if not is_chained:
-        if if_bundle_exist_locally(bundle_name) and not force_upload:
-            raise ProjectStateError(
-                f'Bundle name \'{bundle_name}\' already exists locally. '
-                f'Please use another bundle name or delete the existing'
-            )
-        if force_upload:
-            _LOG.info(f'Force upload is enabled, going to check if bundle '
-                      f'directory already exists locally.')
-            remove_bundle_dir_locally(bundle_name)
+        remove_bundle_dir_locally(bundle_name, force_upload)
 
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
@@ -912,15 +880,7 @@ def assemble_dotnet(bundle_name, project_path, force_upload,
     USER_LOG.info(f'Command assemble dotnet: project_path: {project_path} ')
 
     if not is_chained:
-        if if_bundle_exist_locally(bundle_name) and not force_upload:
-            raise ProjectStateError(
-                f'Bundle name \'{bundle_name}\' already exists locally. '
-                f'Please use another bundle name or delete the existing'
-            )
-        if force_upload:
-            _LOG.info(f'Force upload is enabled, going to check if bundle '
-                      f'directory already exists locally.')
-            remove_bundle_dir_locally(bundle_name)
+        remove_bundle_dir_locally(bundle_name, force_upload)
 
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
@@ -959,19 +919,8 @@ def assemble_swagger_ui(**kwargs):
     project_path = kwargs.get('project_path')
     USER_LOG.info(f'Command assemble Swagger UI: project_path: {project_path}')
 
-    force_upload = kwargs.get('force_upload')
-    is_chained = kwargs.get('is_chained')
-
-    if not is_chained:
-        if if_bundle_exist_locally(bundle_name) and not force_upload:
-            raise ProjectStateError(
-                f'Bundle name \'{bundle_name}\' already exists locally. '
-                f'Please use another bundle name or delete the existing'
-            )
-        if force_upload:
-            _LOG.info(f'Force upload is enabled, going to check if bundle '
-                      f'directory already exists locally.')
-            remove_bundle_dir_locally(bundle_name)
+    if not kwargs.get('is_chained'):
+        remove_bundle_dir_locally(bundle_name, kwargs.get('force_upload'))
 
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
@@ -1010,19 +959,8 @@ def assemble_appsync(**kwargs):
     project_path = kwargs.get('project_path')
     USER_LOG.info(f'Command assemble AppSync: project_path: {project_path} ')
 
-    force_upload = kwargs.get('force_upload')
-    is_chained = kwargs.get('is_chained')
-
-    if not is_chained:
-        if if_bundle_exist_locally(bundle_name) and not force_upload:
-            raise ProjectStateError(
-                f'Bundle name \'{bundle_name}\' already exists locally. '
-                f'Please use another bundle name or delete the existing'
-            )
-        if force_upload:
-            _LOG.info(f'Force upload is enabled, going to check if bundle '
-                      f'directory already exists locally.')
-            remove_bundle_dir_locally(bundle_name)
+    if not kwargs.get('is_chained'):
+        remove_bundle_dir_locally(bundle_name, kwargs.get('force_upload'))
 
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
@@ -1072,15 +1010,8 @@ def assemble(ctx, bundle_name, force_upload, errors_allowed, skip_tests=False,
     or as part of a process
     :return:
     """
-    if if_bundle_exist_locally(bundle_name) and not force_upload:
-        raise ProjectStateError(
-            f'Bundle name \'{bundle_name}\' already exists locally. Please '
-            f'use another bundle name or delete the existing'
-        )
-    if force_upload:
-        _LOG.info(f'Force upload is enabled, going to check if bundle '
-                  f'directory already exists locally.')
-        remove_bundle_dir_locally(bundle_name)
+    if not is_chained:
+        remove_bundle_dir_locally(bundle_name, force_upload)
 
     USER_LOG.info(f'Building artifacts, bundle: {bundle_name}')
     from syndicate.core import PROJECT_STATE
@@ -1094,7 +1025,6 @@ def assemble(ctx, bundle_name, force_upload, errors_allowed, skip_tests=False,
             if func:
                 return_code = ctx.invoke(func, bundle_name=bundle_name,
                                          project_path=value,
-                                         force_upload=True, # because we have already deleted the bundle folder
                                          errors_allowed=errors_allowed,
                                          skip_tests=skip_tests,
                                          is_chained=True)
