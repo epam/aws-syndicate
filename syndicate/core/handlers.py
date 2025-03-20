@@ -207,11 +207,21 @@ def build(ctx, bundle_name, force_upload, errors_allowed, skip_tests):
     """
     Builds bundle of an application
     """
-    if if_bundle_exist(bundle_name=bundle_name) and not force_upload:
-        USER_LOG.error(f'Bundle name \'{bundle_name}\' already exists '
-                       f'in deploy bucket. Please use another bundle '
-                       f'name or delete the bundle')
-        return FAILED_RETURN_CODE
+    if not force_upload:
+        if if_bundle_exist(bundle_name=bundle_name):
+            raise ProjectStateError(
+                f'Bundle name \'{bundle_name}\' already exists in deploy '
+                f'bucket. Please use another bundle name or delete the bundle'
+            )
+        if if_bundle_exist_locally(bundle_name):
+            raise ProjectStateError(
+                f'Bundle name \'{bundle_name}\' already exists locally. '
+                f'Please use another bundle name or delete the existing'
+            )
+    if force_upload:
+        _LOG.info('Force upload is enabled, going to check if bundle '
+                  'directory already exists locally.')
+        remove_bundle_dir_locally(bundle_name)
 
     test_code = ctx.invoke(test,
                            errors_allowed=errors_allowed,
@@ -219,10 +229,11 @@ def build(ctx, bundle_name, force_upload, errors_allowed, skip_tests):
     if test_code != OK_RETURN_CODE:
         return test_code
 
-    assemble_code = ctx.invoke(assemble, bundle_name=bundle_name,
-                               errors_allowed=errors_allowed,
-                               skip_tests=skip_tests,
-                               force_upload=force_upload)
+    assemble_code = ctx.invoke(
+        assemble, bundle_name=bundle_name,
+        errors_allowed=errors_allowed, skip_tests=skip_tests,
+        force_upload=True  # because we have already deleted the bundle folder
+    )
     if assemble_code != OK_RETURN_CODE:
         return assemble_code
 
@@ -731,10 +742,6 @@ def assemble_java_mvn(bundle_name, project_path, force_upload, skip_tests,
             f'Bundle name \'{bundle_name}\' already exists locally. Please '
             f'use another bundle name or delete the existing'
         )
-    if force_upload:
-        _LOG.info(f'Force upload is enabled, going to check if bundle '
-                  f'directory already exists locally.')
-        remove_bundle_dir_locally(bundle_name)
 
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
@@ -789,10 +796,6 @@ def assemble_python(bundle_name, project_path, force_upload, errors_allowed,
             f'Bundle name \'{bundle_name}\' already exists locally. Please '
             f'use another bundle name or delete the existing'
         )
-    if force_upload:
-        _LOG.info(f'Force upload is enabled, going to check if bundle '
-                  f'directory already exists locally.')
-        remove_bundle_dir_locally(bundle_name)
 
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
@@ -842,10 +845,6 @@ def assemble_node(bundle_name, project_path, force_upload,
             f'Bundle name \'{bundle_name}\' already exists locally. Please '
             f'use another bundle name or delete the existing'
         )
-    if force_upload:
-        _LOG.info(f'Force upload is enabled, going to check if bundle '
-                  f'directory already exists locally.')
-        remove_bundle_dir_locally(bundle_name)
 
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
@@ -894,10 +893,6 @@ def assemble_dotnet(bundle_name, project_path, force_upload,
             f'Bundle name \'{bundle_name}\' already exists locally. Please '
             f'use another bundle name or delete the existing'
         )
-    if force_upload:
-        _LOG.info(f'Force upload is enabled, going to check if bundle '
-                  f'directory already exists locally.')
-        remove_bundle_dir_locally(bundle_name)
 
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
@@ -942,10 +937,6 @@ def assemble_swagger_ui(**kwargs):
             f'Bundle name \'{bundle_name}\' already exists locally. Please '
             f'use another bundle name or delete the existing'
         )
-    if force_upload:
-        _LOG.info(f'Force upload is enabled, going to check if bundle '
-                  f'directory already exists locally.')
-        remove_bundle_dir_locally(bundle_name)
 
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
@@ -991,10 +982,6 @@ def assemble_appsync(**kwargs):
             f'Bundle name \'{bundle_name}\' already exists locally. Please '
             f'use another bundle name or delete the existing'
         )
-    if force_upload:
-        _LOG.info(f'Force upload is enabled, going to check if bundle '
-                  f'directory already exists locally.')
-        remove_bundle_dir_locally(bundle_name)
 
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
@@ -1063,7 +1050,7 @@ def assemble(ctx, bundle_name, force_upload, errors_allowed, skip_tests=False):
             if func:
                 return_code = ctx.invoke(func, bundle_name=bundle_name,
                                          project_path=value,
-                                         force_upload=False, # because we have already deleted the bundle folder
+                                         force_upload=True, # because we have already deleted the bundle folder
                                          errors_allowed=errors_allowed,
                                          skip_tests=skip_tests)
                 if return_code != OK_RETURN_CODE:
