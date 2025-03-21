@@ -14,22 +14,26 @@
     limitations under the License.
 """
 import io
+import json
 import os
 import posixpath
 from pathlib import PurePath
 from shutil import rmtree
+from typing import Optional
 from zipfile import ZipFile
 
 from syndicate.commons import deep_get
 from syndicate.exceptions import ResourceNotFoundError, ParameterError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.constants import ARTIFACTS_FOLDER, S3_PATH_NAME, \
-    SWAGGER_UI_SPEC_NAME_TEMPLATE
+    SWAGGER_UI_SPEC_NAME_TEMPLATE, API_GATEWAY_TYPE
 from syndicate.core.helper import build_path, unpack_kwargs
 from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import build_description_obj
 
 INDEX_FILE_NAME = 'index.html'
+X_SYNDICATE_SERVER_PARAM = 'x-syndicate-server'
+API_LINK_TEMPLATE = 'https://{api_id}.execute-api.{region}.amazonaws.com/{stage_name}'
 
 _LOG = get_logger(__name__)
 USER_LOG = get_user_logger()
@@ -40,7 +44,7 @@ class SwaggerUIResource(BaseResource):
     def __init__(self, s3_conn, deploy_target_bucket,
                  deploy_target_bucket_key_compound, region,
                  account_id, extended_prefix_mode, prefix, suffix) -> None:
-        from syndicate.core import CONF_PATH
+        from syndicate.core import CONF_PATH, RESOURCES_PROVIDER
         self.s3_conn = s3_conn
         self.deploy_target_bucket = deploy_target_bucket
         self.deploy_target_bucket_key_compound = \
@@ -51,6 +55,7 @@ class SwaggerUIResource(BaseResource):
         self.prefix = prefix
         self.suffix = suffix
         self.conf_path = CONF_PATH
+        self.resources_provider = RESOURCES_PROVIDER
 
     def create_update_swagger_ui(self, args):
         return self.create_pool(self._create_update_swagger_ui_from_meta, args)
@@ -82,9 +87,9 @@ class SwaggerUIResource(BaseResource):
         _LOG.info(f'Downloading an artifact for Swagger UI \'{name}\'')
         with io.BytesIO() as artifact:
             self.s3_conn.download_to_file(
-                    bucket_name=self.deploy_target_bucket,
-                    key=artifact_src_path,
-                    file=artifact)
+                bucket_name=self.deploy_target_bucket,
+                key=artifact_src_path,
+                file=artifact)
             extract_to = build_path(artifact_dir, name)
             with ZipFile(artifact, 'r') as zf:
                 zf.extractall(extract_to)
@@ -98,6 +103,22 @@ class SwaggerUIResource(BaseResource):
                     'ContentType': 'text/html',
                     'ContentDisposition': f'inline;filename={INDEX_FILE_NAME}'
                 }
+            elif file.endswith('.json'):
+                # verify API URL
+                filepath = PurePath(extract_to, file)
+                try:
+                    with open(filepath, 'r') as f:
+                        file_content = json.load(f)
+
+                    if server_params := file_content.get(X_SYNDICATE_SERVER_PARAM):
+                        api_url = self._get_new_api_link(server_params, meta)
+                        if api_url:
+                            file_content['servers'][0]['url'] = api_url
+                            with open(filepath, 'w') as f:
+                                json.dump(file_content, f)
+                except (FileNotFoundError, KeyError, json.JSONDecodeError) as e:
+                    _LOG.error(f'Error processing file {filepath}: {str(e)}')
+
             self.s3_conn.upload_single_file(path=PurePath(extract_to,
                                                           file).as_posix(),
                                             key=file,
@@ -144,7 +165,7 @@ class SwaggerUIResource(BaseResource):
         }
 
     @unpack_kwargs
-    def _remove_swagger_ui(self, arn, config):
+    def _remove_swagger_ui(self, arn, config) -> dict:
         resource_name = arn.split(':')[-1]
         target_bucket = deep_get(config, ['resource_meta', 'target_bucket'])
 
@@ -168,3 +189,27 @@ class SwaggerUIResource(BaseResource):
                     name=pure_name))
             USER_LOG.info(f'Swagger UI \'{resource_name}\' removed')
             return {arn: config}
+
+    def _get_new_api_link(self, server_params: dict, meta: dict) -> \
+            Optional[str]:
+        if server_params.get('resource_type') == API_GATEWAY_TYPE:
+            resource_name = server_params.get('resource_name')
+            stage_name = server_params.get('parameter_name')
+
+            response = self.resources_provider.api_gw(). \
+                describe_api_resources(name=resource_name, meta=meta)
+            if not response:
+                _LOG.warning(
+                    f'Cannot find `{resource_name}` API '
+                    f'Gateway. Cannot retrieve active URL '
+                    f'for swagger UI')
+                return
+
+            first_value = next(iter(response.values()))
+            api_url = API_LINK_TEMPLATE.format(
+                    api_id=first_value['description']['id'],
+                    region=self.region,
+                    stage_name=stage_name
+                )
+            return api_url
+
