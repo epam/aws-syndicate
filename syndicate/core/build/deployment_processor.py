@@ -721,10 +721,10 @@ def remove_deployment_resources(
     _LOG.info('Prefixes and suffixes of any resource names have been resolved')
 
     if clean_externals:
-        new_output = {
+        new_output.update({
             k: v for k, v in new_output.items() if
             v['resource_meta'].get('external')
-        }
+        })
 
     new_output = _filter_resources(
         resources_meta=new_output,
