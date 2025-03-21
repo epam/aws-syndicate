@@ -17,6 +17,7 @@ import io
 import json
 import os
 import posixpath
+from functools import cached_property
 from pathlib import PurePath
 from shutil import rmtree
 from typing import Optional
@@ -26,13 +27,15 @@ from syndicate.commons import deep_get
 from syndicate.exceptions import ResourceNotFoundError, ParameterError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.constants import ARTIFACTS_FOLDER, S3_PATH_NAME, \
-    SWAGGER_UI_SPEC_NAME_TEMPLATE, API_GATEWAY_TYPE
+    SWAGGER_UI_SPEC_NAME_TEMPLATE, API_GATEWAY_TYPE, RESOURCE_TYPE_PARAM, \
+    RESOURCE_NAME_PARAM, PARAMETER_NAME_PARAM
 from syndicate.core.helper import build_path, unpack_kwargs
 from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import build_description_obj
 
 INDEX_FILE_NAME = 'index.html'
 X_SYNDICATE_SERVER_PARAM = 'x-syndicate-server'
+S3_LINK_TEMPLATE = 'http://{target_bucket}.s3-website.{region}.amazonaws.com'
 API_LINK_TEMPLATE = 'https://{api_id}.execute-api.{region}.amazonaws.com/{stage_name}'
 
 _LOG = get_logger(__name__)
@@ -56,6 +59,12 @@ class SwaggerUIResource(BaseResource):
         self.suffix = suffix
         self.conf_path = CONF_PATH
         self.resources_provider = RESOURCES_PROVIDER
+
+    @cached_property
+    def server_api_mapping(self):
+        return {
+            API_GATEWAY_TYPE: self._get_api_gateway_link
+        }
 
     def create_update_swagger_ui(self, args):
         return self.create_pool(self._create_update_swagger_ui_from_meta, args)
@@ -104,20 +113,8 @@ class SwaggerUIResource(BaseResource):
                     'ContentDisposition': f'inline;filename={INDEX_FILE_NAME}'
                 }
             elif file.endswith('.json'):
-                # verify API URL
                 filepath = PurePath(extract_to, file)
-                try:
-                    with open(filepath, 'r') as f:
-                        file_content = json.load(f)
-
-                    if server_params := file_content.get(X_SYNDICATE_SERVER_PARAM):
-                        api_url = self._get_new_api_link(server_params, meta)
-                        if api_url:
-                            file_content['servers'][0]['url'] = api_url
-                            with open(filepath, 'w') as f:
-                                json.dump(file_content, f)
-                except (FileNotFoundError, KeyError, json.JSONDecodeError) as e:
-                    _LOG.error(f'Error processing file {filepath}: {str(e)}')
+                self.verify_api_url(filepath, meta)
 
             self.s3_conn.upload_single_file(path=PurePath(extract_to,
                                                           file).as_posix(),
@@ -157,8 +154,9 @@ class SwaggerUIResource(BaseResource):
             if self.s3_conn.is_file_exists(target_bucket, spec_file_name):
                 hosting_config['api_spec_document'] = spec_file_name
             hosting_config['endpoint'] = (
-                f'http://{target_bucket}.s3-website.{self.region}.'
-                f'amazonaws.com')
+                S3_LINK_TEMPLATE.format(target_bucket=target_bucket,
+                                        region=self.region)
+            )
             response['website_hosting'] = hosting_config
         return {
             arn: build_description_obj(response, name, meta)
@@ -190,26 +188,67 @@ class SwaggerUIResource(BaseResource):
             USER_LOG.info(f'Swagger UI \'{resource_name}\' removed')
             return {arn: config}
 
-    def _get_new_api_link(self, server_params: dict, meta: dict) -> \
-            Optional[str]:
-        if server_params.get('resource_type') == API_GATEWAY_TYPE:
-            resource_name = server_params.get('resource_name')
-            stage_name = server_params.get('parameter_name')
+    @staticmethod
+    def validate_server_params(server_params: dict) -> bool:
+        required = [RESOURCE_TYPE_PARAM,
+                    RESOURCE_NAME_PARAM,
+                    PARAMETER_NAME_PARAM]
 
-            response = self.resources_provider.api_gw(). \
-                describe_api_resources(name=resource_name, meta=meta)
-            if not response:
-                _LOG.warning(
-                    f'Cannot find `{resource_name}` API '
-                    f'Gateway. Cannot retrieve active URL '
-                    f'for swagger UI')
+        if not set(server_params).issubset(set(required)):
+            _LOG.error(f'Incorrect values in `{X_SYNDICATE_SERVER_PARAM}` '
+                       f'parameter. Must be a subset of these: {required}')
+            _LOG.warn('Cannot retrieve active URL for swagger UI')
+            return False
+        return True
+
+    def _get_api_gateway_link(self, server_params: dict, meta: dict) -> \
+            Optional[str]:
+        resource_name = server_params.get(RESOURCE_NAME_PARAM)
+        stage_name = server_params.get(PARAMETER_NAME_PARAM)
+
+        response = self.resources_provider.api_gw().\
+            describe_api_resources(name=resource_name, meta=meta)
+        if not response:
+            _LOG.warning(
+                f'Cannot find `{resource_name}` API Gateway. Cannot retrieve '
+                f'active URL for swagger UI')
+            return
+
+        first_value = next(iter(response.values()))
+        api_url = API_LINK_TEMPLATE.format(
+            api_id=first_value['description']['id'],
+            region=self.region,
+            stage_name=stage_name
+        )
+        return api_url
+
+    def verify_api_url(self, filepath: str | PurePath, meta: dict) -> None:
+        try:
+            with open(filepath, 'r') as f:
+                file_content = json.load(f)
+
+            server_params = file_content.get(X_SYNDICATE_SERVER_PARAM)
+            _LOG.debug(f'x-syndicate-server parameters: {server_params}')
+            if not server_params or \
+                    not self.validate_server_params(server_params):
                 return
 
-            first_value = next(iter(response.values()))
-            api_url = API_LINK_TEMPLATE.format(
-                    api_id=first_value['description']['id'],
-                    region=self.region,
-                    stage_name=stage_name
-                )
-            return api_url
+            resource_type = server_params.get(RESOURCE_TYPE_PARAM)
+            api_func = self.server_api_mapping.get(resource_type)
 
+            if not api_func:
+                _LOG.warning(
+                    f'Invalid resource type in {X_SYNDICATE_SERVER_PARAM} '
+                    f'parameter: {resource_type}')
+                return
+
+            api_url = api_func(server_params, meta)
+            if not api_url:
+                return
+
+            file_content['servers'][0]['url'] = api_url
+            with open(filepath, 'w') as f:
+                json.dump(file_content, f)
+        except (FileNotFoundError, KeyError, AttributeError,
+                json.JSONDecodeError) as e:
+            _LOG.error(f'Error processing file {filepath}: {str(e)}')
