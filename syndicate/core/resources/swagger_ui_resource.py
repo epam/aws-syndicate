@@ -114,7 +114,7 @@ class SwaggerUIResource(BaseResource):
                 }
             elif file.endswith('.json'):
                 filepath = PurePath(extract_to, file)
-                self.verify_api_url(filepath, meta)
+                self.resolve_api_url(filepath, meta)
 
             self.s3_conn.upload_single_file(path=PurePath(extract_to,
                                                           file).as_posix(),
@@ -222,7 +222,7 @@ class SwaggerUIResource(BaseResource):
         )
         return api_url
 
-    def verify_api_url(self, filepath: str | PurePath, meta: dict) -> None:
+    def resolve_api_url(self, filepath: str | PurePath, meta: dict) -> None:
         try:
             with open(filepath, 'r') as f:
                 file_content = json.load(f)
@@ -238,8 +238,8 @@ class SwaggerUIResource(BaseResource):
 
             if not api_func:
                 _LOG.warning(
-                    f'Invalid resource type in {X_SYNDICATE_SERVER_PARAM} '
-                    f'parameter: {resource_type}')
+                    f'The resource type \'{resource_type}\' is not supported '
+                    f'for \'{X_SYNDICATE_SERVER_PARAM}\' configuration.')
                 return
 
             api_url = api_func(server_params, meta)
