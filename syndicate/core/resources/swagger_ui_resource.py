@@ -28,13 +28,21 @@ from syndicate.exceptions import ResourceNotFoundError, ParameterError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.constants import ARTIFACTS_FOLDER, S3_PATH_NAME, \
     SWAGGER_UI_SPEC_NAME_TEMPLATE, API_GATEWAY_TYPE, RESOURCE_TYPE_PARAM, \
-    RESOURCE_NAME_PARAM, PARAMETER_NAME_PARAM
+    RESOURCE_NAME_PARAM, PARAMETER_NAME_PARAM, PARAMETER_TYPE_PARAM
 from syndicate.core.helper import build_path, unpack_kwargs
 from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import build_description_obj
 
 INDEX_FILE_NAME = 'index.html'
 X_SYNDICATE_SERVER_PARAM = 'x-syndicate-server'
+# example:
+# "x-syndicate-server": {
+#     "resource_name": "sdct-at-api-gw",
+#     "resource_type": "api_gateway",
+#     "parameter_name": "stage_name"
+#     "parameter_name": "api"
+#   }
+
 S3_LINK_TEMPLATE = 'http://{target_bucket}.s3-website.{region}.amazonaws.com'
 API_LINK_TEMPLATE = 'https://{api_id}.execute-api.{region}.amazonaws.com/{stage_name}'
 
@@ -192,18 +200,24 @@ class SwaggerUIResource(BaseResource):
     def validate_server_params(server_params: dict) -> bool:
         required = [RESOURCE_TYPE_PARAM,
                     RESOURCE_NAME_PARAM,
-                    PARAMETER_NAME_PARAM]
+                    PARAMETER_NAME_PARAM,
+                    PARAMETER_TYPE_PARAM]
 
         if not set(server_params).issubset(set(required)):
             _LOG.error(f'Incorrect values in `{X_SYNDICATE_SERVER_PARAM}` '
                        f'parameter. Must be a subset of these: {required}')
-            _LOG.warn('Cannot retrieve active URL for swagger UI')
+            USER_LOG.warn('Cannot retrieve active URL for swagger UI')
             return False
         return True
 
     def _get_api_gateway_link(self, server_params: dict, meta: dict) -> \
             Optional[str]:
         resource_name = server_params.get(RESOURCE_NAME_PARAM)
+        if self.extended_prefix_mode:
+            if self.prefix:
+                resource_name = self.prefix + resource_name
+            if self.suffix:
+                resource_name = resource_name + self.suffix
         stage_name = server_params.get(PARAMETER_NAME_PARAM)
 
         response = self.resources_provider.api_gw().\
