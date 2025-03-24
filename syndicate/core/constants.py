@@ -281,3 +281,5 @@ EC2_LT_RESOURCE_TAGS = ('instance', 'volume', 'elastic-gpu', 'network-interface'
 OK_RETURN_CODE = 0
 FAILED_RETURN_CODE = 1
 ABORTED_RETURN_CODE = 2
+
+EMPTY_VALUES = [[], set(), (), {}, '']
