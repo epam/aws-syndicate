@@ -281,3 +281,8 @@ EC2_LT_RESOURCE_TAGS = ('instance', 'volume', 'elastic-gpu', 'network-interface'
 OK_RETURN_CODE = 0
 FAILED_RETURN_CODE = 1
 ABORTED_RETURN_CODE = 2
+
+RESOURCE_NAME_PARAM = 'resource_name'
+RESOURCE_TYPE_PARAM = 'resource_type'
+PARAMETER_TYPE_PARAM = 'parameter_type'
+PARAMETER_NAME_PARAM = 'parameter_name'
