@@ -286,3 +286,5 @@ RESOURCE_NAME_PARAM = 'resource_name'
 RESOURCE_TYPE_PARAM = 'resource_type'
 PARAMETER_TYPE_PARAM = 'parameter_type'
 PARAMETER_NAME_PARAM = 'parameter_name'
+
+EMPTY_VALUES = [[], set(), (), {}, '']

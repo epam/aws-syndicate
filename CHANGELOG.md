@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [1.17.1] - 2025-03-21
+# [1.17.1] - 2025-03-25
 - Changed `--force_upload` parameter type for assemble commands from `string` to `flag`
 - Fixed logic of `--force_upload` flag in assemble commands
 - Added `--force_upload` flag to `assemble_appsync` and `assemble_swagger_ui` commands
@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 triggers not being able to update
 - Fixed subnet group deletion during a DAX cluster cleaning
 - Fixed dynamic setting of active API link in Swagger UI json file
+- Adjusted the logic of `--clean_externals` parameter in `syndicate clean` command to clean not only external resources 
+but all filtered resources plus external resources which fit the filters
 
 # [1.17.0] - 2025-03-03
 - Added the possibility to generate meta for the resources `firehose` and `eventbridge_schedule`

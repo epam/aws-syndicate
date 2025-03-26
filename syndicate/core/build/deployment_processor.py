@@ -51,7 +51,7 @@ def _process_resources(
         handlers_mapping: dict,
         describe_handlers: dict | None = None,
         pass_context: bool = False,
-        output = None,
+        output: dict | None = None
 ) -> tuple[bool, Any]:
     output = output or {}
     errors = []
@@ -159,7 +159,7 @@ def _process_resources_with_dependencies(resources, handlers_mapping,
                 for overall_res_name, overall_res_meta in overall_resources:
                     if overall_res_name == dep_res_name:
                         depends_on_resources.append((overall_res_name,
-                                                    overall_res_meta))
+                                                     overall_res_meta))
 
             if depends_on_resources:
                 _LOG.info(
@@ -304,7 +304,7 @@ def deploy_resources(
 def update_resources(
         resources: list[tuple[str, dict]],
         old_resources: set,
-)-> tuple[bool, Any]:
+) -> tuple[bool, Any]:
     from syndicate.core import PROCESSOR_FACADE
     # exclude new resources that were added after deployment
     to_remove = \
@@ -383,7 +383,6 @@ def clean_resources(output):
 
 
 def continue_deploy_resources(resources, latest_deploy_output):
-
     for arn, meta in latest_deploy_output.items():
         for resource_name, resource_meta in resources:
             if resource_name == meta['resource_name']:
@@ -448,10 +447,14 @@ def _compare_external_resources(expected_resources):
     compare_funcs = PROCESSOR_FACADE.compare_meta_handlers()
 
     errors = {}
-
     for resource_name, resource_meta in expected_resources.items():
-        func = compare_funcs[resource_meta.get('resource_type')]
-        resource_errors = func(resource_name, resource_meta)
+        resource_type = resource_meta.get('resource_type')
+        if not (func := compare_funcs.get(resource_type)):
+            resource_errors = f'The resource type \'{resource_type}\' is ' \
+                              f'not supported for external configuration.'
+        else:
+            resource_errors = func(resource_name, resource_meta)
+
         if resource_errors:
             errors[resource_name] = resource_errors
 
@@ -551,7 +554,7 @@ def create_deployment_resources(
 
             if latest_deploy_output:
                 deploy_output_names = list(latest_deploy_output.keys())
-                rollback_resources_list =\
+                rollback_resources_list = \
                     [resource for resource in output_resources_list if
                      resource[0] not in deploy_output_names]
                 clean_resources(rollback_resources_list)
@@ -703,6 +706,7 @@ def remove_deployment_resources(
         preserve_state: bool = False,
 ):
     is_regular_output = True
+    externals = {}
     try:
         output = load_deploy_output(bundle_name, deploy_name)
         _LOG.info('Output file was loaded successfully')
@@ -711,7 +715,7 @@ def remove_deployment_resources(
             output = load_failed_deploy_output(bundle_name, deploy_name)
             is_regular_output = False
         except ProjectStateError:
-            USER_LOG.error("Deployment to clean not found.")
+            USER_LOG.error('Deployment to clean not found.')
             return ABORTED_STATUS
 
     new_output = copy.deepcopy(output)
@@ -720,11 +724,13 @@ def remove_deployment_resources(
     excluded_resources = _resolve_names(excluded_resources)
     _LOG.info('Prefixes and suffixes of any resource names have been resolved')
 
-    if clean_externals:
-        new_output = {
-            k: v for k, v in new_output.items() if
-            v['resource_meta'].get('external')
-        }
+    if not clean_externals:
+        new_output = {}
+        for k, v in output.items():
+            if v['resource_meta'].get('external'):
+                externals.update({k: v})
+            else:
+                new_output.update({k: v})
 
     new_output = _filter_resources(
         resources_meta=new_output,
@@ -757,6 +763,7 @@ def remove_deployment_resources(
         new_output=new_output,
         is_regular_output=is_regular_output,
         success=success,
+        externals=externals,
         preserve_state=preserve_state,
     )
 
@@ -768,22 +775,37 @@ def _post_remove_output_handling(
         new_output: dict,
         is_regular_output: bool,
         success: bool,
-        preserve_state: bool = False,
+        externals: dict = None,
+        preserve_state: bool = False
 ) -> bool | dict:
+    not_success_msg = 'All resources specified for this operation were ' \
+                      'cleaned despite errors when cleaning the resources.'
     if output == new_output:
-        if not preserve_state:
-            # remove output from bucket
-            remove_failed_deploy_output(bundle_name, deploy_name)
-            remove_deploy_output(bundle_name, deploy_name)
-            if not success:
-                USER_LOG.warning(
-                    'All resources specified for this operation were cleaned '
-                    'despite errors when cleaning the resources.'
-                )
-                success = True
+        if preserve_state:
+            return success
+
+        # remove output from bucket
+        remove_failed_deploy_output(bundle_name, deploy_name)
+        remove_deploy_output(bundle_name, deploy_name)
+        if not success:
+            USER_LOG.warning(not_success_msg)
+            success = True
     else:
         for key, value in new_output.items():
             output.pop(key, None)
+        if externals:
+            # if only external resources remain
+            if set(output.keys()) == set(externals.keys()):
+                if preserve_state:
+                    return success
+
+                remove_failed_deploy_output(bundle_name, deploy_name)
+                remove_deploy_output(bundle_name, deploy_name)
+                if not success:
+                    USER_LOG.warning(not_success_msg)
+                    success = True
+                return success
+
         create_deploy_output(bundle_name=bundle_name,
                              deploy_name=deploy_name,
                              output=output,
