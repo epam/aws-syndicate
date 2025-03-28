@@ -200,7 +200,10 @@ class LambdaResource(BaseResource):
             response = self.lambda_conn.get_function(lambda_name=name)
         if not response:
             return {}
-        arn = self.build_lambda_arn_with_alias(response, meta.get('alias'))
+
+        aliases = list(self.lambda_conn.get_aliases(name))
+        alias = aliases[0] if aliases else None
+        arn = self.build_lambda_arn_with_alias(response, alias)
 
         del response['Configuration']['FunctionArn']
         return {
