@@ -549,6 +549,8 @@ def resolve_meta(overall_meta):
     # key: current_name, value: resolved_name
     resolved_names = {}
     for name, res_meta in overall_meta.items():
+        if res_meta.get('external'):
+            continue
         resource_type = res_meta['resource_type']
         if resource_type in GLOBAL_AWS_SERVICES or extended_prefix_mode:
             resolved_name = resolve_resource_name(
@@ -564,7 +566,7 @@ def resolve_meta(overall_meta):
             if name != resolved_name:
                 resolved_names[name] = resolved_name
     _LOG.debug('Going to resolve names in meta')
-    _LOG.debug('Resolved names mapping: {0}'.format(str(resolved_names)))
+    _LOG.debug(f'Resolved names mapping: {str(resolved_names)}')
     for current_name, resolved_name in resolved_names.items():
         overall_meta[resolved_name] = overall_meta.pop(current_name)
         if not all([current_name, resolved_name]):

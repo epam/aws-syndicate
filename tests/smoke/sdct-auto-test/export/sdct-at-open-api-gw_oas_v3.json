@@ -4,6 +4,12 @@
     "title": "sdct-at-open-api-gw",
     "version": "2024-03-26T11:19:47Z"
   },
+  "x-syndicate-server": {
+    "resource_name": "sdct-at-api-gw",
+    "resource_type": "api_gateway",
+    "parameter_type": "stage_name",
+    "parameter_name": "api"
+  },
   "servers": [
     {
       "url": "https://qoqbs93luk.execute-api.eu-central-1.amazonaws.com/{basePath}",

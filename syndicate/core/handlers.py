@@ -472,9 +472,9 @@ def update(
               help='If specified only provided resources will be cleaned')
 @click.option('--clean_only_resources_path', '-path', nargs=1, type=str,
               help='If specified only resources path will be cleaned')
-@click.option('--clean_externals', nargs=1, is_flag=True, default=False,
-              help='Flag. If specified only external resources will be '
-                   'cleaned')
+@click.option('--clean_externals', is_flag=True,
+              help='Flag. If specified external resources will be '
+                   'cleaned as well')
 @click.option('--excluded_resources', '-exresources', multiple=True,
               help='If specified provided resources will be excluded')
 @click.option('--excluded_resources_path', '-expath', nargs=1, type=str,
