@@ -24,7 +24,7 @@ from syndicate.core.constants import \
     BATCH_JOBDEF_TYPE, COGNITO_USER_POOL_TYPE, COGNITO_FEDERATED_POOL_TYPE, \
     DOCUMENTDB_CLUSTER_TYPE, DOCUMENTDB_INSTANCE_TYPE, DAX_CLUSTER_TYPE, \
     FIREHOSE_TYPE, EVENT_BRIDGE_SCHEDULE_TYPE, API_GATEWAY_OAS_V3_TYPE, \
-    SWAGGER_UI_TYPE, EC2_LAUNCH_TEMPLATE_TYPE, APPSYNC_TYPE
+    SWAGGER_UI_TYPE, EC2_LAUNCH_TEMPLATE_TYPE, APPSYNC_TYPE, RDS_TYPE
 
 
 class ProcessorFacade:
@@ -102,7 +102,10 @@ class ProcessorFacade:
                 self.resources_provider.eventbridge_scheduler().create_schedule,
             SWAGGER_UI_TYPE: self.resources_provider.swagger_ui().
             create_update_swagger_ui,
-            APPSYNC_TYPE: self.resources_provider.appsync().create_graphql_api
+            APPSYNC_TYPE:
+                self.resources_provider.appsync().create_graphql_api,
+            RDS_TYPE:
+                self.resources_provider.rds().create_rds_cluster
         }
 
     def describe_handlers(self):
@@ -176,7 +179,9 @@ class ProcessorFacade:
             LAMBDA_LAYER_TYPE:
                 self.resources_provider.lambda_resource().describe_lambda_layer,
             APPSYNC_TYPE:
-                self.resources_provider.appsync().describe_graphql_api
+                self.resources_provider.appsync().describe_graphql_api,
+            RDS_TYPE:
+                self.resources_provider.rds().describe_db_cluster
         }
 
     def remove_handlers(self):
@@ -248,9 +253,12 @@ class ProcessorFacade:
                 self.resources_provider.firehose().delete_streams,
             EVENT_BRIDGE_SCHEDULE_TYPE:
                 self.resources_provider.eventbridge_scheduler().remove_schedule,
-            SWAGGER_UI_TYPE: self.resources_provider.swagger_ui().
-            remove_swagger_ui,
-            APPSYNC_TYPE: self.resources_provider.appsync().remove_graphql_api
+            SWAGGER_UI_TYPE:
+                self.resources_provider.swagger_ui().remove_swagger_ui,
+            APPSYNC_TYPE:
+                self.resources_provider.appsync().remove_graphql_api,
+            RDS_TYPE:
+                self.resources_provider.rds().remove_db_cluster
         }
 
     def update_handlers(self):
@@ -280,7 +288,9 @@ class ProcessorFacade:
             EC2_LAUNCH_TEMPLATE_TYPE:
                 self.resources_provider.ec2().update_launch_template,
             APPSYNC_TYPE:
-                self.resources_provider.appsync().update_graphql_api
+                self.resources_provider.appsync().update_graphql_api,
+            RDS_TYPE:
+                self.resources_provider.rds().update_db_cluster
         }
 
     def resource_configuration_processor(self):
