@@ -3,6 +3,8 @@ import os
 
 import click
 
+from syndicate.core.generators.deployment_resources.rds_generator import \
+    RDSAuroraGenerator
 from syndicate.exceptions import AbortedError,  SyndicateBaseError
 from syndicate.commons.log_helper import get_user_logger
 from syndicate.core.constants import (
@@ -1208,6 +1210,53 @@ def eventbridge_schedule(ctx, **kwargs):
     generator = EventBridgeScheduleGenerator(**filtered_kwargs)
     _generate(generator)
     USER_LOG.info(f"EventBridge scheduler '{kwargs['resource_name']}' was "
+                  f"added successfully")
+    return OK_RETURN_CODE
+
+
+@meta.command(name="rds_aurora")
+@return_code_manager
+@click.option('--resource_name', type=str, required=True,
+              help="DB cluster name")
+@click.option('--engine', default='aurora-postgresql',
+              type=click.Choice(['aurora-postgresql', 'aurora-mysql']),
+              help="Engine type")
+@click.option('--engine_version', type=str,
+              help="Engine version")
+@click.option('--master_username', type=str, required=True,
+              help="DB login ID for the master user")
+@click.option('--master_password', type=str, required=True,
+              help="The password for master user")
+@click.option('--database_name', type=str, required=True,
+              help="Database name")
+@click.option('--db_instance_name', type=str, required=True,
+              help="Database instance name")
+@click.option('--db_instance_class', type=str, required=True,
+              help="Database instance class")
+@click.option('--publicly_accessible', is_flag=True, default=False,
+              help='Indicates whether the DB instance is publicly accessible')
+@click.option('--port', type=int,
+              help="The port number on which the instances in the cluster "
+                   "accept connections. Default value is 3306 for MySQL and "
+                   "5432 for PostgreSQL")
+@click.option('--vpc_security_group_ids', type=str, multiple=True,
+              help="A list of EC2 VPC security groups to associate with this "
+                   "cluster. If not specified, default security group is used")
+@click.option('--availability_zones', type=str, multiple=True,
+              help="A list of Amazon EC2 Availability Zones that instances in "
+                   "the cluster can be created in. "
+                   "If not specified default is used")
+@click.option('--tags', type=DictParamType(), callback=check_tags,
+              help='The resource tags')
+@verbose_option
+@click.pass_context
+@timeit()
+def rds_aurora(ctx, **kwargs):
+    """Generates RDS Aurora deployment resources template"""
+    kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
+    generator = RDSAuroraGenerator(**kwargs)
+    _generate(generator)
+    USER_LOG.info(f"RDS Aurora '{kwargs['resource_name']}' was "
                   f"added successfully")
     return OK_RETURN_CODE
 

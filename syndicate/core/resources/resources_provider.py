@@ -36,7 +36,7 @@ from syndicate.core.resources.eventbridge_scheduler_resource import EventBridgeS
 from syndicate.core.resources.iam_resource import IamResource
 from syndicate.core.resources.kinesis_resource import KinesisResource
 from syndicate.core.resources.lambda_resource import LambdaResource
-from syndicate.core.resources.rds_resource import RDSResource
+from syndicate.core.resources.rds_resource import RDSAuroraResource
 from syndicate.core.resources.s3_resource import S3Resource
 from syndicate.core.resources.sns_resource import SnsResource
 from syndicate.core.resources.sqs_resource import SqsResource
@@ -99,7 +99,7 @@ class ResourceProvider:
         _dax_cluster_resource = None
         _eventbridge_scheduler_resource = None
         _swagger_ui_resource = None
-        _rds_resource = None
+        _rds_aurora_resource = None
 
         def __init__(self, config, credentials) -> None:
             self.credentials = credentials
@@ -372,9 +372,9 @@ class ResourceProvider:
                 )
             return self._swagger_ui_resource
 
-        def rds(self):
-            if not self._rds_resource:
-                self._rds_resource = RDSResource(
+        def rds_aurora(self):
+            if not self._rds_aurora_resource:
+                self._rds_aurora_resource = RDSAuroraResource(
                     rds_conn=self._conn_provider.rds()
                 )
-            return self._rds_resource
+            return self._rds_aurora_resource

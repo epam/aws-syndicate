@@ -232,24 +232,25 @@ UPDATE_CLUSTER_NOT_SUPPORTED_KEYS = [
     'resource_type',
     'engine',
     'master_username',
-    'database_name'
+    'database_name',
+    'availability_zones'
 ]
 
 
-class RDSResource(BaseResource):
+class RDSAuroraResource(BaseResource):
 
     def __init__(self, rds_conn: RDSConnection) -> None:
         self.rds_conn = rds_conn
 
-    def create_rds_cluster(self, args: list) -> dict | tuple:
+    def create_db_cluster(self, args: list) -> dict | tuple:
         """ Create RDS cluster in pool in sub processes.
 
         :type args: list
         """
-        return self.create_pool(self._create_rds_cluster_from_meta, args, 1)
+        return self.create_pool(self._create_db_cluster_from_meta, args, 1)
 
     @unpack_kwargs
-    def _create_rds_cluster_from_meta(self, name: str, meta: dict) -> dict:
+    def _create_db_cluster_from_meta(self, name: str, meta: dict) -> dict:
         """ Create RDS cluster from meta description.
 
         :type name: str
