@@ -38,21 +38,18 @@ class RDSConnection(object):
 
 # ------------------------ Create ------------------------
 
-    def create_db_cluster(self, name: str, tags: list, params: dict) -> dict:
+    def create_db_cluster(self, name: str, params: dict) -> dict:
         params = dict(
             DBClusterIdentifier=name,
-            Tags=tags,
             **params
         )
         _LOG.debug(f'DB cluster creation params: {prettify_json(params)}')
 
         return self.client.create_db_cluster(**params)['DBCluster']
 
-    def create_db_instance(self, cluster_name: str, tags: list, params: dict
-                           ) -> dict:
+    def create_db_instance(self, cluster_name: str, params: dict) -> dict:
         params = dict(
             DBClusterIdentifier=cluster_name,
-            Tags=tags,
             **params
         )
         _LOG.debug(f'DB instance creation params: {prettify_json(params)}')
@@ -66,7 +63,7 @@ class RDSConnection(object):
             response = self.client.describe_db_clusters(
                 DBClusterIdentifier=name)
             return response['DBClusters'][0] if response['DBClusters'] \
-                else None
+                else {}
         except ClientError as e:
 
             if e.response['Error']['Code'] == 'DBClusterNotFoundFault':
