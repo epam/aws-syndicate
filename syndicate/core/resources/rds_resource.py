@@ -394,7 +394,7 @@ class RDSAuroraResource(BaseResource):
                     params=db_instance_params
                 )
 
-                USER_LOG.info('Waiting DB cluster to become available...')
+                USER_LOG.info('Waiting for DB cluster to become available...')
                 waiter = self.rds_conn.get_waiter('db_instance_available')
                 waiter.wait(
                     DBInstanceIdentifier=db_instance_params[
@@ -446,7 +446,7 @@ class RDSAuroraResource(BaseResource):
             self.rds_conn.delete_db_instance(instance_name)
 
             USER_LOG.info(
-                'Waiting DB instance deletion. This may take up to 15 '
+                'Waiting for DB instance deletion. This may take up to 15 '
                 'minutes. Please refrain from interrupting.'
             )
             waiter = self.rds_conn.get_waiter('db_instance_deleted')
@@ -461,7 +461,7 @@ class RDSAuroraResource(BaseResource):
 
             self.rds_conn.delete_db_cluster(cluster_name)
 
-            USER_LOG.info('Waiting DB cluster deletion...')
+            USER_LOG.info('Waiting for DB cluster deletion...')
             waiter = self.rds_conn.get_waiter('db_cluster_deleted')
             waiter.wait(DBClusterIdentifier=cluster_name)
             _LOG.info(f"RDS DB cluster '{cluster_name}' was removed.")
