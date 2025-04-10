@@ -16,13 +16,11 @@ USER_LOG = get_user_logger()
 CLUSTER_REQUIRED_PARAMS = ['engine']
 
 DB_INSTANCE_REQUIRED_PARAMS = [
-    'd_b_instance_identifier',
     'd_b_instance_class',
     'engine'
 ]
 
 DEPLOY_CLUSTER_KNOWN_PARAMS = [
-    'db_instance_config',
     'availability_zones',
     'backup_retention_period',
     'character_set_name',
@@ -75,7 +73,7 @@ DEPLOY_CLUSTER_KNOWN_PARAMS = [
 ]
 
 UPDATE_CLUSTER_KNOWN_PARAMS = [
-    'db_instance_config',
+    'new_d_b_cluster_identifier',
     'apply_immediately',
     'backup_retention_period',
     'd_b_cluster_parameter_group_name',
@@ -117,7 +115,6 @@ UPDATE_CLUSTER_KNOWN_PARAMS = [
 
 DEPLOY_DB_INSTANCE_KNOWN_PARAMS = [
     'd_b_name',
-    'd_b_instance_identifier',
     'allocated_storage',
     'd_b_instance_class',
     'engine',
@@ -163,6 +160,7 @@ DEPLOY_DB_INSTANCE_KNOWN_PARAMS = [
     'performance_insights_retention_period',
     'enable_cloudwatch_logs_exports',
     'processor_features',
+    'deletion_protection',
     'max_allocated_storage',
     'enable_customer_owned_ip',
     'custom_iam_instance_profile',
@@ -175,7 +173,6 @@ DEPLOY_DB_INSTANCE_KNOWN_PARAMS = [
 ]
 
 UPDATE_DB_INSTANCE_KNOWN_PARAMS = [
-    'd_b_instance_identifier',
     'allocated_storage',
     'd_b_instance_class',
     'd_b_subnet_group_name',
@@ -194,7 +191,6 @@ UPDATE_DB_INSTANCE_KNOWN_PARAMS = [
     'license_model',
     'iops',
     'option_group_name',
-    'new_d_b_instance_identifier',
     'storage_type',
     'tde_credential_arn',
     'tde_credential_password',
@@ -214,6 +210,7 @@ UPDATE_DB_INSTANCE_KNOWN_PARAMS = [
     'cloudwatch_logs_export_configuration',
     'processor_features',
     'use_default_processor_features',
+    'deletion_protection',
     'max_allocated_storage',
     'certificate_rotation_restart',
     'replica_mode',
@@ -236,8 +233,14 @@ UPDATE_CLUSTER_NOT_SUPPORTED_KEYS = [
     'availability_zones'
 ]
 
+UPDATE_INSTANCE_NOT_SUPPORTED_KEYS = [
+    'engine',
+    'd_b_cluster_identifier',
+    'resource_type'
+]
 
-class RDSAuroraResource(BaseResource):
+
+class RDSDBClusterResource(BaseResource):
 
     def __init__(self, rds_conn: RDSConnection) -> None:
         self.rds_conn = rds_conn
@@ -271,19 +274,7 @@ class RDSAuroraResource(BaseResource):
         validate_known_params(name, list(params.keys()),
                               DEPLOY_CLUSTER_KNOWN_PARAMS)
 
-        tags = params.get('tags', [])
-        db_instance_config = params.pop('db_instance_config', {})
-
-        validate_params('db_instance', db_instance_config,
-                        DB_INSTANCE_REQUIRED_PARAMS)
-
-        validate_known_params(
-            db_instance_config['d_b_instance_identifier'],
-            list(db_instance_config.keys()),
-            DEPLOY_DB_INSTANCE_KNOWN_PARAMS
-        )
-
-        cluster_description = self.rds_conn.create_db_cluster(
+        description = self.rds_conn.create_db_cluster(
             name=name,
             params=dict_keys_to_upper_camel_case(params)
         )
@@ -295,39 +286,17 @@ class RDSAuroraResource(BaseResource):
             DBClusterIdentifier=name
         )
 
-        USER_LOG.info(f'Endpoint: {cluster_description["Endpoint"]}')
+        USER_LOG.info(f'Endpoint: {description["Endpoint"]}')
         USER_LOG.info(
-            f'Reader endpoint: {cluster_description["ReaderEndpoint"]}')
-        if cluster_description.get('CustomEndpoints'):
-            endpoints = '\n'.join(cluster_description['CustomEndpoints'])
+            f'Reader endpoint: {description["ReaderEndpoint"]}')
+        if description.get('CustomEndpoints'):
+            endpoints = '\n'.join(description['CustomEndpoints'])
             USER_LOG.info(f'Custom endpoints: {endpoints}')
-
-        if db_instance_config:
-            db_instance_config['tags'] = tags
-            db_instance_params = \
-                dict_keys_to_upper_camel_case(db_instance_config)
-
-            instance_description = self.rds_conn.create_db_instance(
-                cluster_name=name,
-                params=db_instance_params
-            )
-
-            USER_LOG.info(
-                'Waiting for the DB instance to become available. This may '
-                'take up to 15 minutes. Please refrain from interrupting.'
-            )
-            waiter = self.rds_conn.get_waiter('db_instance_available')
-            waiter.wait(
-                DBInstanceIdentifier=db_instance_params['DBInstanceIdentifier']
-            )
-
-            cluster_description['db_instance_description'] = \
-                instance_description
 
         return self.describe_db_cluster(
             name=name,
             meta=meta,
-            description=cluster_description
+            description=description
         )
 
     def update_db_cluster(self, args: list) -> dict | tuple:
@@ -353,70 +322,24 @@ class RDSAuroraResource(BaseResource):
                               UPDATE_CLUSTER_KNOWN_PARAMS)
 
         params['d_b_cluster_identifier'] = name
-        db_instance_config = params.pop('db_instance_config', {})
 
-        cluster_description = self.rds_conn.update_db_cluster(
+        description = self.rds_conn.update_db_cluster(
             params=dict_keys_to_upper_camel_case(params)
         )
 
-        USER_LOG.info(f'Endpoint: {cluster_description["Endpoint"]}')
+        USER_LOG.info(f'Endpoint: {description["Endpoint"]}')
         USER_LOG.info(
-            f'Reader endpoint: {cluster_description["ReaderEndpoint"]}')
-        if cluster_description.get('CustomEndpoints'):
-            endpoints = '\n'.join(cluster_description['CustomEndpoints'])
+            f'Reader endpoint: {description["ReaderEndpoint"]}')
+        if description.get('CustomEndpoints'):
+            endpoints = '\n'.join(description['CustomEndpoints'])
             USER_LOG.info(f'Custom endpoints: {endpoints}')
-
-        if db_instance_config:
-            validate_params('db_instance', db_instance_config,
-                            DB_INSTANCE_REQUIRED_PARAMS)
-
-            # TODO implement tags updating
-            db_instance_config.pop('tags', None)
-            db_instance_config.pop('engine', None)
-
-            validate_known_params(
-                db_instance_config['d_b_instance_identifier'],
-                list(db_instance_config.keys()),
-                UPDATE_DB_INSTANCE_KNOWN_PARAMS
-            )
-
-            db_instance_params = dict_keys_to_upper_camel_case(
-                db_instance_config)
-            
-            db_instance_descr = self.rds_conn.describe_db_instances(
-                    cluster_name=name,
-                    instance_name=db_instance_params['DBInstanceIdentifier']
-                )
-
-            if db_instance_descr:
-                _LOG.info('Updating db instance...')
-                instance_description = self.rds_conn.update_db_instance(
-                    params=db_instance_params
-                )
-
-                USER_LOG.info('Waiting for DB cluster to become available...')
-                waiter = self.rds_conn.get_waiter('db_instance_available')
-                waiter.wait(
-                    DBInstanceIdentifier=db_instance_params[
-                        'DBInstanceIdentifier']
-                )
-            else:
-                _LOG.warning(
-                    f"DB instance "
-                    f"'{db_instance_params['DBInstanceIdentifier']}' not "
-                    f"found."
-                )
-                instance_description = {}
-
-            cluster_description['db_instance_description'] = \
-                instance_description
 
         _LOG.info(f"RDS DB cluster '{name}' updated successfully")
 
         return self.describe_db_cluster(
             name=name,
             meta=meta,
-            description=cluster_description
+            description=description
         )
 
     def describe_db_cluster(self, name: str, meta: dict,
@@ -437,45 +360,35 @@ class RDSAuroraResource(BaseResource):
 
     @unpack_kwargs
     def _remove_db_cluster(self, arn: str, config: dict) -> dict:
+        from click import confirm as click_confirm
+
         cluster_name = config['resource_name']
-        db_instances = self.rds_conn.describe_db_instances(cluster_name)
+        USER_LOG.info(f"Deleting RDS DB cluster '{cluster_name}'")
+        description = \
+            self.rds_conn.get_db_cluster_description(cluster_name)
 
-        for instance in db_instances:
-            instance_name = instance['DBInstanceIdentifier']
-            USER_LOG.info(f"Deleting DB instance '{instance_name}'")
-            self.rds_conn.delete_db_instance(instance_name)
-
-            USER_LOG.info(
-                'Waiting for DB instance deletion. This may take up to 15 '
-                'minutes. Please refrain from interrupting.'
-            )
-            waiter = self.rds_conn.get_waiter('db_instance_deleted')
-            waiter.wait(DBInstanceIdentifier=instance_name)
-        try:
-            USER_LOG.info(f"Deleting RDS DB cluster '{cluster_name}'")
-            cluster_description = \
-                self.rds_conn.get_db_cluster_description(cluster_name)
-
-            if cluster_description.get('DeletionProtection') is True:
-                self._disable_db_cluster_del_protection(cluster_name)
-
-            self.rds_conn.delete_db_cluster(cluster_name)
-
-            USER_LOG.info('Waiting for DB cluster deletion...')
-            waiter = self.rds_conn.get_waiter('db_cluster_deleted')
-            waiter.wait(DBClusterIdentifier=cluster_name)
-            _LOG.info(f"RDS DB cluster '{cluster_name}' was removed.")
-
+        if not description:
+            _LOG.warning(f'RDS DB cluster {cluster_name} is not found')
             return {arn: config}
 
-        except ClientError as e:
+        if description.get('DeletionProtection') is True:
+            if not click_confirm(
+                    f"The '{cluster_name}' has deletion protection "
+                    f"enabled. Do you want to proceed with deletion?"):
+                USER_LOG.info(
+                    f"RDS DB cluster '{cluster_name}' deletion skipped")
+                return {}
 
-            if e.response['Error']['Code'] == 'DBClusterNotFoundFault':
-                _LOG.warning(f'RDS DB cluster {cluster_name} is not found')
-                return {arn: config}
+            self._disable_db_cluster_del_protection(cluster_name)
 
-            else:
-                raise e
+        self.rds_conn.delete_db_cluster(cluster_name)
+
+        USER_LOG.info('Waiting for DB cluster deletion...')
+        waiter = self.rds_conn.get_waiter('db_cluster_deleted')
+        waiter.wait(DBClusterIdentifier=cluster_name)
+        _LOG.info(f"RDS DB cluster '{cluster_name}' was removed.")
+
+        return {arn: config}
 
     def _disable_db_cluster_del_protection(self, name: str):
         USER_LOG.info(
@@ -492,3 +405,183 @@ class RDSAuroraResource(BaseResource):
         waiter.wait(
             DBClusterIdentifier=name
         )
+
+
+class RDSDBInstanceResource(BaseResource):
+
+    def __init__(self, rds_conn: RDSConnection) -> None:
+        self.rds_conn = rds_conn
+
+    def create_db_instance(self, args: list) -> dict | tuple:
+        """ Create RDS db instance in pool in sub processes.
+
+        :type args: list
+        """
+        return self.create_pool(self._create_db_instance_from_meta, args, 1)
+
+    @unpack_kwargs
+    def _create_db_instance_from_meta(self, name: str, meta: dict) -> dict:
+        """ Create RDS db instance from meta description.
+
+        :type name: str
+        :type meta: dict
+        """
+        validate_params(name, meta, DB_INSTANCE_REQUIRED_PARAMS)
+
+        cluster_name = meta.get('d_b_cluster_identifier')
+
+        description = self.rds_conn.get_db_instance_description(
+            cluster_name=cluster_name,
+            instance_name=name
+        )
+        if description:
+            _LOG.warning(f'RDS DB instance {name} already exists.')
+            return self.describe_db_instance(
+                name=name, meta=meta, description=description)
+
+        params = copy.deepcopy(meta)
+        params.pop('resource_type')
+
+        validate_known_params(name, list(params.keys()),
+                              DEPLOY_DB_INSTANCE_KNOWN_PARAMS)
+
+        params = dict_keys_to_upper_camel_case(params)
+
+        description = self.rds_conn.create_db_instance(
+            name=name,
+            params=params
+        )
+
+        USER_LOG.info(
+            'Waiting for the DB instance to become available. This may '
+            'take up to 15 minutes. Please refrain from interrupting.'
+        )
+        waiter = self.rds_conn.get_waiter('db_instance_available')
+        waiter.wait(
+            DBInstanceIdentifier=name
+        )
+
+        return self.describe_db_instance(
+            name=name,
+            meta=meta,
+            description=description
+        )
+
+    def update_db_instance(self, args: list) -> dict | tuple:
+        return self.create_pool(self._update_db_instance, args, 1)
+
+    @unpack_kwargs
+    def _update_db_instance(self, name: str, meta: dict, context) -> dict:
+        instance = self.rds_conn.get_db_instance_description(
+            cluster_name=meta.get('d_b_cluster_identifier'),
+            instance_name=name
+        )
+        if not instance:
+            raise ResourceNotFoundError(
+                f"RDS DB instance '{name}' does not exist."
+            )
+
+        params = copy.deepcopy(meta)
+
+        # TODO implement tags updating
+        params.pop('tags', None)
+
+        for key in UPDATE_INSTANCE_NOT_SUPPORTED_KEYS:
+            params.pop(key, None)
+
+        validate_known_params(
+            name,
+            list(params.keys()),
+            UPDATE_DB_INSTANCE_KNOWN_PARAMS
+        )
+
+        params['d_b_instance_identifier'] = name
+
+        params = dict_keys_to_upper_camel_case(params)
+
+        _LOG.info('Updating db instance...')
+        description = self.rds_conn.update_db_instance(
+            params=params
+        )
+
+        USER_LOG.info('Waiting for DB instance to become available...')
+        waiter = self.rds_conn.get_waiter('db_instance_available')
+        waiter.wait(DBInstanceIdentifier=name)
+
+        _LOG.info(f"RDS DB instance '{name}' updated successfully")
+
+        return self.describe_db_instance(
+            name=name,
+            meta=meta,
+            description=description
+        )
+
+    def describe_db_instance(self, name: str, meta: dict,
+                             description: dict = None) -> dict:
+        if not description:
+            description = self.rds_conn.get_db_instance_description(
+                cluster_name=meta.get('d_b_cluster_identifier'),
+                instance_name=name
+            )
+            if not description:
+                return {}
+
+        arn = description['DBInstanceArn']
+
+        return {
+            arn: build_description_obj(description, name, meta)
+        }
+
+    def remove_db_instance(self, args: list) -> dict | tuple:
+        return self.create_pool(self._remove_db_instance, args)
+
+    @unpack_kwargs
+    def _remove_db_instance(self, arn: str, config: dict) -> dict:
+        from click import confirm as click_confirm
+
+        instance_name = config['resource_name']
+        db_cluster_name = \
+            config['resource_meta'].get('d_b_cluster_identifier', '')
+
+        instance_description = \
+            self.rds_conn.get_db_instance_description(
+                cluster_name=db_cluster_name,
+                instance_name=instance_name)
+
+        if not instance_description:
+            _LOG.warning(f'RDS DB instance {instance_name} is not found')
+            return {arn: config}
+
+        USER_LOG.info(f"Deleting RDS DB instance '{instance_name}'")
+
+        cluster_del_protection = \
+            self.rds_conn.is_db_cluster_del_protection(db_cluster_name)
+        if cluster_del_protection:
+            if not click_confirm(
+                    f"The '{instance_name}' DB cluster has deletion "
+                    f"protection enabled. Do you want to proceed with "
+                    f"deletion?"):
+                return {}
+
+            self.rds_conn.disable_db_cluster_del_protection(db_cluster_name)
+
+        if instance_description.get('DeletionProtection') is True:
+            if not click_confirm(
+                    f"The '{instance_name}' has deletion protection "
+                    f"enabled. Do you want to proceed with deletion?"):
+                return {}
+
+            self.rds_conn.disable_db_instance_del_protection(instance_name)
+
+        self.rds_conn.delete_db_instance(instance_name)
+
+        USER_LOG.info('Waiting for DB instance deletion. This may take up '
+                      'to 15 minutes. Please refrain from interrupting.')
+        waiter = self.rds_conn.get_waiter('db_instance_deleted')
+        waiter.wait(DBInstanceIdentifier=instance_name)
+        _LOG.info(f"RDS DB instance '{instance_name}' was removed.")
+
+        if cluster_del_protection:
+            self.rds_conn.enable_db_cluster_del_protection(db_cluster_name)
+
+        return {arn: config}

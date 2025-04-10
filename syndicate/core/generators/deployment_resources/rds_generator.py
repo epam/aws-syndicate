@@ -1,5 +1,5 @@
 from syndicate.commons.log_helper import get_logger, get_user_logger
-from syndicate.core.constants import RDS_AURORA_TYPE
+from syndicate.core.constants import RDS_DB_CLUSTER_TYPE
 from syndicate.core.generators.deployment_resources.base_generator import \
     BaseDeploymentResourceGenerator
 from syndicate.exceptions import InvalidValueError
@@ -9,7 +9,7 @@ USER_LOG = get_user_logger()
 
 
 class RDSAuroraGenerator(BaseDeploymentResourceGenerator):
-    RESOURCE_TYPE = RDS_AURORA_TYPE
+    RESOURCE_TYPE = RDS_DB_CLUSTER_TYPE
     CONFIGURATION = {
         'engine': str,
         'engine_version': None,

@@ -36,8 +36,6 @@ class RDSConnection(object):
         self.region = region
         _LOG.debug('Opened new RDS connection.')
 
-# ------------------------ Create ------------------------
-
     def create_db_cluster(self, name: str, params: dict) -> dict:
         params = dict(
             DBClusterIdentifier=name,
@@ -47,16 +45,14 @@ class RDSConnection(object):
 
         return self.client.create_db_cluster(**params)['DBCluster']
 
-    def create_db_instance(self, cluster_name: str, params: dict) -> dict:
+    def create_db_instance(self, name: str, params: dict) -> dict:
         params = dict(
-            DBClusterIdentifier=cluster_name,
+            DBInstanceIdentifier=name,
             **params
         )
         _LOG.debug(f'DB instance creation params: {prettify_json(params)}')
 
         return self.client.create_db_instance(**params)['DBInstance']
-
-# ------------------------ Get ------------------------
 
     def get_db_cluster_description(self, name: str) -> dict | None:
         try:
@@ -73,34 +69,36 @@ class RDSConnection(object):
             else:
                 raise e
 
-    def get_waiter(self, waiter_name: str):
-        return self.client.get_waiter(waiter_name)
+    def get_db_instance_description(self, cluster_name: str = None,
+                                    instance_name: str = None) -> dict:
+        params = dict()
 
-    def describe_db_instances(self, cluster_name: str,
-                              instance_name: str = None) -> list:
+        if cluster_name:
+            params['Filters'] = [
+                {
+                    'Name': 'db-cluster-id',
+                    'Values': [cluster_name]
+                }
+            ]
+
+        if instance_name:
+            params['DBInstanceIdentifier'] = instance_name
+
         try:
-            params = dict(
-                Filters=[
-                    {
-                        'Name': 'db-cluster-id',
-                        'Values': [cluster_name]
-                    }
-                ]
-            )
-            if instance_name:
-                params['DBInstanceIdentifier'] = instance_name
-
-            return self.client.describe_db_instances(**params)['DBInstances']
+            response = self.client.describe_db_instances(**params)
+            return response['DBInstances'][0] if response['DBInstances'] \
+                else {}
         except ClientError as e:
 
-            if e.response['Error']['Code'] == 'DBInstanceNotFoundFault':
+            if e.response['Error']['Code'] == 'DBInstanceNotFound':
                 _LOG.info(f'RDS DB instance is not found')
-                return []
+                return {}
 
             else:
                 raise e
 
-# ------------------------ Update ------------------------
+    def get_waiter(self, waiter_name: str):
+        return self.client.get_waiter(waiter_name)
 
     def update_db_instance(self, params: dict) -> dict:
         return self.client.modify_db_instance(**params)['DBInstance']
@@ -108,17 +106,71 @@ class RDSConnection(object):
     def update_db_cluster(self, params: dict) -> dict:
         return self.client.modify_db_cluster(**params)['DBCluster']
 
-# ------------------------ Delete ------------------------
-
     def delete_db_instance(self, instance_name: str):
         return self.client.delete_db_instance(
-                    DBInstanceIdentifier=instance_name,
-                    SkipFinalSnapshot=True,
-                    DeleteAutomatedBackups=True
-            )
+            DBInstanceIdentifier=instance_name,
+            SkipFinalSnapshot=True,
+            DeleteAutomatedBackups=True
+        )
 
     def delete_db_cluster(self, name: str):
         return self.client.delete_db_cluster(
-                    DBClusterIdentifier=name,
-                    SkipFinalSnapshot=True
-            )
+            DBClusterIdentifier=name,
+            SkipFinalSnapshot=True
+        )
+
+    def is_db_cluster_del_protection(self, name: str) -> bool:
+        description = self.get_db_cluster_description(name)
+        return description.get('DeletionProtection')
+
+    def is_db_instance_del_protection(self, name: str) -> bool:
+        description = self.get_db_instance_description(name)
+        return description.get('DeletionProtection')
+
+    def disable_db_cluster_del_protection(self, name: str):
+        _LOG.info(
+            'Disabling DB cluster deletion protection...'
+        )
+        self.update_db_cluster({
+            'DBClusterIdentifier': name,
+            'DeletionProtection': False
+        })
+
+        _LOG.info(
+            'Waiting for the DB cluster to become available...')
+        waiter = self.get_waiter('db_cluster_available')
+        waiter.wait(
+            DBClusterIdentifier=name
+        )
+
+    def enable_db_cluster_del_protection(self, name: str):
+        _LOG.info(
+            'Enabling DB cluster deletion protection...'
+        )
+        self.update_db_cluster({
+            'DBClusterIdentifier': name,
+            'DeletionProtection': True
+        })
+
+        _LOG.info(
+            'Waiting for the DB cluster to become available...')
+        waiter = self.get_waiter('db_cluster_available')
+        waiter.wait(
+            DBClusterIdentifier=name
+        )
+
+    def disable_db_instance_del_protection(self, name: str):
+        _LOG.info(
+            'Disabling DB instance deletion protection...'
+        )
+        self.update_db_instance({
+            'DBInstanceIdentifier': name,
+            'DeletionProtection': False
+        })
+
+        _LOG.info(
+            'Waiting for the DB instance to become available...')
+        waiter = self.get_waiter('db_instance_available')
+        waiter.wait(
+            DBInstanceIdentifier=name
+        )
