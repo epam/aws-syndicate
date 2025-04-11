@@ -1,7 +1,5 @@
 import copy
 
-from botocore.exceptions import ClientError
-
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.connection.rds_connection import RDSConnection
 from syndicate.core.helper import unpack_kwargs, dict_keys_to_upper_camel_case
@@ -280,7 +278,7 @@ class RDSDBClusterResource(BaseResource):
         )
 
         USER_LOG.info(
-            'Waiting for the DB cluster to become available...')
+            f"Waiting for the DB cluster '{name}' to become available...")
         waiter = self.rds_conn.get_waiter('db_cluster_available')
         waiter.wait(
             DBClusterIdentifier=name
@@ -383,7 +381,7 @@ class RDSDBClusterResource(BaseResource):
 
         self.rds_conn.delete_db_cluster(cluster_name)
 
-        USER_LOG.info('Waiting for DB cluster deletion...')
+        USER_LOG.info(f"Waiting for DB cluster '{cluster_name}' deletion...")
         waiter = self.rds_conn.get_waiter('db_cluster_deleted')
         waiter.wait(DBClusterIdentifier=cluster_name)
         _LOG.info(f"RDS DB cluster '{cluster_name}' was removed.")
@@ -400,7 +398,7 @@ class RDSDBClusterResource(BaseResource):
         })
 
         USER_LOG.info(
-            'Waiting for the DB cluster to become available...')
+            f"Waiting for the DB cluster '{name}' to become available...")
         waiter = self.rds_conn.get_waiter('db_cluster_available')
         waiter.wait(
             DBClusterIdentifier=name
@@ -453,8 +451,8 @@ class RDSDBInstanceResource(BaseResource):
         )
 
         USER_LOG.info(
-            'Waiting for the DB instance to become available. This may '
-            'take up to 15 minutes. Please refrain from interrupting.'
+            f"Waiting for the DB instance '{name}' to become available. This "
+            f"may take up to 15 minutes. Please refrain from interrupting."
         )
         waiter = self.rds_conn.get_waiter('db_instance_available')
         waiter.wait(
@@ -504,7 +502,8 @@ class RDSDBInstanceResource(BaseResource):
             params=params
         )
 
-        USER_LOG.info('Waiting for DB instance to become available...')
+        USER_LOG.info(
+            f"Waiting for DB instance '{name}' to become available...")
         waiter = self.rds_conn.get_waiter('db_instance_available')
         waiter.wait(DBInstanceIdentifier=name)
 
@@ -575,8 +574,9 @@ class RDSDBInstanceResource(BaseResource):
 
         self.rds_conn.delete_db_instance(instance_name)
 
-        USER_LOG.info('Waiting for DB instance deletion. This may take up '
-                      'to 15 minutes. Please refrain from interrupting.')
+        USER_LOG.info(
+            f"Waiting for DB instance '{instance_name}' deletion. This may "
+            f"take up to 15 minutes. Please refrain from interrupting.")
         waiter = self.rds_conn.get_waiter('db_instance_deleted')
         waiter.wait(DBInstanceIdentifier=instance_name)
         _LOG.info(f"RDS DB instance '{instance_name}' was removed.")

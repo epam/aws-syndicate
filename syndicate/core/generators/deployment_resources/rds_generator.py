@@ -1,5 +1,5 @@
 from syndicate.commons.log_helper import get_logger, get_user_logger
-from syndicate.core.constants import RDS_DB_CLUSTER_TYPE
+from syndicate.core.constants import RDS_DB_CLUSTER_TYPE, RDS_DB_INSTANCE_TYPE
 from syndicate.core.generators.deployment_resources.base_generator import \
     BaseDeploymentResourceGenerator
 from syndicate.exceptions import InvalidValueError
@@ -8,7 +8,7 @@ _LOG = get_logger(__name__)
 USER_LOG = get_user_logger()
 
 
-class RDSAuroraGenerator(BaseDeploymentResourceGenerator):
+class RDSDBClusterGenerator(BaseDeploymentResourceGenerator):
     RESOURCE_TYPE = RDS_DB_CLUSTER_TYPE
     CONFIGURATION = {
         'engine': str,
@@ -19,7 +19,6 @@ class RDSAuroraGenerator(BaseDeploymentResourceGenerator):
         'port': int,
         'vpc_security_group_ids': list,
         'availability_zones': list,
-        'db_instance_config': dict,
         'tags': dict
     }
 
@@ -36,12 +35,64 @@ class RDSAuroraGenerator(BaseDeploymentResourceGenerator):
 
         self._dict['master_user_password'] = self._dict.pop('master_password')
 
-        self._dict['db_instance_config'] = {
-            'd_b_instance_identifier': self._dict.pop('db_instance_name'),
-            'd_b_instance_class': self._dict.pop('db_instance_class'),
-            'engine': self._dict['engine'],
-            'publicly_accessible': self._dict.pop('publicly_accessible')
-        }
+        return super()._generate_resource_configuration()
+
+    def _validate_master_password(self):
+        to_validate = self._dict.get('master_password')
+        _LOG.info(f"Validating master password '{to_validate}'...")
+        error = None
+        if not 8 <= len(to_validate) <= 100:
+            error = "master password must contain from 8 to 100 characters"
+        elif any(char in to_validate for char in ('"@/')):
+            error = 'master password cannot contain forward slash (/), ' \
+                    'double quote (") or the "at" symbol (@)'
+        if error:
+            raise InvalidValueError(error)
+        _LOG.info("Master password validation passed successfully")
+
+
+class RDSDBInstanceGenerator(BaseDeploymentResourceGenerator):
+    RESOURCE_TYPE = RDS_DB_INSTANCE_TYPE
+    CONFIGURATION = {
+        'd_b_instance_class': str,
+        'engine': str,
+        'engine_version': None,
+        'd_b_cluster_identifier': None,
+        'd_b_name': None,
+        'master_username': None,
+        'master_user_password': None,
+        'port': None,
+        'vpc_security_group_ids': None,
+        'availability_zone': None,
+        'tags': dict
+    }
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def _generate_resource_configuration(self) -> dict:
+        self._dict['d_b_instance_class'] = self._dict.pop('instance_class')
+        self._dict['d_b_name'] = self._dict.pop('database_name', None)
+
+        if self._dict.get('master_password'):
+            self._validate_master_password()
+            self._dict['master_user_password'] = \
+                self._dict.pop('master_password')
+
+        if cluster_name := self._dict.pop('db_cluster_name', None):
+            self._validate_resource_existence(
+                resource_name=cluster_name,
+                resource_type=RDS_DB_CLUSTER_TYPE)
+
+            self._dict['d_b_cluster_identifier'] = cluster_name
+
+            deployment_resources = self._get_deployment_resources_file_content(
+                self._get_resource_meta_paths(
+                    resource_name=cluster_name,
+                    resource_type=RDS_DB_CLUSTER_TYPE)[0])
+
+            cluster_config = deployment_resources[cluster_name]
+            self._dict['engine'] = cluster_config.get('engine')
 
         return super()._generate_resource_configuration()
 

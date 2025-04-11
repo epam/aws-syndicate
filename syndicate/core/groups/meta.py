@@ -1,10 +1,11 @@
 import json
 import os
+from functools import partial
 
 import click
 
 from syndicate.core.generators.deployment_resources.rds_generator import \
-    RDSAuroraGenerator
+    RDSDBClusterGenerator, RDSDBInstanceGenerator
 from syndicate.exceptions import AbortedError,  SyndicateBaseError
 from syndicate.commons.log_helper import get_user_logger
 from syndicate.core.constants import (
@@ -27,7 +28,7 @@ from syndicate.core.generators.lambda_function import PROJECT_PATH_PARAM
 from syndicate.core.helper import (
     OptionRequiredIf, check_tags,
     validate_authorizer_name_option, verbose_option, validate_api_gw_path,
-    DictParamType, DeepDictParamType,
+    DictParamType, DeepDictParamType, validate_incompatible_options,
 )
 from syndicate.core.helper import ValidRegionParamType
 from syndicate.core.helper import check_bundle_bucket_name
@@ -35,6 +36,10 @@ from syndicate.core.helper import resolve_project_path, timeit
 
 GENERATE_META_GROUP_NAME = 'meta'
 dynamodb_type_param = click.Choice(['S', 'N', 'B'])
+
+RDS_INSTANCE_DB_CLUSTER_INCOMPATIBLE_OPTIONS = [
+    'engine', 'engine_version', 'master_username', 'master_password',
+    'database_name', 'port']
 
 USER_LOG = get_user_logger()
 
@@ -1214,7 +1219,7 @@ def eventbridge_schedule(ctx, **kwargs):
     return OK_RETURN_CODE
 
 
-@meta.command(name="rds_aurora")
+@meta.command(name="rds_db_cluster")
 @return_code_manager
 @click.option('--resource_name', type=str, required=True,
               help="DB cluster name")
@@ -1229,12 +1234,6 @@ def eventbridge_schedule(ctx, **kwargs):
               help="The password for master user")
 @click.option('--database_name', type=str, required=True,
               help="Database name")
-@click.option('--db_instance_name', type=str, required=True,
-              help="Database instance name")
-@click.option('--db_instance_class', type=str, required=True,
-              help="Database instance class")
-@click.option('--publicly_accessible', is_flag=True, default=False,
-              help='Indicates whether the DB instance is publicly accessible')
 @click.option('--port', type=int,
               help="The port number on which the instances in the cluster "
                    "accept connections. Default value is 3306 for MySQL and "
@@ -1251,12 +1250,57 @@ def eventbridge_schedule(ctx, **kwargs):
 @verbose_option
 @click.pass_context
 @timeit()
-def rds_aurora(ctx, **kwargs):
-    """Generates RDS Aurora deployment resources template"""
+def rds_db_cluster(ctx, **kwargs):
+    """Generates RDS DB cluster deployment resources template"""
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
-    generator = RDSAuroraGenerator(**kwargs)
+    generator = RDSDBClusterGenerator(**kwargs)
     _generate(generator)
-    USER_LOG.info(f"RDS Aurora '{kwargs['resource_name']}' was "
+    USER_LOG.info(f"RDS DB cluster '{kwargs['resource_name']}' was "
+                  f"added successfully")
+    return OK_RETURN_CODE
+
+
+@meta.command(name="rds_db_instance")
+@return_code_manager
+@click.option('--resource_name', type=str, required=True,
+              help="DB instance name")
+@click.option('--instance_class', type=str, required=True,
+              help="DB instance class")
+@click.option('--db_cluster_name', type=str,
+              callback=partial(
+                  validate_incompatible_options,
+                  incompatible_options=
+                  RDS_INSTANCE_DB_CLUSTER_INCOMPATIBLE_OPTIONS),
+              help="RDS DB cluster name to link the instance with")
+@click.option('--engine', type=str, help="Engine type")
+@click.option('--engine_version', type=str,
+              help="Engine version")
+@click.option('--master_username', type=str,
+              help="DB login ID for the master user")
+@click.option('--master_password', type=str,
+              help="The password for master user")
+@click.option('--database_name', type=str,
+              help="Database name")
+@click.option('--port', type=int,
+              help="The port number on which the instances in the cluster "
+                   "accept connections")
+@click.option('--vpc_security_group_ids', type=str, multiple=True,
+              help="A list of EC2 VPC security groups to associate with this "
+                   "cluster. If not specified, default security group is used")
+@click.option('--availability_zone', type=str,
+              help="Amazon EC2 Availability Zone that instances can be "
+                   "created in. If not specified default is used")
+@click.option('--tags', type=DictParamType(), callback=check_tags,
+              help='The resource tags')
+@verbose_option
+@click.pass_context
+@timeit()
+def rds_db_instance(ctx, **kwargs):
+    """Generates RDS DB instance deployment resources template"""
+    kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
+    generator = RDSDBInstanceGenerator(**kwargs)
+    _generate(generator)
+    USER_LOG.info(f"RDS DB cluster '{kwargs['resource_name']}' was "
                   f"added successfully")
     return OK_RETURN_CODE
 
