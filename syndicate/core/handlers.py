@@ -444,7 +444,6 @@ def update(
         USER_LOG.info('Update of resources has been successfully completed')
         return OK_RETURN_CODE
     elif success == ABORTED_STATUS:
-        USER_LOG.warning('Update of resources has been aborted')
         # not ABORTED_RETURN_CODE because of event status in .syndicate file
         return FAILED_RETURN_CODE
     else:
