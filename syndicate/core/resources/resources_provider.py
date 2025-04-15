@@ -273,6 +273,7 @@ class ResourceProvider:
                     cw_events_conn=self._conn_provider.cw_events(),
                     cognito_idp_conn=
                     self._conn_provider.cognito_identity_provider(),
+                    rds_conn=self._conn_provider.rds(),
                     region=self.config.region,
                     account_id=self.config.account_id,
                     deploy_target_bucket=self.config.deploy_target_bucket

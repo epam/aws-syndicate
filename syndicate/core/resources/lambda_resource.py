@@ -67,8 +67,8 @@ class LambdaResource(BaseResource):
 
     def __init__(self, lambda_conn, s3_conn, cw_logs_conn, sns_res, sns_conn,
                  iam_conn, dynamodb_conn, sqs_conn, kinesis_conn,
-                 cw_events_conn, cognito_idp_conn, region, account_id,
-                 deploy_target_bucket) -> None:
+                 cw_events_conn, cognito_idp_conn, rds_conn, region,
+                 account_id, deploy_target_bucket) -> None:
         self.lambda_conn = lambda_conn
         self.s3_conn = s3_conn
         self.cw_logs_conn = cw_logs_conn
@@ -80,6 +80,7 @@ class LambdaResource(BaseResource):
         self.kinesis_conn = kinesis_conn
         self.cw_events_conn = cw_events_conn
         self.cognito_idp_conn = cognito_idp_conn
+        self.rds_conn = rds_conn
         self.region = region
         self.account_id = account_id
         self.deploy_target_bucket = deploy_target_bucket
@@ -88,7 +89,12 @@ class LambdaResource(BaseResource):
             ('cognito_idp', 'id'):
                 self.cognito_idp_conn.if_pool_exists_by_name,
             ('cognito_idp', 'client_id'):
-                self.cognito_idp_conn.if_cup_client_exist
+                self.cognito_idp_conn.if_cup_client_exist,
+            ('rds_db_cluster', 'endpoint'):
+                self.rds_conn.get_db_cluster_endpoint,
+            ('rds_db_cluster', 'reader_endpoint'):
+                self.rds_conn.get_db_cluster_reader_endpoint
+
         }
 
     def qualifier_alias_resolver(self, lambda_def):

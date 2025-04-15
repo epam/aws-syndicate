@@ -97,6 +97,14 @@ class RDSConnection(object):
             else:
                 raise e
 
+    def get_db_cluster_endpoint(self, cluster_name: str) -> str:
+        descr = self.get_db_cluster_description(cluster_name)
+        return descr.get('Endpoint')
+
+    def get_db_cluster_reader_endpoint(self, cluster_name: str) -> str:
+        descr = self.get_db_cluster_description(cluster_name)
+        return descr.get('ReaderEndpoint')
+
     def get_waiter(self, waiter_name: str):
         return self.client.get_waiter(waiter_name)
 
