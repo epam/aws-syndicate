@@ -28,7 +28,7 @@ from itertools import chain
 from pathlib import Path
 from typing import Union, Optional, List, Set
 
-from syndicate.exceptions import ArtifactAssemblingError
+from syndicate.exceptions import ArtifactAssemblingError, InvalidTypeError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.build.helper import build_py_package_name, zip_dir, \
     remove_dir
@@ -233,7 +233,13 @@ def install_requirements_to(requirements_txt: Union[str, Path],
     exit_code = None
     config = config or {}
     _LOG.info('Going to install 3-rd party dependencies')
-    supported_platforms = update_platforms(set(config.get('platforms') or []))
+    if platforms := config.get('platforms', []):
+        if isinstance(platforms, str):
+            platforms = [platforms]
+        if not isinstance(platforms, list):
+            raise InvalidTypeError(
+                'Lambda function parameter \'platforms\' must be type of list')
+    supported_platforms = update_platforms(set(platforms))
     python_version = _get_python_version(lambda_config=config)
     if supported_platforms:
         command = build_pip_install_command(  # default installation
