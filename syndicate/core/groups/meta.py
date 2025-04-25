@@ -1238,6 +1238,8 @@ def eventbridge_schedule(ctx, **kwargs):
               help="The port number on which the instances in the cluster "
                    "accept connections. Default value is 3306 for MySQL and "
                    "5432 for PostgreSQL")
+@click.option('--iam_db_auth', type=bool,
+              help="Indicates whether to enable IAM Database Authentication")
 @click.option('--vpc_security_group_ids', type=str, multiple=True,
               help="A list of EC2 VPC security groups to associate with this "
                    "cluster. If not specified, default security group is used")

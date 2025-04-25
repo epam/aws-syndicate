@@ -17,6 +17,7 @@ class RDSDBClusterGenerator(BaseDeploymentResourceGenerator):
         'master_user_password': str,
         'database_name': str,
         'port': int,
+        'enable_i_a_m_database_authentication': None,
         'vpc_security_group_ids': list,
         'availability_zones': list,
         'tags': dict
@@ -34,6 +35,8 @@ class RDSDBClusterGenerator(BaseDeploymentResourceGenerator):
                 self._dict['port'] = 3306
 
         self._dict['master_user_password'] = self._dict.pop('master_password')
+        self._dict['enable_i_a_m_database_authentication'] = \
+            self._dict.pop('iam_db_auth', None)
 
         return super()._generate_resource_configuration()
 
