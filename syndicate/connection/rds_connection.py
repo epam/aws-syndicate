@@ -105,6 +105,18 @@ class RDSConnection(object):
         descr = self.get_db_cluster_description(cluster_name)
         return descr.get('ReaderEndpoint')
 
+    def extract_secret_name_from_arn(self, arn: str) -> str:
+        arn_tail = arn.split(':')[-1]
+        name_parts = arn_tail.split('-')
+        name_parts.pop(-1)
+        return '-'.join(name_parts)
+
+    def get_db_cluster_master_user_secret_name(self, cluster_name: str) -> str:
+        descr = self.get_db_cluster_description(cluster_name)
+        secret = descr.get('MasterUserSecret', {})
+        if secret_arn := secret.get('SecretArn'):
+            return self.extract_secret_name_from_arn(secret_arn)
+
     def get_waiter(self, waiter_name: str):
         return self.client.get_waiter(waiter_name)
 

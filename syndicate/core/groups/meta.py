@@ -39,7 +39,7 @@ dynamodb_type_param = click.Choice(['S', 'N', 'B'])
 
 RDS_INSTANCE_DB_CLUSTER_INCOMPATIBLE_OPTIONS = [
     'engine', 'engine_version', 'master_username', 'master_password',
-    'database_name', 'port']
+    'database_name', 'port', 'vpc_security_group_ids', 'availability_zone']
 
 USER_LOG = get_user_logger()
 
@@ -1230,19 +1230,28 @@ def eventbridge_schedule(ctx, **kwargs):
               help="Engine version")
 @click.option('--master_username', type=str, required=True,
               help="DB login ID for the master user")
-@click.option('--master_password', type=str, required=True,
-              help="The password for master user")
+@click.option('--master_password', type=str,
+              callback=partial(
+                  validate_incompatible_options,
+                  incompatible_options=['manage_master_password']),
+              help="The password for master user. Can't be specified if "
+                   "manage_master_password is turned on")
 @click.option('--database_name', type=str, required=True,
               help="Database name")
 @click.option('--port', type=int,
               help="The port number on which the instances in the cluster "
                    "accept connections. Default value is 3306 for MySQL and "
                    "5432 for PostgreSQL")
+@click.option('--manage_master_password', is_flag=True,
+              help="Indicates whether to manage the master user password with "
+                   "AWS Secrets Manager")
 @click.option('--iam_db_auth', type=bool,
               help="Indicates whether to enable IAM Database Authentication")
 @click.option('--vpc_security_group_ids', type=str, multiple=True,
               help="A list of EC2 VPC security groups to associate with this "
                    "cluster. If not specified, default security group is used")
+@click.option('--db_subnet_group', type=str,
+              help="A DB subnet group to associate with the DB cluster")
 @click.option('--availability_zones', type=str, multiple=True,
               help="A list of Amazon EC2 Availability Zones that instances in "
                    "the cluster can be created in. "

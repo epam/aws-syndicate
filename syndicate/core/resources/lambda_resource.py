@@ -93,8 +93,9 @@ class LambdaResource(BaseResource):
             ('rds_db_cluster', 'endpoint'):
                 self.rds_conn.get_db_cluster_endpoint,
             ('rds_db_cluster', 'reader_endpoint'):
-                self.rds_conn.get_db_cluster_reader_endpoint
-
+                self.rds_conn.get_db_cluster_reader_endpoint,
+            ('rds_db_cluster', 'master_user_secret_name'):
+                self.rds_conn.get_db_cluster_master_user_secret_name
         }
 
     def qualifier_alias_resolver(self, lambda_def):

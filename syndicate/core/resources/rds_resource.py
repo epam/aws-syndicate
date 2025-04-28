@@ -228,7 +228,8 @@ UPDATE_CLUSTER_NOT_SUPPORTED_KEYS = [
     'engine',
     'master_username',
     'database_name',
-    'availability_zones'
+    'availability_zones',
+    'd_b_subnet_group_name'
 ]
 
 UPDATE_INSTANCE_NOT_SUPPORTED_KEYS = [
