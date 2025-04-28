@@ -1242,7 +1242,7 @@ def eventbridge_schedule(ctx, **kwargs):
               help="The port number on which the instances in the cluster "
                    "accept connections. Default value is 3306 for MySQL and "
                    "5432 for PostgreSQL")
-@click.option('--manage_master_password', is_flag=True,
+@click.option('--manage_master_password', type=bool,
               help="Indicates whether to manage the master user password with "
                    "AWS Secrets Manager")
 @click.option('--iam_db_auth', type=bool,
