@@ -83,6 +83,7 @@ class RDSDBInstanceGenerator(BaseDeploymentResourceGenerator):
         'master_username': None,
         'master_user_password': None,
         'port': None,
+        'publicly_accessible': False,
         'vpc_security_group_ids': None,
         'availability_zone': None,
         'tags': dict

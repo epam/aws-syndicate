@@ -1295,6 +1295,8 @@ def rds_db_cluster(ctx, **kwargs):
 @click.option('--port', type=int,
               help="The port number on which the instances in the cluster "
                    "accept connections")
+@click.option('--publicly_accessible', type=bool,
+              help="Specifies the accessibility options for the DB instance.")
 @click.option('--vpc_security_group_ids', type=str, multiple=True,
               help="A list of EC2 VPC security groups to associate with this "
                    "cluster. If not specified, default security group is used")
