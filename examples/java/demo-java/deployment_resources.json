@@ -53,7 +53,12 @@
     "hash_key_name": "id",
     "write_capacity": 1,
     "resource_type": "dynamodb_table",
-    "hash_key_type": "S"
+    "hash_key_type": "S",
+    "billing_mode": "PAY_PER_REQUEST",
+    "read_capacity": 1,
+    "write_capacity": 1,
+    "warm_read_capacity": 1,
+    "warm_write_capacity": 1
   },
   "${notification_bucket}": {
     "resource_type": "s3_bucket"
