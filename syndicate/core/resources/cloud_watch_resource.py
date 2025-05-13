@@ -17,6 +17,7 @@ import time
 
 from botocore.exceptions import ClientError
 
+from syndicate.exceptions import InvalidValueError
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.conf.validator import ALL_REGIONS
 from syndicate.core.helper import unpack_kwargs
@@ -140,7 +141,7 @@ class CloudWatchResource(BaseResource):
             return self.describe_rule(name=name, meta=meta, region=region,
                                       response=response)
         except KeyError:
-            raise AssertionError(
+            raise InvalidValueError(
                 'Invalid rule type: {0} for resource {1}. '
                 'Please, change rule type with existing: '
                 'schedule|ec2|api_call.'.format(rule_type, name))

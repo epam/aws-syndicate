@@ -4,6 +4,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+
+# [1.17.1] - 2025-03-25
+- Changed `--force_upload` parameter type for assemble commands from `string` to `flag`
+- Fixed logic of `--force_upload` flag in assemble commands
+- Added `--force_upload` flag to `assemble_appsync` and `assemble_swagger_ui` commands
+- Fixed issue if the last deploy output file was deleted from the s3 bucket, and it would result that lambda triggers not being able to update
+- Fixed subnet group deletion during a DAX cluster cleaning
+- Fixed records duplication in the deployment output in case of deployment after changing `lambda` `alias` name and existence of the lambda
+- Fixed dynamic setting of active API link in Swagger UI json file
+- Adjusted the logic of `--clean_externals` parameter in `syndicate clean` command to clean not only external resources 
+but all filtered resources plus external resources which fit the filters
+
+# [1.17.0] - 2025-03-03
+- Added the possibility to generate meta for the resources `firehose` and `eventbridge_schedule`
+- The operation `partial_clean` added to the modification operations list
+- Fix typos in commands help messages
+- Sort available commands in help output alphabetically
+- Adjust EventBridge Scheduler target meta to snake_case
+- Fix an issue where a lambda would not bind to a CloudWatch alarm if the lambda had not been created previously
+- Improved errors logging
+- Added the verification of MVN installation before assembling Java artifacts
+- Added highlighting messages with colors in the user console log according to the level
+- Fixed log message duplication during retries
+- Fixed issue related to deployment API Gateway defined with OpenAPI spec and documented path `Path Item Object` 
+- Added syndicate custom exceptions
+- Clarified warning message about the absence of the syndicate project state file.
+- Added lambda function `event_sources` validation on the build stage.
+- Added verification whether the resource was cleaned in case of errors during clean operation.
+- Fixed `lambda_layer` duplication during deployment.
+- Fixed an issue related to deploy target bucket creation
+- Fixed an issue related to the resource absence in deployment output in case of exception
+
+# [1.16.2] - 2025-01-24
+- Fixed an issue related to modification operations event synchronization
+
 # [1.16.1] - 2025-01-21
 - Added sync project state to the project state initialization
 - Fixed an issue related to `build_project_mapping` resolving for `appsync`, `swagger_ui`, and `lambda` functions with runtime .NET  resources

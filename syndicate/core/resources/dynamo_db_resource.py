@@ -15,6 +15,8 @@
 """
 from botocore.exceptions import ClientError
 
+from syndicate.exceptions import ResourceNotFoundError, \
+    ResourceProcessingError
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.helper import unpack_kwargs
 from syndicate.core.resources.abstract_external_resource import AbstractExternalResource
@@ -92,7 +94,7 @@ class DynamoDBResource(AbstractExternalResource, BaseResource):
         """
         table = self.dynamodb_conn.get_table_by_name(name)
         if not table:
-            raise AssertionError(f'{name} table does not exist.')
+            raise ResourceNotFoundError(f'{name} table does not exist.')
 
         existing_capacity_mode = self._determine_table_capacity_mode(table)
         response = self.dynamodb_conn.update_table_capacity(
@@ -257,8 +259,9 @@ class DynamoDBResource(AbstractExternalResource, BaseResource):
             wait=True)
         response = self.dynamodb_conn.describe_table(name)
         if not response:
-            raise AssertionError('Table with name {0} has not been created!'
-                                 .format(name))
+            raise ResourceProcessingError(
+                f"Table with name '{name}' has not been created!"
+            )
         # enabling stream if present
         stream_view_type = meta.get('stream_view_type')
         if stream_view_type:
@@ -393,7 +396,7 @@ class DynamoDBResource(AbstractExternalResource, BaseResource):
             [db_name],
             log_not_found_error=False)
         if errors:
-            raise Exception('; '.join(errors))
+            raise ResourceProcessingError('; '.join(errors))
         _LOG.info(f'Dynamo DB tables {str(removed_tables)} were removed')
 
         alarm_args = []

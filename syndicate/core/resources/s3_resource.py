@@ -18,12 +18,13 @@ import re
 import string
 from typing import Optional
 
+from syndicate.exceptions import InvalidValueError, InvalidTypeError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core import ClientError
 from syndicate.core.constants import S3_BUCKET_ACL_LIST
 from syndicate.core.helper import unpack_kwargs
 from syndicate.core.resources.base_resource import BaseResource
-from syndicate.core.resources.helper import build_description_obj, chunks
+from syndicate.core.resources.helper import build_description_obj
 
 _LOG = get_logger(__name__)
 USER_LOG = get_user_logger()
@@ -69,7 +70,7 @@ def validate_bucket_name(bucket_name: str):
                 pass
     if error:
         _LOG.warning(error)
-        raise ValueError(error)
+        raise InvalidValueError(error)
     _LOG.info(f"Finished validating bucket name '{bucket_name}'")
 
 
@@ -118,16 +119,17 @@ class S3Resource(BaseResource):
             message = f'Parameters inside public_access_block should have ' \
                       f'bool type'
             _LOG.error(message)
-            raise AssertionError(message)
+            raise InvalidTypeError(message)
         self.s3_conn.put_public_access_block(name,
                                              **public_access_block)
 
         acl = meta.get('acl')
         if acl:
             if acl not in S3_BUCKET_ACL_LIST:
-                raise AssertionError(
-                    f'Invalid value of S3 bucket ACL! Must be one of the '
-                    f'{S3_BUCKET_ACL_LIST}')
+                raise InvalidValueError(
+                    f"Invalid value of S3 bucket ACL! Must be one of the "
+                    f"'{S3_BUCKET_ACL_LIST}'"
+                )
             self.s3_conn.put_bucket_acl(name, acl)
 
         policy = meta.get('policy')
@@ -142,8 +144,10 @@ class S3Resource(BaseResource):
             error_document = meta['website_hosting'].get('error_document')
             if not all([isinstance(param, str) for param in (index_document,
                                                              error_document)]):
-                raise AssertionError('Parameters \'index_document\' and '
-                                     '\'error_document\' must be \'str\' type')
+                raise InvalidTypeError(
+                    "Value of parameters 'index_document' and "
+                    "'error_document' must be of 'str' type"
+                )
             self.s3_conn.enable_website_hosting(name,
                                                 index_document,
                                                 error_document)

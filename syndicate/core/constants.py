@@ -77,6 +77,23 @@ NODE_LAMBDA_LAYER_PATH = 'nodejs'
 
 DEFAULT_SEP = '/'
 
+# == LAMBDA FUNCTION EVENT SOURCES PARAMS =====================================
+DYNAMO_DB_TRIGGER = 'dynamodb_trigger'
+CLOUD_WATCH_RULE_TRIGGER = 'cloudwatch_rule_trigger'
+EVENT_BRIDGE_RULE_TRIGGER = 'eventbridge_rule_trigger'
+S3_TRIGGER = 's3_trigger'
+SNS_TOPIC_TRIGGER = 'sns_topic_trigger'
+KINESIS_TRIGGER = 'kinesis_trigger'
+SQS_TRIGGER = 'sqs_trigger'
+
+DYNAMODB_TRIGGER_REQUIRED_PARAMS = ['target_table', 'batch_size']
+CLOUD_WATCH_TRIGGER_REQUIRED_PARAMS = ['target_rule']
+S3_TRIGGER_REQUIRED_PARAMS = ['target_bucket', 's3_events']
+SQS_TRIGGER_REQUIRED_PARAMS = ['target_queue', 'batch_size']
+SNS_TRIGGER_REQUIRED_PARAMS = ['target_topic']
+KINESIS_TRIGGER_REQUIRED_PARAMS = ['target_stream', 'batch_size',
+                                   'starting_position']
+
 DEPLOY_RESOURCE_TYPE_PRIORITY = {
     IAM_POLICY: 1,
     IAM_ROLE: 2,
@@ -189,7 +206,9 @@ UPLOAD_ACTION = 'upload'
 COPY_BUNDLE_ACTION = 'copy_bundle'
 EXPORT_ACTION = 'export'
 
-MODIFICATION_OPS = [DEPLOY_ACTION, UPDATE_ACTION, CLEAN_ACTION]
+MODIFICATION_OPS = [
+    DEPLOY_ACTION, UPDATE_ACTION, CLEAN_ACTION, PARTIAL_CLEAN_ACTION
+]
 
 NONE_AUTH_TYPE, IAM_AUTH_TYPE = 'NONE', 'AWS_IAM'
 
@@ -262,3 +281,10 @@ EC2_LT_RESOURCE_TAGS = ('instance', 'volume', 'elastic-gpu', 'network-interface'
 OK_RETURN_CODE = 0
 FAILED_RETURN_CODE = 1
 ABORTED_RETURN_CODE = 2
+
+RESOURCE_NAME_PARAM = 'resource_name'
+RESOURCE_TYPE_PARAM = 'resource_type'
+PARAMETER_TYPE_PARAM = 'parameter_type'
+PARAMETER_NAME_PARAM = 'parameter_name'
+
+EMPTY_VALUES = [[], set(), (), {}, '']

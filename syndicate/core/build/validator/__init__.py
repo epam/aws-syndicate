@@ -13,12 +13,14 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+from syndicate.exceptions import ParameterError
 
 
 def assert_required_property(resource_name, property_name, property_value,
                              error_msg=None):
     if property_value is None:
-        error_msg = error_msg if error_msg else \
-            'Property {0} of resource {1} is required but absent'.format(
-                property_name, resource_name)
-        raise AssertionError(error_msg)
+        error_msg = error_msg if error_msg else (
+            f"Property '{property_name}' of resource '{resource_name}' is "
+            f"required but absent"
+        )
+        raise ParameterError(error_msg)

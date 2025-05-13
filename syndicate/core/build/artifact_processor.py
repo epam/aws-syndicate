@@ -14,8 +14,8 @@
     limitations under the License.
 """
 import os
-import shutil
 
+from syndicate.exceptions import InvalidValueError
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.build.helper import resolve_bundle_directory
 from syndicate.core.build.runtime.dotnet import assemble_dotnet_lambdas
@@ -56,19 +56,21 @@ _LOG = get_logger(__name__)
 def assemble_artifacts(bundle_name, project_path, runtime,
                        errors_allowed=False, skip_tests=False, **kwargs):
     if runtime not in SUPPORTED_RUNTIMES:
-        raise AssertionError(
-            f'Runtime {runtime} is not supported. '
-            f'Currently available runtimes:{SUPPORTED_RUNTIMES}')
+        raise InvalidValueError(
+            f"Runtime '{runtime}' is not supported. "
+            f"Currently available runtimes:'{SUPPORTED_RUNTIMES}'")
 
     bundle_dir = resolve_bundle_directory(bundle_name=bundle_name)
 
     os.makedirs(bundle_dir, exist_ok=True)
+
     _LOG.debug(f'Target directory: {bundle_dir}')
 
     assemble_func = RUNTIME_TO_BUILDER_MAPPING.get(runtime)
     if not assemble_func:
-        raise AssertionError(
-            f'There is no assembler for the runtime {runtime}')
+        raise InvalidValueError(
+            f"Runtime '{runtime}' is not supported. "
+            f"Currently available runtimes:'{SUPPORTED_RUNTIMES}'")
     assemble_func(project_path=project_path,
                   bundles_dir=bundle_dir,
                   errors_allowed=errors_allowed,

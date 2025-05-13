@@ -76,6 +76,7 @@ from syndicate.core.constants import TEST_ACTION, BUILD_ACTION, \
     COPY_BUNDLE_ACTION, EXPORT_ACTION, ASSEMBLE_SWAGGER_UI_ACTION, \
     ASSEMBLE_DOTNET_ACTION, ASSEMBLE_APPSYNC_ACTION, OK_RETURN_CODE, \
     FAILED_RETURN_CODE, ABORTED_RETURN_CODE
+from syndicate.exceptions import ProjectStateError
 
 INIT_COMMAND_NAME = 'init'
 SYNDICATE_PACKAGE_NAME = 'aws-syndicate'
@@ -87,12 +88,20 @@ commands_without_config = (
     HELP_PARAMETER_KEY
 )
 
+commands_without_state_sync = (
+    CREATE_DEPLOY_TARGET_BUCKET_ACTION
+)
+
 _LOG = get_logger(__name__)
 USER_LOG = get_user_logger()
 
 
 def _not_require_config(all_params):
     return any(item in commands_without_config for item in all_params)
+
+
+def _not_require_state_sync(all_params):
+    return any(item in commands_without_state_sync for item in all_params)
 
 
 @click.group(name='syndicate')
@@ -105,7 +114,9 @@ def syndicate():
     elif CONF_PATH:
         USER_LOG.info('Configuration used: ' + CONF_PATH)
         initialize_connection()
-        initialize_project_state()
+        initialize_project_state(
+            do_not_sync_state=_not_require_state_sync(sys.argv)
+        )
         initialize_signal_handling()
     else:
         USER_LOG.error('Environment variable SDCT_CONF is not set! '
@@ -196,11 +207,13 @@ def build(ctx, bundle_name, force_upload, errors_allowed, skip_tests):
     """
     Builds bundle of an application
     """
-    if if_bundle_exist(bundle_name=bundle_name) and not force_upload:
-        USER_LOG.error(f'Bundle name \'{bundle_name}\' already exists '
-                       f'in deploy bucket. Please use another bundle '
-                       f'name or delete the bundle')
-        return FAILED_RETURN_CODE
+    if not force_upload:
+        if if_bundle_exist(bundle_name=bundle_name):
+            raise ProjectStateError(
+                f'Bundle name \'{bundle_name}\' already exists in deploy '
+                f'bucket. Please use another bundle name or delete the bundle'
+            )
+    remove_bundle_dir_locally(bundle_name, force_upload)
 
     test_code = ctx.invoke(test,
                            errors_allowed=errors_allowed,
@@ -208,10 +221,11 @@ def build(ctx, bundle_name, force_upload, errors_allowed, skip_tests):
     if test_code != OK_RETURN_CODE:
         return test_code
 
-    assemble_code = ctx.invoke(assemble, bundle_name=bundle_name,
+    assemble_code = ctx.invoke(assemble,
+                               bundle_name=bundle_name,
                                errors_allowed=errors_allowed,
                                skip_tests=skip_tests,
-                               force_upload=force_upload)
+                               is_chained=True)
     if assemble_code != OK_RETURN_CODE:
         return assemble_code
 
@@ -253,9 +267,9 @@ def transform(bundle_name, dsl, output_dir):
 
 @syndicate.command(name=DEPLOY_ACTION)
 @return_code_manager
+@sync_lock(lock_type=MODIFICATION_LOCK)
 @timeit(action_name=DEPLOY_ACTION)
 @failed_status_code_on_exception
-@sync_lock(lock_type=MODIFICATION_LOCK)
 @click.option('--deploy_name', '-d', callback=resolve_default_value,
               help='Name of the deploy. Default value: name of the project')
 @click.option('--bundle_name', '-b', callback=resolve_default_value,
@@ -350,9 +364,9 @@ def deploy(
 
 @syndicate.command(name=UPDATE_ACTION)
 @return_code_manager
+@sync_lock(lock_type=MODIFICATION_LOCK)
 @timeit(action_name=UPDATE_ACTION)
 @failed_status_code_on_exception
-@sync_lock(lock_type=MODIFICATION_LOCK)
 @click.option('--bundle_name', '-b', callback=resolve_default_value,
               help='Name of the bundle to deploy. '
                    'Default value: name of the latest built bundle')
@@ -430,7 +444,6 @@ def update(
         USER_LOG.info('Update of resources has been successfully completed')
         return OK_RETURN_CODE
     elif success == ABORTED_STATUS:
-        USER_LOG.warning('Update of resources has been aborted')
         # not ABORTED_RETURN_CODE because of event status in .syndicate file
         return FAILED_RETURN_CODE
     else:
@@ -440,9 +453,9 @@ def update(
 
 @syndicate.command(name=CLEAN_ACTION)
 @return_code_manager
+@sync_lock(lock_type=MODIFICATION_LOCK)
 @timeit(action_name=CLEAN_ACTION)
 @failed_status_code_on_exception
-@sync_lock(lock_type=MODIFICATION_LOCK)
 @click.option('--deploy_name', '-d', nargs=1, callback=resolve_default_value,
               help='Name of the deploy. This parameter allows the framework '
                    'to decide,which exactly output file should be used. The '
@@ -458,9 +471,9 @@ def update(
               help='If specified only provided resources will be cleaned')
 @click.option('--clean_only_resources_path', '-path', nargs=1, type=str,
               help='If specified only resources path will be cleaned')
-@click.option('--clean_externals', nargs=1, is_flag=True, default=False,
-              help='Flag. If specified only external resources will be '
-                   'cleaned')
+@click.option('--clean_externals', is_flag=True,
+              help='Flag. If specified external resources will be '
+                   'cleaned as well')
 @click.option('--excluded_resources', '-exresources', multiple=True,
               help='If specified provided resources will be excluded')
 @click.option('--excluded_resources_path', '-expath', nargs=1, type=str,
@@ -577,9 +590,9 @@ def status(events, resources):
 
 @syndicate.command(name=WARMUP_ACTION)
 @return_code_manager
+@sync_lock(lock_type=WARMUP_LOCK)
 @timeit(action_name=WARMUP_ACTION)
 @failed_status_code_on_exception
-@sync_lock(lock_type=WARMUP_LOCK)
 @click.option('--bundle_name', '-b', nargs=1, callback=resolve_default_value,
               help='Name of the bundle. If not specified, resolves the latest '
                    'bundle name')
@@ -688,11 +701,9 @@ def profiler(bundle_name, deploy_name, from_date, to_date):
                    'path for an mvn clean install. The artifacts are copied '
                    'to a folder, which is be later used as the deployment '
                    'bundle (the bundle path: bundles/${bundle_name})')
-@click.option('--force_upload', '-fu', nargs=1,
-              default=False, required=False,
-              help='Identifier that indicates whether a locally existing'
-                   ' bundle should be deleted and a new one created using'
-                   ' the same path.')
+@click.option('--force_upload', '-F', is_flag=True, default=False,
+              help='Flag to override locally existing bundle '
+                   'with the same name')
 @click.option('--skip_tests', is_flag=True, default=False,
               help='Flag to not run tests')
 @click.option('--errors_allowed', is_flag=True, default=False,
@@ -702,7 +713,7 @@ def profiler(bundle_name, deploy_name, from_date, to_date):
 @timeit(action_name=ASSEMBLE_JAVA_MVN_ACTION)
 @failed_status_code_on_exception
 def assemble_java_mvn(bundle_name, project_path, force_upload, skip_tests,
-                      errors_allowed):
+                      errors_allowed, is_chained=False):
     """
     Builds Java lambdas
 
@@ -713,13 +724,14 @@ def assemble_java_mvn(bundle_name, project_path, force_upload, skip_tests,
     :param skip_tests: force skipping tests
     :param errors_allowed: not used for java, but need to unify the
     `assemble` commands interface
+    :param is_chained: specifies whether this command is executed independently
+    or as part of a process (like `build` or `assemble` command)
     :return:
     """
     USER_LOG.info(f'Command compile java project path: {project_path}')
-    if force_upload:
-        _LOG.info(f'Force upload is enabled, going to check if bundle '
-                  f'directory already exists locally.')
-        remove_bundle_dir_locally(bundle_name)
+
+    if not is_chained:
+        remove_bundle_dir_locally(bundle_name, force_upload)
 
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
@@ -744,11 +756,9 @@ def assemble_java_mvn(bundle_name, project_path, force_upload, skip_tests,
                    'found, which are described in the requirements.txt file, '
                    'and internal project dependencies according to the '
                    'described in local_requirements.txt file')
-@click.option('--force_upload', '-fu', nargs=1,
-              default=False, required=False,
-              help='Identifier that indicates whether a locally existing'
-                   ' bundle should be deleted and a new one created using'
-                   ' the same path.')
+@click.option('--force_upload', '-F', is_flag=True, default=False,
+              help='Flag to override locally existing bundle '
+                   'with the same name')
 @click.option('--errors_allowed', is_flag=True, default=False,
               help='Flag to continue building the bundle if any errors occur '
                    'while building dependencies')
@@ -756,7 +766,7 @@ def assemble_java_mvn(bundle_name, project_path, force_upload, skip_tests,
 @timeit(action_name=ASSEMBLE_PYTHON_ACTION)
 @failed_status_code_on_exception
 def assemble_python(bundle_name, project_path, force_upload, errors_allowed,
-                    skip_tests=False):
+                    skip_tests=False, is_chained=False):
     """
     Builds Python lambdas
 
@@ -767,13 +777,14 @@ def assemble_python(bundle_name, project_path, force_upload, errors_allowed,
     :param errors_allowed: allows to ignore dependency errors
     :param skip_tests: not used for python, but need to unify the
     `assemble` commands interface
+    :param is_chained: specifies whether this command is executed independently
+    or as part of a process (like `build` or `assemble` command)
     :return:
     """
     USER_LOG.info(f'Command assemble python: project_path: {project_path} ')
-    if force_upload:
-        _LOG.info(f'Force upload is enabled, going to check if bundle '
-                  f'directory already exists locally.')
-        remove_bundle_dir_locally(bundle_name)
+
+    if not is_chained:
+        remove_bundle_dir_locally(bundle_name, force_upload)
 
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
@@ -795,16 +806,14 @@ def assemble_python(bundle_name, project_path, force_upload, errors_allowed,
               help='The path to the NodeJS project. The code is '
                    'packed to a zip archive, where the external libraries are '
                    'found, which are described in the package.json file')
-@click.option('--force_upload', '-fu', nargs=1,
-              default=False, required=False,
-              help='Identifier that indicates whether a locally existing'
-                   ' bundle should be deleted and a new one created using'
-                   ' the same path.')
+@click.option('--force_upload', '-F', is_flag=True, default=False,
+              help='Flag to override locally existing bundle '
+                   'with the same name')
 @verbose_option
 @timeit(action_name=ASSEMBLE_NODE_ACTION)
 @failed_status_code_on_exception
 def assemble_node(bundle_name, project_path, force_upload,
-                  errors_allowed=False, skip_tests=False):
+                  errors_allowed=False, skip_tests=False, is_chained=False):
     """
     Builds NodeJS lambdas
 
@@ -816,13 +825,14 @@ def assemble_node(bundle_name, project_path, force_upload,
     `assemble` commands interface
     :param skip_tests: not used for NodeJS, but need to unify the
     `assemble` commands interface
+    :param is_chained: specifies whether this command is executed independently
+    or as part of a process (like `build` or `assemble` command)
     :return:
     """
     USER_LOG.info(f'Command assemble node: project_path: {project_path} ')
-    if force_upload:
-        _LOG.info(f'Force upload is enabled, going to check if bundle '
-                  f'directory already exists locally.')
-        remove_bundle_dir_locally(bundle_name)
+
+    if not is_chained:
+        remove_bundle_dir_locally(bundle_name, force_upload)
 
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
@@ -843,16 +853,14 @@ def assemble_node(bundle_name, project_path, force_upload,
               help='The path to the NodeJS project. The code is '
                    'packed to a zip archive, where the external libraries are '
                    'found, which are described in the package.json file')
-@click.option('--force_upload', '-fu', nargs=1,
-              default=False, required=False,
-              help='Identifier that indicates whether a locally existing'
-                   ' bundle should be deleted and a new one created using'
-                   ' the same path.')
+@click.option('--force_upload', '-F', is_flag=True, default=False,
+              help='Flag to override locally existing bundle '
+                   'with the same name')
 @verbose_option
 @timeit(action_name=ASSEMBLE_DOTNET_ACTION)
 @failed_status_code_on_exception
 def assemble_dotnet(bundle_name, project_path, force_upload,
-                    errors_allowed=False, skip_tests=False):
+                    errors_allowed=False, skip_tests=False, is_chained=False):
     """
     Builds DotNet lambdas
 
@@ -864,13 +872,14 @@ def assemble_dotnet(bundle_name, project_path, force_upload,
     `assemble` commands interface
     :param skip_tests: not used for DotNet, but need to unify the
     `assemble` commands interface
+    :param is_chained: specifies whether this command is executed independently
+    or as part of a process
     :return:
     """
     USER_LOG.info(f'Command assemble dotnet: project_path: {project_path} ')
-    if force_upload:
-        _LOG.info(f'Force upload is enabled, going to check if bundle '
-                  f'directory already exists locally.')
-        remove_bundle_dir_locally(bundle_name)
+
+    if not is_chained:
+        remove_bundle_dir_locally(bundle_name, force_upload)
 
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
@@ -890,6 +899,9 @@ def assemble_dotnet(bundle_name, project_path, force_upload,
               callback=resolve_path_callback, required=True,
               help='The path to the project. Related files will be packed '
                    'into a zip archive.')
+@click.option('--force_upload', '-F', is_flag=True, default=False,
+              help='Flag to override locally existing bundle '
+                   'with the same name')
 @verbose_option
 @timeit(action_name=ASSEMBLE_SWAGGER_UI_ACTION)
 @failed_status_code_on_exception
@@ -904,7 +916,11 @@ def assemble_swagger_ui(**kwargs):
         """
     bundle_name = kwargs.get('bundle_name')
     project_path = kwargs.get('project_path')
-    USER_LOG.info(f'Command assemble Swagger UI: project_path: {project_path} ')
+    USER_LOG.info(f'Command assemble Swagger UI: project_path: {project_path}')
+
+    if not kwargs.get('is_chained'):
+        remove_bundle_dir_locally(bundle_name, kwargs.get('force_upload'))
+
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
                        runtime=RUNTIME_SWAGGER_UI)
@@ -923,6 +939,9 @@ def assemble_swagger_ui(**kwargs):
               callback=resolve_path_callback, required=True,
               help='The path to the project. Related files will be packed '
                    'into a zip archive.')
+@click.option('--force_upload', '-F', is_flag=True, default=False,
+              help='Flag to override locally existing bundle '
+                   'with the same name')
 @verbose_option
 @timeit(action_name=ASSEMBLE_APPSYNC_ACTION)
 @failed_status_code_on_exception
@@ -938,6 +957,10 @@ def assemble_appsync(**kwargs):
     bundle_name = kwargs.get('bundle_name')
     project_path = kwargs.get('project_path')
     USER_LOG.info(f'Command assemble AppSync: project_path: {project_path} ')
+
+    if not kwargs.get('is_chained'):
+        remove_bundle_dir_locally(bundle_name, kwargs.get('force_upload'))
+
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
                        runtime=RUNTIME_APPSYNC)
@@ -960,11 +983,9 @@ RUNTIME_LANG_TO_BUILD_MAPPING = {
 @click.option('--bundle_name', '-b', callback=generate_default_bundle_name,
               help='Bundle\'s name to build the lambdas in. '
                    'Default value: $ProjectName_%Y%m%d.%H%M%S')
-@click.option('--force_upload', '-fu', nargs=1,
-              default=False, required=False,
-              help='Identifier that indicates whether a locally existing'
-                   ' bundle should be deleted and a new one created using'
-                   ' the same path.')
+@click.option('--force_upload', '-F', is_flag=True, default=False,
+              help='Flag to override locally existing bundle '
+                   'with the same name')
 @click.option('--errors_allowed', is_flag=True, default=False,
               help='Flag to continue building the bundle if any errors occur '
                    'while building dependencies. Only for Python runtime.')
@@ -972,7 +993,8 @@ RUNTIME_LANG_TO_BUILD_MAPPING = {
 @click.pass_context
 @timeit(action_name=ASSEMBLE_ACTION)
 @failed_status_code_on_exception
-def assemble(ctx, bundle_name, force_upload, errors_allowed, skip_tests=False):
+def assemble(ctx, bundle_name, force_upload, errors_allowed, skip_tests=False,
+             is_chained=False):
     """
     Builds the application artifacts
 
@@ -983,12 +1005,12 @@ def assemble(ctx, bundle_name, force_upload, errors_allowed, skip_tests=False):
     :param force_upload: force upload identification
     :param errors_allowed: allows to ignore errors.
     :param skip_tests: allows to skip tests
+    :param is_chained: specifies whether this command is executed independently
+    or as part of a process
     :return:
     """
-    if force_upload:
-        _LOG.info(f'Force upload is enabled, going to check if bundle '
-                  f'directory already exists locally.')
-        remove_bundle_dir_locally(bundle_name)
+    if not is_chained:
+        remove_bundle_dir_locally(bundle_name, force_upload)
 
     USER_LOG.info(f'Building artifacts, bundle: {bundle_name}')
     from syndicate.core import PROJECT_STATE
@@ -1002,9 +1024,9 @@ def assemble(ctx, bundle_name, force_upload, errors_allowed, skip_tests=False):
             if func:
                 return_code = ctx.invoke(func, bundle_name=bundle_name,
                                          project_path=value,
-                                         force_upload=False, # because we have already deleted the bundle folder
                                          errors_allowed=errors_allowed,
-                                         skip_tests=skip_tests)
+                                         skip_tests=skip_tests,
+                                         is_chained=True)
                 if return_code != OK_RETURN_CODE:
                     return return_code
             else:
@@ -1050,8 +1072,10 @@ def create_deploy_target_bucket():
     Creates a bucket in AWS account where all bundles will be uploaded
     """
     from syndicate.core import CONFIG
-    USER_LOG.info(f'Create deploy target sdk: {CONFIG.deploy_target_bucket}')
-    create_bundles_bucket()
+    USER_LOG.info(f'Create deploy target bucket: {CONFIG.deploy_target_bucket}')
+    result = create_bundles_bucket()
+    if not result:
+        return ABORTED_RETURN_CODE
     USER_LOG.info('Deploy target bucket was created successfully')
     return OK_RETURN_CODE
 

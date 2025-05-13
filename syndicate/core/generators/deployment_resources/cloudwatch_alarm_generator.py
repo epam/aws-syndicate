@@ -1,3 +1,4 @@
+from syndicate.exceptions import InvalidValueError
 from syndicate.core.generators.deployment_resources.base_generator import \
     BaseDeploymentResourceGenerator
 from syndicate.core.constants import CLOUD_WATCH_ALARM_TYPE
@@ -41,7 +42,7 @@ class CloudWatchAlarmGenerator(BaseDeploymentResourceGenerator):
                 or to_validate % 60 == 0:
             _LOG.info(f"Period: '{to_validate}' is valid")
             return
-        message = "Valid values for period are 10, 30, or any " \
-                  "multiple of 60"
-        _LOG.error(f'Period validation error: {message}')
-        raise ValueError(message)
+
+        raise InvalidValueError(
+            "Valid values for period are 10, 30, or any multiple of 60"
+        )
