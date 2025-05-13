@@ -117,13 +117,23 @@ def dax_cluster(ctx, **kwargs):
 @click.option('--sort_key_type', type=dynamodb_type_param,
               cls=OptionRequiredIf, required_if='sort_key_name',
               help="Required if sort key name is specified")
+@click.option('--billing_mode', required=True,
+              type=click.Choice(['PROVISIONED', 'PAY_PER_REQUEST']),
+              default='PAY_PER_REQUEST',
+              help="Controls how you are charged for read and write "
+                   "throughput")
 @click.option('--read_capacity', type=int,
               help="The maximum number of strongly consistent reads that can"
-                   "be performed per second. If not specified, sets the "
-                   "default value to 1")
+                   "be performed per second in PROVISIONED billing mode. "
+                   "Maximum number of read request units in PAY_PER_REQUEST "
+                   "billing mode. If not specified, sets the default value "
+                   "to 1")
 @click.option('--write_capacity', type=int,
               help="The maximum number of writing processes consumed per"
-                   "second. If not specified, sets the default value to 1")
+                   "second in PROVISIONED billing mode. "
+                   "Maximum number of write request units in PAY_PER_REQUEST "
+                   "billing mode. If not specified, sets the default value "
+                   "to 1")
 @click.option('--tags', type=DictParamType(), callback=check_tags,
               help='The resource tags')
 @verbose_option
