@@ -626,14 +626,6 @@ class InstanceTypes:
             params['NextToken'] = _next
 
     @staticmethod
-    def from_botocore() -> Generator[str, None, None]:
-        path = Path(inspect.getfile(botocore)).parent
-        with open(Path(path, 'data', 'ec2', '2016-11-15',
-                       'service-2.json'), encoding="utf8") as fp:
-            data = json.load(fp)
-        yield from data['shapes']['InstanceType']['enum']
-
-    @staticmethod
     def instance_type_group(instance_type: str) -> str:
         return instance_type.split('.')[0]
 

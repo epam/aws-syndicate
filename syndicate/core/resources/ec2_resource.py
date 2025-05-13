@@ -75,7 +75,7 @@ class Ec2Resource(BaseResource):
         instance_type = meta.get('instance_type')
         if not instance_type:
             raise ParameterError('Instance type must be specified')
-        if instance_type not in InstanceTypes.from_botocore():
+        if instance_type not in InstanceTypes.from_api():
             raise InvalidValueError(
                 f"Not available instance type: '{instance_type}'"
             )

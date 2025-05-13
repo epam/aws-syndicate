@@ -258,10 +258,10 @@ def _validate_compute_resources(compute_resources):
     _process_config(compute_resource_config)
 
     instance_types = compute_resources.get('instance_types') or []
-    # available = set(InstanceTypes.with_groups(
-    #     InstanceTypes.from_api(region_name=CONFIG.region)
-    # ))
-    available = set(InstanceTypes.with_groups(InstanceTypes.from_botocore()))
+    available = set(InstanceTypes.with_groups(
+        InstanceTypes.from_api()
+    ))
+
     available.add(OPTIMAL_INSTANCE_TYPE)
     for instance_type in instance_types:
         _validate_options_field(

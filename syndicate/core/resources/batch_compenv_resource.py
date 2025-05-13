@@ -161,6 +161,9 @@ class BatchComputeEnvironmentResource(BaseResource):
         if 'compute_resources' in params:
             del params['compute_resources']
 
+        # TODO implement tags updating
+        params.pop('tags', None)
+
         state = params.get('state')
         if state and state != 'ENABLED' and state != 'DISABLED':
             _LOG.warning(
