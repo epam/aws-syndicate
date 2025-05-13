@@ -1,0 +1,5 @@
+account_id: ACCOUNT_ID
+region: eu-central-1
+lambdas_alias_name: learn
+sg_id: existing_default_security_group_id
+subnet_id: existing_default_vpc_subnet_id
