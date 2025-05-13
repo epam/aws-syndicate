@@ -14,7 +14,7 @@ class RDSDBClusterGenerator(BaseDeploymentResourceGenerator):
         'engine': str,
         'engine_version': None,
         'master_username': str,
-        'master_user_password': str,
+        'master_user_password': None,
         'database_name': str,
         'port': int,
         'enable_i_a_m_database_authentication': None,
@@ -49,8 +49,8 @@ class RDSDBClusterGenerator(BaseDeploymentResourceGenerator):
         if not any((self._dict.get('master_user_password'),
                     self._dict.get('manage_master_user_password'))):
             raise ParameterError(
-                "Either 'master_password' or 'manage_master_password' must be "
-                "specified"
+                "Either 'master_password' or 'manage_master_password' as "
+                "`true` must be specified"
             )
 
         if self._dict.get('master_user_password'):

@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 # [1.18.0] - 2025-05-13
 - Added support for DynamoDB `OnDemandThroughput` limitation
+- Added support for `rds_db_cluster` resource
+- Added support for `rds_db_instance` resource
 
 # [1.17.1] - 2025-03-25
 - Changed `--force_upload` parameter type for assemble commands from `string` to `flag`
