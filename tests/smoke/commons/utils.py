@@ -110,27 +110,41 @@ class UpdateContent(object):
     def __init__(self, command: str,
                  lambda_paths: list[str],
                  appsync_path: list[str],
-                 resources_paths: list[str]):
-        parent_dir = str(Path(__file__).resolve().parent.parent)
+                 resources_paths: list[str] = None):
+        """
+        lambda_paths: where lambda config and lambda_updated config files are stored
+        appsync_path: where appsync config and appsync_updated config files are stored
+        resources_paths: where deployment_resources.json and deployment_resources_updated.json files are stored.
+        Default path - project folder
+        """
+        project_path = read_syndicate().get('project_path')
         self.lambda_conf_paths = []
         self.deployment_resources_paths = []
         self.appsync_paths = []
 
         for path in lambda_paths:
             self.lambda_conf_paths.append(
-                (os.path.join(parent_dir, path, 'lambda_config.json'),
-                 os.path.join(parent_dir, path, 'lambda_config_updated.json')))
+                (os.path.join(project_path, path, 'lambda_config.json'),
+                 os.path.join(project_path, path, 'lambda_config_updated.json'))
+            )
 
-        for path in resources_paths:
+        if resources_paths:
+            for path in resources_paths:
+                self.deployment_resources_paths.append(
+                    (os.path.join(project_path, path,
+                                  'deployment_resources.json'),
+                     os.path.join(project_path, path,
+                                  'deployment_resources_updated.json')))
+        else:
             self.deployment_resources_paths.append(
-                (os.path.join(parent_dir, path, 'deployment_resources.json'),
-                 os.path.join(parent_dir, path,
+                (os.path.join(project_path, 'deployment_resources.json'),
+                 os.path.join(project_path,
                               'deployment_resources_updated.json')))
 
         for path in appsync_path:
             self.appsync_paths.append(
-                (os.path.join(parent_dir, path, 'appsync_config.json'),
-                 os.path.join(parent_dir, path, 'appsync_config_updated.json'))
+                (os.path.join(project_path, path, 'appsync_config.json'),
+                 os.path.join(project_path, path, 'appsync_config_updated.json'))
             )
 
         self.command = command
@@ -141,11 +155,27 @@ class UpdateContent(object):
     def __enter__(self):
         if UPDATE_COMMAND in self.command:
             for path, updated_path in self.lambda_conf_paths:
+                if not os.path.exists(path):
+                    print(f'Invalid path {path}. Cannot update this file')
+                    continue
+                if not os.path.exists(updated_path):
+                    print(f'Invalid path {updated_path}. '
+                          f'Cannot update this file')
+                    continue
+
                 self.lambda_initial_content[path] = json.load(open(path, 'r'))
                 updated_lambda_content = json.load(open(updated_path, 'r'))
                 json.dump(updated_lambda_content, open(path, 'w'), indent=2)
 
             for path, updated_path in self.deployment_resources_paths:
+                if not os.path.exists(path):
+                    print(f'Invalid path {path}. Cannot update this file')
+                    continue
+                if not os.path.exists(updated_path):
+                    print(f'Invalid path {updated_path}. '
+                          f'Cannot update this file')
+                    continue
+
                 self.resources_initial_content[path] = json.load(
                     open(path, 'r')
                 )
@@ -153,6 +183,14 @@ class UpdateContent(object):
                 json.dump(updated_deployment_content, open(path, 'w'), indent=2)
 
             for path, updated_path in self.appsync_paths:
+                if not os.path.exists(path):
+                    print(f'Invalid path {path}. Cannot update this file')
+                    continue
+                if not os.path.exists(updated_path):
+                    print(f'Invalid path {updated_path}. '
+                          f'Cannot update this file')
+                    continue
+
                 self.appsync_initial_content[path] = json.load(
                     open(path, 'r')
                 )
@@ -172,13 +210,16 @@ class UpdateContent(object):
 
 
 def split_deploy_bucket_path(deploy_target_bucket: str) -> tuple[str, list]:
+    if deploy_target_bucket.startswith('/'):
+        deploy_target_bucket = '/'.join(deploy_target_bucket.split('/')[1:])
+
     if '/' in deploy_target_bucket:
         bucket = deploy_target_bucket.split('/')[0]
         return bucket, deploy_target_bucket.split('/')[1:]
     return deploy_target_bucket, []
 
 
-def read_sdct_conf() -> Optional[str]:
+def read_syndicate_aliases() -> Optional[dict]:
     conf_path = os.environ.get('SDCT_CONF')
     if not conf_path:
         return
@@ -191,4 +232,20 @@ def read_sdct_conf() -> Optional[str]:
             print(f'Cannot parse {aliases_conf_file_path}: {exc}')
             return
 
-    return content.get('lambdas_alias_name')
+    return content
+
+
+def read_syndicate() -> Optional[dict]:
+    conf_path = os.environ.get('SDCT_CONF')
+    if not conf_path:
+        return
+
+    syndicate_conf_file_path = os.path.join(conf_path, 'syndicate.yml')
+    with open(syndicate_conf_file_path, 'r') as file:
+        try:
+            content = yaml.safe_load(file)
+        except yaml.YAMLError as exc:
+            print(f'Cannot parse {syndicate_conf_file_path}: {exc}')
+            return
+
+    return content
