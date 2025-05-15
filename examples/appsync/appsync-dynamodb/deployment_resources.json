@@ -46,8 +46,8 @@
     "billing_mode": "PAY_PER_REQUEST",
     "read_capacity": 1,
     "write_capacity": 1,
-    "warm_read_capacity": 1,
-    "warm_write_capacity": 1,
+    "warm_read_capacity": 1000,
+    "warm_write_capacity": 1000,
     "global_indexes": [],
     "autoscaling": [],
     "tags": {}
