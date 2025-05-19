@@ -1235,7 +1235,7 @@ def eventbridge_schedule(ctx, **kwargs):
               help="DB cluster name")
 @click.option('--engine', default='aurora-postgresql',
               type=click.Choice(['aurora-postgresql', 'aurora-mysql']),
-              help="Engine type")
+              help="Engine type. Default type: aurora-postgresql")
 @click.option('--engine_version', type=str,
               help="Engine version")
 @click.option('--master_username', type=str, required=True,
