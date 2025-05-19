@@ -1,8 +1,5 @@
 {
   "init_parameters": {
-    "suffix": "",
-    "deploy_target_bucket": "",
-    "prefix": "ddis-",
     "output_file": "output"
   },
   "stages": {
@@ -918,9 +915,9 @@
                 "sdct-at-nodejs-lambda": {
                   "cup_client_id": "*",
                   "cup_id": "*",
-                  "reservations_table": "*sdct-at-reservation*",
-                  "tables_table": "*sdct-at-table*",
-                  "region": "eu-central-1"
+                  "reservations_table": "*${reservations_table}*",
+                  "tables_table": "*${tables_table}*",
+                  "region": "${region}"
                 }
               },
               "depends_on": [1, 4]

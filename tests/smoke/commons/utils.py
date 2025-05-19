@@ -1,8 +1,9 @@
+import functools
 import json
 import os
+
 import yaml
 from functools import reduce
-from pathlib import Path
 from typing import Union, Any, Optional
 
 from commons.constants import UPDATE_COMMAND
@@ -219,6 +220,7 @@ def split_deploy_bucket_path(deploy_target_bucket: str) -> tuple[str, list]:
     return deploy_target_bucket, []
 
 
+@functools.cache
 def read_syndicate_aliases() -> Optional[dict]:
     conf_path = os.environ.get('SDCT_CONF')
     if not conf_path:
