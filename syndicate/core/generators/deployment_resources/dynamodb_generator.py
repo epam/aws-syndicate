@@ -20,6 +20,7 @@ class DynamoDBGenerator(BaseDeploymentResourceGenerator):
         'hash_key_type': None,
         'sort_key_name': None,
         'sort_key_type': None,
+        'billing_mode': str,
         'read_capacity': 1,
         'write_capacity': 1,
         'global_indexes': list,

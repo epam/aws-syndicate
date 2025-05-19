@@ -1,8 +1,11 @@
 import json
 import os
+from functools import partial
 
 import click
 
+from syndicate.core.generators.deployment_resources.rds_generator import \
+    RDSDBClusterGenerator, RDSDBInstanceGenerator
 from syndicate.exceptions import AbortedError,  SyndicateBaseError
 from syndicate.commons.log_helper import get_user_logger
 from syndicate.core.constants import (
@@ -25,7 +28,7 @@ from syndicate.core.generators.lambda_function import PROJECT_PATH_PARAM
 from syndicate.core.helper import (
     OptionRequiredIf, check_tags,
     validate_authorizer_name_option, verbose_option, validate_api_gw_path,
-    DictParamType, DeepDictParamType,
+    DictParamType, DeepDictParamType, validate_incompatible_options,
 )
 from syndicate.core.helper import ValidRegionParamType
 from syndicate.core.helper import check_bundle_bucket_name
@@ -33,6 +36,10 @@ from syndicate.core.helper import resolve_project_path, timeit
 
 GENERATE_META_GROUP_NAME = 'meta'
 dynamodb_type_param = click.Choice(['S', 'N', 'B'])
+
+RDS_INSTANCE_DB_CLUSTER_INCOMPATIBLE_OPTIONS = [
+    'engine', 'engine_version', 'master_username', 'master_password',
+    'database_name', 'port', 'vpc_security_group_ids', 'availability_zone']
 
 USER_LOG = get_user_logger()
 
@@ -110,13 +117,23 @@ def dax_cluster(ctx, **kwargs):
 @click.option('--sort_key_type', type=dynamodb_type_param,
               cls=OptionRequiredIf, required_if='sort_key_name',
               help="Required if sort key name is specified")
+@click.option('--billing_mode', required=True,
+              type=click.Choice(['PROVISIONED', 'PAY_PER_REQUEST']),
+              default='PAY_PER_REQUEST',
+              help="Controls how you are charged for read and write "
+                   "throughput")
 @click.option('--read_capacity', type=int,
               help="The maximum number of strongly consistent reads that can"
-                   "be performed per second. If not specified, sets the "
-                   "default value to 1")
+                   "be performed per second in PROVISIONED billing mode. "
+                   "Maximum number of read request units in PAY_PER_REQUEST "
+                   "billing mode. If not specified, sets the default value "
+                   "to 1")
 @click.option('--write_capacity', type=int,
               help="The maximum number of writing processes consumed per"
-                   "second. If not specified, sets the default value to 1")
+                   "second in PROVISIONED billing mode. "
+                   "Maximum number of write request units in PAY_PER_REQUEST "
+                   "billing mode. If not specified, sets the default value "
+                   "to 1")
 @click.option('--tags', type=DictParamType(), callback=check_tags,
               help='The resource tags')
 @verbose_option
@@ -1208,6 +1225,105 @@ def eventbridge_schedule(ctx, **kwargs):
     generator = EventBridgeScheduleGenerator(**filtered_kwargs)
     _generate(generator)
     USER_LOG.info(f"EventBridge scheduler '{kwargs['resource_name']}' was "
+                  f"added successfully")
+    return OK_RETURN_CODE
+
+
+@meta.command(name="rds_db_cluster")
+@return_code_manager
+@click.option('--resource_name', type=str, required=True,
+              help="DB cluster name")
+@click.option('--engine', default='aurora-postgresql',
+              type=click.Choice(['aurora-postgresql', 'aurora-mysql']),
+              help="Engine type. Default type: aurora-postgresql")
+@click.option('--engine_version', type=str,
+              help="Engine version")
+@click.option('--master_username', type=str, required=True,
+              help="DB login ID for the master user")
+@click.option('--master_password', type=str,
+              callback=partial(
+                  validate_incompatible_options,
+                  incompatible_options=['manage_master_password']),
+              help="The password for master user. Can't be specified if "
+                   "manage_master_password is turned on")
+@click.option('--database_name', type=str, required=True,
+              help="Database name")
+@click.option('--port', type=int,
+              help="The port number on which the instances in the cluster "
+                   "accept connections. Default value is 3306 for MySQL and "
+                   "5432 for PostgreSQL")
+@click.option('--manage_master_password', type=bool,
+              help="Indicates whether to manage the master user password with "
+                   "AWS Secrets Manager")
+@click.option('--iam_db_auth', type=bool,
+              help="Indicates whether to enable IAM Database Authentication")
+@click.option('--vpc_security_group_ids', type=str, multiple=True,
+              help="A list of EC2 VPC security groups to associate with this "
+                   "cluster. If not specified, default security group is used")
+@click.option('--db_subnet_group', type=str,
+              help="A DB subnet group to associate with the DB cluster")
+@click.option('--availability_zones', type=str, multiple=True,
+              help="A list of Amazon EC2 Availability Zones that instances in "
+                   "the cluster can be created in. "
+                   "If not specified default is used")
+@click.option('--tags', type=DictParamType(), callback=check_tags,
+              help='The resource tags')
+@verbose_option
+@click.pass_context
+@timeit()
+def rds_db_cluster(ctx, **kwargs):
+    """Generates RDS DB cluster deployment resources template"""
+    kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
+    generator = RDSDBClusterGenerator(**kwargs)
+    _generate(generator)
+    USER_LOG.info(f"RDS DB cluster '{kwargs['resource_name']}' was "
+                  f"added successfully")
+    return OK_RETURN_CODE
+
+
+@meta.command(name="rds_db_instance")
+@return_code_manager
+@click.option('--resource_name', type=str, required=True,
+              help="DB instance name")
+@click.option('--instance_class', type=str, required=True,
+              help="DB instance class")
+@click.option('--db_cluster_name', type=str,
+              callback=partial(
+                  validate_incompatible_options,
+                  incompatible_options=
+                  RDS_INSTANCE_DB_CLUSTER_INCOMPATIBLE_OPTIONS),
+              help="RDS DB cluster name to link the instance with")
+@click.option('--engine', type=str, help="Engine type")
+@click.option('--engine_version', type=str,
+              help="Engine version")
+@click.option('--master_username', type=str,
+              help="DB login ID for the master user")
+@click.option('--master_password', type=str,
+              help="The password for master user")
+@click.option('--database_name', type=str,
+              help="Database name")
+@click.option('--port', type=int,
+              help="The port number on which the instances in the cluster "
+                   "accept connections")
+@click.option('--publicly_accessible', type=bool,
+              help="Specifies the accessibility options for the DB instance.")
+@click.option('--vpc_security_group_ids', type=str, multiple=True,
+              help="A list of EC2 VPC security groups to associate with this "
+                   "cluster. If not specified, default security group is used")
+@click.option('--availability_zone', type=str,
+              help="Amazon EC2 Availability Zone that instances can be "
+                   "created in. If not specified default is used")
+@click.option('--tags', type=DictParamType(), callback=check_tags,
+              help='The resource tags')
+@verbose_option
+@click.pass_context
+@timeit()
+def rds_db_instance(ctx, **kwargs):
+    """Generates RDS DB instance deployment resources template"""
+    kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
+    generator = RDSDBInstanceGenerator(**kwargs)
+    _generate(generator)
+    USER_LOG.info(f"RDS DB cluster '{kwargs['resource_name']}' was "
                   f"added successfully")
     return OK_RETURN_CODE
 

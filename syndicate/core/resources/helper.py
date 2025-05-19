@@ -18,7 +18,7 @@ import json
 from syndicate.exceptions import ParameterError, ResourceProcessingError, InvalidValueError
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.conf.processor import GLOBAL_AWS_SERVICES
-from typing import TypeVar, Optional
+from typing import TypeVar, Optional, Iterable
 from datetime import datetime
 
 T = TypeVar('T')
@@ -38,6 +38,21 @@ def validate_params(name, meta, required_params):
                 f"Required parameters: '{parameters_string}'. "
                 f"Given parameters: '{existing_parameters_string}'"
             )
+
+
+def validate_known_params(name: str, act_params: Iterable,
+                          known_params: Iterable):
+    unknown_params = []
+    for param in act_params:
+        if param not in known_params:
+            unknown_params.append(param)
+
+    if unknown_params:
+        raise ParameterError(
+            f"Unknown parameter/s detected in the '{name}' configuration. "
+            f"Unknown parameter/s: {unknown_params}. "
+            f"Must be one of: {known_params}"
+        )
 
 
 def validate_date(name, date_str):
