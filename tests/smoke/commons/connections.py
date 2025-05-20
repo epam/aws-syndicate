@@ -39,6 +39,7 @@ appsync_client = boto3.client('appsync', config=config)
 batch_client = boto3.client('batch', config=config)
 sf_client = boto3.client('stepfunctions', config=config)
 cloudwatch_client = boto3.client('cloudwatch', config=config)
+rds_client = boto3.client('rds', config=config)
 
 ACCOUNT_ID = sts_client.get_caller_identity()['Account']
 REGION = sts_client.meta.region_name
@@ -851,6 +852,69 @@ def list_web_socket_api_gateway_tags(resource_arn: str,
     else:
         result = {}
         for tag in tag_keys:
+            if tag in response_tags:
+                result[tag] = response_tags[tag]
+        return result
+
+
+def get_rds_db_cluster(name: str) -> dict:
+    try:
+        response = rds_client.describe_db_clusters(
+            DBClusterIdentifier=name)
+        return response['DBClusters'][0] if response['DBClusters'] \
+            else {}
+    except rds_client.exceptions.DBClusterNotFoundFault:
+        print(f'RDS DB cluster {name} is not found')
+        return {}
+
+
+def list_rds_db_cluster_tags(name: str, tags: dict) -> dict:
+    description = get_rds_db_cluster(name)
+
+    response_tags = transform_tags(description.get('TagList', []))
+    if not tags:
+        return response_tags
+    else:
+        result = {}
+        for tag in tags:
+            if tag in response_tags:
+                result[tag] = response_tags[tag]
+        return result
+
+
+def get_rds_db_instance(instance_name: str = None,
+                        cluster_name: str = None) -> dict:
+    params = dict()
+    if cluster_name:
+        params['Filters'] = [
+            {
+                'Name': 'db-cluster-id',
+                'Values': [cluster_name]
+            }
+        ]
+
+    if instance_name:
+        params['DBInstanceIdentifier'] = instance_name
+
+    try:
+        response = rds_client.describe_db_instances(**params)
+        return response['DBInstances'][0] if response['DBInstances'] \
+            else {}
+    except rds_client.exceptions.DBInstanceNotFoundFault:
+        print(f'RDS DB instance is not found')
+        return {}
+
+
+def list_rds_db_instance_tags(instance_name: str, cluster_name: str,
+                              tags: dict) -> dict:
+    description = get_rds_db_instance(instance_name, cluster_name)
+
+    response_tags = transform_tags(description.get('TagList', []))
+    if not tags:
+        return response_tags
+    else:
+        result = {}
+        for tag in tags:
             if tag in response_tags:
                 result[tag] = response_tags[tag]
         return result

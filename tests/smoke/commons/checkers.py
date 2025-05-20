@@ -386,6 +386,16 @@ def web_socket_api_gateway_existence_checker(name: str) -> bool:
     return True if connections.get_web_socket_api_gateway(name) else False
 
 
+def rds_db_cluster_existence_checker(name: str) -> bool:
+    return True if connections.get_rds_db_cluster(name) else False
+
+
+def rds_db_instance_existence_checker(instance_name: str,
+                                      cluster_name: str) -> bool:
+    return True if connections.get_rds_db_instance(instance_name,
+                                                   cluster_name) else False
+
+
 # ------------ Resource modification checkers -------------
 
 def policy_modification_checker(resource_name: str,
@@ -557,6 +567,22 @@ def web_socket_api_gateway_tags_checker(name: str, tags: list) -> dict | bool:
     return True
 
 
+def rds_db_cluster_tags_checker(name: str, tags: dict) -> dict | bool:
+    received_tags = connections.list_rds_db_cluster_tags(name, tags)
+    if missing_tags := compare_dicts(received_tags, tags):
+        return dict(missing_tags)
+    return True
+
+
+def rds_db_instance_tags_checker(instance_name: str,
+                                 cluster_name: str, tags: dict) -> dict | bool:
+    received_tags = connections.list_rds_db_instance_tags(instance_name,
+                                                          cluster_name, tags)
+    if missing_tags := compare_dicts(received_tags, tags):
+        return dict(missing_tags)
+    return True
+
+
 TYPE_EXISTENCE_FUNC_MAPPING = {
     'iam_policy': iam_policy_existence_checker,
     'iam_role': iam_role_existence_checker,
@@ -577,7 +603,9 @@ TYPE_EXISTENCE_FUNC_MAPPING = {
     'batch_jobdef': batch_job_def_existence_checker,
     'web_socket_api_gateway': web_socket_api_gateway_existence_checker,
     'step_functions': step_function_existence_checker,
-    'cloudwatch_alarm': cloudwatch_alarm_existence_checker
+    'cloudwatch_alarm': cloudwatch_alarm_existence_checker,
+    'rds_db_cluster': rds_db_cluster_existence_checker,
+    'rds_db_instance': rds_db_instance_existence_checker
 }
 
 
@@ -605,5 +633,7 @@ TYPE_TAGS_FUNC_MAPPING = {
     'batch_jobdef': batch_job_definition_tags_checker,
     'web_socket_api_gateway': web_socket_api_gateway_tags_checker,
     'step_functions': step_function_tags_checker,
-    'cloudwatch_alarm': cloudwatch_alarm_tags_checker
+    'cloudwatch_alarm': cloudwatch_alarm_tags_checker,
+    'rds_db_cluster': rds_db_cluster_tags_checker,
+    'rds_db_instance': rds_db_instance_tags_checker
 }

@@ -17,7 +17,8 @@ from commons import connections
 from commons.constants import DEPLOY_OUTPUT_DIR, RESOURCE_TYPE_CONFIG_PARAM, \
     BUNDLE_NAME, DEPLOY_NAME, SWAGGER_UI_RESOURCE_TYPE, TAGS_CONFIG_PARAM, \
     API_GATEWAY_OAS_V3_RESOURCE_TYPE, LAMBDA_LAYER_RESOURCE_TYPE, \
-    RESOURCE_NAME_CONFIG_PARAM, UPDATED_BUNDLE_NAME
+    RESOURCE_NAME_CONFIG_PARAM, UPDATED_BUNDLE_NAME, \
+    RDS_DB_INSTANCE_RESOURCE_TYPE
 
 
 def exit_code_handler(actual_exit_code: int, expected_exit_code: int,
@@ -125,6 +126,8 @@ def resource_existence_handler(resources: dict, deploy_target_bucket: str,
         if res_type == SWAGGER_UI_RESOURCE_TYPE:
             deploy_bucket, path = split_deploy_bucket_path(deploy_target_bucket)
             is_exist = func(res_name, deploy_bucket, path)
+        elif res_type == RDS_DB_INSTANCE_RESOURCE_TYPE:
+            is_exist = func(res_name, res_meta.get('d_b_cluster_identifier'))
         else:
             is_exist = func(res_name)
         if not is_exist:
@@ -180,7 +183,12 @@ def tag_existence_handler(resources: dict,
                 print(f'Unknown resource type `{res_type}`. Cannot list tags.')
                 missing_tags[res_name] = res_type
                 continue
-            missing = tag_func(res_name, res_meta[TAGS_CONFIG_PARAM])
+            if res_type == RDS_DB_INSTANCE_RESOURCE_TYPE:
+                missing = tag_func(res_name,
+                                   res_meta.get('d_b_cluster_identifier'),
+                                   res_meta[TAGS_CONFIG_PARAM])
+            else:
+                missing = tag_func(res_name, res_meta[TAGS_CONFIG_PARAM])
             if missing is not True and reverse_check:
                 continue
             elif missing is True and reverse_check:
