@@ -312,6 +312,7 @@ not matter and only the presence of a particular key will be checked.
 ### Important notice
 - Utilizing various prefixes and/or suffixes in extended prefix mode for different test projects (e.g., sdct-at-ddis, sdct-at-least-used-resources) is essential for conducting simultaneous tests due to the duplication of resource names across different test projects.
 - The AWS region where test resources will be deployed must include a default VPC and default subnet, as these are necessary for the deployment of RDS Aurora instances.
+- Due to the slow deployment and cleaning of RDS resources, tests may take up to 40 minutes.
 
 ### Prerequisites
 1. Specify valid credentials in the `.aws/credentials` file or set credentials in the `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN` env variables.
