@@ -36,7 +36,10 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def force_clean(deploy_bucket, only_bundle=False):
+def force_clean(only_bundle=False):
+    from syndicate.core.conf.processor import ConfigHolder
+    from syndicate.core import CONF_PATH
+
     print(f'\nCleaning bundle {"and resources" if not only_bundle else ""}')
     if not only_bundle:
         command_to_execute = ['syndicate', 'clean']
@@ -44,7 +47,8 @@ def force_clean(deploy_bucket, only_bundle=False):
                                      capture_output=True, text=True)
         print(f'Execution return code: {exec_result.returncode}')
 
-    deploy_bucket, path = split_deploy_bucket_path(deploy_bucket)
+    config = ConfigHolder(CONF_PATH)
+    deploy_bucket, path = split_deploy_bucket_path(config.deploy_target_bucket)
     delete_s3_folder(deploy_bucket, os.path.join(*path, BUNDLE_NAME))
     delete_s3_folder(deploy_bucket, os.path.join(*path, UPDATED_BUNDLE_NAME))
 
@@ -91,7 +95,7 @@ def main(verbose: bool, config: str):
                 i['stage_passed'] for i in result[STAGES_CONFIG_PARAM][CLEAN_COMMAND]):
             print('Only bundle is True')
             only_bundle = True
-        force_clean(init_params.get('deploy_target_bucket'), only_bundle)
+        force_clean(only_bundle)
 
 
 if __name__ == '__main__':
