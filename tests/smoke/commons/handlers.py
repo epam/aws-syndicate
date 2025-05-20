@@ -18,23 +18,25 @@ from commons.constants import DEPLOY_OUTPUT_DIR, RESOURCE_TYPE_CONFIG_PARAM, \
     BUNDLE_NAME, DEPLOY_NAME, SWAGGER_UI_RESOURCE_TYPE, TAGS_CONFIG_PARAM, \
     API_GATEWAY_OAS_V3_RESOURCE_TYPE, LAMBDA_LAYER_RESOURCE_TYPE, \
     RESOURCE_NAME_CONFIG_PARAM, UPDATED_BUNDLE_NAME
+from syndicate.core.conf.processor import ConfigHolder
+from syndicate.core import CONF_PATH
+
+CONFIG = ConfigHolder(CONF_PATH)
 
 
 def exit_code_handler(actual_exit_code: int, expected_exit_code: int,
                       **kwargs):
-
     return True if exit_code_checker(actual_exit_code, expected_exit_code) \
         else {'expected_exit_code': expected_exit_code,
               'actual_exit_code': actual_exit_code}
 
 
 def artifacts_existence_handler(artifacts_list: list,
-                                deploy_target_bucket: str,
                                 reverse_check: bool = False,
                                 succeeded_deploy: Optional[bool] = None,
                                 update: Optional[bool] = None,
                                 **kwargs):
-    deploy_bucket, path = split_deploy_bucket_path(deploy_target_bucket)
+    deploy_bucket, path = split_deploy_bucket_path(CONFIG.deploy_target_bucket)
     bundle_dir = UPDATED_BUNDLE_NAME if update else BUNDLE_NAME
     missing_resources = []
     for artifact in artifacts_list:
@@ -54,8 +56,8 @@ def artifacts_existence_handler(artifacts_list: list,
         if missing_resources else True
 
 
-def build_meta_handler(resources: dict, deploy_target_bucket: str, **kwargs):
-    deploy_bucket, path = split_deploy_bucket_path(deploy_target_bucket)
+def build_meta_handler(resources: dict, **kwargs):
+    deploy_bucket, path = split_deploy_bucket_path(CONFIG.deploy_target_bucket)
     file_key = '/'.join([*path, BUNDLE_NAME, 'build_meta.json'])
     build_meta = connections.get_s3_bucket_file_content(
         bucket_name=deploy_bucket, file_key=file_key)
@@ -67,9 +69,8 @@ def build_meta_handler(resources: dict, deploy_target_bucket: str, **kwargs):
     return build_meta_checker(build_meta_json, resources)
 
 
-def build_meta_content_handler(resources: dict, deploy_target_bucket: str,
-                               **kwargs):
-    deploy_bucket, path = split_deploy_bucket_path(deploy_target_bucket)
+def build_meta_content_handler(resources: dict, **kwargs):
+    deploy_bucket, path = split_deploy_bucket_path(CONFIG.deploy_target_bucket)
     file_key = '/'.join([*path, BUNDLE_NAME, 'build_meta.json'])
     build_meta = connections.get_s3_bucket_file_content(
         bucket_name=deploy_bucket,
@@ -82,13 +83,11 @@ def build_meta_content_handler(resources: dict, deploy_target_bucket: str,
     return build_meta_content_checker(build_meta_json, resources)
 
 
-def deployment_output_handler(deploy_target_bucket: str, resources: dict,
+def deployment_output_handler(resources: dict,
                               succeeded_deploy: bool = True,
                               reverse_check: bool = False,
-                              prefix: Optional[str] = None,
-                              suffix: Optional[str] = None,
                               update: Optional[bool] = False, **kwargs):
-    deploy_bucket, path = split_deploy_bucket_path(deploy_target_bucket)
+    deploy_bucket, path = split_deploy_bucket_path(CONFIG.deploy_target_bucket)
     bundle_dir = UPDATED_BUNDLE_NAME if update else BUNDLE_NAME
     output_path = '/'.join([*path, bundle_dir, DEPLOY_OUTPUT_DIR, DEPLOY_NAME])
     if succeeded_deploy:
@@ -101,16 +100,18 @@ def deployment_output_handler(deploy_target_bucket: str, resources: dict,
     output_json = json.loads(output)
     return deployment_output_checker(
         output_json,
-        populate_resources_prefix_suffix(resources, prefix, suffix),
+        populate_resources_prefix_suffix(resources,
+                                         CONFIG.resources_prefix,
+                                         CONFIG.resources_suffix),
         reverse_check=reverse_check)
 
 
-def resource_existence_handler(resources: dict, deploy_target_bucket: str,
-                               suffix: Optional[str] = None,
-                               prefix: Optional[str] = None,
-                               reverse_check: bool = False, **kwargs):
+def resource_existence_handler(resources: dict, reverse_check: bool = False,
+                               **kwargs):
     results = {}
-    resources = populate_resources_prefix_suffix(resources, prefix, suffix)
+    resources = populate_resources_prefix_suffix(resources,
+                                                 CONFIG.resources_prefix,
+                                                 CONFIG.resources_suffix)
 
     non_existent_resources = {}
     non_checked_resources = {}
@@ -123,7 +124,8 @@ def resource_existence_handler(resources: dict, deploy_target_bucket: str,
             non_checked_resources[res_name] = res_type
             continue
         if res_type == SWAGGER_UI_RESOURCE_TYPE:
-            deploy_bucket, path = split_deploy_bucket_path(deploy_target_bucket)
+            deploy_bucket, path = split_deploy_bucket_path(
+                CONFIG.deploy_target_bucket)
             is_exist = func(res_name, deploy_bucket, path)
         else:
             is_exist = func(res_name)
@@ -142,9 +144,7 @@ def resource_existence_handler(resources: dict, deploy_target_bucket: str,
     return results if any(results.values()) else True
 
 
-def resource_modification_handler(resources: dict, update_time: str,
-                                  suffix: Optional[str] = None,
-                                  prefix: Optional[str] = None, **kwargs):
+def resource_modification_handler(resources: dict, update_time: str, **kwargs):
     result = []
     for resource_name, resource_type in resources.items():
         resource_typename = resource_type[RESOURCE_TYPE_CONFIG_PARAM]
@@ -153,25 +153,25 @@ def resource_modification_handler(resources: dict, update_time: str,
             print(f'Unknown resource type `{resource_typename}`')
             continue
         is_modified = func(update_time=update_time,
-                           resource_name=f'{prefix}{resource_name}{suffix}')
+                           resource_name=f'{CONFIG.resources_prefix}{resource_name}{CONFIG.resources_suffix}')
         if is_modified is not True:
             result.append(resource_name)
     return {'unmodified_resources': result} if result else True
 
 
 def tag_existence_handler(resources: dict,
-                          suffix: Optional[str] = None,
-                          prefix: Optional[str] = None,
                           reverse_check: bool = False, **kwargs):
     results = {}
-    resources = populate_resources_prefix_suffix(resources, prefix, suffix)
+    resources = populate_resources_prefix_suffix(resources,
+                                                 CONFIG.resources_prefix,
+                                                 CONFIG.resources_suffix)
 
     missing_tags = {}
     redundant_tags = {}
     for res_name, res_meta in resources.items():
         res_type = res_meta[RESOURCE_TYPE_CONFIG_PARAM]
 
-        if res_meta.get(TAGS_CONFIG_PARAM)\
+        if res_meta.get(TAGS_CONFIG_PARAM) \
                 and res_type not in (SWAGGER_UI_RESOURCE_TYPE,
                                      API_GATEWAY_OAS_V3_RESOURCE_TYPE,
                                      LAMBDA_LAYER_RESOURCE_TYPE):
@@ -196,22 +196,22 @@ def tag_existence_handler(resources: dict,
     return results if any(results.values()) else True
 
 
-def lambda_trigger_handler(triggers: dict, suffix: Optional[str] = None,
-                           prefix: Optional[str] = None,
-                           **kwargs) -> bool | dict:
+def lambda_trigger_handler(triggers: dict, **kwargs) -> bool | dict:
     invalid_lambdas = {}
     alias = read_syndicate_aliases().get('lambdas_alias_name')
     for lambda_name, triggers_meta in triggers.items():
-        lambda_name = populate_prefix_suffix(lambda_name, prefix, suffix)
+        lambda_name = populate_prefix_suffix(lambda_name,
+                                             CONFIG.resources_prefix,
+                                             CONFIG.resources_suffix)
         if alias:
             lambda_name += f':{alias}'
 
         for trigger in triggers_meta:
             trigger_name = trigger[RESOURCE_NAME_CONFIG_PARAM]
-            if prefix:
-                trigger_name = prefix + trigger_name
-            if suffix:
-                trigger_name = trigger_name + suffix
+            if CONFIG.resources_prefix:
+                trigger_name = CONFIG.resources_prefix + trigger_name
+            if CONFIG.resources_suffix:
+                trigger_name = trigger_name + CONFIG.resources_suffix
             trigger[RESOURCE_NAME_CONFIG_PARAM] = trigger_name
 
         response = lambda_triggers_checker(lambda_name, triggers_meta)
@@ -222,12 +222,12 @@ def lambda_trigger_handler(triggers: dict, suffix: Optional[str] = None,
 
 
 def lambda_env_handler(env_variables: dict,
-                       suffix: Optional[str] = None,
-                       prefix: Optional[str] = None,
                        alias: Optional[str] = None, **kwargs) -> bool | dict:
     invalid_envs = {}
     for lambda_name, envs in env_variables.items():
-        lambda_name = populate_prefix_suffix(lambda_name, prefix, suffix)
+        lambda_name = populate_prefix_suffix(lambda_name,
+                                             CONFIG.resources_prefix,
+                                             CONFIG.resources_suffix)
         if result := lambda_envs_checker(lambda_name, envs, qualifier=alias):
             invalid_envs[lambda_name] = result
 
@@ -235,12 +235,12 @@ def lambda_env_handler(env_variables: dict,
 
 
 def appsync_modification_handler(resources: dict,
-                                 suffix: Optional[str] = None,
-                                 prefix: Optional[str] = None,
                                  **kwargs) -> bool | dict:
     invalid_conf = {}
     for appsync_name, config in resources.items():
-        appsync_name = populate_prefix_suffix(appsync_name, prefix, suffix)
+        appsync_name = populate_prefix_suffix(appsync_name,
+                                              CONFIG.resources_prefix,
+                                              CONFIG.resources_suffix)
         if result := appsync_modification_checker(appsync_name, **config):
             invalid_conf[appsync_name] = result
 

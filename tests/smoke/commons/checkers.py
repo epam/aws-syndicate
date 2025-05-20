@@ -12,7 +12,7 @@ from commons.constants import BUNDLE_NAME, DEPLOY_NAME, \
     RESOURCE_TYPE_CONFIG_PARAM, RESOURCE_NAME_CONFIG_PARAM, \
     RESOURCE_META_CONFIG_PARAM, UPDATED_BUNDLE_NAME
 from commons.utils import deep_get, find_max_lambda_layer_version, \
-    compare_dicts
+    compare_dicts, read_syndicate_aliases
 from commons import connections
 from commons.connections import REGION, ACCOUNT_ID
 
@@ -199,10 +199,20 @@ def lambda_envs_checker(lambda_name: str, envs: dict,
     for key, value in envs.items():
         if not lambda_envs.get(key) or (
                 lambda_envs[key] != value and value != '*'):
+            # extract value for alias placeholders like '${region}' or '*${region}*'
+            aliases = read_syndicate_aliases() or {}
+            for a_name, a_value in aliases.items():
+                if '${' + a_name + '}' in value:
+                    value = value.replace('${' + a_name + '}', a_value)
+
+            if lambda_envs.get(key) == value:
+                lambda_envs.pop(key)
+                continue
             if '*' in value:
                 if all(v in lambda_envs[key] for v in value.split('*')):
                     lambda_envs.pop(key)
                     continue
+
             missing_envs[key] = value
         else:
             lambda_envs.pop(key)

@@ -18,7 +18,7 @@ from commons.utils import UpdateContent
 
 
 def process_steps(steps: dict[str: List[dict]],
-                  verbose: Optional[bool] = False,skip_stage: bool = False,
+                  verbose: Optional[bool] = False, skip_stage: bool = False,
                   **kwargs):
     result = []
     for step in steps[STEPS_CONFIG_PARAM]:
