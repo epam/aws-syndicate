@@ -88,9 +88,6 @@ Afterwards, the original configs return the original content. Example:
 ```json5
 {
   "init_parameters": {
-    "suffix": "-test",
-    "deploy_target_bucket": "bucket",
-    "prefix": "sdct-",
     "output_file": "output",
     // more params if needed
   },
@@ -124,7 +121,7 @@ Afterwards, the original configs return the original content. Example:
 ```
 
 ### Description of Config Components
-- `init_parameters`: Section where you can specify all the additional parameters that are needed to run the tests. For example: the name of the deployment bucket with the bundle, the suffix and prefix of the resources, the name of the output file, etc.
+- `init_parameters`: Section where you can specify all the additional parameters that are needed to run the tests. For example: the name of the output file, etc.
 - `stages`: Section with a description of each stage.
   - `$STAGE_NAME`: Related to the syndicate command name to check. Should be clear for further processing of the resulting JSON.
     - `steps`: Section with a description of each step of the stage. 
@@ -313,7 +310,8 @@ not matter and only the presence of a particular key will be checked.
 ## How to run
 
 ### Important notice
-- Utilizing various prefixes and/or suffixes in extended prefix mode for different test projects (e.g., sdct-at-ddis, sdct-at-least-used-resources) is essential for conducting simultaneous tests due to the duplication of resource names across different test projects.  
+- Utilizing various prefixes and/or suffixes in extended prefix mode for different test projects (e.g., sdct-at-ddis, sdct-at-least-used-resources) is essential for conducting simultaneous tests due to the duplication of resource names across different test projects.
+- The AWS region where test resources will be deployed must include a default VPC and default subnet, as these are necessary for the deployment of RDS Aurora instances.
 
 ### Prerequisites
 1. Specify valid credentials in the `.aws/credentials` file or set credentials in the `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN` env variables.

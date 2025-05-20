@@ -252,7 +252,6 @@
     "database_name": "logisticdb",
     "port": 5432,
     "manage_master_user_password": true,
-    "db_subnet_group_name": "logistic-subnet-group",
     "vpc_security_group_ids": [],
     "availability_zones": [],
     "tags": {
