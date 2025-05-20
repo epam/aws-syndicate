@@ -199,27 +199,19 @@ def lambda_envs_checker(lambda_name: str, envs: dict,
     for key, value in envs.items():
         if not lambda_envs.get(key) or (
                 lambda_envs[key] != value and value != '*'):
+            # extract value for alias placeholders like '${region}' or '*${region}*'
+            aliases = read_syndicate_aliases() or {}
+            for a_name, a_value in aliases.items():
+                if '${' + a_name + '}' in value:
+                    value = value.replace('${' + a_name + '}', a_value)
+
+            if lambda_envs.get(key) == value:
+                lambda_envs.pop(key)
+                continue
             if '*' in value:
                 if all(v in lambda_envs[key] for v in value.split('*')):
                     lambda_envs.pop(key)
                     continue
-            # extract value for alias placeholders like '${region}' or '*${region}*'
-            if '${' in value and '}' in value and value.index('${') < value.index('}'):
-                start = value.index('${') + 2
-                end = value.index('}', start)
-                extracted_alias = value[start:end]
-                alias_value = read_syndicate_aliases().get(extracted_alias)
-                if alias_value:
-                    value = value[:start - 2] + str(alias_value) + value[end + 1:]
-
-                if lambda_envs[key] == value:
-                    lambda_envs.pop(key)
-                    continue
-                if '*' in value:
-                    value_without_asterisk = list(filter(None, value.split('*')))
-                    if all(v and alias_value in v for v in value_without_asterisk):
-                        lambda_envs.pop(key)
-                        continue
 
             missing_envs[key] = value
         else:
