@@ -212,7 +212,7 @@ def lambda_envs_checker(lambda_name: str, envs: dict,
                 if alias_value:
                     value = value[:start - 2] + str(alias_value) + value[end + 1:]
 
-                if lambda_envs[key] == alias_value:
+                if lambda_envs[key] == value:
                     lambda_envs.pop(key)
                     continue
                 if '*' in value:
