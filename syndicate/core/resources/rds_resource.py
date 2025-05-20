@@ -14,7 +14,7 @@ USER_LOG = get_user_logger()
 CLUSTER_REQUIRED_PARAMS = ['engine']
 
 DB_INSTANCE_REQUIRED_PARAMS = [
-    'd_b_instance_class',
+    'instance_class',
     'engine'
 ]
 
@@ -25,7 +25,7 @@ DEPLOY_CLUSTER_KNOWN_PARAMS = [
     'database_name',
     'd_b_cluster_parameter_group_name',
     'vpc_security_group_ids',
-    'd_b_subnet_group_name',
+    'db_subnet_group_name',
     'engine',
     'engine_version',
     'port',
@@ -39,7 +39,7 @@ DEPLOY_CLUSTER_KNOWN_PARAMS = [
     'storage_encrypted',
     'kms_key_id',
     'pre_signed_url',
-    'enable_i_a_m_database_authentication',
+    'iam_db_auth',
     'backtrack_window',
     'enable_cloudwatch_logs_exports',
     'engine_mode',
@@ -81,7 +81,7 @@ UPDATE_CLUSTER_KNOWN_PARAMS = [
     'option_group_name',
     'preferred_backup_window',
     'preferred_maintenance_window',
-    'enable_i_a_m_database_authentication',
+    'iam_db_auth',
     'backtrack_window',
     'cloudwatch_logs_export_configuration',
     'engine_version',
@@ -112,16 +112,16 @@ UPDATE_CLUSTER_KNOWN_PARAMS = [
 ]
 
 DEPLOY_DB_INSTANCE_KNOWN_PARAMS = [
-    'd_b_name',
+    'database_name',
     'allocated_storage',
-    'd_b_instance_class',
+    'instance_class',
     'engine',
     'master_username',
     'master_user_password',
     'd_b_security_groups',
     'vpc_security_group_ids',
     'availability_zone',
-    'd_b_subnet_group_name',
+    'db_subnet_group_name',
     'preferred_maintenance_window',
     'd_b_parameter_group_name',
     'backup_retention_period',
@@ -139,7 +139,7 @@ DEPLOY_DB_INSTANCE_KNOWN_PARAMS = [
     'nchar_character_set_name',
     'publicly_accessible',
     'tags',
-    'd_b_cluster_identifier',
+    'cluster_name',
     'storage_type',
     'tde_credential_arn',
     'tde_credential_password',
@@ -152,7 +152,7 @@ DEPLOY_DB_INSTANCE_KNOWN_PARAMS = [
     'domain_i_a_m_role_name',
     'promotion_tier',
     'timezone',
-    'enable_i_a_m_database_authentication',
+    'iam_db_auth',
     'enable_performance_insights',
     'performance_insights_k_m_s_key_id',
     'performance_insights_retention_period',
@@ -172,8 +172,8 @@ DEPLOY_DB_INSTANCE_KNOWN_PARAMS = [
 
 UPDATE_DB_INSTANCE_KNOWN_PARAMS = [
     'allocated_storage',
-    'd_b_instance_class',
-    'd_b_subnet_group_name',
+    'instance_class',
+    'db_subnet_group_name',
     'd_b_security_groups',
     'vpc_security_group_ids',
     'apply_immediately',
@@ -201,7 +201,7 @@ UPDATE_DB_INSTANCE_KNOWN_PARAMS = [
     'monitoring_role_arn',
     'domain_i_a_m_role_name',
     'promotion_tier',
-    'enable_i_a_m_database_authentication',
+    'iam_db_auth',
     'enable_performance_insights',
     'performance_insights_k_m_s_key_id',
     'performance_insights_retention_period',
@@ -229,12 +229,12 @@ UPDATE_CLUSTER_NOT_SUPPORTED_KEYS = [
     'master_username',
     'database_name',
     'availability_zones',
-    'd_b_subnet_group_name'
+    'db_subnet_group_name'
 ]
 
 UPDATE_INSTANCE_NOT_SUPPORTED_KEYS = [
     'engine',
-    'd_b_cluster_identifier',
+    'cluster_name',
     'resource_type'
 ]
 
@@ -273,9 +273,20 @@ class RDSDBClusterResource(BaseResource):
         validate_known_params(name, list(params.keys()),
                               DEPLOY_CLUSTER_KNOWN_PARAMS)
 
+        db_subnet_group_name = params.pop('db_subnet_group_name', None)
+        iam_db_auth = params.pop('iam_db_auth', None)
+
+        params = dict_keys_to_upper_camel_case(params)
+
+        if db_subnet_group_name is not None:
+            params['DBSubnetGroupName'] = db_subnet_group_name
+
+        if iam_db_auth is not None:
+            params['EnableIAMDatabaseAuthentication'] = iam_db_auth
+
         description = self.rds_conn.create_db_cluster(
             name=name,
-            params=dict_keys_to_upper_camel_case(params)
+            params=params
         )
 
         USER_LOG.info(
@@ -320,10 +331,21 @@ class RDSDBClusterResource(BaseResource):
         validate_known_params(name, list(params.keys()),
                               UPDATE_CLUSTER_KNOWN_PARAMS)
 
-        params['d_b_cluster_identifier'] = name
+        db_subnet_group_name = params.pop('db_subnet_group_name', None)
+        iam_db_auth = params.pop('iam_db_auth', None)
+
+        params = dict_keys_to_upper_camel_case(params)
+
+        if db_subnet_group_name is not None:
+            params['DBSubnetGroupName'] = db_subnet_group_name
+
+        if iam_db_auth is not None:
+            params['EnableIAMDatabaseAuthentication'] = iam_db_auth
+
+        params['DBClusterIdentifier'] = name
 
         description = self.rds_conn.update_db_cluster(
-            params=dict_keys_to_upper_camel_case(params)
+            params=params
         )
 
         USER_LOG.info(f'Endpoint: {description["Endpoint"]}')
@@ -427,7 +449,7 @@ class RDSDBInstanceResource(BaseResource):
         """
         validate_params(name, meta, DB_INSTANCE_REQUIRED_PARAMS)
 
-        cluster_name = meta.get('d_b_cluster_identifier')
+        cluster_name = meta.pop('cluster_name', None)
 
         description = self.rds_conn.get_db_instance_description(
             cluster_name=cluster_name,
@@ -444,7 +466,27 @@ class RDSDBInstanceResource(BaseResource):
         validate_known_params(name, list(params.keys()),
                               DEPLOY_DB_INSTANCE_KNOWN_PARAMS)
 
+        instance_class = params.pop('instance_class', None)
+        database_name = params.pop('database_name', None)
+        iam_db_auth = params.pop('iam_db_auth', None)
+        db_subnet_group_name = params.pop('db_subnet_group_name', None)
+
         params = dict_keys_to_upper_camel_case(params)
+
+        if cluster_name is not None:
+            params['DBClusterIdentifier'] = cluster_name
+
+        if instance_class is not None:
+            params['DBInstanceClass'] = instance_class
+
+        if database_name is not None:
+            params['DBName'] = database_name
+
+        if iam_db_auth is not None:
+            params['EnableIAMDatabaseAuthentication'] = iam_db_auth
+
+        if db_subnet_group_name is not None:
+            params['DBSubnetGroupName'] = db_subnet_group_name
 
         description = self.rds_conn.create_db_instance(
             name=name,
@@ -472,7 +514,7 @@ class RDSDBInstanceResource(BaseResource):
     @unpack_kwargs
     def _update_db_instance(self, name: str, meta: dict, context) -> dict:
         instance = self.rds_conn.get_db_instance_description(
-            cluster_name=meta.get('d_b_cluster_identifier'),
+            cluster_name=meta.get('cluster_name'),
             instance_name=name
         )
         if not instance:
@@ -494,9 +536,26 @@ class RDSDBInstanceResource(BaseResource):
             UPDATE_DB_INSTANCE_KNOWN_PARAMS
         )
 
-        params['d_b_instance_identifier'] = name
+        instance_class = params.pop('instance_class', None)
+        database_name = params.pop('database_name', None)
+        iam_db_auth = params.pop('iam_db_auth', None)
+        db_subnet_group_name = params.pop('db_subnet_group_name', None)
 
         params = dict_keys_to_upper_camel_case(params)
+
+        params['DBInstanceIdentifier'] = name
+
+        if instance_class is not None:
+            params['DBInstanceClass'] = instance_class
+
+        if database_name is not None:
+            params['DBName'] = database_name
+
+        if iam_db_auth is not None:
+            params['EnableIAMDatabaseAuthentication'] = iam_db_auth
+
+        if db_subnet_group_name is not None:
+            params['DBSubnetGroupName'] = db_subnet_group_name
 
         _LOG.info('Updating db instance...')
         description = self.rds_conn.update_db_instance(

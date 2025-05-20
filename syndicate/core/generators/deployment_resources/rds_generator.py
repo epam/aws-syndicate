@@ -17,10 +17,10 @@ class RDSDBClusterGenerator(BaseDeploymentResourceGenerator):
         'master_user_password': None,
         'database_name': str,
         'port': int,
-        'enable_i_a_m_database_authentication': None,
+        'iam_db_auth': None,
         'vpc_security_group_ids': list,
         'availability_zones': None,
-        'd_b_subnet_group_name': None,
+        'db_subnet_group_name': None,
         'manage_master_user_password': None,
         'tags': dict
     }
@@ -40,10 +40,7 @@ class RDSDBClusterGenerator(BaseDeploymentResourceGenerator):
         self._dict['manage_master_user_password'] = \
             self._dict.pop('manage_master_password', None)
 
-        self._dict['enable_i_a_m_database_authentication'] = \
-            self._dict.pop('iam_db_auth', None)
-
-        self._dict['d_b_subnet_group_name'] = \
+        self._dict['db_subnet_group_name'] = \
             self._dict.pop('db_subnet_group', None)
 
         if not any((self._dict.get('master_user_password'),
@@ -75,11 +72,11 @@ class RDSDBClusterGenerator(BaseDeploymentResourceGenerator):
 class RDSDBInstanceGenerator(BaseDeploymentResourceGenerator):
     RESOURCE_TYPE = RDS_DB_INSTANCE_TYPE
     CONFIGURATION = {
-        'd_b_instance_class': str,
+        'instance_class': str,
         'engine': str,
         'engine_version': None,
-        'd_b_cluster_identifier': None,
-        'd_b_name': None,
+        'cluster_name': None,
+        'database_name': None,
         'master_username': None,
         'master_user_password': None,
         'port': None,
@@ -93,20 +90,16 @@ class RDSDBInstanceGenerator(BaseDeploymentResourceGenerator):
         super().__init__(**kwargs)
 
     def _generate_resource_configuration(self) -> dict:
-        self._dict['d_b_instance_class'] = self._dict.pop('instance_class')
-        self._dict['d_b_name'] = self._dict.pop('database_name', None)
 
         if self._dict.get('master_password'):
             self._validate_master_password()
             self._dict['master_user_password'] = \
                 self._dict.pop('master_password')
 
-        if cluster_name := self._dict.pop('db_cluster_name', None):
+        if cluster_name := self._dict.get('cluster_name'):
             self._validate_resource_existence(
                 resource_name=cluster_name,
                 resource_type=RDS_DB_CLUSTER_TYPE)
-
-            self._dict['d_b_cluster_identifier'] = cluster_name
 
             deployment_resources = self._get_deployment_resources_file_content(
                 self._get_resource_meta_paths(
