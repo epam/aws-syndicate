@@ -27,7 +27,8 @@ from syndicate.core.build.helper import (build_py_package_name,
                                          resolve_bundle_directory)
 from syndicate.core.build.validator.mapping import (VALIDATOR_BY_TYPE_MAPPING,
                                                     ALL_TYPES)
-from syndicate.core.conf.processor import GLOBAL_AWS_SERVICES
+from syndicate.core.conf.processor import GLOBAL_AWS_SERVICES, \
+    GLOBAL_AWS_SERVICE_PREFIXES
 from syndicate.core.constants import (API_GATEWAY_TYPE, ARTIFACTS_FOLDER,
                                       BUILD_META_FILE_NAME, EBS_TYPE,
                                       LAMBDA_CONFIG_FILE_NAME, LAMBDA_TYPE,
@@ -47,8 +48,10 @@ from syndicate.core.helper import (build_path, prettify_json,
 from syndicate.core.resources.helper import resolve_dynamic_identifier
 
 DEFAULT_IAM_SUFFIX_LENGTH = 5
-NAME_RESOLVING_BLACKLISTED_KEYS = ['prefix', 'suffix', 'resource_type', 'principal_service', 'integration_type',
-                                   'authorization_type']
+NAME_RESOLVING_BLACKLISTED_KEYS = [
+    'prefix', 'suffix', 'resource_type', 'principal_service',
+    'integration_type', 'authorization_type'
+]
 
 _LOG = get_logger(__name__)
 USER_LOG = get_user_logger()
@@ -322,7 +325,7 @@ def extract_deploy_stage_from_openapi_spec(openapi_spec: dict) -> str:
     server_url = servers[0].get('url', '')
     variables = servers[0].get('variables', {})
 
-    # Substitute variables in the URL template with their default values, if any
+    # Substitute variables in the URL template with their default values,if any
     for var_name, var_details in variables.items():
         default_value = var_details.get('default', '')
         server_url = server_url.replace(f'{{{var_name}}}', default_value)
@@ -506,6 +509,9 @@ def _resolve_names_in_meta(resources_dict, old_value, new_value):
 
 
 def _resolve_name_in_arn(arn, old_value, new_value):
+    from syndicate.core import CONFIG
+
+    extended_prefix_mode = CONFIG.extended_prefix_mode
     arn_parts = arn.split(':')
     for part in arn_parts:
         new_part = None
@@ -513,6 +519,12 @@ def _resolve_name_in_arn(arn, old_value, new_value):
             new_part = new_value
         elif part.startswith(old_value) and part[len(old_value)] == '/':
             new_part = part.replace(old_value, new_value)
+        elif part.endswith(old_value) and part[:-len(old_value)].endswith('/'):
+            # to resolve resources with prefixes like ":role/", ":topic/", etc.
+            resource_prefix = part[:-len(old_value)]
+            if resource_prefix in GLOBAL_AWS_SERVICE_PREFIXES \
+                    or extended_prefix_mode:
+                new_part = part.replace(old_value, new_value)
         if new_part:
             index = arn_parts.index(part)
             arn_parts[index] = new_part
