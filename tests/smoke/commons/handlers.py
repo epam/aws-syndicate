@@ -17,7 +17,8 @@ from commons import connections
 from commons.constants import DEPLOY_OUTPUT_DIR, RESOURCE_TYPE_CONFIG_PARAM, \
     BUNDLE_NAME, DEPLOY_NAME, SWAGGER_UI_RESOURCE_TYPE, TAGS_CONFIG_PARAM, \
     API_GATEWAY_OAS_V3_RESOURCE_TYPE, LAMBDA_LAYER_RESOURCE_TYPE, \
-    RESOURCE_NAME_CONFIG_PARAM, UPDATED_BUNDLE_NAME
+    RESOURCE_NAME_CONFIG_PARAM, UPDATED_BUNDLE_NAME, \
+    RDS_DB_INSTANCE_RESOURCE_TYPE
 from syndicate.core.conf.processor import ConfigHolder
 from syndicate.core import CONF_PATH
 
@@ -127,6 +128,8 @@ def resource_existence_handler(resources: dict, reverse_check: bool = False,
             deploy_bucket, path = split_deploy_bucket_path(
                 CONFIG.deploy_target_bucket)
             is_exist = func(res_name, deploy_bucket, path)
+        elif res_type == RDS_DB_INSTANCE_RESOURCE_TYPE:
+            is_exist = func(res_name, res_meta.get('cluster_name'))
         else:
             is_exist = func(res_name)
         if not is_exist:
@@ -180,7 +183,12 @@ def tag_existence_handler(resources: dict,
                 print(f'Unknown resource type `{res_type}`. Cannot list tags.')
                 missing_tags[res_name] = res_type
                 continue
-            missing = tag_func(res_name, res_meta[TAGS_CONFIG_PARAM])
+            if res_type == RDS_DB_INSTANCE_RESOURCE_TYPE:
+                missing = tag_func(res_name,
+                                   res_meta.get('cluster_name'),
+                                   res_meta[TAGS_CONFIG_PARAM])
+            else:
+                missing = tag_func(res_name, res_meta[TAGS_CONFIG_PARAM])
             if missing is not True and reverse_check:
                 continue
             elif missing is True and reverse_check:

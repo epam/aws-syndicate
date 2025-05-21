@@ -7,7 +7,10 @@
       "steps": [
         {
           "description": "Build bundle",
-          "command": ["syndicate", "build"],
+          "command": [
+            "syndicate",
+            "build"
+          ],
           "checks": [
             {
               "index": 1,
@@ -32,7 +35,9 @@
                 "swagger_ui_sdct-at-swagger-ui.zip",
                 "appsync_sdct-at-appsync.zip"
               ],
-              "depends_on": [1]
+              "depends_on": [
+                1
+              ]
             },
             {
               "index": 3,
@@ -113,6 +118,12 @@
                 },
                 "sdct-at-open-api-gw": {
                   "resource_type": "api_gateway_oas_v3"
+                },
+                "sdct-at-rds-db-cluster": {
+                  "resource_type": "rds_db_cluster"
+                },
+                "sdct-at-rds-db-instance": {
+                  "resource_type": "rds_db_instance"
                 }
               },
               "depends_on": [
@@ -289,9 +300,25 @@
                 },
                 "sdct-at-open-api-gw": {
                   "resource_type": "api_gateway_oas_v3"
+                },
+                "sdct-at-rds-db-cluster": {
+                  "resource_type": "rds_db_cluster",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test"
+                  }
+                },
+                "sdct-at-rds-db-instance": {
+                  "resource_type": "rds_db_instance",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test"
+                  }
                 }
               },
-              "depends_on": [1]
+              "depends_on": [
+                1
+              ]
             }
           ]
         }
@@ -302,13 +329,20 @@
         {
           "description": "Deployment without dependencies",
           "command": [
-            "syndicate", "deploy",
-            "-exresources", "sdct-at-nodejs-lambda-role",
-            "-exresources", "sdct-at-nodejs-lambda",
-            "-exresources", "sdct-at-nodejs-lambda_layer",
-            "-exresources", "sdct-at-cup",
-            "-exresources", "sdct-at-api-gw",
-            "-exresources", "sdct-at-open-api-gw"
+            "syndicate",
+            "deploy",
+            "-exresources",
+            "sdct-at-nodejs-lambda-role",
+            "-exresources",
+            "sdct-at-nodejs-lambda",
+            "-exresources",
+            "sdct-at-nodejs-lambda_layer",
+            "-exresources",
+            "sdct-at-cup",
+            "-exresources",
+            "sdct-at-api-gw",
+            "-exresources",
+            "sdct-at-open-api-gw"
           ],
           "checks": [
             {
@@ -325,7 +359,9 @@
               "artifacts_list": [
                 "autotest.json"
               ],
-              "depends_on": [1]
+              "depends_on": [
+                1
+              ]
             },
             {
               "index": 3,
@@ -389,9 +425,18 @@
                 },
                 "sdct-at-appsync": {
                   "resource_type": "appsync"
+                },
+                "sdct-at-rds-db-cluster": {
+                  "resource_type": "rds_db_cluster"
+                },
+                "sdct-at-rds-db-instance": {
+                  "resource_type": "rds_db_instance"
                 }
               },
-              "depends_on": [1, 2]
+              "depends_on": [
+                1,
+                2
+              ]
             },
             {
               "index": 4,
@@ -419,7 +464,10 @@
                   "resource_type": "api_gateway_oas_v3"
                 }
               },
-              "depends_on": [1, 2]
+              "depends_on": [
+                1,
+                2
+              ]
             },
             {
               "index": 5,
@@ -482,9 +530,19 @@
                 },
                 "sdct-at-appsync": {
                   "resource_type": "appsync"
+                },
+                "sdct-at-rds-db-cluster": {
+                  "resource_type": "rds_db_cluster"
+                },
+                "sdct-at-rds-db-instance": {
+                  "resource_type": "rds_db_instance"
                 }
               },
-              "depends_on": [1, 2, 3]
+              "depends_on": [
+                1,
+                2,
+                3
+              ]
             },
             {
               "index": 6,
@@ -511,20 +569,32 @@
                   "resource_type": "api_gateway_oas_v3"
                 }
               },
-              "depends_on": [1, 2, 3]
+              "depends_on": [
+                1,
+                2,
+                3
+              ]
             }
           ]
         },
         {
           "description": "Deployment with dependencies",
           "command": [
-            "syndicate", "deploy", "--continue_deploy",
-            "-resources", "sdct-at-nodejs-lambda-role",
-            "-resources", "sdct-at-nodejs-lambda",
-            "-resources", "sdct-at-nodejs-lambda_layer",
-            "-resources", "sdct-at-cup",
-            "-resources", "sdct-at-api-gw",
-            "-resources", "sdct-at-open-api-gw"
+            "syndicate",
+            "deploy",
+            "--continue_deploy",
+            "-resources",
+            "sdct-at-nodejs-lambda-role",
+            "-resources",
+            "sdct-at-nodejs-lambda",
+            "-resources",
+            "sdct-at-nodejs-lambda_layer",
+            "-resources",
+            "sdct-at-cup",
+            "-resources",
+            "sdct-at-api-gw",
+            "-resources",
+            "sdct-at-open-api-gw"
           ],
           "checks": [
             {
@@ -622,6 +692,12 @@
                 },
                 "sdct-at-appsync": {
                   "resource_type": "appsync"
+                },
+                "sdct-at-rds-db-cluster": {
+                  "resource_type": "rds_db_cluster"
+                },
+                "sdct-at-rds-db-instance": {
+                  "resource_type": "rds_db_instance"
                 }
               }
             },
@@ -704,6 +780,12 @@
                 },
                 "sdct-at-appsync": {
                   "resource_type": "appsync"
+                },
+                "sdct-at-rds-db-cluster": {
+                  "resource_type": "rds_db_cluster"
+                },
+                "sdct-at-rds-db-instance": {
+                  "resource_type": "rds_db_instance"
                 }
               }
             },
@@ -848,9 +930,28 @@
                     "project": "sdct-auto-test",
                     "project-level-tag": "set-from-project"
                   }
+                },
+                "sdct-at-rds-db-cluster": {
+                  "resource_type": "rds_db_cluster",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test",
+                    "project-level-tag": "set-from-project"
+                  }
+                },
+                "sdct-at-rds-db-instance": {
+                  "resource_type": "rds_db_instance",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test",
+                    "project-level-tag": "set-from-project"
+                  }
                 }
               },
-              "depends_on": [1, 4]
+              "depends_on": [
+                1,
+                4
+              ]
             },
             {
               "index": 6,
@@ -872,7 +973,10 @@
                   }
                 }
               },
-              "depends_on": [1, 5]
+              "depends_on": [
+                1,
+                5
+              ]
             },
             {
               "index": 7,
@@ -902,7 +1006,10 @@
                   }
                 ]
               },
-              "depends_on": [1, 4]
+              "depends_on": [
+                1,
+                4
+              ]
             },
             {
               "index": 8,
@@ -920,7 +1027,10 @@
                   "region": "${region}"
                 }
               },
-              "depends_on": [1, 4]
+              "depends_on": [
+                1,
+                4
+              ]
             }
           ]
         }
@@ -933,7 +1043,11 @@
       "steps": [
         {
           "description": "Updating resources",
-          "command": ["syndicate", "update", "--force"],
+          "command": [
+            "syndicate",
+            "update",
+            "--force"
+          ],
           "checks": [
             {
               "index": 1,
@@ -947,8 +1061,12 @@
               "description": "Check if succeeded deployment output file exists in S3 bucket",
               "succeeded_deploy": true,
               "update": true,
-              "artifacts_list": ["autotest.json"],
-              "depends_on": [1]
+              "artifacts_list": [
+                "autotest.json"
+              ],
+              "depends_on": [
+                1
+              ]
             },
             {
               "index": 3,
@@ -1030,9 +1148,17 @@
                 },
                 "sdct-at-appsync": {
                   "resource_type": "appsync"
+                },
+                "sdct-at-rds-db-cluster": {
+                  "resource_type": "rds_db_cluster"
+                },
+                "sdct-at-rds-db-instance": {
+                  "resource_type": "rds_db_instance"
                 }
               },
-              "depends_on": [1]
+              "depends_on": [
+                1
+              ]
             },
             {
               "index": 4,
@@ -1055,7 +1181,9 @@
                   "resource_type": "iam_policy"
                 }
               },
-              "depends_on": [1]
+              "depends_on": [
+                1
+              ]
             },
             {
               "index": 5,
@@ -1071,7 +1199,10 @@
                   "cup_id": "*"
                 }
               },
-              "depends_on": [1, 2]
+              "depends_on": [
+                1,
+                2
+              ]
             },
             {
               "index": 6,
@@ -1087,7 +1218,10 @@
                   }
                 }
               },
-              "depends_on": [1, 2]
+              "depends_on": [
+                1,
+                2
+              ]
             },
             {
               "index": 7,
@@ -1116,25 +1250,37 @@
                   ]
                 }
               },
-              "depends_on": [1, 2]
+              "depends_on": [
+                1,
+                2
+              ]
             }
           ]
         }
       ],
-      "depends_on": ["deploy"]
+      "depends_on": [
+        "deploy"
+      ]
     },
     "clean": {
       "steps": [
         {
           "description": "Partial clean resources",
           "command": [
-            "syndicate", "clean",
-            "-resources", "sdct-at-nodejs-lambda-role",
-            "-resources", "sdct-at-nodejs-lambda",
-            "-resources", "sdct-at-nodejs-lambda_layer",
-            "-resources", "sdct-at-cup",
-            "-resources", "sdct-at-api-gw",
-            "-resources", "sdct-at-open-api-gw"
+            "syndicate",
+            "clean",
+            "-resources",
+            "sdct-at-nodejs-lambda-role",
+            "-resources",
+            "sdct-at-nodejs-lambda",
+            "-resources",
+            "sdct-at-nodejs-lambda_layer",
+            "-resources",
+            "sdct-at-cup",
+            "-resources",
+            "sdct-at-api-gw",
+            "-resources",
+            "sdct-at-open-api-gw"
           ],
           "checks": [
             {
@@ -1151,7 +1297,9 @@
               "artifacts_list": [
                 "autotest.json"
               ],
-              "depends_on": [1]
+              "depends_on": [
+                1
+              ]
             },
             {
               "index": 3,
@@ -1215,9 +1363,18 @@
                 },
                 "sdct-at-appsync": {
                   "resource_type": "appsync"
+                },
+                "sdct-at-rds-db-cluster": {
+                  "resource_type": "rds_db_cluster"
+                },
+                "sdct-at-rds-db-instance": {
+                  "resource_type": "rds_db_instance"
                 }
               },
-              "depends_on": [1, 2]
+              "depends_on": [
+                1,
+                2
+              ]
             },
             {
               "index": 4,
@@ -1245,7 +1402,10 @@
                   "resource_type": "api_gateway_oas_v3"
                 }
               },
-              "depends_on": [1, 2]
+              "depends_on": [
+                1,
+                2
+              ]
             },
             {
               "index": 5,
@@ -1308,9 +1468,19 @@
                 },
                 "sdct-at-appsync": {
                   "resource_type": "appsync"
+                },
+                "sdct-at-rds-db-cluster": {
+                  "resource_type": "rds_db_cluster"
+                },
+                "sdct-at-rds-db-instance": {
+                  "resource_type": "rds_db_instance"
                 }
               },
-              "depends_on": [1, 2, 3]
+              "depends_on": [
+                1,
+                2,
+                3
+              ]
             },
             {
               "index": 6,
@@ -1337,13 +1507,19 @@
                   "resource_type": "api_gateway_oas_v3"
                 }
               },
-              "depends_on": [1, 2]
+              "depends_on": [
+                1,
+                2
+              ]
             }
           ]
         },
         {
           "description": "Clean all remaining resources",
-          "command": ["syndicate", "clean"],
+          "command": [
+            "syndicate",
+            "clean"
+          ],
           "checks": [
             {
               "index": 1,
@@ -1360,7 +1536,9 @@
               "artifacts_list": [
                 "autotest.json"
               ],
-              "depends_on": [1]
+              "depends_on": [
+                1
+              ]
             },
             {
               "index": 3,
@@ -1442,14 +1620,25 @@
                 },
                 "sdct-at-appsync": {
                   "resource_type": "appsync"
+                },
+                "sdct-at-rds-db-cluster": {
+                  "resource_type": "rds_db_cluster"
+                },
+                "sdct-at-rds-db-instance": {
+                  "resource_type": "rds_db_instance"
                 }
               },
-              "depends_on": [1]
+              "depends_on": [
+                1
+              ]
             }
           ]
         }
       ],
-      "depends_on": ["build", "deploy"]
+      "depends_on": [
+        "build",
+        "deploy"
+      ]
     }
   }
 }

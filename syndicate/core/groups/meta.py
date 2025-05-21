@@ -1252,7 +1252,7 @@ def eventbridge_schedule(ctx, **kwargs):
               help="The port number on which the instances in the cluster "
                    "accept connections. Default value is 3306 for MySQL and "
                    "5432 for PostgreSQL")
-@click.option('--manage_master_password', type=bool,
+@click.option('--manage_master_password', type=bool, is_eager=True,
               help="Indicates whether to manage the master user password with "
                    "AWS Secrets Manager")
 @click.option('--iam_db_auth', type=bool,
@@ -1261,7 +1261,7 @@ def eventbridge_schedule(ctx, **kwargs):
               help="A list of EC2 VPC security groups to associate with this "
                    "cluster. If not specified, default security group is used")
 @click.option('--db_subnet_group', type=str,
-              help="A DB subnet group to associate with the DB cluster")
+              help="RDS subnet group name to associate with the DB cluster")
 @click.option('--availability_zones', type=str, multiple=True,
               help="A list of Amazon EC2 Availability Zones that instances in "
                    "the cluster can be created in. "
@@ -1287,30 +1287,32 @@ def rds_db_cluster(ctx, **kwargs):
               help="DB instance name")
 @click.option('--instance_class', type=str, required=True,
               help="DB instance class")
-@click.option('--db_cluster_name', type=str,
+@click.option('--cluster_name', type=str,
               callback=partial(
                   validate_incompatible_options,
                   incompatible_options=
                   RDS_INSTANCE_DB_CLUSTER_INCOMPATIBLE_OPTIONS),
               help="RDS DB cluster name to link the instance with")
-@click.option('--engine', type=str, help="Engine type")
-@click.option('--engine_version', type=str,
+@click.option('--engine', type=str, is_eager=True,
+              help="Engine type")
+@click.option('--engine_version', type=str, is_eager=True,
               help="Engine version")
-@click.option('--master_username', type=str,
+@click.option('--master_username', type=str, is_eager=True,
               help="DB login ID for the master user")
-@click.option('--master_password', type=str,
+@click.option('--master_password', type=str, is_eager=True,
               help="The password for master user")
-@click.option('--database_name', type=str,
+@click.option('--database_name', type=str, is_eager=True,
               help="Database name")
-@click.option('--port', type=int,
+@click.option('--port', type=int, is_eager=True,
               help="The port number on which the instances in the cluster "
                    "accept connections")
 @click.option('--publicly_accessible', type=bool,
               help="Specifies the accessibility options for the DB instance.")
 @click.option('--vpc_security_group_ids', type=str, multiple=True,
+              is_eager=True,
               help="A list of EC2 VPC security groups to associate with this "
                    "cluster. If not specified, default security group is used")
-@click.option('--availability_zone', type=str,
+@click.option('--availability_zone', type=str, is_eager=True,
               help="Amazon EC2 Availability Zone that instances can be "
                    "created in. If not specified default is used")
 @click.option('--tags', type=DictParamType(), callback=check_tags,
