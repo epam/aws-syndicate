@@ -1,9 +1,9 @@
 click==7.1.2
 botocore==1.38.12
 boto3==1.38.12
-tqdm==4.65.2
-requests==2.31.0
+tqdm==4.67.1
+requests==2.32.3
 tabulate==0.9.0
 troposphere==4.1.0
 requests-aws-sign==0.1.6
-setuptools>65.5.0,<=70.0.0
+setuptools>78.1.1,<=80.8.0
