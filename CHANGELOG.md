@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added support for `rds_db_cluster` resource
 - Added support for `rds_db_instance` resource
 - Updated `boto3` and `botocore` to version 1.38.12
+- Updated `tqdm` to version 4.67.1
+- Updated `requests` to version 2.32.3
+- Updated `setuptools` to version greater than 78.1.1 but less than or equal to 80.8.0
 - Changed the installation configuration from setup.py to pyproject.toml
 - Fixed prefix and suffix resolving in the list of ARNs
 - Fixed issue when the `commons` folder was overwritten after creating a new lambda
