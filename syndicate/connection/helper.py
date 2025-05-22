@@ -19,6 +19,7 @@ from time import sleep
 
 from botocore.exceptions import ClientError
 
+from syndicate.exceptions import ResourceProcessingError
 from syndicate.commons.log_helper import get_logger
 
 _LOG = get_logger(__name__)
@@ -99,6 +100,8 @@ def retry(retry_timeout=DEFAULT_RETRY_TIMEOUT_SEC,
                 'An error occurred (ConcurrentModificationException) when '
                 'calling the UpdateResolver operation: Schema is currently '
                 'being altered',
+                'An error occurred (InvalidArgument) when calling the '
+                'PutBucketNotificationConfiguration operation',
                 'Too Many Requests'
             ]
             resource_not_found_error_codes = [
@@ -143,9 +146,10 @@ def retry(retry_timeout=DEFAULT_RETRY_TIMEOUT_SEC,
                     sleep(each)
 
             if last_ex:
-                raise Exception(
+                raise ResourceProcessingError(
                     f"Maximum retries reached for function "
-                    f"{handler_func.__name__} due to {type(last_ex).__name__}: "
-                    f"{str(last_ex)}") from last_ex
+                    f"'{handler_func.__name__}' due to "
+                    f"'{type(last_ex).__name__}': "
+                    f"'{str(last_ex)}'") from last_ex
         return wrapper
     return decorator

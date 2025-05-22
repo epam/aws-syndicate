@@ -19,6 +19,7 @@ from datetime import datetime, timedelta, timezone
 
 from botocore.exceptions import ClientError
 
+from syndicate.exceptions import InternalError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.connection import ConnectionProvider
 from syndicate.connection.sts_connection import STSConnection
@@ -177,24 +178,29 @@ def initialize_connection():
             resources_provider=RESOURCES_PROVIDER)
         _LOG.debug('aws-syndicate has been initialized')
     except ClientError as e:
-        message = f'An unexpected error has occurred trying to ' \
-                  f'init connection: {e}'
-        _LOG.error(message)
-        raise AssertionError(message)
+        raise InternalError(
+            f'An unexpected error has occurred trying to init connection: {e}'
+        )
 
 
-def initialize_project_state():
+def initialize_project_state(do_not_sync_state=False):
     from syndicate.core.project_state.sync_processor import sync_project_state
     global PROJECT_STATE
     if not ProjectState.check_if_project_state_exists(CONFIG.project_path):
-        USER_LOG.warn("Config is set and generated but project "
-                      "state does not exist, seems that you've come from the "
-                      "previous version.")
-        USER_LOG.warn("Generating project state file "
-                      "(.syndicate) from the existing structure...")
+        USER_LOG.warning(
+            "Config is set and generated, but project state file does not "
+            "exist."
+        )
+        USER_LOG.warning(
+            "Generating project state file '.syndicate' from the existing "
+            "structure..."
+        )
         PROJECT_STATE = ProjectState.build_from_structure(CONFIG)
     else:
         PROJECT_STATE = ProjectState(project_path=CONFIG.project_path)
+
+    if do_not_sync_state:
+        return
 
     sync_project_state()
 

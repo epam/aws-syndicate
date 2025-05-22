@@ -23,6 +23,8 @@ from datetime import datetime, date
 from pathlib import PurePath, Path
 from typing import Union
 
+from syndicate.exceptions import InvalidValueError, InvalidTypeError, \
+    ConfigurationError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.constants import ARTIFACTS_FOLDER
 from syndicate.core.helper import build_path
@@ -44,7 +46,7 @@ def file_path_length_checker(func):
             path_from_e = e.filename
             if len(path_from_e) < 260:
                 raise e
-            raise ValueError(
+            raise InvalidValueError(
                 f"The path '{path_from_e}' has exceeded the 260-character "
                 f"length (current length: '{len(path_from_e)}'). This may "
                 f"have caused the FileNotFoundError. Please verify that the "
@@ -102,7 +104,7 @@ def _json_serial(obj):
 
     if isinstance(obj, (datetime, date)):
         return obj.isoformat()
-    raise TypeError("Type %s not serializable" % type(obj))
+    raise InvalidTypeError(f"Type '{type(obj).__name__}' is not serializable")
 
 
 def resolve_all_bundles_directory():
@@ -117,9 +119,9 @@ def resolve_bundle_directory(bundle_name):
 def assert_bundle_bucket_exists() -> None:
     from syndicate.core import CONFIG, CONN
     if not CONN.s3().is_bucket_exists(CONFIG.deploy_target_bucket):
-        raise AssertionError(
-            f'Bundles bucket {CONFIG.deploy_target_bucket} does not exist. '
-            f'Please use \'create_deploy_target_bucket\' to create the bucket.'
+        raise ConfigurationError(
+            f"Bundles bucket '{CONFIG.deploy_target_bucket}' does not exist. "
+            f"Please use 'create_deploy_target_bucket' to create the bucket."
         )
 
 

@@ -23,6 +23,7 @@ import botocore
 from botocore.exceptions import ClientError
 from boto3 import client
 
+from syndicate.exceptions import InvalidValueError, ParameterError
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import apply_methods_decorator, retry
 from syndicate.core.constants import EC2_LT_RESOURCE_TAGS
@@ -231,10 +232,10 @@ class EC2Connection(object):
         if iam_instance_profile:
             if not iam_instance_profile.get('Arn') \
                     and not iam_instance_profile.get('Name'):
-                raise AssertionError('Provided instance profile {0}'
-                                     'is not well-formed. '
-                                     'Arn or Name nodes required.'
-                                     .format(iam_instance_profile))
+                raise InvalidValueError(
+                    f"Provided instance profile '{iam_instance_profile}'is "
+                    f"not well-formed. Arn or Name nodes required."
+                )
 
         if name:
             tags.append({
@@ -287,7 +288,7 @@ class EC2Connection(object):
         """
         kwargs.pop('log_not_found_error', None)
         if not kwargs['InstanceId']:
-            raise AssertionError('InstanceId must be specified')
+            raise ParameterError('InstanceId must be specified')
         self.client.modify_instance_attribute(**kwargs)
 
     def deploy_security_groups(self, groups):
@@ -557,7 +558,7 @@ class EC2Connection(object):
         elif lt_id is not None:
             params['LaunchTemplateId'] = lt_id
         else:
-            raise AssertionError(
+            raise ParameterError(
                 'Either the launch template name or ID must be provided for '
                 'removing the launch template.')
         self.client.delete_launch_template(**params)
@@ -623,14 +624,6 @@ class InstanceTypes:
             if not _next:
                 break
             params['NextToken'] = _next
-
-    @staticmethod
-    def from_botocore() -> Generator[str, None, None]:
-        path = Path(inspect.getfile(botocore)).parent
-        with open(Path(path, 'data', 'ec2', '2016-11-15',
-                       'service-2.json'), encoding="utf8") as fp:
-            data = json.load(fp)
-        yield from data['shapes']['InstanceType']['enum']
 
     @staticmethod
     def instance_type_group(instance_type: str) -> str:

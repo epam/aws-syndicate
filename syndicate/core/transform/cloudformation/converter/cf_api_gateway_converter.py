@@ -16,6 +16,8 @@
 
 from troposphere import apigateway, GetAtt, Ref, Join
 
+from syndicate.exceptions import InvalidValueError, \
+    ResourceMetadataError, ParameterError, ResourceNotFoundError
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection import ApiGatewayConnection
 from syndicate.connection.api_gateway_connection import \
@@ -64,9 +66,9 @@ class CfApiGatewayConverter(CfResourceConverter):
 
     def _process_resource(self, authorizers_mapping, meta, path, resource_meta, rest_api):
         if not path.startswith('/'):
-            raise AssertionError(
+            raise InvalidValueError(
                 "API resource must starts with '/', "
-                "but found {}".format(path))
+                f"but found '{path}'")
         enable_cors = str(resource_meta.get('enable_cors')).lower() == 'true'
         target_resource = self._convert_resource(rest_api=rest_api,
                                                  resource_path=path)
@@ -81,9 +83,10 @@ class CfApiGatewayConverter(CfResourceConverter):
                 authorizer_id = authorizers_mapping.get(
                     to_logic_name('ApiGatewayAuthorizer', authorization_type))
                 if not authorizer_id:
-                    raise AssertionError(
-                        'Authorizer {0} is not present in '
-                        'the build meta.'.format(authorization_type))
+                    raise ResourceMetadataError(
+                        f"Authorizer '{authorization_type}' is not present in "
+                        "the build meta."
+                    )
                 authorization_type = 'CUSTOM'
             self._convert_request_validator(method_meta, method_res, rest_api)
 
@@ -152,8 +155,9 @@ class CfApiGatewayConverter(CfResourceConverter):
             'http': self._http_method_integration
         }
         if integration_type not in integration_builders:
-            raise AssertionError(
-                '{} integration type does not exist.'.format(integration_type))
+            raise InvalidValueError(
+                f"'{integration_type}' integration type does not exist."
+            )
 
         integration_builder = integration_builders[integration_type]
         return integration_builder(method, method_meta, path, rest_api)
@@ -201,8 +205,10 @@ class CfApiGatewayConverter(CfResourceConverter):
         request_parameters = method_meta.get('integration_request_parameters')
         integration_method = method_meta.get('integration_method')
         if not integration_method:
-            raise ValueError('integration_method is not provided for the '
-                             f'{method} {path} method of the integration type "service"')
+            raise ParameterError(
+                f"'integration_method' is not provided for the '{method}' "
+                f"'{path}' method of the integration type 'service'"
+            )
         credentials = ApiGatewayConnection.get_service_integration_credentials(
             self.config.account_id, role)
         integration = apigateway.Integration()
@@ -486,8 +492,10 @@ class CfApiGatewayConverter(CfResourceConverter):
                 function_ref += ':' + lambda_alias
             elif lambda_version:
                 function_ref += ':' + lambda_version
-            raise AssertionError("Lambda function '{}' is not present "
-                                 "in build meta.".format(function_ref))
+            raise ResourceNotFoundError(
+                f"Lambda function '{function_ref}' is not present in build "
+                f"meta."
+            )
             # Or lookup existing lambda function in AWS?
             # lambda_service = self.resources_provider.lambda_resource()
             # function_arn = \

@@ -1,4 +1,6 @@
 import click
+
+from syndicate.exceptions import AbortedError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.constants import DOCUMENTDB_INSTANCE_TYPE, \
     DOCUMENTDB_CLUSTER_TYPE
@@ -34,5 +36,5 @@ class DocumentDBInstanceGenerator(BaseDeploymentResourceGenerator):
                               f"'{cluster_identifier}'")
             else:
                 USER_LOG.warn(f"Skipping instance '{self.resource_name}'...")
-                raise RuntimeError
+                raise AbortedError
         super().write()

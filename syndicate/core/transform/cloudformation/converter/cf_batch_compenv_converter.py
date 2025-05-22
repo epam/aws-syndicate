@@ -15,6 +15,7 @@
 """
 from troposphere import batch
 
+from syndicate.exceptions import ResourceNotFoundError
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.helper import dict_keys_to_upper_camel_case
 from syndicate.core.resources.batch_compenv_resource import \
@@ -63,8 +64,9 @@ class CfBatchComputeEnvironmentConverter(CfResourceConverter):
                 default_role = self.get_resource(iam_role_logic_name(role_name))
                 policy = iam_conn.get_policy_arn(role_name)
                 if not policy:
-                    raise AssertionError(
-                        'IAM Policy "{}" does not exist'.format(role_name))
+                    raise ResourceNotFoundError(
+                        f"IAM Policy '{role_name}' does not exist"
+                    )
                 CfIamRoleConverter.attach_managed_policy(role=default_role,
                                                          policy=policy)
 
@@ -72,8 +74,8 @@ class CfBatchComputeEnvironmentConverter(CfResourceConverter):
         if not role:
             role = self.get_resource(iam_role_logic_name(role_name))
             if not role:
-                raise AssertionError('IAM role "{}" does not exist.'
-                                     .format(role_name))
+                raise ResourceNotFoundError(
+                    f"IAM role '{role_name}' does not exist.")
             comp_env.ServiceRole = role.get_att('Arn')
         else:
             comp_env.ServiceRole = role

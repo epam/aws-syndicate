@@ -15,7 +15,9 @@
 """
 from botocore.exceptions import ClientError
 
-from syndicate.commons.log_helper import get_logger
+from syndicate.exceptions import ResourceNotFoundError, \
+    ResourceProcessingError
+from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.helper import unpack_kwargs
 from syndicate.core.resources.abstract_external_resource import AbstractExternalResource
 from syndicate.core.resources.base_resource import BaseResource
@@ -29,6 +31,7 @@ AUTOSCALING_REQUIRED_PARAMS = ['resource_name', 'dimension',
 DYNAMODB_TABLE_REQUIRED_PARAMS = ['hash_key_name', 'hash_key_type']
 
 _LOG = get_logger(__name__)
+USER_LOG = get_user_logger()
 
 
 class DynamoDBResource(AbstractExternalResource, BaseResource):
@@ -68,16 +71,6 @@ class DynamoDBResource(AbstractExternalResource, BaseResource):
         return self.create_pool(self._remove_tables_from_meta, args,
                                 workers=step)
 
-    @staticmethod
-    def _determine_table_capacity_mode(table):
-        existing_read_capacity = \
-            table.provisioned_throughput.get('ReadCapacityUnits')
-        existing_write_capacity = \
-            table.provisioned_throughput.get('WriteCapacityUnits')
-        if existing_read_capacity and existing_write_capacity:
-            return 'PROVISIONED'
-        return 'PAY_PER_REQUEST'
-
     @unpack_kwargs
     def _update_dynamodb_table_from_meta(self, name, meta, context):
         """ Update Dynamo DB table from meta description, specifically:
@@ -92,18 +85,52 @@ class DynamoDBResource(AbstractExternalResource, BaseResource):
         """
         table = self.dynamodb_conn.get_table_by_name(name)
         if not table:
-            raise AssertionError(f'{name} table does not exist.')
+            raise ResourceNotFoundError(f'{name} table does not exist.')
 
-        existing_capacity_mode = self._determine_table_capacity_mode(table)
+        billing_mode = meta.get('billing_mode', 'PROVISIONED')
+
+        read_capacity = table.provisioned_throughput.get('ReadCapacityUnits')
+        write_capacity = table.provisioned_throughput.get('WriteCapacityUnits')
+
+        if read_capacity and write_capacity:
+            existing_billing_mode = 'PROVISIONED'
+            provisioned_throughput = dict(
+                ReadCapacityUnits=read_capacity,
+                WriteCapacityUnits=write_capacity
+            )
+            on_demand_throughput = dict()
+        else:
+            existing_billing_mode = 'PAY_PER_REQUEST'
+            on_demand_throughput = dict(
+                MaxReadRequestUnits=table.on_demand_throughput.get(
+                    'MaxReadRequestUnits'),
+                MaxWriteRequestUnits=table.on_demand_throughput.get(
+                    'MaxWriteRequestUnits'
+                )
+            )
+            provisioned_throughput = dict()
+
+        warm_throughput = dict(
+            ReadUnitsPerSecond=table.warm_throughput.get('ReadUnitsPerSecond'),
+            WriteUnitsPerSecond=table.warm_throughput.get('WriteUnitsPerSecond')
+        )
+
+        if billing_mode != existing_billing_mode:
+            USER_LOG.info(
+                f"Updating the table '{name}'. It may take up to 20 minutes, "
+                f"please wait.")
+
         response = self.dynamodb_conn.update_table_capacity(
             table_name=name,
-            existing_capacity_mode=existing_capacity_mode,
+            billing_mode=billing_mode,
             read_capacity=meta.get('read_capacity'),
             write_capacity=meta.get('write_capacity'),
-            existing_read_capacity=
-                table.provisioned_throughput.get('ReadCapacityUnits'),
-            existing_write_capacity=
-                table.provisioned_throughput.get('WriteCapacityUnits'),
+            warm_read_capacity=meta.get('warm_read_capacity'),
+            warm_write_capacity=meta.get('warm_write_capacity'),
+            existing_billing_mode=existing_billing_mode,
+            existing_provisioned_throughput=provisioned_throughput,
+            existing_on_demand_throughput=on_demand_throughput,
+            existing_warm_throughput=warm_throughput,
             existing_global_indexes=table.global_secondary_indexes or []
         )
         if response:
@@ -114,17 +141,23 @@ class DynamoDBResource(AbstractExternalResource, BaseResource):
             ttl_attribute_name=meta.get('ttl_attribute_name')
         )
 
-        existing_capacity_mode = self._determine_table_capacity_mode(table)
+        table_read_capacity = \
+            read_capacity or on_demand_throughput.get('MaxReadRequestUnits')
+        table_write_capacity = \
+            write_capacity or on_demand_throughput.get('MaxWriteRequestUnits')
+
         global_indexes_meta = meta.get('global_indexes', [])
         self.dynamodb_conn.update_global_indexes(
             table_name=name,
             global_indexes_meta=global_indexes_meta,
             existing_global_indexes=table.global_secondary_indexes or [],
-            table_read_capacity=
-                table.provisioned_throughput.get('ReadCapacityUnits'),
-            table_write_capacity=
-                table.provisioned_throughput.get('WriteCapacityUnits'),
-            existing_capacity_mode=existing_capacity_mode
+            table_read_capacity=table_read_capacity,
+            table_write_capacity=table_write_capacity,
+            table_warm_read_capacity=
+                table.warm_throughput.get('ReadUnitsPerSecond'),
+            table_warm_write_capacity=
+                table.warm_throughput.get('WriteUnitsPerSecond'),
+            existing_capacity_mode=existing_billing_mode
         )
 
         return self.describe_table(name, meta)
@@ -243,22 +276,24 @@ class DynamoDBResource(AbstractExternalResource, BaseResource):
                     autoscaling_config,
                     name)
             response = self.describe_table(name, meta, res)
-            arn = list(response.keys())[0]
-            response[arn]['resource_meta']['external'] = True
             return response
 
         self.dynamodb_conn.create_table(
             name, meta['hash_key_name'], meta['hash_key_type'],
+            meta.get('billing_mode', 'PROVISIONED'),
             meta.get('sort_key_name'), meta.get('sort_key_type'),
             meta.get('read_capacity'), meta.get('write_capacity'),
+            warm_read_capacity=meta.get('warm_read_capacity'),
+            warm_write_capacity=meta.get('warm_write_capacity'),
             global_indexes=meta.get('global_indexes'),
             local_indexes=meta.get('local_indexes'),
             tags=meta.get('tags'),
             wait=True)
         response = self.dynamodb_conn.describe_table(name)
         if not response:
-            raise AssertionError('Table with name {0} has not been created!'
-                                 .format(name))
+            raise ResourceProcessingError(
+                f"Table with name '{name}' has not been created!"
+            )
         # enabling stream if present
         stream_view_type = meta.get('stream_view_type')
         if stream_view_type:
@@ -393,7 +428,7 @@ class DynamoDBResource(AbstractExternalResource, BaseResource):
             [db_name],
             log_not_found_error=False)
         if errors:
-            raise Exception('; '.join(errors))
+            raise ResourceProcessingError('; '.join(errors))
         _LOG.info(f'Dynamo DB tables {str(removed_tables)} were removed')
 
         alarm_args = []

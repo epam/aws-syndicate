@@ -15,6 +15,7 @@
 """
 from botocore.exceptions import ClientError
 
+from syndicate.exceptions import InvalidValueError
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.conf.validator import ALL_REGIONS
 from syndicate.core.helper import unpack_kwargs
@@ -199,8 +200,9 @@ class SnsResource(BaseResource):
                                                             topic_name,
                                                             each)
             else:
-                raise AssertionError('Invalid value for SNS region: %s.',
-                                     region)
+                raise InvalidValueError(
+                    f"Invalid value for SNS region: '{region}'."
+                    )
         else:
             self._subscribe_lambda_to_sns_topic(lambda_arn, topic_name,
                                                 self.region)

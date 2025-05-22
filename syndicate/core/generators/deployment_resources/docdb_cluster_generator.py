@@ -1,3 +1,4 @@
+from syndicate.exceptions import InvalidValueError
 from syndicate.core.generators.deployment_resources.base_generator import \
     BaseDeploymentResourceGenerator
 from syndicate.core.constants import DOCUMENTDB_CLUSTER_TYPE
@@ -33,6 +34,5 @@ class DocumentDBClusterGenerator(BaseDeploymentResourceGenerator):
             error = 'master password cannot contain forward slash (/), ' \
                     'double quote (") or the "at" symbol (@)'
         if error:
-            _LOG.error(f"Validation error: {error}")
-            raise ValueError(error)
+            raise InvalidValueError(error)
         _LOG.info("Master password validation passed successfully")

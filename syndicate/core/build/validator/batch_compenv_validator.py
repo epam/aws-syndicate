@@ -13,6 +13,8 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+from syndicate.exceptions import InvalidValueError, ParameterError, \
+    InvalidTypeError
 from syndicate.connection.ec2_connection import InstanceTypes
 from syndicate.core.constants import OPTIMAL_INSTANCE_TYPE
 
@@ -29,7 +31,7 @@ def validate_batch_compenv(compenv_name, compenv_meta):
     :param compenv_name: name of resource
     :param compenv_meta: resource definition
 
-    :raises AssertionError in case of invalidity.
+    :raises an exception in case of invalidity.
 
     :return: None
     """
@@ -81,7 +83,7 @@ def _validate_compute_resources(compute_resources):
     Performs check of Batch Compute Environment compute resources.
     :param compute_resources: compute resources definition
 
-    :raises AssertionError in case of invalidity.
+    :raises an exception in case of invalidity.
 
     :return: None
     """
@@ -256,10 +258,10 @@ def _validate_compute_resources(compute_resources):
     _process_config(compute_resource_config)
 
     instance_types = compute_resources.get('instance_types') or []
-    # available = set(InstanceTypes.with_groups(
-    #     InstanceTypes.from_api(region_name=CONFIG.region)
-    # ))
-    available = set(InstanceTypes.with_groups(InstanceTypes.from_botocore()))
+    available = set(InstanceTypes.with_groups(
+        InstanceTypes.from_api()
+    ))
+
     available.add(OPTIMAL_INSTANCE_TYPE)
     for instance_type in instance_types:
         _validate_options_field(
@@ -273,18 +275,21 @@ def _validate_compute_resources(compute_resources):
         minv_cpus = compute_resources.get('minv_cpus')
         maxv_cpus = compute_resources.get('maxv_cpus')
         if desiredv_cpus > maxv_cpus:
-            raise AssertionError(
-                'compute_resources__desired_vcpus must be smaller or equal than max_vcpus.'
+            raise InvalidValueError(
+                "'compute_resources__desired_vcpus' must be smaller or equal "
+                "than 'max_vcpus'."
             )
         if minv_cpus and desiredv_cpus < minv_cpus:
-            raise AssertionError(
-                'compute_resources__desired_vcpus must be greater or equal than min_vcpus.'
+            raise InvalidValueError(
+                "'compute_resources__desired_vcpus' must be greater or equal "
+                "than 'min_vcpus'."
             )
 
     security_group_ids = compute_resources.get('security_group_ids')
     if not security_group_ids and compute_resource_type in FARGATE_RESOURCE_TYPES:
-        raise AssertionError(
-            "compute_resources__security_group_ids is required for jobs running on Fargate resources"
+        raise ParameterError(
+            "'compute_resources__security_group_ids' is required for jobs "
+            "running on Fargate resources"
         )
 
     launch_template = compute_resources.get('launch_template')
@@ -307,8 +312,9 @@ def _validate_compute_resources(compute_resources):
 
         launch_template_options = (launch_template_id, launch_template_name)
         if all(launch_template_options) or not any(launch_template_options):
-            raise AssertionError(
-                "You must specify either the 'launch_template_id' or 'launch_template_name', but not both."
+            raise ParameterError(
+                "You must specify either the 'launch_template_id' or "
+                "'launch_template_name', but not both."
             )
 
 
@@ -323,7 +329,7 @@ def _validate_options_field(field_name, field_value, field_options, prefix='comp
     :param prefix: prefix that will be displayed before field_name in case of invalidity
     :param required: if field is required and can be empty
 
-    :raises AssertionError in case of invalidity.
+    :raises an exception in case of invalidity.
 
     :return: None
     """
@@ -333,13 +339,13 @@ def _validate_options_field(field_name, field_value, field_options, prefix='comp
     if not required and not field_value:
         return
     if required and not field_value:
-        raise AssertionError(
-            "Missing required Compute Environment field: '{0}'".format(field_name)
+        raise ParameterError(
+            f"Missing required Compute Environment field: '{field_name}'"
         )
     if field_value not in field_options:
-        raise AssertionError(
-            "Compute Environment field: '{0}':'{1}' must be one of the following: {2}"
-                .format(field_name, str(field_value), field_options)
+        raise InvalidValueError(
+            f"Compute Environment field: '{field_name}': '{str(field_value)}' "
+            f"must be one of the following: '{field_options}'"
         )
 
 
@@ -353,16 +359,16 @@ def _validate_fargate_forbidden_field(field_name, field_value, compute_resource_
     :param compute_resource_type: current compute resource type
     :param prefix: prefix that will be displayed before field_name in case of invalidity
 
-    :raises AssertionError in case if compute resource type belongs to Fargate resources and given field is not empty.
+    :raises an exception in case if compute resource type belongs to Fargate resources and given field is not empty.
 
     :return: None
     """
     if prefix:
         field_name = prefix + '__' + field_name
     if field_value and compute_resource_type in FARGATE_RESOURCE_TYPES:
-        raise AssertionError(
-            "{0} parameter isn't applicable to jobs running on Fargate resources, "
-            "and shouldn't be specified.".format(field_name)
+        raise ParameterError(
+            f"'{field_name}' parameter isn't applicable to jobs running on "
+            f"Fargate resources, and shouldn't be specified."
         )
 
 
@@ -374,7 +380,7 @@ def _validate_required_field(field_name, field_value, prefix='compute_resources'
     :param field_value: value of field to check
     :param prefix: prefix that will be displayed before field_name in case of invalidity
 
-    :raises AssertionError in case of invalidity.
+    :raises an exception in case of invalidity.
 
     :return: None
     """
@@ -382,8 +388,8 @@ def _validate_required_field(field_name, field_value, prefix='compute_resources'
         field_name = prefix + '__' + field_name
 
     if not field_value:
-        raise AssertionError(
-            "Missing required Compute Environment field: {0}".format(field_name)
+        raise ParameterError(
+            f"Missing required Compute Environment field: '{field_name}'"
         )
 
 
@@ -396,7 +402,7 @@ def _validate_field_type(field_name, field_value, required_type, prefix='compute
     :param required_type: required type
     :param prefix: prefix that will be displayed before field_name in case of invalidity
 
-    :raises AssertionError in case of invalidity.
+    :raises an exception in case of invalidity.
 
     :return: None
     """
@@ -404,8 +410,8 @@ def _validate_field_type(field_name, field_value, required_type, prefix='compute
         field_name = prefix + '__' + field_name
 
     if field_value is not None and not isinstance(field_value, required_type):
-        raise AssertionError(
-            "{0} parameter must be a {1}.".format(field_name, required_type.__name__)
+        raise InvalidTypeError(
+            f"'{field_name}' parameter must be a '{required_type.__name__}'."
         )
 
 

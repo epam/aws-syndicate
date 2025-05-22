@@ -18,6 +18,8 @@ import os
 from time import sleep
 from typing import Any
 
+from syndicate.exceptions import ResourceNotFoundError, ParameterError, \
+    InvalidValueError
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.ec2_connection import InstanceTypes
 from syndicate.core import ClientError
@@ -66,17 +68,23 @@ class Ec2Resource(BaseResource):
         image_id = meta['image_id']
         image_data = self.ec2_conn.describe_image(image_id=image_id)
         if not image_data:
-            raise AssertionError(f'Image id {image_id} is invalid')
+            raise ResourceNotFoundError(
+                f"Image with the id '{image_id}' not found"
+            )
 
         instance_type = meta.get('instance_type')
         if not instance_type:
-            raise AssertionError('Instance type must be specified')
-        if instance_type not in InstanceTypes.from_botocore():
-            raise AssertionError(f'Not available instance type: {instance_type}')
+            raise ParameterError('Instance type must be specified')
+        if instance_type not in InstanceTypes.from_api():
+            raise InvalidValueError(
+                f"Not available instance type: '{instance_type}'"
+            )
 
         key_name = meta.get('key_name')
         if not self.ec2_conn.if_key_pair_exists(key_name):
-            raise AssertionError(f'There is no key pair with name: {key_name}')
+            raise ResourceNotFoundError(
+                f"There is no key pair with name: '{key_name}'"
+            )
 
         availability_zone = meta.get('availability_zone')
         subnet = meta.get('subnet_id')
@@ -88,13 +96,14 @@ class Ec2Resource(BaseResource):
             subnet_list = self.ec2_conn.list_subnets(filters=[subnet_filter])
             if subnet and subnet not in \
                     [subnet_ids['SubnetId'] for subnet_ids in subnet_list]:
-                raise AssertionError(
-                    f'There is no available Subnets with name {subnet} in '
-                    f'Availability Zone {availability_zone}.'
+                raise ResourceNotFoundError(
+                    f"There is no available Subnets with name '{subnet}' in "
+                    f"Availability Zone '{availability_zone}'."
                 )
             if availability_zone not in self.ec2_conn.get_azs():
-                raise AssertionError(
-                    f'There is no Availability Zone with name: {availability_zone}'
+                raise ResourceNotFoundError(
+                    f"There is no Availability Zone with name: "
+                    f"'{availability_zone}'"
                 )
 
         security_groups_names = meta.get('security_group_names')
@@ -105,8 +114,8 @@ class Ec2Resource(BaseResource):
                                           for security_group in sg_meta]
             for security_group_name in security_groups_names:
                 if security_group_name not in described_sec_groups_names:
-                    raise AssertionError(
-                        f'Security group {security_group_name} does not exist'
+                    raise ResourceNotFoundError(
+                        f"Security group '{security_group_name}' does not exist"
                     )
 
         # checking optional parameters
@@ -304,8 +313,9 @@ class Ec2Resource(BaseResource):
         lt_data: dict = self._prepare_launch_template_data(meta)
         lt_description = self.ec2_conn.describe_launch_templates(lt_name=name)
         if not lt_description:
-            raise AssertionError(
-                f"Launch template with name '{name}' not found")
+            raise ResourceNotFoundError(
+                f"Launch template with name '{name}' not found"
+            )
         lt_latest_version = lt_description[0]['LatestVersionNumber']
         self.ec2_conn.create_launch_template_version(
             lt_name=name,
@@ -334,7 +344,8 @@ class Ec2Resource(BaseResource):
         if image_id:
             image_data = self.ec2_conn.describe_image(image_id=image_id)
             if not image_data:
-                raise AssertionError(f'Image id {image_id} is invalid')
+                raise ResourceNotFoundError(
+                    f"Image with the id '{image_id}' not found")
 
         if lt_imds:
             metadata_options = {'http_tokens': 'required'} \
@@ -343,7 +354,9 @@ class Ec2Resource(BaseResource):
 
         key_name = lt_data.get('key_name')
         if key_name and not self.ec2_conn.if_key_pair_exists(key_name):
-            raise AssertionError(f'There is no key pair with name: {key_name}')
+            raise ResourceNotFoundError(
+                f"There is no key pair with name: '{key_name}'"
+            )
 
         security_groups_names = lt_data.get('security_groups')
         if security_groups_names:
@@ -353,8 +366,9 @@ class Ec2Resource(BaseResource):
                                           for security_group in sg_meta]
             for security_group_name in security_groups_names:
                 if security_group_name not in described_sec_groups_names:
-                    raise AssertionError(
-                        f'Security group {security_group_name} does not exist')
+                    raise ResourceNotFoundError(
+                        f"Security group '{security_group_name}' does not exist"
+                    )
 
         security_group_ids = lt_data.get('security_group_ids')
         if security_group_ids:
@@ -364,8 +378,10 @@ class Ec2Resource(BaseResource):
                                        for security_group in sg_meta]
             for security_group_id in security_group_ids:
                 if security_group_id not in described_sec_group_ids:
-                    raise AssertionError(f'Security group with ID '
-                                         f'{security_group_id} does not exist')
+                    raise ResourceNotFoundError(
+                        f"Security group with ID '{security_group_id} does "
+                        f"not exist"
+                    )
 
         iam_role_name = lt_data.pop('iam_role', None)
         if iam_role_name:

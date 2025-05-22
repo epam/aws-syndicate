@@ -21,6 +21,7 @@ from typing import Optional
 from boto3 import client
 from botocore.exceptions import ClientError
 
+from syndicate.exceptions import ParameterError
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import apply_methods_decorator, retry
 from syndicate.core.constants import (
@@ -269,9 +270,10 @@ class EventConnection(object):
             if operations:
                 event_pattern['detail']['eventName'] = operations
         else:
-            raise AssertionError(
-                f'aws_service or custom_pattern should be specified for rule '
-                f'with "api_call" type! Resource: {name}')
+            raise ParameterError(
+                f"aws_service or custom_pattern should be specified for rule "
+                f"with 'api_call' type! Resource: '{name}'"
+            )
 
         params = dict(
             Name=name,

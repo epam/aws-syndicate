@@ -5,8 +5,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-os.environ['PYTHONUTF8'] = '1'  # to skip unicodedecodeerror
-
 cur_dir = Path(__file__).resolve().parent
 parent_dir = str(cur_dir.parent)
 sys.path.append(parent_dir)
@@ -21,15 +19,16 @@ from commons.connections import delete_s3_folder
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description='Entrypoint for happy path tests',
+        description='Entrypoint for tests',
     )
 
     parser.add_argument(
         '-c', '--config', required=False,
-        default=full_path('happy_path_config.json', str(cur_dir)),
+        default=full_path('ddis_resources_check_config.json',
+                          os.path.join(str(cur_dir), 'configs')),
         type=full_path,
         help='Full path to the config file with described stage checks. '
-             'Default: happy_path_config.json'
+             'Default: configs/ddis_resources_check_config.json'
     )
     parser.add_argument('-v', '--verbose', required=False, default=False,
                         action='store_true',
@@ -37,7 +36,10 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def force_clean(deploy_bucket, only_bundle=False):
+def force_clean(only_bundle=False):
+    from syndicate.core.conf.processor import ConfigHolder
+    from syndicate.core import CONF_PATH
+
     print(f'\nCleaning bundle {"and resources" if not only_bundle else ""}')
     if not only_bundle:
         command_to_execute = ['syndicate', 'clean']
@@ -45,7 +47,8 @@ def force_clean(deploy_bucket, only_bundle=False):
                                      capture_output=True, text=True)
         print(f'Execution return code: {exec_result.returncode}')
 
-    deploy_bucket, path = split_deploy_bucket_path(deploy_bucket)
+    config = ConfigHolder(CONF_PATH)
+    deploy_bucket, path = split_deploy_bucket_path(config.deploy_target_bucket)
     delete_s3_folder(deploy_bucket, os.path.join(*path, BUNDLE_NAME))
     delete_s3_folder(deploy_bucket, os.path.join(*path, UPDATED_BUNDLE_NAME))
 
@@ -92,7 +95,7 @@ def main(verbose: bool, config: str):
                 i['stage_passed'] for i in result[STAGES_CONFIG_PARAM][CLEAN_COMMAND]):
             print('Only bundle is True')
             only_bundle = True
-        force_clean(init_params.get('deploy_target_bucket'), only_bundle)
+        force_clean(only_bundle)
 
 
 if __name__ == '__main__':

@@ -244,5 +244,29 @@
       "tests": "smoke",
       "project": "sdct-auto-test"
     }
+  },
+  "sdct-at-rds-db-cluster": {
+    "resource_type": "rds_db_cluster",
+    "engine": "aurora-postgresql",
+    "master_username": "postgres",
+    "database_name": "logisticdb",
+    "port": 5432,
+    "manage_master_user_password": true,
+    "vpc_security_group_ids": [],
+    "availability_zones": [],
+    "tags": {
+      "tests": "smoke",
+      "project": "sdct-auto-test"
+    }
+  },
+  "sdct-at-rds-db-instance": {
+    "resource_type": "rds_db_instance",
+    "instance_class": "db.t3.medium",
+    "engine": "aurora-postgresql",
+    "cluster_name": "sdct-at-rds-db-cluster",
+    "tags": {
+      "tests": "smoke",
+      "project": "sdct-auto-test"
+    }
   }
 }

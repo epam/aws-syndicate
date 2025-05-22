@@ -2,6 +2,7 @@ import copy
 from datetime import datetime
 import sys
 from pathlib import Path
+from time import sleep
 from typing import Optional
 
 parent_dir = str(Path(__file__).resolve().parent.parent)
@@ -11,7 +12,7 @@ from commons.constants import BUNDLE_NAME, DEPLOY_NAME, \
     RESOURCE_TYPE_CONFIG_PARAM, RESOURCE_NAME_CONFIG_PARAM, \
     RESOURCE_META_CONFIG_PARAM, UPDATED_BUNDLE_NAME
 from commons.utils import deep_get, find_max_lambda_layer_version, \
-    compare_dicts
+    compare_dicts, read_syndicate_aliases
 from commons import connections
 from commons.connections import REGION, ACCOUNT_ID
 
@@ -198,10 +199,20 @@ def lambda_envs_checker(lambda_name: str, envs: dict,
     for key, value in envs.items():
         if not lambda_envs.get(key) or (
                 lambda_envs[key] != value and value != '*'):
+            # extract value for alias placeholders like '${region}' or '*${region}*'
+            aliases = read_syndicate_aliases() or {}
+            for a_name, a_value in aliases.items():
+                if '${' + a_name + '}' in value:
+                    value = value.replace('${' + a_name + '}', a_value)
+
+            if lambda_envs.get(key) == value:
+                lambda_envs.pop(key)
+                continue
             if '*' in value:
                 if all(v in lambda_envs[key] for v in value.split('*')):
                     lambda_envs.pop(key)
                     continue
+
             missing_envs[key] = value
         else:
             lambda_envs.pop(key)
@@ -360,6 +371,41 @@ def appsync_existence_checker(name: str) -> bool:
     return True if connections.get_appsync_id(name) else False
 
 
+def batch_comp_env_existence_checker(name: str) -> bool:
+    sleep(10)  # in case there was not enough time to delete completely
+    return True if connections.get_batch_comp_env(name) else False
+
+
+def batch_job_queue_existence_checker(name: str) -> bool:
+    return True if connections.get_batch_job_queue(name) else False
+
+
+def batch_job_def_existence_checker(name: str) -> bool:
+    return True if connections.get_batch_job_definition(name) else False
+
+
+def step_function_existence_checker(name: str) -> bool:
+    return True if connections.get_step_functions(name) else False
+
+
+def cloudwatch_alarm_existence_checker(name: str) -> bool:
+    return True if connections.get_cw_alarm(name) else False
+
+
+def web_socket_api_gateway_existence_checker(name: str) -> bool:
+    return True if connections.get_web_socket_api_gateway(name) else False
+
+
+def rds_db_cluster_existence_checker(name: str) -> bool:
+    return True if connections.get_rds_db_cluster(name) else False
+
+
+def rds_db_instance_existence_checker(instance_name: str,
+                                      cluster_name: str) -> bool:
+    return True if connections.get_rds_db_instance(instance_name,
+                                                   cluster_name) else False
+
+
 # ------------ Resource modification checkers -------------
 
 def policy_modification_checker(resource_name: str,
@@ -471,6 +517,82 @@ def appsync_tags_checker(name: str, tags: list) -> dict | bool:
     return True
 
 
+def batch_comp_env_tags_checker(name: str, tags: list) -> dict | bool:
+    arn = connections.get_batch_comp_env(name)
+    if not arn:
+        return False
+    received_tags = connections.list_batch_tags(arn, tags)
+    if missing_tags := compare_dicts(received_tags, tags):
+        return dict(missing_tags)
+    return True
+
+
+def batch_job_queue_tags_checker(name: str, tags: list) -> dict | bool:
+    arn = connections.get_batch_job_queue(name)
+    if not arn:
+        return False
+    received_tags = connections.list_batch_tags(arn, tags)
+    if missing_tags := compare_dicts(received_tags, tags):
+        return dict(missing_tags)
+    return True
+
+
+def batch_job_definition_tags_checker(name: str, tags: list) -> dict | bool:
+    arn = connections.get_batch_job_definition(name)
+    if not arn:
+        return False
+    received_tags = connections.list_batch_tags(arn, tags)
+    if missing_tags := compare_dicts(received_tags, tags):
+        return dict(missing_tags)
+    return True
+
+
+def step_function_tags_checker(name: str, tags: list) -> dict | bool:
+    arn = connections.get_step_functions(name)
+    if not arn:
+        return False
+    received_tags = connections.list_step_function_tags(arn, tags)
+    if missing_tags := compare_dicts(received_tags, tags):
+        return dict(missing_tags)
+    return True
+
+
+def cloudwatch_alarm_tags_checker(name: str, tags: list) -> dict | bool:
+    arn = connections.get_cw_alarm(name)
+    if not arn:
+        return False
+    received_tags = connections.list_cw_alarm_tags(arn, tags)
+    if missing_tags := compare_dicts(received_tags, tags):
+        return dict(missing_tags)
+    return True
+
+
+def web_socket_api_gateway_tags_checker(name: str, tags: list) -> dict | bool:
+    arn = connections.get_web_socket_api_gateway(name)
+    if not arn:
+        return False
+    received_tags = connections.list_web_socket_api_gateway_tags(arn, tags)
+    if missing_tags := compare_dicts(received_tags, tags):
+        return dict(missing_tags)
+    return True
+
+
+def rds_db_cluster_tags_checker(name: str, tags: dict) -> dict | bool:
+    received_tags = connections.list_rds_db_cluster_tags(name, tags)
+    if missing_tags := compare_dicts(received_tags, tags):
+        return dict(missing_tags)
+    return True
+
+
+def rds_db_instance_tags_checker(instance_name: str,
+                                 cluster_name: str, tags: dict) -> dict | bool:
+    received_tags = connections.list_rds_db_instance_tags(instance_name,
+                                                          cluster_name, tags)
+    if missing_tags := compare_dicts(received_tags, tags):
+        return dict(missing_tags)
+    return True
+
+
 TYPE_EXISTENCE_FUNC_MAPPING = {
     'iam_policy': iam_policy_existence_checker,
     'iam_role': iam_role_existence_checker,
@@ -485,7 +607,15 @@ TYPE_EXISTENCE_FUNC_MAPPING = {
     's3_bucket': s3_bucket_existence_checker,
     'cognito_idp': cognito_idp_existence_checker,
     'swagger_ui': swagger_ui_existence_checker,
-    'appsync': appsync_existence_checker
+    'appsync': appsync_existence_checker,
+    'batch_compenv': batch_comp_env_existence_checker,
+    'batch_jobqueue': batch_job_queue_existence_checker,
+    'batch_jobdef': batch_job_def_existence_checker,
+    'web_socket_api_gateway': web_socket_api_gateway_existence_checker,
+    'step_functions': step_function_existence_checker,
+    'cloudwatch_alarm': cloudwatch_alarm_existence_checker,
+    'rds_db_cluster': rds_db_cluster_existence_checker,
+    'rds_db_instance': rds_db_instance_existence_checker
 }
 
 
@@ -507,5 +637,13 @@ TYPE_TAGS_FUNC_MAPPING = {
     'cloudwatch_rule': cw_rule_tags_checker,
     's3_bucket': s3_bucket_tags_checker,
     'cognito_idp': cognito_idp_tags_checker,
-    'appsync': appsync_tags_checker
+    'appsync': appsync_tags_checker,
+    'batch_compenv': batch_comp_env_tags_checker,
+    'batch_jobqueue': batch_job_queue_tags_checker,
+    'batch_jobdef': batch_job_definition_tags_checker,
+    'web_socket_api_gateway': web_socket_api_gateway_tags_checker,
+    'step_functions': step_function_tags_checker,
+    'cloudwatch_alarm': cloudwatch_alarm_tags_checker,
+    'rds_db_cluster': rds_db_cluster_tags_checker,
+    'rds_db_instance': rds_db_instance_tags_checker
 }

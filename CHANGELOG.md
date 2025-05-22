@@ -4,7 +4,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [1.17.0] - 2025-02-14
+# [1.18.0] - 2025-05-22
+- Added support for DynamoDB `OnDemandThroughput` limitation
+- Added support for `rds_db_cluster` resource
+- Added support for `rds_db_instance` resource
+- Updated `boto3` and `botocore` to version 1.38.12
+- Changed the installation configuration from setup.py to pyproject.toml
+- Fixed prefix and suffix resolving in the list of ARNs
+- Fixed issue when the `commons` folder was overwritten after creating a new lambda
+
+# [1.17.1] - 2025-03-25
+- Changed `--force_upload` parameter type for assemble commands from `string` to `flag`
+- Fixed logic of `--force_upload` flag in assemble commands
+- Added `--force_upload` flag to `assemble_appsync` and `assemble_swagger_ui` commands
+- Fixed issue if the last deploy output file was deleted from the s3 bucket, and it would result that lambda triggers not being able to update
+- Fixed subnet group deletion during a DAX cluster cleaning
+- Fixed records duplication in the deployment output in case of deployment after changing `lambda` `alias` name and existence of the lambda
+- Fixed dynamic setting of active API link in Swagger UI json file
+- Adjusted the logic of `--clean_externals` parameter in `syndicate clean` command to clean not only external resources 
+but all filtered resources plus external resources which fit the filters
+
+# [1.17.0] - 2025-03-03
 - Added the possibility to generate meta for the resources `firehose` and `eventbridge_schedule`
 - The operation `partial_clean` added to the modification operations list
 - Fix typos in commands help messages
@@ -15,7 +35,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added the verification of MVN installation before assembling Java artifacts
 - Added highlighting messages with colors in the user console log according to the level
 - Fixed log message duplication during retries
-- Changed the installation configuration from setup.py to pyproject.toml
+- Fixed issue related to deployment API Gateway defined with OpenAPI spec and documented path `Path Item Object` 
+- Added syndicate custom exceptions
+- Clarified warning message about the absence of the syndicate project state file.
+- Added lambda function `event_sources` validation on the build stage.
+- Added verification whether the resource was cleaned in case of errors during clean operation.
+- Fixed `lambda_layer` duplication during deployment.
+- Fixed an issue related to deploy target bucket creation
+- Fixed an issue related to the resource absence in deployment output in case of exception
 
 # [1.16.2] - 2025-01-24
 - Fixed an issue related to modification operations event synchronization
