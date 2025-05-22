@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added support for `rds_db_instance` resource
 - Updated `boto3` and `botocore` to version 1.38.12
 - Fixed prefix and suffix resolving in the list of ARNs
+- Fixed issue when the `commons` folder was overwritten after creating a new lambda
 
 # [1.17.1] - 2025-03-25
 - Changed `--force_upload` parameter type for assemble commands from `string` to `flag`
