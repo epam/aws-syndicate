@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Changed the installation configuration from setup.py to pyproject.toml
 - Fixed prefix and suffix resolving in the list of ARNs
 - Fixed issue when the `commons` folder was overwritten after creating a new lambda
+- Added warning message if there are unresolved aliases in resource metadata
 
 # [1.17.1] - 2025-03-25
 - Changed `--force_upload` parameter type for assemble commands from `string` to `flag`
