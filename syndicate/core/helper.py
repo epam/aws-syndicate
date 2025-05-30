@@ -144,36 +144,6 @@ def _find_alias_and_replace(some_string):
     return result
 
 
-def validate_and_replace_aliases(data: dict | list):
-    """
-    Validate and replace aliases in dict data
-    :param data: JSON content as a dictionary
-    :return: Tuple of (updated JSON, missing aliases).
-    """
-    missing_aliases = set()
-
-    def replace_aliases(obj):
-        if isinstance(obj, dict):
-            return {replace_aliases(k): replace_aliases(v) for k, v in
-                    obj.items()}
-        elif isinstance(obj, list):
-            return [replace_aliases(item) for item in obj]
-        elif isinstance(obj, tuple):
-            return tuple(replace_aliases(item) for item in obj)
-        elif isinstance(obj, str):
-            if '${' in obj and '}' in obj:
-                try:
-                    obj = _find_alias_and_replace(obj)
-                except InvalidValueError:
-                    missing_aliases.add(obj)
-            return obj
-        else:
-            return obj
-
-    updated_json = replace_aliases(data)
-    return updated_json, missing_aliases
-
-
 def resolve_aliases_for_string(string_value):
     """ Look for aliases in string.
 

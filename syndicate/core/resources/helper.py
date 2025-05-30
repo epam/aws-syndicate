@@ -14,9 +14,10 @@
     limitations under the License.
 """
 import json
+import re
 
 from syndicate.exceptions import ParameterError, ResourceProcessingError, InvalidValueError
-from syndicate.commons.log_helper import get_logger
+from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.conf.processor import GLOBAL_AWS_SERVICES
 from typing import TypeVar, Optional, Iterable
 from datetime import datetime
@@ -24,6 +25,7 @@ from datetime import datetime
 T = TypeVar('T')
 
 _LOG = get_logger(__name__)
+USER_LOG = get_user_logger()
 
 
 def validate_params(name, meta, required_params):
@@ -132,9 +134,24 @@ def resolve_dynamic_identifier(to_replace, resource_meta):
     :type to_replace: dict
     :type resource_meta: dict
     """
+
+    def extract_aliases(raw_json: str):
+        """
+        Extract all unresolved aliases in the given raw_json string.
+        :param raw_json: Input JSON string.
+        :return: List of words inside ${...}.
+        """
+        pattern = r'\$\{([^}]+)\}'
+        return re.findall(pattern, raw_json)
+
     raw_json = json.dumps(resource_meta)
     for name, value in to_replace.items():
         raw_json = raw_json.replace(name, value)
+
+    if missing_aliases := extract_aliases(raw_json):
+        USER_LOG.warning(f'Cannot find values for the following aliases: '
+                         f'{missing_aliases}. Please check your '
+                         f'syndicate_aliases.yml file.')
     return json.loads(raw_json)
 
 
