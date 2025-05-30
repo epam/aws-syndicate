@@ -35,7 +35,7 @@ from syndicate.core.constants import (BUILD_META_FILE_NAME,
                                       UPDATE_RESOURCE_TYPE_PRIORITY,
                                       PARTIAL_CLEAN_ACTION, ABORTED_STATUS,
                                       LAMBDA_TYPE, LAMBDA_LAYER_TYPE)
-from syndicate.core.helper import prettify_json
+from syndicate.core.helper import prettify_json, validate_and_replace_aliases
 from syndicate.core.build.helper import assert_bundle_bucket_exists, \
     construct_deploy_s3_key_path
 
@@ -524,6 +524,15 @@ def create_deployment_resources(
     resources_list = list(resources.items())
     resources_list.sort(key=cmp_to_key(compare_deploy_resources))
 
+    # replace alias placeholders with values
+    updated_resources_list, missing_aliases = validate_and_replace_aliases(
+        resources_list
+    )
+    if missing_aliases:
+        USER_LOG.warning('Cannot find values for the following aliases: '
+                         f'{missing_aliases}. Please check your deployment '
+                         f'configuration.')
+
     _LOG.info('Going to deploy AWS resources')
     if continue_deploy:
         if latest_deploy_output is False:
@@ -532,10 +541,10 @@ def create_deployment_resources(
                 f'executed without taking into account the '
                 f'`--continue_deploy` parameter.')
         success, output = continue_deploy_resources(
-            resources_list,
+            updated_resources_list,
             latest_deploy_output if latest_deploy_output else {})
     else:
-        success, output = deploy_resources(resources_list)
+        success, output = deploy_resources(updated_resources_list)
 
     # remove failed output from bucket
     if is_ld_output_regular is False:
@@ -673,7 +682,16 @@ def update_deployment_resources(
     resources_list = list(resources.items())
     resources_list.sort(key=cmp_to_key(_compare_update_resources))
 
-    success, output = update_resources(resources_list, old_resources)
+    # replace alias placeholders with values
+    updated_resources_list, missing_aliases = validate_and_replace_aliases(
+        resources_list
+    )
+    if missing_aliases:
+        USER_LOG.warning('Cannot find values for the following aliases: '
+                         f'{missing_aliases}. Please check your deployment '
+                         f'configuration.')
+
+    success, output = update_resources(updated_resources_list, old_resources)
 
     _LOG.info('Going to updates tags')
     preprocess_tags(output)
