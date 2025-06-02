@@ -134,25 +134,26 @@ def resolve_dynamic_identifier(to_replace, resource_meta):
     :type to_replace: dict
     :type resource_meta: dict
     """
-
-    def extract_aliases(raw_json: str):
-        """
-        Extract all unresolved aliases in the given raw_json string.
-        :param raw_json: Input JSON string.
-        :return: List of words inside ${...}.
-        """
-        pattern = r'\$\{([^}]+)\}'
-        return re.findall(pattern, raw_json)
-
     raw_json = json.dumps(resource_meta)
     for name, value in to_replace.items():
         raw_json = raw_json.replace(name, value)
-
-    if missing_aliases := extract_aliases(raw_json):
-        USER_LOG.warning(f'Cannot find values for the following aliases: '
-                         f'{missing_aliases}. Please check your '
-                         f'syndicate_aliases.yml file.')
     return json.loads(raw_json)
+
+
+def detect_unresolved_aliases(resource_meta: dict) -> None:
+    """
+    Extract unresolved aliases in the given meta string.
+    :param resource_meta: Input dict.
+    """
+    pattern = r'\$\{([^}]+)\}'
+    if missing_aliases := list(set(re.findall(pattern,
+                                              json.dumps(resource_meta)))):
+        placeholders = [f'${{{alias}}}' for alias in missing_aliases]
+        USER_LOG.warning(
+            'Unresolved alias placeholders are present in the meta, which may '
+            'lead to errors in resource processing. Please check the '
+            'syndicate aliases and resource definitions. '
+            f'Unresolved placeholders: {placeholders}')
 
 
 def build_description_obj(response, name, meta):
