@@ -11,10 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated `boto3` and `botocore` to version 1.38.12
 - Updated `tqdm` to version 4.67.1
 - Updated `requests` to version 2.32.3
-- Updated `setuptools` to version greater than 78.1.1 but less than or equal to 80.8.0
+- Removed the limitation on setuptools version
 - Changed the installation configuration from setup.py to pyproject.toml
 - Fixed prefix and suffix resolving in the list of ARNs
 - Fixed issue when the `commons` folder was overwritten after creating a new lambda
+- Added warning message if there are unresolved alias placeholders in resource metadata
+- Removed requirements.txt in favor of pyproject.toml
 
 # [1.17.1] - 2025-03-25
 - Changed `--force_upload` parameter type for assemble commands from `string` to `flag`

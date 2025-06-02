@@ -45,7 +45,8 @@ from syndicate.core.constants import (API_GATEWAY_TYPE, ARTIFACTS_FOLDER,
 from syndicate.core.helper import (build_path, prettify_json,
                                    resolve_aliases_for_string,
                                    write_content_to_file, validate_tags)
-from syndicate.core.resources.helper import resolve_dynamic_identifier
+from syndicate.core.resources.helper import resolve_dynamic_identifier, \
+    detect_unresolved_aliases
 
 DEFAULT_IAM_SUFFIX_LENGTH = 5
 NAME_RESOLVING_BLACKLISTED_KEYS = [
@@ -553,6 +554,7 @@ def resolve_meta(overall_meta):
     iam_suffix = CONFIG.iam_suffix
     extended_prefix_mode = CONFIG.extended_prefix_mode
     overall_meta = _resolve_aliases(overall_meta)
+    detect_unresolved_aliases(overall_meta)
     _LOG.debug('Resolved meta was created')
     _LOG.debug(prettify_json(overall_meta))
     _resolve_permissions_boundary(overall_meta)
