@@ -100,102 +100,72 @@ def _check_duplicated_resources(initial_meta_dict, additional_item_name,
         initial_type = initial_item['resource_type']
         if additional_type == initial_type and initial_type in \
                 {API_GATEWAY_TYPE, WEB_SOCKET_API_GATEWAY_TYPE}:
-            # check if APIs have same resources
-            for each in list(initial_item['resources'].keys()):
-                if each in list(additional_item['resources'].keys()):
-                    raise ResourceMetadataError(
-                        f"API '{additional_item_name}' has duplicated "
-                        f"resource '{each}'! Please, change name of one "
-                        f"resource or remove one."
-                    )
-            # check if APIs have duplicated cluster configurations
-            for config in ['cluster_cache_configuration',
-                           'cluster_throttling_configuration']:
-                initial_config = initial_item.get(config)
-                additional_config = additional_item.get(config)
-                if initial_config and additional_config:
-                    raise ResourceMetadataError(
-                        f"API '{additional_item_name}' has duplicated "
-                        f"'{config}'. Please, remove one configuration."
-                    )
-                if initial_config:
-                    additional_item[config] = initial_config
-            # handle responses
-            initial_responses = initial_item.get(
-                'api_method_responses')
-            additional_responses = additional_item.get(
-                'api_method_responses')
-            if initial_responses and additional_responses:
-                raise ResourceMetadataError(
-                    f"API '{additional_item_name}' has duplicated api method "
-                    f"responses configurations. Please, remove one api method "
-                    f"responses configuration."
-                )
-            if initial_responses:
-                additional_item[
-                    'api_method_responses'] = initial_responses
-            # handle integration responses
-            initial_integration_resp = initial_item.get(
-                'api_method_integration_responses')
-            additional_integration_resp = additional_item.get(
-                'api_method_integration_responses')
-            if initial_integration_resp and additional_integration_resp:
-                raise ResourceMetadataError(
-                    f"API '{additional_item_name}' has duplicated api method "
-                    f"integration responses configurations. Please, remove "
-                    f"one api method integration responses configuration."
-                )
-            if initial_integration_resp:
-                additional_item[
-                    'api_method_integration_responses'] = initial_integration_resp
-            # join items dependencies
-            dependencies_dict = {each['resource_name']: each
-                                 for each in
-                                 additional_item.get('dependencies') or []}
-            for each in initial_item.get('dependencies') or []:
-                if each['resource_name'] not in dependencies_dict:
-                    additional_item['dependencies'].append(each)
-            # join items resources
-            additional_item['resources'].update(initial_item['resources'])
-            # return aggregated API description
-            init_deploy_stage = initial_item.get('deploy_stage')
-            if init_deploy_stage:
-                additional_item['deploy_stage'] = init_deploy_stage
-
-            init_compression = initial_item.get("minimum_compression_size")
-            if init_compression:
-                additional_comp_size = \
-                    additional_item.get('minimum_compression_size')
-                if additional_comp_size:
-                    _LOG.warn(f"Found 'minimum_compression_size': "
-                              f"{init_compression} inside root "
-                              f"deployment_resources. The value "
-                              f"'{additional_comp_size}' from: "
-                              f"{additional_item} will be overwritten")
-                additional_item['minimum_compression_size'] = init_compression
-
-            # join authorizers
-            initial_authorizers = initial_item.get('authorizers') or {}
-            additional_authorizers = additional_item.get('authorizers') or {}
-            additional_item['authorizers'] = {**initial_authorizers,
-                                              **additional_authorizers}
-            # join models
-            initial_models = initial_item.get('models') or {}
-            additional_models = additional_item.get('models') or {}
-            additional_item['models'] = {**initial_models, **additional_models}
-            # policy statement singleton
-            _pst = initial_item.get('policy_statement_singleton')
-            if 'policy_statement_singleton' not in additional_item and _pst:
-                additional_item['policy_statement_singleton'] = _pst
-
-            additional_item['route_selection_expression'] = initial_item.get(
-                'route_selection_expression')
-
-            additional_item = _merge_api_gw_list_typed_configurations(
-                initial_item,
-                additional_item,
-                ['binary_media_types', 'apply_changes']
+            USER_LOG.warn(
+                f'Found duplicated resource "{additional_item_name}" '
+                f'description in the project.'
             )
+
+            # return aggregated API description
+            for param_name, initial_value in initial_item.items():
+
+                if param_name == 'resources':
+                    for each in list(initial_item['resources'].keys()):
+                        if each in list(additional_item['resources'].keys()):
+                            raise ResourceMetadataError(
+                                f"API '{additional_item_name}' has duplicated "
+                                f"resource '{each}'! Please, change name of "
+                                f"one resource or remove one."
+                            )
+
+                elif param_name in ['api_method_responses',
+                                    'api_method_integration_responses',
+                                    'cluster_cache_configuration',
+                                    'cluster_throttling_configuration']:
+                    additional_value = additional_item.get(param_name)
+                    if initial_value and additional_value:
+                        raise ResourceMetadataError(
+                            f"API '{additional_item_name}' has duplicated "
+                            f"'{param_name}' configurations. Please, remove "
+                            f"one of the configuration."
+                        )
+                    if initial_value:
+                        additional_item[param_name] = initial_value
+
+                elif param_name == 'dependencies':
+                    dependencies_dict = {
+                        each['resource_name']: each
+                        for each in additional_item.get('dependencies') or []
+                    }
+                    for each in initial_value or []:
+                        if each['resource_name'] not in dependencies_dict:
+                            additional_item['dependencies'].append(each)
+
+                elif param_name == 'binary_media_types':
+                    additional_item = _merge_api_gw_list_typed_configurations(
+                        initial_item,
+                        additional_item,
+                        ['binary_media_types', 'apply_changes']
+                    )
+
+                elif param_name in ['authorizers', 'models', 'resources']:
+                    initial_param_value = initial_item.get(param_name) or {}
+                    additional_param_value = additional_item.get(
+                        param_name) or {}
+                    additional_item[param_name] = {**initial_param_value,
+                                                   **additional_param_value}
+
+                elif additional_param_value := additional_item.get(param_name):
+                    USER_LOG.warn(
+                        f'Found parameter {param_name} with value '
+                        f'{initial_value} inside root '
+                        f'deployment_resources. The value '
+                        f'\'{additional_param_value}\' from: '
+                        f'{additional_item} will be overwritten'
+                    )
+                    additional_item[param_name] = initial_value
+
+                else:
+                    additional_item[param_name] = initial_value
 
             return additional_item
 
