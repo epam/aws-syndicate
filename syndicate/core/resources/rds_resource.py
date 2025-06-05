@@ -579,7 +579,7 @@ class RDSDBInstanceResource(BaseResource):
                              description: dict = None) -> dict:
         if not description:
             description = self.rds_conn.get_db_instance_description(
-                cluster_name=meta.get('d_b_cluster_identifier'),
+                cluster_name=meta.get('cluster_name'),
                 instance_name=name
             )
             if not description:
@@ -600,7 +600,7 @@ class RDSDBInstanceResource(BaseResource):
 
         instance_name = config['resource_name']
         db_cluster_name = \
-            config['resource_meta'].get('d_b_cluster_identifier', '')
+            config['resource_meta'].get('cluster_name', '')
 
         instance_description = \
             self.rds_conn.get_db_instance_description(

@@ -129,7 +129,7 @@ def resource_existence_handler(resources: dict, reverse_check: bool = False,
                 CONFIG.deploy_target_bucket)
             is_exist = func(res_name, deploy_bucket, path)
         elif res_type == RDS_DB_INSTANCE_RESOURCE_TYPE:
-            is_exist = func(res_name, res_meta.get('d_b_cluster_identifier'))
+            is_exist = func(res_name, res_meta.get('cluster_name'))
         else:
             is_exist = func(res_name)
         if not is_exist:
@@ -185,7 +185,7 @@ def tag_existence_handler(resources: dict,
                 continue
             if res_type == RDS_DB_INSTANCE_RESOURCE_TYPE:
                 missing = tag_func(res_name,
-                                   res_meta.get('d_b_cluster_identifier'),
+                                   res_meta.get('cluster_name'),
                                    res_meta[TAGS_CONFIG_PARAM])
             else:
                 missing = tag_func(res_name, res_meta[TAGS_CONFIG_PARAM])

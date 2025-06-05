@@ -157,7 +157,7 @@ def resolve_aliases_for_string(string_value):
                     input_string = _find_alias_and_replace(input_string)
             else:
                 raise InvalidValueError(
-                    "Broken alias in value: '{string_value}'."
+                    f"Broken alias in value: '{string_value}'."
                 )
         return input_string
     except ValueError:
