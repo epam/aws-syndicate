@@ -162,6 +162,18 @@
                   "tags": {
                     "tests": "smoke",
                     "project": "sdct-auto-test"
+                  },
+                  "env_variables": {
+                    "MASTER_CREDENTIALS_SECRET_NAME": {
+                      "resource_type": "rds_db_cluster",
+                      "parameter": "master_user_secret_name",
+                      "resource_name": "sdct-at-rds-db-cluster"
+                    },
+                    "ENDPOINT": {
+                      "resource_type": "rds_db_cluster",
+                      "parameter": "endpoint",
+                      "resource_name": "sdct-at-rds-db-cluster"
+                    }
                   }
                 },
                 "sdct-at-java-lambda_layer": {
@@ -1025,6 +1037,10 @@
                   "reservations_table": "*${reservations_table}*",
                   "tables_table": "*${tables_table}*",
                   "region": "${region}"
+                },
+                "sdct-at-java-lambda": {
+                  "ENDPOINT": "*${region}.rds.amazonaws.com",
+                  "MASTER_CREDENTIALS_SECRET_NAME": "rds!cluster*"
                 }
               },
               "depends_on": [
@@ -1190,6 +1206,9 @@
               "name": "lambda_env_existence",
               "description": "Check if lambda environment variables were updated",
               "env_variables": {
+                "sdct-at-dotnet-lambda": {
+                  "DOTNET_SHARED_STORE": "/opt/dotnetcore/store/"
+                },
                 "sdct-at-nodejs-lambda": {
                   "new_region": "${region}",
                   "region": "updated_${region}",
@@ -1197,6 +1216,10 @@
                   "tables_table": "*${tables_table}*",
                   "cup_client_id": "*",
                   "cup_id": "*"
+                },
+                "sdct-at-java-lambda": {
+                  "ENDPOINT": "*${region}.rds.amazonaws.com",
+                  "MASTER_CREDENTIALS_SECRET_NAME": "rds!cluster*"
                 }
               },
               "depends_on": [
