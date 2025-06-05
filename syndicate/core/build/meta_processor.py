@@ -107,7 +107,7 @@ def _check_duplicated_resources(initial_meta_dict, additional_item_name,
 
             # return aggregated API description
             for param_name, initial_value in initial_item.items():
-
+                # separate check for resources
                 if param_name == 'resources':
                     for each in list(initial_item['resources'].keys()):
                         if each in list(additional_item['resources'].keys()):
@@ -117,6 +117,8 @@ def _check_duplicated_resources(initial_meta_dict, additional_item_name,
                                 f"one resource or remove one."
                             )
 
+                if param_name == 'resource_type':
+                    continue
                 elif param_name in ['api_method_responses',
                                     'api_method_integration_responses',
                                     'cluster_cache_configuration',
@@ -157,10 +159,10 @@ def _check_duplicated_resources(initial_meta_dict, additional_item_name,
                 elif additional_param_value := additional_item.get(param_name):
                     USER_LOG.warn(
                         f'Found parameter {param_name} with value '
-                        f'{initial_value} inside root '
+                        f'{initial_value} inside the root '
                         f'deployment_resources. The value '
-                        f'\'{additional_param_value}\' from: '
-                        f'{additional_item} will be overwritten'
+                        f'\'{additional_param_value}\' will be overwritten by '
+                        f'the root resources meta.'
                     )
                     additional_item[param_name] = initial_value
 
