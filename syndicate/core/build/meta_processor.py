@@ -110,7 +110,7 @@ def _check_duplicated_resources(initial_meta_dict, additional_item_name,
                 # separate check for resources
                 if param_name == 'resources':
                     for each in list(initial_item['resources'].keys()):
-                        if each in list(additional_item['resources'].keys()):
+                        if each in list(additional_item.get('resources', {}).keys()):
                             raise ResourceMetadataError(
                                 f"API '{additional_item_name}' has duplicated "
                                 f"resource '{each}'! Please, change name of "
@@ -138,6 +138,10 @@ def _check_duplicated_resources(initial_meta_dict, additional_item_name,
                         each['resource_name']: each
                         for each in additional_item.get('dependencies') or []
                     }
+
+                    if not additional_item.get('dependencies'):
+                        additional_item['dependencies'] = []
+
                     for each in initial_value or []:
                         if each['resource_name'] not in dependencies_dict:
                             additional_item['dependencies'].append(each)
@@ -172,8 +176,8 @@ def _check_duplicated_resources(initial_meta_dict, additional_item_name,
             return additional_item
 
         else:
-            initial_item_type = initial_item.get("resource_type")
-            additional_item_type = additional_item.get("resource_type")
+            initial_item_type = initial_item.get('resource_type')
+            additional_item_type = additional_item.get('resource_type')
             raise ResourceProcessingError(
                 f"Two resources with equal names were found! "
                 f"Name: '{additional_item_name}', first resource type: "
