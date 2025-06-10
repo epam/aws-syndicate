@@ -37,7 +37,7 @@ setup(
         'tqdm==4.65.2',
         'pyyaml==6.0.1',
         'requests-aws-sign==0.1.6',
-        'requests==2.31.0',
+        'requests==2.32.4',
         'tabulate==0.9.0',
         'troposphere==4.1.0',
         'setuptools>65.5.0,<=70.0.0'
