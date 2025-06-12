@@ -28,7 +28,8 @@ public class LayerAnnotationProcessor extends AbstractAnnotationProcessor<LayerC
     public List<Class<?>> getAnnotatedClasses(String[] packages) {
         List<Class<?>> lambdasClasses = new ArrayList<>();
         for (String nestedPackage : packages) {
-            lambdasClasses.addAll(new Reflections(nestedPackage).getTypesAnnotatedWith(LambdaLayer.class));
+            Reflections reflections = reflectionsHolder.computeIfAbsent(nestedPackage, k -> new Reflections(nestedPackage));
+            lambdasClasses.addAll(reflections.getTypesAnnotatedWith(LambdaLayer.class));
         }
         return lambdasClasses;
     }

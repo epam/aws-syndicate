@@ -2,19 +2,22 @@ package com.syndicate.deployment.processor;
 
 import com.syndicate.deployment.model.Pair;
 import org.apache.maven.plugin.MojoExecutionException;
+import org.reflections.Reflections;
 
-import java.lang.annotation.Annotation;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 /**
  * Created by Oleksandr Onsha on 2019-12-03
  */
 public abstract class AbstractAnnotationProcessor<T> implements IAnnotationProcessor<T> {
+
+    protected static final Map<String, Reflections> reflectionsHolder = new ConcurrentHashMap<>();
 
     @Override
     public Map<String, T> generateMeta(String absolutePath, String[] packages,

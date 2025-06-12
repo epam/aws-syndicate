@@ -82,7 +82,8 @@ public class DynamoDBDocumentAnnotationProcessor extends AbstractAnnotationProce
     protected List<Class<?>> getAnnotatedClasses(String[] packages) {
         List<Class<?>> dynamoDbTablesClasses = new ArrayList<>();
         for (String nestedPackage : packages) {
-            dynamoDbTablesClasses.addAll(new Reflections(nestedPackage).getTypesAnnotatedWith(DynamoDBTable.class));
+            Reflections reflections = reflectionsHolder.computeIfAbsent(nestedPackage, k -> new Reflections(nestedPackage));
+            dynamoDbTablesClasses.addAll(reflections.getTypesAnnotatedWith(DynamoDBTable.class));
         }
 
         List<Class<?>> directTableClasses = new ArrayList<>();

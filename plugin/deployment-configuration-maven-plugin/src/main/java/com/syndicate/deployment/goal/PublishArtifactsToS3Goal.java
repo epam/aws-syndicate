@@ -23,7 +23,7 @@ import static com.syndicate.deployment.utils.ProjectUtils.SYNDICATE_BUILD_ID;
 /**
  * Created by Oleksandr Onsha on 2019-08-12
  */
-@Mojo(name = "publish-artifacts-to-s3", requiresDependencyResolution = ResolutionScope.RUNTIME)
+@Mojo(name = "publish-artifacts-to-s3", requiresDependencyResolution = ResolutionScope.RUNTIME, threadSafe = true)
 public class PublishArtifactsToS3Goal extends AbstractMojo {
 
 	@Parameter(defaultValue = "${project}", required = true, readonly = true)
