@@ -2,7 +2,7 @@
 ### Added
 - Added ability to specify alias in lambda env dictionary in such format: '${alias_name}'. Can be combined with wildcard
 - Added tests for aurora cluster and aurora instance
-- Added tests fpr lambda s3 trigger
+- Added tests for lambda s3 trigger
 ### Changed
 - Removed prefix, suffix and deploy_target_bucket from `init_parameters` as required parameters. 
 Instead, they will be extracted from syndicate.yml config
