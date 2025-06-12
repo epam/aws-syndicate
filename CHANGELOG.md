@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed issue when the `commons` folder was overwritten after creating a new lambda
 - Added warning message if there are unresolved alias placeholders in resource metadata
 - Removed requirements.txt in favor of pyproject.toml
-- Fixed issue related to the API Gateway configuration merge conflicts. The root deployment_resources.json file now has higher priority
+- Fixed issue related to the API Gateway configuration merge conflicts
 
 # [1.17.1] - 2025-03-25
 - Changed `--force_upload` parameter type for assemble commands from `string` to `flag`
