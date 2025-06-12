@@ -94,27 +94,30 @@ def _check_duplicated_resources(initial_meta_dict, additional_item_name,
     """
     if additional_item_name in initial_meta_dict:
         additional_type = additional_item['resource_type']
-        initial_item = initial_meta_dict.get(additional_item_name)
+        initial_item = initial_meta_dict[additional_item_name]
         if not initial_item:
             return
         initial_type = initial_item['resource_type']
         if additional_type == initial_type and initial_type in \
                 {API_GATEWAY_TYPE, WEB_SOCKET_API_GATEWAY_TYPE}:
-            USER_LOG.warn(
-                f'Found duplicated resource "{additional_item_name}" '
-                f'description in the project.'
+            _LOG.INFO(
+                f"The API Gateway '{additional_item_name}' is defined in "
+                f"different deployment resources files. Going to merge "
+                f"definitions..."
             )
 
             # return aggregated API description
             for param_name, initial_value in initial_item.items():
                 # separate check for resources
                 if param_name == 'resources':
-                    for each in list(initial_item['resources'].keys()):
+                    for each in list(initial_item.get('resources', {}).keys()):
                         if each in list(additional_item.get('resources', {}).keys()):
                             raise ResourceMetadataError(
-                                f"API '{additional_item_name}' has duplicated "
-                                f"resource '{each}'! Please, change name of "
-                                f"one resource or remove one."
+                                f"Unable to merge the API Gateway "
+                                f"'{additional_item_name}' definition because "
+                                f"of duplication of the resource '{each}' in "
+                                f"different deployment resources files. "
+                                f"Please resolve the conflict."
                             )
 
                 if param_name == 'resource_type':
@@ -176,13 +179,11 @@ def _check_duplicated_resources(initial_meta_dict, additional_item_name,
             return additional_item
 
         else:
-            initial_item_type = initial_item.get('resource_type')
-            additional_item_type = additional_item.get('resource_type')
             raise ResourceProcessingError(
                 f"Two resources with equal names were found! "
                 f"Name: '{additional_item_name}', first resource type: "
-                f"'{initial_item_type}', second resource type: "
-                f"'{additional_item_type}'. \nPlease, rename one of them!"
+                f"'{initial_type}', second resource type: "
+                f"'{additional_type}'. \nPlease, rename one of them!"
             )
 
 
