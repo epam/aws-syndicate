@@ -100,7 +100,7 @@ def _check_duplicated_resources(initial_meta_dict, additional_item_name,
         initial_type = initial_item['resource_type']
         if additional_type == initial_type and initial_type in \
                 {API_GATEWAY_TYPE, WEB_SOCKET_API_GATEWAY_TYPE}:
-            _LOG.INFO(
+            _LOG.info(
                 f"The API Gateway '{additional_item_name}' is defined in "
                 f"different deployment resources files. Going to merge "
                 f"definitions..."
@@ -108,18 +108,6 @@ def _check_duplicated_resources(initial_meta_dict, additional_item_name,
 
             # return aggregated API description
             for param_name, initial_value in initial_item.items():
-                # separate check for resources
-                if param_name == 'resources':
-                    for each in list(initial_item.get('resources', {}).keys()):
-                        if each in list(additional_item.get('resources', {}).keys()):
-                            raise ResourceMetadataError(
-                                f"Unable to merge the API Gateway "
-                                f"'{additional_item_name}' definition because "
-                                f"of duplication of the resource '{each}' in "
-                                f"different deployment resources files. "
-                                f"Please resolve the conflict."
-                            )
-
                 if param_name == 'resource_type':
                     continue
                 elif param_name in ['api_method_responses',
@@ -129,9 +117,11 @@ def _check_duplicated_resources(initial_meta_dict, additional_item_name,
                     additional_value = additional_item.get(param_name)
                     if initial_value and additional_value:
                         raise ResourceMetadataError(
-                            f"API '{additional_item_name}' has duplicated "
-                            f"'{param_name}' configurations. Please, remove "
-                            f"one of the configuration."
+                            f"Unable to merge the API Gateway "
+                            f"'{additional_item_name}' definition because "
+                            f"of duplication of the parameter '{param_name}' "
+                            f"in different deployment resources files. "
+                            f"Please resolve the conflict."
                         )
                     if initial_value:
                         additional_item[param_name] = initial_value
@@ -141,37 +131,48 @@ def _check_duplicated_resources(initial_meta_dict, additional_item_name,
                         each['resource_name']: each
                         for each in additional_item.get('dependencies') or []
                     }
-
                     if not additional_item.get('dependencies'):
                         additional_item['dependencies'] = []
-
                     for each in initial_value or []:
                         if each['resource_name'] not in dependencies_dict:
                             additional_item['dependencies'].append(each)
 
-                elif param_name == 'binary_media_types':
+                elif param_name in ['binary_media_types', 'apply_changes']:
                     additional_item = _merge_api_gw_list_typed_configurations(
                         initial_item,
                         additional_item,
-                        ['binary_media_types', 'apply_changes']
+                        [param_name],
+                        additional_item_name
                     )
 
-                elif param_name in ['authorizers', 'models', 'resources']:
+                elif param_name in ['authorizers', 'tags', 'models',
+                                    'resources']:
+                    for each in list(initial_item.get(param_name, {}).keys()):
+                        if each in list(
+                                additional_item.get(param_name, {}).keys()):
+                            raise ResourceMetadataError(
+                                f"Unable to merge the API Gateway "
+                                f"'{additional_item_name}' definition due to "
+                                f"duplicate '{each}' key in the "
+                                f"'{param_name}' property across different "
+                                f"deployment resources files. "
+                                f"Please resolve the conflict."
+                            )
+
                     initial_param_value = initial_item.get(param_name) or {}
                     additional_param_value = additional_item.get(
                         param_name) or {}
                     additional_item[param_name] = {**initial_param_value,
                                                    **additional_param_value}
 
-                elif additional_param_value := additional_item.get(param_name):
-                    USER_LOG.warn(
-                        f'Found parameter {param_name} with value '
-                        f'{initial_value} inside the root '
-                        f'deployment_resources. The value '
-                        f'\'{additional_param_value}\' will be overwritten by '
-                        f'the root resources meta.'
+                elif additional_item.get(param_name):
+                    raise ResourceMetadataError(
+                        f"Unable to merge the API Gateway "
+                        f"'{additional_item_name}' definition due to "
+                        f"duplicate of the '{param_name}' property "
+                        f"across different deployment resources files. "
+                        f"Please resolve the conflict."
                     )
-                    additional_item[param_name] = initial_value
 
                 else:
                     additional_item[param_name] = initial_value
@@ -187,12 +188,23 @@ def _check_duplicated_resources(initial_meta_dict, additional_item_name,
             )
 
 
-def _merge_api_gw_list_typed_configurations(initial_resource,
-                                            additional_resource,
-                                            property_names_list):
+def _merge_api_gw_list_typed_configurations(initial_resource: dict,
+                                            additional_resource: dict,
+                                            property_names_list: list,
+                                            additional_item_name: str):
     for property_name in property_names_list:
         initial_property_value = initial_resource.get(property_name, [])
         additional_resource_value = additional_resource.get(property_name, [])
+        for each in initial_property_value:
+            if each in additional_resource_value:
+                raise ResourceMetadataError(
+                    f"Unable to merge the API Gateway "
+                    f"'{additional_item_name}' definition because "
+                    f"of duplication of the parameter '{property_name}' "
+                    f"in different deployment resources files. "
+                    f"Please resolve the conflict."
+                )
+
         additional_resource[
             property_name] = initial_property_value + additional_resource_value
     return additional_resource
