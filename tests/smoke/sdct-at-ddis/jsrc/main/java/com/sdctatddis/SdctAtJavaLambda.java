@@ -7,12 +7,20 @@ import com.syndicate.deployment.annotations.lambda.LambdaLayer;
 import com.syndicate.deployment.annotations.tag.Tag;
 import com.syndicate.deployment.annotations.tag.Tags;
 import com.syndicate.deployment.annotations.events.RuleEventSource;
+import com.syndicate.deployment.annotations.environment.EnvironmentVariable;
+import com.syndicate.deployment.annotations.environment.EnvironmentVariables;
 import com.syndicate.deployment.model.ArtifactExtension;
 import com.syndicate.deployment.model.DeploymentRuntime;
 import com.syndicate.deployment.model.RetentionSetting;
+import com.syndicate.deployment.model.environment.ValueTransformer;
 
 import java.util.HashMap;
 import java.util.Map;
+
+@EnvironmentVariables(value = {
+        @EnvironmentVariable(key = "ENDPOINT", value = "sdct-at-rds-db-cluster", valueTransformer = ValueTransformer.RDS_DB_CLUSTER_NAME_TO_ENDPOINT),
+        @EnvironmentVariable(key = "MASTER_CREDENTIALS_SECRET_NAME", value = "sdct-at-rds-db-cluster", valueTransformer = ValueTransformer.RDS_DB_CLUSTER_NAME_TO_MASTER_USER_SECRET_NAME)
+})
 
 @LambdaHandler(
     lambdaName = "sdct-at-java-lambda",

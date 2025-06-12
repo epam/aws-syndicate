@@ -14,6 +14,13 @@
     "resource_type": "sns_topic_trigger",
     "target_topic": "sdct-at-topic",
     "region": "${region}"
+    },
+    {
+        "resource_type": "s3_trigger",
+        "target_bucket": "sdct-at-s3-bucket",
+        "s3_events": [
+            "s3:ObjectCreated:*"
+        ]
     }
   ],
   "env_variables": {},

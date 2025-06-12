@@ -83,6 +83,15 @@ def get_s3_list_objects(bucket_name, prefix=None):
     return response
 
 
+def get_bucket_notification_configuration(bucket_name: str) -> dict:
+    try:
+        response = s3_client.get_bucket_notification_configuration(
+            Bucket=bucket_name)
+        return response
+    except s3_client.exceptions.ClientError as e:
+        return {}
+
+
 def get_iam_policy(policy_name: str) -> Union[dict | None]:
     try:
         response = iam_client.get_policy(

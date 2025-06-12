@@ -137,6 +137,7 @@ def lambda_triggers_checker(lambda_name: str, triggers: list) -> dict:
     sns_arn = 'arn:aws:sns:{0}:{1}:{2}'
     event_arn = 'arn:aws:events:{0}:{1}:rule/{2}'
     dynamodb_stream_arn = 'arn:aws:dynamodb:{0}:{1}:table/{2}/stream/'
+    s3_bucket_arn = 'arn:aws:s3:::{0}'
     lambda_arn = 'arn:aws:lambda:{0}:{1}:function:{2}'
 
     for trigger in triggers:
@@ -182,6 +183,21 @@ def lambda_triggers_checker(lambda_name: str, triggers: list) -> dict:
                     break
             if not trigger_found:
                 missing_arns.append(arn)
+
+        elif trigger[RESOURCE_TYPE_CONFIG_PARAM] == 's3_trigger':
+            s3_notification_config = \
+                connections.get_bucket_notification_configuration(trigger_name)
+            s3_lambda_func_config =  \
+                s3_notification_config.get('LambdaFunctionConfigurations', [])
+            act_lambda_arn = lambda_arn.format(REGION, ACCOUNT_ID,
+                                               lambda_name)
+            for s3_notification_config in s3_lambda_func_config:
+                if act_lambda_arn in \
+                        s3_notification_config['LambdaFunctionArn']:
+                    trigger_found = True
+                    break
+            if not trigger_found:
+                missing_arns.append(s3_bucket_arn.format(trigger_name))
 
     if missing_arns:
         result['missing_triggers'] = missing_arns

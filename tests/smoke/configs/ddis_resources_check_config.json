@@ -162,6 +162,18 @@
                   "tags": {
                     "tests": "smoke",
                     "project": "sdct-auto-test"
+                  },
+                  "env_variables": {
+                    "MASTER_CREDENTIALS_SECRET_NAME": {
+                      "resource_type": "rds_db_cluster",
+                      "parameter": "master_user_secret_name",
+                      "resource_name": "sdct-at-rds-db-cluster"
+                    },
+                    "ENDPOINT": {
+                      "resource_type": "rds_db_cluster",
+                      "parameter": "endpoint",
+                      "resource_name": "sdct-at-rds-db-cluster"
+                    }
                   }
                 },
                 "sdct-at-java-lambda_layer": {
@@ -1003,6 +1015,10 @@
                   {
                     "resource_name": "sdct-at-topic",
                     "resource_type": "sns_topic"
+                  },
+                  {
+                    "resource_name": "sdct-at-s3-bucket",
+                    "resource_type": "s3_trigger"
                   }
                 ]
               },
@@ -1025,6 +1041,10 @@
                   "reservations_table": "*${reservations_table}*",
                   "tables_table": "*${tables_table}*",
                   "region": "${region}"
+                },
+                "sdct-at-java-lambda": {
+                  "ENDPOINT": "*${region}.rds.amazonaws.com",
+                  "MASTER_CREDENTIALS_SECRET_NAME": "rds!cluster*"
                 }
               },
               "depends_on": [
@@ -1187,9 +1207,49 @@
             },
             {
               "index": 5,
+              "name": "lambda_trigger_existence",
+              "description": "Check if lambda trigger exists",
+              "triggers": {
+                "sdct-at-python-lambda": [
+                  {
+                    "resource_name": "sdct-at-queue",
+                    "resource_type": "sqs_queue"
+                  },
+                  {
+                    "resource_name": "sdct-at-reservation",
+                    "resource_type": "dynamodb_trigger"
+                  }
+                ],
+                "sdct-at-java-lambda": [
+                  {
+                    "resource_name": "sdct-at-cw-rule",
+                    "resource_type": "cloudwatch_rule"
+                  }
+                ],
+                "sdct-at-dotnet-lambda": [
+                  {
+                    "resource_name": "sdct-at-topic",
+                    "resource_type": "sns_topic"
+                  },
+                  {
+                    "resource_name": "sdct-at-s3-bucket",
+                    "resource_type": "s3_trigger"
+                  }
+                ]
+              },
+              "depends_on": [
+                1,
+                4
+              ]
+            },
+            {
+              "index": 6,
               "name": "lambda_env_existence",
               "description": "Check if lambda environment variables were updated",
               "env_variables": {
+                "sdct-at-dotnet-lambda": {
+                  "DOTNET_SHARED_STORE": "/opt/dotnetcore/store/"
+                },
                 "sdct-at-nodejs-lambda": {
                   "new_region": "${region}",
                   "region": "updated_${region}",
@@ -1197,6 +1257,10 @@
                   "tables_table": "*${tables_table}*",
                   "cup_client_id": "*",
                   "cup_id": "*"
+                },
+                "sdct-at-java-lambda": {
+                  "ENDPOINT": "*${region}.rds.amazonaws.com",
+                  "MASTER_CREDENTIALS_SECRET_NAME": "rds!cluster*"
                 }
               },
               "depends_on": [
@@ -1205,7 +1269,7 @@
               ]
             },
             {
-              "index": 6,
+              "index": 7,
               "name": "tag_existence",
               "description": "Check if tags were updated",
               "resources": {
@@ -1224,7 +1288,7 @@
               ]
             },
             {
-              "index": 7,
+              "index": 8,
               "name": "appsync_modification",
               "description": "Check if appsync configuration was updated",
               "resources": {
