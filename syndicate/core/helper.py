@@ -823,8 +823,9 @@ def validate_authorizer_name_option(ctx, param, value):
 
 
 def validate_api_gw_path(ctx, param, value):
-    pattern = (r'^/[a-zA-Z0-9-._~+]+(?:(?:/*)?[a-zA-Z0-9-._~]*\{?[a-zA-Z0-9-.'
-               r'_~]+\}?)*$')
+    pattern = (
+        r'^/(?:([a-zA-Z0-9-._~]+|\{[a-zA-Z0-9-._~]+\})/)*([a-zA-Z0-9-._~]+|'
+        r'\{[a-zA-Z0-9-._~]+\}|\{proxy\+\})$')
     _LOG.debug(f"The parameter '--{param.name}' value is '{value}'")
     if os.name == 'nt' and Path(value).is_absolute():
         raise BadParameter(
@@ -835,9 +836,11 @@ def validate_api_gw_path(ctx, param, value):
         value = '/' + value
     if not re.match(pattern, value):
         raise BadParameter(
+            f"'{value}'. "
             f"A valid API gateway path must begin with a '/' and can contain "
             f"alphanumeric characters, hyphens, periods, underscores or "
-            "dynamic parameters wrapped in '{}'")
+            "dynamic parameters wrapped in '{}'. "
+            )
     return value
 
 
