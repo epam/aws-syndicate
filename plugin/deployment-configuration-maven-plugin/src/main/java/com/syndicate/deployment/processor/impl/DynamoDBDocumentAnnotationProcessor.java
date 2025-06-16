@@ -15,14 +15,15 @@ import com.syndicate.deployment.processor.AbstractAnnotationProcessor;
 import com.syndicate.deployment.processor.IAnnotationProcessor;
 import com.syndicate.deployment.resolvers.reflection.AttributeNameChainedResolver;
 import com.syndicate.deployment.resolvers.reflection.IChainedResolver;
+import com.syndicate.deployment.resolvers.reflection.ReflectionsHolder;
 import org.apache.maven.plugin.MojoExecutionException;
-import org.reflections.Reflections;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -79,12 +80,8 @@ public class DynamoDBDocumentAnnotationProcessor extends AbstractAnnotationProce
     }
 
     @Override
-    protected List<Class<?>> getAnnotatedClasses(String[] packages) {
-        List<Class<?>> dynamoDbTablesClasses = new ArrayList<>();
-        for (String nestedPackage : packages) {
-            Reflections reflections = reflectionsHolder.computeIfAbsent(nestedPackage, k -> new Reflections(nestedPackage));
-            dynamoDbTablesClasses.addAll(reflections.getTypesAnnotatedWith(DynamoDBTable.class));
-        }
+    protected Collection<Class<?>> getAnnotatedClasses(String[] packages) {
+        Set<Class<?>> dynamoDbTablesClasses = ReflectionsHolder.getTypesAnnotatedWith(packages, DynamoDBTable.class);
 
         List<Class<?>> directTableClasses = new ArrayList<>();
         for (Class<?> dynamoDbClass : dynamoDbTablesClasses) {

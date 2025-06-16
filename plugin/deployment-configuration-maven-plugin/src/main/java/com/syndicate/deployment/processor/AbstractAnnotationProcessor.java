@@ -2,14 +2,12 @@ package com.syndicate.deployment.processor;
 
 import com.syndicate.deployment.model.Pair;
 import org.apache.maven.plugin.MojoExecutionException;
-import org.reflections.Reflections;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 /**
@@ -17,14 +15,12 @@ import java.util.stream.Collectors;
  */
 public abstract class AbstractAnnotationProcessor<T> implements IAnnotationProcessor<T> {
 
-    protected static final Map<String, Reflections> reflectionsHolder = new ConcurrentHashMap<>();
-
     @Override
     public Map<String, T> generateMeta(String absolutePath, String[] packages,
                                        String version, String fileName) throws MojoExecutionException {
         Set<String> uniqueResources = new HashSet<>();
         Map<String, T> configurations = new HashMap<>();
-        List<Class<?>> annotatedClasses = getAnnotatedClasses(packages);
+        Collection<Class<?>> annotatedClasses = getAnnotatedClasses(packages);
         for (Class<?> targetClass : annotatedClasses) {
             Pair<String, T> metaPair = process(targetClass, version, fileName, absolutePath);
             if (metaPair == null) {
@@ -55,5 +51,5 @@ public abstract class AbstractAnnotationProcessor<T> implements IAnnotationProce
 
 	protected abstract Pair<String, T> process(Class<?> sourceClass, String version, String fileName, String path) throws MojoExecutionException;
 
-	protected abstract List<Class<?>> getAnnotatedClasses(String[] packages);
+	protected abstract Collection<Class<?>> getAnnotatedClasses(String[] packages);
 }
