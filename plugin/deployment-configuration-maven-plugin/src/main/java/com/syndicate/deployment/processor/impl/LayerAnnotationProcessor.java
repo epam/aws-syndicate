@@ -6,10 +6,9 @@ import com.syndicate.deployment.model.LayerConfiguration;
 import com.syndicate.deployment.model.Pair;
 import com.syndicate.deployment.processor.AbstractAnnotationProcessor;
 import com.syndicate.deployment.processor.IAnnotationProcessor;
-import org.reflections.Reflections;
+import com.syndicate.deployment.resolvers.reflection.ReflectionsHolder;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Collection;
 
 /**
  * Created by Oleksandr Onsha on 2019-12-02
@@ -24,12 +23,8 @@ public class LayerAnnotationProcessor extends AbstractAnnotationProcessor<LayerC
         return new Pair<>(configuration.getName(), configuration);
     }
 
-
-    public List<Class<?>> getAnnotatedClasses(String[] packages) {
-        List<Class<?>> lambdasClasses = new ArrayList<>();
-        for (String nestedPackage : packages) {
-            lambdasClasses.addAll(new Reflections(nestedPackage).getTypesAnnotatedWith(LambdaLayer.class));
-        }
-        return lambdasClasses;
+    @Override
+    public Collection<Class<?>> getAnnotatedClasses(String[] packages) {
+        return ReflectionsHolder.getTypesAnnotatedWith(packages, LambdaLayer.class);
     }
 }
