@@ -29,6 +29,7 @@ from syndicate.core.helper import (
     OptionRequiredIf, check_tags,
     validate_authorizer_name_option, verbose_option, validate_api_gw_path,
     DictParamType, DeepDictParamType, validate_incompatible_options,
+    AliasedGroup, OptionHideUnderscoreAlias, combine_option_classes,
 )
 from syndicate.core.helper import ValidRegionParamType
 from syndicate.core.helper import check_bundle_bucket_name
@@ -41,12 +42,16 @@ RDS_INSTANCE_DB_CLUSTER_INCOMPATIBLE_OPTIONS = [
     'engine', 'engine_version', 'master_username', 'master_password',
     'database_name', 'port', 'vpc_security_group_ids', 'availability_zone']
 
+OptionCombined = combine_option_classes(OptionRequiredIf,
+                                        OptionHideUnderscoreAlias)
+
 USER_LOG = get_user_logger()
 
 
-@click.group(name=GENERATE_META_GROUP_NAME)
+@click.group(name=GENERATE_META_GROUP_NAME, cls=AliasedGroup)
 @return_code_manager
-@click.option('--project_path', nargs=1,
+@click.option('--project-path',
+              cls=OptionHideUnderscoreAlias, nargs=1,
               help="Path to the project folder. Default value: the one "
                    "from the current config if it exists. "
                    "Otherwise - the current working directory",
@@ -67,25 +72,35 @@ def meta(ctx, project_path):
     return OK_RETURN_CODE
 
 
-@meta.command(name='dax_cluster')
+@meta.command(name='dax-cluster')
 @return_code_manager
-@click.option('--resource_name', required=True, type=str,
-              help="Dax cluster name")
-@click.option('--node_type', required=True, type=str,
+@click.option('--resource-name',
+              cls=OptionHideUnderscoreAlias,
+              required=True, type=str, help="Dax cluster name")
+@click.option('--node-type',
+              cls=OptionHideUnderscoreAlias,
+              required=True, type=str,
               help="The node type for the nodes in the cluster")
-@click.option('--iam_role_name', required=True, type=str,
+@click.option('--iam-role-name',
+              cls=OptionHideUnderscoreAlias,
+              required=True, type=str,
               help="Role name to access DynamoDB tables")
-@click.option('--subnet_group_name', required=True, type=str,
+@click.option('--subnet-group-name',
+              cls=OptionHideUnderscoreAlias,
+              required=True, type=str,
               help='The name of the subnet group to be used for the '
                    'replication group')
-@click.option('--subnet_ids', type=str, multiple=True,
+@click.option('--subnet-ids',
+              cls=OptionHideUnderscoreAlias, type=str, multiple=True,
               help='Subnet ids to create a subnet group from. Don\'t specify '
                    'in case of using existing subnet group')
-@click.option('--cluster_endpoint_encryption_type',
+@click.option('--cluster-endpoint-encryption-type',
+              cls=OptionHideUnderscoreAlias,
               type=click.Choice(['NONE', 'TLS']), default='TLS',
               help='The encryption type of the cluster\'s endpoint. '
                    'The default value is \'TLS\'')
-@click.option('--parameter_group_name', type=str,
+@click.option('--parameter-group-name',
+              cls=OptionHideUnderscoreAlias, type=str,
               help='The parameter group to be associated with the DAX cluster')
 @click.option('--tags', type=DictParamType(), callback=check_tags,
               help='The resource tags')
@@ -104,31 +119,39 @@ def dax_cluster(ctx, **kwargs):
 
 @meta.command(name='dynamodb')
 @return_code_manager
-@click.option('--resource_name', required=True, type=str,
+@click.option('--resource-name',
+              cls=OptionHideUnderscoreAlias, required=True, type=str,
               help="DynamoDB table name")
-@click.option('--hash_key_name', required=True, type=str,
+@click.option('--hash-key-name',
+              cls=OptionHideUnderscoreAlias, required=True, type=str,
               help="DynamoDB table hash key")
-@click.option('--hash_key_type', required=True,
+@click.option('--hash-key-type',
+              cls=OptionHideUnderscoreAlias, required=True,
               type=click.Choice(['S', 'N', 'B']),
               help="DynamoDB hash key type")
-@click.option('--sort_key_name', type=str,
+@click.option('--sort-key-name',
+              cls=OptionHideUnderscoreAlias, type=str,
               help="DynamoDB sort key. If not specified, the table will have "
                    "only a hash key")
-@click.option('--sort_key_type', type=dynamodb_type_param,
-              cls=OptionRequiredIf, required_if='sort_key_name',
+@click.option('--sort-key-type',
+              type=dynamodb_type_param,
+              cls=OptionCombined, required_if='sort_key_name',
               help="Required if sort key name is specified")
-@click.option('--billing_mode', required=True,
+@click.option('--billing-mode',
+              cls=OptionHideUnderscoreAlias, required=True,
               type=click.Choice(['PROVISIONED', 'PAY_PER_REQUEST']),
               default='PAY_PER_REQUEST',
               help="Controls how you are charged for read and write "
                    "throughput")
-@click.option('--read_capacity', type=int,
+@click.option('--read-capacity',
+              cls=OptionHideUnderscoreAlias, type=int,
               help="The maximum number of strongly consistent reads that can"
                    "be performed per second in PROVISIONED billing mode. "
                    "Maximum number of read request units in PAY_PER_REQUEST "
                    "billing mode. If not specified, sets the default value "
                    "to 1")
-@click.option('--write_capacity', type=int,
+@click.option('--write-capacity',
+              cls=OptionHideUnderscoreAlias, type=int,
               help="The maximum number of writing processes consumed per"
                    "second in PROVISIONED billing mode. "
                    "Maximum number of write request units in PAY_PER_REQUEST "
@@ -148,21 +171,26 @@ def dynamodb(ctx, **kwargs):
     return OK_RETURN_CODE
 
 
-@meta.command(name='dynamodb_global_index')
+@meta.command(name='dynamodb-global-index')
 @return_code_manager
-@click.option('--table_name', required=True, type=str,
+@click.option('--table-name',
+              cls=OptionHideUnderscoreAlias, required=True, type=str,
               help="DynamoDB table name to add index to")
 @click.option('--name', required=True, type=str,
               help="Index name")
-@click.option('--index_key_name', required=True, type=str,
+@click.option('--index-key-name',
+              cls=OptionHideUnderscoreAlias, required=True, type=str,
               help="Index hash key")
-@click.option('--index_key_type', required=True,
+@click.option('--index-key-type',
+              cls=OptionHideUnderscoreAlias, required=True,
               type=dynamodb_type_param,
               help='Hash key index type')
-@click.option('--index_sort_key_name', type=str,
+@click.option('--index-sort-key_name',
+              cls=OptionHideUnderscoreAlias, type=str,
               help='Index sort key')
-@click.option('--index_sort_key_type', type=dynamodb_type_param,
-              cls=OptionRequiredIf, required_if='index_sort_key_name',
+@click.option('--index-sort-key-type',
+              cls=OptionCombined, type=dynamodb_type_param,
+              required_if='index_sort_key_name',
               help="Sort key type")
 @verbose_option
 @click.pass_context
@@ -176,31 +204,40 @@ def dynamodb_global_index(ctx, **kwargs):
     return OK_RETURN_CODE
 
 
-@meta.command(name='dynamodb_autoscaling')
+@meta.command(name='dynamodb-autoscaling')
 @return_code_manager
-@click.option('--table_name', type=str, required=True,
+@click.option('--table-name',
+              cls=OptionHideUnderscoreAlias, type=str, required=True,
               help="DynamoDB table name to add autoscaling to")
-@click.option('--policy_name', type=str, required=True,
+@click.option('--policy-name',
+              cls=OptionHideUnderscoreAlias, type=str, required=True,
               help="Autoscaling policy name")
-@click.option('--min_capacity', type=click.IntRange(min=1),
+@click.option('--min-capacity',
+              cls=OptionHideUnderscoreAlias, type=click.IntRange(min=1),
               help="Minimum capacity level. If not specified, sets the default"
                    " value to 1")
-@click.option('--max_capacity', type=click.IntRange(min=1),
+@click.option('--max-capacity',
+              cls=OptionHideUnderscoreAlias, type=click.IntRange(min=1),
               help="Maximum capacity level. If not specified, sets the default"
                    " value to 10")
-@click.option('--target_utilization', type=click.IntRange(min=20, max=90),
+@click.option('--target-utilization',
+              cls=OptionHideUnderscoreAlias,
+              type=click.IntRange(min=20, max=90),
               help="Target utilization in autoscaling. If not specified, sets "
                    "the default value to 70 %")
-@click.option('--scale_in_cooldown', type=click.IntRange(min=0),
+@click.option('--scale-in-cooldown',
+              cls=OptionHideUnderscoreAlias, type=click.IntRange(min=0),
               help="Scaling policy value of in cooldown in seconds. Is not "
                    "specified, sets the default value to 60")
-@click.option('--scale_out_cooldown', type=click.IntRange(min=0),
+@click.option('--scale-out-cooldown',
+              cls=OptionHideUnderscoreAlias, type=click.IntRange(min=0),
               help="Scaling policy value of out cooldown in seconds. Is not "
                    "specified, sets the default value to 60")
 @click.option('--dimension', type=str,
               help="Autoscaling dimension. If not specified, sets the default"
                    "value to 'dynamodb:table:ReadCapacityUnits'")
-@click.option('--role_name', type=str,
+@click.option('--role-name',
+              cls=OptionHideUnderscoreAlias, type=str,
               help="The name of the role, which performs autoscaling. If not "
                    "specified, sets the value to default service linked role: "
                    "'AWSServiceRoleForApplicationAutoScaling_DynamoDBTable'")
@@ -217,9 +254,10 @@ def dynamodb_autoscaling(ctx, **kwargs):
     return OK_RETURN_CODE
 
 
-@meta.command(name='s3_bucket')
+@meta.command(name='s3-bucket')
 @return_code_manager
-@click.option('--resource_name', required=True, type=str,
+@click.option('--resource-name',
+              cls=OptionHideUnderscoreAlias, required=True, type=str,
               help="S3 bucket name", callback=check_bundle_bucket_name)
 @click.option('--location', type=ValidRegionParamType(),
               help="The region where the bucket is created, the default value "
@@ -227,25 +265,30 @@ def dynamodb_autoscaling(ctx, **kwargs):
 @click.option('--acl', type=click.Choice(S3_BUCKET_ACL_LIST),
               help="The channel ACL to be applied to the bucket. If not "
                    "specified, sets the default value to 'private'")
-@click.option('--block_public_acls', type=bool, required=False,
-              is_eager=True,
+@click.option('--block-public-acls',
+              cls=OptionHideUnderscoreAlias,
+              type=bool, required=False, is_eager=True,
               help='Specifies whether Amazon S3 should block public access '
                    'control lists (ACLs) for this bucket and objects in this '
                    'bucket. Default value is True')
-@click.option('--ignore_public_acls', type=bool, required=False,
-              is_eager=True,
+@click.option('--ignore-public-acls',
+              cls=OptionHideUnderscoreAlias,
+              type=bool, required=False, is_eager=True,
               help='Specifies whether Amazon S3 should ignore public ACLs for '
                    'this bucket and objects in this bucket. Default value '
                    'is True')
-@click.option('--block_public_policy', type=bool, required=False,
-              is_eager=True,
+@click.option('--block-public-policy',
+              cls=OptionHideUnderscoreAlias,
+              type=bool, required=False, is_eager=True,
               help='Specifies whether Amazon S3 should block public bucket '
                    'policies for this bucket. Default value is True')
-@click.option('--restrict_public_buckets', type=bool, required=False,
-              is_eager=True,
+@click.option('--restrict-public-buckets',
+              cls=OptionHideUnderscoreAlias,
+              type=bool, required=False, is_eager=True,
               help='Specifies whether Amazon S3 should restrict public bucket '
                    'policies for this bucket. Default value is True')
-@click.option('--static_website_hosting', type=bool, required=False,
+@click.option('--static-website-hosting',
+              cls=OptionHideUnderscoreAlias, type=bool, required=False,
               help='Specifies whether the S3 bucket should be configured for '
                    'static WEB site hosting. Default value is False')
 @click.option('--tags', type=DictParamType(), callback=check_tags,
@@ -263,13 +306,16 @@ def s3_bucket(ctx, **kwargs):
     return OK_RETURN_CODE
 
 
-@meta.command(name='api_gateway')
+@meta.command(name='api-gateway')
 @return_code_manager
-@click.option('--resource_name', required=True, type=str,
+@click.option('--resource-name',
+              cls=OptionHideUnderscoreAlias, required=True, type=str,
               help="Api gateway name")
-@click.option('--deploy_stage', required=True, type=str,
+@click.option('--deploy-stage',
+              cls=OptionHideUnderscoreAlias, required=True, type=str,
               help="The stage to deploy the API")
-@click.option('--minimum_compression_size',
+@click.option('--minimum-compression-size',
+              cls=OptionHideUnderscoreAlias,
               type=click.IntRange(min=0, max=10 * 1024 * 1024),
               help="Compression size for api gateway. If not specified, "
                    "compression will be disabled")
@@ -288,11 +334,13 @@ def api_gateway(ctx, **kwargs):
     return OK_RETURN_CODE
 
 
-@meta.command(name='web_socket_api_gateway')
+@meta.command(name='web-socket-api-gateway')
 @return_code_manager
-@click.option('--resource_name', required=True, type=str,
+@click.option('--resource-name',
+              cls=OptionHideUnderscoreAlias, required=True, type=str,
               help="Api gateway name")
-@click.option('--deploy_stage', required=True, type=str,
+@click.option('--deploy-stage',
+              cls=OptionHideUnderscoreAlias, required=True, type=str,
               help="The stage to deploy the API")
 @click.option('--tags', type=DictParamType(), callback=check_tags,
               help='The resource tags')
@@ -309,9 +357,10 @@ def web_socket_api_gateway(ctx, **kwargs):
     return OK_RETURN_CODE
 
 
-@meta.command(name='api_gateway_authorizer')
+@meta.command(name='api-gateway-authorizer')
 @return_code_manager
-@click.option('--api_name', required=True, type=str,
+@click.option('--api-name',
+              cls=OptionHideUnderscoreAlias, required=True, type=str,
               help="Api gateway name to add authorizer to")
 @click.option('--name', required=True, type=str,
               help="Authorizer name")
@@ -323,7 +372,8 @@ def web_socket_api_gateway(ctx, **kwargs):
                                   "incoming request parameters, and "
                                   "'COGNITO_USER_POOLS' for using an Amazon "
                                   "Cognito user pool")
-@click.option('--provider_name', type=str, required=True,
+@click.option('--provider-name',
+              cls=OptionHideUnderscoreAlias, type=str, required=True,
               help="Identity provider name")
 @verbose_option
 @click.pass_context
@@ -338,13 +388,15 @@ def api_gateway_authorizer(ctx, **kwargs):
     return OK_RETURN_CODE
 
 
-@meta.command(name='api_gateway_resource')
+@meta.command(name='api-gateway-resource')
 @return_code_manager
-@click.option('--api_name', required=True, type=str,
+@click.option('--api-name',
+              cls=OptionHideUnderscoreAlias, required=True, type=str,
               help="Api gateway name to add resource to")
 @click.option('--path', required=True, callback=validate_api_gw_path,
               help="Resource path to create")
-@click.option('--enable_cors', type=bool,
+@click.option('--enable-cors',
+              cls=OptionHideUnderscoreAlias, type=bool,
               help="Enables CORS on the resource method. If not specified, "
                    "sets the default value to False")
 @verbose_option
@@ -360,9 +412,10 @@ def api_gateway_resource(ctx, **kwargs):
     return OK_RETURN_CODE
 
 
-@meta.command(name='api_gateway_resource_method')
+@meta.command(name='api-gateway-resource-method')
 @return_code_manager
-@click.option('--api_name', required=True, type=str,
+@click.option('--api-name',
+              cls=OptionHideUnderscoreAlias, required=True, type=str,
               help="Api gateway name to add method to")
 @click.option('--path', required=True, callback=validate_api_gw_path,
               help="Resource path to add method to")
@@ -370,24 +423,30 @@ def api_gateway_resource(ctx, **kwargs):
               type=click.Choice(['POST', 'GET', 'DELETE', 'PUT', 'HEAD',
                                  'PATCH', 'ANY']),
               help="Resource method to add")
-@click.option('--integration_type', type=str,
+@click.option('--integration-type',
+              cls=OptionHideUnderscoreAlias, type=str,
               help="The resource which the method is connected to: "
                    "[lambda|service|http|mock]. If not specified, sets the "
                    "default value to 'mock'")
-@click.option('--lambda_name', type=str, help="Lambda name. Required if "
-                                              "integration type is lambda")
-@click.option('--lambda_region', type=ValidRegionParamType(),
+@click.option('--lambda-name',
+              cls=OptionHideUnderscoreAlias, type=str,
+              help="Lambda name. Required if integration type is lambda")
+@click.option('--lambda-region',
+              cls=OptionHideUnderscoreAlias, type=ValidRegionParamType(),
               help="The region where the lambda is located. If not specified, "
                    "sets the default value from syndicate config")
-@click.option('--authorization_type', is_eager=True,
+@click.option('--authorization-type',
+              cls=OptionHideUnderscoreAlias, is_eager=True,
               type=click.Choice(["NONE", "AWS_IAM", CUSTOM_AUTHORIZER_KEY]),
               help="The method's authorization type. If not specified, sets "
                    "the default value to 'NONE'")
-@click.option('--authorizer_name', type=str,
+@click.option('--authorizer-name',
+              cls=OptionHideUnderscoreAlias, type=str,
               callback=validate_authorizer_name_option,
               help="The method's authorizer name can be used only with "
                    "'--authorization_type' 'CUSTOM'")
-@click.option('--api_key_required', type=bool,
+@click.option('--api-key-required',
+              cls=OptionHideUnderscoreAlias, type=bool,
               help="Specifies whether the method requires a valid API key. "
                    "If not specified, the default value is set to False")
 @verbose_option
@@ -410,13 +469,15 @@ def api_gateway_resource_method(ctx, **kwargs):
     return OK_RETURN_CODE
 
 
-@meta.command(name='iam_policy')
+@meta.command(name='iam-policy')
 @return_code_manager
-@click.option('--resource_name', required=True, type=str,
+@click.option('--resource-name',
+              cls=OptionHideUnderscoreAlias, required=True, type=str,
               help='IAM policy name')
-@click.option('--policy_content', help='The path to JSON file with IAM policy '
-                                       'content. If not specified, template '
-                                       'value will be set',
+@click.option('--policy-content',
+              cls=OptionHideUnderscoreAlias,
+              help='The path to JSON file with IAM policy content. '
+                   'If not specified, template value will be set',
               type=click.File(mode='r'))
 @click.option('--tags', type=DictParamType(), callback=check_tags,
               help='The resource tags')
@@ -438,22 +499,31 @@ def iam_policy(ctx, **kwargs):
     return OK_RETURN_CODE
 
 
-@meta.command(name='iam_role')
+@meta.command(name='iam-role')
 @return_code_manager
-@click.option('--resource_name', required=True, type=str,
+@click.option('--resource-name',
+              cls=OptionHideUnderscoreAlias, required=True, type=str,
               help="IAM role name")
-@click.option('--principal_service', required=True, type=str,
+@click.option('--principal-service',
+              cls=OptionHideUnderscoreAlias, required=True, type=str,
               help="The service which will use the role")
-@click.option("--predefined_policies", type=str, multiple=True,
+@click.option('--predefined-policies',
+              cls=OptionHideUnderscoreAlias, type=str, multiple=True,
               help="Managed IAM policies list")
-@click.option("--custom_policies", type=str, multiple=True,
+@click.option('--custom-policies',
+              cls=OptionHideUnderscoreAlias, type=str, multiple=True,
               help="Customer AWS policies names")
-@click.option("--allowed_accounts", type=str, multiple=True,
+@click.option('--allowed-accounts',
+              cls=OptionHideUnderscoreAlias, type=str, multiple=True,
               help="The list of accounts, which can assume the role")
-@click.option("--external_id", type=str, help="External ID in role")
-@click.option("--instance_profile", type=bool,
+@click.option('--external-id',
+              cls=OptionHideUnderscoreAlias,
+              type=str, help="External ID in role")
+@click.option('--instance-profile',
+              cls=OptionHideUnderscoreAlias, type=bool,
               help="If true, instance profile with role name is created")
-@click.option('--permissions_boundary', type=str,
+@click.option('--permissions_boundary',
+              cls=OptionHideUnderscoreAlias, type=str,
               help="The name or the ARN of permissions boundary policy to "
                    "attach to this role")
 @click.option('--tags', type=DictParamType(), callback=check_tags,
@@ -471,11 +541,13 @@ def iam_role(ctx, **kwargs):
     return OK_RETURN_CODE
 
 
-@meta.command(name='kinesis_stream')
+@meta.command(name='kinesis-stream')
 @return_code_manager
-@click.option('--resource_name', type=str, required=True,
+@click.option('--resource-name',
+              cls=OptionHideUnderscoreAlias, type=str, required=True,
               help="Kinesis stream name")
-@click.option('--shard_count', type=int, required=True,
+@click.option('--shard-count',
+              cls=OptionHideUnderscoreAlias, type=int, required=True,
               help="Number of shards that the stream uses")
 @click.option('--tags', type=DictParamType(), callback=check_tags,
               help='The resource tags')
@@ -492,9 +564,10 @@ def kinesis_stream(ctx, **kwargs):
     return OK_RETURN_CODE
 
 
-@meta.command(name='sns_topic')
+@meta.command(name='sns-topic')
 @return_code_manager
-@click.option('--resource_name', type=str, required=True,
+@click.option('--resource-name',
+              cls=OptionHideUnderscoreAlias, type=str, required=True,
               help="SNS topic name")
 @click.option('--region', type=ValidRegionParamType(allowed_all=True),
               required=True, help="Where the topic should be deployed")
@@ -513,11 +586,13 @@ def sns_topic(ctx, **kwargs):
     return OK_RETURN_CODE
 
 
-@meta.command(name='step_function')
+@meta.command(name='step-function')
 @return_code_manager
-@click.option('--resource_name', type=str, required=True,
+@click.option('--resource-name',
+              cls=OptionHideUnderscoreAlias, type=str, required=True,
               help="Step function name")
-@click.option('--iam_role', type=str, required=True,
+@click.option('--iam-role',
+              cls=OptionHideUnderscoreAlias, type=str, required=True,
               help="IAM role to use for this state machine")
 @click.option('--tags', type=DictParamType(), callback=check_tags,
               help='The resource tags')
@@ -534,9 +609,10 @@ def step_function(ctx, **kwargs):
     return OK_RETURN_CODE
 
 
-@meta.command(name='step_function_activity')
+@meta.command(name='step-function-activity')
 @return_code_manager
-@click.option('--resource_name', type=str, required=True,
+@click.option('--resource-name',
+              cls=OptionHideUnderscoreAlias, type=str, required=True,
               help="Step function activity name")
 @click.option('--tags', type=DictParamType(), callback=check_tags,
               help='The resource tags')
@@ -553,31 +629,42 @@ def step_function_activity(ctx, **kwargs):
     return OK_RETURN_CODE
 
 
-@meta.command(name='ec2_instance')
+@meta.command(name='ec2-instance')
 @return_code_manager
-@click.option('--resource_name', type=str, required=True,
+@click.option('--resource-name',
+              cls=OptionHideUnderscoreAlias, type=str, required=True,
               help="Instance name")
-@click.option('--key_name', type=str, required=True,
+@click.option('--key-name',
+              cls=OptionHideUnderscoreAlias, type=str, required=True,
               help="SSH key to access the instance")
-@click.option('--image_id', type=str, required=True,
+@click.option('--image-id',
+              cls=OptionHideUnderscoreAlias, type=str, required=True,
               help="Image id to create the instance from")
-@click.option('--instance_type', type=str,
+@click.option('--instance-type',
+              cls=OptionHideUnderscoreAlias, type=str,
               help="Instance type. Default type: t2.micro")
-@click.option('--disable_api_termination', type=bool,
+@click.option('--disable-api-termination',
+              cls=OptionHideUnderscoreAlias, type=bool,
               help="Api termination protection. Default value is True")
-@click.option('--security_group_ids', type=str, multiple=True,
+@click.option('--security-group-ids',
+              cls=OptionHideUnderscoreAlias, type=str, multiple=True,
               help="Security group ids")
-@click.option('--security_group_names', type=str, multiple=True,
+@click.option('--security-group-names',
+              cls=OptionHideUnderscoreAlias, type=str, multiple=True,
               help="Security group names")
-@click.option('--availability_zone', type=str,
+@click.option('--availability-zone',
+              cls=OptionHideUnderscoreAlias, type=str,
               help="Instance availability zone")
-@click.option('--subnet_id', type=str, cls=OptionRequiredIf,
+@click.option('--subnet-id',
+              type=str, cls=OptionCombined,
               required_if="availability_zone",
               help="Subnet ID (required if availability zone is set)")
-@click.option('--userdata_file', type=str,
+@click.option('--userdata-file',
+              cls=OptionHideUnderscoreAlias, type=str,
               help="File path to userdata (file relative pathname from the"
                    "directory which is set up in the env variable 'SDCT_CONF'")
-@click.option('--iam_role', type=str,
+@click.option('--iam-role',
+              cls=OptionHideUnderscoreAlias, type=str,
               help="Instance IAM role")
 @click.option('--tags', type=DictParamType(), callback=check_tags,
               help='The resource tags')
@@ -594,36 +681,47 @@ def ec2_instance(ctx, **kwargs):
     return OK_RETURN_CODE
 
 
-@meta.command(name='ec2_launch_template')
+@meta.command(name='ec2-launch-template')
 @return_code_manager
-@click.option('--resource_name', type=str, required=True,
+@click.option('--resource-name',
+              cls=OptionHideUnderscoreAlias, type=str, required=True,
               help="Launch template name")
-@click.option('--image_id', type=str, required=True,
+@click.option('--image-id',
+              cls=OptionHideUnderscoreAlias, type=str, required=True,
               help="The ID of the AMI")
-@click.option('--key_name', type=str,
+@click.option('--key-name',
+              cls=OptionHideUnderscoreAlias, type=str,
               help="The name of the key pair")
-@click.option('--instance_type', type=str,
+@click.option('--instance-type',
+              cls=OptionHideUnderscoreAlias, type=str,
               help="Instance type")
-@click.option('--security_group_ids', type=str, multiple=True,
+@click.option('--security-group-ids',
+              cls=OptionHideUnderscoreAlias, type=str, multiple=True,
               help="Security group ids")
-@click.option('--security_group_names', type=str, multiple=True,
+@click.option('--security-group-names', type=str, multiple=True,
               help="Security group names")
-@click.option('--userdata_file', type=str,
+@click.option('--userdata-file',
+              cls=OptionHideUnderscoreAlias, type=str,
               help="File path to userdata (can be specified as a relative "
                    "path to the project path)")
-@click.option('--iam_role', type=str,
+@click.option('--iam-role',
+              cls=OptionHideUnderscoreAlias, type=str,
               help="Instance IAM role")
-@click.option('--imds_version',
+@click.option('--imds-version',
+              cls=OptionHideUnderscoreAlias,
               type=click.Choice(EC2_LAUNCH_TEMPLATE_SUPPORTED_IMDS_VERSIONS),
               help="IMDS version")
-@click.option('--version_description', type=str,
+@click.option('--version-description',
+              cls=OptionHideUnderscoreAlias, type=str,
               help="A description for the version of the launch template")
 @click.option('--tags', type=DictParamType(), callback=check_tags,
               help='The ec2 launch template tags')
-@click.option('--resource_tags', type=DeepDictParamType(), multiple=True,
-              help=f'The resource tags. You can specify tags for the following '
-                   f'{EC2_LT_RESOURCE_TAGS}. To tag a resource after it has '
-                   f'been created')
+@click.option('--resource-tags',
+              cls=OptionHideUnderscoreAlias,
+              type=DeepDictParamType(), multiple=True,
+              help=f'The resource tags. You can specify tags for the '
+                   f'following {EC2_LT_RESOURCE_TAGS}. To tag a resource '
+                   f'after it has been created')
 @verbose_option
 @click.pass_context
 @timeit()
@@ -651,50 +749,62 @@ def ec2_launch_template(ctx, **kwargs):
     return OK_RETURN_CODE
 
 
-@meta.command(name='sqs_queue')
+@meta.command(name='sqs-queue')
 @return_code_manager
-@click.option('--resource_name', type=str, required=True,
+@click.option('--resource-name',
+              cls=OptionHideUnderscoreAlias, type=str, required=True,
               help="SQS queue name")
 @click.option('--region', type=ValidRegionParamType(),
               help="The region where the queue is deployed. Default value is "
                    "the one from syndicate config")
-@click.option('--fifo_queue', type=bool,
+@click.option('--fifo-queue',
+              cls=OptionHideUnderscoreAlias, type=bool,
               help="If True, the queue is FIFO. Default value is False")
-@click.option('--visibility_timeout', type=click.IntRange(min=0, max=43200),
+@click.option('--visibility-timeout',
+              cls=OptionHideUnderscoreAlias,
+              type=click.IntRange(min=0, max=43200),
               help="The visibility timeout for the queue. Default value is 30")
-@click.option('--delay_seconds', type=click.IntRange(min=0, max=900),
+@click.option('--delay-seconds',
+              cls=OptionHideUnderscoreAlias,
+              type=click.IntRange(min=0, max=900),
               help="The length of time in seconds for which the delivery "
                    "of all the messages in the queue is delayed. Default "
                    "value is 0")
-@click.option('--maximum_message_size',
+@click.option('--maximum-message-size',
+              cls=OptionHideUnderscoreAlias,
               type=click.IntRange(min=1024, max=262144),
               help="The limit of how many bytes a message can contain before "
                    "Amazon SQS rejects it. Default value is 1024")
-@click.option('--message_retention_period', type=click.IntRange(min=60,
-                                                                max=1209600),
+@click.option('--message-retention-period',
+              cls=OptionHideUnderscoreAlias,
+              type=click.IntRange(min=60, max=1209600),
               help="The length of time in seconds for which Amazon SQS "
                    "retains a message. Default value is 60")
-@click.option('--receive_message_wait_time_seconds',
+@click.option('--receive-message-wait-time-seconds',
+              cls=OptionHideUnderscoreAlias,
               type=click.IntRange(min=0, max=20),
               help="The length of time in seconds for which a 'ReceiveMessage'"
                    " action waits for a message to arrive")
-@click.option('--dead_letter_target_arn', type=str,
+@click.option('--dead-letter-target-arn',
+              cls=OptionHideUnderscoreAlias, type=str,
               help="Arn of a dead-letter queue Amazon SQS moves messages "
                    "after the value of maxReceiveCount is exceeded")
-@click.option('--max_receive_count', type=click.IntRange(min=1, max=1000),
+@click.option('--max-receive-count', type=click.IntRange(min=1, max=1000),
               help="The number of times a message is delivered to the source "
                    "queue before being moved to the dead-letter queue. "
                    "Required if 'dead_letter_target_arn' is specified",
-              cls=OptionRequiredIf, required_if='dead_letter_target_arn')
-@click.option('--kms_master_key_id', type=str,
+              cls=OptionCombined, required_if='dead_letter_target_arn')
+@click.option('--kms-master-key-id', type=str,
               help="The id of an AWS-managed customer master key (CMK) for "
                    "Amazon SQS or a custom CMK")
-@click.option('--kms_data_key_reuse_period_seconds',
+@click.option('--kms-data-key-reuse-period-seconds',
+              cls=OptionHideUnderscoreAlias,
               type=click.IntRange(min=60, max=86400),
               help="The length of time in seconds for which Amazon SQS can "
                    "reuse a data key to encrypt or decrypt messages before "
                    "calling AWS KMS again")
-@click.option('--content_based_deduplication', type=bool,
+@click.option('--content-based-deduplication',
+              cls=OptionHideUnderscoreAlias, type=bool,
               help="Enables content-based deduplication")
 @click.option('--tags', type=DictParamType(), callback=check_tags,
               help='The resource tags')
@@ -711,9 +821,10 @@ def sqs_queue(ctx, **kwargs):
     return OK_RETURN_CODE
 
 
-@meta.command(name="sns_application")
+@meta.command(name="sns-application")
 @return_code_manager
-@click.option('--resource_name', type=str, required=True,
+@click.option('--resource-name',
+              cls=OptionHideUnderscoreAlias, type=str, required=True,
               help="The name of the sns application")
 @click.option('--platform', required=True,
               type=click.Choice(['GCM', 'ADM', 'APNS', 'APNS_SANDBOX']),
@@ -736,26 +847,31 @@ def sns_application(ctx, **kwargs):
     return OK_RETURN_CODE
 
 
-@meta.command(name="cognito_user_pool")
+@meta.command(name="cognito-user-pool")
 @return_code_manager
-@click.option('--resource_name', type=str, required=True,
+@click.option('--resource-name',
+              cls=OptionHideUnderscoreAlias, type=str, required=True,
               help="Cognito user pool name")
 # @click.option('--region', type=ValidRegionParamType(), required=True,
 #               help="The region where the user pool is created")
-@click.option('--auto_verified_attributes',
+@click.option('--auto-verified-attributes',
+              cls=OptionHideUnderscoreAlias,
               type=click.Choice(['phone_number', 'email']),
               help="The attributes to be auto-verified. "
                    "Default value is email", multiple=True)
-@click.option('--sns_caller_arn', type=str,
+@click.option('--sns-caller-arn',
+              cls=OptionHideUnderscoreAlias, type=str,
               help="The arn of the IAM role in your account which Cognito "
                    "will use to send SMS messages. Required if 'phone_number' "
                    "in 'auto_verified_attributes' is specified")
-@click.option('--username_attributes',
+@click.option('--username-attributes',
+              cls=OptionHideUnderscoreAlias,
               type=click.Choice(['phone_number', 'email']),
               help="Specifies whether email addresses or phone numbers can "
                    "be specified as usernames when a user signs up. Default "
                    "value is email", multiple=True)
-@click.option('--custom_attributes', type=(str, str), multiple=True,
+@click.option('--custom-attributes',
+              cls=OptionHideUnderscoreAlias, type=(str, str), multiple=True,
               help="A list of custom attributes: (name type)")
 @click.option('--tags', type=DictParamType(), callback=check_tags,
               help='The resource tags')
@@ -780,17 +896,22 @@ def cognito_user_pool(ctx, **kwargs):
     return OK_RETURN_CODE
 
 
-@meta.command(name="cognito_federated_pool")
+@meta.command(name="cognito-federated-pool")
 @return_code_manager
-@click.option('--resource_name', type=str, required=True,
+@click.option('--resource-name',
+              cls=OptionHideUnderscoreAlias, type=str, required=True,
               help="Cognito federated pool name")
-@click.option('--auth_role', type=str,
+@click.option('--auth-role',
+              cls=OptionHideUnderscoreAlias, type=str,
               help="IAM role for authorized users")
-@click.option('--unauth_role', type=str,
+@click.option('--unauth-role',
+              cls=OptionHideUnderscoreAlias, type=str,
               help="IAM role for unauthorized users")
-@click.option('--open_id_providers', type=str, multiple=True,
+@click.option('--open-id-providers',
+              cls=OptionHideUnderscoreAlias, type=str, multiple=True,
               help="A list of OpenID Connect providers")
-@click.option('--provider_name', type=str,
+@click.option('--provider-name',
+              cls=OptionHideUnderscoreAlias, type=str,
               help="Developer provider name")
 @click.option('--tags', type=DictParamType(), callback=check_tags,
               help='The resource tags')
@@ -807,15 +928,18 @@ def cognito_federated_pool(ctx, **kwargs):
     return OK_RETURN_CODE
 
 
-@meta.command(name='batch_compenv')
+@meta.command(name='batch-compenv')
 @return_code_manager
-@click.option('--resource_name', type=str, required=True,
+@click.option('--resource-name',
+              cls=OptionHideUnderscoreAlias, type=str, required=True,
               help="Batch compute environment name")
-@click.option('--compute_environment_type',
+@click.option('--compute-environment-type',
+              cls=OptionHideUnderscoreAlias,
               type=click.Choice(['MANAGED', 'UNMANAGED']),
               help="The type of compute environment. "
                    "Default value is 'MANAGED'")
-@click.option('--allocation_strategy',
+@click.option('--allocation-strategy',
+              cls=OptionHideUnderscoreAlias,
               type=click.Choice(['BEST_FIT', 'BEST_FIT_PROGRESSIVE',
                                  'SPOT_CAPACITY_OPTIMIZED']),
               help="The allocation strategy to use for the compute resource "
@@ -823,7 +947,8 @@ def cognito_federated_pool(ctx, **kwargs):
                    "can be allocated")
 @click.option('--state', type=click.Choice(['ENABLED', 'DISABLED']),
               help="The state of compute environment")
-@click.option('--service_role', type=str,
+@click.option('--service-role',
+              cls=OptionHideUnderscoreAlias, type=str,
               help="The full Amazon Resource Name (ARN) of the IAM role that "
                    "allows Batch to make calls to other Amazon Web Services "
                    "services on your behalf. If not specified, role "
@@ -832,24 +957,31 @@ def cognito_federated_pool(ctx, **kwargs):
 @click.option('--type',
               type=click.Choice(['EC2', 'SPOT', 'FARGATE', 'FARGATE_SPOT']),
               help="The type of compute environment. Default value is EC2")
-@click.option('--minv_cpus', type=click.IntRange(min=0),
+@click.option('--minv-cpus',
+              cls=OptionHideUnderscoreAlias, type=click.IntRange(min=0),
               help='The minimum number of Amazon EC2 vCPUs that an '
                    'environment should maintain. Default value is 0')
-@click.option('--maxv_cpus', type=click.IntRange(min=1),
+@click.option('--maxv-cpus',
+              cls=OptionHideUnderscoreAlias, type=click.IntRange(min=1),
               help="The maximum number of Amazon EC2 vCPUs that a compute "
                    "environment can reach. Default value is 8")
-@click.option('--desiredv_cpus', type=int,
+@click.option('--desiredv-cpus',
+              cls=OptionHideUnderscoreAlias, type=int,
               help="The desired number of Amazon EC2 vCPUS in the compute "
                    "environment. Default value is 1")
-@click.option('--instance_types', type=str, multiple=True,
+@click.option('--instance-types',
+              cls=OptionHideUnderscoreAlias, type=str, multiple=True,
               help="The instances types that can be launched. Default value "
                    "is 'optimal'")
-@click.option('--security_group_ids', type=str, multiple=True, required=True,
+@click.option('--security-group-ids',
+              cls=OptionHideUnderscoreAlias, type=str,
+              multiple=True, required=True,
               help="The Amazon EC2 security groups associated with instances "
                    "launched in the compute environment")
 @click.option('--subnets', type=str, multiple=True, required=True,
               help="The VPC subnets where the compute resources are launched")
-@click.option('--instance_role', type=str,
+@click.option('--instance-role',
+              cls=OptionHideUnderscoreAlias, type=str,
               help="The Amazon ECS instance profile applied to Amazon EC2 "
                    "instances in a compute environment")
 @click.option('--tags', type=DictParamType(), callback=check_tags,
@@ -873,17 +1005,20 @@ def batch_compenv(ctx, **kwargs):
     return OK_RETURN_CODE
 
 
-@meta.command(name='batch_jobdef')
+@meta.command(name='batch-jobdef')
 @return_code_manager
-@click.option('--resource_name', type=str, required=True,
+@click.option('--resource-name',
+              cls=OptionHideUnderscoreAlias, type=str, required=True,
               help='Batch job definition name')
-@click.option('--job_definition_type', required=True,
+@click.option('--job-definition-type',
+              cls=OptionHideUnderscoreAlias, required=True,
               type=click.Choice(['container', 'multinode']),
               help='The type of job definition')
 @click.option('--image', type=str,
               help='The image used to start a container. '
                    'Default value is \'alpine\'')
-@click.option('--job_role_arn', type=str,
+@click.option('--job-role-arn',
+              cls=OptionHideUnderscoreAlias, type=str,
               help='The ARN of the IAM role that the container can assume for '
                    'AWS permissions')
 @click.option('--tags', type=DictParamType(), callback=check_tags,
@@ -901,15 +1036,17 @@ def batch_jobdef(ctx, **kwargs):
     return OK_RETURN_CODE
 
 
-@meta.command(name="batch_jobqueue")
+@meta.command(name="batch-jobqueue")
 @return_code_manager
-@click.option('--resource_name', type=str, required=True,
+@click.option('--resource-name',
+              cls=OptionHideUnderscoreAlias, type=str, required=True,
               help="Batch job queue name")
 @click.option('--state', type=click.Choice(["ENABLED", "DISABLED"]),
               help="The state of the job queue. Default value is 'ENABLED'")
 @click.option('--priority', type=int, help="The priority of the job queue. "
                                            "Default value is 1")
-@click.option('--compute_environment_order', type=(int, str), multiple=True,
+@click.option('--compute-environment-order',
+              cls=OptionHideUnderscoreAlias, type=(int, str), multiple=True,
               help="The set of compute environments mapped to a job queue and "
                    "their order relative to each other. (order, compute_env)")
 @click.option('--tags', type=DictParamType(), callback=check_tags,
@@ -927,11 +1064,13 @@ def batch_jobqueue(ctx, **kwargs):
     return OK_RETURN_CODE
 
 
-@meta.command(name="cloudwatch_alarm")
+@meta.command(name="cloudwatch-alarm")
 @return_code_manager
-@click.option('--resource_name', type=str, required=True,
+@click.option('--resource-name',
+              cls=OptionHideUnderscoreAlias, type=str, required=True,
               help="Cloudwatch alarm name")
-@click.option('--metric_name', type=str, required=True,
+@click.option('--metric-name',
+              cls=OptionHideUnderscoreAlias, type=str, required=True,
               help="The metric's name")
 @click.option('--namespace', type=str, required=True,
               help="The namespace for the metric associated with the alarm")
@@ -940,13 +1079,15 @@ def batch_jobqueue(ctx, **kwargs):
               help="The period in seconds over which the specified statistic "
                    "is applied. Valid values are 10, 30 and any multiple"
                    " of 60. Default value is 1200")
-@click.option('--evaluation_periods', type=click.IntRange(min=1),
+@click.option('--evaluation-periods',
+              cls=OptionHideUnderscoreAlias, type=click.IntRange(min=1),
               help="The number of periods over which data is compared to the "
                    "specified threshold. Default value is 1")
 @click.option('--threshold', type=float,
               help="The value to compare with the specified statistic. "
                    "Default value is 1.0")
-@click.option('--comparison_operator',
+@click.option('--comparison-operator',
+              cls=OptionHideUnderscoreAlias,
               type=click.Choice(['GreaterThanOrEqualToThreshold',
                                  'GreaterThanThreshold',
                                  'LessThanThreshold',
@@ -963,17 +1104,20 @@ def batch_jobqueue(ctx, **kwargs):
               help="The statistic for the metric associated with the alarm,"
                    "other than percentile. For percentile statistic use "
                    "'ExtendedStatistic'. Default value is 'SampleCount'")
-@click.option('--sns_topics', type=str, multiple=True,
+@click.option('--sns-topics',
+              cls=OptionHideUnderscoreAlias, type=str, multiple=True,
               help="The sns topics to execute when the alarm goes to an ALARM "
                    "state from any other state")
 @click.option('--lambdas', type=str, multiple=True,
               help="The lambdas to execute when the alarm goes to an ALARM "
                    "state from any other state. Use `:` after lambda name to "
                    "specify alias or version")
-@click.option('--ssm_response_plan', type=str, multiple=True,
+@click.option('--ssm-response_plan',
+              cls=OptionHideUnderscoreAlias, type=str, multiple=True,
               help="The response plan name to execute when the alarm goes to "
                    "an ALARM state from any other state")
-@click.option('--evaluate_low_sample_count_percentile',
+@click.option('--evaluate-low-sample-count-percentile',
+              cls=OptionHideUnderscoreAlias,
               type=click.Choice(["evaluate", "ignore"]),
               help="Only for percentiles-based alarms. Use 'ignore' and the "
                    "alarm state remains unchanged during periods with "
@@ -999,16 +1143,18 @@ def cloudwatch_alarm(ctx, **kwargs):
     return OK_RETURN_CODE
 
 
-@meta.command(name="cloudwatch_event_rule")
+@meta.command(name="cloudwatch-event-rule")
 @return_code_manager
-@click.option('--resource_name', type=str, required=True,
+@click.option('--resource-name',
+              cls=OptionHideUnderscoreAlias, type=str, required=True,
               help="Cloudwatch event rule name")
 @click.option('--rule_type', required=True, help="Cloudwatch event rule type",
               type=click.Choice(['schedule', 'ec2', 'api_call']))
 @click.option('--expression', type=str,
               help="Rule expression (cron schedule). Valuable only if "
                    "rule_type is 'schedule'")
-@click.option('--aws_service', type=str,
+@click.option('--aws-service',
+              cls=OptionHideUnderscoreAlias, type=str,
               help="The name of AWS service which the rule listens to. "
                    "Required only if rule_type is 'api_call'")
 @click.option('--region', type=ValidRegionParamType(allowed_all=True),
@@ -1029,16 +1175,18 @@ def cloudwatch_event_rule(ctx, **kwargs):
     return OK_RETURN_CODE
 
 
-@meta.command(name="eventbridge_rule")
+@meta.command(name="eventbridge-rule")
 @return_code_manager
-@click.option('--resource_name', type=str, required=True,
+@click.option('--resource-name',
+              cls=OptionHideUnderscoreAlias, type=str, required=True,
               help="EventBridge rule name")
 @click.option('--rule_type', required=True, help="EventBridge rule type",
               type=click.Choice(['schedule', 'ec2', 'api_call']))
 @click.option('--expression', type=str,
               help="Rule expression (cron schedule). Valuable only if "
                    "rule_type is 'schedule'")
-@click.option('--aws_service', type=str,
+@click.option('--aws-service',
+              cls=OptionHideUnderscoreAlias, type=str,
               help="The name of AWS service which the rule listens to. "
                    "Required only if rule_type is 'api_call'")
 @click.option('--region', type=ValidRegionParamType(allowed_all=True),
@@ -1060,21 +1208,26 @@ def eventbridge_rule(ctx, **kwargs):
     return OK_RETURN_CODE
 
 
-@meta.command(name="documentdb_cluster")
+@meta.command(name="documentdb-cluster")
 @return_code_manager
-@click.option('--resource_name', type=str, required=True,
+@click.option('--resource-name',
+              cls=OptionHideUnderscoreAlias, type=str, required=True,
               help="DocumentDB cluster name")
-@click.option('--master_username', type=str, required=True,
+@click.option('--master-username',
+              cls=OptionHideUnderscoreAlias, type=str, required=True,
               help="DocumentDB login ID for the master user")
-@click.option('--master_password', type=str, required=True,
+@click.option('--master-password',
+              cls=OptionHideUnderscoreAlias, type=str, required=True,
               help="The password for master user")
 @click.option('--port', type=int,
               help="The port number on which the instances in the cluster "
                    "accept connections. Default value is 27017")
-@click.option('--vpc_security_group_ids', type=str, multiple=True,
+@click.option('--vpc-security-group-ids',
+              cls=OptionHideUnderscoreAlias, type=str, multiple=True,
               help="A list of EC2 VPC security groups to associate with this "
                    "cluster. If not specified, default security group is used")
-@click.option('--availability_zones', type=str, multiple=True,
+@click.option('--availability-zones',
+              cls=OptionHideUnderscoreAlias, type=str, multiple=True,
               help="A list of Amazon EC2 Availability Zones that instances in "
                    "the cluster can be created in. "
                    "If not specified default is used")
@@ -1093,17 +1246,21 @@ def documentdb_cluster(ctx, **kwargs):
     return OK_RETURN_CODE
 
 
-@meta.command(name="documentdb_instance")
+@meta.command(name="documentdb-instance")
 @return_code_manager
-@click.option('--resource_name', type=str, required=True,
+@click.option('--resource-name',
+              cls=OptionHideUnderscoreAlias, type=str, required=True,
               help="DocumentDB instance name")
-@click.option('--cluster_identifier', type=str, required=True,
+@click.option('--cluster-identifier',
+              cls=OptionHideUnderscoreAlias, type=str, required=True,
               help="The identifier of the cluster that the instance will "
                    "belong to")
-@click.option('--instance_class', type=str,
+@click.option('--instance-class',
+              cls=OptionHideUnderscoreAlias, type=str,
               help="The compute and memory capacity of the instance. Default "
                    "value is 'db.r5.large'")
-@click.option('--availability_zone', type=str,
+@click.option('--availability-zone',
+              cls=OptionHideUnderscoreAlias, type=str,
               help="The Amazon EC2 Availability Zone that the instance is "
                    "created in. If not specified a random zone it the "
                    "endpoint's region is set")
@@ -1124,29 +1281,36 @@ def documentdb_instance(ctx, **kwargs):
 
 @meta.command(name='firehose')
 @return_code_manager
-@click.option('--resource_name', type=str, required=True,
+@click.option('--resource-name',
+              cls=OptionHideUnderscoreAlias, type=str, required=True,
               help='Kinesis Data Firehose delivery stream name')
-@click.option('--stream_type',
+@click.option('--stream-type',
+              cls=OptionHideUnderscoreAlias,
               type=click.Choice(['DirectPut', 'KinesisStreamAsSource']),
               default='DirectPut', is_eager=True,
               help='The delivery stream type.')
-@click.option('--kinesis_stream_arn', type=str, cls=OptionRequiredIf,
+@click.option('--kinesis-stream-arn',
+              type=str, cls=OptionCombined,
               required_if='stream_type',
               required_if_values=['KinesisStreamAsSource'],
               help='The ARN of the source Kinesis data stream. [Required if '
                    'stream_type is \'KinesisStreamAsSource\']')
-@click.option('--kinesis_stream_role', type=str, cls=OptionRequiredIf,
+@click.option('--kinesis-stream-role',
+              type=str, cls=OptionCombined,
               required_if='stream_type',
               required_if_values=['KinesisStreamAsSource'],
               help='The role name that provides access to the Kinesis data '
                    'stream source. [Required if stream_type is '
                    '\'KinesisStreamAsSource\']')
-@click.option('--destination_role', type=str, required=True,
+@click.option('--destination-role',
+              cls=OptionHideUnderscoreAlias, type=str, required=True,
               help='The role name that provides access to the Kinesis data '
                    'stream destination S3 bucket.')
-@click.option('--destination_bucket', type=str, required=True,
+@click.option('--destination-bucket',
+              cls=OptionHideUnderscoreAlias, type=str, required=True,
               help='The Kinesis data stream destination S3 bucket name.')
-@click.option('--compression_format', type=click.Choice(
+@click.option('--compression-format',
+              cls=OptionHideUnderscoreAlias, type=click.Choice(
              ['UNCOMPRESSED', 'GZIP', 'ZIP', 'Snappy', 'HADOOP_SNAPPY']),
               default='UNCOMPRESSED',
               help='The compression format.')
@@ -1166,51 +1330,61 @@ def firehose(ctx, **kwargs):
     return OK_RETURN_CODE
 
 
-@meta.command(name="eventbridge_schedule")
+@meta.command(name="eventbridge-schedule")
 @return_code_manager
-@click.option('--resource_name', type=str, required=True,
+@click.option('--resource-name',
+              cls=OptionHideUnderscoreAlias, type=str, required=True,
               help="EventBridge scheduler name")
-@click.option('--schedule_expression', type=str, required=True,
+@click.option('--schedule-expression',
+              cls=OptionHideUnderscoreAlias, type=str, required=True,
               help="The expression that defines when the schedule runs. "
                    "The following formats are supported: "
                    "at(yyyy-mm-ddThh:mm:ss); rate(value unit); cron(fields)")
-@click.option('--target_arn', type=str, required=True,
+@click.option('--target-arn',
+              cls=OptionHideUnderscoreAlias, type=str, required=True,
               help="The complete service ARN, including the API operation, in "
                    "the following format: "
                    "`arn:aws:scheduler:::aws-sdk:service:apiAction`. "
                    "For example: arn:aws:scheduler:::aws-sdk:sqs:sendMessage")
-@click.option('--role_arn', type=str, required=True,
+@click.option('--role-arn',
+              cls=OptionHideUnderscoreAlias, type=str, required=True,
               help="The execution role ARN you want to use for the target. "
                    "This role must have the permissions to call the "
                    "API operation you want your schedule to target")
 @click.option('--mode', type=click.Choice(['OFF', 'FLEXIBLE']), default='OFF',
               help="Determines whether the schedule is invoked within a "
                    "flexible time window")
-@click.option('--maximum_window_in_minutes', type=click.IntRange(min=5),
-              cls=OptionRequiredIf, required_if='mode',
+@click.option('--maximum-window-in-minutes',
+              type=click.IntRange(min=5),
+              cls=OptionCombined, required_if='mode',
               required_if_values=['FLEXIBLE'],
               help="The maximum time window during which a schedule can be "
                    "invoked")
-@click.option('--description', type=str,
-              help="Schedule description")
-@click.option('--schedule_expression_timezone', type=str,
+@click.option('--description', type=str, help="Schedule description")
+@click.option('--schedule-expression-timezone',
+              cls=OptionHideUnderscoreAlias, type=str,
               help="The timezone in which the scheduling expression "
                    "is evaluated.")
-@click.option('--group_name', type=str,
+@click.option('--group-name',
+              cls=OptionHideUnderscoreAlias, type=str,
               help="The name of the schedule group to associate with this "
                    "schedule. By default, the default schedule group is used.")
-@click.option('--kms_key_arn', type=str,
+@click.option('--kms-key-arn',
+              cls=OptionHideUnderscoreAlias, type=str,
               help="ARN for the customer managed KMS key that scheduler "
                    "will use to encrypt and decrypt data")
 @click.option('--state', type=click.Choice(['ENABLED', 'DISABLED']),
               help="Specifies whether the schedule is enabled or disabled")
-@click.option('--start_date', type=str,
+@click.option('--start-date',
+              cls=OptionHideUnderscoreAlias, type=str,
               help=" A date in ISO 8601 or UTC, after which the schedule "
                    "can begin invoking its target")
-@click.option('--end_date', type=str,
+@click.option('--end-date',
+              cls=OptionHideUnderscoreAlias, type=str,
               help="A date in ISO 8601 or UTC, before which the schedule "
                    "can invoke its target")
-@click.option('--dead_letter_arn', type=str,
+@click.option('--dead-letter-arn',
+              cls=OptionHideUnderscoreAlias, type=str,
               help="SQS queue ARN that will be as the destination "
                    "for the dead-letter queue.")
 @click.option('--tags', type=DictParamType(), callback=check_tags,
@@ -1229,40 +1403,50 @@ def eventbridge_schedule(ctx, **kwargs):
     return OK_RETURN_CODE
 
 
-@meta.command(name="rds_db_cluster")
+@meta.command(name="rds-db-cluster")
 @return_code_manager
-@click.option('--resource_name', type=str, required=True,
+@click.option('--resource-name',
+              cls=OptionHideUnderscoreAlias, type=str, required=True,
               help="DB cluster name")
 @click.option('--engine', default='aurora-postgresql',
               type=click.Choice(['aurora-postgresql', 'aurora-mysql']),
               help="Engine type. Default type: aurora-postgresql")
-@click.option('--engine_version', type=str,
+@click.option('--engine-version',
+              cls=OptionHideUnderscoreAlias, type=str,
               help="Engine version")
-@click.option('--master_username', type=str, required=True,
+@click.option('--master-username',
+              cls=OptionHideUnderscoreAlias, type=str, required=True,
               help="DB login ID for the master user")
-@click.option('--master_password', type=str,
+@click.option('--master-password',
+              cls=OptionHideUnderscoreAlias, type=str,
               callback=partial(
                   validate_incompatible_options,
                   incompatible_options=['manage_master_password']),
               help="The password for master user. Can't be specified if "
                    "manage_master_password is turned on")
-@click.option('--database_name', type=str, required=True,
+@click.option('--database-name',
+              cls=OptionHideUnderscoreAlias, type=str, required=True,
               help="Database name")
 @click.option('--port', type=int,
               help="The port number on which the instances in the cluster "
                    "accept connections. Default value is 3306 for MySQL and "
                    "5432 for PostgreSQL")
-@click.option('--manage_master_password', type=bool, is_eager=True,
+@click.option('--manage-master-password',
+              cls=OptionHideUnderscoreAlias, type=bool, is_eager=True,
               help="Indicates whether to manage the master user password with "
                    "AWS Secrets Manager")
-@click.option('--iam_db_auth', type=bool,
+@click.option('--iam-db-auth',
+              cls=OptionHideUnderscoreAlias, type=bool,
               help="Indicates whether to enable IAM Database Authentication")
-@click.option('--vpc_security_group_ids', type=str, multiple=True,
+@click.option('--vpc-security-group-ids',
+              cls=OptionHideUnderscoreAlias, type=str, multiple=True,
               help="A list of EC2 VPC security groups to associate with this "
                    "cluster. If not specified, default security group is used")
-@click.option('--db_subnet_group', type=str,
+@click.option('--db-subnet-group',
+              cls=OptionHideUnderscoreAlias, type=str,
               help="RDS subnet group name to associate with the DB cluster")
-@click.option('--availability_zones', type=str, multiple=True,
+@click.option('--availability-zones',
+              cls=OptionHideUnderscoreAlias, type=str, multiple=True,
               help="A list of Amazon EC2 Availability Zones that instances in "
                    "the cluster can be created in. "
                    "If not specified default is used")
@@ -1281,13 +1465,16 @@ def rds_db_cluster(ctx, **kwargs):
     return OK_RETURN_CODE
 
 
-@meta.command(name="rds_db_instance")
+@meta.command(name="rds-db-instance")
 @return_code_manager
-@click.option('--resource_name', type=str, required=True,
+@click.option('--resource-name',
+              cls=OptionHideUnderscoreAlias, type=str, required=True,
               help="DB instance name")
-@click.option('--instance_class', type=str, required=True,
+@click.option('--instance-class',
+              cls=OptionHideUnderscoreAlias, type=str, required=True,
               help="DB instance class")
-@click.option('--cluster_name', type=str,
+@click.option('--cluster-name',
+              cls=OptionHideUnderscoreAlias, type=str,
               callback=partial(
                   validate_incompatible_options,
                   incompatible_options=
@@ -1295,24 +1482,31 @@ def rds_db_cluster(ctx, **kwargs):
               help="RDS DB cluster name to link the instance with")
 @click.option('--engine', type=str, is_eager=True,
               help="Engine type")
-@click.option('--engine_version', type=str, is_eager=True,
+@click.option('--engine-version',
+              cls=OptionHideUnderscoreAlias, type=str, is_eager=True,
               help="Engine version")
-@click.option('--master_username', type=str, is_eager=True,
+@click.option('--master-username',
+              cls=OptionHideUnderscoreAlias, type=str, is_eager=True,
               help="DB login ID for the master user")
-@click.option('--master_password', type=str, is_eager=True,
+@click.option('--master-password',
+              cls=OptionHideUnderscoreAlias, type=str, is_eager=True,
               help="The password for master user")
-@click.option('--database_name', type=str, is_eager=True,
+@click.option('--database-name',
+              cls=OptionHideUnderscoreAlias, type=str, is_eager=True,
               help="Database name")
 @click.option('--port', type=int, is_eager=True,
               help="The port number on which the instances in the cluster "
                    "accept connections")
-@click.option('--publicly_accessible', type=bool,
+@click.option('--publicly-accessible',
+              cls=OptionHideUnderscoreAlias, type=bool,
               help="Specifies the accessibility options for the DB instance.")
-@click.option('--vpc_security_group_ids', type=str, multiple=True,
+@click.option('--vpc-security-group-ids',
+              cls=OptionHideUnderscoreAlias, type=str, multiple=True,
               is_eager=True,
               help="A list of EC2 VPC security groups to associate with this "
                    "cluster. If not specified, default security group is used")
-@click.option('--availability_zone', type=str, is_eager=True,
+@click.option('--availability-zone',
+              cls=OptionHideUnderscoreAlias, type=str, is_eager=True,
               help="Amazon EC2 Availability Zone that instances can be "
                    "created in. If not specified default is used")
 @click.option('--tags', type=DictParamType(), callback=check_tags,
@@ -1340,3 +1534,4 @@ def _generate(generator: BaseConfigurationGenerator):
         if isinstance(e, SyndicateBaseError):
             raise click.BadParameter(e)
         raise Exception(f"An unexpected error occurred: {e}")
+

@@ -63,7 +63,8 @@ from syndicate.core.helper import (create_bundle_callback,
                                    resolve_and_verify_bundle_callback,
                                    param_to_lower, verbose_option,
                                    validate_incompatible_options,
-                                   failed_status_code_on_exception)
+                                   failed_status_code_on_exception,
+                                   AliasedGroup, OptionHideUnderscoreAlias)
 from syndicate.core.project_state.project_state import (MODIFICATION_LOCK,
                                                         WARMUP_LOCK)
 from syndicate.core.project_state.status_processor import project_state_status
@@ -75,7 +76,8 @@ from syndicate.core.constants import TEST_ACTION, BUILD_ACTION, \
     PACKAGE_META_ACTION, CREATE_DEPLOY_TARGET_BUCKET_ACTION, UPLOAD_ACTION, \
     COPY_BUNDLE_ACTION, EXPORT_ACTION, ASSEMBLE_SWAGGER_UI_ACTION, \
     ASSEMBLE_DOTNET_ACTION, ASSEMBLE_APPSYNC_ACTION, OK_RETURN_CODE, \
-    FAILED_RETURN_CODE, ABORTED_RETURN_CODE
+    FAILED_RETURN_CODE, ABORTED_RETURN_CODE, \
+    UNDERSCORE_CREATE_DEPLOY_TARGET_BUCKET_ACTION
 from syndicate.exceptions import ProjectStateError
 
 INIT_COMMAND_NAME = 'init'
@@ -89,7 +91,8 @@ commands_without_config = (
 )
 
 commands_without_state_sync = (
-    CREATE_DEPLOY_TARGET_BUCKET_ACTION
+    CREATE_DEPLOY_TARGET_BUCKET_ACTION,
+    UNDERSCORE_CREATE_DEPLOY_TARGET_BUCKET_ACTION
 )
 
 _LOG = get_logger(__name__)
@@ -104,7 +107,7 @@ def _not_require_state_sync(all_params):
     return any(item in commands_without_state_sync for item in all_params)
 
 
-@click.group(name='syndicate')
+@click.group(name='syndicate', cls=AliasedGroup)
 @return_code_manager
 @click.version_option()
 def syndicate():
@@ -133,13 +136,16 @@ def syndicate():
                                 case_sensitive=False),
               help='Supported testing frameworks. Possible options: unittest, '
                    'pytest, nose. Default value: unittest')
-@click.option('--test_folder_name', nargs=1, default='tests',
+@click.option('--test-folder-name',
+              cls=OptionHideUnderscoreAlias, nargs=1, default='tests',
               help='Directory in the project that contains tests to run. '
                    'Default folder: tests')
-@click.option('--errors_allowed', is_flag=True,
+@click.option('--errors-allowed',
+              cls=OptionHideUnderscoreAlias, is_flag=True,
               help='Flag to return successful response even if some tests '
                    'fail')
-@click.option('--skip_tests', is_flag=True, default=False,
+@click.option('--skip-tests',
+              cls=OptionHideUnderscoreAlias, is_flag=True, default=False,
               help='Flag to not run tests')
 @verbose_option
 @timeit(action_name=TEST_ACTION)
@@ -187,16 +193,20 @@ def test(suite, test_folder_name, errors_allowed, skip_tests):
 
 @syndicate.command(name=BUILD_ACTION)
 @return_code_manager
-@click.option('--bundle_name', '-b', nargs=1,
+@click.option('--bundle-name', '-b',
+              cls=OptionHideUnderscoreAlias, nargs=1,
               callback=generate_default_bundle_name,
               help='Name of the bundle to build. '
                    'Default value: $ProjectName_%Y%m%d.%H%M%SZ')
-@click.option('--force_upload', '-F', is_flag=True, default=False,
+@click.option('--force-upload', '-F',
+              cls=OptionHideUnderscoreAlias, is_flag=True, default=False,
               help='Flag to override existing bundle with the same name')
-@click.option('--errors_allowed', is_flag=True, default=False,
+@click.option('--errors-allowed',
+              cls=OptionHideUnderscoreAlias, is_flag=True, default=False,
               help='Flag to continue building the bundle if any errors occur '
                    'while building dependencies or tests fail')
-@click.option('--skip_tests', is_flag=True, default=False,
+@click.option('--skip-tests',
+              cls=OptionHideUnderscoreAlias, is_flag=True, default=False,
               help='Flag to skip lambda tests')
 @verbose_option
 @click.pass_context
@@ -241,16 +251,16 @@ def build(ctx, bundle_name, force_upload, errors_allowed, skip_tests):
 
 @syndicate.command(name='transform')
 @return_code_manager
-@click.option('--bundle_name',
-              callback=resolve_default_value,
+@click.option('--bundle-name', '-b',
+              cls=OptionHideUnderscoreAlias, callback=resolve_default_value,
               help='Name of the bundle to transform. '
                    'Default value: name of the latest built bundle')
 @click.option('--dsl', type=click.Choice(['CloudFormation', 'Terraform'],
                                          case_sensitive=False),
-              callback=param_to_lower,
-              multiple=True, required=True,
+              callback=param_to_lower, multiple=True, required=True,
               help='Type of the IaC provider')
-@click.option('--output_dir',
+@click.option('--output-dir',
+              cls=OptionHideUnderscoreAlias,
               help='The directory where a transformed template will be saved')
 @verbose_option
 @timeit()
@@ -270,29 +280,40 @@ def transform(bundle_name, dsl, output_dir):
 @sync_lock(lock_type=MODIFICATION_LOCK)
 @timeit(action_name=DEPLOY_ACTION)
 @failed_status_code_on_exception
-@click.option('--deploy_name', '-d', callback=resolve_default_value,
+@click.option('--deploy-name', '-d',
+              cls=OptionHideUnderscoreAlias, callback=resolve_default_value,
               help='Name of the deploy. Default value: name of the project')
-@click.option('--bundle_name', '-b', callback=resolve_default_value,
+@click.option('--bundle-name', '-b',
+              cls=OptionHideUnderscoreAlias, callback=resolve_default_value,
               help='Name of the bundle to deploy. '
                    'Default value: name of the latest built bundle')
-@click.option('--deploy_only_types', '-types', multiple=True,
+@click.option('--deploy-only-types', '-types',
+              cls=OptionHideUnderscoreAlias, multiple=True,
               help='Types of the resources to deploy')
-@click.option('--deploy_only_resources', '-resources', multiple=True,
+@click.option('--deploy-only-resources', '-resources',
+              cls=OptionHideUnderscoreAlias, multiple=True,
               help='Names of the resources to deploy')
-@click.option('--deploy_only_resources_path', '-path', nargs=1, type=str,
+@click.option('--deploy-only-resources-path', '-path',
+              cls=OptionHideUnderscoreAlias, nargs=1, type=str,
               help='Path to file containing names of the resources to deploy')
-@click.option('--excluded_resources', '-exresources', multiple=True,
+@click.option('--excluded-resources', '-exresources',
+              cls=OptionHideUnderscoreAlias, multiple=True,
               help='Names of the resources to skip while deploy.')
-@click.option('--excluded_resources_path', '-expath', nargs=1, type=str,
+@click.option('--excluded-resources-path', '-expath',
+              cls=OptionHideUnderscoreAlias, nargs=1, type=str,
               help='Path to file containing names of the resources to skip '
                    'while deploy')
-@click.option('--excluded_types', '-extypes', multiple=True,
+@click.option('--excluded-types', '-extypes',
+              cls=OptionHideUnderscoreAlias, multiple=True,
               help='Types of the resources to skip while deploy')
-@click.option('--continue_deploy', is_flag=True, default=False,
+@click.option('--continue-deploy',
+              cls=OptionHideUnderscoreAlias, is_flag=True, default=False,
               help='Flag to continue failed deploy')
-@click.option('--replace_output', is_flag=True, default=False,
+@click.option('--replace-output',
+              cls=OptionHideUnderscoreAlias, is_flag=True, default=False,
               help='Flag to replace the existing deploy output')
-@click.option('--rollback_on_error', is_flag=True, default=False,
+@click.option('--rollback-on-error',
+              cls=OptionHideUnderscoreAlias, is_flag=True, default=False,
               help='Flag to automatically clean deployed resources if the'
                    ' deployment is unsuccessful')
 @verbose_option
@@ -367,26 +388,35 @@ def deploy(
 @sync_lock(lock_type=MODIFICATION_LOCK)
 @timeit(action_name=UPDATE_ACTION)
 @failed_status_code_on_exception
-@click.option('--bundle_name', '-b', callback=resolve_default_value,
+@click.option('--bundle-name', '-b',
+              cls=OptionHideUnderscoreAlias, callback=resolve_default_value,
               help='Name of the bundle to deploy. '
                    'Default value: name of the latest built bundle')
-@click.option('--deploy_name', '-d', callback=resolve_default_value,
+@click.option('--deploy-name', '-d',
+              cls=OptionHideUnderscoreAlias, callback=resolve_default_value,
               help='Name of the deploy. Default value: name of the project')
-@click.option('--update_only_types', '-types', multiple=True,
+@click.option('--update-only-types', '-types',
+              cls=OptionHideUnderscoreAlias, multiple=True,
               help='Types of the resources to update')
-@click.option('--update_only_resources', '-resources', multiple=True,
+@click.option('--update-only-resources',
+              '-resources', cls=OptionHideUnderscoreAlias, multiple=True,
               help='Names of the resources to update')
-@click.option('--update_only_resources_path', '-path', nargs=1,
+@click.option('--update-only-resources-path',
+              '-path', cls=OptionHideUnderscoreAlias, nargs=1,
               help='Path to file containing names of the resources to skip '
                    'while deploy')
-@click.option('--excluded_resources', '-exresources', multiple=True,
+@click.option('--excluded-resources', '-exresources',
+              cls=OptionHideUnderscoreAlias, multiple=True,
               help='Names of the resources to skip while update.')
-@click.option('--excluded_resources_path', '-expath', nargs=1,
+@click.option('--excluded-resources-path',
+              '-expath', cls=OptionHideUnderscoreAlias, nargs=1,
               help='Path to file containing names of the resources to skip '
                    'while update')
-@click.option('--excluded_types', '-extypes', multiple=True,
+@click.option('--excluded-types', '-extypes',
+              cls=OptionHideUnderscoreAlias, multiple=True,
               help='Types of the resources to skip while update')
-@click.option('--replace_output', nargs=1, is_flag=True, default=False,
+@click.option('--replace-output', nargs=1,
+              cls=OptionHideUnderscoreAlias, is_flag=True, default=False,
               help='The flag to replace the existing deploy output file')
 @click.option('--force', nargs=1, is_flag=True, default=False,
               help='The flag, to apply updates even if the latest deployment '
@@ -456,31 +486,41 @@ def update(
 @sync_lock(lock_type=MODIFICATION_LOCK)
 @timeit(action_name=CLEAN_ACTION)
 @failed_status_code_on_exception
-@click.option('--deploy_name', '-d', nargs=1, callback=resolve_default_value,
+@click.option('--deploy-name', '-d', nargs=1,
+              cls=OptionHideUnderscoreAlias, callback=resolve_default_value,
               help='Name of the deploy. This parameter allows the framework '
                    'to decide,which exactly output file should be used. The '
                    'resources are cleaned based on the output file which is '
                    'created during the deployment process. If not specified, '
                    'resolves the latest deploy name')
-@click.option('--bundle_name', '-b', nargs=1, callback=resolve_default_value,
+@click.option('--bundle-name', '-b', nargs=1,
+              cls=OptionHideUnderscoreAlias, callback=resolve_default_value,
               help='Name of the bundle. If not specified, resolves the latest '
                    'bundle name')
-@click.option('--clean_only_types', '-types', multiple=True,
+@click.option('--clean-only-types', '-types',
+              cls=OptionHideUnderscoreAlias, multiple=True,
               help='If specified only provided types will be cleaned')
-@click.option('--clean_only_resources', '-resources', multiple=True,
+@click.option('--clean-only-resources', '-resources',
+              cls=OptionHideUnderscoreAlias, multiple=True,
               help='If specified only provided resources will be cleaned')
-@click.option('--clean_only_resources_path', '-path', nargs=1, type=str,
+@click.option('--clean-only-resources-path',
+              '-path', cls=OptionHideUnderscoreAlias, nargs=1, type=str,
               help='If specified only resources path will be cleaned')
-@click.option('--clean_externals', is_flag=True,
+@click.option('--clean-externals',
+              cls=OptionHideUnderscoreAlias, is_flag=True,
               help='Flag. If specified external resources will be '
                    'cleaned as well')
-@click.option('--excluded_resources', '-exresources', multiple=True,
+@click.option('--excluded-resources', '-exresources',
+              cls=OptionHideUnderscoreAlias, multiple=True,
               help='If specified provided resources will be excluded')
-@click.option('--excluded_resources_path', '-expath', nargs=1, type=str,
+@click.option('--excluded-resources-path',
+              '-expath', cls=OptionHideUnderscoreAlias, nargs=1, type=str,
               help='If specified provided resource path will be excluded')
-@click.option('--excluded_types', '-extypes', multiple=True,
+@click.option('--excluded-types', '-extypes',
+              cls=OptionHideUnderscoreAlias, multiple=True,
               help='If specified provided types will be excluded')
-@click.option('--preserve_state', is_flag=True,
+@click.option('--preserve-state',
+              cls=OptionHideUnderscoreAlias, is_flag=True,
               help='Preserve deploy output json file after resources removal')
 @verbose_option
 @check_bundle_deploy_names_for_existence(check_deploy_existence=True)
@@ -593,23 +633,30 @@ def status(events, resources):
 @sync_lock(lock_type=WARMUP_LOCK)
 @timeit(action_name=WARMUP_ACTION)
 @failed_status_code_on_exception
-@click.option('--bundle_name', '-b', nargs=1, callback=resolve_default_value,
+@click.option('--bundle-name', '-b', nargs=1,
+              cls=OptionHideUnderscoreAlias, callback=resolve_default_value,
               help='Name of the bundle. If not specified, resolves the latest '
                    'bundle name')
-@click.option('--deploy_name', '-d', nargs=1, callback=resolve_default_value,
+@click.option('--deploy-name', '-d', nargs=1,
+              cls=OptionHideUnderscoreAlias, callback=resolve_default_value,
               help='Name of the deploy. If not specified, resolves the latest '
                    'deploy name')
-@click.option('--api_gw_id', '-api', nargs=1, multiple=True, type=str,
+@click.option('--api-gw-id', '-api', nargs=1,
+              cls=OptionHideUnderscoreAlias, multiple=True, type=str,
               help='Provide API Gateway IDs to warmup')
-@click.option('--stage_name', '-stage', nargs=1, multiple=True, type=str,
+@click.option('--stage-name', '-stage', nargs=1,
+              cls=OptionHideUnderscoreAlias, multiple=True, type=str,
               help='Name of stages of provided API Gateway IDs')
-@click.option('--lambda_auth', '-auth', default=False, is_flag=True,
+@click.option('--lambda-auth', '-auth',
+              cls=OptionHideUnderscoreAlias, default=False, is_flag=True,
               help='Flag. Should be specified if API Gateway Lambda Authorizer'
                    ' is enabled')
-@click.option('--header_name', '-hname', nargs=1,
+@click.option('--header-name', '-hname',
+              cls=OptionHideUnderscoreAlias, nargs=1,
               help='Name of authentication header.')
-@click.option('--header_value', '-hvalue',
-              nargs=1, help='Authentication header value.')
+@click.option('--header-value', '-hvalue',
+              cls=OptionHideUnderscoreAlias, nargs=1,
+              help='Authentication header value.')
 @verbose_option
 @check_deploy_bucket_exists
 @check_bundle_deploy_names_for_existence()
@@ -646,19 +693,23 @@ def warmup(bundle_name, deploy_name, api_gw_id, stage_name, lambda_auth,
 
 @syndicate.command(name=PROFILER_ACTION)
 @return_code_manager
-@click.option('--bundle_name', '-b', nargs=1, callback=resolve_default_value,
+@click.option('--bundle-name', '-b', nargs=1,
+              cls=OptionHideUnderscoreAlias, callback=resolve_default_value,
               help='The name of the bundle from which to select lambdas for '
                    'collecting metrics. If not specified, resolves the latest '
                    'bundle name')
-@click.option('--deploy_name', '-d', nargs=1, callback=resolve_default_value,
+@click.option('--deploy-name', '-d', nargs=1,
+              cls=OptionHideUnderscoreAlias, callback=resolve_default_value,
               help='Name of the deploy. If not specified, resolves the latest '
                    'deploy name')
-@click.option('--from_date', '-from', nargs=1,
+@click.option('--from-date', '-from',
+              cls=OptionHideUnderscoreAlias, nargs=1,
               type=click.DateTime(formats=['%Y-%m-%dT%H:%M:%SZ']),
               help='Date from which collect lambda metrics. The '
                    '\'--to_date\' parameter required. Example of the date '
                    'format: 2022-02-02T02:02:02Z')
-@click.option('--to_date', '-to', nargs=1,
+@click.option('--to-date', '-to',
+              cls=OptionHideUnderscoreAlias, nargs=1,
               type=click.DateTime(formats=['%Y-%m-%dT%H:%M:%SZ']),
               help='Date until which collect lambda metrics. The '
                    '\'--from_date\' parameter required. Example of the date '
@@ -690,23 +741,26 @@ def profiler(bundle_name, deploy_name, from_date, to_date):
 
 @syndicate.command(name=ASSEMBLE_JAVA_MVN_ACTION)
 @return_code_manager
-@click.option('--bundle_name', '-b', nargs=1,
+@click.option('--bundle-name', '-b', cls=OptionHideUnderscoreAlias, nargs=1,
               callback=generate_default_bundle_name,
               help='Name of the bundle, to which the build artifacts are '
                    'gathered and later used for the deployment. '
                    'Default value: $ProjectName_%Y%m%d.%H%M%S')
-@click.option('--project_path', '-path', nargs=1,
-              callback=resolve_path_callback, required=True,
+@click.option('--project-path', '-path', cls=OptionHideUnderscoreAlias,
+              nargs=1, callback=resolve_path_callback, required=True,
               help='The path to the Java project. The provided path is the '
                    'path for an mvn clean install. The artifacts are copied '
                    'to a folder, which is be later used as the deployment '
                    'bundle (the bundle path: bundles/${bundle_name})')
-@click.option('--force_upload', '-F', is_flag=True, default=False,
+@click.option('--force-upload', '-F', cls=OptionHideUnderscoreAlias,
+              is_flag=True, default=False,
               help='Flag to override locally existing bundle '
                    'with the same name')
-@click.option('--skip_tests', is_flag=True, default=False,
+@click.option('--skip-tests', cls=OptionHideUnderscoreAlias,
+              is_flag=True, default=False,
               help='Flag to not run tests')
-@click.option('--errors_allowed', is_flag=True, default=False,
+@click.option('--errors-allowed', cls=OptionHideUnderscoreAlias,
+              is_flag=True, default=False,
               help='Flag to continue building the bundle in case of errors '
                    'while building artifacts')
 @verbose_option
@@ -744,22 +798,26 @@ def assemble_java_mvn(bundle_name, project_path, force_upload, skip_tests,
 
 @syndicate.command(name=ASSEMBLE_PYTHON_ACTION)
 @return_code_manager
-@click.option('--bundle_name', '-b', nargs=1,
+@click.option('--bundle-name', '-b',
+              cls=OptionHideUnderscoreAlias, nargs=1,
               callback=generate_default_bundle_name,
               help='Name of the bundle, to which the build artifacts are '
                    'gathered and later used for the deployment. '
                    'Default value: $ProjectName_%Y%m%d.%H%M%S')
-@click.option('--project_path', '-path', nargs=1,
+@click.option('--project-path', '-path',
+              cls=OptionHideUnderscoreAlias, nargs=1,
               callback=resolve_path_callback, required=True,
               help='The path to the Python project. The code is '
                    'packed to a zip archive, where the external libraries are '
                    'found, which are described in the requirements.txt file, '
                    'and internal project dependencies according to the '
                    'described in local_requirements.txt file')
-@click.option('--force_upload', '-F', is_flag=True, default=False,
+@click.option('--force-upload', '-F',
+              cls=OptionHideUnderscoreAlias, is_flag=True, default=False,
               help='Flag to override locally existing bundle '
                    'with the same name')
-@click.option('--errors_allowed', is_flag=True, default=False,
+@click.option('--errors-allowed',
+              cls=OptionHideUnderscoreAlias, is_flag=True, default=False,
               help='Flag to continue building the bundle if any errors occur '
                    'while building dependencies')
 @verbose_option
@@ -796,17 +854,20 @@ def assemble_python(bundle_name, project_path, force_upload, errors_allowed,
 
 @syndicate.command(name=ASSEMBLE_NODE_ACTION)
 @return_code_manager
-@click.option('--bundle_name', '-b', nargs=1,
+@click.option('--bundle-name', '-b',
+              cls=OptionHideUnderscoreAlias, nargs=1,
               callback=generate_default_bundle_name,
               help='Name of the bundle, to which the build artifacts are '
                    'gathered and later used for the deployment. '
                    'Default value: $ProjectName_%Y%m%d.%H%M%S')
-@click.option('--project_path', '-path', nargs=1,
+@click.option('--project-path', '-path',
+              cls=OptionHideUnderscoreAlias, nargs=1,
               callback=resolve_path_callback, required=True,
               help='The path to the NodeJS project. The code is '
                    'packed to a zip archive, where the external libraries are '
                    'found, which are described in the package.json file')
-@click.option('--force_upload', '-F', is_flag=True, default=False,
+@click.option('--force-upload', '-F',
+              cls=OptionHideUnderscoreAlias, is_flag=True, default=False,
               help='Flag to override locally existing bundle '
                    'with the same name')
 @verbose_option
@@ -843,17 +904,20 @@ def assemble_node(bundle_name, project_path, force_upload,
 
 @syndicate.command(name=ASSEMBLE_DOTNET_ACTION)
 @return_code_manager
-@click.option('--bundle_name', '-b', nargs=1,
+@click.option('--bundle-name', '-b',
+              cls=OptionHideUnderscoreAlias, nargs=1,
               callback=generate_default_bundle_name,
               help='Name of the bundle, to which the build artifacts are '
                    'gathered and later used for the deployment. '
                    'Default value: $ProjectName_%Y%m%d.%H%M%S')
-@click.option('--project_path', '-path', nargs=1,
+@click.option('--project-path', '-path',
+              cls=OptionHideUnderscoreAlias, nargs=1,
               callback=resolve_path_callback, required=True,
               help='The path to the NodeJS project. The code is '
                    'packed to a zip archive, where the external libraries are '
                    'found, which are described in the package.json file')
-@click.option('--force_upload', '-F', is_flag=True, default=False,
+@click.option('--force-upload', '-F',
+              cls=OptionHideUnderscoreAlias, is_flag=True, default=False,
               help='Flag to override locally existing bundle '
                    'with the same name')
 @verbose_option
@@ -890,16 +954,19 @@ def assemble_dotnet(bundle_name, project_path, force_upload,
 
 @syndicate.command(name=ASSEMBLE_SWAGGER_UI_ACTION)
 @return_code_manager
-@click.option('--bundle_name', '-b', nargs=1,
+@click.option('--bundle-name', '-b',
+              cls=OptionHideUnderscoreAlias, nargs=1,
               callback=generate_default_bundle_name,
               help='Name of the bundle, to which the build artifacts are '
                    'gathered and later used for the deployment. '
                    'Default value: $ProjectName_%Y%m%d.%H%M%S')
-@click.option('--project_path', '-path', nargs=1,
+@click.option('--project-path', '-path',
+              cls=OptionHideUnderscoreAlias, nargs=1,
               callback=resolve_path_callback, required=True,
               help='The path to the project. Related files will be packed '
                    'into a zip archive.')
-@click.option('--force_upload', '-F', is_flag=True, default=False,
+@click.option('--force-upload', '-F',
+              cls=OptionHideUnderscoreAlias, is_flag=True, default=False,
               help='Flag to override locally existing bundle '
                    'with the same name')
 @verbose_option
@@ -930,16 +997,19 @@ def assemble_swagger_ui(**kwargs):
 
 @syndicate.command(name=ASSEMBLE_APPSYNC_ACTION)
 @return_code_manager
-@click.option('--bundle_name', '-b', nargs=1,
+@click.option('--bundle-name', '-b',
+              cls=OptionHideUnderscoreAlias, nargs=1,
               callback=generate_default_bundle_name,
               help='Name of the bundle, to which the build artifacts are '
                    'gathered and later used for the deployment. '
                    'Default value: $ProjectName_%Y%m%d.%H%M%S')
-@click.option('--project_path', '-path', nargs=1,
+@click.option('--project-path', '-path',
+              cls=OptionHideUnderscoreAlias, nargs=1,
               callback=resolve_path_callback, required=True,
               help='The path to the project. Related files will be packed '
                    'into a zip archive.')
-@click.option('--force_upload', '-F', is_flag=True, default=False,
+@click.option('--force-upload', '-F',
+              cls=OptionHideUnderscoreAlias, is_flag=True, default=False,
               help='Flag to override locally existing bundle '
                    'with the same name')
 @verbose_option
@@ -980,13 +1050,17 @@ RUNTIME_LANG_TO_BUILD_MAPPING = {
 
 @syndicate.command(name=ASSEMBLE_ACTION)
 @return_code_manager
-@click.option('--bundle_name', '-b', callback=generate_default_bundle_name,
+@click.option('--bundle-name', '-b',
+              cls=OptionHideUnderscoreAlias,
+              callback=generate_default_bundle_name,
               help='Bundle\'s name to build the lambdas in. '
                    'Default value: $ProjectName_%Y%m%d.%H%M%S')
-@click.option('--force_upload', '-F', is_flag=True, default=False,
+@click.option('--force-upload', '-F',
+              cls=OptionHideUnderscoreAlias, is_flag=True, default=False,
               help='Flag to override locally existing bundle '
                    'with the same name')
-@click.option('--errors_allowed', is_flag=True, default=False,
+@click.option('--errors-allowed',
+              cls=OptionHideUnderscoreAlias, is_flag=True, default=False,
               help='Flag to continue building the bundle if any errors occur '
                    'while building dependencies. Only for Python runtime.')
 @verbose_option
@@ -1041,7 +1115,8 @@ def assemble(ctx, bundle_name, force_upload, errors_allowed, skip_tests=False,
 
 @syndicate.command(name=PACKAGE_META_ACTION)
 @return_code_manager
-@click.option('--bundle_name', '-b', required=True,
+@click.option('--bundle-name', '-b',
+              cls=OptionHideUnderscoreAlias, required=True,
               callback=verify_bundle_callback,
               help='Bundle\'s name to package the current meta in')
 @verbose_option
@@ -1082,12 +1157,14 @@ def create_deploy_target_bucket():
 
 @syndicate.command(name=UPLOAD_ACTION)
 @return_code_manager
-@click.option('--bundle_name', '-b',
+@click.option('--bundle-name', '-b',
+              cls=OptionHideUnderscoreAlias,
               callback=resolve_and_verify_bundle_callback,
               help='Bundle name to which the build artifacts are gathered '
                    'and later used for the deployment. NOTE: if not '
                    'specified, the latest build will be uploaded')
-@click.option('--force_upload', '-F', is_flag=True,
+@click.option('--force-upload','-F',
+              cls=OptionHideUnderscoreAlias, is_flag=True,
               help='Flag to override existing bundle with the same name as '
                    'provided')
 @verbose_option
@@ -1117,25 +1194,31 @@ def upload(bundle_name, force_upload=False):
 
 @syndicate.command(name=COPY_BUNDLE_ACTION)
 @return_code_manager
-@click.option('--bundle_name', '-b', nargs=1, callback=create_bundle_callback,
-              required=True,
+@click.option('--bundle-name', '-b',
+              cls=OptionHideUnderscoreAlias, nargs=1,
+              callback=create_bundle_callback, required=True,
               help='The bundle name, to which the build artifacts '
                    'are gathered and later used for the deployment')
-@click.option('--src_account_id', '-acc_id', nargs=1, required=True,
+@click.option('--src-account-id', '-acc_id',
+              cls=OptionHideUnderscoreAlias, nargs=1, required=True,
               help='The account ID, to which the bundle is to be '
                    'uploaded')
-@click.option('--src_bucket_region', '-r', nargs=1, required=True,
+@click.option('--src-bucket-region', '-r',
+              cls=OptionHideUnderscoreAlias, nargs=1, required=True,
               type=ValidRegionParamType(),
               help='The name of the region of the bucket where target bundle '
                    'is stored')
-@click.option('--src_bucket_name', '-bucket', nargs=1, required=True,
+@click.option('--src-bucket-name', '-bucket',
+              cls=OptionHideUnderscoreAlias, nargs=1, required=True,
               help='The name of the bucket where target bundle is stored')
-@click.option('--role_name', '-role', nargs=1, required=True,
+@click.option('--role-name', '-role',
+              cls=OptionHideUnderscoreAlias, nargs=1, required=True,
               help='The role name from the specified account, which is '
                    'assumed. Here you have to check the trusted relationship '
                    'between the accounts. The active account must be a trusted'
                    ' one for the account which is specified in the command')
-@click.option('--force_upload', '-F', is_flag=True, default=False,
+@click.option('--force-upload', '-F',
+              cls=OptionHideUnderscoreAlias, is_flag=True, default=False,
               help='Flag. Used if the bundle with the same name as provided '
                    'already exists in a target account')
 @verbose_option
@@ -1175,20 +1258,23 @@ def copy_bundle(ctx, bundle_name, src_account_id, src_bucket_region,
 
 @syndicate.command(name=EXPORT_ACTION)
 @return_code_manager
-@click.option('--resource_type', '-rt', required=True,
+@click.option('--resource-type', '-rt',
+              cls=OptionHideUnderscoreAlias, required=True,
               type=click.Choice(['api_gateway']),
               help='The type of resource to export configuration')
 @click.option('--dsl', default='oas_v3',
               type=click.Choice(['oas_v3']),
               help='DSL of output specification. Default: oas_v3')
-@click.option('--deploy_name', '-d', nargs=1, callback=resolve_default_value,
+@click.option('--deploy-name', '-d', nargs=1,
+              cls=OptionHideUnderscoreAlias, callback=resolve_default_value,
               help='Name of the deploy. This parameter allows the framework '
                    'to decide, which exactly output file should be used. If '
                    'not specified, resolves the latest deploy name')
-@click.option('--bundle_name', '-b', callback=resolve_default_value,
+@click.option('--bundle-name', '-b',
+              cls=OptionHideUnderscoreAlias, callback=resolve_default_value,
               help='Name of the bundle to export from. Default value: name of '
                    'the latest built bundle')
-@click.option('--output_dir', '-od',
+@click.option('--output-dir', '-od', cls=OptionHideUnderscoreAlias,
               help='The directory where an exported configuration will be '
                    'saved. If not specified, the directory with the name '
                    '"export" will be created in the project root directory to '

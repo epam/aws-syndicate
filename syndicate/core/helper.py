@@ -496,6 +496,105 @@ class OptionRequiredIf(click.Option):
             return super().handle_parse_result(ctx, opts, args)
 
 
+class OptionHideUnderscoreAlias(click.Option):
+    def __init__(self, *args, **kwargs):
+        # Find name with "-" and add alias with "_"
+        new_args = []
+
+        for opt in args:
+            alias_opts = []
+            for alias in opt:
+                if alias.startswith('--'):
+                    underscored = alias[:2] + alias[2:].replace('-', '_')
+                elif alias.startswith('-'):
+                    underscored = alias[:1] + alias[1:].replace('-', '_')
+                else:
+                    underscored = alias.replace('-', '_')
+
+                if underscored not in opt:
+                    alias_opts.append(underscored)
+            new_args.append(tuple(list(opt) + alias_opts))
+
+        super().__init__(*new_args, **kwargs)
+
+    def get_help_record(self, ctx):
+        """
+        Overrides the display of options in help, hiding aliases with
+        underscores.
+        """
+        help_record = super().get_help_record(ctx)
+        if help_record is None:
+            return
+
+        option_names = self.opts
+
+        # Retrieve main name
+        primary = option_names[0]
+
+        # Remove those that differ only in the replacement of _ with -
+        filtered = [
+            name for name in option_names
+            if name == primary or
+               name.replace('_', '-') != primary.replace('_', '-')
+        ]
+
+        return ', '.join(filtered), help_record[1]
+
+
+def combine_option_classes(*classes):
+    """
+    Combine multiple Click option classes into one.
+    The order of classes matters, methods overlap in order of occurrence.
+    """
+    class CombinedOption(*classes, click.Option):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+    return CombinedOption
+
+
+class AliasedGroup(click.Group):
+    """
+    Custom Click Group to support command aliases.
+    """
+
+    def add_command(self, cmd, name=None):
+        name = name or cmd.name
+        super().add_command(cmd, name)
+
+        alias_name = name.replace('-', '_')
+        if alias_name != name and alias_name not in self.commands:
+            self.commands[alias_name] = cmd
+
+    def format_commands(self, ctx, formatter):
+        """Format command list to hide aliases with underscore"""
+        rows = []
+        for subcommand in self.list_commands(ctx):
+            command = self.get_command(ctx, subcommand)
+            if command is None:
+                continue
+            help_text = command.get_short_help_str()
+
+            if '-' in subcommand or '_' not in subcommand:
+                rows.append((subcommand, help_text))
+        if rows:
+            with formatter.section('Commands'):
+                formatter.write_dl(rows)
+
+    def get_command(self, ctx, cmd_name):
+        # get aliases
+        rv = click.Group.get_command(self, ctx, cmd_name)
+        if rv is not None:
+            return rv
+
+        matches = [
+            name for name, cmd in self.commands.items()
+            if hasattr(cmd, 'aliases') and cmd_name in cmd.aliases
+        ]
+        if not matches:
+            return None
+        return self.commands[matches[0]]
+
+
 class ValidRegionParamType(click.types.StringParamType):
     ALL_VALUE = 'ALL'
     name = 'region'

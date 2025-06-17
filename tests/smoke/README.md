@@ -128,9 +128,9 @@ Afterwards, the original configs return the original content. Example:
     - `depends_on`: The list of stage names, the result of which determines the execution of the current one. If at least one stage from the list fails, then the current stage will not execute.
     - `description`: Humanreadable command description.
     - `command`: List with the command plus command line arguments. Here are some default arguments for some commands that are automatically added:
-      - `build` - ["--bundle_name", "$BUNDLE_NAME", "--deploy_name", "$DEPLOY_NAME"]
-      - `deploy` - ["--bundle_name", "$BUNDLE_NAME", "--deploy_name", "$DEPLOY_NAME", "--replace_output"]
-      - `update` - ["--bundle_name", "$BUNDLE_NAME", "--deploy_name", "$DEPLOY_NAME", "--replace_output"]
+      - `build` - ["--bundle-name", "$BUNDLE_NAME", "--deploy-name", "$DEPLOY_NAME"]
+      - `deploy` - ["--bundle-name", "$BUNDLE_NAME", "--deploy-name", "$DEPLOY_NAME", "--replace-output"]
+      - `update` - ["--bundle-name", "$BUNDLE_NAME", "--deploy-name", "$DEPLOY_NAME", "--replace-output"]
     
       `$BUNDLE_NAME` and `$DEPLOY_NAME` have internal values and DO NOT need to be specified.
     - `checks`: Section with a description of each check.

@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added warning message if there are unresolved alias placeholders in resource metadata
 - Removed requirements.txt in favor of pyproject.toml
 - Fixed issue related to the API Gateway configuration merge conflicts
+- Changed CLI command and option naming convention from underscores to dashes for consistency. 
+Underscore variants remain supported but are hidden from help output
 
 # [1.17.1] - 2025-03-25
 - Changed `--force_upload` parameter type for assemble commands from `string` to `flag`
