@@ -20,17 +20,16 @@ from syndicate.core.generators.lambda_function import PROJECT_PATH_PARAM
 from syndicate.core.helper import resolve_project_path, \
     DictParamType, check_tags, verbose_option, timeit, OptionRequiredIf, \
     ValidRegionParamType, validate_incompatible_options, AliasedGroup, \
-    OptionHideUnderscoreAlias, combine_option_classes
+    MultiWordOption, combine_option_classes
 
-OptionCombined = combine_option_classes(OptionRequiredIf,
-                                        OptionHideUnderscoreAlias)
+OptionCombined = combine_option_classes(OptionRequiredIf, MultiWordOption)
 
 USER_LOG = get_user_logger()
 
 
 @click.group(name=APPSYNC_TYPE, cls=AliasedGroup)
 @return_code_manager
-@click.option('--project-path', cls=OptionHideUnderscoreAlias, nargs=1,
+@click.option('--project-path', cls=MultiWordOption, nargs=1,
               help="Path to the project folder. Default value: the one "
                    "from the current config if it exists. "
                    "Otherwise - the current working directory",
@@ -55,7 +54,7 @@ def appsync(ctx, project_path):
 @return_code_manager
 @click.option('--name', required=True, type=str,
               help="AppSync API name")
-@click.option('--project-path', cls=OptionHideUnderscoreAlias, nargs=1,
+@click.option('--project-path', cls=MultiWordOption, nargs=1,
               help="Path to the project folder. Default value: the one "
                    "from the current config if it exists. "
                    "Otherwise - the current working directory",
@@ -84,7 +83,7 @@ def api(name, project_path, tags):
 
 @appsync.command(name='data-source')
 @return_code_manager
-@click.option('--api-name', cls=OptionHideUnderscoreAlias,
+@click.option('--api-name', cls=MultiWordOption,
               required=True, type=str,
               help="AppSync API name to add data source to")
 @click.option('--name', required=True, type=str,
@@ -123,12 +122,12 @@ def data_source(ctx, **kwargs):
 
 @appsync.command(name='function')
 @return_code_manager
-@click.option('--api-name', cls=OptionHideUnderscoreAlias,
+@click.option('--api-name', cls=MultiWordOption,
               required=True, type=str,
               help="AppSync API name to add function to")
 @click.option('--name', required=True, type=str, help="Function name")
 @click.option('--description', type=str, help="Function description")
-@click.option('--data-source-name', cls=OptionHideUnderscoreAlias,
+@click.option('--data-source-name', cls=MultiWordOption,
               required=True, type=str,
               help="The name of the data source to associate the function "
                    "with")
@@ -154,16 +153,16 @@ def function(ctx, **kwargs):
 
 @appsync.command(name='resolver')
 @return_code_manager
-@click.option('--api-name', cls=OptionHideUnderscoreAlias,
+@click.option('--api-name', cls=MultiWordOption,
               required=True, type=str,
               help="AppSync API name to add resolver to")
 @click.option('--kind', type=click.Choice(APPSYNC_RESOLVER_KINDS),
               required=True, default='UNIT', is_eager=True,
               help="The kind of resolver.")
-@click.option('--type-name', cls=OptionHideUnderscoreAlias,
+@click.option('--type-name', cls=MultiWordOption,
               required=True, type=str,
               help="The name of the type defined in the API schema")
-@click.option('--field-name', cls=OptionHideUnderscoreAlias,
+@click.option('--field-name', cls=MultiWordOption,
               required=True, type=str,
               help="The name of the field defined in the API schema to attach "
                    "the resolver to")
@@ -171,7 +170,7 @@ def function(ctx, **kwargs):
               required_if='kind', required_if_values=['UNIT'],
               help="The name of the data source to associate the resolver "
                    "with")
-@click.option('--function-name', cls=OptionHideUnderscoreAlias,
+@click.option('--function-name', cls=MultiWordOption,
               type=str, multiple=True,
               callback=partial(
                   validate_incompatible_options,
@@ -201,12 +200,12 @@ def resolver(ctx, **kwargs):
 
 @appsync.command(name='authorization')
 @return_code_manager
-@click.option('--api-name', cls=OptionHideUnderscoreAlias, required=True,
+@click.option('--api-name', cls=MultiWordOption, required=True,
               type=str, help="AppSync API name to add authorization to")
 @click.option('--type', required=True,
               type=click.Choice(APPSYNC_AUTHORIZATION_TYPES),
               help="The authorization type")
-@click.option('--auth-type', cls=OptionHideUnderscoreAlias, required=True,
+@click.option('--auth-type', cls=MultiWordOption, required=True,
               type=click.Choice(APPSYNC_AUTHENTICATION_TYPES),
               help="The authentication type")
 @click.option('--resource-name', cls=OptionCombined, type=str,

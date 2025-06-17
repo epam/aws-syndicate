@@ -499,7 +499,7 @@ class OptionRequiredIf(click.Option):
             return super().handle_parse_result(ctx, opts, args)
 
 
-class OptionHideUnderscoreAlias(click.Option):
+class MultiWordOption(click.Option):
     def __init__(self, *args, **kwargs):
         # Find name with "-" and add alias with "_"
         new_args = []

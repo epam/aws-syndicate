@@ -36,7 +36,7 @@ from syndicate.core.helper import timeit, check_bundle_bucket_name, \
     resolve_project_path, check_lambdas_names, DictParamType, check_suffix, \
     check_prefix, check_file_extension, check_lambda_layer_name, check_tags, \
     check_lambda_existence, verbose_option, AliasedGroup, \
-    OptionHideUnderscoreAlias
+    MultiWordOption
 
 GENERATE_GROUP_NAME = 'generate'
 GENERATE_PROJECT_COMMAND_NAME = 'project'
@@ -87,7 +87,7 @@ def project(name, path):
               help='Lambda\'s runtime. If multiple lambda names are specified,'
                    ' the runtime will be applied to all lambdas',
               type=click.Choice(PROJECT_PROCESSORS))
-@click.option('--project-path', cls=OptionHideUnderscoreAlias,
+@click.option('--project-path', cls=MultiWordOption,
               help="Path to the project folder. Default value: the one "
                    "from the current config if it exists. "
                    "Otherwise - the current working directory",
@@ -127,11 +127,11 @@ def lambda_function(name, runtime, project_path, tags):
 @click.option('--runtime', required=True,
               type=click.Choice(PROJECT_PROCESSORS),
               help='Lambda layer\'s runtime.')
-@click.option('--link-with-lambda', cls=OptionHideUnderscoreAlias,
+@click.option('--link-with-lambda', cls=MultiWordOption,
               required=False,
               type=str, multiple=True, callback=check_lambda_existence,
               help='(multiple) Lambda function name to link the layer with.')
-@click.option('--project-path', cls=OptionHideUnderscoreAlias, nargs=1,
+@click.option('--project-path', cls=MultiWordOption, nargs=1,
               help="Path to the project folder. Default value: the one "
                    "from the current config if it exists. "
                    "Otherwise - the current working directory",
@@ -180,22 +180,22 @@ def lambda_layer(name, runtime, link_with_lambda, project_path):
 @click.option('--region',
               help='The region that is used to deploy the application',
               required=True)
-@click.option('--bundle-bucket-name', cls=OptionHideUnderscoreAlias,
+@click.option('--bundle-bucket-name', cls=MultiWordOption,
               help='Name of the bucket that is used for uploading artifacts.'
                    ' It will be created if specified.', required=True,
               callback=check_bundle_bucket_name)
-@click.option('--access-key', cls=OptionHideUnderscoreAlias,
+@click.option('--access-key', cls=MultiWordOption,
               help='AWS access key id that is used to deploy the application. '
                    'Retrieved from session by default')
-@click.option('--secret-key', cls=OptionHideUnderscoreAlias,
+@click.option('--secret-key', cls=MultiWordOption,
               help='AWS secret key that is used to deploy the application. '
                    'Retrieved from session by default')
-@click.option('--session-token', cls=OptionHideUnderscoreAlias,
+@click.option('--session-token', cls=MultiWordOption,
               help='AWS session token that is used to deploy the application. '
                    'Retrieved from session by default')
-@click.option('--config-path', cls=OptionHideUnderscoreAlias,
+@click.option('--config-path', cls=MultiWordOption,
               help='Path to store generated configuration file')
-@click.option('--project-path', cls=OptionHideUnderscoreAlias,
+@click.option('--project-path', cls=MultiWordOption,
               help=PROJECT_PATH_HELP)
 @click.option('--prefix',
               help='Prefix that is added to project names while deployment '
@@ -208,20 +208,20 @@ def lambda_layer(name, runtime, link_with_lambda, project_path):
                    'by pattern: {prefix}resource_name{suffix}. '
                    'Must be less than or equal to 5',
               callback=check_suffix)
-@click.option('--extended-prefix', cls=OptionHideUnderscoreAlias,
+@click.option('--extended-prefix', cls=MultiWordOption,
               type=bool, default=False, is_eager=True,
               help='Extends the length of the prefix up to 14 symbols. '
                    'If specified, a prefix and a suffix will be added to all '
                    'project resources.')
-@click.option('--use-temp-creds', cls=OptionHideUnderscoreAlias, type=bool,
+@click.option('--use-temp-creds', cls=MultiWordOption, type=bool,
               default=False,
               help='Indicates Syndicate to generate and use temporary AWS '
                    'credentials')
-@click.option('--access-role', cls=OptionHideUnderscoreAlias, type=str,
+@click.option('--access-role', cls=MultiWordOption, type=str,
               help='Indicates Syndicate to use this role\'s temporary AWS '
                    'credentials. Cannot be used if \'--use_temp_creds\' is '
                    'equal to true')
-@click.option('--serial-number', cls=OptionHideUnderscoreAlias, type=str,
+@click.option('--serial-number', cls=MultiWordOption, type=str,
               help='The identification number of the MFA device that is '
                    'associated with the IAM user which will be used for '
                    'deployment. If specified MFA token will be asked before '
@@ -229,10 +229,10 @@ def lambda_layer(name, runtime, link_with_lambda, project_path):
 @click.option('--tags', type=DictParamType(), callback=check_tags,
               help='Tags to add to the config. They will be added to all the '
                    'resources during deployment')
-@click.option('--iam-permissions-boundary', cls=OptionHideUnderscoreAlias,
+@click.option('--iam-permissions-boundary', cls=MultiWordOption,
               type=str,
               help='Common permissions boundary arn to add to all the roles')
-@click.option('--lock-lifetime-minutes', cls=OptionHideUnderscoreAlias,
+@click.option('--lock-lifetime-minutes', cls=MultiWordOption,
               type=click.IntRange(min=0, max=300),
               help='Project lock lifetime in minutes (see section "locks" '
                    'in ".syndicate"). The default value is 20 minutes.')
@@ -269,15 +269,15 @@ def config(name, config_path, project_path, region, access_key, secret_key,
 @return_code_manager
 @click.option('--name', required=True, type=str,
               help="Swagger UI name")
-@click.option('--path-to-spec', cls=OptionHideUnderscoreAlias,
+@click.option('--path-to-spec', cls=MultiWordOption,
               required=True, type=str,
               callback=partial(check_file_extension, extensions=['.json']),
               help="Path to OpenAPI specification file. Path that is relative "
                    "to the project path can be specified.")
-@click.option('--target-bucket', cls=OptionHideUnderscoreAlias,
+@click.option('--target-bucket', cls=MultiWordOption,
               required=True, type=str, callback=check_bundle_bucket_name,
               help="S3 bucket name for Swagger UI deployment")
-@click.option('--project-path', cls=OptionHideUnderscoreAlias,
+@click.option('--project-path', cls=MultiWordOption,
               help="Path to the project folder. Default value: the one "
                    "from the current config if it exists. "
                    "Otherwise - the current working directory",
