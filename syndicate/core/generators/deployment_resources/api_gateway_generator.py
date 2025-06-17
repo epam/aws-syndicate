@@ -203,8 +203,6 @@ class ApiGatewayResourceGenerator(ApiGatewayConfigurationGenerator):
                                  f"'{self.resource_path}'")
                 raise AbortedError
 
-        USER_LOG.info(f"Adding resource '{self.resource_path}' to api "
-                      f"'{self.api_gateway_name}'...")
         deployment_resources[self.api_gateway_name]['resources'][
             self.resource_path] = self._resolve_configuration()
         _write_content_to_file(path_with_api,
