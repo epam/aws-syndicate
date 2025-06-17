@@ -135,7 +135,7 @@ def dax_cluster(ctx, **kwargs):
                    "only a hash key")
 @click.option('--sort-key-type',
               type=dynamodb_type_param,
-              cls=OptionCombined, required_if='sort_key_name',
+              cls=OptionCombined, required_if='sort-key-name',
               help="Required if sort key name is specified")
 @click.option('--billing-mode',
               cls=OptionHideUnderscoreAlias, required=True,
@@ -190,7 +190,7 @@ def dynamodb(ctx, **kwargs):
               help='Index sort key')
 @click.option('--index-sort-key-type',
               cls=OptionCombined, type=dynamodb_type_param,
-              required_if='index_sort_key_name',
+              required_if='index-sort-key-name',
               help="Sort key type")
 @verbose_option
 @click.pass_context
@@ -657,7 +657,7 @@ def step_function_activity(ctx, **kwargs):
               help="Instance availability zone")
 @click.option('--subnet-id',
               type=str, cls=OptionCombined,
-              required_if="availability_zone",
+              required_if="availability-zone",
               help="Subnet ID (required if availability zone is set)")
 @click.option('--userdata-file',
               cls=OptionHideUnderscoreAlias, type=str,
@@ -793,7 +793,7 @@ def ec2_launch_template(ctx, **kwargs):
               help="The number of times a message is delivered to the source "
                    "queue before being moved to the dead-letter queue. "
                    "Required if 'dead_letter_target_arn' is specified",
-              cls=OptionCombined, required_if='dead_letter_target_arn')
+              cls=OptionCombined, required_if='dead-letter-target-arn')
 @click.option('--kms-master-key-id', type=str,
               help="The id of an AWS-managed customer master key (CMK) for "
                    "Amazon SQS or a custom CMK")
@@ -1112,7 +1112,7 @@ def batch_jobqueue(ctx, **kwargs):
               help="The lambdas to execute when the alarm goes to an ALARM "
                    "state from any other state. Use `:` after lambda name to "
                    "specify alias or version")
-@click.option('--ssm-response_plan',
+@click.option('--ssm-response-plan',
               cls=OptionHideUnderscoreAlias, type=str, multiple=True,
               help="The response plan name to execute when the alarm goes to "
                    "an ALARM state from any other state")
@@ -1291,13 +1291,13 @@ def documentdb_instance(ctx, **kwargs):
               help='The delivery stream type.')
 @click.option('--kinesis-stream-arn',
               type=str, cls=OptionCombined,
-              required_if='stream_type',
+              required_if='stream-type',
               required_if_values=['KinesisStreamAsSource'],
               help='The ARN of the source Kinesis data stream. [Required if '
                    'stream_type is \'KinesisStreamAsSource\']')
 @click.option('--kinesis-stream-role',
               type=str, cls=OptionCombined,
-              required_if='stream_type',
+              required_if='stream-type',
               required_if_values=['KinesisStreamAsSource'],
               help='The role name that provides access to the Kinesis data '
                    'stream source. [Required if stream_type is '
