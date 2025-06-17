@@ -706,13 +706,13 @@ def warmup(bundle_name, deploy_name, api_gw_id, stage_name, lambda_auth,
               cls=OptionHideUnderscoreAlias, nargs=1,
               type=click.DateTime(formats=['%Y-%m-%dT%H:%M:%SZ']),
               help='Date from which collect lambda metrics. The '
-                   '\'--to_date\' parameter required. Example of the date '
+                   '\'--to-date\' parameter required. Example of the date '
                    'format: 2022-02-02T02:02:02Z')
 @click.option('--to-date', '-to',
               cls=OptionHideUnderscoreAlias, nargs=1,
               type=click.DateTime(formats=['%Y-%m-%dT%H:%M:%SZ']),
               help='Date until which collect lambda metrics. The '
-                   '\'--from_date\' parameter required. Example of the date '
+                   '\'--from-date\' parameter required. Example of the date '
                    'format: 2022-02-02T02:02:02Z')
 @verbose_option
 @check_deploy_bucket_exists
@@ -983,7 +983,7 @@ def assemble_swagger_ui(**kwargs):
         """
     bundle_name = kwargs.get('bundle_name')
     project_path = kwargs.get('project_path')
-    USER_LOG.info(f'Command assemble Swagger UI: project_path: {project_path}')
+    USER_LOG.info(f'Command assemble Swagger UI: project-path: {project_path}')
 
     if not kwargs.get('is_chained'):
         remove_bundle_dir_locally(bundle_name, kwargs.get('force_upload'))
@@ -1026,7 +1026,7 @@ def assemble_appsync(**kwargs):
         """
     bundle_name = kwargs.get('bundle_name')
     project_path = kwargs.get('project_path')
-    USER_LOG.info(f'Command assemble AppSync: project_path: {project_path} ')
+    USER_LOG.info(f'Command assemble AppSync: project-path: {project_path} ')
 
     if not kwargs.get('is_chained'):
         remove_bundle_dir_locally(bundle_name, kwargs.get('force_upload'))
@@ -1199,7 +1199,7 @@ def upload(bundle_name, force_upload=False):
               callback=create_bundle_callback, required=True,
               help='The bundle name, to which the build artifacts '
                    'are gathered and later used for the deployment')
-@click.option('--src-account-id', '-acc_id',
+@click.option('--src-account-id', '-acc-id',
               cls=OptionHideUnderscoreAlias, nargs=1, required=True,
               help='The account ID, to which the bundle is to be '
                    'uploaded')

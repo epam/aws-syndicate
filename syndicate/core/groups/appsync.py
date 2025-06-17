@@ -211,7 +211,7 @@ def resolver(ctx, **kwargs):
               help="The authentication type")
 @click.option('--resource-name', cls=OptionCombined, type=str,
               required_if_values=['AWS_LAMBDA', 'AMAZON_COGNITO_USER_POOLS'],
-              required_if='auth_type',
+              required_if='auth-type',
               help="Authentication provider resource name")
 @click.option('--region', type=ValidRegionParamType(),
               help="The region where the authentication provider resource is "

@@ -307,7 +307,7 @@ def install_requirements_to(requirements_txt: Union[str, Path],
     if exit_code:
         message = (f'An error: \n"{result.stdout}\n{result.stderr}"\noccurred '
                    f'while installing requirements: "{str(requirements_txt)}" '
-                   f'for package "{to}"\nUse --errors_allowed flag to ignore '
+                   f'for package "{to}"\nUse --errors-allowed flag to ignore '
                    f'failures in dependencies installation.')
         _LOG.error(message)
         raise ArtifactAssemblingError(message)

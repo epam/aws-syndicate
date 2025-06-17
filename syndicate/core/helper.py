@@ -242,9 +242,10 @@ def resolve_default_value(ctx, param, value):
     if not param_resolver:
         raise InternalError(
             f"There is no resolver of default value "
-            f"for param {param.name}")
+            f"for param {param.human_readable_name}")
     resolved_value = param_resolver(command_name=command_name)
-    USER_LOG.info(f'Resolved value of {param.name}: {resolved_value}')
+    USER_LOG.info(
+    f'Resolved value of {param.human_readable_name}: {resolved_value}')
     return resolved_value
 
 
@@ -282,7 +283,9 @@ def verify_meta_bundle_callback(ctx, param, value):
 
 def resolve_and_verify_bundle_callback(ctx, param, value):
     if not value:
-        _LOG.debug(f'{param.name} is not specified, latest build will be used')
+        _LOG.debug(
+        f'{param.human_readable_name} is not specified, latest build will be '
+        f'used')
         value = resolve_default_value(ctx, param, value)
         if not value:
             raise click.BadParameter(
@@ -481,15 +484,15 @@ class OptionRequiredIf(click.Option):
         is_current_present: bool = self.name in opts
         if self.required_if_values:
             is_required_ok: bool = \
-                opts.get(self.required_if) in self.required_if_values
+                opts.get(self.required_if.replace('-','_')) in self.required_if_values
             message = (
-                f"Option '{self.name}' and '{self.required_if}' must be "
-                f"specified together, and '{self.required_if}' must have one "
-                f"of the next values {self.required_if_values}")
+                f"Option '{self.human_readable_name}' and '{self.required_if}' "
+                f"must be specified together, and '{self.required_if}' must "
+                f"have one of the next values {self.required_if_values}")
         else:
             is_required_ok: bool = self.required_if in opts
-            message = (f"options: '{self.name}' and '{self.required_if}' "
-                       f"must be specified together")
+            message = (f"options: '{self.human_readable_name}' and "
+                       f"'{self.required_if}' must be specified together")
         if is_current_present ^ is_required_ok:
             raise click.UsageError(message)
         else:
@@ -539,6 +542,13 @@ class OptionHideUnderscoreAlias(click.Option):
         ]
 
         return ', '.join(filtered), help_record[1]
+
+    @property
+    def human_readable_name(self):
+        """
+        Overrides the human_readable_name to show the original name with dashes.
+        """
+        return self.name.replace('_', '-')
 
 
 def combine_option_classes(*classes):
@@ -730,10 +740,11 @@ def check_prefix(ctx, param, value):
     if value:
         value = value.lower().strip()
         if extended_prefix:
-            result = ConfigValidator.validate_extended_prefix(param.name,
-                                                              value)
+            result = \
+            ConfigValidator.validate_extended_prefix(param.human_readable_name, value)
         else:
-            result = ConfigValidator.validate_prefix_suffix(param.name, value)
+            result = \
+            ConfigValidator.validate_prefix_suffix(param.human_readable_name, value)
         if result:
             raise BadParameter(result)
         return value
@@ -742,7 +753,8 @@ def check_prefix(ctx, param, value):
 def check_suffix(ctx, param, value):
     if value:
         value = value.lower().strip()
-        result = ConfigValidator.validate_prefix_suffix(param.name, value)
+        result = \
+        ConfigValidator.validate_prefix_suffix(param.human_readable_name, value)
         if result:
             raise BadParameter(result)
         return value
@@ -751,12 +763,12 @@ def check_suffix(ctx, param, value):
 def resolve_project_path(ctx, param, value):
     from syndicate.core import CONFIG
     if not value:
-        USER_LOG.info(f"Parameter: '{param.name}' wasn't specified. "
+        USER_LOG.info(f"Parameter: '{param.human_readable_name}' wasn't specified. "
                       f"Getting automatically")
         value = CONFIG.project_path \
             if CONFIG and CONFIG.project_path else os.getcwd()
         USER_LOG.info(f"Path: '{value}' was assigned to the "
-                      f"parameter: '{param.name}'")
+                      f"parameter: '{param.human_readable_name}'")
     return value
 
 
@@ -900,11 +912,16 @@ def check_file_extension(ctx, param, value, extensions):
 
 def validate_incompatible_options(ctx, param, value, incompatible_options):
     if value:
-        conflict_options = [option for option in incompatible_options if
-                            ctx.params.get(option)]
+        conflict_options = [
+            option for option in incompatible_options if
+            ctx.params.get(option.replace('-','_')) or
+            ctx.params.get(option)
+        ]
         if conflict_options:
-            raise BadParameter(f'Parameter \'{param.name}\' is incompatible '
-                               f'with {conflict_options}')
+            raise BadParameter(
+                f'Parameter \'{param.human_readable_name}\' is incompatible '
+                f'with {conflict_options}'
+            )
         return value
 
 
@@ -912,12 +929,13 @@ def validate_authorizer_name_option(ctx, param, value):
     if value:
         authorization_type = ctx.params.get('authorization_type')
         if not authorization_type:
-            raise BadParameter(f'Parameter \'{param.name}\' can\'t be used '
-                               f'without \'authorization_type\' parameter')
+            raise BadParameter(
+            f'Parameter \'{param.human_readable_name}\' can\'t be used '
+            f'without \'authorization-type\' parameter')
         if authorization_type != CUSTOM_AUTHORIZER_KEY:
-            raise BadParameter(f'Parameter \'{param.name}\' can\'t be used '
-                               f'with \'authorization_type\' '
-                               f'\'{authorization_type}\'')
+            raise BadParameter(
+            f"Parameter '{param.human_readable_name}' can't be used "
+            f"with 'authorization_type' '{authorization_type}")
         return value
 
 
@@ -925,11 +943,13 @@ def validate_api_gw_path(ctx, param, value):
     pattern = (
         r'^/(?:([a-zA-Z0-9-._~]+|\{[a-zA-Z0-9-._~]+\})/)*([a-zA-Z0-9-._~]+|'
         r'\{[a-zA-Z0-9-._~]+\}|\{proxy\+\})$')
-    _LOG.debug(f"The parameter '--{param.name}' value is '{value}'")
+    _LOG.debug(
+    f"The parameter '--{param.human_readable_name}' value is '{value}'")
     if os.name == 'nt' and Path(value).is_absolute():
         raise BadParameter(
-            f"Your terminal resolves the parameter '--{param.name}' value as "
-            f"a filesystem path. Please pass the parameter '--{param.name}' "
+            f"Your terminal resolves the parameter "
+            f"'--{param.human_readable_name}' value as a filesystem path. "
+            f"Please pass the parameter '--{param.human_readable_name}' "
             f"value without starting slash ('/')")
     if not value.startswith('/'):
         value = '/' + value
@@ -945,7 +965,7 @@ def validate_api_gw_path(ctx, param, value):
 
 def check_tags(ctx, param, value):
     if value:
-        errors = validate_tags(param.name, value)
+        errors = validate_tags(param.human_readable_name, value)
         if errors:
             raise BadParameter(errors)
         return value

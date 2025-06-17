@@ -39,8 +39,8 @@ GENERATE_META_GROUP_NAME = 'meta'
 dynamodb_type_param = click.Choice(['S', 'N', 'B'])
 
 RDS_INSTANCE_DB_CLUSTER_INCOMPATIBLE_OPTIONS = [
-    'engine', 'engine_version', 'master_username', 'master_password',
-    'database_name', 'port', 'vpc_security_group_ids', 'availability_zone']
+    'engine', 'engine-version', 'master-username', 'master-password',
+    'database-name', 'port', 'vpc-security-group-ids', 'availability-zone']
 
 OptionCombined = combine_option_classes(OptionRequiredIf,
                                         OptionHideUnderscoreAlias)
@@ -522,7 +522,7 @@ def iam_policy(ctx, **kwargs):
 @click.option('--instance-profile',
               cls=OptionHideUnderscoreAlias, type=bool,
               help="If true, instance profile with role name is created")
-@click.option('--permissions_boundary',
+@click.option('--permissions-boundary',
               cls=OptionHideUnderscoreAlias, type=str,
               help="The name or the ARN of permissions boundary policy to "
                    "attach to this role")
@@ -792,7 +792,7 @@ def ec2_launch_template(ctx, **kwargs):
 @click.option('--max-receive-count', type=click.IntRange(min=1, max=1000),
               help="The number of times a message is delivered to the source "
                    "queue before being moved to the dead-letter queue. "
-                   "Required if 'dead_letter_target_arn' is specified",
+                   "Required if 'dead-letter-target-arn' is specified",
               cls=OptionCombined, required_if='dead-letter-target-arn')
 @click.option('--kms-master-key-id', type=str,
               help="The id of an AWS-managed customer master key (CMK) for "
@@ -863,7 +863,7 @@ def sns_application(ctx, **kwargs):
               cls=OptionHideUnderscoreAlias, type=str,
               help="The arn of the IAM role in your account which Cognito "
                    "will use to send SMS messages. Required if 'phone_number' "
-                   "in 'auto_verified_attributes' is specified")
+                   "in 'auto-verified-attributes' is specified")
 @click.option('--username-attributes',
               cls=OptionHideUnderscoreAlias,
               type=click.Choice(['phone_number', 'email']),
@@ -884,9 +884,9 @@ def cognito_user_pool(ctx, **kwargs):
             and not kwargs.get('sns_caller_arn'):
         raise click.MissingParameter("Sns caller IAM role arn is required when"
                                      " 'phone_number' is specified in "
-                                     "'auto_verified_attributes'",
+                                     "'auto-verified-attributes'",
                                      param_type='option',
-                                     param_hint='sns_caller_arn')
+                                     param_hint='sns-caller-arn')
 
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = CognitoUserPoolGenerator(**kwargs)
@@ -993,10 +993,11 @@ def batch_compenv(ctx, **kwargs):
     """Generates batch compenv deployment resources template"""
     if kwargs.get('type') != 'FARGATE':
         if not kwargs.get('instance_role'):
-            raise click.MissingParameter("'instance_role' is required if "
-                                         "batch compenv type ISN'T 'FARGATE'",
-                                         param_type='option',
-                                         param_hint='instance_role')
+            raise click.MissingParameter(
+                "'instance-role' is required if batch compenv type "
+                "ISN'T 'FARGATE'",
+                param_type='option',
+                param_hint='instance-role')
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = BatchCompenvGenerator(**kwargs)
     _generate(generator)
@@ -1148,7 +1149,8 @@ def cloudwatch_alarm(ctx, **kwargs):
 @click.option('--resource-name',
               cls=OptionHideUnderscoreAlias, type=str, required=True,
               help="Cloudwatch event rule name")
-@click.option('--rule_type', required=True, help="Cloudwatch event rule type",
+@click.option('--rule-type', cls=OptionHideUnderscoreAlias,
+              required=True, help="Cloudwatch event rule type",
               type=click.Choice(['schedule', 'ec2', 'api_call']))
 @click.option('--expression', type=str,
               help="Rule expression (cron schedule). Valuable only if "
@@ -1180,15 +1182,16 @@ def cloudwatch_event_rule(ctx, **kwargs):
 @click.option('--resource-name',
               cls=OptionHideUnderscoreAlias, type=str, required=True,
               help="EventBridge rule name")
-@click.option('--rule_type', required=True, help="EventBridge rule type",
+@click.option('--rule-type', cls=OptionHideUnderscoreAlias,
+              required=True, help="EventBridge rule type",
               type=click.Choice(['schedule', 'ec2', 'api_call']))
 @click.option('--expression', type=str,
               help="Rule expression (cron schedule). Valuable only if "
-                   "rule_type is 'schedule'")
+                   "rule-type is 'schedule'")
 @click.option('--aws-service',
               cls=OptionHideUnderscoreAlias, type=str,
               help="The name of AWS service which the rule listens to. "
-                   "Required only if rule_type is 'api_call'")
+                   "Required only if rule-type is 'api_call'")
 @click.option('--region', type=ValidRegionParamType(allowed_all=True),
               help="The region where the rule is deployed. Default value is "
                    "the one from syndicate config")
@@ -1294,13 +1297,13 @@ def documentdb_instance(ctx, **kwargs):
               required_if='stream-type',
               required_if_values=['KinesisStreamAsSource'],
               help='The ARN of the source Kinesis data stream. [Required if '
-                   'stream_type is \'KinesisStreamAsSource\']')
+                   'stream-type is \'KinesisStreamAsSource\']')
 @click.option('--kinesis-stream-role',
               type=str, cls=OptionCombined,
               required_if='stream-type',
               required_if_values=['KinesisStreamAsSource'],
               help='The role name that provides access to the Kinesis data '
-                   'stream source. [Required if stream_type is '
+                   'stream source. [Required if stream-type is '
                    '\'KinesisStreamAsSource\']')
 @click.option('--destination-role',
               cls=OptionHideUnderscoreAlias, type=str, required=True,
@@ -1421,9 +1424,9 @@ def eventbridge_schedule(ctx, **kwargs):
               cls=OptionHideUnderscoreAlias, type=str,
               callback=partial(
                   validate_incompatible_options,
-                  incompatible_options=['manage_master_password']),
+                  incompatible_options=['manage-master-password']),
               help="The password for master user. Can't be specified if "
-                   "manage_master_password is turned on")
+                   "manage-master-password is turned on")
 @click.option('--database-name',
               cls=OptionHideUnderscoreAlias, type=str, required=True,
               help="Database name")
