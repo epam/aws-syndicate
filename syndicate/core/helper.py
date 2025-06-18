@@ -562,7 +562,7 @@ def combine_option_classes(*classes):
     return CombinedOption
 
 
-class AliasedGroup(click.Group):
+class AliasedCommandsGroup(click.Group):
     """
     Custom Click Group to support command aliases.
     """

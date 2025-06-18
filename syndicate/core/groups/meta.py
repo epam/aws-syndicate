@@ -29,7 +29,7 @@ from syndicate.core.helper import (
     OptionRequiredIf, check_tags,
     validate_authorizer_name_option, verbose_option, validate_api_gw_path,
     DictParamType, DeepDictParamType, validate_incompatible_options,
-    AliasedGroup, MultiWordOption, combine_option_classes,
+    AliasedCommandsGroup, MultiWordOption, combine_option_classes,
 )
 from syndicate.core.helper import ValidRegionParamType
 from syndicate.core.helper import check_bundle_bucket_name
@@ -47,7 +47,7 @@ OptionCombined = combine_option_classes(OptionRequiredIf, MultiWordOption)
 USER_LOG = get_user_logger()
 
 
-@click.group(name=GENERATE_META_GROUP_NAME, cls=AliasedGroup)
+@click.group(name=GENERATE_META_GROUP_NAME, cls=AliasedCommandsGroup)
 @return_code_manager
 @click.option('--project-path',
               cls=MultiWordOption, nargs=1,

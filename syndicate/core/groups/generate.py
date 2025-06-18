@@ -35,7 +35,7 @@ from syndicate.core.groups.meta import meta
 from syndicate.core.helper import timeit, check_bundle_bucket_name, \
     resolve_project_path, check_lambdas_names, DictParamType, check_suffix, \
     check_prefix, check_file_extension, check_lambda_layer_name, check_tags, \
-    check_lambda_existence, verbose_option, AliasedGroup, \
+    check_lambda_existence, verbose_option, AliasedCommandsGroup, \
     MultiWordOption
 
 GENERATE_GROUP_NAME = 'generate'
@@ -48,7 +48,7 @@ PROJECT_PATH_HELP = 'Path to project folder. ' \
 USER_LOG = get_user_logger()
 
 
-@click.group(name=GENERATE_GROUP_NAME, cls=AliasedGroup)
+@click.group(name=GENERATE_GROUP_NAME, cls=AliasedCommandsGroup)
 def generate():
     """Generates project, lambda or configs"""
 
