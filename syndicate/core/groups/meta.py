@@ -1148,7 +1148,7 @@ def cloudwatch_alarm(ctx, **kwargs):
 @click.option('--resource-name',
               cls=MultiWordOption, type=str, required=True,
               help="Cloudwatch event rule name")
-@click.option('--rule-type', cls=OptionHideUnderscoreAlias,
+@click.option('--rule-type', cls=MultiWordOption,
               required=True, help="Cloudwatch event rule type",
               type=click.Choice(['schedule', 'ec2', 'api_call']))
 @click.option('--expression', type=str,
@@ -1181,7 +1181,7 @@ def cloudwatch_event_rule(ctx, **kwargs):
 @click.option('--resource-name',
               cls=MultiWordOption, type=str, required=True,
               help="EventBridge rule name")
-@click.option('--rule-type', cls=OptionHideUnderscoreAlias,
+@click.option('--rule-type', cls=MultiWordOption,
               required=True, help="EventBridge rule type",
               type=click.Choice(['schedule', 'ec2', 'api_call']))
 @click.option('--expression', type=str,
