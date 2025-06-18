@@ -64,7 +64,7 @@ from syndicate.core.helper import (create_bundle_callback,
                                    param_to_lower, verbose_option,
                                    validate_incompatible_options,
                                    failed_status_code_on_exception,
-                                   AliasedGroup, MultiWordOption)
+                                   AliasedCommandsGroup, MultiWordOption)
 from syndicate.core.project_state.project_state import (MODIFICATION_LOCK,
                                                         WARMUP_LOCK)
 from syndicate.core.project_state.status_processor import project_state_status
@@ -107,7 +107,7 @@ def _not_require_state_sync(all_params):
     return any(item in commands_without_state_sync for item in all_params)
 
 
-@click.group(name='syndicate', cls=AliasedGroup)
+@click.group(name='syndicate', cls=AliasedCommandsGroup)
 @return_code_manager
 @click.version_option()
 def syndicate():

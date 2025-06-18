@@ -19,7 +19,7 @@ from syndicate.core.generators.deployment_resources.appsync_generator import \
 from syndicate.core.generators.lambda_function import PROJECT_PATH_PARAM
 from syndicate.core.helper import resolve_project_path, \
     DictParamType, check_tags, verbose_option, timeit, OptionRequiredIf, \
-    ValidRegionParamType, validate_incompatible_options, AliasedGroup, \
+    ValidRegionParamType, validate_incompatible_options, AliasedCommandsGroup, \
     MultiWordOption, combine_option_classes
 
 OptionCombined = combine_option_classes(OptionRequiredIf, MultiWordOption)
@@ -27,7 +27,7 @@ OptionCombined = combine_option_classes(OptionRequiredIf, MultiWordOption)
 USER_LOG = get_user_logger()
 
 
-@click.group(name=APPSYNC_TYPE, cls=AliasedGroup)
+@click.group(name=APPSYNC_TYPE, cls=AliasedCommandsGroup)
 @return_code_manager
 @click.option('--project-path', cls=MultiWordOption, nargs=1,
               help="Path to the project folder. Default value: the one "
