@@ -57,7 +57,7 @@ def check_deploy_name_for_duplicates(func):
             if exists:
                 msg = f'Output file already exists with name ' \
                       f'{output_file_name}. If it should be replaced with ' \
-                      f'new one, use --replace_output flag.'
+                      f'new one, use --replace-output flag.'
                 USER_LOG.error(msg)
                 return ABORTED_RETURN_CODE
         return func(*args, **kwargs)

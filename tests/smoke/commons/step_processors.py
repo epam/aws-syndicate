@@ -39,15 +39,15 @@ def process_steps(steps: dict[str: List[dict]],
         if verbose:
             command_to_execute.append('--verbose')
         if BUILD_COMMAND in command_to_execute:
-            command_to_execute.extend(['--bundle_name', BUNDLE_NAME,
-                                       '--force_upload'])
+            command_to_execute.extend(['--bundle-name', BUNDLE_NAME,
+                                       '--force-upload'])
         if DEPLOY_COMMAND in command_to_execute:
-            command_to_execute.extend(['--bundle_name', BUNDLE_NAME,
-                                       '--deploy_name', DEPLOY_NAME,
-                                       '--replace_output'])
+            command_to_execute.extend(['--bundle-name', BUNDLE_NAME,
+                                       '--deploy-name', DEPLOY_NAME,
+                                       '--replace-output'])
         if UPDATE_COMMAND in command_to_execute:
-            command_to_execute.extend(['--bundle_name', UPDATED_BUNDLE_NAME,
-                                       '--replace_output'])
+            command_to_execute.extend(['--bundle-name', UPDATED_BUNDLE_NAME,
+                                       '--replace-output'])
         execution_datetime = datetime.utcnow()
 
         with UpdateContent(
