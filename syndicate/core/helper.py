@@ -15,6 +15,7 @@
 """
 import concurrent.futures
 import getpass
+import hashlib
 import json
 import os
 import re
@@ -29,6 +30,7 @@ from pathlib import Path
 from signal import SIGINT
 from threading import Thread
 from time import time
+from typing import Union
 
 import click
 from click import BadParameter
@@ -1000,3 +1002,15 @@ def verbose_option(func):
     def wrapper(*args, **kwargs):
         return func(*args, **kwargs)
     return wrapper
+
+
+def compute_file_hash(file_path: Union[str, Path],
+                      algorithm:str='sha256') -> str:
+    hash_obj = hashlib.new(algorithm)
+    with open(file_path, 'rb') as f:
+        while True:
+            chunk = f.read(4096)
+            if not chunk:
+                break
+            hash_obj.update(chunk)
+    return hash_obj.hexdigest()

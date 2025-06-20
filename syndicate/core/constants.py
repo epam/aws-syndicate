@@ -56,6 +56,7 @@ MVN_TARGET_DIR_NAME = 'target'
 
 # == BUILD PARAMS =============================================================
 ARTIFACTS_FOLDER = 'bundles'
+CACHE_DIR = 'cache'
 BUILD_META_FILE_NAME = 'build_meta.json'
 LAMBDA_CONFIG_FILE_NAME = 'lambda_config.json'
 LAMBDA_LAYER_CONFIG_FILE_NAME = 'lambda_layer_config.json'

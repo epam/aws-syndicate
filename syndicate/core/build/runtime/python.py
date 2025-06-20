@@ -31,7 +31,7 @@ from typing import Union, Optional, List, Set
 from syndicate.exceptions import ArtifactAssemblingError, InvalidTypeError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.build.helper import build_py_package_name, zip_dir, \
-    remove_dir
+    remove_dir, resolve_bundles_cache_directory, merge_zip_files
 from syndicate.core.conf.processor import path_resolver
 from syndicate.core.constants import (LAMBDA_CONFIG_FILE_NAME, DEFAULT_SEP,
                                       REQ_FILE_NAME, LOCAL_REQ_FILE_NAME,
@@ -39,7 +39,7 @@ from syndicate.core.constants import (LAMBDA_CONFIG_FILE_NAME, DEFAULT_SEP,
                                       PYTHON_LAMBDA_LAYER_PATH,
                                       MANY_LINUX_2014_PLATFORM)
 from syndicate.core.helper import (build_path, unpack_kwargs, zip_ext,
-                                   without_zip_ext)
+                                   without_zip_ext, compute_file_hash)
 from syndicate.core.resources.helper import validate_params
 
 _LOG = get_logger(__name__)
@@ -47,6 +47,9 @@ USER_LOG = get_user_logger()
 
 _PY_EXT = "*.py"
 EMPTY_LINE_CHARS = ('\n', '\r\n', '\t')
+
+REQ_HASH_SUFFIX = 'r_hash'
+EMPTY_FILE_HASH = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'
 
 
 def assemble_python_lambdas(project_path, bundles_dir, errors_allowed,
@@ -101,35 +104,83 @@ def build_python_lambda_layer(layer_root: str, bundle_dir: str,
     - local_requirements.txt
     - requirements.txt
     """
+    cache_dir_path = resolve_bundles_cache_directory()
+    os.makedirs(cache_dir_path, exist_ok=True)
+
     with open(Path(layer_root, LAMBDA_LAYER_CONFIG_FILE_NAME), 'r') as file:
         layer_config = json.load(file)
     validate_params(layer_root, layer_config, ['name', 'deployment_package'])
     artifact_name = without_zip_ext(layer_config['deployment_package'])
     artifact_path = Path(bundle_dir, artifact_name)
-    path_for_requirements = artifact_path / PYTHON_LAMBDA_LAYER_PATH
+
+    _LOG.info(f"Going to assemble lambda layer '{layer_config['name']}'")
+    package_name = zip_ext(layer_config['deployment_package'])
+
+    r_hash_name = f'.{artifact_name}_{REQ_HASH_SUFFIX}'
+    artifact_cache_path = Path(cache_dir_path, artifact_name)
+
     _LOG.info(f'Artifacts path: {artifact_path}')
     os.makedirs(artifact_path, exist_ok=True)
+
+    prev_req_hash = None
+    req_hash_path = Path(cache_dir_path, r_hash_name)
+    if os.path.exists(req_hash_path):
+        with open(req_hash_path, 'r') as f:
+            prev_req_hash = f.read().strip()
 
     # install requirements.txt content
     requirements_path = Path(layer_root, REQ_FILE_NAME)
     if os.path.exists(requirements_path):
-        install_requirements_to(requirements_path, to=path_for_requirements,
-                                config=layer_config,
-                                errors_allowed=errors_allowed)
+        current_req_hash = compute_file_hash(requirements_path)
+        if (current_req_hash != EMPTY_FILE_HASH and
+                prev_req_hash != current_req_hash):
+            _LOG.debug(f'Artifacts cache path: {artifact_cache_path}')
+            os.makedirs(artifact_cache_path, exist_ok=True)
+
+            install_requirements_to(requirements_path, to=artifact_cache_path,
+                                    config=layer_config,
+                                    errors_allowed=errors_allowed)
+
+            _LOG.debug('Zipping 3-rd party dependencies')
+            zip_dir(str(artifact_cache_path),
+                    str(Path(cache_dir_path, package_name)))
+
+            remove_dir(artifact_cache_path)
+            _LOG.debug(f'"{artifact_cache_path}" was removed successfully')
+
+            with open(req_hash_path, 'w') as f:
+                f.write(current_req_hash)
+                _LOG.debug(f'Updated requirements hash to {current_req_hash}')
+        else:
+            _LOG.info(
+                f"Skipping installation from the '{requirements_path}' "
+                f"because no changes detected from the previous run")
 
     # install local requirements
     local_requirements_path = Path(layer_root, LOCAL_REQ_FILE_NAME)
     if os.path.exists(local_requirements_path):
         _LOG.info('Going to install local dependencies')
-        _install_local_req(path_for_requirements, local_requirements_path,
+        _install_local_req(artifact_path, local_requirements_path,
                            project_path)
         _LOG.info('Local dependencies were installed successfully')
 
     # making zip archive
-    package_name = zip_ext(layer_config['deployment_package'])
     _LOG.info(f'Packaging artifacts by {artifact_path} to {package_name}')
-    zip_dir(str(artifact_path), str(Path(bundle_dir, package_name)))
+    zip_dir(str(artifact_path), str(Path(artifact_path, package_name)))
+
+    if Path(cache_dir_path, package_name).exists():
+        _LOG.info(f"Merging lambda layer code with 3-rd party dependencies")
+        merge_zip_files(str(Path(artifact_path, package_name)),
+                        str(Path(cache_dir_path, package_name)),
+                        str(Path(bundle_dir, package_name)),
+                        output_subfolder=PYTHON_LAMBDA_LAYER_PATH)
+    else:
+        _LOG.info('Copying lambda layer code to target folder')
+        shutil.copy2(str(Path(artifact_path, package_name)),
+                     str(Path(bundle_dir, package_name)))
+
     _LOG.info(f'Package \'{package_name}\' was successfully created')
+
     # remove unused folder
     remove_dir(artifact_path)
     _LOG.info(f'"{artifact_path}" was removed successfully')
@@ -140,21 +191,60 @@ def _build_python_artifact(root, config_file, target_folder, project_path,
                            errors_allowed):
     _LOG.info(f'Building artifact in {target_folder}')
 
+    cache_dir_path = resolve_bundles_cache_directory()
+    os.makedirs(cache_dir_path, exist_ok=True)
+
     # create folder to store artifacts
     with open(config_file, 'r') as file:
         lambda_config = json.load(file)
     validate_params(root, lambda_config, ['lambda_path', 'name', 'version'])
-    artifact_name = f'{lambda_config["name"]}-{lambda_config["version"]}'
+
+    lambda_name = lambda_config['name']
+    artifact_name = f'{lambda_name}-{lambda_config["version"]}'
     artifact_path = Path(target_folder, artifact_name)
+
+    _LOG.info(f"Going to assemble lambda '{lambda_name}'")
+    package_name = build_py_package_name(lambda_name, lambda_config["version"])
+
+    r_hash_name = f'.{artifact_name}_{REQ_HASH_SUFFIX}'
+    artifact_cache_path = Path(cache_dir_path, artifact_name)
+
     _LOG.info(f'Artifacts path: {artifact_path}')
     os.makedirs(artifact_path, exist_ok=True)
+
+    prev_req_hash = None
+    req_hash_path = Path(cache_dir_path, r_hash_name)
+    if os.path.exists(req_hash_path):
+        with open(req_hash_path, 'r') as f:
+            prev_req_hash = f.read().strip()
 
     # install requirements.txt content
     requirements_path = Path(root, REQ_FILE_NAME)
     if os.path.exists(requirements_path):
-        install_requirements_to(requirements_path, to=artifact_path,
-                                config=lambda_config,
-                                errors_allowed=errors_allowed)
+        current_req_hash = compute_file_hash(requirements_path)
+        if (current_req_hash != EMPTY_FILE_HASH and
+                prev_req_hash != current_req_hash):
+            _LOG.debug(f'Artifacts cache path: {artifact_cache_path}')
+            os.makedirs(artifact_cache_path, exist_ok=True)
+            
+            install_requirements_to(requirements_path, to=artifact_cache_path,
+                                    config=lambda_config,
+                                    errors_allowed=errors_allowed)
+            _LOG.debug(
+                f'Zipping 3-rd party dependencies in {artifact_cache_path}')
+            zip_dir(str(artifact_cache_path), 
+                    str(Path(cache_dir_path, package_name)))
+
+            remove_dir(artifact_cache_path)
+            _LOG.debug(f'"{artifact_cache_path}" was removed successfully')
+            
+            with open(req_hash_path, 'w') as f:
+                f.write(current_req_hash)
+                _LOG.debug(f'Updated requirements hash to {current_req_hash}')
+        else:
+            _LOG.info(
+                f"Skipping installation from the '{requirements_path}' "
+                f"because no changes detected from the previous run")
 
     # install local requirements
     local_requirements_path = Path(root, LOCAL_REQ_FILE_NAME)
@@ -180,10 +270,20 @@ def _build_python_artifact(root, config_file, target_folder, project_path,
     _copy_py_files(root, artifact_path)
 
     # making zip archive
-    package_name = build_py_package_name(lambda_config["name"],
-                                         lambda_config["version"])
     _LOG.info(f'Packaging artifacts by {artifact_path} to {package_name}')
-    zip_dir(str(artifact_path), str(Path(target_folder, package_name)))
+    zip_dir(str(artifact_path), str(Path(artifact_path, package_name)))
+
+    if Path(cache_dir_path, package_name).exists():
+        _LOG.info(f"Merging lambda's '{lambda_name}' code with 3-rd party "
+                  f"dependencies")
+        merge_zip_files(str(Path(artifact_path, package_name)),
+                        str(Path(cache_dir_path, package_name)),
+                        str(Path(target_folder, package_name)))
+    else:
+        _LOG.info('Copying lambda\'s code to target folder')
+        shutil.copy2(str(Path(artifact_path, package_name)),
+                     str(Path(target_folder, package_name)))
+
     _LOG.info(f'Package \'{package_name}\' was successfully created')
 
     # remove unused folder

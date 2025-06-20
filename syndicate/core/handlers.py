@@ -15,6 +15,7 @@
 """
 import json
 import os
+import shutil
 import sys
 from functools import partial
 
@@ -22,6 +23,7 @@ import click
 from tabulate import tabulate
 
 from syndicate.commons.log_helper import get_logger, get_user_logger
+from syndicate.core.build.helper import resolve_bundles_cache_directory
 from syndicate.core.export.export_processor import export_specification
 from syndicate.core.transform.transform_processor import generate_build_meta
 from syndicate.core import initialize_connection, \
@@ -208,12 +210,17 @@ def test(suite, test_folder_name, errors_allowed, skip_tests):
 @click.option('--skip-tests',
               cls=MultiWordOption, is_flag=True, default=False,
               help='Flag to skip lambda tests')
+@click.option('--refresh-cache',
+              cls=MultiWordOption, is_flag=True, default=False,
+              help='Flag to refresh the cache of dependencies. Currently, it '
+                   'is only applicable to Python runtime dependencies.')
 @verbose_option
 @click.pass_context
 @timeit(action_name=BUILD_ACTION)
 @failed_status_code_on_exception
 @check_deploy_bucket_exists
-def build(ctx, bundle_name, force_upload, errors_allowed, skip_tests):
+def build(ctx, bundle_name, force_upload, errors_allowed, skip_tests,
+          refresh_cache):
     """
     Builds bundle of an application
     """
@@ -235,6 +242,7 @@ def build(ctx, bundle_name, force_upload, errors_allowed, skip_tests):
                                bundle_name=bundle_name,
                                errors_allowed=errors_allowed,
                                skip_tests=skip_tests,
+                               refresh_cache=refresh_cache,
                                is_chained=True)
     if assemble_code != OK_RETURN_CODE:
         return assemble_code
@@ -767,7 +775,7 @@ def profiler(bundle_name, deploy_name, from_date, to_date):
 @timeit(action_name=ASSEMBLE_JAVA_MVN_ACTION)
 @failed_status_code_on_exception
 def assemble_java_mvn(bundle_name, project_path, force_upload, skip_tests,
-                      errors_allowed, is_chained=False):
+                      errors_allowed, refresh_cache=False, is_chained=False):
     """
     Builds Java lambdas
 
@@ -778,6 +786,7 @@ def assemble_java_mvn(bundle_name, project_path, force_upload, skip_tests,
     :param skip_tests: force skipping tests
     :param errors_allowed: not used for java, but need to unify the
     `assemble` commands interface
+    :param refresh_cache: not used for java, but need to unify the function interface
     :param is_chained: specifies whether this command is executed independently
     or as part of a process (like `build` or `assemble` command)
     :return:
@@ -820,11 +829,14 @@ def assemble_java_mvn(bundle_name, project_path, force_upload, skip_tests,
               cls=MultiWordOption, is_flag=True, default=False,
               help='Flag to continue building the bundle if any errors occur '
                    'while building dependencies')
+@click.option('--refresh-cache',
+              cls=MultiWordOption, is_flag=True, default=False,
+              help='Flag to refresh the cache of dependencies.')
 @verbose_option
 @timeit(action_name=ASSEMBLE_PYTHON_ACTION)
 @failed_status_code_on_exception
 def assemble_python(bundle_name, project_path, force_upload, errors_allowed,
-                    skip_tests=False, is_chained=False):
+                    refresh_cache, skip_tests=False, is_chained=False):
     """
     Builds Python lambdas
 
@@ -833,6 +845,7 @@ def assemble_python(bundle_name, project_path, force_upload, errors_allowed,
     :param project_path: path to project folder
     :param force_upload: force upload identification
     :param errors_allowed: allows to ignore dependency errors
+    :param refresh_cache: flag to refresh the cache of dependencies
     :param skip_tests: not used for python, but need to unify the
     `assemble` commands interface
     :param is_chained: specifies whether this command is executed independently
@@ -843,6 +856,13 @@ def assemble_python(bundle_name, project_path, force_upload, errors_allowed,
 
     if not is_chained:
         remove_bundle_dir_locally(bundle_name, force_upload)
+
+    if refresh_cache:
+        cache_dir = resolve_bundles_cache_directory()
+        if os.path.exists(cache_dir):
+            shutil.rmtree(cache_dir)
+            _LOG.info(f'Removed the cache directory: {cache_dir}')
+
 
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
@@ -874,7 +894,8 @@ def assemble_python(bundle_name, project_path, force_upload, errors_allowed,
 @timeit(action_name=ASSEMBLE_NODE_ACTION)
 @failed_status_code_on_exception
 def assemble_node(bundle_name, project_path, force_upload,
-                  errors_allowed=False, skip_tests=False, is_chained=False):
+                  errors_allowed=False, skip_tests=False, refresh_cache=False,
+                  is_chained=False):
     """
     Builds NodeJS lambdas
 
@@ -886,6 +907,7 @@ def assemble_node(bundle_name, project_path, force_upload,
     `assemble` commands interface
     :param skip_tests: not used for NodeJS, but need to unify the
     `assemble` commands interface
+    :param refresh_cache: not used for NodeJS, but need to unify the function interface
     :param is_chained: specifies whether this command is executed independently
     or as part of a process (like `build` or `assemble` command)
     :return:
@@ -924,7 +946,8 @@ def assemble_node(bundle_name, project_path, force_upload,
 @timeit(action_name=ASSEMBLE_DOTNET_ACTION)
 @failed_status_code_on_exception
 def assemble_dotnet(bundle_name, project_path, force_upload,
-                    errors_allowed=False, skip_tests=False, is_chained=False):
+                    errors_allowed=False, skip_tests=False,
+                    refresh_cache=False, is_chained=False):
     """
     Builds DotNet lambdas
 
@@ -936,6 +959,7 @@ def assemble_dotnet(bundle_name, project_path, force_upload,
     `assemble` commands interface
     :param skip_tests: not used for DotNet, but need to unify the
     `assemble` commands interface
+    :param refresh_cache: not used for DotNet, but need to unify the function interface
     :param is_chained: specifies whether this command is executed independently
     or as part of a process
     :return:
@@ -1068,7 +1092,7 @@ RUNTIME_LANG_TO_BUILD_MAPPING = {
 @timeit(action_name=ASSEMBLE_ACTION)
 @failed_status_code_on_exception
 def assemble(ctx, bundle_name, force_upload, errors_allowed, skip_tests=False,
-             is_chained=False):
+             refresh_cache=False, is_chained=False):
     """
     Builds the application artifacts
 
@@ -1079,6 +1103,7 @@ def assemble(ctx, bundle_name, force_upload, errors_allowed, skip_tests=False,
     :param force_upload: force upload identification
     :param errors_allowed: allows to ignore errors.
     :param skip_tests: allows to skip tests
+    :param refresh_cache: specifies whether to refresh the cache of the syndicate
     :param is_chained: specifies whether this command is executed independently
     or as part of a process
     :return:
@@ -1100,6 +1125,7 @@ def assemble(ctx, bundle_name, force_upload, errors_allowed, skip_tests=False,
                                          project_path=value,
                                          errors_allowed=errors_allowed,
                                          skip_tests=skip_tests,
+                                         refresh_cache=refresh_cache,
                                          is_chained=True)
                 if return_code != OK_RETURN_CODE:
                     return return_code
