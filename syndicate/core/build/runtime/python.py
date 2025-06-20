@@ -164,20 +164,32 @@ def build_python_lambda_layer(layer_root: str, bundle_dir: str,
                            project_path)
         _LOG.info('Local dependencies were installed successfully')
 
-    # making zip archive
-    _LOG.info(f'Packaging artifacts by {artifact_path} to {package_name}')
-    zip_dir(str(artifact_path), str(Path(artifact_path, package_name)))
+        # making zip archive
+        _LOG.info(f'Packaging artifacts by {artifact_path} to {package_name}')
+        zip_dir(str(artifact_path),
+                str(Path(artifact_path, package_name)))
 
-    if Path(cache_dir_path, package_name).exists():
+    if (Path(cache_dir_path, package_name).exists() and
+            Path(artifact_path, package_name).exists()):
         _LOG.info(f"Merging lambda layer code with 3-rd party dependencies")
         merge_zip_files(str(Path(artifact_path, package_name)),
                         str(Path(cache_dir_path, package_name)),
                         str(Path(bundle_dir, package_name)),
                         output_subfolder=PYTHON_LAMBDA_LAYER_PATH)
-    else:
+
+    elif Path(cache_dir_path, package_name).exists():
+        _LOG.info(f'Copying 3-rd party dependencies to target folder')
+        shutil.copy2(str(Path(cache_dir_path, package_name)),
+                     str(Path(bundle_dir, package_name)))
+
+    elif Path(artifact_path, package_name).exists():
         _LOG.info('Copying lambda layer code to target folder')
         shutil.copy2(str(Path(artifact_path, package_name)),
                      str(Path(bundle_dir, package_name)))
+    else:
+        raise ArtifactAssemblingError(
+            f"Layer package cannot be empty. "
+            f"Please check the layer '{layer_config['name']}' configuration.")
 
     _LOG.info(f'Package \'{package_name}\' was successfully created')
 
