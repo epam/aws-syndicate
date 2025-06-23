@@ -77,7 +77,8 @@ def zip_dir(
                 z.write(absfn, zfn)
 
 
-def merge_zip_files(zip1_path, zip2_path, output_path, output_subfolder=None):
+def merge_zip_files(zip1_path: str, zip2_path: str, output_path: str,
+                    output_subfolder:str=None):
     """
     Merge two ZIP files into a new ZIP file.
     Files from zip2_path overwrite those from zip1_path in case of name conflicts.
