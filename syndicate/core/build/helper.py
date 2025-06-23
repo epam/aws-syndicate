@@ -84,6 +84,11 @@ def merge_zip_files(zip1_path, zip2_path, output_path, output_subfolder=None):
     """
     with zipfile.ZipFile(output_path, 'w') as output_zip:
         for zip_path in [zip1_path, zip2_path]:
+            if not os.path.isfile(zip_path):
+                _LOG.warning(
+                    f"Zip file '{zip_path}' does not exist or is not file. "
+                    f"Skipping.")
+                continue
             with zipfile.ZipFile(zip_path, 'r') as input_zip:
                 for file_info in input_zip.infolist():
                     data = input_zip.read(file_info.filename)
