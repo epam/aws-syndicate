@@ -50,6 +50,7 @@ EMPTY_LINE_CHARS = ('\n', '\r\n', '\t')
 
 REQ_HASH_SUFFIX = 'r_hash'
 EMPTY_FILE_HASH = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'
+TMP_DIR = 'tmp'
 
 
 def assemble_python_lambdas(project_path, bundles_dir, errors_allowed,
@@ -119,9 +120,6 @@ def build_python_lambda_layer(layer_root: str, bundle_dir: str,
     r_hash_name = f'.{artifact_name}_{REQ_HASH_SUFFIX}'
     artifact_cache_path = Path(cache_dir_path, artifact_name)
 
-    _LOG.info(f'Artifacts path: {artifact_path}')
-    os.makedirs(artifact_path, exist_ok=True)
-
     prev_req_hash = None
     req_hash_path = Path(cache_dir_path, r_hash_name)
     if os.path.exists(req_hash_path):
@@ -159,14 +157,20 @@ def build_python_lambda_layer(layer_root: str, bundle_dir: str,
     # install local requirements
     local_requirements_path = Path(layer_root, LOCAL_REQ_FILE_NAME)
     if os.path.exists(local_requirements_path):
+        tmp_artifact_path = Path(bundle_dir, artifact_name, TMP_DIR)
+
+        _LOG.info(f'Artifacts path: {tmp_artifact_path}')
+        os.makedirs(tmp_artifact_path, exist_ok=True)
+
         _LOG.info('Going to install local dependencies')
-        _install_local_req(artifact_path, local_requirements_path,
+        _install_local_req(tmp_artifact_path, local_requirements_path,
                            project_path)
         _LOG.info('Local dependencies were installed successfully')
 
         # making zip archive
-        _LOG.info(f'Packaging artifacts by {artifact_path} to {package_name}')
-        zip_dir(str(artifact_path),
+        _LOG.info(
+            f'Packaging artifacts by {tmp_artifact_path} to {package_name}')
+        zip_dir(str(tmp_artifact_path),
                 str(Path(artifact_path, package_name)))
 
     if (Path(cache_dir_path, package_name).exists() or
@@ -204,6 +208,7 @@ def _build_python_artifact(root, config_file, target_folder, project_path,
     lambda_name = lambda_config['name']
     artifact_name = f'{lambda_name}-{lambda_config["version"]}'
     artifact_path = Path(target_folder, artifact_name)
+    tmp_artifact_path = Path(target_folder, artifact_name, TMP_DIR)
 
     _LOG.info(f"Going to assemble lambda '{lambda_name}'")
     package_name = build_py_package_name(lambda_name, lambda_config["version"])
@@ -212,7 +217,7 @@ def _build_python_artifact(root, config_file, target_folder, project_path,
     artifact_cache_path = Path(cache_dir_path, artifact_name)
 
     _LOG.info(f'Artifacts path: {artifact_path}')
-    os.makedirs(artifact_path, exist_ok=True)
+    os.makedirs(tmp_artifact_path, exist_ok=True)
 
     prev_req_hash = None
     req_hash_path = Path(cache_dir_path, r_hash_name)
@@ -252,12 +257,12 @@ def _build_python_artifact(root, config_file, target_folder, project_path,
     local_requirements_path = Path(root, LOCAL_REQ_FILE_NAME)
     if os.path.exists(local_requirements_path):
         _LOG.info('Going to install local dependencies')
-        _install_local_req(artifact_path, local_requirements_path,
+        _install_local_req(tmp_artifact_path, local_requirements_path,
                            project_path)
         _LOG.info('Local dependencies were installed successfully')
 
     # copy lambda's specific packages
-    packages_dir = artifact_path / 'lambdas' / Path(root).name
+    packages_dir = tmp_artifact_path / 'lambdas' / Path(root).name
     os.makedirs(packages_dir, exist_ok=True)
     for package in filter(
             is_python_package,
@@ -268,12 +273,12 @@ def _build_python_artifact(root, config_file, target_folder, project_path,
         _LOG.info('Copied successfully')
 
     # copy lambda's handler to artifacts folder
-    _LOG.info(f'Copying lambda\'s handler from {root} to {artifact_path}')
-    _copy_py_files(root, artifact_path)
+    _LOG.info(f'Copying lambda\'s handler from {root} to {tmp_artifact_path}')
+    _copy_py_files(root, tmp_artifact_path)
 
     # making zip archive
-    _LOG.info(f'Packaging artifacts by {artifact_path} to {package_name}')
-    zip_dir(str(artifact_path), str(Path(artifact_path, package_name)))
+    _LOG.info(f'Packaging artifacts by {tmp_artifact_path} to {package_name}')
+    zip_dir(str(tmp_artifact_path), str(Path(artifact_path, package_name)))
 
     if Path(cache_dir_path, package_name).exists():
         _LOG.info(f"Merging lambda's '{lambda_name}' code with 3-rd party "
