@@ -23,16 +23,28 @@ USER_LOG = get_user_logger()
 
 def sync_project_state():
     from syndicate.core import CONFIG, CONN, PROJECT_STATE
+    from syndicate.exceptions import EnvironmentError
     from pathlib import PurePath
+    from botocore.exceptions import ClientError
     bucket_name = CONFIG.deploy_target_bucket
     key_compound = PurePath(CONFIG.deploy_target_bucket_key_compound,
                             PROJECT_STATE_FILE).as_posix()
     s3 = CONN.s3()
     if not s3.is_file_exists(bucket_name=bucket_name,
                              key=key_compound):
-        _LOG.debug('Remote .syndicate file does not exists. Pushing...')
-        PROJECT_STATE.save_to_remote()
-        _LOG.debug('Push successful')
+        try:
+            _LOG.debug('Remote .syndicate file does not exists. Pushing...')
+            PROJECT_STATE.save_to_remote()
+            _LOG.debug('Push successful')
+        except ClientError as e:
+            if e.response['Error']['Code'] == 'NoSuchBucket':
+                raise EnvironmentError(
+                    f"Deploy target bucket '{bucket_name}' does not exist. "
+                    f"Please run the command "
+                    f"'syndicate create-deploy-target-bucket' or create it "
+                    f"manually.")
+            else:
+                raise
 
     else:
         _LOG.debug('Syncing with remote .syndicate file.')
