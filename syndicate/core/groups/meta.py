@@ -49,7 +49,7 @@ USER_LOG = get_user_logger()
 
 @click.group(name=GENERATE_META_GROUP_NAME, cls=AliasedCommandsGroup)
 @return_code_manager
-@click.option('--project-path',
+@click.option('--project-path', '-path',
               cls=MultiWordOption, nargs=1,
               help="Path to the project root directory. Default value: "
                    "the one from the current config if it exists. "
