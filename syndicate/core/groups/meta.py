@@ -51,8 +51,8 @@ USER_LOG = get_user_logger()
 @return_code_manager
 @click.option('--project-path',
               cls=MultiWordOption, nargs=1,
-              help="Path to the project folder. Default value: the one "
-                   "from the current config if it exists. "
+              help="Path to the project root directory. Default value: "
+                   "the one from the current config if it exists. "
                    "Otherwise - the current working directory",
               callback=resolve_project_path)
 @click.pass_context

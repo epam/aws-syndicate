@@ -87,8 +87,8 @@ def project(name, path):
                    ' the runtime will be applied to all lambdas',
               type=click.Choice(PROJECT_PROCESSORS))
 @click.option('--project-path', cls=MultiWordOption,
-              help="Path to the project folder. Default value: the one "
-                   "from the current config if it exists. "
+              help="Path to the project root directory. Default value: "
+                   "the one from the current config if it exists. "
                    "Otherwise - the current working directory",
               nargs=1, callback=resolve_project_path)
 @click.option('--tags', type=DictParamType(), callback=check_tags,
@@ -131,8 +131,8 @@ def lambda_function(name, runtime, project_path, tags):
               type=str, multiple=True, callback=check_lambda_existence,
               help='(multiple) Lambda function name to link the layer with.')
 @click.option('--project-path', cls=MultiWordOption, nargs=1,
-              help="Path to the project folder. Default value: the one "
-                   "from the current config if it exists. "
+              help="Path to the project root directory. Default value: "
+                   "the one from the current config if it exists. "
                    "Otherwise - the current working directory",
               callback=resolve_project_path)
 @verbose_option
@@ -196,7 +196,7 @@ def lambda_layer(name, runtime, link_with_lambda, project_path):
 @click.option('--config-path', cls=MultiWordOption,
               help='Path to store generated configuration file')
 @click.option('--project-path', cls=MultiWordOption,
-              help='Path to project folder. '
+              help='Path to the project root directory. '
                    'Default value: current working directory')
 @click.option('--prefix',
               help='Prefix that is added to project names while deployment '
@@ -279,8 +279,8 @@ def config(name, config_path, project_path, region, access_key, secret_key,
               required=True, type=str, callback=check_bundle_bucket_name,
               help="S3 bucket name for Swagger UI deployment")
 @click.option('--project-path', cls=MultiWordOption,
-              help="Path to the project folder. Default value: the one "
-                   "from the current config if it exists. "
+              help="Path to the project root directory. Default value: "
+                   "the one from the current config if it exists. "
                    "Otherwise - the current working directory",
               nargs=1, callback=resolve_project_path)
 @verbose_option
