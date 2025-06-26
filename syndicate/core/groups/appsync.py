@@ -29,9 +29,9 @@ USER_LOG = get_user_logger()
 
 @click.group(name=APPSYNC_TYPE, cls=AliasedCommandsGroup)
 @return_code_manager
-@click.option('--project-path', cls=MultiWordOption, nargs=1,
-              help="Path to the project folder. Default value: the one "
-                   "from the current config if it exists. "
+@click.option('--project-path', '-path', cls=MultiWordOption, nargs=1,
+              help="Path to the project root directory. Default value: "
+                   "the one from the current config if it exists. "
                    "Otherwise - the current working directory",
               callback=resolve_project_path)
 @click.pass_context
@@ -54,9 +54,9 @@ def appsync(ctx, project_path):
 @return_code_manager
 @click.option('--name', required=True, type=str,
               help="AppSync API name")
-@click.option('--project-path', cls=MultiWordOption, nargs=1,
-              help="Path to the project folder. Default value: the one "
-                   "from the current config if it exists. "
+@click.option('--project-path', '-path', cls=MultiWordOption, nargs=1,
+              help="Path to the project root directory. Default value: "
+                   "the one from the current config if it exists. "
                    "Otherwise - the current working directory",
               callback=resolve_project_path)
 @click.option('--tags', type=DictParamType(), callback=check_tags,
