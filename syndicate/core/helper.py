@@ -533,15 +533,12 @@ class MultiWordOption(click.Option):
 
         option_names = self.opts
 
-        # Retrieve main name
-        primary = option_names[0]
+        filtered = list(set([
+            name.replace('_', '-') for name in option_names
+        ]))
 
-        # Remove those that differ only in the replacement of _ with -
-        filtered = [
-            name for name in option_names
-            if name == primary or
-               name.replace('_', '-') != primary.replace('_', '-')
-        ]
+        if not self.is_flag and not self.count:
+            filtered[-1] += f' {self.make_metavar()}'
 
         return ', '.join(filtered), help_record[1]
 
