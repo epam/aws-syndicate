@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Underscore variants remain supported but are hidden from help output
 - Renamed `bundle-bucket-name` option to `deploy-target-bucket` in the command `syndicate generate project`
 - Added `-path` alias to all `--project-path` options in CLI commands
+- Enhanced the error message when the deploy target bucket is missing.
 
 # [1.17.1] - 2025-03-25
 - Changed `--force_upload` parameter type for assemble commands from `string` to `flag`
