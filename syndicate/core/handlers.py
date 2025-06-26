@@ -935,7 +935,7 @@ def assemble_node(bundle_name, project_path, force_upload,
 @click.option('--project-path', '-path',
               cls=MultiWordOption, nargs=1,
               callback=resolve_path_callback, required=True,
-              help='The path to the NodeJS project. The code is '
+              help='The path to the dotnet project. The code is '
                    'packed to a zip archive, where the external libraries are '
                    'found, which are described in the package.json file')
 @click.option('--force-upload', '-F',
@@ -987,8 +987,8 @@ def assemble_dotnet(bundle_name, project_path, force_upload,
 @click.option('--project-path', '-path',
               cls=MultiWordOption, nargs=1,
               callback=resolve_path_callback, required=True,
-              help='The path to the project. Related files will be packed '
-                   'into a zip archive.')
+              help='The path to the root project directory. Related files '
+                   'will be packed into a zip archive.')
 @click.option('--force-upload', '-F',
               cls=MultiWordOption, is_flag=True, default=False,
               help='Flag to override locally existing bundle '
@@ -1030,8 +1030,8 @@ def assemble_swagger_ui(**kwargs):
 @click.option('--project-path', '-path',
               cls=MultiWordOption, nargs=1,
               callback=resolve_path_callback, required=True,
-              help='The path to the project. Related files will be packed '
-                   'into a zip archive.')
+              help='Path to the project root directory. Related files '
+                   'will be packed into a zip archive.')
 @click.option('--force-upload', '-F',
               cls=MultiWordOption, is_flag=True, default=False,
               help='Flag to override locally existing bundle '
