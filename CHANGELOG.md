@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed issue related to getting the list of available instance types
 - Changed CLI command and option naming convention from underscores to dashes for consistency. 
 Underscore variants remain supported but are hidden from help output
+- Renamed `bundle-bucket-name` option to `deploy-target-bucket` in the command `syndicate generate project`
 
 # [1.17.1] - 2025-03-25
 - Changed `--force_upload` parameter type for assemble commands from `string` to `flag`

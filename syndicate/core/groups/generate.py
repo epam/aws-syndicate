@@ -41,8 +41,6 @@ from syndicate.core.helper import timeit, check_bundle_bucket_name, \
 GENERATE_GROUP_NAME = 'generate'
 GENERATE_PROJECT_COMMAND_NAME = 'project'
 GENERATE_CONFIG_COMMAND_NAME = 'config'
-PROJECT_PATH_HELP = 'Path to project folder. ' \
-                    'Default value: current working directory'
 
 
 USER_LOG = get_user_logger()
@@ -57,7 +55,8 @@ def generate():
 @return_code_manager
 @click.option('--name', nargs=1, required=True, help='The project name')
 @click.option('--path', nargs=1,
-              help=PROJECT_PATH_HELP)
+              help='Path to folder where the project will be created. '
+                   'Default value: current working directory')
 @verbose_option
 @timeit()
 def project(name, path):
@@ -180,10 +179,11 @@ def lambda_layer(name, runtime, link_with_lambda, project_path):
 @click.option('--region',
               help='The region that is used to deploy the application',
               required=True)
-@click.option('--bundle-bucket-name', cls=MultiWordOption,
-              help='Name of the bucket that is used for uploading artifacts.'
-                   ' It will be created if specified.', required=True,
-              callback=check_bundle_bucket_name)
+@click.option('--deploy-target-bucket', cls=MultiWordOption,
+              help="Name of the bucket that is used for uploading artifacts. "
+                   "To create it, execute the command "
+                   "'syndicate create-deploy-target-bucket'",
+              required=True, callback=check_bundle_bucket_name)
 @click.option('--access-key', cls=MultiWordOption,
               help='AWS access key id that is used to deploy the application. '
                    'Retrieved from session by default')
@@ -196,7 +196,8 @@ def lambda_layer(name, runtime, link_with_lambda, project_path):
 @click.option('--config-path', cls=MultiWordOption,
               help='Path to store generated configuration file')
 @click.option('--project-path', cls=MultiWordOption,
-              help=PROJECT_PATH_HELP)
+              help='Path to project folder. '
+                   'Default value: current working directory')
 @click.option('--prefix',
               help='Prefix that is added to project names while deployment '
                    'by pattern: {prefix}resource_name{suffix}. '
@@ -239,7 +240,7 @@ def lambda_layer(name, runtime, link_with_lambda, project_path):
 @verbose_option
 @timeit()
 def config(name, config_path, project_path, region, access_key, secret_key,
-           session_token, bundle_bucket_name, prefix, suffix,
+           session_token, deploy_target_bucket, prefix, suffix,
            extended_prefix, use_temp_creds, access_role, serial_number,
            tags, iam_permissions_boundary, lock_lifetime_minutes):
     """
@@ -252,7 +253,7 @@ def config(name, config_path, project_path, region, access_key, secret_key,
                                  access_key=access_key,
                                  secret_key=secret_key,
                                  session_token=session_token,
-                                 bundle_bucket_name=bundle_bucket_name,
+                                 deploy_target_bucket=deploy_target_bucket,
                                  prefix=prefix,
                                  suffix=suffix,
                                  extended_prefix=extended_prefix,
