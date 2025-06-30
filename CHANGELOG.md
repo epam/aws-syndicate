@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [1.18.0] - 2025-06-26
+# [1.18.0] - 2025-06-30
 - Added support for DynamoDB `OnDemandThroughput` limitation
 - Added support for `rds_db_cluster` resource
 - Added support for `rds_db_instance` resource
@@ -25,7 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Underscore variants remain supported but are hidden from help output
 - Renamed `bundle-bucket-name` option to `deploy-target-bucket` in the command `syndicate generate project`
 - Added `-path` alias to all `--project-path` options in CLI commands
-- Enhanced the error message when the deploy target bucket is missing.
+- Enhanced the error message when the deploy target bucket is missing
+- Removed unnecessary file sync with files in S3 bucket when invoking help message for nested CLI commands
 
 # [1.17.1] - 2025-03-25
 - Changed `--force_upload` parameter type for assemble commands from `string` to `flag`

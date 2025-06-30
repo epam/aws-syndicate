@@ -52,9 +52,7 @@ from syndicate.core.decorators import (check_deploy_name_for_duplicates,
                                        check_deploy_bucket_exists,
                                        check_bundle_deploy_names_for_existence,
                                        return_code_manager)
-from syndicate.core.groups.generate import (generate,
-                                            GENERATE_PROJECT_COMMAND_NAME,
-                                            GENERATE_CONFIG_COMMAND_NAME)
+from syndicate.core.groups.generate import generate
 from syndicate.core.groups.tags import tags
 from syndicate.core.helper import (create_bundle_callback,
                                    handle_futures_progress_bar,
@@ -87,9 +85,14 @@ SYNDICATE_PACKAGE_NAME = 'aws-syndicate'
 HELP_PARAMETER_KEY = '--help'
 commands_without_config = (
     INIT_COMMAND_NAME,
-    GENERATE_PROJECT_COMMAND_NAME,
-    GENERATE_CONFIG_COMMAND_NAME,
-    HELP_PARAMETER_KEY
+    HELP_PARAMETER_KEY,
+    'generate appsync',
+    'generate meta',
+    'generate config',
+    'generate project',
+    'generate lambda',
+    'generate lambda-layer',
+    'generate swagger-ui',
 )
 
 commands_without_state_sync = (
@@ -102,7 +105,8 @@ USER_LOG = get_user_logger()
 
 
 def _not_require_config(all_params):
-    return any(item in commands_without_config for item in all_params)
+    params_str = ' '.join(all_params)
+    return any(item in params_str for item in commands_without_config)
 
 
 def _not_require_state_sync(all_params):
@@ -613,7 +617,8 @@ def sync():
     return OK_RETURN_CODE
 
 
-@syndicate.command(name=STATUS_ACTION)
+@syndicate.command(name=STATUS_ACTION, short_help='Shows the state of a local '
+                                                  'project state file')
 @return_code_manager
 @click.option('--events', flag_value='events',
               callback=partial(validate_incompatible_options,
