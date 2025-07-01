@@ -167,13 +167,11 @@ def tags_to_context(func):
     def wrapper(ctx, *args, **kwargs):
         from syndicate.core import PROJECT_STATE, RESOURCES_PROVIDER
         from syndicate.core.build.bundle_processor import load_deploy_output
-        if PROJECT_STATE is None:
+        if PROJECT_STATE is None or not PROJECT_STATE.latest_deploy:
             USER_LOG.error(
-                'Project state is not initialized. Please contact the '
-                'support team or check your configuration.')
-            sys.exit(FAILED_RETURN_CODE)
-        elif not PROJECT_STATE.latest_deploy:
-            USER_LOG.error('No latest deploy')
+                'Project state is not found/not initialized. '
+                'Please check your configuration.'
+            )
             sys.exit(FAILED_RETURN_CODE)
 
         deploy_name = PROJECT_STATE.latest_deploy.get('deploy_name')

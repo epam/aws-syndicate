@@ -190,8 +190,8 @@ def generate_default_bundle_name(ctx, param, value):
         return value
     from syndicate.core import CONFIG
     if CONFIG is None:
-        USER_LOG.error('Configuration is not initialized. Please contact the '
-                       'support team or check your configuration.')
+        USER_LOG.error('Configuration is not initialized. '
+                       'Please check your configuration.')
         sys.exit(ABORTED_RETURN_CODE)
 
     # regex to replace all special characters except dash, underscore and dot
