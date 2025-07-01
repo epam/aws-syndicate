@@ -71,8 +71,7 @@ def check_deploy_bucket_exists(func):
     def real_wrapper(*args, **kwargs):
         from syndicate.core import CONN
         from syndicate.core import CONFIG
-        if not CONN or \
-                not CONN.s3().is_bucket_exists(CONFIG.deploy_target_bucket):
+        if not CONN.s3().is_bucket_exists(CONFIG.deploy_target_bucket):
             USER_LOG.error(
                 'Cannot execute command: deploy target bucket does not exist. '
                 'Please create it before executing commands that require '
