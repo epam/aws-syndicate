@@ -613,7 +613,8 @@ def sync():
     return OK_RETURN_CODE
 
 
-@syndicate.command(name=STATUS_ACTION)
+@syndicate.command(name=STATUS_ACTION, short_help='Shows the state of a local '
+                                                  'project state file')
 @return_code_manager
 @click.option('--events', flag_value='events',
               callback=partial(validate_incompatible_options,

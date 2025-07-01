@@ -16,9 +16,8 @@
 import click
 
 from syndicate.commons.log_helper import get_user_logger
-from syndicate.core.build.bundle_processor import load_deploy_output
 from syndicate.core.constants import OK_RETURN_CODE, FAILED_RETURN_CODE
-from syndicate.core.decorators import return_code_manager
+from syndicate.core.decorators import return_code_manager, tags_to_context
 from syndicate.core.helper import verbose_option
 
 TAGS_GROUP_NAME = 'tags'
@@ -29,24 +28,13 @@ USER_LOG = get_user_logger()
 
 @click.group(name=TAGS_GROUP_NAME)
 @return_code_manager
-@click.pass_context
-def tags(ctx):
+def tags():
     """Manage resources tags"""
-    from syndicate.core import PROJECT_STATE, RESOURCES_PROVIDER
-    if not PROJECT_STATE.latest_deploy:
-        USER_LOG.error('No latest deploy')
-        raise click.Abort('No latest deploy')
-    deploy_name = PROJECT_STATE.latest_deploy.get('deploy_name')
-    bundle_name = PROJECT_STATE.latest_deploy.get('bundle_name')
-    output = load_deploy_output(bundle_name, deploy_name)
-    ctx.ensure_object(dict)
-    ctx.obj['output'] = output
-    ctx.obj['tags_resource'] = RESOURCES_PROVIDER.tags_api()
-    return OK_RETURN_CODE
 
 
 @tags.command(name='apply')
 @return_code_manager
+@tags_to_context
 @verbose_option
 @click.pass_context
 def apply(ctx):
@@ -65,6 +53,7 @@ def apply(ctx):
 
 @tags.command(name='remove')
 @return_code_manager
+@tags_to_context
 @verbose_option
 @click.pass_context
 def remove(ctx):

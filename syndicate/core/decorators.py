@@ -19,6 +19,7 @@ import threading
 from functools import wraps
 from pathlib import PurePath
 
+import click
 from click import BadParameter
 
 from syndicate.exceptions import SyndicateBaseError
@@ -151,5 +152,36 @@ def return_code_manager(func):
         if return_code is not None and return_code != OK_RETURN_CODE:
             sys.exit(return_code)
 
+        return return_code
+    return wrapper
+
+
+def tags_to_context(func):
+    """
+    Decorator to load resource tags and output from the latest deploy
+    to click context
+    """
+
+    @click.pass_context
+    @wraps(func)
+    def wrapper(ctx, *args, **kwargs):
+        from syndicate.core import PROJECT_STATE, RESOURCES_PROVIDER
+        from syndicate.core.build.bundle_processor import load_deploy_output
+        if PROJECT_STATE is None or not PROJECT_STATE.latest_deploy:
+            USER_LOG.error(
+                'Project state is not found/not initialized. '
+                'Please check your configuration.'
+            )
+            sys.exit(FAILED_RETURN_CODE)
+
+        deploy_name = PROJECT_STATE.latest_deploy.get('deploy_name')
+        bundle_name = PROJECT_STATE.latest_deploy.get('bundle_name')
+        output = load_deploy_output(bundle_name, deploy_name)
+
+        ctx.ensure_object(dict)
+        ctx.obj['output'] = output
+        ctx.obj['tags_resource'] = RESOURCES_PROVIDER.tags_api()
+
+        return_code = func(*args, **kwargs)
         return return_code
     return wrapper

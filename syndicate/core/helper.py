@@ -189,6 +189,11 @@ def generate_default_bundle_name(ctx, param, value):
     if value:
         return value
     from syndicate.core import CONFIG
+    if CONFIG is None:
+        USER_LOG.error('Configuration is not initialized. '
+                       'Please check your configuration.')
+        sys.exit(ABORTED_RETURN_CODE)
+
     # regex to replace all special characters except dash, underscore and dot
     pattern = re.compile('[^0-9a-zA-Z.\-_]')
     project_path = CONFIG.project_path
@@ -565,6 +570,24 @@ class AliasedCommandsGroup(click.Group):
     """
     Custom Click Group to support command aliases.
     """
+    def parse_args(self, ctx, args):
+        current_cmd = self
+        cmd_chain = []
+        while args:
+            next_arg = args[0]
+            cmd = current_cmd.get_command(ctx, next_arg)
+            if cmd is None:
+                break
+            cmd_chain.append(next_arg)
+            args.pop(0)
+            current_cmd = cmd
+            if not isinstance(cmd, click.Group):
+                break
+
+        if isinstance(current_cmd, click.Group) and not args:
+            sys.argv.append('--help')
+
+        return super().parse_args(ctx, cmd_chain + args)
 
     def add_command(self, cmd, name=None):
         name = name or cmd.name
