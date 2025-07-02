@@ -706,7 +706,7 @@ def _common_python_module(src_path):
         _touch(path=logger_path)
         _write_content_to_file(file=logger_path, content=LOG_HELPER_CONTENT)
 
-    exception_path = os.path.join(common_module_path, 'exception.py')
+    exception_path = os.path.join(common_module_path, 'exceptions.py')
     if not os.path.exists(exception_path):
         _touch(path=exception_path)
         _write_content_to_file(file=exception_path, content=EXCEPTION_CONTENT)
