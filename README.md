@@ -240,7 +240,7 @@ created for different runtimes:
     │       ├── commons
     │       │   ├── __init__.py
     │       │   ├── abstract_lambda.py
-    │       │   ├── exception.py
+    │       │   ├── exceptions.py
     │       │   └── log_helper.py
     │       └── lambdas
     │           ├── $lambda_name_1
