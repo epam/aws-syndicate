@@ -83,7 +83,7 @@ def _ready_to_use_provided_temp_creds():
             expiration=CONFIG.expiration
         )
         if credentials_expired:
-            raise ConfigurationError('Temporary credentials have expired.')
+            raise ConfigurationError('Temporary credentials have expired')
 
     return has_temporary_creds_set and not credentials_expired
 
