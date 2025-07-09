@@ -26,6 +26,7 @@ Underscore variants remain supported but are hidden from help output
 - Renamed `bundle-bucket-name` option to `deploy-target-bucket` in the command `syndicate generate project`
 - Added `-path` alias to all `--project-path` options in CLI commands
 - Enhanced the error message when the deploy target bucket is missing
+- Improved the error message in case of temporary credentials expiration
 - Removed unnecessary file sync with files in S3 bucket when invoking help message for nested CLI commands
 
 # [1.17.1] - 2025-03-25
