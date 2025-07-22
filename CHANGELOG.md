@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [1.18.0] - 2025-07-01
+# [1.18.0] - 2025-07-22
 - Added support for DynamoDB `OnDemandThroughput` limitation
 - Added support for `rds_db_cluster` resource
 - Added support for `rds_db_instance` resource
@@ -28,6 +28,8 @@ Underscore variants remain supported but are hidden from help output
 - Enhanced the error message when the deploy target bucket is missing
 - Improved the error message in case of temporary credentials expiration
 - Removed unnecessary file sync with files in S3 bucket when invoking help message for nested CLI commands
+- Added support of `python 3.13`, `nodejs 22.x` lambda runtimes
+- Removed support of `python 3.8`, `nodejs 16.x` lambda runtimes
 
 # [1.17.1] - 2025-03-25
 - Changed `--force_upload` parameter type for assemble commands from `string` to `flag`
