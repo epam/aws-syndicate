@@ -609,32 +609,27 @@ def update_deployment_resources(
         excluded_types: tuple | None = None,
         replace_output: bool = False,
         force: bool = False,
-) -> bool:
-    from syndicate.core import PROCESSOR_FACADE, PROJECT_STATE
+) -> bool | str:
+    from syndicate.core import PROCESSOR_FACADE
     from click import confirm as click_confirm
-    latest_bundle = PROJECT_STATE.get_latest_deployed_or_updated_bundle(
-        bundle_name, latest_if_not_found=True)
-    if not latest_bundle:
-        latest_bundle = PROJECT_STATE.latest_deployed_bundle_name
-    _LOG.debug(f'Latest bundle name: {latest_bundle}')
 
-    try:
-        old_output = load_deploy_output(latest_bundle, deploy_name)
-        _LOG.info('Output file was loaded successfully')
-    except ProjectStateError:
-        try:
-            old_output = load_failed_deploy_output(latest_bundle, deploy_name)
-            if not force:
-                if not click_confirm(
-                        "The latest deployment has status failed. "
-                        "Do you want to proceed with updating?"):
-                    return ABORTED_STATUS
+    is_ld_output_regular, old_output = load_latest_deploy_output(failsafe=True)
+    if is_ld_output_regular is None or old_output is False:
+        USER_LOG.error('Deployment to update not found.')
+        return ABORTED_STATUS
+    elif is_ld_output_regular is True:
+        _LOG.info(f'The latest deployment has status succeeded. '
+                  f'Loaded output:\n {prettify_json(old_output)}')
+    elif is_ld_output_regular is False:
+        if not force:
+            if not click_confirm(
+                    "The latest deployment has status failed. "
+                    "Do you want to proceed with updating?"):
+                return ABORTED_STATUS
 
-                _LOG.warning(
-                    'Updating resources despite previous deployment failures')
-        except ProjectStateError:
-            USER_LOG.error('Deployment to update not found.')
-            return ABORTED_STATUS
+            _LOG.warning(
+                'Updating resources despite previous deployment failures')
+            _LOG.info(f'Loaded output:\n {prettify_json(old_output)}')
 
     old_resources = get_meta_from_output(old_output)
     old_resources = _resolve_names(tuple(old_resources.keys()))

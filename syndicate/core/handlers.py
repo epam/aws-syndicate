@@ -398,7 +398,7 @@ def deploy(
 @failed_status_code_on_exception
 @click.option('--bundle-name', '-b',
               cls=MultiWordOption, callback=resolve_default_value,
-              help='Name of the bundle to deploy. '
+              help='Name of the bundle to update from. '
                    'Default value: name of the latest built bundle')
 @click.option('--deploy-name', '-d',
               cls=MultiWordOption, callback=resolve_default_value,
@@ -494,17 +494,6 @@ def update(
 @sync_lock(lock_type=MODIFICATION_LOCK)
 @timeit(action_name=CLEAN_ACTION)
 @failed_status_code_on_exception
-@click.option('--deploy-name', '-d', nargs=1,
-              cls=MultiWordOption, callback=resolve_default_value,
-              help='Name of the deploy. This parameter allows the framework '
-                   'to decide,which exactly output file should be used. The '
-                   'resources are cleaned based on the output file which is '
-                   'created during the deployment process. If not specified, '
-                   'resolves the latest deploy name')
-@click.option('--bundle-name', '-b', nargs=1,
-              cls=MultiWordOption, callback=resolve_default_value,
-              help='Name of the bundle. If not specified, resolves the latest '
-                   'bundle name')
 @click.option('--clean-only-types', '-types',
               cls=MultiWordOption, multiple=True,
               help='If specified only provided types will be cleaned')
@@ -531,10 +520,7 @@ def update(
               cls=MultiWordOption, is_flag=True,
               help='Preserve deploy output json file after resources removal')
 @verbose_option
-@check_bundle_deploy_names_for_existence(check_deploy_existence=True)
 def clean(
-        deploy_name: str,
-        bundle_name: str,
         clean_only_types: tuple | None = None,
         clean_only_resources: tuple | None = None,
         clean_only_resources_path: str | None = None,
@@ -548,6 +534,12 @@ def clean(
     Cleans the application infrastructure
     """
     from syndicate.core import PROJECT_STATE
+    if not PROJECT_STATE.latest_deploy:
+        USER_LOG.error('Deployment to clean not found.')
+        return ABORTED_RETURN_CODE
+
+    bundle_name = PROJECT_STATE.latest_deployed_bundle_name
+    deploy_name = PROJECT_STATE.latest_deployed_deploy_name
     USER_LOG.info('Command clean')
     USER_LOG.info(f'Deploy name: {deploy_name}')
     separator = ', '

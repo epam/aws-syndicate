@@ -24,7 +24,7 @@ from syndicate.exceptions import ArtifactError, ResourceNotFoundError, \
     ParameterError, InvalidValueError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.connection.helper import retry
-from syndicate.core.build.bundle_processor import _build_output_key
+from syndicate.core.build.bundle_processor import load_latest_deploy_output
 from syndicate.core.build.meta_processor import S3_PATH_NAME
 from syndicate.core.constants import DEFAULT_LOGS_EXPIRATION, \
     DYNAMO_DB_TRIGGER, CLOUD_WATCH_RULE_TRIGGER, EVENT_BRIDGE_RULE_TRIGGER, \
@@ -1187,41 +1187,9 @@ class LambdaResource(BaseResource):
             func(self, name, arn, role_name, event_source)
 
     def update_lambda_triggers(self, name, arn, role_name, event_sources_meta):
-        from syndicate.core import CONFIG, PROJECT_STATE
-
-        # load latest output to compare it with current event sources
-        deploy_name = PROJECT_STATE.latest_deploy.get('deploy_name')
-        bundle_name = PROJECT_STATE.get_latest_deployed_or_updated_bundle(
-            PROJECT_STATE.current_bundle, latest_if_not_found=True)
-        if not bundle_name:
-            bundle_name = PROJECT_STATE.latest_modification.get('bundle_name')
-
-        regular_key_compound = PurePath(
-            CONFIG.deploy_target_bucket_key_compound,
-            _build_output_key(
-                bundle_name=bundle_name, deploy_name=deploy_name,
-                is_regular_output=True)).as_posix()
-
-        if self.s3_conn.is_file_exists(
-                CONFIG.deploy_target_bucket,
-                regular_key_compound):
-            key_compound = regular_key_compound
-        else:
-            key_compound = PurePath(
-                CONFIG.deploy_target_bucket_key_compound,
-                _build_output_key(
-                    bundle_name=bundle_name, deploy_name=deploy_name,
-                    is_regular_output=False)).as_posix()
-        try:
-            output_file = self.s3_conn.load_file_body(
-                CONFIG.deploy_target_bucket, key_compound)
-        except self.s3_conn.exceptions.NoSuchKey:
-            _LOG.warning(
-                f'Cannot find deployment output {key_compound} in the bucket '
-                f'{CONFIG.deploy_target_bucket}. Cannot process {name} '
-                f'lambda triggers from previous deploy.')
-            output_file = '{}'
-        latest_output = json.loads(output_file)
+        _, latest_output = load_latest_deploy_output(
+            failsafe=True)
+        latest_output = latest_output or {}
 
         prev_event_sources_meta = []
         for resource in latest_output:
