@@ -32,11 +32,11 @@ from syndicate.core.generators.swagger_ui import generate_swagger_ui
 from syndicate.core.groups import RUNTIME_JAVA
 from syndicate.core.groups.appsync import appsync
 from syndicate.core.groups.meta import meta
-from syndicate.core.helper import timeit, check_bundle_bucket_name, \
+from syndicate.core.helper import timeit, validate_bucket_name, \
     resolve_project_path, check_lambdas_names, DictParamType, check_suffix, \
     check_prefix, check_file_extension, check_lambda_layer_name, check_tags, \
     check_lambda_existence, verbose_option, AliasedCommandsGroup, \
-    MultiWordOption
+    MultiWordOption, resolve_deploy_target_bucket_param
 
 GENERATE_GROUP_NAME = 'generate'
 GENERATE_PROJECT_COMMAND_NAME = 'project'
@@ -179,11 +179,14 @@ def lambda_layer(name, runtime, link_with_lambda, project_path):
 @click.option('--region',
               help='The region that is used to deploy the application',
               required=True)
+@click.option('--bundle-bucket-name', cls=MultiWordOption,
+              is_eager=True, hidden=True,
+              ) # this parameter is here for backward compatibility with versions lower than 1.18.0
 @click.option('--deploy-target-bucket', cls=MultiWordOption,
               help="Name of the bucket that is used for uploading artifacts. "
                    "To create it, execute the command "
-                   "'syndicate create-deploy-target-bucket'",
-              required=True, callback=check_bundle_bucket_name)
+                   "'syndicate create-deploy-target-bucket'  [required]",
+              callback=resolve_deploy_target_bucket_param)
 @click.option('--access-key', cls=MultiWordOption,
               help='AWS access key id that is used to deploy the application. '
                    'Retrieved from session by default')
@@ -242,7 +245,8 @@ def lambda_layer(name, runtime, link_with_lambda, project_path):
 def config(name, config_path, project_path, region, access_key, secret_key,
            session_token, deploy_target_bucket, prefix, suffix,
            extended_prefix, use_temp_creds, access_role, serial_number,
-           tags, iam_permissions_boundary, lock_lifetime_minutes):
+           tags, iam_permissions_boundary, lock_lifetime_minutes,
+           bundle_bucket_name):
     """
     Creates Syndicate configuration files
     """
@@ -276,7 +280,7 @@ def config(name, config_path, project_path, region, access_key, secret_key,
               help="Path to OpenAPI specification file. Path that is relative "
                    "to the project path can be specified.")
 @click.option('--target-bucket', cls=MultiWordOption,
-              required=True, type=str, callback=check_bundle_bucket_name,
+              required=True, type=str, callback=validate_bucket_name,
               help="S3 bucket name for Swagger UI deployment")
 @click.option('--project-path', '-path', cls=MultiWordOption,
               help="Path to the project root directory. Default value: "

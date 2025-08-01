@@ -32,7 +32,7 @@ from syndicate.core.helper import (
     AliasedCommandsGroup, MultiWordOption, combine_option_classes,
 )
 from syndicate.core.helper import ValidRegionParamType
-from syndicate.core.helper import check_bundle_bucket_name
+from syndicate.core.helper import validate_bucket_name
 from syndicate.core.helper import resolve_project_path, timeit
 
 GENERATE_META_GROUP_NAME = 'meta'
@@ -257,7 +257,7 @@ def dynamodb_autoscaling(ctx, **kwargs):
 @return_code_manager
 @click.option('--resource-name',
               cls=MultiWordOption, required=True, type=str,
-              help="S3 bucket name", callback=check_bundle_bucket_name)
+              help="S3 bucket name", callback=validate_bucket_name)
 @click.option('--location', type=ValidRegionParamType(),
               help="The region where the bucket is created, the default value "
                    "is the region set in syndicate config")
