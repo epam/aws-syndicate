@@ -181,8 +181,8 @@ def load_latest_deploy_output(failsafe: bool = False):
     from syndicate.core import PROJECT_STATE
     if not PROJECT_STATE.latest_deploy:
         return None, {}
-    deploy_name = PROJECT_STATE.latest_deploy.get('deploy_name')
-    bundle_name = PROJECT_STATE.latest_deploy.get('bundle_name')
+    deploy_name = PROJECT_STATE.latest_deployed_deploy_name
+    bundle_name = PROJECT_STATE.latest_deployed_bundle_name
     latest_deploy_status = PROJECT_STATE.latest_deploy.get(
         'is_succeeded', True)
 

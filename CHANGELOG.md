@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed unnecessary file sync with files in S3 bucket when invoking help message for nested CLI commands
 - Added support of `python 3.13`, `nodejs 22.x` lambda runtimes
 - Removed support of `python 3.8`, `nodejs 16.x` lambda runtimes
+- Changed the resolution flow of the deployment output file, so the latest deploy output file is used for update, continue deploy, and clean operations.
 
 # [1.17.1] - 2025-03-25
 - Changed `--force_upload` parameter type for assemble commands from `string` to `flag`
