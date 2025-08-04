@@ -33,7 +33,7 @@ from time import time
 from typing import Union
 
 import click
-from click import BadParameter
+from click import BadParameter, MissingParameter
 from tqdm import tqdm
 
 from syndicate.exceptions import ArtifactAssemblingError, \
@@ -745,7 +745,7 @@ class DeepDictParamType(click.types.StringParamType):
         )
 
 
-def check_bundle_bucket_name(ctx, param, value):
+def validate_bucket_name(ctx, param, value):
     try:
         from syndicate.core.resources.s3_resource import validate_bucket_name
         bucket_name = value
@@ -1034,3 +1034,17 @@ def compute_file_hash(file_path: Union[str, Path],
                 break
             hash_obj.update(chunk)
     return hash_obj.hexdigest()
+
+
+def resolve_deploy_target_bucket_param(ctx, param, value):
+    if bundle_bucket_name := ctx.params.get('bundle_bucket_name'):
+        USER_LOG.warn(
+            "The parameter '--bundle-bucket-name' is deprecated! "
+            "It is highly recommended to use '--deploy-target-bucket' instead."
+        )
+
+    bucket_name = value or bundle_bucket_name
+    if not bucket_name:
+        raise MissingParameter()
+
+    return validate_bucket_name(ctx, param, bucket_name)
