@@ -310,9 +310,10 @@ def update_resources(
     to_remove = \
         [i for i, res in enumerate(resources) if res[0] not in old_resources]
     for i in reversed(to_remove):
-        _LOG.warning(
-            f'Skipping resource {resources[i][0]} due to absence in initial '
-            f'deployment output.'
+        USER_LOG.warning(
+            f'Skipping resource `{resources[i][0]}` due to absence in initial '
+            f'deployment output. If this is an unexpected behaviour, '
+            f'please check your configuration.'
         )
         resources.pop(i)
 
@@ -499,6 +500,14 @@ def create_deployment_resources(
     _LOG.debug('Artifacts s3 paths were resolved')
     resolve_tags(resources)
 
+    if missing_names := set(deploy_only_resources) - set(resources.keys()):
+        USER_LOG.warning(
+            f'The following resource(s) will be skipped due to absence in '
+            f'initial build meta: {", ".join(missing_names)}. '
+            f'If this is an unexpected behaviour, '
+            f'please check your command parameters.'
+        )
+
     deploy_only_resources = _resolve_names(deploy_only_resources)
     excluded_resources = _resolve_names(excluded_resources)
     _LOG.info('Prefixes and suffixes of any resource names have been resolved')
@@ -647,14 +656,23 @@ def update_deployment_resources(
         'following resources types are supported for update: {}'.format(
             list(PROCESSOR_FACADE.update_handlers().keys())))
 
-    update_only_resources = _resolve_names(update_only_resources)
-    _LOG.info(
-        'Prefixes and suffixes of any resource names have been resolved.')
-
     resources = dict(
         (k, v) for (k, v) in resources.items()
         if v['resource_type'] in PROCESSOR_FACADE.update_handlers().keys()
     )
+
+    if missing_names := set(update_only_resources) - set(resources.keys()):
+        USER_LOG.warning(
+            f'The following resource(s) will be skipped due to absence in '
+            f'initial deployment output: {", ".join(missing_names)}. '
+            f'If this is an unexpected behaviour, '
+            f'please check your command parameters.'
+        )
+
+    update_only_resources = _resolve_names(update_only_resources)
+    _LOG.info(
+        'Prefixes and suffixes of any resource names have been resolved.')
+
     resources = _filter_resources(
         resources_meta=resources,
         resource_names=update_only_resources,
@@ -715,10 +733,6 @@ def remove_deployment_resources(
 
     new_output = copy.deepcopy(output)
 
-    clean_only_resources = _resolve_names(clean_only_resources)
-    excluded_resources = _resolve_names(excluded_resources)
-    _LOG.info('Prefixes and suffixes of any resource names have been resolved')
-
     if not clean_externals:
         new_output = {}
         for k, v in output.items():
@@ -726,6 +740,18 @@ def remove_deployment_resources(
                 externals.update({k: v})
             else:
                 new_output.update({k: v})
+
+    if missing_names := set(clean_only_resources) - set(new_output.keys()):
+        USER_LOG.warning(
+            f'The following resource(s) will be skipped due to absence in '
+            f'initial deployment output: {", ".join(missing_names)}. '
+            f'If this is an unexpected behaviour, '
+            f'please check your command parameters.'
+        )
+
+    clean_only_resources = _resolve_names(clean_only_resources)
+    excluded_resources = _resolve_names(excluded_resources)
+    _LOG.info('Prefixes and suffixes of any resource names have been resolved')
 
     new_output = _filter_resources(
         resources_meta=new_output,
@@ -925,6 +951,7 @@ def _filter_resources(
         exclude_names: set | None = None,
         exclude_types: tuple | None = None,
 ) -> dict:
+    filtered = {}
     resource_names = set() if resource_names is None else set(resource_names)
     resource_types = set() if resource_types is None else set(resource_types)
     exclude_names = set() if exclude_names is None else set(exclude_names)
