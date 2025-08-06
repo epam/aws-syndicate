@@ -44,7 +44,7 @@ jobs:
           -Im pip
           --disable-pip-version-check
           --no-python-version-warning
-          install build check-wheel-contents==0.6.0 twine==5.1.1 wheel==0.42.0 wheel-filename==1.4.1
+          install build check-wheel-contents==0.6.0 twine==6.1.0 wheel==0.42.0 wheel-filename==1.4.1
         shell: bash
 
       - name: Build package
