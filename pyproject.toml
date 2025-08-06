@@ -52,4 +52,4 @@ zip-safe = true
 
 
 [tool.setuptools.packages.find]
-exclude = ["tests", "tests.*", "examples"]
+exclude = ["tests", "tests.*", "examples", "examples.*"]
