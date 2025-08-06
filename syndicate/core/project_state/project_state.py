@@ -473,7 +473,7 @@ class ProjectState:
                 None: None
             }.get(status)
 
-        if operation == DEPLOY_ACTION:
+        if operation in (DEPLOY_ACTION, UPDATE_ACTION):
             params = kwargs.copy()
             params.pop('operation', None)
             params.pop('status', None)

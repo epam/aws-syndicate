@@ -690,22 +690,26 @@ def _common_python_module(src_path):
     _mkdir(path=common_module_path, exist_ok=True)
 
     init_path = os.path.join(common_module_path, '__init__.py')
-    _touch(init_path)
-    _write_content_to_file(file=init_path, content=INIT_CONTENT)
+    if not os.path.exists(init_path):
+        _touch(init_path)
+        _write_content_to_file(file=init_path, content=INIT_CONTENT)
 
     abstract_lambda_path = os.path.join(common_module_path,
                                         'abstract_lambda.py')
-    _touch(path=abstract_lambda_path)
-    _write_content_to_file(file=abstract_lambda_path,
-                           content=ABSTRACT_LAMBDA_CONTENT)
+    if not os.path.exists(abstract_lambda_path):
+        _touch(path=abstract_lambda_path)
+        _write_content_to_file(file=abstract_lambda_path,
+                               content=ABSTRACT_LAMBDA_CONTENT)
 
     logger_path = os.path.join(common_module_path, 'log_helper.py')
-    _touch(path=logger_path)
-    _write_content_to_file(file=logger_path, content=LOG_HELPER_CONTENT)
+    if not os.path.exists(logger_path):
+        _touch(path=logger_path)
+        _write_content_to_file(file=logger_path, content=LOG_HELPER_CONTENT)
 
-    exception_path = os.path.join(common_module_path, 'exception.py')
-    _touch(path=exception_path)
-    _write_content_to_file(file=exception_path, content=EXCEPTION_CONTENT)
+    exception_path = os.path.join(common_module_path, 'exceptions.py')
+    if not os.path.exists(exception_path):
+        _touch(path=exception_path)
+        _write_content_to_file(file=exception_path, content=EXCEPTION_CONTENT)
 
 
 def resolve_lambda_path(project: Path, runtime: str, source: str) -> Path:

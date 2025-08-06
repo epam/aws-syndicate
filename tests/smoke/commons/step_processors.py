@@ -18,7 +18,7 @@ from commons.utils import UpdateContent
 
 
 def process_steps(steps: dict[str: List[dict]],
-                  verbose: Optional[bool] = False,skip_stage: bool = False,
+                  verbose: Optional[bool] = False, skip_stage: bool = False,
                   **kwargs):
     result = []
     for step in steps[STEPS_CONFIG_PARAM]:
@@ -39,25 +39,22 @@ def process_steps(steps: dict[str: List[dict]],
         if verbose:
             command_to_execute.append('--verbose')
         if BUILD_COMMAND in command_to_execute:
-            command_to_execute.extend(['--bundle_name', BUNDLE_NAME,
-                                       '--force_upload'])
+            command_to_execute.extend(['--bundle-name', BUNDLE_NAME,
+                                       '--force-upload'])
         if DEPLOY_COMMAND in command_to_execute:
-            command_to_execute.extend(['--bundle_name', BUNDLE_NAME,
-                                       '--deploy_name', DEPLOY_NAME,
-                                       '--replace_output'])
+            command_to_execute.extend(['--bundle-name', BUNDLE_NAME,
+                                       '--deploy-name', DEPLOY_NAME,
+                                       '--replace-output'])
         if UPDATE_COMMAND in command_to_execute:
-            command_to_execute.extend(['--bundle_name', UPDATED_BUNDLE_NAME,
-                                       '--replace_output'])
+            command_to_execute.extend(['--bundle-name', UPDATED_BUNDLE_NAME,
+                                       '--replace-output'])
         execution_datetime = datetime.utcnow()
 
         with UpdateContent(
                 command=command_to_execute,
-                lambda_paths=[os.path.join('sdct-auto-test',
-                                           'app', 'lambdas',
+                lambda_paths=[os.path.join('app', 'lambdas',
                                            'sdct-at-nodejs-lambda')],
-                resources_paths=['sdct-auto-test'],
-                appsync_path=[os.path.join('sdct-auto-test',
-                                           'appsync_src',
+                appsync_path=[os.path.join('appsync_src',
                                            'sdct-at-appsync')]):
             if UPDATE_COMMAND in command_to_execute:
                 build_command = ['syndicate', 'build',

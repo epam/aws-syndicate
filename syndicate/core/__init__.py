@@ -19,7 +19,7 @@ from datetime import datetime, timedelta, timezone
 
 from botocore.exceptions import ClientError
 
-from syndicate.exceptions import InternalError
+from syndicate.exceptions import InternalError, ConfigurationError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.connection import ConnectionProvider
 from syndicate.connection.sts_connection import STSConnection
@@ -76,14 +76,16 @@ def _ready_to_use_provided_temp_creds():
                               and CONFIG.temp_aws_session_token \
                               and CONFIG.expiration
 
-    credentials_valid = validate_temp_credentials(
-        aws_access_key_id=CONFIG.temp_aws_access_key_id,
-        aws_secret_access_key=CONFIG.temp_aws_secret_access_key,
-        aws_session_token=CONFIG.temp_aws_session_token,
-        expiration=CONFIG.expiration
-    )
+    credentials_expired = True
+    
+    if has_temporary_creds_set:
+        credentials_expired = validate_temp_credentials_expiration(
+            expiration=CONFIG.expiration
+        )
+        if credentials_expired and CONFIG.use_temp_creds:
+            raise ConfigurationError('Temporary credentials have expired')
 
-    return has_temporary_creds_set and credentials_valid
+    return has_temporary_creds_set and not credentials_expired
 
 
 def _ready_to_generate_temp_creds():
@@ -205,18 +207,14 @@ def initialize_project_state(do_not_sync_state=False):
     sync_project_state()
 
 
-def validate_temp_credentials(aws_access_key_id, aws_secret_access_key,
-                              aws_session_token, expiration):
-    if not all((aws_access_key_id, aws_secret_access_key,
-                aws_session_token, expiration)):
-        return False
+def validate_temp_credentials_expiration(expiration):
     if not isinstance(expiration, datetime):
         expiration = datetime.fromisoformat(expiration)
     expiration_datetime = expiration - timedelta(
         minutes=CREDENTIALS_EXPIRATION_THRESHOLD_MIN)
     now_datetime = datetime.now(timezone.utc)
 
-    return expiration_datetime > now_datetime
+    return expiration_datetime <= now_datetime
 
 
 def prompt_mfa_code():

@@ -181,8 +181,8 @@ def load_latest_deploy_output(failsafe: bool = False):
     from syndicate.core import PROJECT_STATE
     if not PROJECT_STATE.latest_deploy:
         return None, {}
-    deploy_name = PROJECT_STATE.latest_deploy.get('deploy_name')
-    bundle_name = PROJECT_STATE.latest_deploy.get('bundle_name')
+    deploy_name = PROJECT_STATE.latest_deployed_deploy_name
+    bundle_name = PROJECT_STATE.latest_deployed_bundle_name
     latest_deploy_status = PROJECT_STATE.latest_deploy.get(
         'is_succeeded', True)
 
@@ -219,6 +219,15 @@ def if_bundle_exist(bundle_name):
     return CONN.s3().get_keys_by_prefix(
         CONFIG.deploy_target_bucket,
         key_compound)
+
+
+def if_bundle_exist_locally(bundle_name):
+    bundle_dir = resolve_bundle_directory(bundle_name=bundle_name)
+    normalized_bundle_dir = os.path.normpath(bundle_dir)
+    if os.path.exists(normalized_bundle_dir):
+        _LOG.debug(f'Bundle folder `{normalized_bundle_dir}` exists locally.')
+        return True
+    return False
 
 
 def upload_bundle_to_s3(bundle_name, force):
@@ -345,14 +354,22 @@ def _put_package_to_s3(path, path_to_package):
                                  CONFIG.deploy_target_bucket)
 
 
-def remove_bundle_dir_locally(bundle_name: str):
-    bundle_dir = resolve_bundle_directory(bundle_name=bundle_name)
-    normalized_bundle_dir = os.path.normpath(bundle_dir)
-    if os.path.exists(normalized_bundle_dir):
-        _LOG.warning(f'Going to remove bundle folder '
-                     f'`{normalized_bundle_dir}` locally.')
-        try:
-            shutil.rmtree(normalized_bundle_dir)
-        except Exception as e:
-            _LOG.error(f'Cannot delete folder {normalized_bundle_dir}')
-            raise e
+def remove_bundle_dir_locally(bundle_name: str, force_upload: bool):
+    if if_bundle_exist_locally(bundle_name) and not force_upload:
+        raise ProjectStateError(
+            f'Bundle name \'{bundle_name}\' already exists locally. '
+            f'Please use another bundle name or delete the existing'
+        )
+    if force_upload:
+        _LOG.info(f'Force upload is enabled, going to check if bundle '
+                  f'directory already exists locally.')
+        bundle_dir = resolve_bundle_directory(bundle_name=bundle_name)
+        normalized_bundle_dir = os.path.normpath(bundle_dir)
+        if os.path.exists(normalized_bundle_dir):
+            _LOG.warning(f'Going to remove bundle folder '
+                         f'`{normalized_bundle_dir}` locally.')
+            try:
+                shutil.rmtree(normalized_bundle_dir)
+            except Exception as e:
+                _LOG.error(f'Cannot delete folder {normalized_bundle_dir}')
+                raise e

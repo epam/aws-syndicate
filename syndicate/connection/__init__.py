@@ -42,6 +42,7 @@ from syndicate.connection.iam_connection import IAMConnection
 from syndicate.connection.kinesis_connection import KinesisConnection
 from syndicate.connection.kms_connection import KMSConnection
 from syndicate.connection.lambda_connection import LambdaConnection
+from syndicate.connection.rds_connection import RDSConnection
 from syndicate.connection.s3_connection import S3Connection
 from syndicate.connection.sns_connection import SNSConnection
 from syndicate.connection.sqs_connection import SqsConnection
@@ -246,3 +247,10 @@ class ConnectionProvider(object):
         if region:
             credentials['region'] = region
         return DaxConnection(**credentials)
+
+    @lru_cache(maxsize=None)
+    def rds(self, region=None):
+        credentials = self.credentials.copy()
+        if region:
+            credentials['region'] = region
+        return RDSConnection(**credentials)

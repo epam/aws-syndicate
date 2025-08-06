@@ -4,6 +4,44 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [1.18.0] - 2025-08-01
+- Added support for DynamoDB `OnDemandThroughput` limitation
+- Added support for `rds_db_cluster` resource
+- Added support for `rds_db_instance` resource
+- Added support for Lambda proxy integrations in API Gateway
+- Added caching for third-party libraries of lambdas (Python runtime) used in the project
+- Updated `boto3` and `botocore` to version 1.38.12
+- Updated `tqdm` to version 4.67.1
+- Updated `requests` to version 2.32.3
+- Removed the limitation on setuptools version
+- Changed the installation configuration from setup.py to pyproject.toml
+- Fixed prefix and suffix resolving in the list of ARNs
+- Fixed issue when the `commons` folder was overwritten after creating a new lambda
+- Added warning message if there are unresolved alias placeholders in resource metadata
+- Removed requirements.txt in favor of pyproject.toml
+- Fixed issue related to the API Gateway configuration merge conflicts
+- Fixed issue related to getting the list of available instance types
+- Changed CLI command and option naming convention from underscores to dashes for consistency. Underscore variants remain supported but are hidden from help output
+- Renamed `bundle-bucket-name` option to `deploy-target-bucket` in the command `syndicate generate project`. Deprecated parameter is still supported but hidden from help output
+- Added `-path` alias to all `--project-path` options in CLI commands
+- Enhanced the error message when the deploy target bucket is missing
+- Improved the error message in case of temporary credentials expiration
+- Removed unnecessary file sync with files in S3 bucket when invoking help message for nested CLI commands
+- Added support of `python 3.13`, `nodejs 22.x` lambda runtimes
+- Removed support of `python 3.8`, `nodejs 16.x` lambda runtimes
+- Changed the resolution flow of the deployment output file, so the latest deploy output file is used for update, continue deploy, and clean operations.
+
+# [1.17.1] - 2025-03-25
+- Changed `--force_upload` parameter type for assemble commands from `string` to `flag`
+- Fixed logic of `--force_upload` flag in assemble commands
+- Added `--force_upload` flag to `assemble_appsync` and `assemble_swagger_ui` commands
+- Fixed issue if the last deploy output file was deleted from the s3 bucket, and it would result that lambda triggers not being able to update
+- Fixed subnet group deletion during a DAX cluster cleaning
+- Fixed records duplication in the deployment output in case of deployment after changing `lambda` `alias` name and existence of the lambda
+- Fixed dynamic setting of active API link in Swagger UI json file
+- Adjusted the logic of `--clean_externals` parameter in `syndicate clean` command to clean not only external resources 
+but all filtered resources plus external resources which fit the filters
+
 # [1.17.0] - 2025-03-03
 - Added the possibility to generate meta for the resources `firehose` and `eventbridge_schedule`
 - The operation `partial_clean` added to the modification operations list

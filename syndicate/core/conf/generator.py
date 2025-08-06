@@ -47,7 +47,7 @@ _USER_LOG = get_user_logger()
 
 def generate_configuration_files(name, config_path, region,
                                  access_key, secret_key,
-                                 bundle_bucket_name, prefix, suffix,
+                                 deploy_target_bucket, prefix, suffix,
                                  extended_prefix, session_token=None,
                                  project_path=None, use_temp_creds=None,
                                  access_role=None, serial_number=None,
@@ -111,7 +111,7 @@ def generate_configuration_files(name, config_path, region,
     config_content = {
         ACCOUNT_ID_CFG: account_id,
         REGION_CFG: region,
-        DEPLOY_TARGET_BUCKET_CFG: bundle_bucket_name,
+        DEPLOY_TARGET_BUCKET_CFG: deploy_target_bucket,
         PROJECT_PATH_CFG: project_path,
         RESOURCES_PREFIX_CFG: prefix,
         RESOURCES_SUFFIX_CFG: suffix,

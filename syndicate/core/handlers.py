@@ -15,6 +15,7 @@
 """
 import json
 import os
+import shutil
 import sys
 from functools import partial
 
@@ -22,6 +23,7 @@ import click
 from tabulate import tabulate
 
 from syndicate.commons.log_helper import get_logger, get_user_logger
+from syndicate.core.build.helper import resolve_bundles_cache_directory
 from syndicate.core.export.export_processor import export_specification
 from syndicate.core.transform.transform_processor import generate_build_meta
 from syndicate.core import initialize_connection, \
@@ -63,7 +65,8 @@ from syndicate.core.helper import (create_bundle_callback,
                                    resolve_and_verify_bundle_callback,
                                    param_to_lower, verbose_option,
                                    validate_incompatible_options,
-                                   failed_status_code_on_exception)
+                                   failed_status_code_on_exception,
+                                   AliasedCommandsGroup, MultiWordOption)
 from syndicate.core.project_state.project_state import (MODIFICATION_LOCK,
                                                         WARMUP_LOCK)
 from syndicate.core.project_state.status_processor import project_state_status
@@ -75,7 +78,9 @@ from syndicate.core.constants import TEST_ACTION, BUILD_ACTION, \
     PACKAGE_META_ACTION, CREATE_DEPLOY_TARGET_BUCKET_ACTION, UPLOAD_ACTION, \
     COPY_BUNDLE_ACTION, EXPORT_ACTION, ASSEMBLE_SWAGGER_UI_ACTION, \
     ASSEMBLE_DOTNET_ACTION, ASSEMBLE_APPSYNC_ACTION, OK_RETURN_CODE, \
-    FAILED_RETURN_CODE, ABORTED_RETURN_CODE
+    FAILED_RETURN_CODE, ABORTED_RETURN_CODE, \
+    UNDERSCORE_CREATE_DEPLOY_TARGET_BUCKET_ACTION
+from syndicate.exceptions import ProjectStateError
 
 INIT_COMMAND_NAME = 'init'
 SYNDICATE_PACKAGE_NAME = 'aws-syndicate'
@@ -88,7 +93,8 @@ commands_without_config = (
 )
 
 commands_without_state_sync = (
-    CREATE_DEPLOY_TARGET_BUCKET_ACTION
+    CREATE_DEPLOY_TARGET_BUCKET_ACTION,
+    UNDERSCORE_CREATE_DEPLOY_TARGET_BUCKET_ACTION
 )
 
 _LOG = get_logger(__name__)
@@ -103,7 +109,7 @@ def _not_require_state_sync(all_params):
     return any(item in commands_without_state_sync for item in all_params)
 
 
-@click.group(name='syndicate')
+@click.group(name='syndicate', cls=AliasedCommandsGroup)
 @return_code_manager
 @click.version_option()
 def syndicate():
@@ -132,13 +138,16 @@ def syndicate():
                                 case_sensitive=False),
               help='Supported testing frameworks. Possible options: unittest, '
                    'pytest, nose. Default value: unittest')
-@click.option('--test_folder_name', nargs=1, default='tests',
+@click.option('--test-folder-name',
+              cls=MultiWordOption, nargs=1, default='tests',
               help='Directory in the project that contains tests to run. '
                    'Default folder: tests')
-@click.option('--errors_allowed', is_flag=True,
+@click.option('--errors-allowed',
+              cls=MultiWordOption, is_flag=True,
               help='Flag to return successful response even if some tests '
                    'fail')
-@click.option('--skip_tests', is_flag=True, default=False,
+@click.option('--skip-tests',
+              cls=MultiWordOption, is_flag=True, default=False,
               help='Flag to not run tests')
 @verbose_option
 @timeit(action_name=TEST_ACTION)
@@ -186,31 +195,42 @@ def test(suite, test_folder_name, errors_allowed, skip_tests):
 
 @syndicate.command(name=BUILD_ACTION)
 @return_code_manager
-@click.option('--bundle_name', '-b', nargs=1,
+@click.option('--bundle-name', '-b',
+              cls=MultiWordOption, nargs=1,
               callback=generate_default_bundle_name,
               help='Name of the bundle to build. '
                    'Default value: $ProjectName_%Y%m%d.%H%M%SZ')
-@click.option('--force_upload', '-F', is_flag=True, default=False,
+@click.option('--force-upload', '-F',
+              cls=MultiWordOption, is_flag=True, default=False,
               help='Flag to override existing bundle with the same name')
-@click.option('--errors_allowed', is_flag=True, default=False,
+@click.option('--errors-allowed',
+              cls=MultiWordOption, is_flag=True, default=False,
               help='Flag to continue building the bundle if any errors occur '
                    'while building dependencies or tests fail')
-@click.option('--skip_tests', is_flag=True, default=False,
+@click.option('--skip-tests',
+              cls=MultiWordOption, is_flag=True, default=False,
               help='Flag to skip lambda tests')
+@click.option('--refresh-cache',
+              cls=MultiWordOption, is_flag=True, default=False,
+              help='Flag to refresh the cache of dependencies. Currently, it '
+                   'is only applicable to Python runtime dependencies.')
 @verbose_option
 @click.pass_context
 @timeit(action_name=BUILD_ACTION)
 @failed_status_code_on_exception
 @check_deploy_bucket_exists
-def build(ctx, bundle_name, force_upload, errors_allowed, skip_tests):
+def build(ctx, bundle_name, force_upload, errors_allowed, skip_tests,
+          refresh_cache):
     """
     Builds bundle of an application
     """
-    if if_bundle_exist(bundle_name=bundle_name) and not force_upload:
-        USER_LOG.error(f'Bundle name \'{bundle_name}\' already exists '
-                       f'in deploy bucket. Please use another bundle '
-                       f'name or delete the bundle')
-        return FAILED_RETURN_CODE
+    if not force_upload:
+        if if_bundle_exist(bundle_name=bundle_name):
+            raise ProjectStateError(
+                f'Bundle name \'{bundle_name}\' already exists in deploy '
+                f'bucket. Please use another bundle name or delete the bundle'
+            )
+    remove_bundle_dir_locally(bundle_name, force_upload)
 
     test_code = ctx.invoke(test,
                            errors_allowed=errors_allowed,
@@ -218,10 +238,12 @@ def build(ctx, bundle_name, force_upload, errors_allowed, skip_tests):
     if test_code != OK_RETURN_CODE:
         return test_code
 
-    assemble_code = ctx.invoke(assemble, bundle_name=bundle_name,
+    assemble_code = ctx.invoke(assemble,
+                               bundle_name=bundle_name,
                                errors_allowed=errors_allowed,
                                skip_tests=skip_tests,
-                               force_upload=force_upload)
+                               refresh_cache=refresh_cache,
+                               is_chained=True)
     if assemble_code != OK_RETURN_CODE:
         return assemble_code
 
@@ -237,16 +259,16 @@ def build(ctx, bundle_name, force_upload, errors_allowed, skip_tests):
 
 @syndicate.command(name='transform')
 @return_code_manager
-@click.option('--bundle_name',
-              callback=resolve_default_value,
+@click.option('--bundle-name', '-b',
+              cls=MultiWordOption, callback=resolve_default_value,
               help='Name of the bundle to transform. '
                    'Default value: name of the latest built bundle')
 @click.option('--dsl', type=click.Choice(['CloudFormation', 'Terraform'],
                                          case_sensitive=False),
-              callback=param_to_lower,
-              multiple=True, required=True,
+              callback=param_to_lower, multiple=True, required=True,
               help='Type of the IaC provider')
-@click.option('--output_dir',
+@click.option('--output-dir',
+              cls=MultiWordOption,
               help='The directory where a transformed template will be saved')
 @verbose_option
 @timeit()
@@ -266,29 +288,40 @@ def transform(bundle_name, dsl, output_dir):
 @sync_lock(lock_type=MODIFICATION_LOCK)
 @timeit(action_name=DEPLOY_ACTION)
 @failed_status_code_on_exception
-@click.option('--deploy_name', '-d', callback=resolve_default_value,
+@click.option('--deploy-name', '-d',
+              cls=MultiWordOption, callback=resolve_default_value,
               help='Name of the deploy. Default value: name of the project')
-@click.option('--bundle_name', '-b', callback=resolve_default_value,
+@click.option('--bundle-name', '-b',
+              cls=MultiWordOption, callback=resolve_default_value,
               help='Name of the bundle to deploy. '
                    'Default value: name of the latest built bundle')
-@click.option('--deploy_only_types', '-types', multiple=True,
+@click.option('--deploy-only-types', '-types',
+              cls=MultiWordOption, multiple=True,
               help='Types of the resources to deploy')
-@click.option('--deploy_only_resources', '-resources', multiple=True,
+@click.option('--deploy-only-resources', '-resources',
+              cls=MultiWordOption, multiple=True,
               help='Names of the resources to deploy')
-@click.option('--deploy_only_resources_path', '-path', nargs=1, type=str,
+@click.option('--deploy-only-resources-path', '-path',
+              cls=MultiWordOption, nargs=1, type=str,
               help='Path to file containing names of the resources to deploy')
-@click.option('--excluded_resources', '-exresources', multiple=True,
+@click.option('--excluded-resources', '-exresources',
+              cls=MultiWordOption, multiple=True,
               help='Names of the resources to skip while deploy.')
-@click.option('--excluded_resources_path', '-expath', nargs=1, type=str,
+@click.option('--excluded-resources-path', '-expath',
+              cls=MultiWordOption, nargs=1, type=str,
               help='Path to file containing names of the resources to skip '
                    'while deploy')
-@click.option('--excluded_types', '-extypes', multiple=True,
+@click.option('--excluded-types', '-extypes',
+              cls=MultiWordOption, multiple=True,
               help='Types of the resources to skip while deploy')
-@click.option('--continue_deploy', is_flag=True, default=False,
+@click.option('--continue-deploy',
+              cls=MultiWordOption, is_flag=True, default=False,
               help='Flag to continue failed deploy')
-@click.option('--replace_output', is_flag=True, default=False,
+@click.option('--replace-output',
+              cls=MultiWordOption, is_flag=True, default=False,
               help='Flag to replace the existing deploy output')
-@click.option('--rollback_on_error', is_flag=True, default=False,
+@click.option('--rollback-on-error',
+              cls=MultiWordOption, is_flag=True, default=False,
               help='Flag to automatically clean deployed resources if the'
                    ' deployment is unsuccessful')
 @verbose_option
@@ -363,26 +396,35 @@ def deploy(
 @sync_lock(lock_type=MODIFICATION_LOCK)
 @timeit(action_name=UPDATE_ACTION)
 @failed_status_code_on_exception
-@click.option('--bundle_name', '-b', callback=resolve_default_value,
-              help='Name of the bundle to deploy. '
+@click.option('--bundle-name', '-b',
+              cls=MultiWordOption, callback=resolve_default_value,
+              help='Name of the bundle to update from. '
                    'Default value: name of the latest built bundle')
-@click.option('--deploy_name', '-d', callback=resolve_default_value,
+@click.option('--deploy-name', '-d',
+              cls=MultiWordOption, callback=resolve_default_value,
               help='Name of the deploy. Default value: name of the project')
-@click.option('--update_only_types', '-types', multiple=True,
+@click.option('--update-only-types', '-types',
+              cls=MultiWordOption, multiple=True,
               help='Types of the resources to update')
-@click.option('--update_only_resources', '-resources', multiple=True,
+@click.option('--update-only-resources',
+              '-resources', cls=MultiWordOption, multiple=True,
               help='Names of the resources to update')
-@click.option('--update_only_resources_path', '-path', nargs=1,
+@click.option('--update-only-resources-path',
+              '-path', cls=MultiWordOption, nargs=1,
               help='Path to file containing names of the resources to skip '
                    'while deploy')
-@click.option('--excluded_resources', '-exresources', multiple=True,
+@click.option('--excluded-resources', '-exresources',
+              cls=MultiWordOption, multiple=True,
               help='Names of the resources to skip while update.')
-@click.option('--excluded_resources_path', '-expath', nargs=1,
+@click.option('--excluded-resources-path',
+              '-expath', cls=MultiWordOption, nargs=1,
               help='Path to file containing names of the resources to skip '
                    'while update')
-@click.option('--excluded_types', '-extypes', multiple=True,
+@click.option('--excluded-types', '-extypes',
+              cls=MultiWordOption, multiple=True,
               help='Types of the resources to skip while update')
-@click.option('--replace_output', nargs=1, is_flag=True, default=False,
+@click.option('--replace-output', nargs=1,
+              cls=MultiWordOption, is_flag=True, default=False,
               help='The flag to replace the existing deploy output file')
 @click.option('--force', nargs=1, is_flag=True, default=False,
               help='The flag, to apply updates even if the latest deployment '
@@ -440,7 +482,6 @@ def update(
         USER_LOG.info('Update of resources has been successfully completed')
         return OK_RETURN_CODE
     elif success == ABORTED_STATUS:
-        USER_LOG.warning('Update of resources has been aborted')
         # not ABORTED_RETURN_CODE because of event status in .syndicate file
         return FAILED_RETURN_CODE
     else:
@@ -453,37 +494,33 @@ def update(
 @sync_lock(lock_type=MODIFICATION_LOCK)
 @timeit(action_name=CLEAN_ACTION)
 @failed_status_code_on_exception
-@click.option('--deploy_name', '-d', nargs=1, callback=resolve_default_value,
-              help='Name of the deploy. This parameter allows the framework '
-                   'to decide,which exactly output file should be used. The '
-                   'resources are cleaned based on the output file which is '
-                   'created during the deployment process. If not specified, '
-                   'resolves the latest deploy name')
-@click.option('--bundle_name', '-b', nargs=1, callback=resolve_default_value,
-              help='Name of the bundle. If not specified, resolves the latest '
-                   'bundle name')
-@click.option('--clean_only_types', '-types', multiple=True,
+@click.option('--clean-only-types', '-types',
+              cls=MultiWordOption, multiple=True,
               help='If specified only provided types will be cleaned')
-@click.option('--clean_only_resources', '-resources', multiple=True,
+@click.option('--clean-only-resources', '-resources',
+              cls=MultiWordOption, multiple=True,
               help='If specified only provided resources will be cleaned')
-@click.option('--clean_only_resources_path', '-path', nargs=1, type=str,
+@click.option('--clean-only-resources-path',
+              '-path', cls=MultiWordOption, nargs=1, type=str,
               help='If specified only resources path will be cleaned')
-@click.option('--clean_externals', nargs=1, is_flag=True, default=False,
-              help='Flag. If specified only external resources will be '
-                   'cleaned')
-@click.option('--excluded_resources', '-exresources', multiple=True,
+@click.option('--clean-externals',
+              cls=MultiWordOption, is_flag=True,
+              help='Flag. If specified external resources will be '
+                   'cleaned as well')
+@click.option('--excluded-resources', '-exresources',
+              cls=MultiWordOption, multiple=True,
               help='If specified provided resources will be excluded')
-@click.option('--excluded_resources_path', '-expath', nargs=1, type=str,
+@click.option('--excluded-resources-path',
+              '-expath', cls=MultiWordOption, nargs=1, type=str,
               help='If specified provided resource path will be excluded')
-@click.option('--excluded_types', '-extypes', multiple=True,
+@click.option('--excluded-types', '-extypes',
+              cls=MultiWordOption, multiple=True,
               help='If specified provided types will be excluded')
-@click.option('--preserve_state', is_flag=True,
+@click.option('--preserve-state',
+              cls=MultiWordOption, is_flag=True,
               help='Preserve deploy output json file after resources removal')
 @verbose_option
-@check_bundle_deploy_names_for_existence(check_deploy_existence=True)
 def clean(
-        deploy_name: str,
-        bundle_name: str,
         clean_only_types: tuple | None = None,
         clean_only_resources: tuple | None = None,
         clean_only_resources_path: str | None = None,
@@ -497,6 +534,12 @@ def clean(
     Cleans the application infrastructure
     """
     from syndicate.core import PROJECT_STATE
+    if not PROJECT_STATE.latest_deploy:
+        USER_LOG.error('Deployment to clean not found.')
+        return ABORTED_RETURN_CODE
+
+    bundle_name = PROJECT_STATE.latest_deployed_bundle_name
+    deploy_name = PROJECT_STATE.latest_deployed_deploy_name
     USER_LOG.info('Command clean')
     USER_LOG.info(f'Deploy name: {deploy_name}')
     separator = ', '
@@ -562,7 +605,8 @@ def sync():
     return OK_RETURN_CODE
 
 
-@syndicate.command(name=STATUS_ACTION)
+@syndicate.command(name=STATUS_ACTION, short_help='Shows the state of a local '
+                                                  'project state file')
 @return_code_manager
 @click.option('--events', flag_value='events',
               callback=partial(validate_incompatible_options,
@@ -590,23 +634,30 @@ def status(events, resources):
 @sync_lock(lock_type=WARMUP_LOCK)
 @timeit(action_name=WARMUP_ACTION)
 @failed_status_code_on_exception
-@click.option('--bundle_name', '-b', nargs=1, callback=resolve_default_value,
+@click.option('--bundle-name', '-b', nargs=1,
+              cls=MultiWordOption, callback=resolve_default_value,
               help='Name of the bundle. If not specified, resolves the latest '
                    'bundle name')
-@click.option('--deploy_name', '-d', nargs=1, callback=resolve_default_value,
+@click.option('--deploy-name', '-d', nargs=1,
+              cls=MultiWordOption, callback=resolve_default_value,
               help='Name of the deploy. If not specified, resolves the latest '
                    'deploy name')
-@click.option('--api_gw_id', '-api', nargs=1, multiple=True, type=str,
+@click.option('--api-gw-id', '-api', nargs=1,
+              cls=MultiWordOption, multiple=True, type=str,
               help='Provide API Gateway IDs to warmup')
-@click.option('--stage_name', '-stage', nargs=1, multiple=True, type=str,
+@click.option('--stage-name', '-stage', nargs=1,
+              cls=MultiWordOption, multiple=True, type=str,
               help='Name of stages of provided API Gateway IDs')
-@click.option('--lambda_auth', '-auth', default=False, is_flag=True,
+@click.option('--lambda-auth', '-auth',
+              cls=MultiWordOption, default=False, is_flag=True,
               help='Flag. Should be specified if API Gateway Lambda Authorizer'
                    ' is enabled')
-@click.option('--header_name', '-hname', nargs=1,
+@click.option('--header-name', '-hname',
+              cls=MultiWordOption, nargs=1,
               help='Name of authentication header.')
-@click.option('--header_value', '-hvalue',
-              nargs=1, help='Authentication header value.')
+@click.option('--header-value', '-hvalue',
+              cls=MultiWordOption, nargs=1,
+              help='Authentication header value.')
 @verbose_option
 @check_deploy_bucket_exists
 @check_bundle_deploy_names_for_existence()
@@ -643,22 +694,26 @@ def warmup(bundle_name, deploy_name, api_gw_id, stage_name, lambda_auth,
 
 @syndicate.command(name=PROFILER_ACTION)
 @return_code_manager
-@click.option('--bundle_name', '-b', nargs=1, callback=resolve_default_value,
+@click.option('--bundle-name', '-b', nargs=1,
+              cls=MultiWordOption, callback=resolve_default_value,
               help='The name of the bundle from which to select lambdas for '
                    'collecting metrics. If not specified, resolves the latest '
                    'bundle name')
-@click.option('--deploy_name', '-d', nargs=1, callback=resolve_default_value,
+@click.option('--deploy-name', '-d', nargs=1,
+              cls=MultiWordOption, callback=resolve_default_value,
               help='Name of the deploy. If not specified, resolves the latest '
                    'deploy name')
-@click.option('--from_date', '-from', nargs=1,
+@click.option('--from-date', '-from',
+              cls=MultiWordOption, nargs=1,
               type=click.DateTime(formats=['%Y-%m-%dT%H:%M:%SZ']),
               help='Date from which collect lambda metrics. The '
-                   '\'--to_date\' parameter required. Example of the date '
+                   '\'--to-date\' parameter required. Example of the date '
                    'format: 2022-02-02T02:02:02Z')
-@click.option('--to_date', '-to', nargs=1,
+@click.option('--to-date', '-to',
+              cls=MultiWordOption, nargs=1,
               type=click.DateTime(formats=['%Y-%m-%dT%H:%M:%SZ']),
               help='Date until which collect lambda metrics. The '
-                   '\'--from_date\' parameter required. Example of the date '
+                   '\'--from-date\' parameter required. Example of the date '
                    'format: 2022-02-02T02:02:02Z')
 @verbose_option
 @check_deploy_bucket_exists
@@ -687,32 +742,33 @@ def profiler(bundle_name, deploy_name, from_date, to_date):
 
 @syndicate.command(name=ASSEMBLE_JAVA_MVN_ACTION)
 @return_code_manager
-@click.option('--bundle_name', '-b', nargs=1,
+@click.option('--bundle-name', '-b', cls=MultiWordOption, nargs=1,
               callback=generate_default_bundle_name,
               help='Name of the bundle, to which the build artifacts are '
                    'gathered and later used for the deployment. '
                    'Default value: $ProjectName_%Y%m%d.%H%M%S')
-@click.option('--project_path', '-path', nargs=1,
-              callback=resolve_path_callback, required=True,
+@click.option('--project-path', '-path', cls=MultiWordOption,
+              nargs=1, callback=resolve_path_callback, required=True,
               help='The path to the Java project. The provided path is the '
                    'path for an mvn clean install. The artifacts are copied '
                    'to a folder, which is be later used as the deployment '
                    'bundle (the bundle path: bundles/${bundle_name})')
-@click.option('--force_upload', '-fu', nargs=1,
-              default=False, required=False,
-              help='Identifier that indicates whether a locally existing'
-                   ' bundle should be deleted and a new one created using'
-                   ' the same path.')
-@click.option('--skip_tests', is_flag=True, default=False,
+@click.option('--force-upload', '-F', cls=MultiWordOption,
+              is_flag=True, default=False,
+              help='Flag to override locally existing bundle '
+                   'with the same name')
+@click.option('--skip-tests', cls=MultiWordOption,
+              is_flag=True, default=False,
               help='Flag to not run tests')
-@click.option('--errors_allowed', is_flag=True, default=False,
+@click.option('--errors-allowed', cls=MultiWordOption,
+              is_flag=True, default=False,
               help='Flag to continue building the bundle in case of errors '
                    'while building artifacts')
 @verbose_option
 @timeit(action_name=ASSEMBLE_JAVA_MVN_ACTION)
 @failed_status_code_on_exception
 def assemble_java_mvn(bundle_name, project_path, force_upload, skip_tests,
-                      errors_allowed):
+                      errors_allowed, refresh_cache=False, is_chained=False):
     """
     Builds Java lambdas
 
@@ -723,13 +779,15 @@ def assemble_java_mvn(bundle_name, project_path, force_upload, skip_tests,
     :param skip_tests: force skipping tests
     :param errors_allowed: not used for java, but need to unify the
     `assemble` commands interface
+    :param refresh_cache: not used for java, but need to unify the function interface
+    :param is_chained: specifies whether this command is executed independently
+    or as part of a process (like `build` or `assemble` command)
     :return:
     """
     USER_LOG.info(f'Command compile java project path: {project_path}')
-    if force_upload:
-        _LOG.info(f'Force upload is enabled, going to check if bundle '
-                  f'directory already exists locally.')
-        remove_bundle_dir_locally(bundle_name)
+
+    if not is_chained:
+        remove_bundle_dir_locally(bundle_name, force_upload)
 
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
@@ -742,31 +800,36 @@ def assemble_java_mvn(bundle_name, project_path, force_upload, skip_tests,
 
 @syndicate.command(name=ASSEMBLE_PYTHON_ACTION)
 @return_code_manager
-@click.option('--bundle_name', '-b', nargs=1,
+@click.option('--bundle-name', '-b',
+              cls=MultiWordOption, nargs=1,
               callback=generate_default_bundle_name,
               help='Name of the bundle, to which the build artifacts are '
                    'gathered and later used for the deployment. '
                    'Default value: $ProjectName_%Y%m%d.%H%M%S')
-@click.option('--project_path', '-path', nargs=1,
+@click.option('--project-path', '-path',
+              cls=MultiWordOption, nargs=1,
               callback=resolve_path_callback, required=True,
               help='The path to the Python project. The code is '
                    'packed to a zip archive, where the external libraries are '
                    'found, which are described in the requirements.txt file, '
                    'and internal project dependencies according to the '
                    'described in local_requirements.txt file')
-@click.option('--force_upload', '-fu', nargs=1,
-              default=False, required=False,
-              help='Identifier that indicates whether a locally existing'
-                   ' bundle should be deleted and a new one created using'
-                   ' the same path.')
-@click.option('--errors_allowed', is_flag=True, default=False,
+@click.option('--force-upload', '-F',
+              cls=MultiWordOption, is_flag=True, default=False,
+              help='Flag to override locally existing bundle '
+                   'with the same name')
+@click.option('--errors-allowed',
+              cls=MultiWordOption, is_flag=True, default=False,
               help='Flag to continue building the bundle if any errors occur '
                    'while building dependencies')
+@click.option('--refresh-cache',
+              cls=MultiWordOption, is_flag=True, default=False,
+              help='Flag to refresh the cache of dependencies.')
 @verbose_option
 @timeit(action_name=ASSEMBLE_PYTHON_ACTION)
 @failed_status_code_on_exception
 def assemble_python(bundle_name, project_path, force_upload, errors_allowed,
-                    skip_tests=False):
+                    refresh_cache, skip_tests=False, is_chained=False):
     """
     Builds Python lambdas
 
@@ -775,15 +838,24 @@ def assemble_python(bundle_name, project_path, force_upload, errors_allowed,
     :param project_path: path to project folder
     :param force_upload: force upload identification
     :param errors_allowed: allows to ignore dependency errors
+    :param refresh_cache: flag to refresh the cache of dependencies
     :param skip_tests: not used for python, but need to unify the
     `assemble` commands interface
+    :param is_chained: specifies whether this command is executed independently
+    or as part of a process (like `build` or `assemble` command)
     :return:
     """
     USER_LOG.info(f'Command assemble python: project_path: {project_path} ')
-    if force_upload:
-        _LOG.info(f'Force upload is enabled, going to check if bundle '
-                  f'directory already exists locally.')
-        remove_bundle_dir_locally(bundle_name)
+
+    if not is_chained:
+        remove_bundle_dir_locally(bundle_name, force_upload)
+
+    if refresh_cache:
+        cache_dir = resolve_bundles_cache_directory()
+        if os.path.exists(cache_dir):
+            shutil.rmtree(cache_dir)
+            _LOG.info(f'Removed the cache directory: {cache_dir}')
+
 
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
@@ -795,26 +867,28 @@ def assemble_python(bundle_name, project_path, force_upload, errors_allowed,
 
 @syndicate.command(name=ASSEMBLE_NODE_ACTION)
 @return_code_manager
-@click.option('--bundle_name', '-b', nargs=1,
+@click.option('--bundle-name', '-b',
+              cls=MultiWordOption, nargs=1,
               callback=generate_default_bundle_name,
               help='Name of the bundle, to which the build artifacts are '
                    'gathered and later used for the deployment. '
                    'Default value: $ProjectName_%Y%m%d.%H%M%S')
-@click.option('--project_path', '-path', nargs=1,
+@click.option('--project-path', '-path',
+              cls=MultiWordOption, nargs=1,
               callback=resolve_path_callback, required=True,
               help='The path to the NodeJS project. The code is '
                    'packed to a zip archive, where the external libraries are '
                    'found, which are described in the package.json file')
-@click.option('--force_upload', '-fu', nargs=1,
-              default=False, required=False,
-              help='Identifier that indicates whether a locally existing'
-                   ' bundle should be deleted and a new one created using'
-                   ' the same path.')
+@click.option('--force-upload', '-F',
+              cls=MultiWordOption, is_flag=True, default=False,
+              help='Flag to override locally existing bundle '
+                   'with the same name')
 @verbose_option
 @timeit(action_name=ASSEMBLE_NODE_ACTION)
 @failed_status_code_on_exception
 def assemble_node(bundle_name, project_path, force_upload,
-                  errors_allowed=False, skip_tests=False):
+                  errors_allowed=False, skip_tests=False, refresh_cache=False,
+                  is_chained=False):
     """
     Builds NodeJS lambdas
 
@@ -826,13 +900,15 @@ def assemble_node(bundle_name, project_path, force_upload,
     `assemble` commands interface
     :param skip_tests: not used for NodeJS, but need to unify the
     `assemble` commands interface
+    :param refresh_cache: not used for NodeJS, but need to unify the function interface
+    :param is_chained: specifies whether this command is executed independently
+    or as part of a process (like `build` or `assemble` command)
     :return:
     """
     USER_LOG.info(f'Command assemble node: project_path: {project_path} ')
-    if force_upload:
-        _LOG.info(f'Force upload is enabled, going to check if bundle '
-                  f'directory already exists locally.')
-        remove_bundle_dir_locally(bundle_name)
+
+    if not is_chained:
+        remove_bundle_dir_locally(bundle_name, force_upload)
 
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
@@ -843,26 +919,28 @@ def assemble_node(bundle_name, project_path, force_upload,
 
 @syndicate.command(name=ASSEMBLE_DOTNET_ACTION)
 @return_code_manager
-@click.option('--bundle_name', '-b', nargs=1,
+@click.option('--bundle-name', '-b',
+              cls=MultiWordOption, nargs=1,
               callback=generate_default_bundle_name,
               help='Name of the bundle, to which the build artifacts are '
                    'gathered and later used for the deployment. '
                    'Default value: $ProjectName_%Y%m%d.%H%M%S')
-@click.option('--project_path', '-path', nargs=1,
+@click.option('--project-path', '-path',
+              cls=MultiWordOption, nargs=1,
               callback=resolve_path_callback, required=True,
-              help='The path to the NodeJS project. The code is '
+              help='The path to the dotnet project. The code is '
                    'packed to a zip archive, where the external libraries are '
                    'found, which are described in the package.json file')
-@click.option('--force_upload', '-fu', nargs=1,
-              default=False, required=False,
-              help='Identifier that indicates whether a locally existing'
-                   ' bundle should be deleted and a new one created using'
-                   ' the same path.')
+@click.option('--force-upload', '-F',
+              cls=MultiWordOption, is_flag=True, default=False,
+              help='Flag to override locally existing bundle '
+                   'with the same name')
 @verbose_option
 @timeit(action_name=ASSEMBLE_DOTNET_ACTION)
 @failed_status_code_on_exception
 def assemble_dotnet(bundle_name, project_path, force_upload,
-                    errors_allowed=False, skip_tests=False):
+                    errors_allowed=False, skip_tests=False,
+                    refresh_cache=False, is_chained=False):
     """
     Builds DotNet lambdas
 
@@ -874,13 +952,15 @@ def assemble_dotnet(bundle_name, project_path, force_upload,
     `assemble` commands interface
     :param skip_tests: not used for DotNet, but need to unify the
     `assemble` commands interface
+    :param refresh_cache: not used for DotNet, but need to unify the function interface
+    :param is_chained: specifies whether this command is executed independently
+    or as part of a process
     :return:
     """
     USER_LOG.info(f'Command assemble dotnet: project_path: {project_path} ')
-    if force_upload:
-        _LOG.info(f'Force upload is enabled, going to check if bundle '
-                  f'directory already exists locally.')
-        remove_bundle_dir_locally(bundle_name)
+
+    if not is_chained:
+        remove_bundle_dir_locally(bundle_name, force_upload)
 
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
@@ -891,15 +971,21 @@ def assemble_dotnet(bundle_name, project_path, force_upload,
 
 @syndicate.command(name=ASSEMBLE_SWAGGER_UI_ACTION)
 @return_code_manager
-@click.option('--bundle_name', '-b', nargs=1,
+@click.option('--bundle-name', '-b',
+              cls=MultiWordOption, nargs=1,
               callback=generate_default_bundle_name,
               help='Name of the bundle, to which the build artifacts are '
                    'gathered and later used for the deployment. '
                    'Default value: $ProjectName_%Y%m%d.%H%M%S')
-@click.option('--project_path', '-path', nargs=1,
+@click.option('--project-path', '-path',
+              cls=MultiWordOption, nargs=1,
               callback=resolve_path_callback, required=True,
-              help='The path to the project. Related files will be packed '
-                   'into a zip archive.')
+              help='The path to the root project directory. Related files '
+                   'will be packed into a zip archive.')
+@click.option('--force-upload', '-F',
+              cls=MultiWordOption, is_flag=True, default=False,
+              help='Flag to override locally existing bundle '
+                   'with the same name')
 @verbose_option
 @timeit(action_name=ASSEMBLE_SWAGGER_UI_ACTION)
 @failed_status_code_on_exception
@@ -914,7 +1000,11 @@ def assemble_swagger_ui(**kwargs):
         """
     bundle_name = kwargs.get('bundle_name')
     project_path = kwargs.get('project_path')
-    USER_LOG.info(f'Command assemble Swagger UI: project_path: {project_path} ')
+    USER_LOG.info(f'Command assemble Swagger UI: project-path: {project_path}')
+
+    if not kwargs.get('is_chained'):
+        remove_bundle_dir_locally(bundle_name, kwargs.get('force_upload'))
+
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
                        runtime=RUNTIME_SWAGGER_UI)
@@ -924,15 +1014,21 @@ def assemble_swagger_ui(**kwargs):
 
 @syndicate.command(name=ASSEMBLE_APPSYNC_ACTION)
 @return_code_manager
-@click.option('--bundle_name', '-b', nargs=1,
+@click.option('--bundle-name', '-b',
+              cls=MultiWordOption, nargs=1,
               callback=generate_default_bundle_name,
               help='Name of the bundle, to which the build artifacts are '
                    'gathered and later used for the deployment. '
                    'Default value: $ProjectName_%Y%m%d.%H%M%S')
-@click.option('--project_path', '-path', nargs=1,
+@click.option('--project-path', '-path',
+              cls=MultiWordOption, nargs=1,
               callback=resolve_path_callback, required=True,
-              help='The path to the project. Related files will be packed '
-                   'into a zip archive.')
+              help='Path to the project root directory. Related files '
+                   'will be packed into a zip archive.')
+@click.option('--force-upload', '-F',
+              cls=MultiWordOption, is_flag=True, default=False,
+              help='Flag to override locally existing bundle '
+                   'with the same name')
 @verbose_option
 @timeit(action_name=ASSEMBLE_APPSYNC_ACTION)
 @failed_status_code_on_exception
@@ -947,7 +1043,11 @@ def assemble_appsync(**kwargs):
         """
     bundle_name = kwargs.get('bundle_name')
     project_path = kwargs.get('project_path')
-    USER_LOG.info(f'Command assemble AppSync: project_path: {project_path} ')
+    USER_LOG.info(f'Command assemble AppSync: project-path: {project_path} ')
+
+    if not kwargs.get('is_chained'):
+        remove_bundle_dir_locally(bundle_name, kwargs.get('force_upload'))
+
     assemble_artifacts(bundle_name=bundle_name,
                        project_path=project_path,
                        runtime=RUNTIME_APPSYNC)
@@ -967,22 +1067,25 @@ RUNTIME_LANG_TO_BUILD_MAPPING = {
 
 @syndicate.command(name=ASSEMBLE_ACTION)
 @return_code_manager
-@click.option('--bundle_name', '-b', callback=generate_default_bundle_name,
+@click.option('--bundle-name', '-b',
+              cls=MultiWordOption,
+              callback=generate_default_bundle_name,
               help='Bundle\'s name to build the lambdas in. '
                    'Default value: $ProjectName_%Y%m%d.%H%M%S')
-@click.option('--force_upload', '-fu', nargs=1,
-              default=False, required=False,
-              help='Identifier that indicates whether a locally existing'
-                   ' bundle should be deleted and a new one created using'
-                   ' the same path.')
-@click.option('--errors_allowed', is_flag=True, default=False,
+@click.option('--force-upload', '-F',
+              cls=MultiWordOption, is_flag=True, default=False,
+              help='Flag to override locally existing bundle '
+                   'with the same name')
+@click.option('--errors-allowed',
+              cls=MultiWordOption, is_flag=True, default=False,
               help='Flag to continue building the bundle if any errors occur '
                    'while building dependencies. Only for Python runtime.')
 @verbose_option
 @click.pass_context
 @timeit(action_name=ASSEMBLE_ACTION)
 @failed_status_code_on_exception
-def assemble(ctx, bundle_name, force_upload, errors_allowed, skip_tests=False):
+def assemble(ctx, bundle_name, force_upload, errors_allowed, skip_tests=False,
+             refresh_cache=False, is_chained=False):
     """
     Builds the application artifacts
 
@@ -993,12 +1096,13 @@ def assemble(ctx, bundle_name, force_upload, errors_allowed, skip_tests=False):
     :param force_upload: force upload identification
     :param errors_allowed: allows to ignore errors.
     :param skip_tests: allows to skip tests
+    :param refresh_cache: specifies whether to refresh the cache of the syndicate
+    :param is_chained: specifies whether this command is executed independently
+    or as part of a process
     :return:
     """
-    if force_upload:
-        _LOG.info(f'Force upload is enabled, going to check if bundle '
-                  f'directory already exists locally.')
-        remove_bundle_dir_locally(bundle_name)
+    if not is_chained:
+        remove_bundle_dir_locally(bundle_name, force_upload)
 
     USER_LOG.info(f'Building artifacts, bundle: {bundle_name}')
     from syndicate.core import PROJECT_STATE
@@ -1012,9 +1116,10 @@ def assemble(ctx, bundle_name, force_upload, errors_allowed, skip_tests=False):
             if func:
                 return_code = ctx.invoke(func, bundle_name=bundle_name,
                                          project_path=value,
-                                         force_upload=False, # because we have already deleted the bundle folder
                                          errors_allowed=errors_allowed,
-                                         skip_tests=skip_tests)
+                                         skip_tests=skip_tests,
+                                         refresh_cache=refresh_cache,
+                                         is_chained=True)
                 if return_code != OK_RETURN_CODE:
                     return return_code
             else:
@@ -1029,7 +1134,8 @@ def assemble(ctx, bundle_name, force_upload, errors_allowed, skip_tests=False):
 
 @syndicate.command(name=PACKAGE_META_ACTION)
 @return_code_manager
-@click.option('--bundle_name', '-b', required=True,
+@click.option('--bundle-name', '-b',
+              cls=MultiWordOption, required=True,
               callback=verify_bundle_callback,
               help='Bundle\'s name to package the current meta in')
 @verbose_option
@@ -1070,12 +1176,14 @@ def create_deploy_target_bucket():
 
 @syndicate.command(name=UPLOAD_ACTION)
 @return_code_manager
-@click.option('--bundle_name', '-b',
+@click.option('--bundle-name', '-b',
+              cls=MultiWordOption,
               callback=resolve_and_verify_bundle_callback,
               help='Bundle name to which the build artifacts are gathered '
                    'and later used for the deployment. NOTE: if not '
                    'specified, the latest build will be uploaded')
-@click.option('--force_upload', '-F', is_flag=True,
+@click.option('--force-upload','-F',
+              cls=MultiWordOption, is_flag=True,
               help='Flag to override existing bundle with the same name as '
                    'provided')
 @verbose_option
@@ -1105,25 +1213,31 @@ def upload(bundle_name, force_upload=False):
 
 @syndicate.command(name=COPY_BUNDLE_ACTION)
 @return_code_manager
-@click.option('--bundle_name', '-b', nargs=1, callback=create_bundle_callback,
-              required=True,
+@click.option('--bundle-name', '-b',
+              cls=MultiWordOption, nargs=1,
+              callback=create_bundle_callback, required=True,
               help='The bundle name, to which the build artifacts '
                    'are gathered and later used for the deployment')
-@click.option('--src_account_id', '-acc_id', nargs=1, required=True,
+@click.option('--src-account-id', '-acc-id',
+              cls=MultiWordOption, nargs=1, required=True,
               help='The account ID, to which the bundle is to be '
                    'uploaded')
-@click.option('--src_bucket_region', '-r', nargs=1, required=True,
+@click.option('--src-bucket-region', '-r',
+              cls=MultiWordOption, nargs=1, required=True,
               type=ValidRegionParamType(),
               help='The name of the region of the bucket where target bundle '
                    'is stored')
-@click.option('--src_bucket_name', '-bucket', nargs=1, required=True,
+@click.option('--src-bucket-name', '-bucket',
+              cls=MultiWordOption, nargs=1, required=True,
               help='The name of the bucket where target bundle is stored')
-@click.option('--role_name', '-role', nargs=1, required=True,
+@click.option('--role-name', '-role',
+              cls=MultiWordOption, nargs=1, required=True,
               help='The role name from the specified account, which is '
                    'assumed. Here you have to check the trusted relationship '
                    'between the accounts. The active account must be a trusted'
                    ' one for the account which is specified in the command')
-@click.option('--force_upload', '-F', is_flag=True, default=False,
+@click.option('--force-upload', '-F',
+              cls=MultiWordOption, is_flag=True, default=False,
               help='Flag. Used if the bundle with the same name as provided '
                    'already exists in a target account')
 @verbose_option
@@ -1163,20 +1277,23 @@ def copy_bundle(ctx, bundle_name, src_account_id, src_bucket_region,
 
 @syndicate.command(name=EXPORT_ACTION)
 @return_code_manager
-@click.option('--resource_type', '-rt', required=True,
+@click.option('--resource-type', '-rt',
+              cls=MultiWordOption, required=True,
               type=click.Choice(['api_gateway']),
               help='The type of resource to export configuration')
 @click.option('--dsl', default='oas_v3',
               type=click.Choice(['oas_v3']),
               help='DSL of output specification. Default: oas_v3')
-@click.option('--deploy_name', '-d', nargs=1, callback=resolve_default_value,
+@click.option('--deploy-name', '-d', nargs=1,
+              cls=MultiWordOption, callback=resolve_default_value,
               help='Name of the deploy. This parameter allows the framework '
                    'to decide, which exactly output file should be used. If '
                    'not specified, resolves the latest deploy name')
-@click.option('--bundle_name', '-b', callback=resolve_default_value,
+@click.option('--bundle-name', '-b',
+              cls=MultiWordOption, callback=resolve_default_value,
               help='Name of the bundle to export from. Default value: name of '
                    'the latest built bundle')
-@click.option('--output_dir', '-od',
+@click.option('--output-dir', '-od', cls=MultiWordOption,
               help='The directory where an exported configuration will be '
                    'saved. If not specified, the directory with the name '
                    '"export" will be created in the project root directory to '

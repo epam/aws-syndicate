@@ -24,7 +24,7 @@ from syndicate.exceptions import ArtifactError, ResourceNotFoundError, \
     ParameterError, InvalidValueError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.connection.helper import retry
-from syndicate.core.build.bundle_processor import _build_output_key
+from syndicate.core.build.bundle_processor import load_latest_deploy_output
 from syndicate.core.build.meta_processor import S3_PATH_NAME
 from syndicate.core.constants import DEFAULT_LOGS_EXPIRATION, \
     DYNAMO_DB_TRIGGER, CLOUD_WATCH_RULE_TRIGGER, EVENT_BRIDGE_RULE_TRIGGER, \
@@ -67,8 +67,8 @@ class LambdaResource(BaseResource):
 
     def __init__(self, lambda_conn, s3_conn, cw_logs_conn, sns_res, sns_conn,
                  iam_conn, dynamodb_conn, sqs_conn, kinesis_conn,
-                 cw_events_conn, cognito_idp_conn, region, account_id,
-                 deploy_target_bucket) -> None:
+                 cw_events_conn, cognito_idp_conn, rds_conn, region,
+                 account_id, deploy_target_bucket) -> None:
         self.lambda_conn = lambda_conn
         self.s3_conn = s3_conn
         self.cw_logs_conn = cw_logs_conn
@@ -80,6 +80,7 @@ class LambdaResource(BaseResource):
         self.kinesis_conn = kinesis_conn
         self.cw_events_conn = cw_events_conn
         self.cognito_idp_conn = cognito_idp_conn
+        self.rds_conn = rds_conn
         self.region = region
         self.account_id = account_id
         self.deploy_target_bucket = deploy_target_bucket
@@ -88,7 +89,13 @@ class LambdaResource(BaseResource):
             ('cognito_idp', 'id'):
                 self.cognito_idp_conn.if_pool_exists_by_name,
             ('cognito_idp', 'client_id'):
-                self.cognito_idp_conn.if_cup_client_exist
+                self.cognito_idp_conn.if_cup_client_exist,
+            ('rds_db_cluster', 'endpoint'):
+                self.rds_conn.get_db_cluster_endpoint,
+            ('rds_db_cluster', 'reader_endpoint'):
+                self.rds_conn.get_db_cluster_reader_endpoint,
+            ('rds_db_cluster', 'master_user_secret_name'):
+                self.rds_conn.get_db_cluster_master_user_secret_name
         }
 
     def qualifier_alias_resolver(self, lambda_def):
@@ -200,7 +207,10 @@ class LambdaResource(BaseResource):
             response = self.lambda_conn.get_function(lambda_name=name)
         if not response:
             return {}
-        arn = self.build_lambda_arn_with_alias(response, meta.get('alias'))
+
+        aliases = list(self.lambda_conn.get_aliases(name))
+        alias = aliases[0] if aliases else None
+        arn = self.build_lambda_arn_with_alias(response, alias)
 
         del response['Configuration']['FunctionArn']
         return {
@@ -1177,35 +1187,9 @@ class LambdaResource(BaseResource):
             func(self, name, arn, role_name, event_source)
 
     def update_lambda_triggers(self, name, arn, role_name, event_sources_meta):
-        from syndicate.core import CONFIG, PROJECT_STATE
-
-        # load latest output to compare it with current event sources
-        deploy_name = PROJECT_STATE.latest_deploy.get('deploy_name')
-        bundle_name = PROJECT_STATE.get_latest_deployed_or_updated_bundle(
-            PROJECT_STATE.current_bundle, latest_if_not_found=True)
-        if not bundle_name:
-            bundle_name = PROJECT_STATE.latest_modification.get('bundle_name')
-
-        regular_key_compound = PurePath(
-            CONFIG.deploy_target_bucket_key_compound,
-            _build_output_key(
-                bundle_name=bundle_name, deploy_name=deploy_name,
-                is_regular_output=True)).as_posix()
-
-        if self.s3_conn.is_file_exists(
-                CONFIG.deploy_target_bucket,
-                regular_key_compound):
-            key_compound = regular_key_compound
-        else:
-            key_compound = PurePath(
-                CONFIG.deploy_target_bucket_key_compound,
-                _build_output_key(
-                    bundle_name=bundle_name, deploy_name=deploy_name,
-                    is_regular_output=False)).as_posix()
-
-        output_file = self.s3_conn.load_file_body(
-            CONFIG.deploy_target_bucket, key_compound)
-        latest_output = json.loads(output_file)
+        _, latest_output = load_latest_deploy_output(
+            failsafe=True)
+        latest_output = latest_output or {}
 
         prev_event_sources_meta = []
         for resource in latest_output:
