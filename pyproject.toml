@@ -5,7 +5,7 @@ requires = ["setuptools"]
 
 [project]
 name = "aws-syndicate"
-version = "1.18.0"
+version = "1.18.1"
 description = "AWS-syndicate is an Amazon Web Services deployment framework written in Python, which allows to easily deploy serverless applications using resource descriptions."
 readme = { file = "README.md", content-type = "text/markdown" }
 requires-python = ">=3.10"
