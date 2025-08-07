@@ -153,7 +153,7 @@ jobs:
           # -B Batch mode (do not ask for user input), just in case
           # -P activate profile
           gpg --version
-          mvn -U -B clean deploy -P release --file ./plugin/pom.xml
+          mvn -X -U -B clean deploy -P release --file ./plugin/pom.xml
         env:
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
           MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
