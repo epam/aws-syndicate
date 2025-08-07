@@ -129,7 +129,7 @@ jobs:
     environment: release-maven-central
     needs: [maven, check-modified-release-files]
     runs-on: ubuntu-latest
-    if: github.repository_owner == 'epam' && github.event.action == 'published' && github.event_name == 'push' && needs.check-modified-release-files.outputs.files_modified == 'true'
+    if: github.repository_owner == 'epam' && github.event_name == 'push'
 
     steps:
       - uses: actions/checkout@v4
