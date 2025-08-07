@@ -11,7 +11,6 @@ on:
   push:
     branches:
       - master
-      - ci/update-maven-central-artifactory
     paths:
       - 'plugin/**'
   release:
@@ -128,9 +127,9 @@ jobs:
   release-to-maven-central:
     name: Publish released package to MavenCentral
     environment: release-maven-central
-    needs: [maven]
+    needs: [maven, check-modified-release-files]
     runs-on: ubuntu-latest
-    if: github.repository_owner == 'epam'
+    if: github.repository_owner == 'epam' && github.event.action == 'published' && needs.check-modified-release-files.outputs.files_modified == 'true'
 
     steps:
       - uses: actions/checkout@v4
@@ -153,7 +152,7 @@ jobs:
           # -B Batch mode (do not ask for user input), just in case
           # -P activate profile
           gpg --version
-          mvn -X -U -B clean deploy -P release --file ./plugin/pom.xml
+          mvn -U -B clean deploy -P release --file ./plugin/pom.xml
         env:
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
           MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
