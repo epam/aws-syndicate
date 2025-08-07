@@ -971,9 +971,9 @@ def _filter_resources(
 
     missing_names = set()
     for name in set(resource_names) - set(filtered.keys()):
-        if name.startswith(CONFIG.resources_prefix):
+        if CONFIG.resources_prefix and name.startswith(CONFIG.resources_prefix):
             name = name[len(CONFIG.resources_prefix):]
-        if name.endswith(CONFIG.resources_suffix):
+        if CONFIG.resources_suffix and name.endswith(CONFIG.resources_suffix):
             name = name[:-len(CONFIG.resources_suffix)]
         missing_names.add(name)
 
