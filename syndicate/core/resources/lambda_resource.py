@@ -523,6 +523,8 @@ class LambdaResource(BaseResource):
         if env_vars:
             self._resolve_env_variables(env_vars)
 
+        tracing_mode = meta.get('tracing_mode')
+
         _LOG.info(f'Updating lambda {name} configuration')
         self.lambda_conn.update_lambda_configuration(
             lambda_name=name, role=role_arn, handler=handler,
@@ -531,7 +533,8 @@ class LambdaResource(BaseResource):
             vpc_sub_nets=vpc_subnets, vpc_security_group=vpc_security_group,
             dead_letter_arn=dl_target_arn, layers=lambda_layers_arns,
             ephemeral_storage=ephemeral_storage,
-            snap_start=self._resolve_snap_start(meta=meta)
+            snap_start=self._resolve_snap_start(meta=meta),
+            tracing_mode=tracing_mode
         )
         _LOG.info(f'Lambda configuration has been updated')
 
