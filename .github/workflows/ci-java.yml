@@ -11,6 +11,7 @@ on:
   push:
     branches:
       - master
+      - ci/update-maven-central-artifactory
     paths:
       - 'plugin/**'
   release:
@@ -127,7 +128,7 @@ jobs:
   release-to-maven-central:
     name: Publish released package to MavenCentral
     environment: release-maven-central
-    needs: [maven, check-modified-release-files]
+    needs: [maven]
     runs-on: ubuntu-latest
     if: github.repository_owner == 'epam' && github.event_name == 'push'
 
