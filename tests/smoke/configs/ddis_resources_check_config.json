@@ -594,7 +594,7 @@
           "command": [
             "syndicate",
             "deploy",
-            "--continue_deploy",
+            "--continue-deploy",
             "-resources",
             "sdct-at-nodejs-lambda-role",
             "-resources",

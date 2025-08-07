@@ -26,7 +26,7 @@ from typing import Union
 from syndicate.exceptions import InvalidValueError, InvalidTypeError, \
     ConfigurationError
 from syndicate.commons.log_helper import get_logger, get_user_logger
-from syndicate.core.constants import ARTIFACTS_FOLDER
+from syndicate.core.constants import ARTIFACTS_FOLDER, CACHE_DIR
 from syndicate.core.helper import build_path
 
 _LOG = get_logger(__name__)
@@ -77,6 +77,34 @@ def zip_dir(
                 z.write(absfn, zfn)
 
 
+def merge_zip_files(zip1_path: str, zip2_path: str, output_path: str,
+                    output_subfolder:str=None):
+    """
+    Merge two ZIP files into a new ZIP file.
+    Files from zip2_path overwrite those from zip1_path in case of name conflicts.
+    """
+    with zipfile.ZipFile(output_path, 'w') as output_zip:
+        for zip_path in [zip1_path, zip2_path]:
+            if not os.path.isfile(zip_path):
+                _LOG.warning(
+                    f"Zip file '{zip_path}' does not exist or is not file. "
+                    f"Skipping.")
+                continue
+            with zipfile.ZipFile(zip_path, 'r') as input_zip:
+                for file_info in input_zip.infolist():
+                    data = input_zip.read(file_info.filename)
+                    new_path = (
+                        os.path.join(output_subfolder, file_info.filename) if
+                        output_subfolder else file_info.filename
+                    )
+
+                    normalized_path = os.path.normpath(new_path)
+                    final_path = normalized_path.replace(
+                        os.sep,'/') if os.sep != '/' else normalized_path
+
+                    output_zip.writestr(final_path, data)
+
+
 def run_external_command(command: list):
     result = subprocess.run(
         command,
@@ -114,6 +142,9 @@ def resolve_all_bundles_directory():
 
 def resolve_bundle_directory(bundle_name):
     return build_path(resolve_all_bundles_directory(), bundle_name)
+
+def resolve_bundles_cache_directory():
+    return build_path(resolve_all_bundles_directory(), CACHE_DIR)
 
 
 def assert_bundle_bucket_exists() -> None:

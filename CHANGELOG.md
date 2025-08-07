@@ -4,11 +4,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [1.18.0] - 2025-06-12
+# [1.18.0] - 2025-06-26
 - Added support for DynamoDB `OnDemandThroughput` limitation
 - Added support for `rds_db_cluster` resource
 - Added support for `rds_db_instance` resource
 - Added support for Lambda proxy integrations in API Gateway
+- Added caching for third-party libraries of lambdas (Python runtime) used in the project
 - Updated `boto3` and `botocore` to version 1.38.12
 - Updated `tqdm` to version 4.67.1
 - Updated `requests` to version 2.32.3
@@ -19,6 +20,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added warning message if there are unresolved alias placeholders in resource metadata
 - Removed requirements.txt in favor of pyproject.toml
 - Fixed issue related to the API Gateway configuration merge conflicts
+- Fixed issue related to getting the list of available instance types
+- Changed CLI command and option naming convention from underscores to dashes for consistency. 
+Underscore variants remain supported but are hidden from help output
+- Renamed `bundle-bucket-name` option to `deploy-target-bucket` in the command `syndicate generate project`
+- Added `-path` alias to all `--project-path` options in CLI commands
+- Enhanced the error message when the deploy target bucket is missing.
 
 # [1.17.1] - 2025-03-25
 - Changed `--force_upload` parameter type for assemble commands from `string` to `flag`

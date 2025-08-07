@@ -21,7 +21,6 @@ from typing import Any
 from syndicate.exceptions import ResourceNotFoundError, ParameterError, \
     InvalidValueError
 from syndicate.commons.log_helper import get_logger
-from syndicate.connection.ec2_connection import InstanceTypes
 from syndicate.core import ClientError
 from syndicate.core.helper import unpack_kwargs, \
     dict_keys_to_capitalized_camel_case
@@ -75,7 +74,7 @@ class Ec2Resource(BaseResource):
         instance_type = meta.get('instance_type')
         if not instance_type:
             raise ParameterError('Instance type must be specified')
-        if instance_type not in InstanceTypes.from_api():
+        if instance_type not in self.ec2_conn.get_instance_types():
             raise InvalidValueError(
                 f"Not available instance type: '{instance_type}'"
             )
