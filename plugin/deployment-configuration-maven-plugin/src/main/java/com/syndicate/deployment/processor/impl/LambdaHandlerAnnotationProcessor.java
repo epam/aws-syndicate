@@ -17,8 +17,6 @@
 package com.syndicate.deployment.processor.impl;
 
 import com.syndicate.deployment.annotations.environment.EnvironmentVariable;
-import com.syndicate.deployment.annotations.tag.Tag;
-import com.syndicate.deployment.model.environment.ValueTransformer;
 import com.syndicate.deployment.annotations.events.DynamoDbTriggerEventSource;
 import com.syndicate.deployment.annotations.events.EventBridgeRuleSource;
 import com.syndicate.deployment.annotations.events.RuleEventSource;
@@ -27,22 +25,23 @@ import com.syndicate.deployment.annotations.events.SnsEventSource;
 import com.syndicate.deployment.annotations.events.SqsTriggerEventSource;
 import com.syndicate.deployment.annotations.lambda.LambdaHandler;
 import com.syndicate.deployment.annotations.resources.DependsOn;
+import com.syndicate.deployment.annotations.tag.Tag;
 import com.syndicate.deployment.factories.DependencyItemFactory;
 import com.syndicate.deployment.factories.LambdaConfigurationFactory;
 import com.syndicate.deployment.model.DependencyItem;
 import com.syndicate.deployment.model.EventSourceType;
 import com.syndicate.deployment.model.LambdaConfiguration;
 import com.syndicate.deployment.model.Pair;
+import com.syndicate.deployment.model.environment.ValueTransformer;
 import com.syndicate.deployment.model.events.EventSourceItem;
 import com.syndicate.deployment.processor.AbstractAnnotationProcessor;
 import com.syndicate.deployment.processor.IAnnotationProcessor;
-import org.reflections.Reflections;
+import com.syndicate.deployment.resolvers.reflection.ReflectionsHolder;
 
 import java.lang.annotation.Annotation;
-import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -91,12 +90,8 @@ public class LambdaHandlerAnnotationProcessor extends AbstractAnnotationProcesso
     }
 
     @Override
-    public List<Class<?>> getAnnotatedClasses(String[] packages) {
-        List<Class<?>> lambdasClasses = new ArrayList<>();
-        for (String nestedPackage : packages) {
-            lambdasClasses.addAll(new Reflections(nestedPackage).getTypesAnnotatedWith(LambdaHandler.class));
-        }
-        return lambdasClasses;
+    protected Collection<Class<?>> getAnnotatedClasses(String[] packages) {
+        return ReflectionsHolder.getTypesAnnotatedWith(packages, LambdaHandler.class);
     }
 
     private Map<String, Object> getEnvVariables(Class<?> lambdaClass) {

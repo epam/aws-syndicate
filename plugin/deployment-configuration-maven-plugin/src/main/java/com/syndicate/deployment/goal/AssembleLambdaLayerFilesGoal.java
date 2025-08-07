@@ -19,7 +19,7 @@ import java.util.zip.ZipOutputStream;
 
 import static com.syndicate.deployment.utils.ProjectUtils.getRootDirPath;
 
-@Mojo(name = "assemble-lambda-layer-files", requiresDependencyResolution = ResolutionScope.RUNTIME)
+@Mojo(name = "assemble-lambda-layer-files", requiresDependencyResolution = ResolutionScope.RUNTIME, threadSafe = true)
 public class AssembleLambdaLayerFilesGoal extends AbstractMetaGoal {
 
     private static final String AWS_LAMBDA_LAYER_FILE_ZIP_ARCHIVE_INTERNAL_PATH = "java/lib/";

@@ -31,7 +31,7 @@ import java.util.Map;
 /**
  * Created by Oleksandr Onsha on 10/25/18
  */
-@Mojo(name = "gen-terraform-config", requiresDependencyResolution = ResolutionScope.RUNTIME)
+@Mojo(name = "gen-terraform-config", requiresDependencyResolution = ResolutionScope.RUNTIME, threadSafe = true)
 public class TerraformMetaGeneratorGoal extends SyndicateMetaGeneratorGoal {
 
 	private static final String ARN_SEPARATOR = ":";

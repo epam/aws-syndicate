@@ -17,13 +17,14 @@ import org.apache.maven.project.MavenProject;
 import java.io.File;
 import java.util.Arrays;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static com.syndicate.deployment.utils.ProjectUtils.SYNDICATE_BUILD_ID;
 
 /**
  * Created by Oleksandr Onsha on 2019-08-12
  */
-@Mojo(name = "publish-artifacts-to-s3", requiresDependencyResolution = ResolutionScope.RUNTIME)
+@Mojo(name = "publish-artifacts-to-s3", requiresDependencyResolution = ResolutionScope.RUNTIME, threadSafe = true)
 public class PublishArtifactsToS3Goal extends AbstractMojo {
 
 	@Parameter(defaultValue = "${project}", required = true, readonly = true)
@@ -40,7 +41,7 @@ public class PublishArtifactsToS3Goal extends AbstractMojo {
 	@Parameter(required = true)
 	private String fileName;
 
-	private AmazonS3 s3Client;
+	private final AtomicReference<AmazonS3> s3Client = new AtomicReference<>();
 
 	public PublishArtifactsToS3Goal() {
 		this.logger = getLog();
@@ -77,12 +78,19 @@ public class PublishArtifactsToS3Goal extends AbstractMojo {
 	}
 
 	private AmazonS3 getS3(String region) {
-		if (this.s3Client == null) {
-			s3Client = AmazonS3ClientBuilder.standard()
-				.withCredentials(new EnvironmentVariableCredentialsProvider())
-				.withRegion(Regions.fromName(region))
-				.build();
+		AmazonS3 amazonS3 = this.s3Client.get();
+		if (amazonS3 == null) {
+			synchronized (this) {
+				amazonS3 = this.s3Client.get();
+				if (amazonS3 == null) {
+					amazonS3 = AmazonS3ClientBuilder.standard()
+						.withCredentials(new EnvironmentVariableCredentialsProvider())
+						.withRegion(Regions.fromName(region))
+						.build();
+					this.s3Client.set(amazonS3);
+				}
+			}
 		}
-		return s3Client;
+		return amazonS3;
 	}
 }

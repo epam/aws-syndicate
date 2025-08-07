@@ -62,7 +62,7 @@
                 <version>${syndicate.java.plugin.version}</version>
                 <configuration>
                     <packages>
-                        <package>com.demolayerurl.syndicate.demo</package>
+                        <package>com.demojava</package>
                     </packages>
                     <fileName>${project.name}-${project.version}.jar</fileName>
                 </configuration>
