@@ -130,7 +130,7 @@ jobs:
     environment: release-maven-central
     needs: [maven]
     runs-on: ubuntu-latest
-    if: github.repository_owner == 'epam' && github.event_name == 'push'
+    if: github.repository_owner == 'epam'
 
     steps:
       - uses: actions/checkout@v4
