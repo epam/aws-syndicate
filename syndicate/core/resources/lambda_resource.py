@@ -14,9 +14,10 @@
     limitations under the License.
 """
 import json
+import re
 import time
 from pathlib import PurePath
-from typing import Optional
+from typing import Optional, Dict
 
 from botocore.exceptions import ClientError
 
@@ -55,6 +56,11 @@ _APPLY_SNAP_START_VERSIONS = 'PublishedVersions'
 _APPLY_SNAP_START_NONE = 'None'
 _SNAP_START_CONFIGURATIONS = [_APPLY_SNAP_START_VERSIONS,
                               _APPLY_SNAP_START_NONE]
+_MIN_SNAP_START_SUPPORTED_RUNTIME = {
+    "python": (3, 12),
+    "java": (11,),
+    "dotnet": (8,)
+}
 
 NOT_AVAILABLE = 'N/A'
 
@@ -1432,25 +1438,77 @@ class LambdaResource(BaseResource):
             arn: build_description_obj(response, name, meta)
         }
 
-    @staticmethod
-    def _resolve_snap_start(meta: dict) -> Optional[str]:
+    def _resolve_snap_start(self, meta: Dict[str, any]) -> Optional[str]:
         runtime: str = meta.get('runtime')
         if not runtime:
-            return
+            return None
 
         runtime = runtime.lower()
-        snap_start = meta.get(SNAP_START, None)
-        if snap_start and snap_start not in _SNAP_START_CONFIGURATIONS:
-            values = ', '.join(map('"{}"'.format, _SNAP_START_CONFIGURATIONS))
-            issue = f'must reflect one of the following values: {values}'
-            _LOG.warn(f'If given "{SNAP_START}" - {issue}.')
-            snap_start = None
+        snap_start_config = meta.get(SNAP_START)
+        if not snap_start_config:
+            return None
 
-        if snap_start and 'java' not in runtime:
-            _LOG.warn(f'"{runtime}" runtime does support \'{SNAP_START}\'.')
-            snap_start = None
+        snap_start = self._get_snap_start_value(snap_start_config)
+
+        if snap_start is not None:
+            if not self.snap_start_supported_runtime(runtime):
+                supported_runtimes = ", ".join(
+                    f"{k}{'.'.join(map(str, v))}+" for k, v in
+                    _MIN_SNAP_START_SUPPORTED_RUNTIME.items()
+                )
+                USER_LOG.warn(
+                    f'"{SNAP_START}" parameter is not available in runtime '
+                    f'"{runtime}". Supported runtimes are: {supported_runtimes}'
+                )
+                return None
 
         return snap_start
+
+    @staticmethod
+    def _get_snap_start_value(snap_start_config: Optional[dict | str]) \
+            -> Optional[str]:
+        if isinstance(snap_start_config, dict):
+            snap_start_value = snap_start_config.get('apply_on')
+        else:
+            snap_start_value = snap_start_config
+
+        # Validate SnapStart value
+        if snap_start_value not in _SNAP_START_CONFIGURATIONS:
+            _LOG.warning(
+                f'Invalid SnapStart value in "{SNAP_START}". '
+                f'Must be one of: {", ".join(_SNAP_START_CONFIGURATIONS)}.'
+            )
+            return None
+
+        # Log deprecated configuration format
+        if isinstance(snap_start_config, str):
+            valid_values = '|'.join(_SNAP_START_CONFIGURATIONS)
+            USER_LOG.warning(
+                f'The current way of configuring SnapStart is deprecated. '
+                f'Please use the "snap_start": '
+                f'{{"apply_on": "{valid_values}"}} format instead.'
+            )
+
+        return snap_start_value
+
+    @staticmethod
+    def snap_start_supported_runtime(runtime: str) -> bool:
+        """
+        Splits runtime string into language and version parts
+        and checks if the runtime is supported for SnapStart.
+        """
+        match = re.match(r"([a-z]+)([\d.]+)", runtime)
+        if not match:
+            return False
+
+        lang, version_str = match.groups()
+        version_parts = tuple(int(v) for v in version_str.split('.'))
+
+        if lang not in _MIN_SNAP_START_SUPPORTED_RUNTIME:
+            return False
+
+        min_version = _MIN_SNAP_START_SUPPORTED_RUNTIME[lang]
+        return version_parts >= min_version
 
     @staticmethod
     def _resolve_batch_size_batch_window(trigger_meta):

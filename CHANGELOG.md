@@ -4,9 +4,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [1.18.1] - 2025-08-08
+# [1.18.1] - 2025-08-13
 - Added warning message in case the resource that was specified using parameter `-resources` is not found in the build meta during the `syndicate deploy/update/clean` command execution
 - Add `tracing_mode` parameter to the list of supported parameters to update
+- Added support of `snapstart` parameter in lambda resource for python 3.12+ and .NET 8+ runtimes
 
 # [1.18.0] - 2025-08-01
 - Added support for DynamoDB `OnDemandThroughput` limitation
