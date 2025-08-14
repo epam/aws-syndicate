@@ -52,9 +52,11 @@ LAMBDA_CONCUR_QUALIFIER_VERSION = 'VERSION'
 _LAMBDA_PROV_CONCURRENCY_QUALIFIERS = [LAMBDA_CONCUR_QUALIFIER_ALIAS,
                                        LAMBDA_CONCUR_QUALIFIER_VERSION]
 SNAP_START = 'snap_start'
-_APPLY_SNAP_START_VERSIONS = 'PublishedVersions'
-_APPLY_SNAP_START_NONE = 'None'
+_APPLY_SNAP_START_VERSIONS = 'publishedversions'
+_APPLY_SNAP_START_VERSIONS_SNAKE_CASE = 'published_versions'
+_APPLY_SNAP_START_NONE = 'none'
 _SNAP_START_CONFIGURATIONS = [_APPLY_SNAP_START_VERSIONS,
+                              _APPLY_SNAP_START_VERSIONS_SNAKE_CASE,
                               _APPLY_SNAP_START_NONE]
 _MIN_SNAP_START_SUPPORTED_RUNTIME = {
     "python": (3, 12),
@@ -1444,52 +1446,28 @@ class LambdaResource(BaseResource):
             return None
 
         runtime = runtime.lower()
-        snap_start_config = meta.get(SNAP_START)
-        if not snap_start_config:
+        snap_start = meta.get(SNAP_START)
+        if not snap_start:
             return None
 
-        snap_start = self._get_snap_start_value(snap_start_config)
-
-        if snap_start is not None:
-            if not self.snap_start_supported_runtime(runtime):
-                supported_runtimes = ", ".join(
-                    f"{k}{'.'.join(map(str, v))}+" for k, v in
-                    _MIN_SNAP_START_SUPPORTED_RUNTIME.items()
-                )
-                USER_LOG.warn(
-                    f'"{SNAP_START}" parameter is not available in runtime '
-                    f'"{runtime}". Supported runtimes are: {supported_runtimes}'
-                )
-                return None
-
-        return snap_start
-
-    @staticmethod
-    def _get_snap_start_value(snap_start_config: Optional[dict | str]) \
-            -> Optional[str]:
-        if isinstance(snap_start_config, dict):
-            snap_start_value = snap_start_config.get('apply_on')
-        else:
-            snap_start_value = snap_start_config
-
-        # Validate SnapStart value
-        if snap_start_value not in _SNAP_START_CONFIGURATIONS:
-            _LOG.warning(
+        if snap_start.lower() not in _SNAP_START_CONFIGURATIONS:
+            raise ParameterError(
                 f'Invalid SnapStart value in "{SNAP_START}". '
-                f'Must be one of: {", ".join(_SNAP_START_CONFIGURATIONS)}.'
-            )
-            return None
-
-        # Log deprecated configuration format
-        if isinstance(snap_start_config, str):
-            valid_values = '|'.join(_SNAP_START_CONFIGURATIONS)
-            USER_LOG.warning(
-                f'The current way of configuring SnapStart is deprecated. '
-                f'Please use the "snap_start": '
-                f'{{"apply_on": "{valid_values}"}} format instead.'
+                f'Must be one of: published_versions, PublishedVersions, NONE.'
             )
 
-        return snap_start_value
+        if not self.snap_start_supported_runtime(runtime):
+            supported_runtimes = ", ".join(
+                f"{k}{'.'.join(map(str, v))}+" for k, v in
+                _MIN_SNAP_START_SUPPORTED_RUNTIME.items()
+                )
+            raise ParameterError(
+                f'"{SNAP_START}" parameter is not available in runtime '
+                f'"{runtime}". Supported runtimes are: {supported_runtimes}'
+            )
+
+        return 'None' if snap_start.lower() == _APPLY_SNAP_START_NONE \
+            else 'PublishedVersions'
 
     @staticmethod
     def snap_start_supported_runtime(runtime: str) -> bool:
