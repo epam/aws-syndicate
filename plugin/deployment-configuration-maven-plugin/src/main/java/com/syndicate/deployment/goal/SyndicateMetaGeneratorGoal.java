@@ -56,7 +56,7 @@ import static com.syndicate.deployment.utils.ProjectUtils.setPropertyToRootProje
 /**
  * Created by Vladyslav Tereshchenko on 10/6/2016.
  */
-@Mojo(name = "gen-deployment-config", requiresDependencyResolution = ResolutionScope.RUNTIME)
+@Mojo(name = "gen-deployment-config", requiresDependencyResolution = ResolutionScope.RUNTIME, threadSafe = true)
 public class SyndicateMetaGeneratorGoal extends AbstractMetaGoal {
 
     private static final String BUILD_FILE_EXT = ".sdctbuild";
