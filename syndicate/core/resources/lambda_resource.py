@@ -1450,10 +1450,17 @@ class LambdaResource(BaseResource):
         if not snap_start:
             return None
 
+        if not isinstance(snap_start, str):
+            raise ParameterError(
+                f'Invalid SnapStart value in "{SNAP_START}". '
+                f'Expected a string, but got {type(snap_start).__name__}.'
+            )
+
         if snap_start.lower() not in _SNAP_START_CONFIGURATIONS:
             raise ParameterError(
                 f'Invalid SnapStart value in "{SNAP_START}". '
-                f'Must be one of: published_versions, PublishedVersions, NONE.'
+                f'Expected one of these: published_versions, '
+                f'PublishedVersions, NONE. But got "{snap_start}".'
             )
 
         if not self.snap_start_supported_runtime(runtime):
