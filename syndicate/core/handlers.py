@@ -299,7 +299,7 @@ def transform(bundle_name, dsl, output_dir):
                    'Default value: name of the latest built bundle')
 @click.option('--deploy-only-types', '-types',
               cls=MultiWordOption, multiple=True,
-              type=click.Choice(DEPLOY_RESOURCE_TYPE_PRIORITY),
+              type=str,
               help='Types of the resources to deploy')
 @click.option('--deploy-only-resources', '-resources',
               cls=MultiWordOption, multiple=True,
