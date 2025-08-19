@@ -66,7 +66,8 @@ from syndicate.core.helper import (create_bundle_callback,
                                    param_to_lower, verbose_option,
                                    validate_incompatible_options,
                                    failed_status_code_on_exception,
-                                   AliasedCommandsGroup, MultiWordOption)
+                                   AliasedCommandsGroup, MultiWordOption,
+                                   are_resource_types_valid)
 from syndicate.core.project_state.project_state import (MODIFICATION_LOCK,
                                                         WARMUP_LOCK)
 from syndicate.core.project_state.status_processor import project_state_status
@@ -314,8 +315,7 @@ def transform(bundle_name, dsl, output_dir):
               help='Path to file containing names of the resources to skip '
                    'while deploy')
 @click.option('--excluded-types', '-extypes',
-              cls=MultiWordOption, multiple=True,
-              type=click.Choice(DEPLOY_RESOURCE_TYPE_PRIORITY),
+              cls=MultiWordOption, multiple=True, type=str,
               help='Types of the resources to skip while deploy')
 @click.option('--continue-deploy',
               cls=MultiWordOption, is_flag=True, default=False,
@@ -347,6 +347,12 @@ def deploy(
     """
     Deploys the application infrastructure
     """
+    if not are_resource_types_valid(
+            'excluded-types', excluded_types, DEPLOY_RESOURCE_TYPE_PRIORITY) or \
+            not are_resource_types_valid(
+                'deploy-only-types', deploy_only_types, DEPLOY_RESOURCE_TYPE_PRIORITY):
+        return ABORTED_STATUS
+
     from syndicate.core import PROJECT_STATE
     PROJECT_STATE.current_bundle = bundle_name
 
@@ -407,8 +413,7 @@ def deploy(
               cls=MultiWordOption, callback=resolve_default_value,
               help='Name of the deploy. Default value: name of the project')
 @click.option('--update-only-types', '-types',
-              cls=MultiWordOption, multiple=True,
-              type=click.Choice(UPDATE_RESOURCE_TYPE_PRIORITY),
+              cls=MultiWordOption, multiple=True, type=str,
               help='Types of the resources to update')
 @click.option('--update-only-resources',
               '-resources', cls=MultiWordOption, multiple=True,
@@ -425,8 +430,7 @@ def deploy(
               help='Path to file containing names of the resources to skip '
                    'while update')
 @click.option('--excluded-types', '-extypes',
-              cls=MultiWordOption, multiple=True,
-              type=click.Choice(UPDATE_RESOURCE_TYPE_PRIORITY),
+              cls=MultiWordOption, multiple=True, type=str,
               help='Types of the resources to skip while update')
 @click.option('--replace-output', nargs=1,
               cls=MultiWordOption, is_flag=True, default=False,
@@ -453,6 +457,12 @@ def update(
     """
     Updates infrastructure from the provided bundle
     """
+    if not are_resource_types_valid(
+            'excluded-types', excluded_types, UPDATE_RESOURCE_TYPE_PRIORITY) or \
+            not are_resource_types_valid(
+                'update-only-types', update_only_types, UPDATE_RESOURCE_TYPE_PRIORITY):
+        return ABORTED_STATUS
+
     from syndicate.core import PROJECT_STATE
     USER_LOG.info(f'Bundle name: {bundle_name}')
     PROJECT_STATE.current_bundle = bundle_name
@@ -500,8 +510,7 @@ def update(
 @timeit(action_name=CLEAN_ACTION)
 @failed_status_code_on_exception
 @click.option('--clean-only-types', '-types',
-              cls=MultiWordOption, multiple=True,
-              type=click.Choice(CLEAN_RESOURCE_TYPE_PRIORITY),
+              cls=MultiWordOption, multiple=True, type=str,
               help='If specified only provided types will be cleaned')
 @click.option('--clean-only-resources', '-resources',
               cls=MultiWordOption, multiple=True,
@@ -520,8 +529,7 @@ def update(
               '-expath', cls=MultiWordOption, nargs=1, type=str,
               help='If specified provided resource path will be excluded')
 @click.option('--excluded-types', '-extypes',
-              cls=MultiWordOption, multiple=True,
-              type=click.Choice(CLEAN_RESOURCE_TYPE_PRIORITY),
+              cls=MultiWordOption, multiple=True, type=str,
               help='If specified provided types will be excluded')
 @click.option('--preserve-state',
               cls=MultiWordOption, is_flag=True,
@@ -540,6 +548,12 @@ def clean(
     """
     Cleans the application infrastructure
     """
+    if not are_resource_types_valid(
+            'excluded-types', excluded_types, CLEAN_RESOURCE_TYPE_PRIORITY) or \
+            not are_resource_types_valid(
+                'clean-only-types', clean_only_types, CLEAN_RESOURCE_TYPE_PRIORITY):
+        return ABORTED_STATUS
+
     from syndicate.core import PROJECT_STATE
     if not PROJECT_STATE.latest_deploy:
         USER_LOG.error('Deployment to clean not found.')
@@ -556,7 +570,7 @@ def clean(
         USER_LOG.info(f'Clean only types: {separator.join(clean_only_types)}')
     if clean_only_resources:
         USER_LOG.info(f'Clean only resources: '
-                   f'{separator.join(clean_only_resources)}')
+                      f'{separator.join(clean_only_resources)}')
     if clean_only_resources_path:
         USER_LOG.info(f'Clean only resources path: {clean_only_resources_path}')
     if excluded_resources:

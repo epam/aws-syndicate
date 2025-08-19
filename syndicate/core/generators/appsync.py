@@ -41,8 +41,8 @@ def generate_appsync(name, project_path, tags):
         USER_LOG.info(f'Project "{project_path}" you '
                       f'have provided does not exist')
         return
-    if not ProjectState.check_if_project_state_exists(project_path=CONF_PATH):
-        USER_LOG.info(f'Seems that the path {project_path} is not a project')
+    if not ProjectState.check_if_project_state_exists(CONF_PATH):
+        USER_LOG.info(f'State file does not exist in {CONF_PATH}')
         return
 
     project_state = ProjectState(project_path=project_path)

@@ -140,8 +140,8 @@ def generate_lambda_function(project_path, runtime, lambda_names, tags):
                       f'have provided does not exist')
         return
 
-    if not ProjectState.check_if_project_state_exists(project_path=CONF_PATH):
-        USER_LOG.info(f'Seems that the path {project_path} is not a project')
+    if not ProjectState.check_if_project_state_exists(CONF_PATH):
+        USER_LOG.info(f'State file does not exist in {CONF_PATH}')
         return
     project_state = ProjectState(project_path=project_path)
     src_path = os.path.join(project_path, BUILD_MAPPINGS[runtime])
@@ -185,8 +185,8 @@ def generate_lambda_layer(name, runtime, project_path, lambda_names=None):
                       f'have provided does not exist')
         return
 
-    if not ProjectState.check_if_project_state_exists(project_path=CONF_PATH):
-        USER_LOG.info(f'Seems that the path {project_path} is not a project')
+    if not ProjectState.check_if_project_state_exists(CONF_PATH):
+        USER_LOG.info(f'State file does not exist in {CONF_PATH}')
         return
     project_state = ProjectState(project_path=project_path)
     src_path = os.path.join(project_path, BUILD_MAPPINGS[runtime])

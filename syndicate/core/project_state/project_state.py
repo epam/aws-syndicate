@@ -91,18 +91,20 @@ class ProjectState:
         self._current_bundle = None
 
     @staticmethod
-    def generate(project_name):
+    def generate(project_path, project_name):
         from syndicate.core import CONF_PATH
 
         project_state = dict(name=project_name)
         with open(os.path.join(CONF_PATH, PROJECT_STATE_FILE),
                   'w') as state_file:
             yaml.dump(project_state, state_file)
-        return ProjectState(project_path=CONF_PATH)
+        return ProjectState(project_path=project_path)
 
     @staticmethod
-    def check_if_project_state_exists(project_path):
-        return os.path.exists(os.path.join(project_path, PROJECT_STATE_FILE))
+    def check_if_project_state_exists(project_state_path: str) -> bool:
+        return os.path.exists(
+            os.path.join(project_state_path, PROJECT_STATE_FILE)
+        )
 
     @property
     def dct(self) -> dict:
@@ -589,7 +591,9 @@ class ProjectState:
             resolve_lambda_path
         absolute_path = config.project_path
         project_path = Path(absolute_path)
-        project_state = ProjectState.generate(project_name=project_path.name)
+        project_state = ProjectState.generate(
+            project_path=absolute_path, project_name=project_path.name
+        )
 
         for runtime, source_path in BUILD_MAPPINGS.items():
             lambdas_path = resolve_lambda_path(project_path, runtime,

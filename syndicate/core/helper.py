@@ -254,7 +254,7 @@ def resolve_default_value(ctx, param, value):
             f"for param {param.human_readable_name}")
     resolved_value = param_resolver(command_name=command_name)
     USER_LOG.info(
-    f'Resolved value of {param.human_readable_name}: {resolved_value}')
+        f'Resolved value of {param.human_readable_name}: {resolved_value}')
     return resolved_value
 
 
@@ -293,8 +293,8 @@ def verify_meta_bundle_callback(ctx, param, value):
 def resolve_and_verify_bundle_callback(ctx, param, value):
     if not value:
         _LOG.debug(
-        f'{param.human_readable_name} is not specified, latest build will be '
-        f'used')
+            f'{param.human_readable_name} is not specified, latest build will '
+            f'be used')
         value = resolve_default_value(ctx, param, value)
         if not value:
             raise click.BadParameter(
@@ -562,9 +562,11 @@ def combine_option_classes(*classes):
     Combine multiple Click option classes into one.
     The order of classes matters, methods overlap in order of occurrence.
     """
+
     class CombinedOption(*classes, click.Option):
         def __init__(self, *args, **kwargs):
             super().__init__(*args, **kwargs)
+
     return CombinedOption
 
 
@@ -572,6 +574,7 @@ class AliasedCommandsGroup(click.Group):
     """
     Custom Click Group to support command aliases.
     """
+
     def parse_args(self, ctx, args):
         current_cmd = self
         cmd_chain = []
@@ -765,10 +768,12 @@ def check_prefix(ctx, param, value):
         value = value.lower().strip()
         if extended_prefix:
             result = \
-            ConfigValidator.validate_extended_prefix(param.human_readable_name, value)
+                ConfigValidator.validate_extended_prefix(
+                    param.human_readable_name, value)
         else:
             result = \
-            ConfigValidator.validate_prefix_suffix(param.human_readable_name, value)
+                ConfigValidator.validate_prefix_suffix(
+                    param.human_readable_name, value)
         if result:
             raise BadParameter(result)
         return value
@@ -778,7 +783,8 @@ def check_suffix(ctx, param, value):
     if value:
         value = value.lower().strip()
         result = \
-        ConfigValidator.validate_prefix_suffix(param.human_readable_name, value)
+            ConfigValidator.validate_prefix_suffix(param.human_readable_name,
+                                                   value)
         if result:
             raise BadParameter(result)
         return value
@@ -787,8 +793,9 @@ def check_suffix(ctx, param, value):
 def resolve_project_path(ctx, param, value):
     from syndicate.core import CONFIG
     if not value:
-        USER_LOG.info(f"Parameter: '{param.human_readable_name}' wasn't specified. "
-                      f"Getting automatically")
+        USER_LOG.info(
+            f"Parameter: '{param.human_readable_name}' wasn't specified. "
+            f"Getting automatically")
         value = CONFIG.project_path \
             if CONFIG and CONFIG.project_path else os.getcwd()
         USER_LOG.info(f"Path: '{value}' was assigned to the "
@@ -849,8 +856,9 @@ def check_lambda_existence(ctr, param, value):
     lambdas = PROJECT_STATE.lambdas
     for lambda_name in value:
         if lambda_name not in lambdas:
-            raise BadParameter(f'Lambda with name \'{lambda_name}\' not found. '
-                               f'Please check the lambda name and try again')
+            raise BadParameter(
+                f'Lambda with name \'{lambda_name}\' not found. '
+                f'Please check the lambda name and try again')
     return value
 
 
@@ -938,7 +946,7 @@ def validate_incompatible_options(ctx, param, value, incompatible_options):
     if value:
         conflict_options = [
             option for option in incompatible_options if
-            ctx.params.get(option.replace('-','_')) or
+            ctx.params.get(option.replace('-', '_')) or
             ctx.params.get(option)
         ]
         if conflict_options:
@@ -954,12 +962,12 @@ def validate_authorizer_name_option(ctx, param, value):
         authorization_type = ctx.params.get('authorization_type')
         if not authorization_type:
             raise BadParameter(
-            f'Parameter \'{param.human_readable_name}\' can\'t be used '
-            f'without \'authorization-type\' parameter')
+                f'Parameter \'{param.human_readable_name}\' can\'t be used '
+                f'without \'authorization-type\' parameter')
         if authorization_type != CUSTOM_AUTHORIZER_KEY:
             raise BadParameter(
-            f"Parameter '{param.human_readable_name}' can't be used "
-            f"with 'authorization_type' '{authorization_type}")
+                f"Parameter '{param.human_readable_name}' can't be used "
+                f"with 'authorization_type' '{authorization_type}")
         return value
 
 
@@ -968,7 +976,7 @@ def validate_api_gw_path(ctx, param, value):
         r'^/(?:([a-zA-Z0-9-._~]+|\{[a-zA-Z0-9-._~]+\})/)*([a-zA-Z0-9-._~]+|'
         r'\{[a-zA-Z0-9-._~]+\}|\{proxy\+\})$')
     _LOG.debug(
-    f"The parameter '--{param.human_readable_name}' value is '{value}'")
+        f"The parameter '--{param.human_readable_name}' value is '{value}'")
     if os.name == 'nt' and Path(value).is_absolute():
         raise BadParameter(
             f"Your terminal resolves the parameter "
@@ -983,7 +991,7 @@ def validate_api_gw_path(ctx, param, value):
             f"A valid API gateway path must begin with a '/' and can contain "
             f"alphanumeric characters, hyphens, periods, underscores or "
             "dynamic parameters wrapped in '{}'. "
-            )
+        )
     return value
 
 
@@ -1023,11 +1031,12 @@ def verbose_option(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
         return func(*args, **kwargs)
+
     return wrapper
 
 
 def compute_file_hash(file_path: Union[str, Path],
-                      algorithm:str='sha256') -> str:
+                      algorithm: str = 'sha256') -> str:
     hash_obj = hashlib.new(algorithm)
     with open(file_path, 'rb') as f:
         while True:
@@ -1050,3 +1059,24 @@ def resolve_deploy_target_bucket_param(ctx, param, value):
         raise MissingParameter()
 
     return validate_bucket_name(ctx, param, bucket_name)
+
+
+def are_resource_types_valid(param_name: str,
+                             types: list[str] | None,
+                             allowed_types: list[str]) -> bool:
+    """
+    Validate incoming from click AWS resource types
+    """
+    if not types:
+        return True
+
+    invalid_types = [t for t in types if
+                     t not in allowed_types]
+    if invalid_types:
+        USER_LOG.error(
+            f"Invalid resource type(s) in `{param_name}` "
+            f"parameter: {', '.join(invalid_types)}. "
+            f"Allowed types: {', '.join(allowed_types)}"
+        )
+        return False
+    return True
