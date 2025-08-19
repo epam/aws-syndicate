@@ -67,8 +67,7 @@ def generate_project_structure(project_name, project_path):
         _write_content_to_file(file=os.path.join(full_project_path,
                                                  FILE_DEPLOYMENT_RESOURCES),
                                content=default_lambda_policy)
-        ProjectState.generate(project_name=project_name,
-                              project_path=full_project_path)
+        ProjectState.generate(project_name=project_name)
 
         _write_content_to_file(os.path.join(full_project_path, FILE_CHANGELOG),
                                CHANGELOG_TEMPLATE)

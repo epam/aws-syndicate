@@ -78,8 +78,9 @@ from syndicate.core.constants import TEST_ACTION, BUILD_ACTION, \
     PACKAGE_META_ACTION, CREATE_DEPLOY_TARGET_BUCKET_ACTION, UPLOAD_ACTION, \
     COPY_BUNDLE_ACTION, EXPORT_ACTION, ASSEMBLE_SWAGGER_UI_ACTION, \
     ASSEMBLE_DOTNET_ACTION, ASSEMBLE_APPSYNC_ACTION, OK_RETURN_CODE, \
-    FAILED_RETURN_CODE, ABORTED_RETURN_CODE, \
-    UNDERSCORE_CREATE_DEPLOY_TARGET_BUCKET_ACTION
+    FAILED_RETURN_CODE, ABORTED_RETURN_CODE, UPDATE_RESOURCE_TYPE_PRIORITY, \
+    UNDERSCORE_CREATE_DEPLOY_TARGET_BUCKET_ACTION, \
+    DEPLOY_RESOURCE_TYPE_PRIORITY, CLEAN_RESOURCE_TYPE_PRIORITY
 from syndicate.exceptions import ProjectStateError
 
 INIT_COMMAND_NAME = 'init'
@@ -297,6 +298,7 @@ def transform(bundle_name, dsl, output_dir):
                    'Default value: name of the latest built bundle')
 @click.option('--deploy-only-types', '-types',
               cls=MultiWordOption, multiple=True,
+              type=click.Choice(DEPLOY_RESOURCE_TYPE_PRIORITY),
               help='Types of the resources to deploy')
 @click.option('--deploy-only-resources', '-resources',
               cls=MultiWordOption, multiple=True,
@@ -313,6 +315,7 @@ def transform(bundle_name, dsl, output_dir):
                    'while deploy')
 @click.option('--excluded-types', '-extypes',
               cls=MultiWordOption, multiple=True,
+              type=click.Choice(DEPLOY_RESOURCE_TYPE_PRIORITY),
               help='Types of the resources to skip while deploy')
 @click.option('--continue-deploy',
               cls=MultiWordOption, is_flag=True, default=False,
@@ -405,6 +408,7 @@ def deploy(
               help='Name of the deploy. Default value: name of the project')
 @click.option('--update-only-types', '-types',
               cls=MultiWordOption, multiple=True,
+              type=click.Choice(UPDATE_RESOURCE_TYPE_PRIORITY),
               help='Types of the resources to update')
 @click.option('--update-only-resources',
               '-resources', cls=MultiWordOption, multiple=True,
@@ -422,6 +426,7 @@ def deploy(
                    'while update')
 @click.option('--excluded-types', '-extypes',
               cls=MultiWordOption, multiple=True,
+              type=click.Choice(UPDATE_RESOURCE_TYPE_PRIORITY),
               help='Types of the resources to skip while update')
 @click.option('--replace-output', nargs=1,
               cls=MultiWordOption, is_flag=True, default=False,
@@ -496,6 +501,7 @@ def update(
 @failed_status_code_on_exception
 @click.option('--clean-only-types', '-types',
               cls=MultiWordOption, multiple=True,
+              type=click.Choice(CLEAN_RESOURCE_TYPE_PRIORITY),
               help='If specified only provided types will be cleaned')
 @click.option('--clean-only-resources', '-resources',
               cls=MultiWordOption, multiple=True,
@@ -515,6 +521,7 @@ def update(
               help='If specified provided resource path will be excluded')
 @click.option('--excluded-types', '-extypes',
               cls=MultiWordOption, multiple=True,
+              type=click.Choice(CLEAN_RESOURCE_TYPE_PRIORITY),
               help='If specified provided types will be excluded')
 @click.option('--preserve-state',
               cls=MultiWordOption, is_flag=True,

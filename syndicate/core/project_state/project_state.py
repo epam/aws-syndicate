@@ -77,24 +77,28 @@ class ProjectState:
         _dict variable instead of loading from a file. It comes handy when
         we need to get ProjectState object without loading from file. All
         the existing functionality remains unimpaired"""
+        from syndicate.core import CONF_PATH
+
         if not (project_path or dct):
             raise InternalError(
                 "Either 'project_path' or 'dct' of both must be specified!"
             )
         if project_path:
             self.project_path = project_path
-            self.state_path = os.path.join(project_path, PROJECT_STATE_FILE)
+            self.state_path = os.path.join(CONF_PATH, PROJECT_STATE_FILE)
         self.dct = dct if dct else self.__load_project_state_file()
         self._current_deploy = None
         self._current_bundle = None
 
     @staticmethod
-    def generate(project_path, project_name):
+    def generate(project_name):
+        from syndicate.core import CONF_PATH
+
         project_state = dict(name=project_name)
-        with open(os.path.join(project_path, PROJECT_STATE_FILE),
+        with open(os.path.join(CONF_PATH, PROJECT_STATE_FILE),
                   'w') as state_file:
             yaml.dump(project_state, state_file)
-        return ProjectState(project_path=project_path)
+        return ProjectState(project_path=CONF_PATH)
 
     @staticmethod
     def check_if_project_state_exists(project_path):
@@ -549,9 +553,11 @@ class ProjectState:
         self.save()
 
     def __load_project_state_file(self):
-        if not ProjectState.check_if_project_state_exists(self.project_path):
+        from syndicate.core import CONF_PATH
+
+        if not ProjectState.check_if_project_state_exists(CONF_PATH):
             raise ProjectStateError(
-                f"There is no '.syndicate' file in '{self.project_path}'"
+                f"There is no '.syndicate' file in '{CONF_PATH}'"
             )
         with open(self.state_path) as state_file:
             return yaml.safe_load(state_file.read())
@@ -583,8 +589,7 @@ class ProjectState:
             resolve_lambda_path
         absolute_path = config.project_path
         project_path = Path(absolute_path)
-        project_state = ProjectState.generate(project_path=absolute_path,
-                                              project_name=project_path.name)
+        project_state = ProjectState.generate(project_name=project_path.name)
 
         for runtime, source_path in BUILD_MAPPINGS.items():
             lambdas_path = resolve_lambda_path(project_path, runtime,

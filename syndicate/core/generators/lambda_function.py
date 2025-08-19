@@ -19,7 +19,7 @@ from pathlib import Path
 
 from syndicate.exceptions import InvalidValueError
 from syndicate.commons.log_helper import get_logger, get_user_logger
-from syndicate.core import ProjectState
+from syndicate.core import ProjectState, CONF_PATH
 from syndicate.core.project_state.project_state import BUILD_MAPPINGS
 from syndicate.core.generators import (_touch,
                                        _mkdir, _write_content_to_file,
@@ -140,8 +140,7 @@ def generate_lambda_function(project_path, runtime, lambda_names, tags):
                       f'have provided does not exist')
         return
 
-    if not ProjectState.check_if_project_state_exists(
-            project_path=project_path):
+    if not ProjectState.check_if_project_state_exists(project_path=CONF_PATH):
         USER_LOG.info(f'Seems that the path {project_path} is not a project')
         return
     project_state = ProjectState(project_path=project_path)
@@ -186,8 +185,7 @@ def generate_lambda_layer(name, runtime, project_path, lambda_names=None):
                       f'have provided does not exist')
         return
 
-    if not ProjectState.check_if_project_state_exists(
-            project_path=project_path):
+    if not ProjectState.check_if_project_state_exists(project_path=CONF_PATH):
         USER_LOG.info(f'Seems that the path {project_path} is not a project')
         return
     project_state = ProjectState(project_path=project_path)
