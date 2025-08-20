@@ -188,18 +188,19 @@ def initialize_connection():
 def initialize_project_state(do_not_sync_state=False):
     from syndicate.core.project_state.sync_processor import sync_project_state
     global PROJECT_STATE
-    if not ProjectState.check_if_project_state_exists(CONFIG.project_path):
-        USER_LOG.warning(
-            "Config is set and generated, but project state file does not "
-            "exist."
-        )
-        USER_LOG.warning(
-            "Generating project state file '.syndicate' from the existing "
-            "structure..."
-        )
-        PROJECT_STATE = ProjectState.build_from_structure(CONFIG)
-    else:
-        PROJECT_STATE = ProjectState(project_path=CONFIG.project_path)
+    if not PROJECT_STATE:
+        if not ProjectState.check_if_project_state_exists(CONF_PATH):
+            USER_LOG.warning(
+                "Config is set and generated, but project state file does not "
+                "exist."
+            )
+            USER_LOG.warning(
+                "Generating project state file '.syndicate' from the existing "
+                "structure..."
+            )
+            PROJECT_STATE = ProjectState.build_from_structure(CONFIG)
+        else:
+            PROJECT_STATE = ProjectState(project_path=CONFIG.project_path)
 
     if do_not_sync_state:
         return

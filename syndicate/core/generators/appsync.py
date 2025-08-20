@@ -17,7 +17,7 @@ import sys
 from pathlib import Path, PurePath
 
 from syndicate.commons.log_helper import get_logger, get_user_logger
-from syndicate.core import ProjectState
+from syndicate.core import ProjectState, CONF_PATH
 from syndicate.core.constants import APPSYNC_SCHEMA_DEFAULT_FILE_NAME, \
     APPSYNC_CONFIG_FILE_NAME
 from syndicate.core.generators import _mkdir, _touch, _write_content_to_file
@@ -41,9 +41,8 @@ def generate_appsync(name, project_path, tags):
         USER_LOG.info(f'Project "{project_path}" you '
                       f'have provided does not exist')
         return
-    if not ProjectState.check_if_project_state_exists(
-            project_path=project_path):
-        USER_LOG.info(f'Seems that the path {project_path} is not a project')
+    if not ProjectState.check_if_project_state_exists(CONF_PATH):
+        USER_LOG.info(f'State file does not exist in {CONF_PATH}')
         return
 
     project_state = ProjectState(project_path=project_path)

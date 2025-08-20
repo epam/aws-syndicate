@@ -643,10 +643,9 @@ def update_deployment_resources(
     _LOG.debug('Artifacts s3 paths were resolved')
     resolve_tags(resources)
 
-    USER_LOG.warning(
-        'Please pay attention that only the '
-        'following resources types are supported for update: {}'.format(
-            list(PROCESSOR_FACADE.update_handlers().keys())))
+    USER_LOG.warning(f'Please pay attention that only the following resources '
+                     f'types are supported for update: '
+                     f'{UPDATE_RESOURCE_TYPE_PRIORITY.keys()}')
 
     update_only_resources = _resolve_names(update_only_resources)
     _LOG.info(
