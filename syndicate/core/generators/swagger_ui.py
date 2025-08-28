@@ -19,7 +19,7 @@ from pathlib import Path, PurePath
 
 from syndicate.exceptions import InvalidValueError
 from syndicate.commons.log_helper import get_logger, get_user_logger
-from syndicate.core import ProjectState
+from syndicate.core import ProjectState, CONF_PATH
 from syndicate.core.constants import SWAGGER_UI_SPEC_NAME_TEMPLATE, \
     SWAGGER_UI_CONFIG_FILE_NAME
 from syndicate.core.generators import _mkdir, _touch, _write_content_to_file
@@ -41,9 +41,8 @@ def generate_swagger_ui(name, spec_path, target_bucket, project_path):
         USER_LOG.info(f'Project "{project_path}" you '
                       f'have provided does not exist')
         return
-    if not ProjectState.check_if_project_state_exists(
-            project_path=project_path):
-        USER_LOG.info(f'Seems that the path {project_path} is not a project')
+    if not ProjectState.check_if_project_state_exists(CONF_PATH):
+        USER_LOG.info(f'State file does not exist in {CONF_PATH}')
         return
     if not Path.is_absolute(abs_path_to_spec):
         abs_path_to_spec = Path.joinpath(path_to_project, path_to_spec)

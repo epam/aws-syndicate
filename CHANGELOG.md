@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [1.18.1] - 2025-08-20
+- Added warning message in case the resource that was specified using parameter `-resources` is not found in the build meta during the `syndicate deploy/update/clean` command execution
+- Add `tracing_mode` parameter to the list of supported parameters to update
+- Added support of `snapstart` parameter in lambda resource for python 3.12+ and .NET 8+ runtimes
+- Added validation of incoming resource type for `deploy`, `update`, and `clean` commands
+- Moved `.syndicate` file location from project path to config path to avoid merging project states for different configurations within a single project
+- Java plugin version updated to 1.17.0 with changes:
+  - Changed `snapstart` parameter in Java plugin to produce the same meta as for Python and .NET runtimes
+  - Implemented thread-safe processing of the lambda function meta generation
+- Syndicate `generate lambda` template for Java runtime updated to use the Syndicate Java plugin version 1.17.0
+- Fixed an issue in the case of an attempt to create an IAM role that already exists
+
 # [1.18.0] - 2025-08-01
 - Added support for DynamoDB `OnDemandThroughput` limitation
 - Added support for `rds_db_cluster` resource

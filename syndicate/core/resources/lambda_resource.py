@@ -14,9 +14,10 @@
     limitations under the License.
 """
 import json
+import re
 import time
 from pathlib import PurePath
-from typing import Optional
+from typing import Optional, Dict
 
 from botocore.exceptions import ClientError
 
@@ -51,10 +52,17 @@ LAMBDA_CONCUR_QUALIFIER_VERSION = 'VERSION'
 _LAMBDA_PROV_CONCURRENCY_QUALIFIERS = [LAMBDA_CONCUR_QUALIFIER_ALIAS,
                                        LAMBDA_CONCUR_QUALIFIER_VERSION]
 SNAP_START = 'snap_start'
-_APPLY_SNAP_START_VERSIONS = 'PublishedVersions'
-_APPLY_SNAP_START_NONE = 'None'
+_APPLY_SNAP_START_VERSIONS = 'publishedversions'
+_APPLY_SNAP_START_VERSIONS_SNAKE_CASE = 'published_versions'
+_APPLY_SNAP_START_NONE = 'none'
 _SNAP_START_CONFIGURATIONS = [_APPLY_SNAP_START_VERSIONS,
+                              _APPLY_SNAP_START_VERSIONS_SNAKE_CASE,
                               _APPLY_SNAP_START_NONE]
+_MIN_SNAP_START_SUPPORTED_RUNTIME = {
+    "python": (3, 12),
+    "java": (11,),
+    "dotnet": (8,)
+}
 
 NOT_AVAILABLE = 'N/A'
 
@@ -523,6 +531,8 @@ class LambdaResource(BaseResource):
         if env_vars:
             self._resolve_env_variables(env_vars)
 
+        tracing_mode = meta.get('tracing_mode')
+
         _LOG.info(f'Updating lambda {name} configuration')
         self.lambda_conn.update_lambda_configuration(
             lambda_name=name, role=role_arn, handler=handler,
@@ -531,7 +541,8 @@ class LambdaResource(BaseResource):
             vpc_sub_nets=vpc_subnets, vpc_security_group=vpc_security_group,
             dead_letter_arn=dl_target_arn, layers=lambda_layers_arns,
             ephemeral_storage=ephemeral_storage,
-            snap_start=self._resolve_snap_start(meta=meta)
+            snap_start=self._resolve_snap_start(meta=meta),
+            tracing_mode=tracing_mode
         )
         _LOG.info(f'Lambda configuration has been updated')
 
@@ -1429,25 +1440,60 @@ class LambdaResource(BaseResource):
             arn: build_description_obj(response, name, meta)
         }
 
-    @staticmethod
-    def _resolve_snap_start(meta: dict) -> Optional[str]:
+    def _resolve_snap_start(self, meta: Dict[str, any]) -> Optional[str]:
         runtime: str = meta.get('runtime')
         if not runtime:
-            return
+            return None
 
         runtime = runtime.lower()
-        snap_start = meta.get(SNAP_START, None)
-        if snap_start and snap_start not in _SNAP_START_CONFIGURATIONS:
-            values = ', '.join(map('"{}"'.format, _SNAP_START_CONFIGURATIONS))
-            issue = f'must reflect one of the following values: {values}'
-            _LOG.warn(f'If given "{SNAP_START}" - {issue}.')
-            snap_start = None
+        snap_start = meta.get(SNAP_START)
+        if not snap_start:
+            return None
 
-        if snap_start and 'java' not in runtime:
-            _LOG.warn(f'"{runtime}" runtime does support \'{SNAP_START}\'.')
-            snap_start = None
+        if not isinstance(snap_start, str):
+            raise ParameterError(
+                f'Invalid SnapStart value in "{SNAP_START}". '
+                f'Expected a string, but got {type(snap_start).__name__}.'
+            )
 
-        return snap_start
+        if snap_start.lower() not in _SNAP_START_CONFIGURATIONS:
+            raise ParameterError(
+                f'Invalid SnapStart value in "{SNAP_START}". '
+                f'Expected one of these: published_versions, '
+                f'PublishedVersions, NONE. But got "{snap_start}".'
+            )
+
+        if not self.snap_start_supported_runtime(runtime):
+            supported_runtimes = ", ".join(
+                f"{k}{'.'.join(map(str, v))}+" for k, v in
+                _MIN_SNAP_START_SUPPORTED_RUNTIME.items()
+                )
+            raise ParameterError(
+                f'"{SNAP_START}" parameter is not available in runtime '
+                f'"{runtime}". Supported runtimes are: {supported_runtimes}'
+            )
+
+        return 'None' if snap_start.lower() == _APPLY_SNAP_START_NONE \
+            else 'PublishedVersions'
+
+    @staticmethod
+    def snap_start_supported_runtime(runtime: str) -> bool:
+        """
+        Splits runtime string into language and version parts
+        and checks if the runtime is supported for SnapStart.
+        """
+        match = re.match(r"([a-z]+)([\d.]+)", runtime)
+        if not match:
+            return False
+
+        lang, version_str = match.groups()
+        version_parts = tuple(int(v) for v in version_str.split('.'))
+
+        if lang not in _MIN_SNAP_START_SUPPORTED_RUNTIME:
+            return False
+
+        min_version = _MIN_SNAP_START_SUPPORTED_RUNTIME[lang]
+        return version_parts >= min_version
 
     @staticmethod
     def _resolve_batch_size_batch_window(trigger_meta):

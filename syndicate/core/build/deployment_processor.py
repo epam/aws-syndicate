@@ -310,9 +310,10 @@ def update_resources(
     to_remove = \
         [i for i, res in enumerate(resources) if res[0] not in old_resources]
     for i in reversed(to_remove):
-        _LOG.warning(
-            f'Skipping resource {resources[i][0]} due to absence in initial '
-            f'deployment output.'
+        USER_LOG.warning(
+            f'Skipping resource `{resources[i][0]}` due to absence in initial '
+            f'deployment output. If this is an unexpected behaviour, '
+            f'please check your configuration.'
         )
         resources.pop(i)
 
@@ -642,15 +643,13 @@ def update_deployment_resources(
     _LOG.debug('Artifacts s3 paths were resolved')
     resolve_tags(resources)
 
-    USER_LOG.warning(
-        'Please pay attention that only the '
-        'following resources types are supported for update: {}'.format(
-            list(PROCESSOR_FACADE.update_handlers().keys())))
+    USER_LOG.warning(f'Please pay attention that only the following resources '
+                     f'types are supported for update: '
+                     f'{UPDATE_RESOURCE_TYPE_PRIORITY.keys()}')
 
     update_only_resources = _resolve_names(update_only_resources)
     _LOG.info(
         'Prefixes and suffixes of any resource names have been resolved.')
-
     resources = dict(
         (k, v) for (k, v) in resources.items()
         if v['resource_type'] in PROCESSOR_FACADE.update_handlers().keys()
@@ -925,6 +924,16 @@ def _filter_resources(
         exclude_names: set | None = None,
         exclude_types: tuple | None = None,
 ) -> dict:
+    """
+    Returns filtered resources based on provided names and types.
+
+    `resources_meta_type` parameter could be either BUILD_META or
+    DEPLOYMENT_OUTPUT.
+    """
+
+    from syndicate.core import CONFIG
+
+    filtered = {}
     resource_names = set() if resource_names is None else set(resource_names)
     resource_types = set() if resource_types is None else set(resource_types)
     exclude_names = set() if exclude_names is None else set(exclude_names)
@@ -958,6 +967,22 @@ def _filter_resources(
             if (v['resource_name'] in exclude_names
                     or v['resource_meta']['resource_type'] in exclude_types):
                 filtered.pop(k)
+
+    missing_names = set()
+    for name in set(resource_names) - set(filtered.keys()):
+        if CONFIG.resources_prefix and name.startswith(CONFIG.resources_prefix):
+            name = name[len(CONFIG.resources_prefix):]
+        if CONFIG.resources_suffix and name.endswith(CONFIG.resources_suffix):
+            name = name[:-len(CONFIG.resources_suffix)]
+        missing_names.add(name)
+
+    if missing_names:
+        USER_LOG.warning(
+            f'The following resource(s) will be skipped due to absence in '
+            f'build meta: {", ".join(missing_names)}. '
+            f'If this is an unexpected behaviour, '
+            f'please check the command parameters.'
+        )
 
     return filtered
 
