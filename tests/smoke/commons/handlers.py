@@ -17,8 +17,7 @@ from commons import connections
 from commons.constants import DEPLOY_OUTPUT_DIR, RESOURCE_TYPE_CONFIG_PARAM, \
     BUNDLE_NAME, DEPLOY_NAME, SWAGGER_UI_RESOURCE_TYPE, TAGS_CONFIG_PARAM, \
     API_GATEWAY_OAS_V3_RESOURCE_TYPE, LAMBDA_LAYER_RESOURCE_TYPE, \
-    RESOURCE_NAME_CONFIG_PARAM, UPDATED_BUNDLE_NAME, \
-    RDS_DB_INSTANCE_RESOURCE_TYPE
+    RESOURCE_NAME_CONFIG_PARAM, RDS_DB_INSTANCE_RESOURCE_TYPE
 from syndicate.core.conf.processor import ConfigHolder
 from syndicate.core import CONF_PATH
 
@@ -35,18 +34,16 @@ def exit_code_handler(actual_exit_code: int, expected_exit_code: int,
 def artifacts_existence_handler(artifacts_list: list,
                                 reverse_check: bool = False,
                                 succeeded_deploy: Optional[bool] = None,
-                                update: Optional[bool] = None,
                                 **kwargs):
     deploy_bucket, path = split_deploy_bucket_path(CONFIG.deploy_target_bucket)
-    bundle_dir = UPDATED_BUNDLE_NAME if update else BUNDLE_NAME
     missing_resources = []
     for artifact in artifacts_list:
         if succeeded_deploy is not None:
             file_key = '/'.join([
-                *path, bundle_dir, DEPLOY_OUTPUT_DIR, artifact
+                *path, BUNDLE_NAME, DEPLOY_OUTPUT_DIR, artifact
             ])
         else:
-            file_key = '/'.join([*path, bundle_dir, artifact])
+            file_key = '/'.join([*path, BUNDLE_NAME, artifact])
         is_file_exists = artifacts_existence_checker(file_key,
                                                      deploy_bucket)
         if is_file_exists and reverse_check:
@@ -87,10 +84,9 @@ def build_meta_content_handler(resources: dict, **kwargs):
 def deployment_output_handler(resources: dict,
                               succeeded_deploy: bool = True,
                               reverse_check: bool = False,
-                              update: Optional[bool] = False, **kwargs):
+                              **kwargs):
     deploy_bucket, path = split_deploy_bucket_path(CONFIG.deploy_target_bucket)
-    bundle_dir = UPDATED_BUNDLE_NAME if update else BUNDLE_NAME
-    output_path = '/'.join([*path, bundle_dir, DEPLOY_OUTPUT_DIR, DEPLOY_NAME])
+    output_path = '/'.join([*path, BUNDLE_NAME, DEPLOY_OUTPUT_DIR, DEPLOY_NAME])
     if succeeded_deploy:
         output_path += '.json'
     else:

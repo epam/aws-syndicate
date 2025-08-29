@@ -10,7 +10,7 @@ sys.path.append(parent_dir)
 
 from commons.constants import BUNDLE_NAME, DEPLOY_NAME, \
     RESOURCE_TYPE_CONFIG_PARAM, RESOURCE_NAME_CONFIG_PARAM, \
-    RESOURCE_META_CONFIG_PARAM, UPDATED_BUNDLE_NAME
+    RESOURCE_META_CONFIG_PARAM
 from commons.utils import deep_get, find_max_lambda_layer_version, \
     compare_dicts, read_syndicate_aliases
 from commons import connections
