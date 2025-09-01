@@ -35,7 +35,7 @@ from syndicate.core.constants import (BUILD_META_FILE_NAME,
                                       UPDATE_RESOURCE_TYPE_PRIORITY,
                                       PARTIAL_CLEAN_ACTION, ABORTED_STATUS,
                                       LAMBDA_TYPE, LAMBDA_LAYER_TYPE)
-from syndicate.core.helper import prettify_json
+from syndicate.core.helper import prettify_json, strip_prefix_suffix
 from syndicate.core.build.helper import assert_bundle_bucket_exists, \
     construct_deploy_s3_key_path
 
@@ -476,7 +476,7 @@ def create_deployment_resources(
         continue_deploy: bool = False,
         replace_output: bool = False,
         rollback_on_error: bool = False,
-) -> bool:
+) -> bool | str:
     is_ld_output_regular, latest_deploy_output = \
         load_latest_deploy_output(failsafe=True)
     if latest_deploy_output is False:
@@ -518,6 +518,9 @@ def create_deployment_resources(
         exclude_names=excluded_resources,
         exclude_types=excluded_types
     )
+
+    if not resources:
+        return ABORTED_STATUS
 
     _LOG.debug(f'Going to create: {resources}')
 
@@ -662,6 +665,9 @@ def update_deployment_resources(
         exclude_types=excluded_types
     )
 
+    if not resources:
+        return ABORTED_STATUS
+
     _LOG.debug(
         f'Going to update the following resources: {prettify_json(resources)}')
     resources_list = list(resources.items())
@@ -734,6 +740,10 @@ def remove_deployment_resources(
         exclude_names=excluded_resources,
         exclude_types=excluded_types
     )
+
+    if not new_output:
+        return ABORTED_STATUS
+
     # sort resources with priority
     resources_list = list(new_output.items())
     resources_list.sort(key=cmp_to_key(_compare_clean_resources))
@@ -910,8 +920,8 @@ def _resolve_names(names):
     preset_name_resolution = functools.partial(resolve_resource_name,
                                                prefix=CONFIG.resources_prefix,
                                                suffix=CONFIG.resources_suffix)
-    resolve_n_unify_names = lambda collection: set(
-        collection + tuple(map(preset_name_resolution, collection)))
+    resolve_n_unify_names = \
+        lambda collection: set(tuple(map(preset_name_resolution, collection)))
 
     return resolve_n_unify_names(names or tuple())
 
@@ -930,8 +940,6 @@ def _filter_resources(
     `resources_meta_type` parameter could be either BUILD_META or
     DEPLOYMENT_OUTPUT.
     """
-
-    from syndicate.core import CONFIG
 
     filtered = {}
     resource_names = set() if resource_names is None else set(resource_names)
@@ -967,22 +975,30 @@ def _filter_resources(
             if (v['resource_name'] in exclude_names
                     or v['resource_meta']['resource_type'] in exclude_types):
                 filtered.pop(k)
-
-    missing_names = set()
-    for name in set(resource_names) - set(filtered.keys()):
-        if CONFIG.resources_prefix and name.startswith(CONFIG.resources_prefix):
-            name = name[len(CONFIG.resources_prefix):]
-        if CONFIG.resources_suffix and name.endswith(CONFIG.resources_suffix):
-            name = name[:-len(CONFIG.resources_suffix)]
-        missing_names.add(name)
+    if resources_meta_type == BUILD_META:
+        meta_source = 'build meta'
+        filtered_names = set(filtered.keys())
+        missing_names = set(resource_names) - filtered_names
+    else:
+        meta_source = 'deployment output'
+        filtered_names = set(v['resource_name'] for v in filtered.values())
+        missing_names = set(resource_names) - filtered_names
 
     if missing_names:
+        missing_names = list(map(strip_prefix_suffix, missing_names))
         USER_LOG.warning(
             f'The following resource(s) will be skipped due to absence in '
-            f'build meta: {", ".join(missing_names)}. '
-            f'If this is an unexpected behaviour, '
-            f'please check the command parameters.'
-        )
+            f'{meta_source}: {missing_names}. If this is an unexpected '
+            f'behaviour, please check the command parameters.')
+
+    if filtered:
+        if any((resource_names, resource_types, exclude_names, exclude_types)):
+            names_to_process = list(map(strip_prefix_suffix, filtered_names))
+            USER_LOG.info(f'The following resource(s) will be processed: '
+                          f'{names_to_process}')
+    else:
+        USER_LOG.warning(
+            'No resources to process. Please check the command parameters.')
 
     return filtered
 

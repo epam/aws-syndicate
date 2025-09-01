@@ -384,6 +384,10 @@ def deploy(
         rollback_on_error=rollback_on_error,
     )
 
+    if deploy_success == ABORTED_STATUS:
+        USER_LOG.warning('Deployment of resources has been aborted')
+        return ABORTED_RETURN_CODE
+
     message = 'Backend resources were deployed{suffix}.'.format(
         suffix='' if deploy_success else (
             ' with errors. Rollback is enabled, resources from this '
@@ -497,8 +501,8 @@ def update(
         USER_LOG.info('Update of resources has been successfully completed')
         return OK_RETURN_CODE
     elif success == ABORTED_STATUS:
-        # not ABORTED_RETURN_CODE because of event status in .syndicate file
-        return FAILED_RETURN_CODE
+        USER_LOG.info('Update of resources has been aborted')
+        return ABORTED_RETURN_CODE
     else:
         USER_LOG.warning('Something went wrong during resources update')
         return FAILED_RETURN_CODE
