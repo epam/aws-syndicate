@@ -12,7 +12,7 @@ sys.path.append(parent_dir)
 from commons.step_processors import process_steps
 from commons.constants import STAGES_CONFIG_PARAM, INIT_PARAMS_CONFIG_PARAM, \
     OUTPUT_FILE_CONFIG_PARAM, DEPENDS_ON_CONFIG_PARAM, \
-    STAGE_PASSED_REPORT_PARAM, BUNDLE_NAME, UPDATED_BUNDLE_NAME, CLEAN_COMMAND
+    STAGE_PASSED_REPORT_PARAM, BUNDLE_NAME, CLEAN_COMMAND
 from commons.utils import save_json, full_path, split_deploy_bucket_path
 from commons.connections import delete_s3_folder
 
@@ -50,7 +50,6 @@ def force_clean(only_bundle=False):
     config = ConfigHolder(CONF_PATH)
     deploy_bucket, path = split_deploy_bucket_path(config.deploy_target_bucket)
     delete_s3_folder(deploy_bucket, os.path.join(*path, BUNDLE_NAME))
-    delete_s3_folder(deploy_bucket, os.path.join(*path, UPDATED_BUNDLE_NAME))
 
 
 def main(verbose: bool, config: str):

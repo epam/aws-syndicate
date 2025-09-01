@@ -17,6 +17,11 @@ import com.syndicate.deployment.model.environment.ValueTransformer;
 import java.util.HashMap;
 import java.util.Map;
 
+@EnvironmentVariables(value = {
+        @EnvironmentVariable(key = "ENDPOINT", value = "sdct-at-rds-db-cluster", valueTransformer = ValueTransformer.RDS_DB_CLUSTER_NAME_TO_ENDPOINT),
+        @EnvironmentVariable(key = "MASTER_CREDENTIALS_SECRET_NAME", value = "sdct-at-rds-db-cluster", valueTransformer = ValueTransformer.RDS_DB_CLUSTER_NAME_TO_MASTER_USER_SECRET_NAME)
+})
+
 @LambdaHandler(
     lambdaName = "sdct-at-java-lambda",
 	roleName = "sdct-at-java-lambda-role",
@@ -25,15 +30,6 @@ import java.util.Map;
 	logsExpiration = RetentionSetting.SYNDICATE_ALIASES_SPECIFIED
 )
 
-@LambdaLayer(
-        layerName = "sdct-at-java-lambda_layer",
-        libraries = {"sdct-at-java-lambda_layer/open-meteo-sdk-1.0.0.jar"},
-        runtime = DeploymentRuntime.JAVA11,
-        artifactExtension = ArtifactExtension.ZIP
-)
-@RuleEventSource(
-        targetRule = "sdct-at-cw-rule"
-)
 @Tags(value = {
     @Tag(key = "tests", value = "smoke"),
     @Tag(key = "project", value = "sdct-auto-test")})

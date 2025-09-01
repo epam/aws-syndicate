@@ -8,7 +8,7 @@ from pathlib import Path
 parent_dir = str(Path(__file__).resolve().parent.parent)
 sys.path.append(parent_dir)
 
-from commons.constants import STEPS_CONFIG_PARAM, UPDATED_BUNDLE_NAME, \
+from commons.constants import STEPS_CONFIG_PARAM, \
     COMMAND_CONFIG_PARAM, CHECKS_CONFIG_PARAM, NAME_CONFIG_PARAM, \
     DESCRIPTION_CONFIG_PARAM, DEPENDS_ON_CONFIG_PARAM, BUILD_COMMAND, \
     BUNDLE_NAME, DEPLOY_COMMAND, UPDATE_COMMAND, DEPLOY_NAME, \
@@ -46,7 +46,8 @@ def process_steps(steps: dict[str: List[dict]],
                                        '--deploy-name', DEPLOY_NAME,
                                        '--replace-output'])
         if UPDATE_COMMAND in command_to_execute:
-            command_to_execute.extend(['--bundle-name', UPDATED_BUNDLE_NAME,
+            command_to_execute.extend(['--bundle-name', BUNDLE_NAME,
+                                       '--deploy-name', DEPLOY_NAME,
                                        '--replace-output'])
         execution_datetime = datetime.utcnow()
 
@@ -57,8 +58,8 @@ def process_steps(steps: dict[str: List[dict]],
                 appsync_path=[os.path.join('appsync_src',
                                            'sdct-at-appsync')]):
             if UPDATE_COMMAND in command_to_execute:
-                build_command = ['syndicate', 'build',
-                                 '--bundle_name', UPDATED_BUNDLE_NAME]
+                build_command = ['syndicate', 'build', '--bundle_name',
+                                 BUNDLE_NAME, '--force-upload']
                 if verbose:
                     build_command.append('--verbose')
                 print(f'Run command: {build_command}')

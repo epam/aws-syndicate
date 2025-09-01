@@ -1,6 +1,6 @@
 {
   "init_parameters": {
-    "output_file": "output"
+    "output_file": "ddis_output"
   },
   "stages": {
     "build": {
@@ -118,12 +118,6 @@
                 },
                 "sdct-at-open-api-gw": {
                   "resource_type": "api_gateway_oas_v3"
-                },
-                "sdct-at-rds-db-cluster": {
-                  "resource_type": "rds_db_cluster"
-                },
-                "sdct-at-rds-db-instance": {
-                  "resource_type": "rds_db_instance"
                 }
               },
               "depends_on": [
@@ -162,18 +156,6 @@
                   "tags": {
                     "tests": "smoke",
                     "project": "sdct-auto-test"
-                  },
-                  "env_variables": {
-                    "MASTER_CREDENTIALS_SECRET_NAME": {
-                      "resource_type": "rds_db_cluster",
-                      "parameter": "master_user_secret_name",
-                      "resource_name": "sdct-at-rds-db-cluster"
-                    },
-                    "ENDPOINT": {
-                      "resource_type": "rds_db_cluster",
-                      "parameter": "endpoint",
-                      "resource_name": "sdct-at-rds-db-cluster"
-                    }
                   }
                 },
                 "sdct-at-java-lambda_layer": {
@@ -312,20 +294,6 @@
                 },
                 "sdct-at-open-api-gw": {
                   "resource_type": "api_gateway_oas_v3"
-                },
-                "sdct-at-rds-db-cluster": {
-                  "resource_type": "rds_db_cluster",
-                  "tags": {
-                    "tests": "smoke",
-                    "project": "sdct-auto-test"
-                  }
-                },
-                "sdct-at-rds-db-instance": {
-                  "resource_type": "rds_db_instance",
-                  "tags": {
-                    "tests": "smoke",
-                    "project": "sdct-auto-test"
-                  }
                 }
               },
               "depends_on": [
@@ -437,12 +405,6 @@
                 },
                 "sdct-at-appsync": {
                   "resource_type": "appsync"
-                },
-                "sdct-at-rds-db-cluster": {
-                  "resource_type": "rds_db_cluster"
-                },
-                "sdct-at-rds-db-instance": {
-                  "resource_type": "rds_db_instance"
                 }
               },
               "depends_on": [
@@ -542,12 +504,6 @@
                 },
                 "sdct-at-appsync": {
                   "resource_type": "appsync"
-                },
-                "sdct-at-rds-db-cluster": {
-                  "resource_type": "rds_db_cluster"
-                },
-                "sdct-at-rds-db-instance": {
-                  "resource_type": "rds_db_instance"
                 }
               },
               "depends_on": [
@@ -704,12 +660,6 @@
                 },
                 "sdct-at-appsync": {
                   "resource_type": "appsync"
-                },
-                "sdct-at-rds-db-cluster": {
-                  "resource_type": "rds_db_cluster"
-                },
-                "sdct-at-rds-db-instance": {
-                  "resource_type": "rds_db_instance"
                 }
               }
             },
@@ -792,12 +742,6 @@
                 },
                 "sdct-at-appsync": {
                   "resource_type": "appsync"
-                },
-                "sdct-at-rds-db-cluster": {
-                  "resource_type": "rds_db_cluster"
-                },
-                "sdct-at-rds-db-instance": {
-                  "resource_type": "rds_db_instance"
                 }
               }
             },
@@ -942,22 +886,6 @@
                     "project": "sdct-auto-test",
                     "project-level-tag": "set-from-project"
                   }
-                },
-                "sdct-at-rds-db-cluster": {
-                  "resource_type": "rds_db_cluster",
-                  "tags": {
-                    "tests": "smoke",
-                    "project": "sdct-auto-test",
-                    "project-level-tag": "set-from-project"
-                  }
-                },
-                "sdct-at-rds-db-instance": {
-                  "resource_type": "rds_db_instance",
-                  "tags": {
-                    "tests": "smoke",
-                    "project": "sdct-auto-test",
-                    "project-level-tag": "set-from-project"
-                  }
                 }
               },
               "depends_on": [
@@ -1041,10 +969,6 @@
                   "reservations_table": "*${reservations_table}*",
                   "tables_table": "*${tables_table}*",
                   "region": "${region}"
-                },
-                "sdct-at-java-lambda": {
-                  "ENDPOINT": "*${region}.rds.amazonaws.com",
-                  "MASTER_CREDENTIALS_SECRET_NAME": "rds!cluster*"
                 }
               },
               "depends_on": [
@@ -1080,7 +1004,6 @@
               "name": "artifacts_existence",
               "description": "Check if succeeded deployment output file exists in S3 bucket",
               "succeeded_deploy": true,
-              "update": true,
               "artifacts_list": [
                 "autotest.json"
               ],
@@ -1168,12 +1091,6 @@
                 },
                 "sdct-at-appsync": {
                   "resource_type": "appsync"
-                },
-                "sdct-at-rds-db-cluster": {
-                  "resource_type": "rds_db_cluster"
-                },
-                "sdct-at-rds-db-instance": {
-                  "resource_type": "rds_db_instance"
                 }
               },
               "depends_on": [
@@ -1257,10 +1174,6 @@
                   "tables_table": "*${tables_table}*",
                   "cup_client_id": "*",
                   "cup_id": "*"
-                },
-                "sdct-at-java-lambda": {
-                  "ENDPOINT": "*${region}.rds.amazonaws.com",
-                  "MASTER_CREDENTIALS_SECRET_NAME": "rds!cluster*"
                 }
               },
               "depends_on": [
@@ -1427,12 +1340,6 @@
                 },
                 "sdct-at-appsync": {
                   "resource_type": "appsync"
-                },
-                "sdct-at-rds-db-cluster": {
-                  "resource_type": "rds_db_cluster"
-                },
-                "sdct-at-rds-db-instance": {
-                  "resource_type": "rds_db_instance"
                 }
               },
               "depends_on": [
@@ -1532,12 +1439,6 @@
                 },
                 "sdct-at-appsync": {
                   "resource_type": "appsync"
-                },
-                "sdct-at-rds-db-cluster": {
-                  "resource_type": "rds_db_cluster"
-                },
-                "sdct-at-rds-db-instance": {
-                  "resource_type": "rds_db_instance"
                 }
               },
               "depends_on": [
@@ -1594,7 +1495,7 @@
             {
               "index": 2,
               "name": "artifacts_existence",
-              "description": "Check if succeeded deployment output file exists in S3 bucket",
+              "description": "Check if succeeded deployment output file does not exist in S3 bucket",
               "succeeded_deploy": true,
               "reverse_check": true,
               "artifacts_list": [
@@ -1684,12 +1585,6 @@
                 },
                 "sdct-at-appsync": {
                   "resource_type": "appsync"
-                },
-                "sdct-at-rds-db-cluster": {
-                  "resource_type": "rds_db_cluster"
-                },
-                "sdct-at-rds-db-instance": {
-                  "resource_type": "rds_db_instance"
                 }
               },
               "depends_on": [
