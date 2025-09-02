@@ -31,7 +31,7 @@ jobs:
       files_modified: ${{ steps.check_files.outputs.run_publish_steps }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Check modified files
         id: check_files
         run: |
@@ -60,7 +60,7 @@ jobs:
       files_modified: ${{ steps.check_files.outputs.run_publish_steps }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - name: Check modified files
@@ -95,7 +95,7 @@ jobs:
     if: github.repository_owner == 'epam' && github.event_name == 'push' && github.ref == 'refs/heads/master' && needs.check-modified-files.outputs.files_modified == 'true'
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Set up Maven Central Repository
         uses: actions/setup-java@v4
         with:
@@ -132,7 +132,7 @@ jobs:
     if: github.repository_owner == 'epam' && github.event.action == 'published' && needs.check-modified-release-files.outputs.files_modified == 'true'
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Set up Maven Central Repository
         uses: actions/setup-java@v4
         with:
