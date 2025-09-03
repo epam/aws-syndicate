@@ -646,10 +646,6 @@ def update_deployment_resources(
     _LOG.debug('Artifacts s3 paths were resolved')
     resolve_tags(resources)
 
-    USER_LOG.warning(f'Please pay attention that only the following resources '
-                     f'types are supported for update: '
-                     f'{UPDATE_RESOURCE_TYPE_PRIORITY.keys()}')
-
     update_only_resources = _resolve_names(update_only_resources)
     _LOG.info(
         'Prefixes and suffixes of any resource names have been resolved.')
@@ -664,6 +660,13 @@ def update_deployment_resources(
         exclude_names=excluded_resources,
         exclude_types=excluded_types
     )
+
+    allowed_to_update = UPDATE_RESOURCE_TYPE_PRIORITY.keys()
+    if any(r['resource_type'] not in allowed_to_update for r in
+           resources.values()):
+        USER_LOG.warning(f'Please pay attention that only the following '
+                         f'resources types are supported for update: '
+                         f'{allowed_to_update}')
 
     if not resources:
         return ABORTED_STATUS
@@ -920,8 +923,8 @@ def _resolve_names(names):
     preset_name_resolution = functools.partial(resolve_resource_name,
                                                prefix=CONFIG.resources_prefix,
                                                suffix=CONFIG.resources_suffix)
-    resolve_n_unify_names = \
-        lambda collection: set(tuple(map(preset_name_resolution, collection)))
+    resolve_n_unify_names = lambda collection: set(
+        collection + tuple(map(preset_name_resolution, collection)))
 
     return resolve_n_unify_names(names or tuple())
 
@@ -977,15 +980,16 @@ def _filter_resources(
                 filtered.pop(k)
     if resources_meta_type == BUILD_META:
         meta_source = 'build meta'
-        filtered_names = set(filtered.keys())
+        filtered_names = set(map(strip_prefix_suffix, filtered.keys()))
         missing_names = set(resource_names) - filtered_names
     else:
         meta_source = 'deployment output'
-        filtered_names = set(v['resource_name'] for v in filtered.values())
+        filtered_names = set(map(
+            strip_prefix_suffix, [v['resource_name'] for v in filtered.values()]
+        ))
         missing_names = set(resource_names) - filtered_names
 
     if missing_names:
-        missing_names = list(map(strip_prefix_suffix, missing_names))
         USER_LOG.warning(
             f'The following resource(s) will be skipped due to absence in '
             f'{meta_source}: {missing_names}. If this is an unexpected '

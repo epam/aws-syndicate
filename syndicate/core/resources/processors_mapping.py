@@ -274,6 +274,8 @@ class ProcessorFacade:
                 self.resources_provider.iam().update_iam_role,
             IAM_POLICY:
                 self.resources_provider.iam().update_iam_policy,
+            SQS_QUEUE_TYPE:
+                self.resources_provider.sqs().update_sqs_queue,
             LAMBDA_TYPE:
                 self.resources_provider.lambda_resource().update_lambda,
             LAMBDA_LAYER_TYPE:

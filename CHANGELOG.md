@@ -5,11 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 # [1.18.2] - 2025-08-29
+- Added SQS queue to supported resource types for updating
 - Fixed an issue related to updating DynamoDB tables
 - Fixed an issue related to removing lambda layers from the output file after cleaning them
 - Fixed an issue that leads to the permanent warning in case of filtering resources by name during the `deploy`, `update`, and `clean` commands
 - Added information message with resource names to be processed to the user console log in case of filtering resources during the `deploy`, `update`, and `clean` commands
 - Added abortion of the `deploy`, `update`, and `clean` commands in case no resources to process after filtering
+- Fixed displaying warning message about supported resource types to update only when non-supported types are specified
 
 # [1.18.1] - 2025-08-20
 - Added warning message in case the resource that was specified using parameter `-resources` is not found in the build meta during the `syndicate deploy/update/clean` command execution
