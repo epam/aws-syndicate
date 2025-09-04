@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed an issue that leads to the permanent warning in case of filtering resources by name during the `deploy`, `update`, and `clean` commands
 - Added information message with resource names to be processed to the user console log in case of filtering resources during the `deploy`, `update`, and `clean` commands
 - Added abortion of the `deploy`, `update`, and `clean` commands in case no resources to process after filtering
+- The Syndicate Java root pom template changed to use the Syndicate Java plugin version 1.17.1
 - The Java plugin version updated to 1.17.1 with changes:
   - Added embedded documentation for annotations: @LambdaLayer`, `@LambdaUrlConfig`
 
