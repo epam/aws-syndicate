@@ -152,11 +152,12 @@ class SqsConnection(object):
                      kms_master_key_id: str = None,
                      kms_data_key_reuse_period_seconds: int = None,
                      content_based_deduplication=None, tags: dict = None):
+        errors = []
         attributes = dict()
 
         if delay_seconds:
             if delay_seconds < 0 or delay_seconds > 900:
-                USER_LOG.warning(
+                errors.append(
                     'Delay seconds for SQS queue must be between '
                     '0 and 900 seconds'
                 )
@@ -165,7 +166,7 @@ class SqsConnection(object):
 
         if maximum_message_size:
             if maximum_message_size < 1024 or maximum_message_size > 262144:
-                USER_LOG.warning(
+                errors.append(
                     'Maximum message size must be between '
                     '1024 and 262144 bytes'
                 )
@@ -174,7 +175,7 @@ class SqsConnection(object):
 
         if message_retention_period:
             if message_retention_period < 60 or message_retention_period > 1209600:
-                USER_LOG.warning(
+                errors.append(
                     'Message retention size must be between '
                     '60 and 1209600 seconds'
                 )
@@ -184,7 +185,7 @@ class SqsConnection(object):
 
         if receive_message_wait_time_seconds:
             if receive_message_wait_time_seconds < 0 or receive_message_wait_time_seconds > 20:
-                USER_LOG.warning(
+                errors.append(
                     'Receive message wait time must be between '
                     '0 and 20 seconds'
                 )
@@ -201,11 +202,11 @@ class SqsConnection(object):
         if redrive_policy:
             if isinstance(policy, dict):
                 redrive_policy = json.dumps(redrive_policy)
-            attributes['RedrivePolicy'] = json.dumps(redrive_policy)
+            attributes['RedrivePolicy'] = redrive_policy
 
         if visibility_timeout:
             if visibility_timeout < 0 or visibility_timeout > 43200:
-                USER_LOG.warning(
+                errors.append(
                     'Visibility timeout must be between 0 and 43200 seconds'
                 )
             else:
@@ -216,7 +217,7 @@ class SqsConnection(object):
 
         if kms_data_key_reuse_period_seconds:
             if kms_data_key_reuse_period_seconds < 60 or kms_data_key_reuse_period_seconds > 86400:
-                USER_LOG.warning(
+                errors.append(
                     'KMS key reuse period must be between 60 and 86400 seconds'
                 )
             else:
@@ -228,6 +229,8 @@ class SqsConnection(object):
             attributes[
                 'ContentBasedDeduplication'] = str(content_based_deduplication)
 
+        if errors:
+            raise InvalidValueError(';\n'.join(errors))
         response = self.client.set_queue_attributes(
             QueueUrl=queue_url,
             Attributes=attributes

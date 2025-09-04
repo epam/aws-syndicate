@@ -614,7 +614,6 @@ def update_deployment_resources(
         replace_output: bool = False,
         force: bool = False,
 ) -> bool | str:
-    from syndicate.core import PROCESSOR_FACADE
     from click import confirm as click_confirm
 
     is_ld_output_regular, old_output = load_latest_deploy_output(failsafe=True)
@@ -649,10 +648,29 @@ def update_deployment_resources(
     update_only_resources = _resolve_names(update_only_resources)
     _LOG.info(
         'Prefixes and suffixes of any resource names have been resolved.')
+
+    allowed_to_update = UPDATE_RESOURCE_TYPE_PRIORITY.keys()
+    not_allowed_to_update = set()
+    for name in update_only_resources:
+        if name in resources and resources[name]['resource_type'] not in allowed_to_update:
+            not_allowed_to_update.add(name)
+    if not_allowed_to_update:
+        USER_LOG.error(
+            f'Invalid resource type(s) for update for the following resource '
+            f'name(s): {", ".join(not_allowed_to_update)}.'
+        )
+        return ABORTED_STATUS
+
     resources = dict(
         (k, v) for (k, v) in resources.items()
-        if v['resource_type'] in PROCESSOR_FACADE.update_handlers().keys()
+        if v['resource_type'] in allowed_to_update
     )
+
+    if not (update_only_types or update_only_resources) and allowed_to_update:
+        USER_LOG.warning(f'Please pay attention that only the following '
+                         f'resources types are supported for update: '
+                         f'{", ".join(allowed_to_update)}')
+
     resources = _filter_resources(
         resources_meta=resources,
         resource_names=update_only_resources,
@@ -660,13 +678,6 @@ def update_deployment_resources(
         exclude_names=excluded_resources,
         exclude_types=excluded_types
     )
-
-    allowed_to_update = UPDATE_RESOURCE_TYPE_PRIORITY.keys()
-    if any(r['resource_type'] not in allowed_to_update for r in
-           resources.values()):
-        USER_LOG.warning(f'Please pay attention that only the following '
-                         f'resources types are supported for update: '
-                         f'{allowed_to_update}')
 
     if not resources:
         return ABORTED_STATUS
@@ -981,13 +992,14 @@ def _filter_resources(
     if resources_meta_type == BUILD_META:
         meta_source = 'build meta'
         filtered_names = set(map(strip_prefix_suffix, filtered.keys()))
-        missing_names = set(resource_names) - filtered_names
+        missing_names = (
+                set(map(strip_prefix_suffix, resource_names)) - filtered_names
+        )
     else:
         meta_source = 'deployment output'
-        filtered_names = set(map(
-            strip_prefix_suffix, [v['resource_name'] for v in filtered.values()]
-        ))
-        missing_names = set(resource_names) - filtered_names
+        filtered_names = set(map(strip_prefix_suffix,
+                                 [v['resource_name'] for v in filtered.values()]))
+        missing_names = set(map(strip_prefix_suffix, resource_names)) - filtered_names
 
     if missing_names:
         USER_LOG.warning(
@@ -997,9 +1009,8 @@ def _filter_resources(
 
     if filtered:
         if any((resource_names, resource_types, exclude_names, exclude_types)):
-            names_to_process = list(map(strip_prefix_suffix, filtered_names))
             USER_LOG.info(f'The following resource(s) will be processed: '
-                          f'{names_to_process}')
+                          f'{filtered_names}')
     else:
         USER_LOG.warning(
             'No resources to process. Please check the command parameters.')
