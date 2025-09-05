@@ -51,19 +51,19 @@ class SqsConnection(object):
         if fifo_queue:
             attributes['FifoQueue'] = str(fifo_queue)
         params = dict(QueueName=queue_name)
-        if delay_seconds:
+        if delay_seconds is not None:
             if delay_seconds < 0 or delay_seconds > 900:
                 raise InvalidValueError(
                     'Delay seconds for queue must be between 0 and 900 seconds'
                 )
             attributes['DelaySeconds'] = str(delay_seconds)
-        if maximum_message_size:
+        if maximum_message_size is not None:
             if maximum_message_size < 1024 or maximum_message_size > 262144:
                 raise InvalidValueError(
                     'Maximum message size must be between 1024 and 262144 bytes'
                 )
             attributes['MaximumMessageSize'] = str(maximum_message_size)
-        if message_retention_period:
+        if message_retention_period is not None:
             if message_retention_period < 60 or message_retention_period > 1209600:
                 raise InvalidValueError(
                     'Message retention size must be between 60 and 1209600 seconds'
@@ -74,7 +74,7 @@ class SqsConnection(object):
             if isinstance(policy, dict):
                 policy = json.dumps(policy)
             attributes['Policy'] = policy
-        if receive_message_wait_time_seconds:
+        if receive_message_wait_time_seconds is not None:
             if receive_message_wait_time_seconds < 0 or receive_message_wait_time_seconds > 20:
                 raise InvalidValueError(
                     'Receive message wait time must be between 0 and 20 seconds'
@@ -83,8 +83,10 @@ class SqsConnection(object):
                 'ReceiveMessageWaitTimeSeconds'] = str(
                 receive_message_wait_time_seconds)
         if redrive_policy:
-            attributes['RedrivePolicy'] = json.dumps(redrive_policy)
-        if visibility_timeout:
+            if isinstance(redrive_policy, dict):
+                redrive_policy = json.dumps(redrive_policy)
+            attributes['RedrivePolicy'] = redrive_policy
+        if visibility_timeout is not None:
             if visibility_timeout < 0 or visibility_timeout > 43200:
                 raise InvalidValueError(
                     'Visibility timeout must be between 0 and 43200 seconds'
@@ -92,7 +94,7 @@ class SqsConnection(object):
             attributes['VisibilityTimeout'] = str(visibility_timeout)
         if kms_master_key_id:
             attributes['KmsMasterKeyId'] = kms_master_key_id
-        if kms_data_key_reuse_period_seconds:
+        if kms_data_key_reuse_period_seconds is not None:
             if kms_data_key_reuse_period_seconds < 60 or kms_data_key_reuse_period_seconds > 86400:
                 raise InvalidValueError(
                     'KMS key reuse period must be between 60 and 86400 seconds'
@@ -155,7 +157,7 @@ class SqsConnection(object):
         errors = []
         attributes = dict()
 
-        if delay_seconds:
+        if delay_seconds is not None:
             if delay_seconds < 0 or delay_seconds > 900:
                 errors.append(
                     'Delay seconds for SQS queue must be between '
@@ -164,7 +166,7 @@ class SqsConnection(object):
             else:
                 attributes['DelaySeconds'] = str(delay_seconds)
 
-        if maximum_message_size:
+        if maximum_message_size is not None:
             if maximum_message_size < 1024 or maximum_message_size > 262144:
                 errors.append(
                     'Maximum message size must be between '
@@ -173,7 +175,7 @@ class SqsConnection(object):
             else:
                 attributes['MaximumMessageSize'] = str(maximum_message_size)
 
-        if message_retention_period:
+        if message_retention_period is not None:
             if message_retention_period < 60 or message_retention_period > 1209600:
                 errors.append(
                     'Message retention size must be between '
@@ -183,7 +185,7 @@ class SqsConnection(object):
                 attributes['MessageRetentionPeriod'] = str(
                     message_retention_period)
 
-        if receive_message_wait_time_seconds:
+        if receive_message_wait_time_seconds is not None:
             if receive_message_wait_time_seconds < 0 or receive_message_wait_time_seconds > 20:
                 errors.append(
                     'Receive message wait time must be between '
@@ -204,7 +206,7 @@ class SqsConnection(object):
                 redrive_policy = json.dumps(redrive_policy)
             attributes['RedrivePolicy'] = redrive_policy
 
-        if visibility_timeout:
+        if visibility_timeout is not None:
             if visibility_timeout < 0 or visibility_timeout > 43200:
                 errors.append(
                     'Visibility timeout must be between 0 and 43200 seconds'
@@ -215,7 +217,7 @@ class SqsConnection(object):
         if kms_master_key_id:
             attributes['KmsMasterKeyId'] = kms_master_key_id
 
-        if kms_data_key_reuse_period_seconds:
+        if kms_data_key_reuse_period_seconds is not None:
             if kms_data_key_reuse_period_seconds < 60 or kms_data_key_reuse_period_seconds > 86400:
                 errors.append(
                     'KMS key reuse period must be between 60 and 86400 seconds'

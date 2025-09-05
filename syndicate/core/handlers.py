@@ -465,7 +465,7 @@ def update(
             'excluded-types', excluded_types, UPDATE_RESOURCE_TYPE_PRIORITY) or \
             not are_resource_types_valid(
                 'update-only-types', update_only_types, UPDATE_RESOURCE_TYPE_PRIORITY):
-        return ABORTED_STATUS
+        return ABORTED_RETURN_CODE
 
     from syndicate.core import PROJECT_STATE
     USER_LOG.info(f'Bundle name: {bundle_name}')

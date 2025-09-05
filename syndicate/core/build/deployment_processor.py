@@ -649,27 +649,28 @@ def update_deployment_resources(
     _LOG.info(
         'Prefixes and suffixes of any resource names have been resolved.')
 
-    allowed_to_update = UPDATE_RESOURCE_TYPE_PRIORITY.keys()
-    not_allowed_to_update = set()
+    updatable_types = UPDATE_RESOURCE_TYPE_PRIORITY.keys()
+    non_updatable_res = set()
     for name in update_only_resources:
-        if name in resources and resources[name]['resource_type'] not in allowed_to_update:
-            not_allowed_to_update.add(name)
-    if not_allowed_to_update:
+        if name in resources and resources[name]['resource_type'] not in updatable_types:
+            non_updatable_res.add(name)
+    if non_updatable_res:
+        non_updatable_res = list(map(strip_prefix_suffix, non_updatable_res))
         USER_LOG.error(
-            f'Invalid resource type(s) for update for the following resource '
-            f'name(s): {", ".join(not_allowed_to_update)}.'
+            f'The following resource(s) have a resource type that cannot be '
+            f'updated {non_updatable_res}'
         )
         return ABORTED_STATUS
 
     resources = dict(
         (k, v) for (k, v) in resources.items()
-        if v['resource_type'] in allowed_to_update
+        if v['resource_type'] in updatable_types
     )
 
-    if not (update_only_types or update_only_resources) and allowed_to_update:
+    if not (update_only_types or update_only_resources):
         USER_LOG.warning(f'Please pay attention that only the following '
                          f'resources types are supported for update: '
-                         f'{", ".join(allowed_to_update)}')
+                         f'{list(updatable_types)}')
 
     resources = _filter_resources(
         resources_meta=resources,
@@ -1004,13 +1005,12 @@ def _filter_resources(
     if missing_names:
         USER_LOG.warning(
             f'The following resource(s) will be skipped due to absence in '
-            f'{meta_source}: {missing_names}. If this is an unexpected '
+            f'{meta_source}: {list(missing_names)}. If this is an unexpected '
             f'behaviour, please check the command parameters.')
 
     if filtered:
-        if any((resource_names, resource_types, exclude_names, exclude_types)):
-            USER_LOG.info(f'The following resource(s) will be processed: '
-                          f'{filtered_names}')
+        USER_LOG.info(f'The following resource(s) will be processed: '
+                      f'{list(filtered_names)}')
     else:
         USER_LOG.warning(
             'No resources to process. Please check the command parameters.')
