@@ -614,7 +614,6 @@ def update_deployment_resources(
         replace_output: bool = False,
         force: bool = False,
 ) -> bool | str:
-    from syndicate.core import PROCESSOR_FACADE
     from click import confirm as click_confirm
 
     is_ld_output_regular, old_output = load_latest_deploy_output(failsafe=True)
@@ -646,17 +645,41 @@ def update_deployment_resources(
     _LOG.debug('Artifacts s3 paths were resolved')
     resolve_tags(resources)
 
-    USER_LOG.warning(f'Please pay attention that only the following resources '
-                     f'types are supported for update: '
-                     f'{UPDATE_RESOURCE_TYPE_PRIORITY.keys()}')
-
     update_only_resources = _resolve_names(update_only_resources)
     _LOG.info(
         'Prefixes and suffixes of any resource names have been resolved.')
+
+    updatable_types = UPDATE_RESOURCE_TYPE_PRIORITY.keys()
+    non_updatable_res = set()
+    for name in update_only_resources:
+        if name in resources and resources[name]['resource_type'] not in updatable_types:
+            non_updatable_res.add(name)
+    if non_updatable_res:
+        non_updatable_res = list(map(strip_prefix_suffix, non_updatable_res))
+        USER_LOG.error(
+            f'The following resource(s) have a resource type that cannot be '
+            f'updated {non_updatable_res}'
+        )
+        return ABORTED_STATUS
+
+    # Split resources into updatable and non-updatable
+    non_updatable_resources = list(
+        k for (k, v) in resources.items()
+        if v['resource_type'] not in updatable_types
+    )
     resources = dict(
         (k, v) for (k, v) in resources.items()
-        if v['resource_type'] in PROCESSOR_FACADE.update_handlers().keys()
+        if v['resource_type'] in updatable_types
     )
+
+    if not (update_only_types or update_only_resources) and non_updatable_resources:
+        non_updatable_resources = list(map(strip_prefix_suffix,
+                                           non_updatable_resources))
+        USER_LOG.warning(
+            f'Please note that the following resource(s) will not be updated '
+            f'because they have a resource type that cannot be updated '
+            f'{non_updatable_resources}')
+
     resources = _filter_resources(
         resources_meta=resources,
         resource_names=update_only_resources,
@@ -920,8 +943,8 @@ def _resolve_names(names):
     preset_name_resolution = functools.partial(resolve_resource_name,
                                                prefix=CONFIG.resources_prefix,
                                                suffix=CONFIG.resources_suffix)
-    resolve_n_unify_names = \
-        lambda collection: set(tuple(map(preset_name_resolution, collection)))
+    resolve_n_unify_names = lambda collection: set(
+        collection + tuple(map(preset_name_resolution, collection)))
 
     return resolve_n_unify_names(names or tuple())
 
@@ -977,25 +1000,25 @@ def _filter_resources(
                 filtered.pop(k)
     if resources_meta_type == BUILD_META:
         meta_source = 'build meta'
-        filtered_names = set(filtered.keys())
-        missing_names = set(resource_names) - filtered_names
+        filtered_names = set(map(strip_prefix_suffix, filtered.keys()))
+        missing_names = (
+                set(map(strip_prefix_suffix, resource_names)) - filtered_names
+        )
     else:
         meta_source = 'deployment output'
-        filtered_names = set(v['resource_name'] for v in filtered.values())
-        missing_names = set(resource_names) - filtered_names
+        filtered_names = set(map(strip_prefix_suffix,
+                                 [v['resource_name'] for v in filtered.values()]))
+        missing_names = set(map(strip_prefix_suffix, resource_names)) - filtered_names
 
     if missing_names:
-        missing_names = list(map(strip_prefix_suffix, missing_names))
         USER_LOG.warning(
             f'The following resource(s) will be skipped due to absence in '
-            f'{meta_source}: {missing_names}. If this is an unexpected '
+            f'{meta_source}: {list(missing_names)}. If this is an unexpected '
             f'behaviour, please check the command parameters.')
 
     if filtered:
-        if any((resource_names, resource_types, exclude_names, exclude_types)):
-            names_to_process = list(map(strip_prefix_suffix, filtered_names))
-            USER_LOG.info(f'The following resource(s) will be processed: '
-                          f'{names_to_process}')
+        USER_LOG.info(f'The following resource(s) will be processed: '
+                      f'{list(filtered_names)}')
     else:
         USER_LOG.warning(
             'No resources to process. Please check the command parameters.')

@@ -1081,6 +1081,7 @@ def are_resource_types_valid(param_name: str,
         return False
     return True
 
+
 def strip_prefix_suffix(res_name: str) -> str:
     """
     Strips the resource prefix and suffix if it is present.
