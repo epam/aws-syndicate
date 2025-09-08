@@ -662,15 +662,20 @@ def update_deployment_resources(
         )
         return ABORTED_STATUS
 
+    # Split resources into updatable and non-updatable
+    non_updatable_resources = list(
+        k for (k, v) in resources.items()
+        if v['resource_type'] not in updatable_types
+    )
     resources = dict(
         (k, v) for (k, v) in resources.items()
         if v['resource_type'] in updatable_types
     )
 
     if not (update_only_types or update_only_resources):
-        USER_LOG.warning(f'Please pay attention that only the following '
-                         f'resources types are supported for update: '
-                         f'{list(updatable_types)}')
+        USER_LOG.warning(f'Please pay attention that the following '
+                         f'resource(s) will not be processed: '
+                         f'{list(non_updatable_resources)}')
 
     resources = _filter_resources(
         resources_meta=resources,
