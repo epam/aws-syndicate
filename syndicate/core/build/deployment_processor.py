@@ -672,10 +672,13 @@ def update_deployment_resources(
         if v['resource_type'] in updatable_types
     )
 
-    if not (update_only_types or update_only_resources):
-        USER_LOG.warning(f'Please pay attention that the following '
-                         f'resource(s) will not be processed: '
-                         f'{list(non_updatable_resources)}')
+    if not (update_only_types or update_only_resources) and non_updatable_resources:
+        non_updatable_resources = list(map(strip_prefix_suffix,
+                                           non_updatable_resources))
+        USER_LOG.warning(
+            f'Please note that the following resource(s) will not be updated '
+            f'because they have a resource type that cannot be updated '
+            f'{non_updatable_resources}')
 
     resources = _filter_resources(
         resources_meta=resources,
