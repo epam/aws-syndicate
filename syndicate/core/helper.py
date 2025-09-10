@@ -1080,3 +1080,15 @@ def are_resource_types_valid(param_name: str,
         )
         return False
     return True
+
+
+def strip_prefix_suffix(res_name: str) -> str:
+    """
+    Strips the resource prefix and suffix if it is present.
+    """
+    from syndicate.core import CONFIG
+    if CONFIG.resources_prefix and res_name.startswith(CONFIG.resources_prefix):
+        res_name = res_name[len(CONFIG.resources_prefix):]
+    if CONFIG.resources_suffix and res_name.endswith(CONFIG.resources_suffix):
+        res_name = res_name[:-len(CONFIG.resources_suffix)]
+    return res_name

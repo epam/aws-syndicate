@@ -1,3 +1,7 @@
+## 2025-08-29
+- Fixed an issue with building python lambda layer
+- Fixed `NoSuchBucket` error during checking the existence of a Swagger UI in case the bucket does not exist
+
 ## 2025-05-06
 ### Added
 - Added ability to specify alias in lambda env dictionary in such format: '${alias_name}'. Can be combined with wildcard

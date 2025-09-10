@@ -110,11 +110,6 @@ class DynamoDBResource(AbstractExternalResource, BaseResource):
             )
             provisioned_throughput = dict()
 
-        warm_throughput = dict(
-            ReadUnitsPerSecond=table.warm_throughput.get('ReadUnitsPerSecond'),
-            WriteUnitsPerSecond=table.warm_throughput.get('WriteUnitsPerSecond')
-        )
-
         if billing_mode != existing_billing_mode:
             USER_LOG.info(
                 f"Updating the table '{name}'. It may take up to 20 minutes, "
@@ -125,12 +120,9 @@ class DynamoDBResource(AbstractExternalResource, BaseResource):
             billing_mode=billing_mode,
             read_capacity=meta.get('read_capacity'),
             write_capacity=meta.get('write_capacity'),
-            warm_read_capacity=meta.get('warm_read_capacity'),
-            warm_write_capacity=meta.get('warm_write_capacity'),
             existing_billing_mode=existing_billing_mode,
             existing_provisioned_throughput=provisioned_throughput,
             existing_on_demand_throughput=on_demand_throughput,
-            existing_warm_throughput=warm_throughput,
             existing_global_indexes=table.global_secondary_indexes or []
         )
         if response:
@@ -153,10 +145,6 @@ class DynamoDBResource(AbstractExternalResource, BaseResource):
             existing_global_indexes=table.global_secondary_indexes or [],
             table_read_capacity=table_read_capacity,
             table_write_capacity=table_write_capacity,
-            table_warm_read_capacity=
-                table.warm_throughput.get('ReadUnitsPerSecond'),
-            table_warm_write_capacity=
-                table.warm_throughput.get('WriteUnitsPerSecond'),
             existing_capacity_mode=existing_billing_mode
         )
 
@@ -283,8 +271,6 @@ class DynamoDBResource(AbstractExternalResource, BaseResource):
             meta.get('billing_mode', 'PROVISIONED'),
             meta.get('sort_key_name'), meta.get('sort_key_type'),
             meta.get('read_capacity'), meta.get('write_capacity'),
-            warm_read_capacity=meta.get('warm_read_capacity'),
-            warm_write_capacity=meta.get('warm_write_capacity'),
             global_indexes=meta.get('global_indexes'),
             local_indexes=meta.get('local_indexes'),
             tags=meta.get('tags'),

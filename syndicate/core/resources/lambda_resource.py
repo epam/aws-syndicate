@@ -1403,9 +1403,9 @@ class LambdaResource(BaseResource):
         layers_list = self.lambda_conn.list_lambda_layer_versions(layer_name)
 
         try:
-            for arn in [layer['LayerVersionArn'] for layer in layers_list]:
-                layer_version = arn.split(':')[-1]
-                self.lambda_conn.delete_layer(arn, log_not_found_error=False)
+            for l_arn in [layer['LayerVersionArn'] for layer in layers_list]:
+                layer_version = l_arn.split(':')[-1]
+                self.lambda_conn.delete_layer(l_arn, log_not_found_error=False)
                 _LOG.info('Lambda layer {0} version {1} was removed.'.format(
                     layer_name, layer_version))
             return {arn: config}

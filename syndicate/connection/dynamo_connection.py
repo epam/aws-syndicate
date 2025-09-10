@@ -52,17 +52,8 @@ def _append_attr_definition(definition, attr_name, attr_type):
 
 
 def _build_global_index_definition(
-        index, billing_mode, read_throughput=None, write_throughput=None,
-        warm_read_capacity=None, warm_write_capacity=None):
+        index, billing_mode, read_throughput=None, write_throughput=None):
     index_info = _build_index_definition(index)
-
-    warm_throughput = dict()
-    if warm_read_capacity is not None:
-        warm_throughput['ReadUnitsPerSecond'] = warm_read_capacity
-    if warm_write_capacity is not None:
-        warm_throughput['WriteUnitsPerSecond'] = warm_write_capacity
-    if warm_throughput:
-        index_info['WarmThroughput'] = warm_throughput
 
     if billing_mode == 'PAY_PER_REQUEST':
         index_info['OnDemandThroughput'] = dict(
@@ -136,7 +127,6 @@ class DynamoConnection(object):
     def create_table(self, table_name, hash_key_name, hash_key_type,
                      billing_mode, sort_key_name=None, sort_key_type=None,
                      read_throughput=None, write_throughput=None,
-                     warm_read_capacity=None, warm_write_capacity=None,
                      wait=True, global_indexes=None, local_indexes=None,
                      tags=None):
         """ Table creation.
@@ -149,23 +139,14 @@ class DynamoConnection(object):
         :type billing_mode: PROVISIONED/PAY_PER_REQUEST
         :type read_throughput: int
         :type write_throughput: int
-        :type warm_read_capacity: int
-        :type warm_write_capacity: int
         :type wait: bool
         :type global_indexes: dict
         :type local_indexes: dict
         :type tags: list of dict
         :returns created table
         """
-        warm_throughput = dict()
-        if warm_read_capacity is not None:
-            warm_throughput['ReadUnitsPerSecond'] = warm_read_capacity
-        if warm_write_capacity is not None:
-            warm_throughput['WriteUnitsPerSecond'] = warm_write_capacity
 
         params = dict()
-        if warm_throughput:
-            params['WarmThroughput'] = warm_throughput
 
         params['BillingMode'] = billing_mode
         if billing_mode == 'PAY_PER_REQUEST':
@@ -206,17 +187,10 @@ class DynamoConnection(object):
                     index.get('read_capacity') or read_throughput
                 write_capacity = \
                     index.get('write_capacity') or write_throughput
-                warm_read_capacity = \
-                    index.get('warm_read_capacity') or warm_read_capacity
-                warm_write_capacity = \
-                    index.get('warm_write_capacity') or warm_write_capacity
                 index_info = _build_global_index_definition(index,
                                                             billing_mode,
                                                             read_capacity,
-                                                            write_capacity,
-                                                            warm_read_capacity,
-                                                            warm_write_capacity
-                                                            )
+                                                            write_capacity)
                 params['GlobalSecondaryIndexes'].append(index_info)
         if local_indexes:
             params['LocalSecondaryIndexes'] = []
@@ -273,9 +247,7 @@ class DynamoConnection(object):
 
     def update_global_indexes(self, table_name, global_indexes_meta,
                               existing_global_indexes, table_read_capacity,
-                              table_write_capacity, table_warm_read_capacity,
-                              table_warm_write_capacity,
-                              existing_capacity_mode):
+                              table_write_capacity, existing_capacity_mode):
         """ Creates, Deletes or Updates global indexes for the table
 
         :param table_name: DynamoDB table name
@@ -289,10 +261,6 @@ class DynamoConnection(object):
         :type table_read_capacity: int
         :param table_write_capacity: table write capacity defined in meta
         :type table_write_capacity: int
-        :param table_warm_read_capacity: table warm read capacity defined in meta
-        :type table_warm_read_capacity: int
-        :param table_warm_write_capacity: table warm write capacity defined in meta
-        :type table_warm_write_capacity: int
         :param existing_capacity_mode: capacity mode currently set in the table
         :type existing_capacity_mode: str
         :returns None
@@ -325,16 +293,10 @@ class DynamoConnection(object):
                 gsi.get('read_capacity') or table_read_capacity
             write_capacity = \
                 gsi.get('write_capacity') or table_write_capacity
-            warm_read_capacity = \
-                gsi.get('warm_read_capacity') or table_warm_read_capacity
-            warm_write_capacity = \
-                gsi.get('warm_write_capacity') or table_warm_write_capacity
             self.create_global_secondary_index(
                 table_name=table_name, index_meta=gsi,
                 existing_capacity_mode=existing_capacity_mode,
-                read_throughput=read_capacity, write_throughput=write_capacity,
-                warm_read_capacity=warm_read_capacity,
-                warm_write_capacity=warm_write_capacity
+                read_throughput=read_capacity, write_throughput=write_capacity
             )
             self._wait_for_index_update(table_name, gsi.get('name'))
             _LOG.info(
@@ -418,9 +380,7 @@ class DynamoConnection(object):
     def create_global_secondary_index(self, table_name, index_meta,
                                       existing_capacity_mode,
                                       read_throughput=None,
-                                      write_throughput=None,
-                                      warm_read_capacity=None,
-                                      warm_write_capacity=None):
+                                      write_throughput=None):
         """ Creates global secondary index for the specified table.
 
         :param table_name: DynamoDB table name
@@ -433,19 +393,13 @@ class DynamoConnection(object):
         :type read_throughput: int
         :param write_throughput: write capacity to assign for global index
         :type write_throughput: int
-        :param warm_read_capacity: warm read capacity to assign for global index
-        :type warm_read_capacity: int
-        :param warm_write_capacity: warm write capacity to assign for global index
-        :type warm_write_capacity: int
         :returns update_table response as dict
         """
         index_info = _build_global_index_definition(
             index=index_meta,
             billing_mode=existing_capacity_mode,
             read_throughput=read_throughput,
-            write_throughput=write_throughput,
-            warm_read_capacity=warm_read_capacity,
-            warm_write_capacity=warm_write_capacity
+            write_throughput=write_throughput
         )
         definitions = []
         _add_index_keys_to_definition(definition=definitions, index=index_meta)
@@ -532,12 +486,9 @@ class DynamoConnection(object):
 
     def update_table_capacity(self, table_name, billing_mode,
                               read_capacity, write_capacity,
-                              warm_read_capacity,
-                              warm_write_capacity,
                               existing_billing_mode,
                               existing_provisioned_throughput,
                               existing_on_demand_throughput,
-                              existing_warm_throughput,
                               existing_global_indexes, wait=True):
         """ Updates table capacity configuration.
 
@@ -549,10 +500,6 @@ class DynamoConnection(object):
         :type read_capacity: int
         :param write_capacity: write capacity to assign for the table
         :type write_capacity: int
-        :param warm_read_capacity: warm read capacity to assign for the table
-        :type warm_read_capacity: int
-        :param warm_write_capacity: warm write capacity to assign for the table
-        :type warm_write_capacity: int
         :param existing_billing_mode: capacity mode currently set in the table
         :type billing_mode: str
         :param existing_provisioned_throughput: provisioned throughput
@@ -561,9 +508,6 @@ class DynamoConnection(object):
         :param existing_on_demand_throughput: on demand throughput currently
                                               set in the table
         :type existing_on_demand_throughput: dict
-        :param existing_warm_throughput: warm throughput currently
-                                              set in the table
-        :type existing_warm_throughput: dict
         :param existing_global_indexes: global secondary indexes already
             present in the table
         :type existing_global_indexes: list
@@ -572,27 +516,6 @@ class DynamoConnection(object):
         :returns update_table response as boto3.DynamoDB.Table object or None
             if there were no changes made
         """
-
-        warm_throughput = dict()
-        if warm_read_capacity is not None:
-            if (warm_read_capacity !=
-                    existing_warm_throughput['ReadUnitsPerSecond']):
-                warm_throughput['ReadUnitsPerSecond'] = warm_read_capacity
-        if warm_write_capacity is not None:
-            if (warm_write_capacity !=
-                    existing_warm_throughput['WriteUnitsPerSecond']):
-                warm_throughput['WriteUnitsPerSecond'] = warm_write_capacity
-
-        if warm_throughput:
-            _LOG.debug(
-                f"Updating warm throughput for the table '{table_name}'.")
-            self.client.update_table(TableName=table_name,
-                                     WarmThroughput=warm_throughput
-                                     )
-            if wait:
-                self._wait_for_table_update(table_name=table_name,
-                                            sleep_amount=30,
-                                            max_attempts=50)
         params = {}
 
         global_secondary_indexes_updates = []

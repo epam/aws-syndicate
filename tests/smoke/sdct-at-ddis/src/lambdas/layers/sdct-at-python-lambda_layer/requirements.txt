@@ -1,2 +1,1 @@
-boto3==1.26.80
-botocore==1.29.80
+requests

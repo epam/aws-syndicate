@@ -35,7 +35,7 @@ from syndicate.core.constants import (BUILD_META_FILE_NAME,
                                       UPDATE_RESOURCE_TYPE_PRIORITY,
                                       PARTIAL_CLEAN_ACTION, ABORTED_STATUS,
                                       LAMBDA_TYPE, LAMBDA_LAYER_TYPE)
-from syndicate.core.helper import prettify_json
+from syndicate.core.helper import prettify_json, strip_prefix_suffix
 from syndicate.core.build.helper import assert_bundle_bucket_exists, \
     construct_deploy_s3_key_path
 
@@ -476,7 +476,7 @@ def create_deployment_resources(
         continue_deploy: bool = False,
         replace_output: bool = False,
         rollback_on_error: bool = False,
-) -> bool:
+) -> bool | str:
     is_ld_output_regular, latest_deploy_output = \
         load_latest_deploy_output(failsafe=True)
     if latest_deploy_output is False:
@@ -518,6 +518,9 @@ def create_deployment_resources(
         exclude_names=excluded_resources,
         exclude_types=excluded_types
     )
+
+    if not resources:
+        return ABORTED_STATUS
 
     _LOG.debug(f'Going to create: {resources}')
 
@@ -611,7 +614,6 @@ def update_deployment_resources(
         replace_output: bool = False,
         force: bool = False,
 ) -> bool | str:
-    from syndicate.core import PROCESSOR_FACADE
     from click import confirm as click_confirm
 
     is_ld_output_regular, old_output = load_latest_deploy_output(failsafe=True)
@@ -643,17 +645,41 @@ def update_deployment_resources(
     _LOG.debug('Artifacts s3 paths were resolved')
     resolve_tags(resources)
 
-    USER_LOG.warning(f'Please pay attention that only the following resources '
-                     f'types are supported for update: '
-                     f'{UPDATE_RESOURCE_TYPE_PRIORITY.keys()}')
-
     update_only_resources = _resolve_names(update_only_resources)
     _LOG.info(
         'Prefixes and suffixes of any resource names have been resolved.')
+
+    updatable_types = UPDATE_RESOURCE_TYPE_PRIORITY.keys()
+    non_updatable_res = set()
+    for name in update_only_resources:
+        if name in resources and resources[name]['resource_type'] not in updatable_types:
+            non_updatable_res.add(name)
+    if non_updatable_res:
+        non_updatable_res = list(map(strip_prefix_suffix, non_updatable_res))
+        USER_LOG.error(
+            f'The following resource(s) have a resource type that cannot be '
+            f'updated {non_updatable_res}'
+        )
+        return ABORTED_STATUS
+
+    # Split resources into updatable and non-updatable
+    non_updatable_resources = list(
+        k for (k, v) in resources.items()
+        if v['resource_type'] not in updatable_types
+    )
     resources = dict(
         (k, v) for (k, v) in resources.items()
-        if v['resource_type'] in PROCESSOR_FACADE.update_handlers().keys()
+        if v['resource_type'] in updatable_types
     )
+
+    if not (update_only_types or update_only_resources) and non_updatable_resources:
+        non_updatable_resources = list(map(strip_prefix_suffix,
+                                           non_updatable_resources))
+        USER_LOG.warning(
+            f'Please note that the following resource(s) will not be updated '
+            f'because they have a resource type that cannot be updated '
+            f'{non_updatable_resources}')
+
     resources = _filter_resources(
         resources_meta=resources,
         resource_names=update_only_resources,
@@ -661,6 +687,9 @@ def update_deployment_resources(
         exclude_names=excluded_resources,
         exclude_types=excluded_types
     )
+
+    if not resources:
+        return ABORTED_STATUS
 
     _LOG.debug(
         f'Going to update the following resources: {prettify_json(resources)}')
@@ -734,6 +763,10 @@ def remove_deployment_resources(
         exclude_names=excluded_resources,
         exclude_types=excluded_types
     )
+
+    if not new_output:
+        return ABORTED_STATUS
+
     # sort resources with priority
     resources_list = list(new_output.items())
     resources_list.sort(key=cmp_to_key(_compare_clean_resources))
@@ -931,8 +964,6 @@ def _filter_resources(
     DEPLOYMENT_OUTPUT.
     """
 
-    from syndicate.core import CONFIG
-
     filtered = {}
     resource_names = set() if resource_names is None else set(resource_names)
     resource_types = set() if resource_types is None else set(resource_types)
@@ -967,22 +998,30 @@ def _filter_resources(
             if (v['resource_name'] in exclude_names
                     or v['resource_meta']['resource_type'] in exclude_types):
                 filtered.pop(k)
-
-    missing_names = set()
-    for name in set(resource_names) - set(filtered.keys()):
-        if CONFIG.resources_prefix and name.startswith(CONFIG.resources_prefix):
-            name = name[len(CONFIG.resources_prefix):]
-        if CONFIG.resources_suffix and name.endswith(CONFIG.resources_suffix):
-            name = name[:-len(CONFIG.resources_suffix)]
-        missing_names.add(name)
+    if resources_meta_type == BUILD_META:
+        meta_source = 'build meta'
+        filtered_names = set(map(strip_prefix_suffix, filtered.keys()))
+        missing_names = (
+                set(map(strip_prefix_suffix, resource_names)) - filtered_names
+        )
+    else:
+        meta_source = 'deployment output'
+        filtered_names = set(map(strip_prefix_suffix,
+                                 [v['resource_name'] for v in filtered.values()]))
+        missing_names = set(map(strip_prefix_suffix, resource_names)) - filtered_names
 
     if missing_names:
         USER_LOG.warning(
             f'The following resource(s) will be skipped due to absence in '
-            f'build meta: {", ".join(missing_names)}. '
-            f'If this is an unexpected behaviour, '
-            f'please check the command parameters.'
-        )
+            f'{meta_source}: {list(missing_names)}. If this is an unexpected '
+            f'behaviour, please check the command parameters.')
+
+    if filtered:
+        USER_LOG.info(f'The following resource(s) will be processed: '
+                      f'{list(filtered_names)}')
+    else:
+        USER_LOG.warning(
+            'No resources to process. Please check the command parameters.')
 
     return filtered
 
