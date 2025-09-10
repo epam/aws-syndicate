@@ -34,7 +34,7 @@ import java.lang.annotation.Target;
  * package sizes and promote code reuse.
  * </p>
  *
- * <h3>Usage Example:</h3>
+ * <h2>Usage Example:</h2>
  * <pre>{@code
  * @LambdaLayer(
  *     layerName = "my-custom-libs",
@@ -47,7 +47,7 @@ import java.lang.annotation.Target;
  * }
  * }</pre>
  *
- * <h3>Custom Libraries Integration:</h3>
+ * <h2>Custom Libraries Integration:</h2>
  * <p>
  * The {@code libraries} parameter allows you to include custom JAR files that are not available
  * in Maven Central. These libraries should be placed in your project directory and referenced
