@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [1.18.3] - 2025-09-11
+- Fixed issue in the lambda function with the runtime Python template
+
 # [1.18.2] - 2025-09-05
 - Added SQS queue to supported resource types for updating
 - Fixed an issue related to updating DynamoDB tables
