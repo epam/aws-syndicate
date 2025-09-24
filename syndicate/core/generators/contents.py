@@ -382,7 +382,7 @@ class AbstractLambda:
                                   content='Internal server error')
 """
 
-INIT_CONTENT = """from commons.exception import ApplicationException
+INIT_CONTENT = """from commons.exceptions import ApplicationException
 
 RESPONSE_BAD_REQUEST_CODE = 400
 RESPONSE_UNAUTHORIZED = 401
