@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 # [1.18.3] - 2025-09-11
 - Fixed issue in the lambda function with the runtime Python template
+- Fixed issue with the command `syndicate --version`
 
 # [1.18.2] - 2025-09-05
 - Added SQS queue to supported resource types for updating

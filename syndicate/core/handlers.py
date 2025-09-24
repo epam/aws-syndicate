@@ -83,6 +83,7 @@ from syndicate.core.constants import TEST_ACTION, BUILD_ACTION, \
     UNDERSCORE_CREATE_DEPLOY_TARGET_BUCKET_ACTION, \
     DEPLOY_RESOURCE_TYPE_PRIORITY, CLEAN_RESOURCE_TYPE_PRIORITY
 from syndicate.exceptions import ProjectStateError
+from syndicate import __version__
 
 INIT_COMMAND_NAME = 'init'
 SYNDICATE_PACKAGE_NAME = 'aws-syndicate'
@@ -113,7 +114,7 @@ def _not_require_state_sync(all_params):
 
 @click.group(name='syndicate', cls=AliasedCommandsGroup)
 @return_code_manager
-@click.version_option()
+@click.version_option(version=__version__)
 def syndicate():
     from syndicate.core import CONF_PATH
     if _not_require_config(sys.argv):
