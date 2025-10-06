@@ -486,9 +486,16 @@ class ProjectState:
             params['is_succeeded'] = status
 
             if params['is_succeeded'] != ABORTED_STATUS:
-                if not (status is False and rollback_on_error is True):
-                    params.pop('rollback_on_error')
-                    self._set_latest_deploy_info(**params)
+                from syndicate.core import CONFIG, CONN
+                bundle_name = params.get('bundle_name')
+                key_compound = PurePath(CONFIG.deploy_target_bucket_key_compound,
+                                        bundle_name, 'outputs/').as_posix()
+                if (
+                    not (status is False and rollback_on_error is True) 
+                    and CONN.s3().is_file_exists(CONFIG.deploy_target_bucket, key_compound)
+                    ):
+                        params.pop('rollback_on_error')
+                        self._set_latest_deploy_info(**params)
 
         if operation == CLEAN_ACTION and status is True:
             self._delete_latest_deploy_info()
