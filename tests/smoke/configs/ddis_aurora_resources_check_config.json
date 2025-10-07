@@ -3,25 +3,6 @@
     "output_file": "ddis_aurora_output"
   },
   "stages": {
-    "version": {
-        "steps": [
-          {
-            "description": "Version check",
-            "command": [
-              "syndicate",
-              "--version"
-            ],
-            "checks": [
-              {
-                "index": 1,
-                "name": "exit_code",
-                "description": "Check if actual status code equals expected",
-                "expected_exit_code": 0
-              }
-            ]
-          }
-        ]
-    },
     "build": {
       "steps": [
         {
@@ -134,9 +115,6 @@
             }
           ]
         }
-      ],
-      "depends_on": [
-        "version"
       ]
     },
     "deploy": {

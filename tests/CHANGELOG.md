@@ -1,3 +1,7 @@
+## 2025-10-07
+### Added
+- Added tests for `syndicate --version` command
+
 ## 2025-08-29
 - Fixed an issue with building python lambda layer
 - Fixed `NoSuchBucket` error during checking the existence of a Swagger UI in case the bucket does not exist
