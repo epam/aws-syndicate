@@ -35,7 +35,7 @@ _LOG = get_logger(__name__)
 USER_LOG = get_user_logger()
 
 
-def _build_output_key(bundle_name, deploy_name, is_regular_output):
+def build_output_key(bundle_name, deploy_name, is_regular_output):
     return '{0}/outputs/{1}{2}.json'.format(
         bundle_name, deploy_name, '' if is_regular_output else '_failed')
 
@@ -58,7 +58,7 @@ def create_deploy_output(
     _LOG.debug('Going to preprocess resources tags in output')
     preprocess_tags(output)
     output_str = json.dumps(output, default=_json_serial)
-    key = _build_output_key(bundle_name=bundle_name,
+    key = build_output_key(bundle_name=bundle_name,
                             deploy_name=deploy_name,
                             is_regular_output=success)
     key_compound = \
@@ -81,7 +81,7 @@ def remove_deploy_output(
         deploy_name: str,
 ) -> None:
     from syndicate.core import CONFIG, CONN
-    key = _build_output_key(bundle_name=bundle_name,
+    key = build_output_key(bundle_name=bundle_name,
                             deploy_name=deploy_name,
                             is_regular_output=True)
     key_compound = \
@@ -97,7 +97,7 @@ def remove_failed_deploy_output(
         deploy_name: str,
 ) -> None:
     from syndicate.core import CONFIG, CONN
-    key = _build_output_key(bundle_name=bundle_name,
+    key = build_output_key(bundle_name=bundle_name,
                             deploy_name=deploy_name,
                             is_regular_output=False)
     key_compound = \
@@ -126,7 +126,7 @@ def load_deploy_output(
                      True - do not raise an error, return False
     """
     from syndicate.core import CONFIG, CONN
-    key = _build_output_key(bundle_name=bundle_name,
+    key = build_output_key(bundle_name=bundle_name,
                             deploy_name=deploy_name,
                             is_regular_output=True)
     key_compound = \
@@ -156,7 +156,7 @@ def load_failed_deploy_output(bundle_name, deploy_name,
                      True - do not raise an error, return False
     """
     from syndicate.core import CONFIG, CONN
-    key = _build_output_key(bundle_name=bundle_name,
+    key = build_output_key(bundle_name=bundle_name,
                             deploy_name=deploy_name,
                             is_regular_output=False)
     key_compound = PurePath(CONFIG.deploy_target_bucket_key_compound,
