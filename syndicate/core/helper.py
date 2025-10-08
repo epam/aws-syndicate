@@ -33,7 +33,8 @@ from time import time
 from typing import Union
 
 import click
-from click import BadParameter, MissingParameter
+from click import BadParameter, MissingParameter, \
+    Abort as ClickAbort
 from tqdm import tqdm
 
 from syndicate.exceptions import ArtifactAssemblingError, \
@@ -90,6 +91,17 @@ def failed_status_code_on_exception(handler_func):
         """ Wrapper func."""
         try:
             return handler_func(*args, **kwargs)
+        except ClickAbort as ca:
+            USER_LOG.error(
+                "Operation aborted by user or non-interactive terminal. "
+                "Use '-f' or '--force' flag to skip all confirmations."
+            )
+            _LOG.warning(
+                "Operation aborted by user or non-interactive terminal: "
+                f"{str(ca) or 'no details provided'}."
+            )
+
+            return ABORTED_RETURN_CODE
         except Exception as e:
             if isinstance(e, BadParameter):
                 message = f"{e.__class__.__name__} {e.message}"
