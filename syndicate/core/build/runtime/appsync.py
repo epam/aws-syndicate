@@ -80,7 +80,7 @@ def assemble_appsync(project_path, bundles_dir, **kwargs):
             appsync_conf['deployment_package'] = artifact_name
 
             with open(conf_file_path, 'w') as file:
-                json.dump(appsync_conf, file)
+                json.dump(appsync_conf, file, indent=4)
 
             resolvers = appsync_conf.get('resolvers', [])
             functions = appsync_conf.get('functions', [])
