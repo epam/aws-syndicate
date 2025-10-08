@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 # [1.18.4] - 2025-10-06
 - Fixed an issue when failed 'update' overrides latest_deploy in state file.
+- Fixed an issue when java has custom src for lambdas instead of default 'jsrc/main/java' dir.
 
 # [1.18.3] - 2025-09-11
 - Fixed issue in the lambda function with the runtime Python template

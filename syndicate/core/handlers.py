@@ -52,6 +52,7 @@ from syndicate.core.decorators import (check_deploy_name_for_duplicates,
                                        check_deploy_bucket_exists,
                                        check_bundle_deploy_names_for_existence,
                                        return_code_manager)
+from syndicate.core.groups import RUNTIME_JAVA as RUNTIME_JAVA_GROUP
 from syndicate.core.groups.generate import (generate,
                                             GENERATE_PROJECT_COMMAND_NAME,
                                             GENERATE_CONFIG_COMMAND_NAME)
@@ -69,7 +70,7 @@ from syndicate.core.helper import (create_bundle_callback,
                                    AliasedCommandsGroup, MultiWordOption,
                                    are_resource_types_valid)
 from syndicate.core.project_state.project_state import (MODIFICATION_LOCK,
-                                                        WARMUP_LOCK)
+                                                        WARMUP_LOCK, BUILD_MAPPINGS)
 from syndicate.core.project_state.status_processor import project_state_status
 from syndicate.core.project_state.sync_processor import sync_project_state
 from syndicate.core.constants import TEST_ACTION, BUILD_ACTION, \
@@ -1131,7 +1132,7 @@ def assemble(ctx, bundle_name, force_upload, errors_allowed, skip_tests=False,
         remove_bundle_dir_locally(bundle_name, force_upload)
 
     USER_LOG.info(f'Building artifacts, bundle: {bundle_name}')
-    from syndicate.core import PROJECT_STATE
+    from syndicate.core import PROJECT_STATE, CONFIG
     # Updates stale state aggregation
     PROJECT_STATE.refresh_state()
 
@@ -1151,10 +1152,28 @@ def assemble(ctx, bundle_name, force_upload, errors_allowed, skip_tests=False,
             else:
                 USER_LOG.error(f'Build tool is not supported: {key}')
                 return FAILED_RETURN_CODE
-    else:
+
+    java_build_mapping_exists = (
+        build_mapping_dict and 
+        BUILD_MAPPINGS.get(RUNTIME_JAVA_GROUP) in build_mapping_dict
+    )
+    pom_xml_exists = os.path.exists(os.path.join(CONFIG.project_path, 'pom.xml'))
+
+    if not java_build_mapping_exists and pom_xml_exists:
+        return_code = ctx.invoke(assemble_java_mvn,
+                                 bundle_name=bundle_name,
+                                 project_path=CONFIG.project_path,
+                                 errors_allowed=errors_allowed,
+                                 skip_tests=skip_tests,
+                                 refresh_cache=refresh_cache,
+                                 is_chained=True)
+        if return_code != OK_RETURN_CODE:
+            return return_code
+    elif not build_mapping_dict:
         USER_LOG.info(
             'Resources for which artifacts need to be built were not found'
         )
+
     return OK_RETURN_CODE
 
 
