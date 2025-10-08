@@ -5,6 +5,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 # [1.18.4] - 2025-10-09
+- Fixed an issue when failed 'update' overrides latest_deploy in state file.
 - Added new resource name placeholder `$rn{}` to explicitly indicate the resource name part 
 (e.g., SQS queue URL: https://sqs.region.amazonaws.com/account_id/$rn{test_queue})
 

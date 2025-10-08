@@ -462,6 +462,9 @@ class ProjectState:
         return self.dct.get(STATE_BUILD_PROJECT_MAPPING)
 
     def log_execution_event(self, **kwargs):
+        from syndicate.core import CONFIG, CONN
+        from syndicate.core.build.bundle_processor import \
+            build_output_key
         operation = kwargs.get('operation')
         status = kwargs.get('status')
         rollback_on_error = kwargs.get('rollback_on_error')
@@ -486,10 +489,34 @@ class ProjectState:
             params['is_succeeded'] = status
 
             if params['is_succeeded'] != ABORTED_STATUS:
-                if not (status is False and rollback_on_error is True):
+                s3 = CONN.s3()
+                bundle_name = params.get('bundle_name')
+                deploy_name = params.get('deploy_name')
+
+                keys_to_check = [
+                    PurePath(
+                        CONFIG.deploy_target_bucket_key_compound,
+                        build_output_key(bundle_name, deploy_name, True)
+                    ).as_posix(),
+                    PurePath(
+                        CONFIG.deploy_target_bucket_key_compound,
+                        build_output_key(bundle_name, deploy_name, False)
+                    ).as_posix(),
+                ]
+
+                output_file_exist = any(
+                    s3.is_file_exists(CONFIG.deploy_target_bucket, key)
+                    for key in keys_to_check
+                )
+
+                skip_rollback = not (
+                        status is False and rollback_on_error is True
+                )
+
+                if skip_rollback and output_file_exist:
                     params.pop('rollback_on_error')
                     self._set_latest_deploy_info(**params)
-
+    
         if operation == CLEAN_ACTION and status is True:
             self._delete_latest_deploy_info()
 
