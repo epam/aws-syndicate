@@ -209,6 +209,9 @@
                   "tags": {
                     "tests": "smoke",
                     "project": "sdct-auto-test"
+                  },
+                  "env_variables": {
+                    "table_name": "table name is $rn{sdct-at-table}"
                   }
                 },
                 "sdct-at-python-lambda_layer": {
@@ -985,6 +988,9 @@
                 "sdct-at-dotnet-lambda": {
                   "DOTNET_SHARED_STORE": "/opt/dotnetcore/store/"
                 },
+                "sdct-at-python-lambda": {
+                  "table_name": "table name is *sdct-at-table*"
+                },
                 "sdct-at-nodejs-lambda": {
                   "cup_client_id": "*",
                   "cup_id": "*",
@@ -1188,6 +1194,9 @@
               "env_variables": {
                 "sdct-at-dotnet-lambda": {
                   "DOTNET_SHARED_STORE": "/opt/dotnetcore/store/"
+                },
+                "sdct-at-python-lambda": {
+                  "table_name": "table name is *sdct-at-table*"
                 },
                 "sdct-at-nodejs-lambda": {
                   "new_region": "${region}",
