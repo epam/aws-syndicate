@@ -33,8 +33,7 @@ from time import time
 from typing import Union
 
 import click
-from click import BadParameter, MissingParameter, \
-    Abort as ClickAbort
+from click import BadParameter, MissingParameter
 from tqdm import tqdm
 
 from syndicate.exceptions import ArtifactAssemblingError, \
