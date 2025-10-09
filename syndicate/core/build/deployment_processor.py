@@ -630,15 +630,10 @@ def update_deployment_resources(
                         "The latest deployment has status failed. "
                         "Do you want to proceed with updating?"):
                     return ABORTED_STATUS
-            except Abort as e:
-                USER_LOG.error(
-                    "Detected non-interactive mode. "
-                    "Use '-f' or '--force' to bypass all confirmations."
-                )
-                _LOG.warning(
-                    "Non-interactive environment detected. "
-                    "Abort raised because '--force' flag was not provided. "
-                    f"Exception: {e}"
+            except Abort:
+                _LOG.error(
+                    "The latest deployment has status failed. Please rerun "
+                    "the command with the --force flag to proceed."
                 )
 
                 return ABORTED_STATUS
