@@ -614,7 +614,7 @@ def update_deployment_resources(
         replace_output: bool = False,
         force: bool = False,
 ) -> bool | str:
-    from click import confirm as click_confirm
+    from click import confirm as click_confirm, Abort
 
     is_ld_output_regular, old_output = load_latest_deploy_output(failsafe=True)
     if is_ld_output_regular is None or old_output is False:
@@ -625,9 +625,16 @@ def update_deployment_resources(
                   f'Loaded output:\n {prettify_json(old_output)}')
     elif is_ld_output_regular is False:
         if not force:
-            if not click_confirm(
-                    "The latest deployment has status failed. "
-                    "Do you want to proceed with updating?"):
+            try:
+                if not click_confirm(
+                        "The latest deployment has status failed. "
+                        "Do you want to proceed with updating?"):
+                    return ABORTED_STATUS
+            except Abort:
+                _LOG.error(
+                    "The latest deployment has status failed. Please rerun "
+                    "the command with the --force flag to proceed."
+                )
                 return ABORTED_STATUS
 
             _LOG.warning(
