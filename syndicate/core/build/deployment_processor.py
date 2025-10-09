@@ -635,7 +635,6 @@ def update_deployment_resources(
                     "The latest deployment has status failed. Please rerun "
                     "the command with the --force flag to proceed."
                 )
-
                 return ABORTED_STATUS
 
             _LOG.warning(
