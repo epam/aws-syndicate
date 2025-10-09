@@ -1174,7 +1174,7 @@
                   "DOTNET_SHARED_STORE": "/opt/dotnetcore/store/"
                 },
                 "sdct-at-python-lambda": {
-                  "table_name": "table name is ddis-sdct-at-table-test"
+                  "table_name": "table name is *sdct-at-table*"
                 },
                 "sdct-at-nodejs-lambda": {
                   "new_region": "${region}",
