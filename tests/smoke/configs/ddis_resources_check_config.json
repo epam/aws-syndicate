@@ -66,6 +66,9 @@
                 "sdct-at-lambda-basic-execution-policy": {
                   "resource_type": "iam_policy"
                 },
+                "sdct-at-dynamic-aliases-role": {
+                  "resource_type": "iam_role"
+                },
                 "sdct-at-java-lambda-role": {
                   "resource_type": "iam_role"
                 },
@@ -154,6 +157,13 @@
                     "tests": "smoke",
                     "project": "sdct-auto-test",
                     "project-level-tag": "set-from-resource"
+                  }
+                },
+                "sdct-at-dynamic-aliases-role": {
+                  "resource_type": "iam_role",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test"
                   }
                 },
                 "sdct-at-java-lambda-role": {
@@ -377,6 +387,9 @@
                 "sdct-at-lambda-basic-execution-policy": {
                   "resource_type": "iam_policy"
                 },
+                "sdct-at-dynamic-aliases-role": {
+                  "resource_type": "iam_role"
+                },
                 "sdct-at-java-lambda-role": {
                   "resource_type": "iam_role"
                 },
@@ -444,6 +457,9 @@
               "succeeded_deploy": true,
               "reverse_check": true,
               "resources": {
+                "sdct-at-dynamic-aliases-role": {
+                  "resource_type": "iam_role"
+                },
                 "sdct-at-nodejs-lambda-role": {
                   "resource_type": "iam_role"
                 },
@@ -475,6 +491,9 @@
               "resources": {
                 "sdct-at-lambda-basic-execution-policy": {
                   "resource_type": "iam_policy"
+                },
+                "sdct-at-dynamic-aliases-role": {
+                  "resource_type": "iam_role"
                 },
                 "sdct-at-java-lambda-role": {
                   "resource_type": "iam_role"
@@ -543,6 +562,9 @@
               "reverse_check": true,
               "description": "Check if resources are not present in account",
               "resources": {
+                "sdct-at-dynamic-aliases-role": {
+                  "resource_type": "iam_role"
+                },
                 "sdct-at-nodejs-lambda-role": {
                   "resource_type": "iam_role"
                 },
@@ -613,6 +635,9 @@
               "resources": {
                 "sdct-at-lambda-basic-execution-policy": {
                   "resource_type": "iam_policy"
+                },
+                "sdct-at-dynamic-aliases-role": {
+                  "resource_type": "iam_role"
                 },
                 "sdct-at-java-lambda-role": {
                   "resource_type": "iam_role"
@@ -695,6 +720,9 @@
               "resources": {
                 "sdct-at-lambda-basic-execution-policy": {
                   "resource_type": "iam_policy"
+                },
+                "sdct-at-dynamic-aliases-role": {
+                  "resource_type": "iam_role"
                 },
                 "sdct-at-java-lambda-role": {
                   "resource_type": "iam_role"
@@ -776,6 +804,14 @@
               "description": "Check if all tags have been added to the resources",
               "succeeded_deploy": true,
               "resources": {
+                "sdct-at-dynamic-aliases-role": {
+                  "resource_type": "iam_role",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test",
+                    "project-level-tag": "set-from-project"
+                  }
+                },
                 "sdct-at-java-lambda-role": {
                   "resource_type": "iam_role",
                   "tags": {
@@ -1003,6 +1039,20 @@
                 1,
                 4
               ]
+            },
+            {
+              "index": 9,
+              "name": "trusted_relationships_content",
+              "description": "Check that IAM Role trusted relationships are correct",
+              "resources": {
+                "sdct-at-dynamic-aliases-role": {
+                  "resources_absence": ["sdct-at-api-gw"]
+                }
+              },
+              "depends_on": [
+                1,
+                4
+              ]
             }
           ]
         }
@@ -1047,6 +1097,9 @@
               "resources": {
                 "sdct-at-lambda-basic-execution-policy": {
                   "resource_type": "iam_policy"
+                },
+                "sdct-at-dynamic-aliases-role": {
+                  "resource_type": "iam_role"
                 },
                 "sdct-at-java-lambda-role": {
                   "resource_type": "iam_role"
@@ -1130,6 +1183,9 @@
               "name": "resource_modification",
               "description": "Check if resources were modified",
               "resources": {
+                "sdct-at-dynamic-aliases-role": {
+                  "resource_type": "lambda"
+                },
                 "sdct-at-java-lambda": {
                   "resource_type": "lambda"
                 },
@@ -1318,6 +1374,9 @@
                 "sdct-at-lambda-basic-execution-policy": {
                   "resource_type": "iam_policy"
                 },
+                "sdct-at-dynamic-aliases-role": {
+                  "resource_type": "iam_role"
+                },
                 "sdct-at-java-lambda-role": {
                   "resource_type": "iam_role"
                 },
@@ -1416,6 +1475,9 @@
               "resources": {
                 "sdct-at-lambda-basic-execution-policy": {
                   "resource_type": "iam_policy"
+                },
+                "sdct-at-dynamic-aliases-role": {
+                  "resource_type": "iam_role"
                 },
                 "sdct-at-java-lambda-role": {
                   "resource_type": "iam_role"
@@ -1544,6 +1606,9 @@
               "resources": {
                 "sdct-at-lambda-basic-execution-policy": {
                   "resource_type": "iam_policy"
+                },
+                "sdct-at-dynamic-aliases-role": {
+                  "resource_type": "iam_role"
                 },
                 "sdct-at-java-lambda-role": {
                   "resource_type": "iam_role"

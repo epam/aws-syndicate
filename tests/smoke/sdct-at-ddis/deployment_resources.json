@@ -34,6 +34,31 @@
       "project-level-tag": "set-from-resource"
     }
   },
+  "sdct-at-dynamic-aliases-role": {
+    "resource_type": "iam_role",
+    "predefined_policies": ["AWSLambdaSQSQueueExecutionRole"],
+    "trusted_relationships": {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Effect": "Allow",
+          "Principal": {
+            "Service": "apigateway.amazonaws.com"
+          },
+          "Action": "sts:AssumeRole",
+          "Condition": {
+            "StringEquals": {
+              "aws:SourceArn": "#{sdct-at-api-gw}"
+            }
+          }
+        }
+      ]
+    },
+    "tags": {
+      "tests": "smoke",
+      "project": "sdct-auto-test"
+    }
+  },
   "sdct-at-java-lambda-role": {
     "predefined_policies": [],
     "principal_service": "lambda",
@@ -101,6 +126,29 @@
         }
       }
     },
+    "apply_changes": [
+      {
+        "apply_type": "iam_role",
+        "dependency_name": "sdct-at-dynamic-aliases-role",
+        "trusted_relationships": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "apigateway.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole",
+              "Condition": {
+                "StringEquals": {
+                  "aws:SourceArn": "#{sdct-at-api-gw}"
+                }
+              }
+            }
+          ]
+        }
+      }
+    ],
     "tags": {
       "tests": "smoke",
       "project": "sdct-auto-test"

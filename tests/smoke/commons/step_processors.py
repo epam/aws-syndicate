@@ -36,7 +36,7 @@ def process_steps(steps: dict[str: List[dict]],
 
         validation_checks = validation_steps[CHECKS_CONFIG_PARAM]
         command_to_execute = step[COMMAND_CONFIG_PARAM]
-        if verbose:
+        if verbose and command_to_execute != ['syndicate', '--version']:
             command_to_execute.append('--verbose')
         if BUILD_COMMAND in command_to_execute:
             command_to_execute.extend(['--bundle-name', BUNDLE_NAME,
