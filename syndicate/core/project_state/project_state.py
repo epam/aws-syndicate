@@ -639,7 +639,6 @@ class ProjectState:
             lambdas_path = resolve_lambda_path(project_path, runtime,
                                                source_path)
             if os.path.exists(lambdas_path):
-                project_state.add_project_build_mapping(runtime)
                 project_state._update_lambdas_from_path(lambdas_path, runtime)
 
         project_build_mapping = project_state.load_project_build_mapping()
@@ -655,9 +654,6 @@ class ProjectState:
                 project_path, RUNTIME_JAVA, JAVA_ROOT_DIR_OLD
             )
             if os.path.exists(lambdas_path):
-                project_state.add_project_build_mapping(
-                    RUNTIME_JAVA, build_mapping=JAVA_ROOT_DIR_OLD
-                )
                 project_state._update_lambdas_from_path(
                     lambdas_path, RUNTIME_JAVA
                 )
