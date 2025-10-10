@@ -24,8 +24,16 @@ RUNTIME_PYTHON_LAYER = 'python_layer'
 RUNTIME_NODEJS_LAYER = 'nodejs_layer'
 RUNTIME_DOTNET_LAYER = 'dotnet_layer'
 
+JAVA_ROOT_DIR_OLD = 'jsrc/main/java'
+JAVA_ROOT_DIR = 'japp'
+NODEJS_ROOT_DIR = 'app'
+PYTHON_ROOT_DIR = 'src'
+DOTNET_ROOT_DIR = 'dnapp'
+SWAGGER_UI_ROOT_DIR = 'swagger_src'
+APPSYNC_ROOT_DIR = 'appsync_src'
+
 DEFAULT_RUNTIME_VERSION = {
-        RUNTIME_PYTHON: 'python3.10',
-        RUNTIME_NODEJS: 'nodejs20.x',
-        RUNTIME_DOTNET: 'dotnet8'
-    }
+    RUNTIME_PYTHON: 'python3.10',
+    RUNTIME_NODEJS: 'nodejs20.x',
+    RUNTIME_DOTNET: 'dotnet8'
+}
