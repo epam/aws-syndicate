@@ -256,7 +256,6 @@ def trusted_relationships_content_handler(resources: dict,
     results = {}
     missing_presence_items = {}
     found_absence_items = {}
-    breakpoint()
     for role_name, config in resources.items():
         role_name = populate_prefix_suffix(role_name,
                                            CONFIG.resources_prefix,

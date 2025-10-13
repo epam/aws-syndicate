@@ -36,7 +36,9 @@
   },
   "sdct-at-dynamic-aliases-role": {
     "resource_type": "iam_role",
-    "predefined_policies": ["AWSLambdaSQSQueueExecutionRole"],
+    "predefined_policies": [
+      "AWSLambdaSQSQueueExecutionRole"
+    ],
     "trusted_relationships": {
       "Version": "2012-10-17",
       "Statement": [

@@ -457,9 +457,6 @@
               "succeeded_deploy": true,
               "reverse_check": true,
               "resources": {
-                "sdct-at-dynamic-aliases-role": {
-                  "resource_type": "iam_role"
-                },
                 "sdct-at-nodejs-lambda-role": {
                   "resource_type": "iam_role"
                 },
@@ -562,9 +559,6 @@
               "reverse_check": true,
               "description": "Check if resources are not present in account",
               "resources": {
-                "sdct-at-dynamic-aliases-role": {
-                  "resource_type": "iam_role"
-                },
                 "sdct-at-nodejs-lambda-role": {
                   "resource_type": "iam_role"
                 },
@@ -1046,7 +1040,7 @@
               "description": "Check that IAM Role trusted relationships are correct",
               "resources": {
                 "sdct-at-dynamic-aliases-role": {
-                  "resources_absence": ["sdct-at-api-gw"]
+                  "resources_absence": ["#{sdct-at-api-gw}"]
                 }
               },
               "depends_on": [
@@ -1183,9 +1177,6 @@
               "name": "resource_modification",
               "description": "Check if resources were modified",
               "resources": {
-                "sdct-at-dynamic-aliases-role": {
-                  "resource_type": "lambda"
-                },
                 "sdct-at-java-lambda": {
                   "resource_type": "lambda"
                 },
