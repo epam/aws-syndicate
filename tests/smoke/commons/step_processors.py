@@ -51,7 +51,8 @@ def process_steps(steps: dict[str: List[dict]],
             command_to_execute.extend(['--bundle-name', BUNDLE_NAME,
                                        '--deploy-name', DEPLOY_NAME,
                                        '--replace-output'])
-        execution_datetime = datetime.now(timezone.utc)
+        # TODO datetime.utcnow() is deprecated in Python 3.12+
+        execution_datetime = datetime.utcnow()
 
         with UpdateContent(
                 command=command_to_execute,
