@@ -395,6 +395,9 @@ class ProjectState:
         :parameter runtime: str
         :return: List
         """
+        from syndicate.core.generators.lambda_function import \
+            resolve_lambda_path
+
         try:
             path = path if isinstance(path, Path) else Path(path)
         except (TypeError, Exception):
@@ -404,6 +407,21 @@ class ProjectState:
         _LOG.info(f'Going to resolve any lambda names from a given path: '
                   f'{path.absolute()}.')
         _lambdas: list = self._resolve_lambdas_from_path(path, runtime)
+
+        if not _lambdas and runtime == RUNTIME_JAVA:
+            # in case of java lambdas presence in the old path structure
+            # we need to check the old path structure for java lambdas
+            path = resolve_lambda_path(
+                Path(self.project_path), RUNTIME_JAVA, JAVA_ROOT_DIR_OLD
+            )
+            if os.path.exists(path):
+                _LOG.info('No java lambdas found in the new path structure. '
+                          f'Checking the old path structure: {path}')
+                _lambdas = self._resolve_lambdas_from_path(path,
+                                                           RUNTIME_JAVA)
+                _LOG.info(f'Found the following java lambdas in the old '
+                          f'path structure: {_lambdas}.')
+
         for name in _lambdas:
             _LOG.info(f'Going to add the following \'{runtime}\' lambda:'
                       f'\'{name}\' to the pending ProjectState.')
@@ -640,23 +658,6 @@ class ProjectState:
                                                source_path)
             if os.path.exists(lambdas_path):
                 project_state._update_lambdas_from_path(lambdas_path, runtime)
-
-        project_build_mapping = project_state.load_project_build_mapping()
-        java_not_mapped = bool(
-            project_build_mapping and
-            RUNTIME_JAVA not in project_build_mapping
-        )
-
-        if project_build_mapping is None or java_not_mapped:
-            _LOG.info('Checking for java lambdas in the old path structure.')
-
-            lambdas_path = resolve_lambda_path(
-                project_path, RUNTIME_JAVA, JAVA_ROOT_DIR_OLD
-            )
-            if os.path.exists(lambdas_path):
-                project_state._update_lambdas_from_path(
-                    lambdas_path, RUNTIME_JAVA
-                )
 
         project_state.save()
 
