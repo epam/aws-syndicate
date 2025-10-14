@@ -285,6 +285,26 @@ not matter and only the presence of a particular key will be checked.
               }
           }
         ```
+- `trusted_relationships_content` - Checks resources in trusted relationships of IAM role.
+  - parameters:
+    - `resources` (dict) [REQUIRED] - IAM roles configuration to check. Should include either `resources_absence` or `resources_presence`.
+        structure:
+        ```json5
+          {
+              "resources": {
+                "iam_role_name": {
+                  "resources_absence": [
+                    "not_trusted_resource_name1",
+                    "not_trusted_resource_nameN"
+                  ],
+                  "resources_presence": [
+                    "trusted_resource_name1",
+                    "trusted_resource_nameN"
+                  ]
+                }
+              }
+          }
+        ```
 
 ### Temporary checks conditions
 - Use tags from `tests/smoke/sdct-at-ddis/.syndicate-config/syndicate.yml` unless change them in happy_path_config.json:

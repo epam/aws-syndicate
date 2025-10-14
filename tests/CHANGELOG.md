@@ -1,3 +1,8 @@
+## 2025-10-13
+### Added
+- Added `trusted_relationships_content` checker for IAM Role trusted relationships content verification
+- Fix `syndicate --version` with `--verbose` parameter
+
 ## 2025-10-07
 ### Added
 - Added tests for `syndicate --version` command

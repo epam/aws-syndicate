@@ -1,4 +1,5 @@
 import copy
+import json
 from datetime import datetime
 import sys
 from pathlib import Path
@@ -315,6 +316,61 @@ def appsync_modification_checker(appsync_name: str,
                                        for a in actual_data_sources]
 
     return result
+
+
+def role_trusted_relationships_checker(
+        role_name: str, resources_presence: list = None,
+        resources_absence: list = None) -> dict | None:
+
+    def _check_value_recursively(value, target_items):
+        """Recursively check if any target items are present in a value
+        (dict, list, or primitive)"""
+        found_items = set()
+        if isinstance(value, dict):
+            for v in value.values():
+                found_items.update(_check_value_recursively(v, target_items))
+        elif isinstance(value, list):
+            for item in value:
+                found_items.update(_check_value_recursively(item, target_items))
+        elif isinstance(value, str):
+            for target_item in target_items:
+                if target_item in value:
+                    found_items.add(target_item)
+        return found_items
+
+    trust_document = connections.get_iam_role(role_name).get(
+        'Role', {}).get('AssumeRolePolicyDocument')
+    if isinstance(trust_document, str):
+        trust_document = json.loads(trust_document)
+
+    if not trust_document:
+        return
+
+    # Initialize sets for tracking
+    resources_presence = resources_presence or []
+    resources_absence = resources_absence or []
+
+    found_presence_items = set()
+    found_absence_items = set()
+
+    # Check each statement in the trust document
+    for statement in trust_document['Statement']:
+        if resources_presence:
+            found_presence_items.update(_check_value_recursively(
+                statement, resources_presence
+            ))
+
+        if resources_absence:
+            found_absence_items.update(_check_value_recursively(
+                statement, resources_absence
+            ))
+
+    missing_presence_items = set(resources_presence) - found_presence_items
+
+    return {
+        'missing_presence_items': list(missing_presence_items),
+        'found_absence_items': list(found_absence_items)
+    }
 
 
 # ------------ Resource existence checkers -------------

@@ -29,6 +29,7 @@ from syndicate.core.build.bundle_processor import create_deploy_output, \
 from syndicate.core.build.meta_processor import resolve_meta, \
     populate_s3_paths, resolve_resource_name, get_meta_from_output, \
     resolve_tags, preprocess_tags
+from syndicate.core.conf.processor import GLOBAL_AWS_SERVICES
 from syndicate.core.constants import (BUILD_META_FILE_NAME,
                                       CLEAN_RESOURCE_TYPE_PRIORITY,
                                       DEPLOY_RESOURCE_TYPE_PRIORITY,
@@ -854,7 +855,7 @@ def _post_remove_output_handling(
 
 
 def _apply_dynamic_changes(resources, output):
-    from syndicate.core import PROCESSOR_FACADE
+    from syndicate.core import PROCESSOR_FACADE, CONFIG
     pool = ThreadPoolExecutor(max_workers=5)
     futures = []
     for name, meta in resources.items():
@@ -879,17 +880,20 @@ def _apply_dynamic_changes(resources, output):
                         apply_func = PROCESSOR_FACADE.mapping_applier() \
                             .get(change_type)
                         if apply_func:
+                            if (CONFIG.extended_prefix_mode or
+                                    resource_type in GLOBAL_AWS_SERVICES):
+                                name = _resolve_plain_names([name])[0]
                             alias = '#{' + name + '}'
                             f = pool.submit(apply_func, alias, identifier,
                                             apply_item)
                             futures.append(f)
                         else:
-                            _LOG.warn('Dynamic apply is not defined '
-                                      'for {0} type'.format(change_type))
+                            _LOG.warn(f'Dynamic apply is not defined '
+                                      f'for {change_type} type')
                     else:
-                        _LOG.warn('Resource identifier is not defined '
-                                  'for {0} type'.format(dependency_type))
-            _LOG.info('Dynamic changes were applied to {0}'.format(name))
+                        _LOG.warn(f'Resource identifier is not defined '
+                                  f'for {dependency_type} type')
+            _LOG.info(f'Dynamic changes were applied to {name}')
     concurrent.futures.wait(futures, timeout=None, return_when=ALL_COMPLETED)
 
 
@@ -954,6 +958,24 @@ def _resolve_names(names):
         collection + tuple(map(preset_name_resolution, collection)))
 
     return resolve_n_unify_names(names or tuple())
+
+
+def _resolve_plain_names(names: list | tuple | set) -> list:
+    """
+    Strip prefix and suffix from provided names and return set of unified names
+    """
+    from syndicate.core import CONFIG
+    resolved_names = set()
+    for name in names:
+        if (CONFIG.resources_prefix and
+                name.startswith(CONFIG.resources_prefix)):
+            name = name[len(CONFIG.resources_prefix):]
+        if (CONFIG.resources_suffix and
+                name.endswith(CONFIG.resources_suffix)):
+            name = name[:-len(CONFIG.resources_suffix)]
+        resolved_names.add(name)
+
+    return list(resolved_names)
 
 
 def _filter_resources(
