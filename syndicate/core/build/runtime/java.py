@@ -38,13 +38,14 @@ def assemble_java_mvn_lambdas(project_path: str, bundles_dir: str,
 
     _LOG.info(f'Java project are located by path: {src_path}')
 
-    command = [mvn_path, 'clean', 'install']
+    mvn_execute_command = [mvn_path, 'clean', 'install']
+    mvn_clean_command = [mvn_path, 'clean']
 
     if skip_tests:
-        command.append('-DskipTests')
+        mvn_execute_command.append('-DskipTests')
 
     if errors_allowed:
-        command.append('-DerrorsAllowed')
+        mvn_execute_command.append('-DerrorsAllowed')
 
     mvn_execute = _MVN_EXECUTORS.get(runtime_root_dir, None)
     if not mvn_execute:
@@ -54,8 +55,9 @@ def assemble_java_mvn_lambdas(project_path: str, bundles_dir: str,
         )
         mvn_execute = _MVN_EXECUTORS[JAVA_ROOT_DIR_OLD]
 
-    mvn_execute(mvn_command=command, project_path=project_path)
-
+    mvn_execute(
+        mvn_execute_command=mvn_execute_command, project_path=project_path
+    )
 
     collect_artifacts = _ARTIFACT_COLLECTORS.get(runtime_root_dir, None)
     if not collect_artifacts:
@@ -66,21 +68,23 @@ def assemble_java_mvn_lambdas(project_path: str, bundles_dir: str,
         collect_artifacts = _ARTIFACT_COLLECTORS[JAVA_ROOT_DIR_OLD]
 
     collect_artifacts(
+        mvn_clean_command=mvn_clean_command,
         project_path=project_path,
         runtime_root_dir=runtime_root_dir,
         bundle_dir=bundles_dir
     )
+    _LOG.info("Cleaned up the Java project after building")
     _LOG.info('Java mvn project was processed successfully')
 
 
-def _mvn_execute_in_project_root(mvn_command, project_path: str):
+def _mvn_execute_in_project_root(mvn_execute_command, project_path: str):
     _LOG.info(f"Going to process java mvn project by path: {project_path}")
     return execute_command_by_path(
-        command=mvn_command, path=project_path, shell=False
+        command=mvn_execute_command, path=project_path, shell=False
     )
 
 
-def _mvn_execute_in_runtime_root(mvn_command, project_path: str):
+def _mvn_execute_in_runtime_root(mvn_execute_command, project_path: str):
     runtime_root_path = build_path(project_path, JAVA_ROOT_DIR)
     if not os.path.exists(runtime_root_path):
         error_message = (
@@ -94,12 +98,12 @@ def _mvn_execute_in_runtime_root(mvn_command, project_path: str):
         f"Going to process java mvn project by path: {runtime_root_path}"
     )
     return execute_command_by_path(
-        command=mvn_command, path=runtime_root_path, shell=False
+        command=mvn_execute_command, path=runtime_root_path, shell=False
     )
 
 
 def _collect_artifacts_to_bundle_in_project_root(
-    project_path: str, runtime_root_dir: str, bundle_dir: str
+    mvn_clean_command, project_path: str, runtime_root_dir: str, bundle_dir: str
 ):
     target_path = build_path(project_path, MVN_TARGET_DIR_NAME)
     _LOG.info(f'Java build artifacts are located by path: {target_path}')
@@ -107,10 +111,15 @@ def _collect_artifacts_to_bundle_in_project_root(
         target_path=target_path,
         bundle_dir=bundle_dir
     )
+    execute_command_by_path(
+        command=mvn_clean_command,
+        path=project_path,
+        shell=False
+    )
 
 
 def _collect_artifacts_to_bundle_in_runtime_root(
-    project_path: str, runtime_root_dir: str, bundle_dir: str
+    mvn_clean_command, project_path: str, runtime_root_dir: str, bundle_dir: str
 ):
     runtime_root_path = build_path(project_path, runtime_root_dir)
     target_paths = _resolve_all_target_paths(base_path=runtime_root_path)
@@ -120,6 +129,11 @@ def _collect_artifacts_to_bundle_in_runtime_root(
             target_path=target_path,
             bundle_dir=bundle_dir
         )
+    execute_command_by_path(
+        command=mvn_clean_command,
+        path=runtime_root_path,
+        shell=False
+    )
 
 
 _MVN_EXECUTORS = {
