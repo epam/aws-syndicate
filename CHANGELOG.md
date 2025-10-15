@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added new resource name placeholder `$rn{}` to explicitly indicate the resource name part 
 (e.g., SQS queue URL: https://sqs.region.amazonaws.com/account_id/$rn{test_queue})
 - Fixed dynamic resource aliases resolving when extended prefix mode is enabled
+- Replaced deprecated usage of `datetime.utctnow()` with `datetime.now(timezone.utc)`.
 
 # [1.18.3] - 2025-09-11
 - Fixed issue in the lambda function with the runtime Python template
