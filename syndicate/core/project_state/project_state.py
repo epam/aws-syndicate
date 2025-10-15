@@ -18,7 +18,7 @@ import os
 import re
 import sys
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path, PurePath
 from typing import Union
 
@@ -308,7 +308,8 @@ class ProjectState:
         elif locked_till := lock.get(LOCK_LOCKED_TILL):
             locked_till_datetime = datetime.strptime(
                 locked_till, DATE_FORMAT_ISO_8601)
-            if locked_till_datetime <= datetime.utcnow():
+            now = datetime.now(timezone.utc).replace(tzinfo=None)
+            if locked_till_datetime <= now:
                 lock[LOCK_LOCKED_TILL] = None
                 lock[LOCK_IS_LOCKED] = False
                 return True
@@ -559,7 +560,7 @@ class ProjectState:
 
         locks = self.locks
         lock = locks.get(lock_name)
-        modification_datetime = datetime.utcnow()
+        modification_datetime = datetime.now(timezone.utc).replace(tzinfo=None)
         timestamp = modification_datetime.strftime(DATE_FORMAT_ISO_8601)
         locked_till_timestamp = (modification_datetime +
                                  timedelta(minutes=locked_till)).strftime(

@@ -1,5 +1,5 @@
 import os
-
+from datetime import datetime, timedelta, timezone
 from math import ceil
 
 from syndicate.exceptions import InvalidValueError
@@ -7,7 +7,6 @@ from syndicate.commons.log_helper import get_logger
 from syndicate.core import ResourceProvider
 from syndicate.core.build.bundle_processor import load_deploy_output
 from syndicate.core.constants import DATE_FORMAT_ISO_8601
-from datetime import datetime, timedelta
 
 MIN_STATISTIC_VALUE = 'Minimum'
 MAX_STATISTIC_VALUE = 'Maximum'
@@ -132,13 +131,16 @@ def period_calculation(time_range):
 
 def validate_time_range(from_date, to_date):
     if not (from_date and to_date):
-        from_date = datetime.utcnow() - timedelta(hours=1)
-        to_date = datetime.utcnow()
+        from_date = (
+            datetime.now(timezone.utc).replace(tzinfo=None) 
+            - timedelta(hours=1)
+        )
+        to_date = datetime.now(timezone.utc).replace(tzinfo=None)
     else:
         from_date = datetime.strptime(from_date, DATE_FORMAT_ISO_8601)
-        from_date = datetime.utcfromtimestamp(datetime.timestamp(from_date))
+        from_date = datetime.fromtimestamp(datetime.timestamp(from_date))
         to_date = datetime.strptime(to_date, DATE_FORMAT_ISO_8601)
-        to_date = datetime.utcfromtimestamp(datetime.timestamp(to_date))
+        to_date = datetime.fromtimestamp(datetime.timestamp(to_date))
     time_range = to_date - from_date
     if time_range <= timedelta(seconds=0):
         raise InvalidValueError(

@@ -1,3 +1,7 @@
+## 2025-10-15
+### Added
+- Replaced deprecated usage of `datetime.utctnow()` with `datetime.now(timezone.utc)`.
+
 ## 2025-10-13
 ### Added
 - Added `trusted_relationships_content` checker for IAM Role trusted relationships content verification
