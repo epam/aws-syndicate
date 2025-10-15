@@ -85,9 +85,9 @@ def assemble_java_mvn_lambdas(project_path: str, bundles_dir: str,
     _LOG.info(f'Java build artifacts are located by paths: {target_paths}')
 
     for target_path in target_paths:
-        _copy_artifacts_from_target_to_bundle(
+        _copy_artifacts_from_target_to_bundles_dir(
             target_path=target_path,
-            bundle_dir=bundles_dir
+            bundles_dir=bundles_dir
         )
     
     execute_command_by_path(
@@ -107,13 +107,13 @@ def _resolve_all_target_paths(base_path: str) -> list[str]:
     return target_paths
 
 
-def _copy_artifacts_from_target_to_bundle(
-    target_path: str, bundle_dir: str
+def _copy_artifacts_from_target_to_bundles_dir(
+    target_path: str, bundles_dir: str
 ) -> None:
     for root, _, files in os.walk(target_path):
         for file in _filter_bundle_files(files):
             target_file_path = build_path(root, file)
-            bundle_file_path = build_path(bundle_dir, file)
+            bundle_file_path = build_path(bundles_dir, file)
             _LOG.info(f'Copying file {target_file_path} to {bundle_file_path}')
 
             shutil.copyfile(
