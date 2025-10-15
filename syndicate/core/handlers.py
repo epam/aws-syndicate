@@ -172,7 +172,7 @@ def test(suite, test_folder_name, errors_allowed, skip_tests):
         USER_LOG.info(msg)
         return OK_RETURN_CODE
     test_lib_command_mapping = {
-        'unittest': f'{sys.executable} -m unittest discover {test_folder} -v',
+        'unittest': f'"{sys.executable}" -m unittest discover "{test_folder}" -v',
         'pytest': 'pytest --no-header -v',
         'nose': 'nosetests --verbose'
     }
