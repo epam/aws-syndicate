@@ -32,9 +32,9 @@ from syndicate.core.constants import BUILD_ACTION, \
     OK_RETURN_CODE, ABORTED_RETURN_CODE, MODIFICATION_OPS
 from syndicate.core.constants import DATE_FORMAT_ISO_8601
 from syndicate.core.groups import RUNTIME_JAVA, RUNTIME_NODEJS, RUNTIME_PYTHON, \
-    RUNTIME_SWAGGER_UI, RUNTIME_DOTNET, RUNTIME_APPSYNC, JAVA_ROOT_DIR, \
+    RUNTIME_SWAGGER_UI, RUNTIME_DOTNET, RUNTIME_APPSYNC, JAVA_ROOT_DIR_JAPP, \
     NODEJS_ROOT_DIR, PYTHON_ROOT_DIR, DOTNET_ROOT_DIR, \
-    SWAGGER_UI_ROOT_DIR, APPSYNC_ROOT_DIR, JAVA_ROOT_DIR_OLD
+    SWAGGER_UI_ROOT_DIR, APPSYNC_ROOT_DIR, JAVA_ROOT_DIR_JSRC
 
 CAPITAL_LETTER_REGEX = '[A-Z][^A-Z]*'
 
@@ -55,7 +55,7 @@ PROJECT_STATE_FILE = '.syndicate'
 LAMBDA_CONFIG_FILE = 'lambda_config.json'
 
 BUILD_MAPPINGS = {
-    RUNTIME_JAVA: JAVA_ROOT_DIR,
+    RUNTIME_JAVA: JAVA_ROOT_DIR_JAPP,
     RUNTIME_PYTHON: PYTHON_ROOT_DIR,
     RUNTIME_NODEJS: NODEJS_ROOT_DIR,
     RUNTIME_DOTNET: DOTNET_ROOT_DIR,
@@ -412,15 +412,20 @@ class ProjectState:
             # in case of java lambdas presence in the old path structure
             # we need to check the old path structure for java lambdas
             path = resolve_lambda_path(
-                Path(self.project_path), RUNTIME_JAVA, JAVA_ROOT_DIR_OLD
+                Path(self.project_path), RUNTIME_JAVA, JAVA_ROOT_DIR_JSRC
             )
             if os.path.exists(path):
-                _LOG.info('No java lambdas found in the new path structure. '
-                          f'Checking the old path structure: {path}')
+                _LOG.info(
+                    f'No java lambdas found in the {JAVA_ROOT_DIR_JAPP} '
+                    f'dir. Checking the {JAVA_ROOT_DIR_JSRC} dir for '
+                    'java lambdas.'
+                )
                 _lambdas = self._resolve_lambdas_from_path(path,
                                                            RUNTIME_JAVA)
-                _LOG.info(f'Found the following java lambdas in the old '
-                          f'path structure: {_lambdas}.')
+                _LOG.info(
+                    'Found the following java lambdas in the '
+                    f'{JAVA_ROOT_DIR_JSRC} dir: {_lambdas}. '
+                )
 
         for name in _lambdas:
             _LOG.info(f'Going to add the following \'{runtime}\' lambda:'
@@ -429,10 +434,10 @@ class ProjectState:
         if _lambdas:
             # if path endwith the new java root dir we need to add mapping
             is_java_runtime = runtime == RUNTIME_JAVA
-            is_java_root_dir_old = JAVA_ROOT_DIR_OLD in path.as_posix()
+            is_java_root_dir_old = JAVA_ROOT_DIR_JSRC in path.as_posix()
 
             if is_java_runtime and is_java_root_dir_old:
-                self.add_project_build_mapping(runtime, build_mapping=JAVA_ROOT_DIR_OLD)
+                self.add_project_build_mapping(runtime, build_mapping=JAVA_ROOT_DIR_JSRC)
             else:
                 self.add_project_build_mapping(runtime)
         return _lambdas

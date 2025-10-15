@@ -20,7 +20,7 @@ from syndicate.exceptions import EnvironmentError
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.constants import MVN_TARGET_DIR_NAME
 from syndicate.core.helper import build_path, execute_command_by_path, USER_LOG
-from syndicate.core.groups import JAVA_ROOT_DIR, JAVA_ROOT_DIR_OLD
+from syndicate.core.groups import JAVA_ROOT_DIR_JAPP
 
 _LOG = get_logger(__name__)
 
@@ -47,106 +47,56 @@ def assemble_java_mvn_lambdas(project_path: str, bundles_dir: str,
     if errors_allowed:
         mvn_execute_command.append('-DerrorsAllowed')
 
-    mvn_execute = _MVN_EXECUTORS.get(runtime_root_dir, None)
-    if not mvn_execute:
+
+    if runtime_root_dir == JAVA_ROOT_DIR_JAPP:
+        runtime_root_path = build_path(project_path, JAVA_ROOT_DIR_JAPP)
+    else:
         USER_LOG.warning(
             f"The specified Java root directory '{runtime_root_dir}' is not "
             "standard. Executing Maven commands in the base project directory."
         )
-        mvn_execute = _MVN_EXECUTORS[JAVA_ROOT_DIR_OLD]
+        runtime_root_path = project_path
 
-    mvn_execute(
-        mvn_execute_command=mvn_execute_command, project_path=project_path
-    )
-
-    collect_artifacts = _ARTIFACT_COLLECTORS.get(runtime_root_dir, None)
-    if not collect_artifacts:
-        USER_LOG.warning(
-            f"The specified Java root directory '{runtime_root_dir}' is not "
-            "standard. Collecting artifacts from the base project directory."
-        )
-        collect_artifacts = _ARTIFACT_COLLECTORS[JAVA_ROOT_DIR_OLD]
-
-    collect_artifacts(
-        mvn_clean_command=mvn_clean_command,
-        project_path=project_path,
-        runtime_root_dir=runtime_root_dir,
-        bundle_dir=bundles_dir
-    )
-    _LOG.info("Cleaned up the Java project after building")
-    _LOG.info('Java mvn project was processed successfully')
-
-
-def _mvn_execute_in_project_root(mvn_execute_command, project_path: str):
-    _LOG.info(f"Going to process java mvn project by path: {project_path}")
-    return execute_command_by_path(
-        command=mvn_execute_command, path=project_path, shell=False
-    )
-
-
-def _mvn_execute_in_runtime_root(mvn_execute_command, project_path: str):
-    runtime_root_path = build_path(project_path, JAVA_ROOT_DIR)
     if not os.path.exists(runtime_root_path):
         error_message = (
             f'Cannot find the Java root directory by path: '
             f'{runtime_root_path}. Please make sure that the Java project is '
-            f'located in the "{JAVA_ROOT_DIR}" subdirectory.'
+            f'located in the "{runtime_root_dir}" subdirectory.'
         )
         USER_LOG.error(error_message)
         raise EnvironmentError(error_message)
     _LOG.info(
         f"Going to process java mvn project by path: {runtime_root_path}"
     )
-    return execute_command_by_path(
+    execute_command_by_path(
         command=mvn_execute_command, path=runtime_root_path, shell=False
     )
 
-
-def _collect_artifacts_to_bundle_in_project_root(
-    mvn_clean_command, project_path: str, runtime_root_dir: str, bundle_dir: str
-):
-    target_path = build_path(project_path, MVN_TARGET_DIR_NAME)
-    _LOG.info(f'Java build artifacts are located by path: {target_path}')
-    _copy_artifacts_from_target_to_bundle(
-        target_path=target_path,
-        bundle_dir=bundle_dir
-    )
-    execute_command_by_path(
-        command=mvn_clean_command,
-        path=project_path,
-        shell=False
-    )
-
-
-def _collect_artifacts_to_bundle_in_runtime_root(
-    mvn_clean_command, project_path: str, runtime_root_dir: str, bundle_dir: str
-):
-    runtime_root_path = build_path(project_path, runtime_root_dir)
-    target_paths = _resolve_all_target_paths(base_path=runtime_root_path)
+    target_paths = []
+    if runtime_root_dir == JAVA_ROOT_DIR_JAPP:
+        target_paths = _resolve_all_target_paths(base_path=runtime_root_path)
+    else:
+        USER_LOG.warning(
+            f"The specified Java root directory '{runtime_root_dir}' is not "
+            "standard. Collecting artifacts from the base project directory."
+        )
+        target_path = build_path(project_path, MVN_TARGET_DIR_NAME)
+        target_paths.append(target_path)
     _LOG.info(f'Java build artifacts are located by paths: {target_paths}')
+
     for target_path in target_paths:
         _copy_artifacts_from_target_to_bundle(
             target_path=target_path,
-            bundle_dir=bundle_dir
+            bundle_dir=bundles_dir
         )
+    
     execute_command_by_path(
         command=mvn_clean_command,
         path=runtime_root_path,
         shell=False
     )
-
-
-_MVN_EXECUTORS = {
-    JAVA_ROOT_DIR_OLD: _mvn_execute_in_project_root,
-    JAVA_ROOT_DIR: _mvn_execute_in_runtime_root
-}
-
-
-_ARTIFACT_COLLECTORS = {
-    JAVA_ROOT_DIR_OLD: _collect_artifacts_to_bundle_in_project_root,
-    JAVA_ROOT_DIR: _collect_artifacts_to_bundle_in_runtime_root
-}
-
+    _LOG.info("Cleaned up the Java project after building")
+    _LOG.info('Java mvn project was processed successfully')
 
 
 def _resolve_all_target_paths(base_path: str) -> list[str]:

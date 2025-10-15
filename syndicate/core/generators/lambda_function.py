@@ -34,19 +34,18 @@ from syndicate.core.generators.contents import (
     _generate_lambda_role_config, _generate_nodejs_node_lambda_config,
     CANCEL_MESSAGE, _generate_package_nodejs_lambda,
     _generate_package_lock_nodejs_lambda, JAVA_LAMBDA_HANDLER_CLASS,
-    SRC_MAIN_JAVA, FILE_POM, PYTHON_LAMBDA_HANDLER_TEMPLATE, INIT_CONTENT,
+    SRC_MAIN_JAVA, PYTHON_LAMBDA_HANDLER_TEMPLATE, INIT_CONTENT,
     ABSTRACT_LAMBDA_CONTENT, EXCEPTION_CONTENT, LOG_HELPER_CONTENT,
     _generate_python_node_layer_config, REQUIREMENTS_FILE_CONTENT,
     LOCAL_REQUIREMENTS_FILE_CONTENT, _generate_node_layer_package_file,
     _generate_node_layer_package_lock_file, JAVA_TAG_ANNOTATION_TEMPLATE,
     JAVA_TAGS_ANNOTATION_TEMPLATE, JAVA_TAGS_IMPORT,
     DOTNET_LAMBDA_HANDLER_TEMPLATE, DOTNET_LAMBDA_CSPROJ_TEMPLATE,
-    _generate_dotnet_lambda_config, DOTNET_LAMBDA_LAYER_CSPROJ_TEMPLATE,
-    SRC_MAIN_JAVA)
+    _generate_dotnet_lambda_config, DOTNET_LAMBDA_LAYER_CSPROJ_TEMPLATE)
 from syndicate.core.groups import (RUNTIME_JAVA, RUNTIME_NODEJS,
                                    RUNTIME_PYTHON, RUNTIME_PYTHON_LAYER,
                                    RUNTIME_NODEJS_LAYER, RUNTIME_DOTNET,
-                                   RUNTIME_DOTNET_LAYER, JAVA_ROOT_DIR,)
+                                   RUNTIME_DOTNET_LAYER, JAVA_ROOT_DIR_JAPP)
 
 _LOG = get_logger(__name__)
 USER_LOG = get_user_logger()
@@ -718,7 +717,7 @@ def resolve_lambda_path(project: Path, runtime: str, source: str) -> Path:
     elif runtime in LAMBDAS_PROCESSORS:
         _lambda = FOLDER_LAMBDAS
 
-    if source == JAVA_ROOT_DIR:
+    if source == JAVA_ROOT_DIR_JAPP:
         return project/Path(source, SRC_MAIN_JAVA, _lambda)
     return project/Path(source, _lambda)
 
