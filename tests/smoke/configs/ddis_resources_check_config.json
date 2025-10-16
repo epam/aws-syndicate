@@ -44,7 +44,8 @@
               "artifacts_list": [
                 "build_meta.json",
                 "sdct-at-dotnet-lambda-1.0.zip",
-                "sdct-at-ddis-1.0.0.jar",
+                "custom-sdk-1.0-SNAPSHOT.jar",
+                "lambda-1.0-SNAPSHOT.jar",
                 "sdct-at-dotnet-lambda_layer_layer.zip",
                 "sdct-at-java-lambda_layer-assembly.zip",
                 "sdct-at-nodejs-lambda-1.0.zip",
