@@ -33,13 +33,12 @@ def assemble_java_mvn_lambdas(project_path: str, bundles_dir: str,
     from syndicate.core import CONFIG
     runtime_root_dir = project_path
     project_path = CONFIG.project_path
-    mvn_path = _safe_resolve_mvn_path()
+    mvn_path = safe_resolve_mvn_path()
     src_path = build_path(project_path, runtime_root_dir)
 
     _LOG.info(f'Java project are located by path: {src_path}')
 
     mvn_execute_command = [mvn_path, 'clean', 'install']
-    mvn_clean_command = [mvn_path, 'clean']
 
     if skip_tests:
         mvn_execute_command.append('-DskipTests')
@@ -51,7 +50,7 @@ def assemble_java_mvn_lambdas(project_path: str, bundles_dir: str,
     if runtime_root_dir == JAVA_ROOT_DIR_JAPP:
         runtime_root_path = build_path(project_path, JAVA_ROOT_DIR_JAPP)
     else:
-        USER_LOG.warning(
+        _LOG.warning(
             f"The specified Java root directory '{runtime_root_dir}' is not "
             "standard. Executing Maven commands in the base project directory."
         )
@@ -76,7 +75,7 @@ def assemble_java_mvn_lambdas(project_path: str, bundles_dir: str,
     if runtime_root_dir == JAVA_ROOT_DIR_JAPP:
         target_paths = _resolve_all_target_paths(base_path=runtime_root_path)
     else:
-        USER_LOG.warning(
+        _LOG.warning(
             f"The specified Java root directory '{runtime_root_dir}' is not "
             "standard. Collecting artifacts from the base project directory."
         )
@@ -90,13 +89,20 @@ def assemble_java_mvn_lambdas(project_path: str, bundles_dir: str,
             bundles_dir=bundles_dir
         )
     
-    execute_command_by_path(
-        command=mvn_clean_command,
-        path=runtime_root_path,
-        shell=False
-    )
-    _LOG.info("Cleaned up the Java project after building")
     _LOG.info('Java mvn project was processed successfully')
+
+
+def safe_resolve_mvn_path() -> str:
+    mvn_path = shutil.which('mvn')
+    if not mvn_path:
+        error_message = (
+            'It seems that Apache Maven is not installed. Therefore, Java '
+            'artifacts cannot be assembled. Please make sure that Apache '
+            'Maven is installed and retry to build a bundle.'
+        )
+        USER_LOG.error(error_message)
+        raise EnvironmentError(error_message)
+    return mvn_path
 
 
 def _resolve_all_target_paths(base_path: str) -> list[str]:
@@ -136,16 +142,3 @@ def _filter_bundle_files(files: list[str]) -> list[str]:
                 (file.startswith(exclude_prefix) and file.endswith('.jar')):
             filtered_files.append(file)
     return filtered_files
-
-
-def _safe_resolve_mvn_path() -> str:
-    mvn_path = shutil.which('mvn')
-    if not mvn_path:
-        error_message = (
-            'It seems that Apache Maven is not installed. Therefore, Java '
-            'artifacts cannot be assembled. Please make sure that Apache '
-            'Maven is installed and retry to build a bundle.'
-        )
-        USER_LOG.error(error_message)
-        raise EnvironmentError(error_message)
-    return mvn_path
