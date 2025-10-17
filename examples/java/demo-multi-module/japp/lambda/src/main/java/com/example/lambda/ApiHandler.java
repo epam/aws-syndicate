@@ -1,5 +1,7 @@
 package com.example.lambda;
 
+import java.util.Map;
+
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.example.customsdk.RestServiceClient;
@@ -9,8 +11,6 @@ import com.syndicate.deployment.annotations.lambda.LambdaUrlConfig;
 import com.syndicate.deployment.model.Architecture;
 import com.syndicate.deployment.model.DeploymentRuntime;
 import com.syndicate.deployment.model.RetentionSetting;
-
-import java.util.Map;
 
 @LambdaHandler(
         runtime = DeploymentRuntime.JAVA17,
@@ -34,9 +34,8 @@ public class ApiHandler implements RequestHandler<Object, Map<String, Object>> {
     public Map<String, Object> handleRequest(Object request, Context context) {
         RestServiceClient client = new RestServiceClient();
         try {
-            // Replace with your actual URL
-            String url = "https://ifconfig.me";
-            return Map.of("ifconfig", client.getFromUrl(url));
+            String url = "https://ifconfig.me/ip";
+            return Map.of("lambda_public_ip", client.getFromUrl(url));
         } catch (Exception e) {
             return Map.of("error", e.getMessage());
         }

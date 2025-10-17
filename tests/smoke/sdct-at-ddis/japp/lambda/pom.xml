@@ -37,7 +37,7 @@
     </dependencies>
     <build>
         <plugins>
-            <!-- additional plugin for coping the custom-sdk jar into lib/ -->
+            <!-- plugin for coping the custom-sdk jar into lib/ -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-dependency-plugin</artifactId>
@@ -64,8 +64,6 @@
                     </execution>
                 </executions>
             </plugin>
-
-            <!-- Regular Syndicate plugin to generate deployment configuration -->
             <plugin>
                 <groupId>net.sf.aws-syndicate</groupId>
                 <artifactId>deployment-configuration-maven-plugin</artifactId>
@@ -88,7 +86,6 @@
                     </execution>
                 </executions>
             </plugin>
-            <!-- Regular Maven Shade plugin to create an uber-jar -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
@@ -111,33 +108,6 @@
                         <phase>package</phase>
                         <goals>
                             <goal>shade</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-
-            <!-- additional plugin for coping in root/target-->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-antrun-plugin</artifactId>
-                <version>3.1.0</version>
-                <executions>
-                    <execution>
-                        <id>copy-lambda-artifacts</id>
-                        <phase>verify</phase>
-                        <configuration>
-                            <target>
-                                <copy todir="${project.basedir}/../target" overwrite="true">
-                                    <fileset dir="${project.basedir}/target">
-                                        <include name="**/*.jar"/>
-                                        <include name="**/*.zip"/>
-                                        <exclude name="**/original-*.jar"/>
-                                    </fileset>
-                                </copy>
-                            </target>
-                        </configuration>
-                        <goals>
-                            <goal>run</goal>
                         </goals>
                     </execution>
                 </executions>

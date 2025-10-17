@@ -41,9 +41,8 @@ public class SdctAtJavaLambda implements RequestHandler<Object, Map<String, Obje
     public Map<String, Object> handleRequest(Object request, Context context) {
         RestServiceClient client = new RestServiceClient();
         try {
-            // Replace with your actual URL
-            String url = "https://ifconfig.me";
-            return Map.of("ifconfig", client.getFromUrl(url));
+            String url = "https://ifconfig.me/ip";
+            return Map.of("lambda_public_ip", client.getFromUrl(url));
         } catch (Exception e) {
             return Map.of("error", e.getMessage());
         }
