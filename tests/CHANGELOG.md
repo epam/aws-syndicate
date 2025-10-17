@@ -1,6 +1,7 @@
-## 2025-10-07
+## 2025-10-17
 ### Added
 - Added tests for `syndicate --version` command
+- Added tests for the new `japp` Java structure, including backward compatibility validation
 
 ## 2025-08-29
 - Fixed an issue with building python lambda layer

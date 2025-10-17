@@ -673,30 +673,29 @@ class ProjectState:
         :parameter runtime: str
         :return: List[str]
         """
-
-        lambda_list = []
-        _java_lambda_regex = 'lambdaName\s*=\s*"(.+)"'
+        lambda_names = []
+        java_lambda_regex = re.compile(r'lambdaName\s*=\s*"(.+?)"')
 
         if not path.exists():
-            return lambda_list
+            return []
 
-        for item in path.iterdir():
-            if runtime == RUNTIME_JAVA:
-                if not item.is_file():
+        if runtime == RUNTIME_JAVA:
+            for java_file in path.rglob("*.java"):
+                if not java_file.is_file():
                     continue
                 try:
-                    match = re.search(_java_lambda_regex, item.read_text())
+                    content = java_file.read_text(encoding='utf-8')
+                    match = java_lambda_regex.search(content)
                     if match:
-                        lambda_list.append(match.group(1))
-                except (OSError, Exception):
-                    print("Couldn't retrieve lambda name from the java "
-                          "lambda by path: {}".format(item.absolute()),
-                          file=sys.stderr)
-            else:
-                if (item/LAMBDA_CONFIG_FILE).exists():
-                    lambda_list.append(item.name)
+                        lambda_names.append(match.group(1))
+                except Exception:
+                    print(f"Couldn't read or parse Java file: {java_file.absolute()}", file=sys.stderr)
+        else:
+            for item in path.iterdir():
+                if (item / LAMBDA_CONFIG_FILE).exists():
+                    lambda_names.append(item.name)
 
-        return lambda_list
+        return lambda_names
 
     @staticmethod
     def _resolve_bpm_resources_from_path(path: Path, runtime: str) -> list:

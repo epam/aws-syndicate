@@ -45,7 +45,8 @@ from syndicate.core.generators.contents import (
 from syndicate.core.groups import (RUNTIME_JAVA, RUNTIME_NODEJS,
                                    RUNTIME_PYTHON, RUNTIME_PYTHON_LAYER,
                                    RUNTIME_NODEJS_LAYER, RUNTIME_DOTNET,
-                                   RUNTIME_DOTNET_LAYER, JAVA_ROOT_DIR_JAPP)
+                                   RUNTIME_DOTNET_LAYER, JAVA_ROOT_DIR_JAPP,
+                                   JAVA_ROOT_DIR_JSRC)
 
 _LOG = get_logger(__name__)
 USER_LOG = get_user_logger()
@@ -712,13 +713,9 @@ def _common_python_module(src_path):
 
 def resolve_lambda_path(project: Path, runtime: str, source: str) -> Path:
     _lambda = ''
-    if runtime == RUNTIME_JAVA:
-        _lambda = _generate_java_package_name(project.name).replace('.', '/')
-    elif runtime in LAMBDAS_PROCESSORS:
+    if runtime != RUNTIME_JAVA and runtime in LAMBDAS_PROCESSORS:
         _lambda = FOLDER_LAMBDAS
 
-    if source == JAVA_ROOT_DIR_JAPP:
-        return project/Path(source, SRC_MAIN_JAVA, _lambda)
     return project/Path(source, _lambda)
 
 
