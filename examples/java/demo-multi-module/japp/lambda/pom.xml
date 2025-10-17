@@ -1,0 +1,147 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.example</groupId>
+        <artifactId>multi-module</artifactId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+    <properties>
+        <maven-shade-plugin.version>3.5.2</maven-shade-plugin.version>
+        <syndicate.java.plugin.version>1.17.1</syndicate.java.plugin.version>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <src.dir>src/main/java</src.dir>
+        <resources.dir>src/main/resources</resources.dir>
+    </properties>
+    <artifactId>lambda</artifactId>
+    <dependencies>
+        <dependency>
+            <groupId>com.example</groupId>
+            <artifactId>custom-sdk</artifactId>
+            <version>1.0-SNAPSHOT</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-lambda-java-core</artifactId>
+            <version>1.2.3</version>
+        </dependency>
+        <dependency>
+            <groupId>net.sf.aws-syndicate</groupId>
+            <artifactId>deployment-configuration-annotations</artifactId>
+            <version>${syndicate.java.plugin.version}</version>
+        </dependency>
+    </dependencies>
+    <build>
+        <plugins>
+            <!-- additional plugin for coping the custom-sdk jar into lib/ -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <version>3.6.0</version>
+                <executions>
+                    <execution>
+                        <id>copy-custom-sdk-jar</id>
+                        <!-- before compile so that the jar is available during compilation -->
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>copy</goal>
+                        </goals>
+                        <configuration>
+                            <artifactItems>
+                                <artifactItem>
+                                    <groupId>com.example</groupId>
+                                    <artifactId>custom-sdk</artifactId>
+                                    <version>1.0-SNAPSHOT</version>
+                                    <outputDirectory>${project.basedir}/lib</outputDirectory>
+                                    <destFileName>custom-sdk.jar</destFileName>
+                                </artifactItem>
+                            </artifactItems>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Regular Syndicate plugin to generate deployment configuration -->
+            <plugin>
+                <groupId>net.sf.aws-syndicate</groupId>
+                <artifactId>deployment-configuration-maven-plugin</artifactId>
+                <version>${syndicate.java.plugin.version}</version>
+                <configuration>
+                    <packages>
+                        <package>com.example.lambda</package>
+                    </packages>
+                    <fileName>${project.name}-${project.version}.jar</fileName>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>generate-config</id>
+                        <phase>compile</phase>
+                        <inherited>false</inherited>
+                        <goals>
+                            <goal>gen-deployment-config</goal>
+                            <goal>assemble-lambda-layer-files</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <!-- Regular Maven Shade plugin to create an uber-jar -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>${maven-shade-plugin.version}</version>
+                <configuration>
+                    <filters>
+                        <filter>
+                            <artifact>*:*</artifact>
+                            <excludes>
+                                <exclude>META-INF/*.SF</exclude>
+                                <exclude>META-INF/*.DSA</exclude>
+                                <exclude>META-INF/*.RSA</exclude>
+                            </excludes>
+                        </filter>
+                    </filters>
+                    <createDependencyReducedPom>false</createDependencyReducedPom>
+                </configuration>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- additional plugin for coping in root/target-->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <version>3.1.0</version>
+                <executions>
+                    <execution>
+                        <id>copy-lambda-artifacts</id>
+                        <phase>verify</phase>
+                        <configuration>
+                            <target>
+                                <copy todir="${project.basedir}/../target" overwrite="true">
+                                    <fileset dir="${project.basedir}/target">
+                                        <include name="**/*.jar"/>
+                                        <include name="**/*.zip"/>
+                                        <exclude name="**/original-*.jar"/>
+                                    </fileset>
+                                </copy>
+                            </target>
+                        </configuration>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>
