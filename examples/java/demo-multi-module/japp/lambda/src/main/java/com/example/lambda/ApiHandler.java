@@ -30,9 +30,11 @@ import com.syndicate.deployment.model.RetentionSetting;
 )
 @LambdaUrlConfig()
 public class ApiHandler implements RequestHandler<Object, Map<String, Object>> {
+
+    private final RestServiceClient client = new RestServiceClient();
+
     @Override
     public Map<String, Object> handleRequest(Object request, Context context) {
-        RestServiceClient client = new RestServiceClient();
         try {
             String url = "https://ifconfig.me/ip";
             return Map.of("lambda_public_ip", client.getFromUrl(url));
