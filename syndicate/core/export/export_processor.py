@@ -8,6 +8,7 @@ from syndicate.core.build.bundle_processor import load_deploy_output
 from syndicate.core.constants import OAS_V3_FILE_NAME, API_GATEWAY_TYPE
 from syndicate.core.export.configuration_exporter import OASV3Exporter
 from syndicate.core.helper import build_path
+from syndicate.constants import DEFAULT_JSON_INDENT
 
 
 _LOG = get_logger(__name__)
@@ -49,7 +50,10 @@ def export_specification(
         if not specification:
             continue
         try:
-            specification = json.dumps(specification, indent=2)
+            specification = json.dumps(
+                specification, 
+                indent=DEFAULT_JSON_INDENT
+            )
         except json.JSONDecodeError as e:
             raise ResourceProcessingError(
                 f'An error occurred when serialising specification. {e}'

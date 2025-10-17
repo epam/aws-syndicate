@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed dynamic resource aliases resolving when extended prefix mode is enabled
 - Fix `syndicate test` command for python runtime in case the project path contains spaces
 - Replaced deprecated usage of `datetime.utctnow()` with `datetime.now(timezone.utc)`
+- Unified JSON formatting by extracting indent into a global constant `DEFAULT_JSON_INDENT`
 
 # [1.18.3] - 2025-09-11
 - Fixed issue in the lambda function with the runtime Python template

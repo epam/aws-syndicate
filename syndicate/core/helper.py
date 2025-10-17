@@ -52,6 +52,7 @@ from syndicate.core.constants import (BUILD_META_FILE_NAME,
 from syndicate.core.project_state.project_state import MODIFICATION_LOCK, \
     WARMUP_LOCK, ProjectState
 from syndicate.core.project_state.sync_processor import sync_project_state
+from syndicate.constants import DEFAULT_JSON_INDENT
 
 _LOG = get_logger(__name__)
 USER_LOG = get_user_logger()
@@ -108,7 +109,7 @@ def failed_status_code_on_exception(handler_func):
 
 
 def prettify_json(obj):
-    return json.dumps(obj, indent=4)
+    return json.dumps(obj, indent=DEFAULT_JSON_INDENT)
 
 
 def execute_command_by_path(command, path, shell=True):

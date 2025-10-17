@@ -13,6 +13,7 @@ from syndicate.core.generators import (_read_content_from_file,
                                        _write_content_to_file)
 from syndicate.core.generators.deployment_resources.base_generator import \
     BaseDeploymentResourceGenerator, BaseConfigurationGenerator
+from syndicate.constants import DEFAULT_JSON_INDENT
 
 
 DEFAULT_IDENTITY_SOURCE = 'method.request.header.Authorization'
@@ -113,8 +114,10 @@ class ApiGatewayAuthorizerGenerator(ApiGatewayConfigurationGenerator):
             deployment_resources[self.api_gateway_name]['authorizers'] = {}
         deployment_resources[self.api_gateway_name]['authorizers'][
             self.name] = self._resolve_configuration()
-        _write_content_to_file(path_with_api,
-                               json.dumps(deployment_resources, indent=2))
+        _write_content_to_file(
+            path_with_api,
+            json.dumps(deployment_resources, indent=DEFAULT_JSON_INDENT),
+        )
 
     def get_meta_with_authorizer(self, paths_with_api: list,
                                  authorizer_name: str):
@@ -205,8 +208,10 @@ class ApiGatewayResourceGenerator(ApiGatewayConfigurationGenerator):
 
         deployment_resources[self.api_gateway_name]['resources'][
             self.resource_path] = self._resolve_configuration()
-        _write_content_to_file(path_with_api,
-                               json.dumps(deployment_resources, indent=2))
+        _write_content_to_file(
+            path_with_api,
+            json.dumps(deployment_resources, indent=DEFAULT_JSON_INDENT),
+        )
 
 
 class ApiGatewayResourceMethodGenerator(ApiGatewayConfigurationGenerator):
@@ -267,8 +272,10 @@ class ApiGatewayResourceMethodGenerator(ApiGatewayConfigurationGenerator):
         deployment_resources[self.api_gateway_name]['resources'][
             self.resource_path][self.method] = \
             self._resolve_configuration()
-        _write_content_to_file(path_with_api,
-                               json.dumps(deployment_resources, indent=2))
+        _write_content_to_file(
+            path_with_api,
+            json.dumps(deployment_resources, indent=DEFAULT_JSON_INDENT),
+        )
 
     def _resolve_configuration(self, defaults_dict=None):
         if self._dict.get('integration_type') == 'lambda':

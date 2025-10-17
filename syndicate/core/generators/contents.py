@@ -23,6 +23,7 @@ from syndicate.core.conf.validator import (
 from syndicate.core.generators import (_alias_variable,
                                        FILE_LAMBDA_HANDLER_NODEJS)
 from syndicate.core.groups import DEFAULT_RUNTIME_VERSION
+from syndicate.constants import DEFAULT_JSON_INDENT
 
 POLICY_LAMBDA_BASIC_EXECUTION = "lambda-basic-execution"
 
@@ -593,7 +594,7 @@ LOCAL_REQUIREMENTS_FILE_CONTENT = '# local requirements'
 
 
 def _stringify(dict_content):
-    return json.dumps(dict_content, indent=2)
+    return json.dumps(dict_content, indent=DEFAULT_JSON_INDENT)
 
 
 def _generate_python_node_lambda_config(lambda_name, lambda_relative_path,

@@ -15,6 +15,7 @@ from syndicate.core.generators.contents import \
     _generate_syncapp_vtl_resolver_resp_mt
 from syndicate.core.generators.deployment_resources import \
     BaseConfigurationGenerator
+from syndicate.constants import DEFAULT_JSON_INDENT
 from click import confirm as click_confirm
 
 
@@ -51,7 +52,7 @@ class AppSyncConfigurationGenerator(BaseConfigurationGenerator):
     def _save_config(self):
         _write_content_to_file(
             PurePath(self.appsync_path, APPSYNC_CONFIG_FILE_NAME).as_posix(),
-            json.dumps(self.appsync_config, indent=2))
+            json.dumps(self.appsync_config, indent=DEFAULT_JSON_INDENT))
 
 
 class AppSyncDataSourceGenerator(AppSyncConfigurationGenerator):

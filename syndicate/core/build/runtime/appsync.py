@@ -24,6 +24,7 @@ from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.constants import APPSYNC_ARTIFACT_NAME_TEMPLATE, \
     APPSYNC_CONFIG_FILE_NAME
 from syndicate.core.helper import build_path
+from syndicate.constants import DEFAULT_JSON_INDENT
 
 FILE_DEPLOYMENT_RESOURCES = 'deployment_resources.json'
 
@@ -80,7 +81,7 @@ def assemble_appsync(project_path, bundles_dir, **kwargs):
             appsync_conf['deployment_package'] = artifact_name
 
             with open(conf_file_path, 'w') as file:
-                json.dump(appsync_conf, file, indent=4)
+                json.dump(appsync_conf, file, indent=DEFAULT_JSON_INDENT)
 
             resolvers = appsync_conf.get('resolvers', [])
             functions = appsync_conf.get('functions', [])

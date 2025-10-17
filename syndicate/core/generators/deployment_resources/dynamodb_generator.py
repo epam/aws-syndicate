@@ -7,6 +7,7 @@ from syndicate.core.generators.deployment_resources.base_generator import \
     BaseDeploymentResourceGenerator, BaseConfigurationGenerator
 from syndicate.core.generators import (_read_content_from_file,
                                        _write_content_to_file)
+from syndicate.constants import DEFAULT_JSON_INDENT
 
 _LOG = get_logger(
     'syndicate.core.generators.deployment_resources.dynamodb_generator')
@@ -58,8 +59,10 @@ class DynamoDBGlobalIndexGenerator(BaseConfigurationGenerator):
         deployment_resources[self.table_name]['global_indexes'].append(
             self._resolve_configuration()
         )
-        _write_content_to_file(path_with_table,
-                               json.dumps(deployment_resources, indent=2))
+        _write_content_to_file(
+            path_with_table,
+            json.dumps(deployment_resources, indent=DEFAULT_JSON_INDENT),
+        )
 
 
 class DynamoDBAutoscalingGenerator(BaseConfigurationGenerator):
@@ -98,5 +101,7 @@ class DynamoDBAutoscalingGenerator(BaseConfigurationGenerator):
         deployment_resources[self.table_name]['autoscaling'].append(
             self._resolve_configuration()
         )
-        _write_content_to_file(path_with_table,
-                               json.dumps(deployment_resources, indent=2))
+        _write_content_to_file(
+            path_with_table,
+            json.dumps(deployment_resources, indent=DEFAULT_JSON_INDENT),
+        )

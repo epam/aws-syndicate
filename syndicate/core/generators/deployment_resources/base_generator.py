@@ -11,6 +11,7 @@ from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.constants import RESOURCES_FILE_NAME
 from syndicate.core.generators import (_read_content_from_file,
                                        _write_content_to_file)
+from syndicate.constants import DEFAULT_JSON_INDENT
 
 _LOG = get_logger(
     'syndicate.core.generators.deployment_resources.base_generator')
@@ -205,8 +206,10 @@ class BaseDeploymentResourceGenerator(BaseConfigurationGenerator):
         USER_LOG.info(f"Writing deployment resources for "
                       f"{self.RESOURCE_TYPE} '{self.resource_name}' "
                       f"to the file '{resources_file}'")
-        _write_content_to_file(resources_file,
-                               json.dumps(deployment_resources, indent=2))
+        _write_content_to_file(
+            resources_file,
+            json.dumps(deployment_resources, indent=DEFAULT_JSON_INDENT),
+        )
 
     def _find_file_with_duplicate(self):
         """Looks for self.resouce_name inside each deployment_resource.json.

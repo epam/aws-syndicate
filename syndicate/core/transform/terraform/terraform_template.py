@@ -15,6 +15,8 @@
 """
 import json
 
+from syndicate.constants import DEFAULT_JSON_INDENT
+
 PROVIDER_KEY = 'provider'
 RESOURCE_KEY = 'resource'
 
@@ -474,5 +476,10 @@ class TerraformTemplate(object):
             resources_meta = resource_extractor()
             if resources_meta:
                 self.resources.append({res_type: resources_meta})
-        return json.dumps({PROVIDER_KEY: {self.provider: self.providers},
-                           RESOURCE_KEY: self.resources}, indent=2)
+        return json.dumps(
+            {
+                PROVIDER_KEY: {self.provider: self.providers},
+                RESOURCE_KEY: self.resources
+            }, 
+            indent=DEFAULT_JSON_INDENT,
+        )
