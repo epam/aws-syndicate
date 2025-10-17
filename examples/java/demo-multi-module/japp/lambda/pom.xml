@@ -115,33 +115,6 @@
                     </execution>
                 </executions>
             </plugin>
-
-            <!-- additional plugin for coping in root/target-->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-antrun-plugin</artifactId>
-                <version>3.1.0</version>
-                <executions>
-                    <execution>
-                        <id>copy-lambda-artifacts</id>
-                        <phase>verify</phase>
-                        <configuration>
-                            <target>
-                                <copy todir="${project.basedir}/../target" overwrite="true">
-                                    <fileset dir="${project.basedir}/target">
-                                        <include name="**/*.jar"/>
-                                        <include name="**/*.zip"/>
-                                        <exclude name="**/original-*.jar"/>
-                                    </fileset>
-                                </copy>
-                            </target>
-                        </configuration>
-                        <goals>
-                            <goal>run</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
         </plugins>
     </build>
 </project>
