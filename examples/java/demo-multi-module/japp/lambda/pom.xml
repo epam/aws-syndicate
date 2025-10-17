@@ -37,7 +37,7 @@
     </dependencies>
     <build>
         <plugins>
-            <!-- additional plugin for coping the custom-sdk jar into lib/ -->
+            <!-- plugin for coping the custom-sdk jar into lib/ -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-dependency-plugin</artifactId>
@@ -64,8 +64,6 @@
                     </execution>
                 </executions>
             </plugin>
-
-            <!-- Regular Syndicate plugin to generate deployment configuration -->
             <plugin>
                 <groupId>net.sf.aws-syndicate</groupId>
                 <artifactId>deployment-configuration-maven-plugin</artifactId>
@@ -88,7 +86,6 @@
                     </execution>
                 </executions>
             </plugin>
-            <!-- Regular Maven Shade plugin to create an uber-jar -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
