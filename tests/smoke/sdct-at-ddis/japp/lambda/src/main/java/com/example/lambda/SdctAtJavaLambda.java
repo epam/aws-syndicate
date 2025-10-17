@@ -37,9 +37,11 @@ import com.syndicate.deployment.model.RetentionSetting;
     @Tag(key = "tests", value = "smoke"),
     @Tag(key = "project", value = "sdct-auto-test")})
 public class SdctAtJavaLambda implements RequestHandler<Object, Map<String, Object>> {
+
+    private final RestServiceClient client = new RestServiceClient();
+
     @Override
     public Map<String, Object> handleRequest(Object request, Context context) {
-        RestServiceClient client = new RestServiceClient();
         try {
             String url = "https://ifconfig.me/ip";
             return Map.of("lambda_public_ip", client.getFromUrl(url));
