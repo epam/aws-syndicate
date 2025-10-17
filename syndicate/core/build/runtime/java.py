@@ -34,9 +34,6 @@ def assemble_java_mvn_lambdas(project_path: str, bundles_dir: str,
     runtime_root_dir = project_path
     project_path = CONFIG.project_path
     mvn_path = safe_resolve_mvn_path()
-    src_path = build_path(project_path, runtime_root_dir)
-
-    _LOG.info(f'Java project are located by path: {src_path}')
 
     mvn_execute_command = [mvn_path, 'clean', 'install']
 
@@ -49,6 +46,7 @@ def assemble_java_mvn_lambdas(project_path: str, bundles_dir: str,
 
     if runtime_root_dir == JAVA_ROOT_DIR_JAPP:
         runtime_root_path = build_path(project_path, JAVA_ROOT_DIR_JAPP)
+        _LOG.info(f'Java project are located by path: {runtime_root_path}')
     else:
         _LOG.warning(
             f"The specified Java root directory '{runtime_root_dir}' is not "

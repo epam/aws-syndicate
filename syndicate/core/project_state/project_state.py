@@ -487,11 +487,7 @@ class ProjectState:
             build_project_mappings = dict()
             self.dct.update(
                 {STATE_BUILD_PROJECT_MAPPING: build_project_mappings})
-        build_mapping = (
-            BUILD_MAPPINGS.get(runtime) 
-            if build_mapping is None
-            else build_mapping
-        )
+        build_mapping = build_mapping or BUILD_MAPPINGS.get(runtime)
         build_project_mappings.update({runtime: build_mapping})
 
     def load_project_build_mapping(self):
