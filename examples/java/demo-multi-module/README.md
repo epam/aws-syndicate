@@ -1,8 +1,8 @@
-## Example: Multi-Module AWS Lambda Project with Custom SDK via Lambda Layer
+#### Example: Multi-Module AWS Lambda Project with Custom SDK via Lambda Layer
 
 This is an example of a **multi-module Maven project** for AWS Lambda. It demonstrates how to structure and deploy a Java Lambda function using a **custom SDK module** that is delivered via a **Lambda Layer**, not bundled into the main Lambda deployment JAR.
 
-### Project Structure
+##### Project Structure
 
 The project is split into two Maven modules:
 
@@ -12,15 +12,15 @@ The project is split into two Maven modules:
 2. **`lambda`**
    Contains the actual Lambda function code. It depends on the `custom-sdk` module but marks it as `provided` to exclude it from the build artifact. The Lambda function accesses the SDK classes via the Lambda Layer.
 
-## How the Setup Works
+#### How the Setup Works
 
 * The Lambda function **depends on** the `custom-sdk`, but the dependency is declared with `scope: provided`, meaning it **won't be packaged** in the Lambda JAR.
 * Instead, the `custom-sdk` is built into a separate JAR and **included in a Lambda Layer**, which is then **attached to the Lambda function**.
 * This design keeps the Lambda deployment package smaller and modular.
 
-## How to Use the Custom SDK as a Lambda Layer
+#### How to Use the Custom SDK as a Lambda Layer
 
-### 1. Build the `custom-sdk` Module
+##### 1. Build the `custom-sdk` Module
 
 Run the following command in the root project or inside the `custom-sdk` folder:
 
@@ -36,7 +36,7 @@ custom-sdk/target/custom-sdk-1.0-SNAPSHOT.jar
 
 ---
 
-### 2. Automatic Placement of SDK JAR in `lib/` Folder
+##### 2. Automatic Placement of SDK JAR in `lib/` Folder
 
 When you run:
 
@@ -58,7 +58,7 @@ lambda/lib/custom-sdk-1.0-SNAPSHOT.jar
 
 This ensures the Lambda Layer always includes the latest SDK version.
 
-### 3. Lambda Layer Annotation in Code
+##### 3. Lambda Layer Annotation in Code
 
 In your Lambda code, you can use the `@LambdaLayer` annotation to indicate where the Layer libraries are:
 
@@ -74,7 +74,7 @@ In your Lambda code, you can use the `@LambdaLayer` annotation to indicate where
 
 This tells the build/deployment tools to package everything in the `lib/` folder as part of the Lambda Layer.
 
-### 4. `custom-sdk` Dependency Scope
+##### 4. `custom-sdk` Dependency Scope
 
 Make sure the SDK is added as a `provided` dependency in `lambda/pom.xml`:
 
@@ -89,7 +89,7 @@ Make sure the SDK is added as a `provided` dependency in `lambda/pom.xml`:
 
 This excludes it from the final Lambda deployment JAR.
 
-## Deployment with Syndicate
+#### Deployment with Syndicate
 
 This example is configured to use **[Syndicate](https://github.com/epam/aws-syndicate)** for deployment. It deploys:
 
@@ -99,7 +99,7 @@ This example is configured to use **[Syndicate](https://github.com/epam/aws-synd
 * 1 Lambda Layer with `custom-sdk`
 * All via simple configuration and commands.
 
-### Deployment Steps
+#### Deployment Steps
 
 ##### 1. Replace following placeholders in `syndicate.yml`:
 * `ACCOUNT_ID` - AWS account id where syndicate will deploy this demo;
