@@ -6,6 +6,9 @@ BUILD_COMMAND = 'build'
 DEPLOY_COMMAND = 'deploy'
 UPDATE_COMMAND = 'update'
 CLEAN_COMMAND = 'clean'
+VERBOSE_NOT_COMPATIBLE_COMMANDS = (
+    ['syndicate', '--version']
+)
 
 STAGES_CONFIG_PARAM = 'stages'
 INIT_PARAMS_CONFIG_PARAM = 'init_parameters'

@@ -67,6 +67,9 @@
                 "sdct-at-lambda-basic-execution-policy": {
                   "resource_type": "iam_policy"
                 },
+                "sdct-at-dynamic-aliases-role": {
+                  "resource_type": "iam_role"
+                },
                 "sdct-at-java-lambda-role": {
                   "resource_type": "iam_role"
                 },
@@ -157,6 +160,13 @@
                     "project-level-tag": "set-from-resource"
                   }
                 },
+                "sdct-at-dynamic-aliases-role": {
+                  "resource_type": "iam_role",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test"
+                  }
+                },
                 "sdct-at-java-lambda-role": {
                   "resource_type": "iam_role",
                   "tags": {
@@ -210,6 +220,9 @@
                   "tags": {
                     "tests": "smoke",
                     "project": "sdct-auto-test"
+                  },
+                  "env_variables": {
+                    "table_name": "table name is $rn{sdct-at-table}"
                   }
                 },
                 "sdct-at-python-lambda_layer": {
@@ -375,6 +388,9 @@
                 "sdct-at-lambda-basic-execution-policy": {
                   "resource_type": "iam_policy"
                 },
+                "sdct-at-dynamic-aliases-role": {
+                  "resource_type": "iam_role"
+                },
                 "sdct-at-java-lambda-role": {
                   "resource_type": "iam_role"
                 },
@@ -473,6 +489,9 @@
               "resources": {
                 "sdct-at-lambda-basic-execution-policy": {
                   "resource_type": "iam_policy"
+                },
+                "sdct-at-dynamic-aliases-role": {
+                  "resource_type": "iam_role"
                 },
                 "sdct-at-java-lambda-role": {
                   "resource_type": "iam_role"
@@ -612,6 +631,9 @@
                 "sdct-at-lambda-basic-execution-policy": {
                   "resource_type": "iam_policy"
                 },
+                "sdct-at-dynamic-aliases-role": {
+                  "resource_type": "iam_role"
+                },
                 "sdct-at-java-lambda-role": {
                   "resource_type": "iam_role"
                 },
@@ -694,6 +716,9 @@
                 "sdct-at-lambda-basic-execution-policy": {
                   "resource_type": "iam_policy"
                 },
+                "sdct-at-dynamic-aliases-role": {
+                  "resource_type": "iam_role"
+                },
                 "sdct-at-java-lambda-role": {
                   "resource_type": "iam_role"
                 },
@@ -774,6 +799,14 @@
               "description": "Check if all tags have been added to the resources",
               "succeeded_deploy": true,
               "resources": {
+                "sdct-at-dynamic-aliases-role": {
+                  "resource_type": "iam_role",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test",
+                    "project-level-tag": "set-from-project"
+                  }
+                },
                 "sdct-at-java-lambda-role": {
                   "resource_type": "iam_role",
                   "tags": {
@@ -986,12 +1019,29 @@
                 "sdct-at-dotnet-lambda": {
                   "DOTNET_SHARED_STORE": "/opt/dotnetcore/store/"
                 },
+                "sdct-at-python-lambda": {
+                  "table_name": "table name is *sdct-at-table*"
+                },
                 "sdct-at-nodejs-lambda": {
                   "cup_client_id": "*",
                   "cup_id": "*",
                   "reservations_table": "*${reservations_table}*",
                   "tables_table": "*${tables_table}*",
                   "region": "${region}"
+                }
+              },
+              "depends_on": [
+                1,
+                4
+              ]
+            },
+            {
+              "index": 9,
+              "name": "trusted_relationships_content",
+              "description": "Check that IAM Role trusted relationships are correct",
+              "resources": {
+                "sdct-at-dynamic-aliases-role": {
+                  "resources_absence": ["#{sdct-at-api-gw}"]
                 }
               },
               "depends_on": [
@@ -1042,6 +1092,9 @@
               "resources": {
                 "sdct-at-lambda-basic-execution-policy": {
                   "resource_type": "iam_policy"
+                },
+                "sdct-at-dynamic-aliases-role": {
+                  "resource_type": "iam_role"
                 },
                 "sdct-at-java-lambda-role": {
                   "resource_type": "iam_role"
@@ -1190,6 +1243,9 @@
                 "sdct-at-dotnet-lambda": {
                   "DOTNET_SHARED_STORE": "/opt/dotnetcore/store/"
                 },
+                "sdct-at-python-lambda": {
+                  "table_name": "table name is *sdct-at-table*"
+                },
                 "sdct-at-nodejs-lambda": {
                   "new_region": "${region}",
                   "region": "updated_${region}",
@@ -1310,6 +1366,9 @@
                 "sdct-at-lambda-basic-execution-policy": {
                   "resource_type": "iam_policy"
                 },
+                "sdct-at-dynamic-aliases-role": {
+                  "resource_type": "iam_role"
+                },
                 "sdct-at-java-lambda-role": {
                   "resource_type": "iam_role"
                 },
@@ -1408,6 +1467,9 @@
               "resources": {
                 "sdct-at-lambda-basic-execution-policy": {
                   "resource_type": "iam_policy"
+                },
+                "sdct-at-dynamic-aliases-role": {
+                  "resource_type": "iam_role"
                 },
                 "sdct-at-java-lambda-role": {
                   "resource_type": "iam_role"
@@ -1536,6 +1598,9 @@
               "resources": {
                 "sdct-at-lambda-basic-execution-policy": {
                   "resource_type": "iam_policy"
+                },
+                "sdct-at-dynamic-aliases-role": {
+                  "resource_type": "iam_role"
                 },
                 "sdct-at-java-lambda-role": {
                   "resource_type": "iam_role"

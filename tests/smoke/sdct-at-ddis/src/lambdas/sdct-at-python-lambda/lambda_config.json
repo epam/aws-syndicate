@@ -21,7 +21,9 @@
       "batch_size": 1
     }
   ],
-  "env_variables": {},
+  "env_variables": {
+    "table_name": "table name is $rn{sdct-at-table}"
+  },
   "publish_version": true,
   "alias": "${lambdas_alias_name}",
   "url_config": {},

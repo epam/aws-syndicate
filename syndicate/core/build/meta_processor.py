@@ -475,6 +475,7 @@ def create_resource_json(project_path: str, bundle_name: str) -> dict[
 
 
 def _resolve_names_in_meta(resources_dict, old_value, new_value):
+    resource_name_placeholder = '$rn{' + old_value + '}'
     if isinstance(resources_dict, dict):
         for k, v in resources_dict.items():
             if k in NAME_RESOLVING_BLACKLISTED_KEYS:
@@ -483,6 +484,8 @@ def _resolve_names_in_meta(resources_dict, old_value, new_value):
                 resources_dict[k] = v.replace(old_value, new_value)
             elif isinstance(v, str) and old_value in v and v.startswith('arn'):
                 resources_dict[k] = _resolve_name_in_arn(v, old_value, new_value)
+            elif isinstance(v, str) and resource_name_placeholder in v:
+                resources_dict[k] = v.replace(resource_name_placeholder, new_value)
             else:
                 _resolve_names_in_meta(v, old_value, new_value)
     elif isinstance(resources_dict, list):
@@ -493,6 +496,9 @@ def _resolve_names_in_meta(resources_dict, old_value, new_value):
                   item.startswith('arn')):
                 index = resources_dict.index(item)
                 resources_dict[index] = _resolve_name_in_arn(item, old_value, new_value)
+            elif isinstance(item, str) and resource_name_placeholder in item:
+                index = resources_dict.index(item)
+                resources_dict[index] = item.replace(resource_name_placeholder, new_value)
             elif isinstance(item, str):
                 if item == old_value:
                     index = resources_dict.index(old_value)

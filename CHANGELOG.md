@@ -4,14 +4,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [1.19.0] - 2025-10-06
+# [1.19.0] - 2025-10-17
 - Fixed an issue when failed 'update' overrides latest_deploy in state file.
 - Fixed an issue when `syndicate build` reset indent to 0 in `appsync_config.json` file.
+- Added new resource name placeholder `$rn{}` to explicitly indicate the resource name part 
+(e.g., SQS queue URL: https://sqs.region.amazonaws.com/account_id/$rn{test_queue})
+- Fixed dynamic resource aliases resolving when extended prefix mode is enabled
+- Fix `syndicate test` command for python runtime in case the project path contains spaces
+- Replaced deprecated usage of `datetime.utctnow()` with `datetime.now(timezone.utc)`
 - Encapsulated Java in a dedicated `japp` runtime root directory (with `pom.xml` and related files), and added support for modular Java projects (`examples/java/demo-multi-module`).
 
 # [1.18.3] - 2025-09-11
 - Fixed issue in the lambda function with the runtime Python template
 - Fixed issue with the command `syndicate --version`
+- Fixed issue with traceback displaying in case of running the `syndicate update` command in non-interactive mode without the '--force' flag
 
 # [1.18.2] - 2025-09-05
 - Added SQS queue to supported resource types for updating

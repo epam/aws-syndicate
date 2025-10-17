@@ -1,7 +1,19 @@
+
 ## 2025-10-17
+- Added tests for the new `japp` Java structure, including backward compatibility validation
+
+## 2025-10-15
+### Added
+- Replaced deprecated usage of `datetime.utctnow()` with `datetime.now(timezone.utc)`.
+
+## 2025-10-13
+### Added
+- Added `trusted_relationships_content` checker for IAM Role trusted relationships content verification
+- Fix `syndicate --version` with `--verbose` parameter
+
+## 2025-10-07
 ### Added
 - Added tests for `syndicate --version` command
-- Added tests for the new `japp` Java structure, including backward compatibility validation
 
 ## 2025-08-29
 - Fixed an issue with building python lambda layer
