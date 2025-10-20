@@ -29,7 +29,7 @@ POLICY_LAMBDA_BASIC_EXECUTION = "lambda-basic-execution"
 
 LAMBDA_ROLE_NAME_PATTERN = '{0}-role'  # 0 - lambda_name
 
-SRC_MAIN_JAVA = 'jsrc/main/java'
+SRC_MAIN_JAVA = 'src/main/java'
 FILE_POM = 'pom.xml'
 CANCEL_MESSAGE = 'Creating of {} has been canceled.'
 
@@ -89,8 +89,8 @@ JAVA_ROOT_POM_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <src.dir>jsrc/main/java</src.dir>
-        <resources.dir>jsrc/main/resources</resources.dir>
+        <src.dir>src/main/java</src.dir>
+        <resources.dir>src/main/resources</resources.dir>
     </properties>
 
     <dependencies>
@@ -123,6 +123,7 @@ JAVA_ROOT_POM_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
                 <configuration>
                     <packages>
                         <!--packages to scan-->
+                        <package>{java_package_name}</package>
                     </packages>
                     <fileName>${project.name}-${project.version}.jar</fileName>
                 </configuration>

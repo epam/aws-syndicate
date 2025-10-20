@@ -32,7 +32,9 @@ from syndicate.core.constants import BUILD_ACTION, \
     OK_RETURN_CODE, ABORTED_RETURN_CODE, MODIFICATION_OPS
 from syndicate.core.constants import DATE_FORMAT_ISO_8601
 from syndicate.core.groups import RUNTIME_JAVA, RUNTIME_NODEJS, RUNTIME_PYTHON, \
-    RUNTIME_SWAGGER_UI, RUNTIME_DOTNET, RUNTIME_APPSYNC
+    RUNTIME_SWAGGER_UI, RUNTIME_DOTNET, RUNTIME_APPSYNC, JAVA_ROOT_DIR_JAPP, \
+    NODEJS_ROOT_DIR, PYTHON_ROOT_DIR, DOTNET_ROOT_DIR, \
+    SWAGGER_UI_ROOT_DIR, APPSYNC_ROOT_DIR, JAVA_ROOT_DIR_JSRC
 
 CAPITAL_LETTER_REGEX = '[A-Z][^A-Z]*'
 
@@ -53,12 +55,12 @@ PROJECT_STATE_FILE = '.syndicate'
 LAMBDA_CONFIG_FILE = 'lambda_config.json'
 
 BUILD_MAPPINGS = {
-    RUNTIME_JAVA: 'jsrc/main/java',
-    RUNTIME_PYTHON: 'src',
-    RUNTIME_NODEJS: 'app',
-    RUNTIME_DOTNET: 'dnapp',
-    RUNTIME_SWAGGER_UI: 'swagger_src',
-    RUNTIME_APPSYNC: 'appsync_src'
+    RUNTIME_JAVA: JAVA_ROOT_DIR_JAPP,
+    RUNTIME_PYTHON: PYTHON_ROOT_DIR,
+    RUNTIME_NODEJS: NODEJS_ROOT_DIR,
+    RUNTIME_DOTNET: DOTNET_ROOT_DIR,
+    RUNTIME_SWAGGER_UI: SWAGGER_UI_ROOT_DIR,
+    RUNTIME_APPSYNC: APPSYNC_ROOT_DIR
 }
 
 OPERATION_LOCK_MAPPINGS = {
@@ -394,6 +396,9 @@ class ProjectState:
         :parameter runtime: str
         :return: List
         """
+        from syndicate.core.generators.lambda_function import \
+            resolve_lambda_path
+
         try:
             path = path if isinstance(path, Path) else Path(path)
         except (TypeError, Exception):
@@ -403,12 +408,39 @@ class ProjectState:
         _LOG.info(f'Going to resolve any lambda names from a given path: '
                   f'{path.absolute()}.')
         _lambdas: list = self._resolve_lambdas_from_path(path, runtime)
-        for name in self._resolve_lambdas_from_path(path, runtime):
+
+        if not _lambdas and runtime == RUNTIME_JAVA:
+            # in case of java lambdas presence in the old path structure
+            # we need to check the old path structure for java lambdas
+            path = resolve_lambda_path(
+                Path(self.project_path), RUNTIME_JAVA, JAVA_ROOT_DIR_JSRC
+            )
+            if os.path.exists(path):
+                _LOG.info(
+                    f'No java lambdas found in the {JAVA_ROOT_DIR_JAPP} '
+                    f'dir. Checking the {JAVA_ROOT_DIR_JSRC} dir for '
+                    'java lambdas.'
+                )
+                _lambdas = self._resolve_lambdas_from_path(path,
+                                                           RUNTIME_JAVA)
+                _LOG.info(
+                    'Found the following java lambdas in the '
+                    f'{JAVA_ROOT_DIR_JSRC} dir: {_lambdas}. '
+                )
+
+        for name in _lambdas:
             _LOG.info(f'Going to add the following \'{runtime}\' lambda:'
                       f'\'{name}\' to the pending ProjectState.')
             self.add_lambda(lambda_name=name, runtime=runtime)
         if _lambdas:
-            self.add_project_build_mapping(runtime)
+            # if path endwith the new java root dir we need to add mapping
+            is_java_runtime = runtime == RUNTIME_JAVA
+            is_java_root_dir_old = JAVA_ROOT_DIR_JSRC in path.as_posix()
+
+            if is_java_runtime and is_java_root_dir_old:
+                self.add_project_build_mapping(runtime, build_mapping=JAVA_ROOT_DIR_JSRC)
+            else:
+                self.add_project_build_mapping(runtime)
         return _lambdas
 
     def add_lambda(self, lambda_name, runtime):
@@ -450,13 +482,13 @@ class ProjectState:
             return _bpm_resources
         return []
 
-    def add_project_build_mapping(self, runtime):
+    def add_project_build_mapping(self, runtime, build_mapping=None):
         build_project_mappings = self.dct.get(STATE_BUILD_PROJECT_MAPPING)
         if not build_project_mappings:
             build_project_mappings = dict()
             self.dct.update(
                 {STATE_BUILD_PROJECT_MAPPING: build_project_mappings})
-        build_mapping = BUILD_MAPPINGS.get(runtime)
+        build_mapping = build_mapping or BUILD_MAPPINGS.get(runtime)
         build_project_mappings.update({runtime: build_mapping})
 
     def load_project_build_mapping(self):
@@ -627,7 +659,6 @@ class ProjectState:
             lambdas_path = resolve_lambda_path(project_path, runtime,
                                                source_path)
             if os.path.exists(lambdas_path):
-                project_state.add_project_build_mapping(runtime)
                 project_state._update_lambdas_from_path(lambdas_path, runtime)
 
         project_state.save()
@@ -643,30 +674,29 @@ class ProjectState:
         :parameter runtime: str
         :return: List[str]
         """
-
-        lambda_list = []
-        _java_lambda_regex = 'lambdaName\s*=\s*"(.+)"'
+        lambda_names = []
+        java_lambda_regex = re.compile(r'lambdaName\s*=\s*"(.+?)"')
 
         if not path.exists():
-            return lambda_list
+            return []
 
-        for item in path.iterdir():
-            if runtime == RUNTIME_JAVA:
-                if not item.is_file():
+        if runtime == RUNTIME_JAVA:
+            for java_file in path.rglob("*.java"):
+                if not java_file.is_file():
                     continue
                 try:
-                    match = re.search(_java_lambda_regex, item.read_text())
+                    content = java_file.read_text(encoding='utf-8')
+                    match = java_lambda_regex.search(content)
                     if match:
-                        lambda_list.append(match.group(1))
-                except (OSError, Exception):
-                    print("Couldn't retrieve lambda name from the java "
-                          "lambda by path: {}".format(item.absolute()),
-                          file=sys.stderr)
-            else:
-                if (item/LAMBDA_CONFIG_FILE).exists():
-                    lambda_list.append(item.name)
+                        lambda_names.append(match.group(1))
+                except Exception:
+                    print(f"Couldn't read or parse Java file: {java_file.absolute()}", file=sys.stderr)
+        else:
+            for item in path.iterdir():
+                if (item / LAMBDA_CONFIG_FILE).exists():
+                    lambda_names.append(item.name)
 
-        return lambda_list
+        return lambda_names
 
     @staticmethod
     def _resolve_bpm_resources_from_path(path: Path, runtime: str) -> list:

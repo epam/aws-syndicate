@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [1.18.4] - 2025-10-13
+# [1.19.0] - 2025-10-17
 - Fixed an issue when failed 'update' overrides latest_deploy in state file.
 - Fixed an issue when `syndicate build` reset indent to 0 in `appsync_config.json` file.
 - Added new resource name placeholder `$rn{}` to explicitly indicate the resource name part 
@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed dynamic resource aliases resolving when extended prefix mode is enabled
 - Fix `syndicate test` command for python runtime in case the project path contains spaces
 - Replaced deprecated usage of `datetime.utctnow()` with `datetime.now(timezone.utc)`
+- Root directory for Java runtime changed from `jsrc` to `japp`
+- Encapsulated Java in a dedicated `japp` runtime root directory (`pom.xml` and related files)
+- Added support for multi modular Java projects
+- Added example of Java multi module project (`examples/java/demo-multi-module`)
 - Unified JSON formatting by extracting indent into a global constant `DEFAULT_JSON_INDENT`
 
 # [1.18.3] - 2025-09-11
