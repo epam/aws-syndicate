@@ -48,7 +48,7 @@ from syndicate.core.constants import (BUILD_META_FILE_NAME,
                                       CUSTOM_AUTHORIZER_KEY, OK_RETURN_CODE,
                                       ABORTED_RETURN_CODE, FAILED_RETURN_CODE,
                                       PROFILER_ACTION, UPDATE_ACTION,
-                                      WARMUP_ACTION)
+                                      WARMUP_ACTION, DEFAULT_JSON_INDENT)
 from syndicate.core.project_state.project_state import MODIFICATION_LOCK, \
     WARMUP_LOCK, ProjectState
 from syndicate.core.project_state.sync_processor import sync_project_state
@@ -108,7 +108,7 @@ def failed_status_code_on_exception(handler_func):
 
 
 def prettify_json(obj):
-    return json.dumps(obj, indent=4)
+    return json.dumps(obj, indent=DEFAULT_JSON_INDENT)
 
 
 def execute_command_by_path(command, path, shell=True):

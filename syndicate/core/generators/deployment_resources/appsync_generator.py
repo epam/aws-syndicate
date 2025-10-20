@@ -7,7 +7,8 @@ from syndicate.core.constants import DYNAMO_TABLE_TYPE, IAM_ROLE, \
     COGNITO_USER_POOL_TYPE, APPSYNC_CONFIG_FILE_NAME, \
     APPSYNC_JS_RESOLVER_CODE_DEFAULT_FILE_NAME, \
     APPSYNC_VTL_RESOLVER_REQ_MT_DEFAULT_FILE_NAME, \
-    APPSYNC_VTL_RESOLVER_RESP_MT_DEFAULT_FILE_NAME, APPSYNC_SRC_FOLDER
+    APPSYNC_VTL_RESOLVER_RESP_MT_DEFAULT_FILE_NAME, APPSYNC_SRC_FOLDER, \
+    DEFAULT_JSON_INDENT
 from syndicate.core.generators import _write_content_to_file, \
     _read_content_from_file, _mkdir, _touch
 from syndicate.core.generators.contents import \
@@ -51,7 +52,7 @@ class AppSyncConfigurationGenerator(BaseConfigurationGenerator):
     def _save_config(self):
         _write_content_to_file(
             PurePath(self.appsync_path, APPSYNC_CONFIG_FILE_NAME).as_posix(),
-            json.dumps(self.appsync_config, indent=2))
+            json.dumps(self.appsync_config, indent=DEFAULT_JSON_INDENT))
 
 
 class AppSyncDataSourceGenerator(AppSyncConfigurationGenerator):

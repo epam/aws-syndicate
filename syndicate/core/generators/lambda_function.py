@@ -47,6 +47,7 @@ from syndicate.core.groups import (RUNTIME_JAVA, RUNTIME_NODEJS,
                                    RUNTIME_NODEJS_LAYER, RUNTIME_DOTNET,
                                    RUNTIME_DOTNET_LAYER, JAVA_ROOT_DIR_JAPP,
                                    JAVA_ROOT_DIR_JSRC)
+from syndicate.core.constants import DEFAULT_JSON_INDENT
 
 _LOG = get_logger(__name__)
 USER_LOG = get_user_logger()
@@ -374,8 +375,10 @@ def _generate_java_lambdas(**kwargs):
             ))
         deployment_resources.update(_generate_lambda_role_config(
             lambda_role_name, tags, stringify=False))
-        _write_content_to_file(dep_res_path,
-                               json.dumps(deployment_resources, indent=2))
+        _write_content_to_file(
+            dep_res_path,
+            json.dumps(deployment_resources, indent=DEFAULT_JSON_INDENT),
+        )
 
         project_state.add_lambda(lambda_name=lambda_name, runtime=RUNTIME_JAVA)
         _LOG.info(f'Lambda {lambda_name} created')
