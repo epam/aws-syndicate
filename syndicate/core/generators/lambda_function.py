@@ -34,7 +34,7 @@ from syndicate.core.generators.contents import (
     _generate_lambda_role_config, _generate_nodejs_node_lambda_config,
     CANCEL_MESSAGE, _generate_package_nodejs_lambda,
     _generate_package_lock_nodejs_lambda, JAVA_LAMBDA_HANDLER_CLASS,
-    SRC_MAIN_JAVA, FILE_POM, PYTHON_LAMBDA_HANDLER_TEMPLATE, INIT_CONTENT,
+    SRC_MAIN_JAVA, PYTHON_LAMBDA_HANDLER_TEMPLATE, INIT_CONTENT,
     ABSTRACT_LAMBDA_CONTENT, EXCEPTION_CONTENT, LOG_HELPER_CONTENT,
     _generate_python_node_layer_config, REQUIREMENTS_FILE_CONTENT,
     LOCAL_REQUIREMENTS_FILE_CONTENT, _generate_node_layer_package_file,
@@ -45,7 +45,8 @@ from syndicate.core.generators.contents import (
 from syndicate.core.groups import (RUNTIME_JAVA, RUNTIME_NODEJS,
                                    RUNTIME_PYTHON, RUNTIME_PYTHON_LAYER,
                                    RUNTIME_NODEJS_LAYER, RUNTIME_DOTNET,
-                                   RUNTIME_DOTNET_LAYER)
+                                   RUNTIME_DOTNET_LAYER, JAVA_ROOT_DIR_JAPP,
+                                   JAVA_ROOT_DIR_JSRC)
 
 _LOG = get_logger(__name__)
 USER_LOG = get_user_logger()
@@ -310,20 +311,19 @@ def _generate_java_lambdas(**kwargs):
     tags = kwargs.get(TAGS_PARAM)
     generated_lambdas = []
 
-    _generate_java_project_hierarchy(project_name=project_name,
-                                     full_project_path=project_path)
-
+    java_project_path = os.path.join(project_path, BUILD_MAPPINGS[RUNTIME_JAVA])
     java_package_name = _generate_java_package_name(project_name)
     java_package_as_path = java_package_name.replace('.', '/')
+    full_package_path = Path(
+        java_project_path, SRC_MAIN_JAVA, java_package_as_path
+    )
 
-    pom_file_path = os.path.join(project_path, FILE_POM)
-    pom_xml_content = _read_content_from_file(pom_file_path)
-    pom_xml_content = pom_xml_content.replace(
-        '<!--packages to scan-->',
-        f'<package>{java_package_name}</package>')
-    _write_content_to_file(pom_file_path, pom_xml_content)
-
-    full_package_path = Path(project_path, SRC_MAIN_JAVA, java_package_as_path)
+    _generate_java_project_hierarchy(
+        project_name=project_name,
+        java_package_name=java_package_name,
+        java_project_path=java_project_path
+    )
+    
     for lambda_name in lambda_names:
         if not os.path.exists(full_package_path):
             _mkdir(full_package_path, exist_ok=True)
@@ -333,18 +333,19 @@ def _generate_java_lambdas(**kwargs):
         lambda_class_name = lambda_class_name.replace(' ', '')
         lambda_role_name = LAMBDA_ROLE_NAME_PATTERN.format(lambda_name)
         lambda_tags_import, lambda_tags = _resolve_java_tags(tags)
-        java_handler_content = \
-            (JAVA_LAMBDA_HANDLER_CLASS
-             .replace('{java_package_name}', java_package_name)
-             .replace('{lambda_name}', lambda_name)
-             .replace('{lambda_class_name}', lambda_class_name)
-             .replace('{lambda_role_name}', lambda_role_name)
-             .replace('{tags_import}', lambda_tags_import)
-             .replace('{tags}', lambda_tags))
+        java_handler_content = (
+            JAVA_LAMBDA_HANDLER_CLASS
+            .replace('{java_package_name}', java_package_name)
+            .replace('{lambda_name}', lambda_name)
+            .replace('{lambda_class_name}', lambda_class_name)
+            .replace('{lambda_role_name}', lambda_role_name)
+            .replace('{tags_import}', lambda_tags_import)
+            .replace('{tags}', lambda_tags)
+        )
 
         java_handler_file_name = os.path.join(
-            project_path, SRC_MAIN_JAVA, java_package_as_path,
-            f'{lambda_class_name}.java')
+            full_package_path, f'{lambda_class_name}.java'
+        )
         if Path(str(java_handler_file_name)).is_file():
             if not click_confirm(
                     f'\nLambda {lambda_name} already exists.\nOverride '
@@ -712,10 +713,9 @@ def _common_python_module(src_path):
 
 def resolve_lambda_path(project: Path, runtime: str, source: str) -> Path:
     _lambda = ''
-    if runtime == RUNTIME_JAVA:
-        _lambda = _generate_java_package_name(project.name).replace('.', '/')
-    elif runtime in LAMBDAS_PROCESSORS:
+    if runtime != RUNTIME_JAVA and runtime in LAMBDAS_PROCESSORS:
         _lambda = FOLDER_LAMBDAS
+
     return project/Path(source, _lambda)
 
 
