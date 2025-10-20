@@ -12,7 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed dynamic resource aliases resolving when extended prefix mode is enabled
 - Fix `syndicate test` command for python runtime in case the project path contains spaces
 - Replaced deprecated usage of `datetime.utctnow()` with `datetime.now(timezone.utc)`
-- Encapsulated Java in a dedicated `japp` runtime root directory (with `pom.xml` and related files), and added support for modular Java projects (`examples/java/demo-multi-module`).
+- Root directory for Java runtime changed from `jsrc` to `japp`
+- Encapsulated Java in a dedicated `japp` runtime root directory (`pom.xml` and related files)
+- Added support for multi modular Java projects
+- Added example of Java multi module project (`examples/java/demo-multi-module`)
 
 # [1.18.3] - 2025-09-11
 - Fixed issue in the lambda function with the runtime Python template
