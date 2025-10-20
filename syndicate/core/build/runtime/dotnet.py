@@ -58,15 +58,15 @@ _LOG = get_logger(__name__)
 USER_LOG = get_user_logger()
 
 
-def assemble_dotnet_lambdas(project_path, bundles_dir, **kwargs):
+def assemble_dotnet_lambdas(runtime_root_path, bundles_dir, **kwargs):
     from syndicate.core import CONFIG
 
     _check_dotnet_is_installed()
-    project_abs_path = Path(CONFIG.project_path, project_path)
-    _LOG.info(f'Going to package lambdas starting by path {project_abs_path}')
+    runtime_abs_path = Path(CONFIG.project_path, runtime_root_path)
+    _LOG.info(f'Going to package lambdas starting by path {runtime_abs_path}')
     executor = ThreadPoolExecutor(max_workers=5)
     futures = []
-    for root, sub_dirs, files in os.walk(project_abs_path):
+    for root, _, files in os.walk(runtime_abs_path):
         for item in files:
             if item.endswith(LAMBDA_LAYER_CONFIG_FILE_NAME):
                 _LOG.info(f'Going to build artifact in: {root}')
@@ -82,7 +82,7 @@ def assemble_dotnet_lambdas(project_path, bundles_dir, **kwargs):
             _LOG.info(future.result())
 
     futures = []
-    for root, sub_dirs, files in os.walk(project_abs_path):
+    for root, _, files in os.walk(runtime_abs_path):
         for item in files:
             if item.endswith(LAMBDA_CONFIG_FILE_NAME):
                 _LOG.info(f'Going to build artifact in: {root}')

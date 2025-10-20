@@ -53,8 +53,8 @@ RUNTIME_TO_BUILDER_MAPPING = {
 _LOG = get_logger(__name__)
 
 
-def assemble_artifacts(bundle_name, project_path, runtime,
-                       errors_allowed=False, skip_tests=False, **kwargs):
+def assemble_artifacts(bundle_name, runtime_root_path, runtime,
+                       errors_allowed=False, skip_tests=False, **kwargs) -> None:
     if runtime not in SUPPORTED_RUNTIMES:
         raise InvalidValueError(
             f"Runtime '{runtime}' is not supported. "
@@ -71,7 +71,10 @@ def assemble_artifacts(bundle_name, project_path, runtime,
         raise InvalidValueError(
             f"Runtime '{runtime}' is not supported. "
             f"Currently available runtimes:'{SUPPORTED_RUNTIMES}'")
-    assemble_func(project_path=project_path,
-                  bundles_dir=bundle_dir,
-                  errors_allowed=errors_allowed,
-                  skip_tests=skip_tests)
+
+    assemble_func(
+        runtime_root_path=runtime_root_path,
+        bundles_dir=bundle_dir,
+        errors_allowed=errors_allowed,
+        skip_tests=skip_tests
+    )

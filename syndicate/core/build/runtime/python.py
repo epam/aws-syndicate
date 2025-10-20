@@ -53,19 +53,20 @@ EMPTY_FILE_HASH = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b
 TMP_DIR = 'tmp'
 
 
-def assemble_python_lambdas(project_path, bundles_dir, errors_allowed,
+def assemble_python_lambdas(runtime_root_path, bundles_dir, errors_allowed,
                             **kwargs):
     from syndicate.core import CONFIG
-    project_base_folder = os.path.basename(os.path.normpath(project_path))
-    if project_path != '.':
-        project_abs_path = build_path(CONFIG.project_path, project_base_folder)
+    print(f"py: {runtime_root_path}")  # TODO: remove
+    runtime_base_dir = os.path.basename(os.path.normpath(runtime_root_path))
+    if runtime_root_path != '.':
+        runtime_abs_path = build_path(CONFIG.project_path, runtime_base_dir)
     else:
-        project_abs_path = CONFIG.project_path
+        runtime_abs_path = CONFIG.project_path
     _LOG.info('Going to process python project by path: {0}'.format(
-        project_abs_path))
+        runtime_abs_path))
     with ThreadPoolExecutor(max_workers=5) as executor:
         futures = []
-        for root, sub_dirs, files in os.walk(project_abs_path):
+        for root, _, files in os.walk(runtime_abs_path):
             for item in files:
                 if item.endswith(LAMBDA_CONFIG_FILE_NAME):
                     _LOG.info('Going to build artifact in: {0}'.format(root))
@@ -73,7 +74,7 @@ def assemble_python_lambdas(project_path, bundles_dir, errors_allowed,
                         'root': str(Path(root)),
                         'config_file': str(Path(root, item)),
                         'target_folder': bundles_dir,
-                        'project_path': project_path,
+                        'runtime_root_path': runtime_root_path,
                         'errors_allowed': errors_allowed
                     }
                     futures.append(
@@ -83,7 +84,7 @@ def assemble_python_lambdas(project_path, bundles_dir, errors_allowed,
                     arg = {
                         'layer_root': root,
                         'bundle_dir': bundles_dir,
-                        'project_path': project_path,
+                        'runtime_root_path': runtime_root_path,
                         'errors_allowed': errors_allowed
                     }
                     futures.append(
@@ -98,7 +99,7 @@ def assemble_python_lambdas(project_path, bundles_dir, errors_allowed,
 
 @unpack_kwargs
 def build_python_lambda_layer(layer_root: str, bundle_dir: str,
-                              project_path: str, errors_allowed: bool):
+                              runtime_root_path: str, errors_allowed: bool):
     """
     Layer root is a dir where these files exist:
     - lambda_layer_config.json
@@ -164,7 +165,7 @@ def build_python_lambda_layer(layer_root: str, bundle_dir: str,
 
         _LOG.info('Going to install local dependencies')
         _install_local_req(tmp_artifact_path, local_requirements_path,
-                           project_path)
+                           runtime_root_path)
         _LOG.info('Local dependencies were installed successfully')
 
         # making zip archive
@@ -193,7 +194,7 @@ def build_python_lambda_layer(layer_root: str, bundle_dir: str,
 
 
 @unpack_kwargs
-def _build_python_artifact(root, config_file, target_folder, project_path,
+def _build_python_artifact(root, config_file, target_folder, runtime_root_path,
                            errors_allowed):
     _LOG.info(f'Building artifact in {target_folder}')
 
@@ -258,7 +259,7 @@ def _build_python_artifact(root, config_file, target_folder, project_path,
     if os.path.exists(local_requirements_path):
         _LOG.info('Going to install local dependencies')
         _install_local_req(tmp_artifact_path, local_requirements_path,
-                           project_path)
+                           runtime_root_path)
         _LOG.info('Local dependencies were installed successfully')
 
     # copy lambda's specific packages
@@ -529,7 +530,7 @@ def install_requirements_independently(requirements: Union[str, Path, List[str]]
     return failed_requirements
 
 
-def _install_local_req(artifact_path, local_req_path, project_path):
+def _install_local_req(artifact_path, local_req_path, runtime_root_path):
     from syndicate.core import CONFIG
     with open(local_req_path) as f:
         local_req_list = f.readlines()
@@ -538,7 +539,7 @@ def _install_local_req(artifact_path, local_req_path, project_path):
     # copy folders
     for lrp in local_req_list:
         _LOG.info(f'Processing local dependency: {lrp}')
-        shutil.copytree(str(Path(CONFIG.project_path, project_path, lrp)),
+        shutil.copytree(str(Path(CONFIG.project_path, runtime_root_path, lrp)),
                         str(Path(artifact_path, lrp)))
         _LOG.debug('Dependency was copied successfully')
 
@@ -549,7 +550,7 @@ def _install_local_req(artifact_path, local_req_path, project_path):
         temp_path = ''
         while i < len(folders):
             temp_path += DEFAULT_SEP + folders[i]
-            src_path = Path(CONFIG.project_path, project_path, temp_path)
+            src_path = Path(CONFIG.project_path, runtime_root_path, temp_path)
             dst_path = Path(artifact_path, temp_path)
             _copy_py_files(str(src_path), str(dst_path))
             i += 1

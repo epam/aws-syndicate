@@ -31,30 +31,30 @@ _LOG = get_logger(__name__)
 USER_LOG = get_user_logger()
 
 
-def assemble_appsync(project_path, bundles_dir, **kwargs):
+def assemble_appsync(runtime_root_path, bundles_dir, **kwargs):
     from syndicate.core import CONFIG
     path_to_project = CONFIG.project_path
-    src_path = build_path(path_to_project, project_path)
-    if not os.path.exists(src_path):
+    runtime_abs_path = build_path(path_to_project, runtime_root_path)
+    if not os.path.exists(runtime_abs_path):
         raise ArtifactAssemblingError(
-            f"Appsync sources are not located by path '{src_path}'")
-    if not os.listdir(src_path):
+            f"Appsync sources are not located by path '{runtime_abs_path}'")
+    if not os.listdir(runtime_abs_path):
         raise ArtifactAssemblingError(
-            f"Appsync sources path '{src_path}' is empty"
+            f"Appsync sources path '{runtime_abs_path}' is empty"
         )
 
-    _LOG.info(f'Appsync sources are located by path: {src_path}')
+    _LOG.info(f'Appsync sources are located by path: {runtime_abs_path}')
 
-    for item in os.listdir(src_path):
-        appsync_src_path = build_path(src_path, item)
-        if os.path.isdir(appsync_src_path):
+    for item in os.listdir(runtime_abs_path):
+        item_abs_path = build_path(runtime_abs_path, item)
+        if os.path.isdir(item_abs_path):
             _LOG.info(f'Going to process \'{item}\'')
-            if not os.listdir(appsync_src_path):
+            if not os.listdir(item_abs_path):
                 raise ArtifactAssemblingError(
-                    f"Appsync path '{appsync_src_path}' is empty"
+                    f"Appsync path '{item_abs_path}' is empty"
                 )
 
-            conf_file_path = build_path(src_path, item,
+            conf_file_path = build_path(runtime_abs_path, item,
                                         APPSYNC_CONFIG_FILE_NAME)
             if not os.path.isfile(conf_file_path):
                 raise ResourceMetadataError(
@@ -65,7 +65,7 @@ def assemble_appsync(project_path, bundles_dir, **kwargs):
                 appsync_conf = json.load(file)
             schema_filepath = appsync_conf.get('schema_path')
             if not os.path.isabs(schema_filepath):
-                schema_path = build_path(appsync_src_path, schema_filepath)
+                schema_path = build_path(item_abs_path, schema_filepath)
                 USER_LOG.info(f'Path to schema file resolved as '
                               f'\'{schema_path}\'')
             else:
@@ -76,7 +76,7 @@ def assemble_appsync(project_path, bundles_dir, **kwargs):
                     f'path {schema_path}.')
 
             artifact_name = APPSYNC_ARTIFACT_NAME_TEMPLATE.format(name=item)
-            zip_file_path = build_path(src_path, artifact_name)
+            zip_file_path = build_path(runtime_abs_path, artifact_name)
             appsync_conf['deployment_package'] = artifact_name
 
             with open(conf_file_path, 'w') as file:
@@ -101,7 +101,7 @@ def assemble_appsync(project_path, bundles_dir, **kwargs):
 
                 # to archive only resolvers and functions in config
                 for path in artifacts_path:
-                    artifacts_path = build_path(appsync_src_path, path)
+                    artifacts_path = build_path(item_abs_path, path)
                     if os.path.exists(artifacts_path):
                         zipf.write(artifacts_path, path)
                         _LOG.debug(

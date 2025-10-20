@@ -26,14 +26,14 @@ _LOG = get_logger(__name__)
 VALID_EXTENSIONS = ('.jar', '.war', '.zip')
 
 
-def assemble_java_mvn_lambdas(project_path: str, bundles_dir: str,
+def assemble_java_mvn_lambdas(runtime_root_path: str, bundles_dir: str,
                               errors_allowed: bool = False,
                               skip_tests: bool = False, **kwargs):
     from syndicate.core import CONFIG
 
     _check_maven_is_installed()
     target_path = os.path.join(CONFIG.project_path, MVN_TARGET_DIR_NAME)
-    src_path = build_path(CONFIG.project_path, project_path)
+    src_path = build_path(CONFIG.project_path, runtime_root_path)
     _LOG.info(f'Java sources are located by path: {src_path}')
     _LOG.info(f'Going to process java mvn project by path: '
               f'{CONFIG.project_path}')

@@ -43,11 +43,6 @@ from syndicate.core.build.profiler_processor import (get_metric_statistics,
 from syndicate.core.build.warmup_processor import process_deploy_resources, \
     process_api_gw_resources, warm_upper, process_existing_api_gw_id, \
     process_inputted_api_gw_id
-from syndicate.core.conf.validator import (JAVA_LANGUAGE_NAME,
-                                           PYTHON_LANGUAGE_NAME,
-                                           NODEJS_LANGUAGE_NAME,
-                                           SWAGGER_UI_NAME,
-                                           DOTNET_LANGUAGE_NAME, APPSYNC_NAME)
 from syndicate.core.decorators import (check_deploy_name_for_duplicates,
                                        check_deploy_bucket_exists,
                                        check_bundle_deploy_names_for_existence,
@@ -773,7 +768,7 @@ def profiler(bundle_name, deploy_name, from_date, to_date):
               help='Name of the bundle, to which the build artifacts are '
                    'gathered and later used for the deployment. '
                    'Default value: $ProjectName_%Y%m%d.%H%M%S')
-@click.option('--project-path', '-path', cls=MultiWordOption,
+@click.option('--project-path', '-path', '--runtime-root-path', cls=MultiWordOption,
               nargs=1, callback=resolve_path_callback, required=True,
               help='The path to the Java project. The provided path is the '
                    'path for an mvn clean install. The artifacts are copied '
@@ -793,14 +788,14 @@ def profiler(bundle_name, deploy_name, from_date, to_date):
 @verbose_option
 @timeit(action_name=ASSEMBLE_JAVA_MVN_ACTION)
 @failed_status_code_on_exception
-def assemble_java_mvn(bundle_name, project_path, force_upload, skip_tests,
+def assemble_java_mvn(bundle_name, runtime_root_path, force_upload, skip_tests,
                       errors_allowed, refresh_cache=False, is_chained=False):
     """
     Builds Java lambdas
 
     \f
     :param bundle_name: name of the bundle
-    :param project_path: path to project folder
+    :param runtime_root_path: path to project folder
     :param force_upload: force upload identification
     :param skip_tests: force skipping tests
     :param errors_allowed: not used for java, but need to unify the
@@ -810,13 +805,13 @@ def assemble_java_mvn(bundle_name, project_path, force_upload, skip_tests,
     or as part of a process (like `build` or `assemble` command)
     :return:
     """
-    USER_LOG.info(f'Command compile java project path: {project_path}')
+    USER_LOG.info(f'Command compile java project runtime-root-path: {runtime_root_path}')
 
     if not is_chained:
         remove_bundle_dir_locally(bundle_name, force_upload)
 
     assemble_artifacts(bundle_name=bundle_name,
-                       project_path=project_path,
+                       runtime_root_path=runtime_root_path,
                        runtime=RUNTIME_JAVA,
                        skip_tests=skip_tests,
                        errors_allowed=errors_allowed)
@@ -832,7 +827,7 @@ def assemble_java_mvn(bundle_name, project_path, force_upload, skip_tests,
               help='Name of the bundle, to which the build artifacts are '
                    'gathered and later used for the deployment. '
                    'Default value: $ProjectName_%Y%m%d.%H%M%S')
-@click.option('--project-path', '-path',
+@click.option('--project-path', '-path', '--runtime-root-path',
               cls=MultiWordOption, nargs=1,
               callback=resolve_path_callback, required=True,
               help='The path to the Python project. The code is '
@@ -854,14 +849,14 @@ def assemble_java_mvn(bundle_name, project_path, force_upload, skip_tests,
 @verbose_option
 @timeit(action_name=ASSEMBLE_PYTHON_ACTION)
 @failed_status_code_on_exception
-def assemble_python(bundle_name, project_path, force_upload, errors_allowed,
+def assemble_python(bundle_name, runtime_root_path, force_upload, errors_allowed,
                     refresh_cache, skip_tests=False, is_chained=False):
     """
     Builds Python lambdas
 
     \f
     :param bundle_name: name of the bundle
-    :param project_path: path to project folder
+    :param runtime_root_path: path to project folder
     :param force_upload: force upload identification
     :param errors_allowed: allows to ignore dependency errors
     :param refresh_cache: flag to refresh the cache of dependencies
@@ -871,7 +866,7 @@ def assemble_python(bundle_name, project_path, force_upload, errors_allowed,
     or as part of a process (like `build` or `assemble` command)
     :return:
     """
-    USER_LOG.info(f'Command assemble python: project_path: {project_path} ')
+    USER_LOG.info(f'Command assemble python: runtime-root-path: {runtime_root_path} ')
 
     if not is_chained:
         remove_bundle_dir_locally(bundle_name, force_upload)
@@ -884,7 +879,7 @@ def assemble_python(bundle_name, project_path, force_upload, errors_allowed,
 
 
     assemble_artifacts(bundle_name=bundle_name,
-                       project_path=project_path,
+                       runtime_root_path=runtime_root_path,
                        runtime=RUNTIME_PYTHON,
                        errors_allowed=errors_allowed)
     USER_LOG.info('Python artifacts were prepared successfully.')
@@ -899,7 +894,7 @@ def assemble_python(bundle_name, project_path, force_upload, errors_allowed,
               help='Name of the bundle, to which the build artifacts are '
                    'gathered and later used for the deployment. '
                    'Default value: $ProjectName_%Y%m%d.%H%M%S')
-@click.option('--project-path', '-path',
+@click.option('--project-path', '-path', '--runtime-root-path',
               cls=MultiWordOption, nargs=1,
               callback=resolve_path_callback, required=True,
               help='The path to the NodeJS project. The code is '
@@ -912,7 +907,7 @@ def assemble_python(bundle_name, project_path, force_upload, errors_allowed,
 @verbose_option
 @timeit(action_name=ASSEMBLE_NODE_ACTION)
 @failed_status_code_on_exception
-def assemble_node(bundle_name, project_path, force_upload,
+def assemble_node(bundle_name, runtime_root_path, force_upload,
                   errors_allowed=False, skip_tests=False, refresh_cache=False,
                   is_chained=False):
     """
@@ -920,7 +915,7 @@ def assemble_node(bundle_name, project_path, force_upload,
 
     \f
     :param bundle_name: name of the bundle
-    :param project_path: path to project folder
+    :param runtime_root_path: path to project folder
     :param force_upload: force upload identification
     :param errors_allowed: not used for NodeJS, but need to unify the
     `assemble` commands interface
@@ -931,13 +926,13 @@ def assemble_node(bundle_name, project_path, force_upload,
     or as part of a process (like `build` or `assemble` command)
     :return:
     """
-    USER_LOG.info(f'Command assemble node: project_path: {project_path} ')
+    USER_LOG.info(f'Command assemble node: runtime-root-path: {runtime_root_path} ')
 
     if not is_chained:
         remove_bundle_dir_locally(bundle_name, force_upload)
 
     assemble_artifacts(bundle_name=bundle_name,
-                       project_path=project_path,
+                       runtime_root_path=runtime_root_path,
                        runtime=RUNTIME_NODEJS)
     USER_LOG.info('NodeJS artifacts were prepared successfully.')
     return OK_RETURN_CODE
@@ -951,7 +946,7 @@ def assemble_node(bundle_name, project_path, force_upload,
               help='Name of the bundle, to which the build artifacts are '
                    'gathered and later used for the deployment. '
                    'Default value: $ProjectName_%Y%m%d.%H%M%S')
-@click.option('--project-path', '-path',
+@click.option('--project-path', '-path', '--runtime-root-path',
               cls=MultiWordOption, nargs=1,
               callback=resolve_path_callback, required=True,
               help='The path to the dotnet project. The code is '
@@ -964,7 +959,7 @@ def assemble_node(bundle_name, project_path, force_upload,
 @verbose_option
 @timeit(action_name=ASSEMBLE_DOTNET_ACTION)
 @failed_status_code_on_exception
-def assemble_dotnet(bundle_name, project_path, force_upload,
+def assemble_dotnet(bundle_name, runtime_root_path, force_upload,
                     errors_allowed=False, skip_tests=False,
                     refresh_cache=False, is_chained=False):
     """
@@ -972,7 +967,7 @@ def assemble_dotnet(bundle_name, project_path, force_upload,
 
     \f
     :param bundle_name: name of the bundle
-    :param project_path: path to project folder
+    :param runtime_root_path: path to project folder
     :param force_upload: force upload identification
     :param errors_allowed: not used for DotNet, but need to unify the
     `assemble` commands interface
@@ -983,13 +978,13 @@ def assemble_dotnet(bundle_name, project_path, force_upload,
     or as part of a process
     :return:
     """
-    USER_LOG.info(f'Command assemble dotnet: project_path: {project_path} ')
+    USER_LOG.info(f'Command assemble dotnet: runtime-root-path: {runtime_root_path} ')
 
     if not is_chained:
         remove_bundle_dir_locally(bundle_name, force_upload)
 
     assemble_artifacts(bundle_name=bundle_name,
-                       project_path=project_path,
+                       runtime_root_path=runtime_root_path,
                        runtime=RUNTIME_DOTNET)
     USER_LOG.info('DotNet artifacts were prepared successfully.')
     return OK_RETURN_CODE
@@ -1003,7 +998,7 @@ def assemble_dotnet(bundle_name, project_path, force_upload,
               help='Name of the bundle, to which the build artifacts are '
                    'gathered and later used for the deployment. '
                    'Default value: $ProjectName_%Y%m%d.%H%M%S')
-@click.option('--project-path', '-path',
+@click.option('--project-path', '-path', '--runtime-root-path',
               cls=MultiWordOption, nargs=1,
               callback=resolve_path_callback, required=True,
               help='The path to the root project directory. Related files '
@@ -1021,18 +1016,18 @@ def assemble_swagger_ui(**kwargs):
 
         \f
         :param bundle_name: name of the bundle
-        :param project_path: path to project folder
+        :param runtime_root_path: path to project folder
         :return:
         """
     bundle_name = kwargs.get('bundle_name')
-    project_path = kwargs.get('project_path')
-    USER_LOG.info(f'Command assemble Swagger UI: project-path: {project_path}')
+    runtime_root_path = kwargs.get('runtime_root_path')
+    USER_LOG.info(f'Command assemble Swagger UI: runtime-root-path: {runtime_root_path}')
 
     if not kwargs.get('is_chained'):
         remove_bundle_dir_locally(bundle_name, kwargs.get('force_upload'))
 
     assemble_artifacts(bundle_name=bundle_name,
-                       project_path=project_path,
+                       runtime_root_path=runtime_root_path,
                        runtime=RUNTIME_SWAGGER_UI)
     USER_LOG.info('Swagger UI artifacts were prepared successfully.')
     return OK_RETURN_CODE
@@ -1046,7 +1041,7 @@ def assemble_swagger_ui(**kwargs):
               help='Name of the bundle, to which the build artifacts are '
                    'gathered and later used for the deployment. '
                    'Default value: $ProjectName_%Y%m%d.%H%M%S')
-@click.option('--project-path', '-path',
+@click.option('--project-path', '-path', '--runtime-root-path',
               cls=MultiWordOption, nargs=1,
               callback=resolve_path_callback, required=True,
               help='Path to the project root directory. Related files '
@@ -1064,30 +1059,30 @@ def assemble_appsync(**kwargs):
 
         \f
         :param bundle_name: name of the bundle
-        :param project_path: path to project folder
+        :param runtime_root_path: path to project folder
         :return:
         """
     bundle_name = kwargs.get('bundle_name')
-    project_path = kwargs.get('project_path')
-    USER_LOG.info(f'Command assemble AppSync: project-path: {project_path} ')
+    runtime_root_path = kwargs.get('runtime_root_path')
+    USER_LOG.info(f'Command assemble AppSync: runtime-root-path: {runtime_root_path} ')
 
     if not kwargs.get('is_chained'):
         remove_bundle_dir_locally(bundle_name, kwargs.get('force_upload'))
 
     assemble_artifacts(bundle_name=bundle_name,
-                       project_path=project_path,
+                       runtime_root_path=runtime_root_path,
                        runtime=RUNTIME_APPSYNC)
     USER_LOG.info('AppSync artifacts were prepared successfully.')
     return OK_RETURN_CODE
 
 
-RUNTIME_LANG_TO_BUILD_MAPPING = {
-    JAVA_LANGUAGE_NAME: assemble_java_mvn,
-    PYTHON_LANGUAGE_NAME: assemble_python,
-    NODEJS_LANGUAGE_NAME: assemble_node,
-    DOTNET_LANGUAGE_NAME: assemble_dotnet,
-    SWAGGER_UI_NAME: assemble_swagger_ui,
-    APPSYNC_NAME: assemble_appsync
+RUNTIME_TO_ASSEMBLE_FUNC_MAPPING = {
+    RUNTIME_JAVA: assemble_java_mvn,
+    RUNTIME_PYTHON: assemble_python,
+    RUNTIME_NODEJS: assemble_node,
+    RUNTIME_DOTNET: assemble_dotnet,
+    RUNTIME_SWAGGER_UI: assemble_swagger_ui,
+    RUNTIME_APPSYNC: assemble_appsync
 }
 
 
@@ -1137,11 +1132,11 @@ def assemble(ctx, bundle_name, force_upload, errors_allowed, skip_tests=False,
 
     build_mapping_dict: dict = PROJECT_STATE.load_project_build_mapping()
     if build_mapping_dict:
-        for key, value in build_mapping_dict.items():
-            func = RUNTIME_LANG_TO_BUILD_MAPPING.get(key)
-            if func:
-                return_code = ctx.invoke(func, bundle_name=bundle_name,
-                                         project_path=value,
+        for runtime, runtime_root_path in build_mapping_dict.items():
+            assemble_func = RUNTIME_TO_ASSEMBLE_FUNC_MAPPING.get(runtime)
+            if assemble_func:
+                return_code = ctx.invoke(assemble_func, bundle_name=bundle_name,
+                                         runtime_root_path=runtime_root_path,
                                          errors_allowed=errors_allowed,
                                          skip_tests=skip_tests,
                                          refresh_cache=refresh_cache,
@@ -1149,7 +1144,9 @@ def assemble(ctx, bundle_name, force_upload, errors_allowed, skip_tests=False,
                 if return_code != OK_RETURN_CODE:
                     return return_code
             else:
-                USER_LOG.error(f'Build tool is not supported: {key}')
+                USER_LOG.error(
+                    f'Build tool is not supported for runtime: {runtime}'
+                )
                 return FAILED_RETURN_CODE
     else:
         USER_LOG.info(

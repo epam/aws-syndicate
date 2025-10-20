@@ -46,26 +46,26 @@ def generate_appsync(name, project_path, tags):
         return
 
     project_state = ProjectState(project_path=project_path)
-    src_path = PurePath(project_path,
-                        BUILD_MAPPINGS[RUNTIME_APPSYNC],
-                        name).as_posix()
-    if Path(src_path).exists():
+    appsync_abs_path = PurePath(
+        project_path, BUILD_MAPPINGS[RUNTIME_APPSYNC], name
+    ).as_posix()
+    if Path(appsync_abs_path).exists():
         answer = _mkdir(
-            path=src_path,
+            path=appsync_abs_path,
             fault_message=f'AppSync API with name \'{name}\' already exists.'
                           f'\nOverride? [y/n]')
         if not answer:
             USER_LOG.info(f'Creation of AppSync API \'{name}\' cancelled')
             sys.exit()
     else:
-        _mkdir(src_path)
+        _mkdir(appsync_abs_path)
 
     default_schema_content = _generate_syncapp_default_schema()
     config_content = _generate_syncapp_config(
         name, APPSYNC_SCHEMA_DEFAULT_FILE_NAME, tags)
 
     for file_name in APPSYNC_FILES:
-        path_to_file = PurePath(src_path, file_name).as_posix()
+        path_to_file = PurePath(appsync_abs_path, file_name).as_posix()
         _touch(path_to_file)
 
         if file_name == APPSYNC_SCHEMA_DEFAULT_FILE_NAME:
