@@ -24,13 +24,13 @@ from syndicate.core.build.runtime.nodejs import assemble_node_lambdas
 from syndicate.core.build.runtime.python import assemble_python_lambdas
 from syndicate.core.build.runtime.swagger_ui import assemble_swagger_ui
 from syndicate.core.build.runtime.appsync import assemble_appsync
+from syndicate.core.groups import RUNTIME_SWAGGER_UI, RUNTIME_APPSYNC, \
+    RUNTIME_JAVA, RUNTIME_NODEJS, RUNTIME_PYTHON, RUNTIME_DOTNET
 
-RUNTIME_JAVA = 'javaX'
-RUNTIME_NODEJS = 'nodejs20.x'
-RUNTIME_PYTHON = 'pythonX'
-RUNTIME_DOTNET = 'dotnet8'
-RUNTIME_SWAGGER_UI = 'swagger_ui'
-RUNTIME_APPSYNC = 'appsync'
+RUNTIME_JAVA_VERSIONED = 'javaX'
+RUNTIME_NODEJS_VERSIONED = 'nodejs20.x'
+RUNTIME_PYTHON_VERSIONED = 'pythonX'
+RUNTIME_DOTNET_VERSIONED = 'dotnet8'
 
 SUPPORTED_RUNTIMES = [
     RUNTIME_JAVA,

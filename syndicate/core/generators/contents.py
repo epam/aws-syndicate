@@ -15,14 +15,14 @@
 """
 import json
 
-from syndicate.core.build.artifact_processor import RUNTIME_NODEJS, \
-    RUNTIME_DOTNET
+from syndicate.core.build.artifact_processor import RUNTIME_NODEJS_VERSIONED, \
+    RUNTIME_DOTNET_VERSIONED
 from syndicate.core.conf.validator import (
     LAMBDAS_ALIASES_NAME_CFG, LOGS_EXPIRATION
 )
 from syndicate.core.generators import (_alias_variable,
                                        FILE_LAMBDA_HANDLER_NODEJS)
-from syndicate.core.groups import DEFAULT_RUNTIME_VERSION
+from syndicate.core.groups import DEFAULT_RUNTIME_VERSION, RUNTIME_PYTHON
 from syndicate.core.constants import DEFAULT_JSON_INDENT
 
 POLICY_LAMBDA_BASIC_EXECUTION = "lambda-basic-execution"
@@ -606,7 +606,7 @@ def _generate_python_node_lambda_config(lambda_name, lambda_relative_path,
         'func_name': 'handler.lambda_handler',
         'resource_type': 'lambda',
         'iam_role_name': LAMBDA_ROLE_NAME_PATTERN.format(lambda_name),
-        'runtime': 'python3.10',
+        'runtime': DEFAULT_RUNTIME_VERSION[RUNTIME_PYTHON],
         'memory': 128,
         'timeout': 100,
         'lambda_path': lambda_relative_path,
@@ -633,7 +633,7 @@ def _generate_python_node_layer_config(layer_name, runtime):
         ],
         "deployment_package": f"{layer_name}_layer.zip"
     }
-    if runtime in RUNTIME_DOTNET:
+    if runtime in RUNTIME_DOTNET_VERSIONED:
         layer_template["custom_packages"] = []
     return _stringify(layer_template)
 
@@ -669,7 +669,7 @@ def _generate_nodejs_node_lambda_config(lambda_name, lambda_relative_path,
         'func_name': f'lambdas/{lambda_name}/index.handler',
         'resource_type': 'lambda',
         'iam_role_name': LAMBDA_ROLE_NAME_PATTERN.format(lambda_name),
-        'runtime': RUNTIME_NODEJS,
+        'runtime': RUNTIME_NODEJS_VERSIONED,
         'memory': 128,
         'timeout': 100,
         'lambda_path': lambda_relative_path,
@@ -715,7 +715,7 @@ def _generate_dotnet_lambda_config(lambda_name, lambda_relative_path, tags):
         'func_name': 'SimpleLambdaFunction::SimpleLambdaFunction.Function::FunctionHandler',
         'resource_type': 'lambda',
         'iam_role_name': LAMBDA_ROLE_NAME_PATTERN.format(lambda_name),
-        'runtime': RUNTIME_DOTNET,
+        'runtime': RUNTIME_DOTNET_VERSIONED,
         'memory': 128,
         'timeout': 100,
         'lambda_path': lambda_relative_path,

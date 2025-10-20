@@ -28,9 +28,7 @@ from syndicate.core.export.export_processor import export_specification
 from syndicate.core.transform.transform_processor import generate_build_meta
 from syndicate.core import initialize_connection, \
     initialize_project_state, initialize_signal_handling
-from syndicate.core.build.artifact_processor import RUNTIME_NODEJS, \
-    assemble_artifacts, RUNTIME_JAVA, RUNTIME_PYTHON, RUNTIME_SWAGGER_UI, \
-    RUNTIME_DOTNET, RUNTIME_APPSYNC
+from syndicate.core.build.artifact_processor import assemble_artifacts
 from syndicate.core.build.bundle_processor import create_bundles_bucket, \
     load_bundle, upload_bundle_to_s3, if_bundle_exist, \
     remove_bundle_dir_locally
@@ -77,6 +75,8 @@ from syndicate.core.constants import TEST_ACTION, BUILD_ACTION, \
     FAILED_RETURN_CODE, ABORTED_RETURN_CODE, UPDATE_RESOURCE_TYPE_PRIORITY, \
     UNDERSCORE_CREATE_DEPLOY_TARGET_BUCKET_ACTION, \
     DEPLOY_RESOURCE_TYPE_PRIORITY, CLEAN_RESOURCE_TYPE_PRIORITY
+from syndicate.core.groups import RUNTIME_JAVA, RUNTIME_PYTHON, RUNTIME_NODEJS, \
+    RUNTIME_DOTNET, RUNTIME_SWAGGER_UI, RUNTIME_APPSYNC
 from syndicate.exceptions import ProjectStateError
 from syndicate import __version__
 
@@ -810,11 +810,13 @@ def assemble_java_mvn(bundle_name, runtime_root_path, force_upload, skip_tests,
     if not is_chained:
         remove_bundle_dir_locally(bundle_name, force_upload)
 
-    assemble_artifacts(bundle_name=bundle_name,
-                       runtime_root_path=runtime_root_path,
-                       runtime=RUNTIME_JAVA,
-                       skip_tests=skip_tests,
-                       errors_allowed=errors_allowed)
+    assemble_artifacts(
+        bundle_name=bundle_name,
+        runtime_root_path=runtime_root_path,
+        runtime=RUNTIME_JAVA,
+        skip_tests=skip_tests,
+        errors_allowed=errors_allowed
+    )
     USER_LOG.info('Java artifacts were prepared successfully.')
     return OK_RETURN_CODE
 
@@ -878,10 +880,12 @@ def assemble_python(bundle_name, runtime_root_path, force_upload, errors_allowed
             _LOG.info(f'Removed the cache directory: {cache_dir}')
 
 
-    assemble_artifacts(bundle_name=bundle_name,
-                       runtime_root_path=runtime_root_path,
-                       runtime=RUNTIME_PYTHON,
-                       errors_allowed=errors_allowed)
+    assemble_artifacts(
+        bundle_name=bundle_name,
+        runtime_root_path=runtime_root_path,
+        runtime=RUNTIME_PYTHON,
+        errors_allowed=errors_allowed
+    )
     USER_LOG.info('Python artifacts were prepared successfully.')
     return OK_RETURN_CODE
 
@@ -931,9 +935,11 @@ def assemble_node(bundle_name, runtime_root_path, force_upload,
     if not is_chained:
         remove_bundle_dir_locally(bundle_name, force_upload)
 
-    assemble_artifacts(bundle_name=bundle_name,
-                       runtime_root_path=runtime_root_path,
-                       runtime=RUNTIME_NODEJS)
+    assemble_artifacts(
+        bundle_name=bundle_name,
+        runtime_root_path=runtime_root_path,
+        runtime=RUNTIME_NODEJS
+    )
     USER_LOG.info('NodeJS artifacts were prepared successfully.')
     return OK_RETURN_CODE
 
@@ -983,9 +989,11 @@ def assemble_dotnet(bundle_name, runtime_root_path, force_upload,
     if not is_chained:
         remove_bundle_dir_locally(bundle_name, force_upload)
 
-    assemble_artifacts(bundle_name=bundle_name,
-                       runtime_root_path=runtime_root_path,
-                       runtime=RUNTIME_DOTNET)
+    assemble_artifacts(
+        bundle_name=bundle_name,
+        runtime_root_path=runtime_root_path,
+        runtime=RUNTIME_DOTNET
+    )
     USER_LOG.info('DotNet artifacts were prepared successfully.')
     return OK_RETURN_CODE
 
@@ -1026,9 +1034,11 @@ def assemble_swagger_ui(**kwargs):
     if not kwargs.get('is_chained'):
         remove_bundle_dir_locally(bundle_name, kwargs.get('force_upload'))
 
-    assemble_artifacts(bundle_name=bundle_name,
-                       runtime_root_path=runtime_root_path,
-                       runtime=RUNTIME_SWAGGER_UI)
+    assemble_artifacts(
+        bundle_name=bundle_name,
+        runtime_root_path=runtime_root_path,
+        runtime=RUNTIME_SWAGGER_UI
+    )
     USER_LOG.info('Swagger UI artifacts were prepared successfully.')
     return OK_RETURN_CODE
 
@@ -1069,9 +1079,11 @@ def assemble_appsync(**kwargs):
     if not kwargs.get('is_chained'):
         remove_bundle_dir_locally(bundle_name, kwargs.get('force_upload'))
 
-    assemble_artifacts(bundle_name=bundle_name,
-                       runtime_root_path=runtime_root_path,
-                       runtime=RUNTIME_APPSYNC)
+    assemble_artifacts(
+        bundle_name=bundle_name,
+        runtime_root_path=runtime_root_path,
+        runtime=RUNTIME_APPSYNC
+    )
     USER_LOG.info('AppSync artifacts were prepared successfully.')
     return OK_RETURN_CODE
 
