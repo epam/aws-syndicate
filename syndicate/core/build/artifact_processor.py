@@ -27,10 +27,6 @@ from syndicate.core.build.runtime.appsync import assemble_appsync
 from syndicate.core.groups import RUNTIME_SWAGGER_UI, RUNTIME_APPSYNC, \
     RUNTIME_JAVA, RUNTIME_NODEJS, RUNTIME_PYTHON, RUNTIME_DOTNET
 
-RUNTIME_JAVA_VERSIONED = 'javaX'
-RUNTIME_NODEJS_VERSIONED = 'nodejs20.x'
-RUNTIME_PYTHON_VERSIONED = 'pythonX'
-RUNTIME_DOTNET_VERSIONED = 'dotnet8'
 
 SUPPORTED_RUNTIMES = [
     RUNTIME_JAVA,
