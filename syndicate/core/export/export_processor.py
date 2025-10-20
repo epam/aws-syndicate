@@ -5,10 +5,10 @@ from syndicate.exceptions import ResourceMetadataError, \
     ResourceProcessingError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.build.bundle_processor import load_deploy_output
-from syndicate.core.constants import OAS_V3_FILE_NAME, API_GATEWAY_TYPE
+from syndicate.core.constants import OAS_V3_FILE_NAME, API_GATEWAY_TYPE, \
+                                    DEFAULT_JSON_INDENT
 from syndicate.core.export.configuration_exporter import OASV3Exporter
 from syndicate.core.helper import build_path
-from syndicate.constants import DEFAULT_JSON_INDENT
 
 
 _LOG = get_logger(__name__)

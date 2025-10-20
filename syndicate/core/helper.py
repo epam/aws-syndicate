@@ -48,11 +48,10 @@ from syndicate.core.constants import (BUILD_META_FILE_NAME,
                                       CUSTOM_AUTHORIZER_KEY, OK_RETURN_CODE,
                                       ABORTED_RETURN_CODE, FAILED_RETURN_CODE,
                                       PROFILER_ACTION, UPDATE_ACTION,
-                                      WARMUP_ACTION)
+                                      WARMUP_ACTION, DEFAULT_JSON_INDENT)
 from syndicate.core.project_state.project_state import MODIFICATION_LOCK, \
     WARMUP_LOCK, ProjectState
 from syndicate.core.project_state.sync_processor import sync_project_state
-from syndicate.constants import DEFAULT_JSON_INDENT
 
 _LOG = get_logger(__name__)
 USER_LOG = get_user_logger()

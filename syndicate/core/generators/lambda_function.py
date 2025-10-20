@@ -46,7 +46,7 @@ from syndicate.core.groups import (RUNTIME_JAVA, RUNTIME_NODEJS,
                                    RUNTIME_PYTHON, RUNTIME_PYTHON_LAYER,
                                    RUNTIME_NODEJS_LAYER, RUNTIME_DOTNET,
                                    RUNTIME_DOTNET_LAYER)
-from syndicate.constants import DEFAULT_JSON_INDENT
+from syndicate.core.constants import DEFAULT_JSON_INDENT
 
 _LOG = get_logger(__name__)
 USER_LOG = get_user_logger()

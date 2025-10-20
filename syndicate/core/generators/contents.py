@@ -23,7 +23,7 @@ from syndicate.core.conf.validator import (
 from syndicate.core.generators import (_alias_variable,
                                        FILE_LAMBDA_HANDLER_NODEJS)
 from syndicate.core.groups import DEFAULT_RUNTIME_VERSION
-from syndicate.constants import DEFAULT_JSON_INDENT
+from syndicate.core.constants import DEFAULT_JSON_INDENT
 
 POLICY_LAMBDA_BASIC_EXECUTION = "lambda-basic-execution"
 

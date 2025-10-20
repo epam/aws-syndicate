@@ -8,10 +8,9 @@ import click
 from syndicate.exceptions import ResourceNotFoundError, \
     NotImplementedError, ParameterError, AbortedError
 from syndicate.commons.log_helper import get_logger, get_user_logger
-from syndicate.core.constants import RESOURCES_FILE_NAME
+from syndicate.core.constants import RESOURCES_FILE_NAME, DEFAULT_JSON_INDENT
 from syndicate.core.generators import (_read_content_from_file,
                                        _write_content_to_file)
-from syndicate.constants import DEFAULT_JSON_INDENT
 
 _LOG = get_logger(
     'syndicate.core.generators.deployment_resources.base_generator')

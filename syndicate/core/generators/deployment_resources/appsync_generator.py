@@ -7,7 +7,8 @@ from syndicate.core.constants import DYNAMO_TABLE_TYPE, IAM_ROLE, \
     COGNITO_USER_POOL_TYPE, APPSYNC_CONFIG_FILE_NAME, \
     APPSYNC_JS_RESOLVER_CODE_DEFAULT_FILE_NAME, \
     APPSYNC_VTL_RESOLVER_REQ_MT_DEFAULT_FILE_NAME, \
-    APPSYNC_VTL_RESOLVER_RESP_MT_DEFAULT_FILE_NAME, APPSYNC_SRC_FOLDER
+    APPSYNC_VTL_RESOLVER_RESP_MT_DEFAULT_FILE_NAME, APPSYNC_SRC_FOLDER, \
+    DEFAULT_JSON_INDENT
 from syndicate.core.generators import _write_content_to_file, \
     _read_content_from_file, _mkdir, _touch
 from syndicate.core.generators.contents import \
@@ -15,7 +16,6 @@ from syndicate.core.generators.contents import \
     _generate_syncapp_vtl_resolver_resp_mt
 from syndicate.core.generators.deployment_resources import \
     BaseConfigurationGenerator
-from syndicate.constants import DEFAULT_JSON_INDENT
 from click import confirm as click_confirm
 
 

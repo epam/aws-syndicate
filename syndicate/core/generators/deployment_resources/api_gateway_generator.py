@@ -8,12 +8,11 @@ from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.constants import API_GATEWAY_TYPE, \
     COGNITO_USER_POOL_AUTHORIZER_TYPE, CUSTOM_AUTHORIZER_KEY, \
     COGNITO_USER_POOL_TYPE, TOKEN_LAMBDA_AUTHORIZER_TYPE, \
-    REQUEST_LAMBDA_AUTHORIZER_TYPE
+    REQUEST_LAMBDA_AUTHORIZER_TYPE, DEFAULT_JSON_INDENT
 from syndicate.core.generators import (_read_content_from_file,
                                        _write_content_to_file)
 from syndicate.core.generators.deployment_resources.base_generator import \
     BaseDeploymentResourceGenerator, BaseConfigurationGenerator
-from syndicate.constants import DEFAULT_JSON_INDENT
 
 
 DEFAULT_IDENTITY_SOURCE = 'method.request.header.Authorization'

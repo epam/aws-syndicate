@@ -15,7 +15,7 @@
 """
 import json
 
-from syndicate.constants import DEFAULT_JSON_INDENT
+from syndicate.core.constants import DEFAULT_JSON_INDENT
 
 PROVIDER_KEY = 'provider'
 RESOURCE_KEY = 'resource'
