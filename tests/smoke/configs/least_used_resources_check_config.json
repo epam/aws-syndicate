@@ -20,7 +20,9 @@
               "name": "artifacts_existence",
               "description": "Check if artifacts exist",
               "artifacts_list": [
-                "build_meta.json"
+                "build_meta.json",
+                "sdct-at-least-used-resources-1.0.0.jar",
+                "sdct-at-java-lambda_layer-assembly.zip"
               ],
               "depends_on": [1]
             },
@@ -29,6 +31,9 @@
               "name": "build_meta",
               "description": "Check if all resources exist in build meta",
               "resources": {
+                "sdct-at-lambda-basic-execution-policy": {
+                  "resource_type": "iam_policy"
+                },
                 "sdct-at-lambda-execution-policy": {
                   "resource_type": "iam_policy"
                 },
@@ -37,6 +42,18 @@
                 },
                 "sdct-at-step-function-role": {
                   "resource_type": "iam_role"
+                },
+                "sdct-at-java-lambda-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-java-lambda": {
+                  "resource_type": "lambda"
+                },
+                "sdct-at-java-lambda_layer": {
+                  "resource_type": "lambda_layer"
+                },
+                "sdct-at-cw-rule": {
+                  "resource_type": "cloudwatch_rule"
                 },
                 "sdct-at-lambda-role": {
                   "resource_type": "iam_role"
@@ -70,6 +87,14 @@
               "name": "build_meta_content",
               "description": "Check if all resources in build meta contain required meta",
               "resources": {
+                "sdct-at-lambda-basic-execution-policy": {
+                  "resource_type": "iam_policy",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test",
+                    "project-level-tag": "set-from-resource"
+                  }
+                },
                 "sdct-at-lambda-execution-policy": {
                   "resource_type": "iam_policy",
                   "tags": {
@@ -83,6 +108,30 @@
                     "tests": "smoke",
                     "project": "sdct-auto-test"
                   }
+                },
+                "sdct-at-cw-rule": {
+                  "resource_type": "cloudwatch_rule",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test"
+                  }
+                },
+                "sdct-at-java-lambda-role": {
+                  "resource_type": "iam_role",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test"
+                  }
+                },
+                "sdct-at-java-lambda": {
+                  "resource_type": "lambda",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test"
+                  }
+                },
+                "sdct-at-java-lambda_layer": {
+                  "resource_type": "lambda_layer"
                 },
                 "sdct-at-step-function-role": {
                   "resource_type": "iam_role",
@@ -184,8 +233,14 @@
               "description": "Check if all resources present in deployment output",
               "succeeded_deploy": true,
               "resources": {
+                "sdct-at-lambda-basic-execution-policy": {
+                  "resource_type": "iam_policy"
+                },
                 "sdct-at-lambda-execution-policy": {
                   "resource_type": "iam_policy"
+                },
+                "sdct-at-java-lambda-role": {
+                  "resource_type": "iam_role"
                 },
                 "sdct-at-batch-job-role": {
                   "resource_type": "iam_role"
@@ -204,8 +259,14 @@
               "name": "resource_existence",
               "description": "Check if all resources present in account",
               "resources": {
+                "sdct-at-lambda-basic-execution-policy": {
+                  "resource_type": "iam_policy"
+                },
                 "sdct-at-lambda-execution-policy": {
                   "resource_type": "iam_policy"
+                },
+                "sdct-at-java-lambda-role": {
+                  "resource_type": "iam_role"
                 },
                 "sdct-at-batch-job-role": {
                   "resource_type": "iam_role"
@@ -249,11 +310,26 @@
               "description": "Check if all resources present in deployment output",
               "succeeded_deploy": true,
               "resources": {
+                "sdct-at-lambda-basic-execution-policy": {
+                  "resource_type": "iam_policy"
+                },
                 "sdct-at-lambda-execution-policy": {
                   "resource_type": "iam_policy"
                 },
                 "sdct-at-batch-job-role": {
                   "resource_type": "iam_role"
+                },
+                "sdct-at-java-lambda-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-java-lambda": {
+                  "resource_type": "lambda"
+                },
+                "sdct-at-java-lambda_layer": {
+                  "resource_type": "lambda_layer"
+                },
+                "sdct-at-cw-rule": {
+                  "resource_type": "cloudwatch_rule"
                 },
                 "sdct-at-step-function-role": {
                   "resource_type": "iam_role"
@@ -290,6 +366,9 @@
               "name": "resource_existence",
               "description": "Check if all resources present in account",
               "resources": {
+                "sdct-at-lambda-basic-execution-policy": {
+                  "resource_type": "iam_policy"
+                },
                 "sdct-at-lambda-execution-policy": {
                   "resource_type": "iam_policy"
                 },
@@ -304,6 +383,15 @@
                 },
                 "sdct-at-python-lambda": {
                   "resource_type": "lambda"
+                },
+                "sdct-at-java-lambda-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-java-lambda": {
+                  "resource_type": "lambda"
+                },
+                "sdct-at-java-lambda_layer": {
+                  "resource_type": "lambda_layer"
                 },
                 "sdct-at-compenv": {
                   "resource_type": "batch_compenv"
@@ -361,11 +449,26 @@
               "description": "Check if all resources present in succeeded deployment output",
               "succeeded_deploy": true,
               "resources": {
+                "sdct-at-lambda-basic-execution-policy": {
+                  "resource_type": "iam_policy"
+                },
                 "sdct-at-lambda-execution-policy": {
                   "resource_type": "iam_policy"
                 },
                 "sdct-at-batch-job-role": {
                   "resource_type": "iam_role"
+                },
+                "sdct-at-java-lambda-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-java-lambda": {
+                  "resource_type": "lambda"
+                },
+                "sdct-at-java-lambda_layer": {
+                  "resource_type": "lambda_layer"
+                },
+                "sdct-at-cw-rule": {
+                  "resource_type": "cloudwatch_rule"
                 },
                 "sdct-at-step-function-role": {
                   "resource_type": "iam_role"
@@ -412,6 +515,9 @@
               "name": "resource_existence",
               "description": "Check if all resources present in account and were not deleted",
               "resources": {
+                "sdct-at-lambda-basic-execution-policy": {
+                  "resource_type": "iam_policy"
+                },
                 "sdct-at-lambda-execution-policy": {
                   "resource_type": "iam_policy"
                 },
@@ -420,6 +526,18 @@
                 },
                 "sdct-at-step-function-role": {
                   "resource_type": "iam_role"
+                },
+                "sdct-at-java-lambda-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-java-lambda": {
+                  "resource_type": "lambda"
+                },
+                "sdct-at-java-lambda_layer": {
+                  "resource_type": "lambda_layer"
+                },
+                "sdct-at-cw-rule": {
+                  "resource_type": "cloudwatch_rule"
                 },
                 "sdct-at-lambda-role": {
                   "resource_type": "iam_role"
@@ -486,11 +604,23 @@
               "reverse_check": true,
               "description": "Check if all resources are not present in account",
               "resources": {
+                "sdct-at-lambda-basic-execution-policy": {
+                  "resource_type": "iam_policy"
+                },
                 "sdct-at-batch-job-role": {
                   "resource_type": "iam_role"
                 },
                 "sdct-at-step-function-role": {
                   "resource_type": "iam_role"
+                },
+                "sdct-at-java-lambda-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-java-lambda": {
+                  "resource_type": "lambda"
+                },
+                "sdct-at-java-lambda_layer": {
+                  "resource_type": "lambda_layer"
                 },
                 "sdct-at-lambda-role": {
                   "resource_type": "iam_role"

@@ -1,3 +1,7 @@
+
+## 2025-10-17
+- Added tests for the new `japp` Java structure, including backward compatibility validation
+
 ## 2025-10-15
 ### Added
 - Replaced deprecated usage of `datetime.utctnow()` with `datetime.now(timezone.utc)`.

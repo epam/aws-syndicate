@@ -4,8 +4,8 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>sdct-at-ddis-group</groupId>
-    <artifactId>sdct-at-ddis</artifactId>
+    <groupId>sdct-at-least-used-resources-group</groupId>
+    <artifactId>sdct-at-least-used-resources</artifactId>
     <version>1.0.0</version>
 
     <properties>

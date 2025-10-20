@@ -25,6 +25,7 @@ from syndicate.exceptions import ProjectStateError, \
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.build.helper import (build_py_package_name,
                                          resolve_bundle_directory)
+from syndicate.core.helper import execute_command_by_path
 from syndicate.core.build.validator.mapping import (VALIDATOR_BY_TYPE_MAPPING,
                                                     ALL_TYPES)
 from syndicate.core.conf.processor import GLOBAL_AWS_SERVICES, \
@@ -40,8 +41,9 @@ from syndicate.core.constants import (API_GATEWAY_TYPE, ARTIFACTS_FOLDER,
                                       OAS_V3_FILE_NAME,
                                       API_GATEWAY_OAS_V3_TYPE, SWAGGER_UI_TYPE,
                                       SWAGGER_UI_CONFIG_FILE_NAME,
-                                      TAGS_RESOURCE_TYPE_CONFIG,
-                                      MVN_TARGET_DIR_NAME)
+                                      TAGS_RESOURCE_TYPE_CONFIG)
+from syndicate.core.generators.contents import FILE_POM
+from syndicate.core.groups import JAVA_ROOT_DIR_JAPP
 from syndicate.core.helper import (build_path, prettify_json,
                                    resolve_aliases_for_string,
                                    write_content_to_file, validate_tags)
@@ -528,6 +530,8 @@ def _resolve_name_in_arn(arn, old_value, new_value):
 
 
 def create_meta(project_path: str, bundle_name: str) -> None:
+    from syndicate.core.build.runtime.java import safe_resolve_mvn_path
+
     # create overall meta.json with all resource meta info
     meta_path = build_path(project_path, ARTIFACTS_FOLDER,
                            bundle_name)
@@ -538,10 +542,33 @@ def create_meta(project_path: str, bundle_name: str) -> None:
     write_content_to_file(bundle_dir, BUILD_META_FILE_NAME, overall_meta)
 
     # remove Java runtime temporary files
-    target_path = build_path(project_path, MVN_TARGET_DIR_NAME)
-    if os.path.exists(target_path):
-        _LOG.debug(f'Removing temporary directory \'{target_path}\'')
-        shutil.rmtree(target_path, ignore_errors=True)
+    mvn_path = safe_resolve_mvn_path()
+    mvn_clean_command = [mvn_path, 'clean']
+
+    java_root_path_japp = build_path(project_path, JAVA_ROOT_DIR_JAPP)
+    java_root_path_japp_pom = build_path(java_root_path_japp, FILE_POM)
+    project_path_pom = build_path(project_path, FILE_POM)
+
+    if os.path.exists(java_root_path_japp_pom):
+        execute_command_by_path(
+            command=mvn_clean_command,
+            path=java_root_path_japp,
+            shell=False
+        )
+        _LOG.info(
+            f"Cleaned up the Java project in {JAVA_ROOT_DIR_JAPP!r} "
+            f"after building"
+        )
+    elif os.path.exists(project_path_pom):
+        execute_command_by_path(
+            command=mvn_clean_command,
+            path=project_path,
+            shell=False
+        )
+        _LOG.info(
+            "Cleaned up the Java project in the base project directory "
+            "after building"
+        )
 
 
 def resolve_meta(overall_meta):
