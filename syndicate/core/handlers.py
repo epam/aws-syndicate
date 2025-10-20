@@ -768,7 +768,7 @@ def profiler(bundle_name, deploy_name, from_date, to_date):
               help='Name of the bundle, to which the build artifacts are '
                    'gathered and later used for the deployment. '
                    'Default value: $ProjectName_%Y%m%d.%H%M%S')
-@click.option('--project-path', '-path', '--runtime-root-path', cls=MultiWordOption,
+@click.option('--runtime-root-path', '--project-path', '-path', cls=MultiWordOption,
               nargs=1, callback=resolve_path_callback, required=True,
               help='The path to the Java project. The provided path is the '
                    'path for an mvn clean install. The artifacts are copied '
@@ -829,7 +829,7 @@ def assemble_java_mvn(bundle_name, runtime_root_path, force_upload, skip_tests,
               help='Name of the bundle, to which the build artifacts are '
                    'gathered and later used for the deployment. '
                    'Default value: $ProjectName_%Y%m%d.%H%M%S')
-@click.option('--project-path', '-path', '--runtime-root-path',
+@click.option('--runtime-root-path', '--project-path', '-path',
               cls=MultiWordOption, nargs=1,
               callback=resolve_path_callback, required=True,
               help='The path to the Python project. The code is '
@@ -898,7 +898,7 @@ def assemble_python(bundle_name, runtime_root_path, force_upload, errors_allowed
               help='Name of the bundle, to which the build artifacts are '
                    'gathered and later used for the deployment. '
                    'Default value: $ProjectName_%Y%m%d.%H%M%S')
-@click.option('--project-path', '-path', '--runtime-root-path',
+@click.option('--runtime-root-path', '--project-path', '-path',
               cls=MultiWordOption, nargs=1,
               callback=resolve_path_callback, required=True,
               help='The path to the NodeJS project. The code is '
@@ -952,7 +952,7 @@ def assemble_node(bundle_name, runtime_root_path, force_upload,
               help='Name of the bundle, to which the build artifacts are '
                    'gathered and later used for the deployment. '
                    'Default value: $ProjectName_%Y%m%d.%H%M%S')
-@click.option('--project-path', '-path', '--runtime-root-path',
+@click.option('--runtime-root-path', '--project-path', '-path',
               cls=MultiWordOption, nargs=1,
               callback=resolve_path_callback, required=True,
               help='The path to the dotnet project. The code is '
@@ -1006,7 +1006,7 @@ def assemble_dotnet(bundle_name, runtime_root_path, force_upload,
               help='Name of the bundle, to which the build artifacts are '
                    'gathered and later used for the deployment. '
                    'Default value: $ProjectName_%Y%m%d.%H%M%S')
-@click.option('--project-path', '-path', '--runtime-root-path',
+@click.option('--runtime-root-path', '--project-path', '-path',
               cls=MultiWordOption, nargs=1,
               callback=resolve_path_callback, required=True,
               help='Path to the runtime root path. Related files '
@@ -1051,7 +1051,7 @@ def assemble_swagger_ui(**kwargs):
               help='Name of the bundle, to which the build artifacts are '
                    'gathered and later used for the deployment. '
                    'Default value: $ProjectName_%Y%m%d.%H%M%S')
-@click.option('--project-path', '-path', '--runtime-root-path',
+@click.option('--runtime-root-path', '--project-path', '-path',
               cls=MultiWordOption, nargs=1,
               callback=resolve_path_callback, required=True,
               help='Path to the runtime root path. Related files '
