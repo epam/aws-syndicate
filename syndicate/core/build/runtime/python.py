@@ -60,7 +60,6 @@ def assemble_python_lambdas(
     **kwargs
 ) -> None:
     from syndicate.core import CONFIG
-    print(f"py: {runtime_root_path}")  # TODO: remove
     runtime_base_dir = os.path.basename(os.path.normpath(runtime_root_path))
     if runtime_root_path != '.':
         runtime_abs_path = build_path(CONFIG.project_path, runtime_base_dir)
