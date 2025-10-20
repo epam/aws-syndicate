@@ -32,7 +32,11 @@ _LOG = get_logger(__name__)
 USER_LOG = get_user_logger()
 
 
-def assemble_swagger_ui(runtime_root_path, bundles_dir, **kwargs):
+def assemble_swagger_ui(
+    runtime_root_path: str, 
+    bundles_dir: str, 
+    **kwargs
+) -> None:
     from syndicate.core import CONFIG
     project_path = CONFIG.project_path
     runtime_abs_path = build_path(project_path, runtime_root_path)
@@ -42,15 +46,17 @@ def assemble_swagger_ui(runtime_root_path, bundles_dir, **kwargs):
         for item in dirs:
             _LOG.info(f'Going to process Swagger UI \'{item}\'')
 
-            conf_file_path = build_path(runtime_abs_path, item,
-                                        SWAGGER_UI_CONFIG_FILE_NAME)
+            conf_file_path = build_path(
+                runtime_abs_path, item, SWAGGER_UI_CONFIG_FILE_NAME
+            )
             if not os.path.isfile(conf_file_path):
                 raise ResourceMetadataError(
                     f'\'{SWAGGER_UI_CONFIG_FILE_NAME}\' file not found for '
                     f'Swagger UI \'{item}\'.')
 
-            index_file_path = build_path(runtime_abs_path, item,
-                                         INDEX_FILE_NAME)
+            index_file_path = build_path(
+                runtime_abs_path, item, INDEX_FILE_NAME
+            )
             if not os.path.isfile(index_file_path):
                 raise ArtifactAssemblingError(
                     f'\'{index_file_path}\' file not found for '
@@ -81,7 +87,9 @@ def assemble_swagger_ui(runtime_root_path, bundles_dir, **kwargs):
             with zipfile.ZipFile(zip_file_path, 'w') as zipf:
                 zipf.write(index_file_path, INDEX_FILE_NAME)
                 zipf.write(spec_path, spec_name)
-            shutil.move(zip_file_path, build_path(bundles_dir,
-                                                  artifact_name))
+            shutil.move(
+                zip_file_path, 
+                build_path(bundles_dir, artifact_name)
+            )
 
             _LOG.info(f'Swagger UI {item} was processed successfully')

@@ -58,7 +58,11 @@ _LOG = get_logger(__name__)
 USER_LOG = get_user_logger()
 
 
-def assemble_dotnet_lambdas(runtime_root_path, bundles_dir, **kwargs):
+def assemble_dotnet_lambdas(
+    runtime_root_path: str, 
+    bundles_dir: str,
+    **kwargs
+) -> None:
     from syndicate.core import CONFIG
 
     _check_dotnet_is_installed()

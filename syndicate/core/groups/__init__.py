@@ -13,6 +13,8 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+from typing import Literal
+
 RUNTIME_JAVA = 'java'
 RUNTIME_NODEJS = 'nodejs'
 RUNTIME_PYTHON = 'python'
@@ -25,13 +27,13 @@ RUNTIME_PYTHON_LAYER = f'{RUNTIME_PYTHON}{LAYER_SUFFIX}'
 RUNTIME_NODEJS_LAYER = f'{RUNTIME_NODEJS}{LAYER_SUFFIX}'
 RUNTIME_DOTNET_LAYER = f'{RUNTIME_DOTNET}{LAYER_SUFFIX}'
 
-JAVA_ROOT_DIR_JSRC = 'jsrc/main/java'
-JAVA_ROOT_DIR_JAPP = 'japp'
-NODEJS_ROOT_DIR = 'app'
-PYTHON_ROOT_DIR = 'src'
-DOTNET_ROOT_DIR = 'dnapp'
-SWAGGER_UI_ROOT_DIR = 'swagger_src'
-APPSYNC_ROOT_DIR = 'appsync_src'
+JAVA_ROOT_PATH_JSRC = 'jsrc/main/java'
+JAVA_ROOT_PATH_JAPP = 'japp'
+NODEJS_ROOT_PATH = 'app'
+PYTHON_ROOT_PATH = 'src'
+DOTNET_ROOT_PATH = 'dnapp'
+SWAGGER_UI_ROOT_PATH = 'swagger_src'
+APPSYNC_ROOT_PATH = 'appsync_src'
 
 DEFAULT_RUNTIME_VERSION = {
     RUNTIME_PYTHON: 'python3.10',

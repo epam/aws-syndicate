@@ -53,8 +53,12 @@ EMPTY_FILE_HASH = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b
 TMP_DIR = 'tmp'
 
 
-def assemble_python_lambdas(runtime_root_path, bundles_dir, errors_allowed,
-                            **kwargs):
+def assemble_python_lambdas(
+    runtime_root_path: str, 
+    bundles_dir: str, 
+    errors_allowed: bool,
+    **kwargs
+) -> None:
     from syndicate.core import CONFIG
     print(f"py: {runtime_root_path}")  # TODO: remove
     runtime_base_dir = os.path.basename(os.path.normpath(runtime_root_path))
@@ -98,8 +102,12 @@ def assemble_python_lambdas(runtime_root_path, bundles_dir, errors_allowed,
 
 
 @unpack_kwargs
-def build_python_lambda_layer(layer_root: str, bundle_dir: str,
-                              runtime_root_path: str, errors_allowed: bool):
+def build_python_lambda_layer(
+    layer_root: str, 
+    bundle_dir: str,
+    runtime_root_path: str,
+    errors_allowed: bool
+) -> None:
     """
     Layer root is a dir where these files exist:
     - lambda_layer_config.json
@@ -194,8 +202,11 @@ def build_python_lambda_layer(layer_root: str, bundle_dir: str,
 
 
 @unpack_kwargs
-def _build_python_artifact(root, config_file, target_folder, runtime_root_path,
-                           errors_allowed):
+def _build_python_artifact(
+    root: str, config_file: str, 
+    target_folder: str, runtime_root_path: str,
+    errors_allowed: bool
+) -> None:
     _LOG.info(f'Building artifact in {target_folder}')
 
     cache_dir_path = resolve_bundles_cache_directory()

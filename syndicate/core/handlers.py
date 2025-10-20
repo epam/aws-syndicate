@@ -1001,7 +1001,7 @@ def assemble_dotnet(bundle_name, runtime_root_path, force_upload,
 @click.option('--project-path', '-path', '--runtime-root-path',
               cls=MultiWordOption, nargs=1,
               callback=resolve_path_callback, required=True,
-              help='The path to the root project directory. Related files '
+              help='Path to the runtime root path. Related files '
                    'will be packed into a zip archive.')
 @click.option('--force-upload', '-F',
               cls=MultiWordOption, is_flag=True, default=False,
@@ -1044,7 +1044,7 @@ def assemble_swagger_ui(**kwargs):
 @click.option('--project-path', '-path', '--runtime-root-path',
               cls=MultiWordOption, nargs=1,
               callback=resolve_path_callback, required=True,
-              help='Path to the project root directory. Related files '
+              help='Path to the runtime root path. Related files '
                    'will be packed into a zip archive.')
 @click.option('--force-upload', '-F',
               cls=MultiWordOption, is_flag=True, default=False,

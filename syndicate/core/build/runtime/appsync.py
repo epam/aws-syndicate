@@ -31,7 +31,11 @@ _LOG = get_logger(__name__)
 USER_LOG = get_user_logger()
 
 
-def assemble_appsync(runtime_root_path, bundles_dir, **kwargs):
+def assemble_appsync(
+    runtime_root_path: str, 
+    bundles_dir: str, 
+    **kwargs
+) -> None:
     from syndicate.core import CONFIG
     path_to_project = CONFIG.project_path
     runtime_abs_path = build_path(path_to_project, runtime_root_path)

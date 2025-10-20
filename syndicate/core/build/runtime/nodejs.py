@@ -53,7 +53,11 @@ def _copy_js_files(search_path, destination_path):
             shutil.copy2(js_file, destination_path)
 
 
-def assemble_node_lambdas(runtime_root_path, bundles_dir, **kwargs):
+def assemble_node_lambdas(
+    runtime_root_path: str, 
+    bundles_dir: str, 
+    **kwargs
+) -> None:
     from syndicate.core import CONFIG
     runtime_abs_path = Path(CONFIG.project_path, runtime_root_path)
     _LOG.info(f'Going to package lambdas starting by path {runtime_abs_path}')

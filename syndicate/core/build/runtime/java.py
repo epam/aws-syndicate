@@ -20,16 +20,20 @@ from syndicate.exceptions import EnvironmentError
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.constants import MVN_TARGET_DIR_NAME
 from syndicate.core.helper import build_path, execute_command_by_path, USER_LOG
-from syndicate.core.groups import JAVA_ROOT_DIR_JAPP
+from syndicate.core.groups import JAVA_ROOT_PATH_JAPP
 
 _LOG = get_logger(__name__)
 
 VALID_EXTENSIONS = ('.jar', '.war', '.zip')
 
 
-def assemble_java_mvn_lambdas(runtime_root_path: str, bundles_dir: str,
-                              errors_allowed: bool = False,
-                              skip_tests: bool = False, **kwargs):
+def assemble_java_mvn_lambdas(
+    runtime_root_path: str, 
+    bundles_dir: str,
+    errors_allowed: bool = False,
+    skip_tests: bool = False, 
+    **kwargs
+) -> None:
     from syndicate.core import CONFIG
     project_path = CONFIG.project_path
     mvn_path = safe_resolve_mvn_path()
@@ -44,34 +48,34 @@ def assemble_java_mvn_lambdas(runtime_root_path: str, bundles_dir: str,
         mvn_execute_command.append('-DerrorsAllowed')
 
 
-    if runtime_root_path == JAVA_ROOT_DIR_JAPP:
-        runtime_root_path = build_path(project_path, JAVA_ROOT_DIR_JAPP)
-        _LOG.info(f'Java project are located by path: {runtime_root_path}')
+    if runtime_root_path == JAVA_ROOT_PATH_JAPP:
+        runtime_abs_path = build_path(project_path, JAVA_ROOT_PATH_JAPP)
+        _LOG.info(f'Java project are located by path: {runtime_abs_path}')
     else:
         _LOG.warning(
             f"The specified Java root directory '{runtime_root_path}' is not "
             "standard. Executing Maven commands in the base project directory."
         )
-        runtime_root_path = project_path
+        runtime_abs_path = project_path
 
-    if not os.path.exists(runtime_root_path):
+    if not os.path.exists(runtime_abs_path):
         error_message = (
             f'Cannot find the Java root directory by path: '
-            f'{runtime_root_path}. Please make sure that the Java project is '
+            f'{runtime_abs_path}. Please make sure that the Java project is '
             f'located in the "{runtime_root_path}" subdirectory.'
         )
         USER_LOG.error(error_message)
         raise EnvironmentError(error_message)
     _LOG.info(
-        f"Going to process java mvn project by path: {runtime_root_path}"
+        f"Going to process java mvn project by path: {runtime_abs_path}"
     )
     execute_command_by_path(
-        command=mvn_execute_command, path=runtime_root_path, shell=False
+        command=mvn_execute_command, path=runtime_abs_path, shell=False
     )
 
     target_paths = []
-    if runtime_root_path == JAVA_ROOT_DIR_JAPP:
-        target_paths = _resolve_all_target_paths(base_path=runtime_root_path)
+    if runtime_root_path == JAVA_ROOT_PATH_JAPP:
+        target_paths = _resolve_all_target_paths(base_path=runtime_abs_path)
     else:
         _LOG.warning(
             f"The specified Java root directory '{runtime_root_path}' is not "
