@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Unified JSON formatting by extracting indent into a global constant `DEFAULT_JSON_INDENT`
 - Renamed `project_path` to clearly distinguish runtime-specific paths from the global `CONFIG.project_path`, preventing confusion and improving code readability.
 - Encapsulated Python in a dedicated `pyapp` runtime root directory (`tests` and `src` folders)
+- Added example of Python application project structure `pyapp` (`examples/python/demo-pyapp-structure`)
 
 # [1.18.3] - 2025-09-11
 - Fixed issue in the lambda function with the runtime Python template
