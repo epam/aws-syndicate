@@ -127,14 +127,14 @@ DOTNET_LAYER_FILES = [
 ]
 
 
-def generate_common_module(src_path, runtime):
+def generate_common_module(runtime_abs_path, runtime):
     runtime_processor = COMMON_MODULE_PROCESSORS.get(runtime)
     if not runtime_processor:
         raise InvalidValueError(
             f"Runtime '{runtime}' is not supported. "
             f"Currently available runtimes: '{list(COMMON_MODULE_PROCESSORS)}'"
         )
-    runtime_processor(src_path=src_path)
+    runtime_processor(runtime_abs_path=runtime_abs_path)
 
 
 def generate_lambda_function(project_path, runtime, lambda_names, tags):
@@ -155,7 +155,7 @@ def generate_lambda_function(project_path, runtime, lambda_names, tags):
             f"The runtime '{runtime}' is not currently supported to bootstrap "
             f"the project"
         )
-    common_module_generator(src_path=runtime_abs_path)
+    common_module_generator(runtime_abs_path=runtime_abs_path)
     project_state.add_project_build_mapping(runtime=runtime)
 
     processor = LAMBDAS_PROCESSORS.get(runtime)
