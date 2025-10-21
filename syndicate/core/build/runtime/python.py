@@ -41,6 +41,8 @@ from syndicate.core.constants import (LAMBDA_CONFIG_FILE_NAME, DEFAULT_SEP,
 from syndicate.core.helper import (build_path, unpack_kwargs, zip_ext,
                                    without_zip_ext, compute_file_hash)
 from syndicate.core.resources.helper import validate_params
+from syndicate.core.groups import PYTHON_ROOT_DIR_SRC
+
 
 _LOG = get_logger(__name__)
 USER_LOG = get_user_logger()
@@ -60,12 +62,18 @@ def assemble_python_lambdas(
     **kwargs
 ) -> None:
     from syndicate.core import CONFIG
+
     runtime_base_dir = os.path.basename(os.path.normpath(runtime_root_dir))
     if runtime_root_dir != '.':
         runtime_abs_path = build_path(CONFIG.project_path, runtime_base_dir)
     else:
         runtime_abs_path = CONFIG.project_path
+
+    if runtime_root_dir != PYTHON_ROOT_DIR_SRC:
+        runtime_abs_path = os.path.join(runtime_abs_path, PYTHON_ROOT_DIR_SRC)
+
     _LOG.info(f'Going to process python project by path: {runtime_abs_path}')
+
     with ThreadPoolExecutor(max_workers=5) as executor:
         futures = []
         for root, _, files in os.walk(runtime_abs_path):
@@ -201,9 +209,11 @@ def build_python_lambda_layer(
 
 @unpack_kwargs
 def _build_python_artifact(
-    root: str, config_file: str, 
-    target_folder: str, runtime_root_dir: str,
-    errors_allowed: bool
+    runtime_root_dir: str,
+    errors_allowed: bool,
+    target_folder: str,
+    config_file: str,
+    root: str,
 ) -> None:
     _LOG.info(f'Building artifact in {target_folder}')
 
@@ -539,17 +549,32 @@ def install_requirements_independently(requirements: Union[str, Path, List[str]]
     return failed_requirements
 
 
-def _install_local_req(artifact_path, local_req_path, runtime_root_dir):
+def _install_local_req(
+    artifact_path: str,
+    local_req_path: str,
+    runtime_root_dir: str
+) -> None:
     from syndicate.core import CONFIG
+
     with open(local_req_path) as f:
         local_req_list = f.readlines()
     local_req_list = [path_resolver(r.strip()) for r in local_req_list]
     _LOG.info(f'Installing local dependencies: {local_req_list}')
+
+    if runtime_root_dir != PYTHON_ROOT_DIR_SRC:
+        runtime_abs_path = build_path(
+            CONFIG.project_path, runtime_root_dir, PYTHON_ROOT_DIR_SRC
+        )
+    else:
+        runtime_abs_path = build_path(CONFIG.project_path, runtime_root_dir)
+
     # copy folders
     for lrp in local_req_list:
         _LOG.info(f'Processing local dependency: {lrp}')
-        shutil.copytree(str(Path(CONFIG.project_path, runtime_root_dir, lrp)),
-                        str(Path(artifact_path, lrp)))
+        shutil.copytree(
+            Path(runtime_abs_path, lrp),
+            Path(artifact_path, lrp),
+        )
         _LOG.debug('Dependency was copied successfully')
 
         folders = [r for r in lrp.split(DEFAULT_SEP) if r]

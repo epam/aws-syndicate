@@ -75,7 +75,7 @@ from syndicate.core.constants import TEST_ACTION, BUILD_ACTION, \
     FAILED_RETURN_CODE, ABORTED_RETURN_CODE, UPDATE_RESOURCE_TYPE_PRIORITY, \
     UNDERSCORE_CREATE_DEPLOY_TARGET_BUCKET_ACTION, \
     DEPLOY_RESOURCE_TYPE_PRIORITY, CLEAN_RESOURCE_TYPE_PRIORITY
-from syndicate.core.groups import RUNTIME_JAVA, RUNTIME_PYTHON, RUNTIME_NODEJS, \
+from syndicate.core.groups import PYTHON_ROOT_DIR_PYAPP, RUNTIME_JAVA, RUNTIME_PYTHON, RUNTIME_NODEJS, \
     RUNTIME_DOTNET, RUNTIME_SWAGGER_UI, RUNTIME_APPSYNC
 from syndicate.exceptions import ProjectStateError
 from syndicate import __version__
@@ -137,7 +137,8 @@ def syndicate():
               help='Supported testing frameworks. Possible options: unittest, '
                    'pytest, nose. Default value: unittest')
 @click.option('--test-folder-name',
-              cls=MultiWordOption, nargs=1, default='tests',
+              cls=MultiWordOption, nargs=1,
+              default=f'{PYTHON_ROOT_DIR_PYAPP}/tests',
               help='Directory in the project that contains tests to run. '
                    'Default folder: tests')
 @click.option('--errors-allowed',
@@ -152,20 +153,26 @@ def syndicate():
 @failed_status_code_on_exception
 def test(suite, test_folder_name, errors_allowed, skip_tests):
     """Discovers and runs tests inside python project configuration path."""
+    import subprocess
+    from syndicate.core import CONFIG
+
     if skip_tests:
         USER_LOG.info('Skipping tests...')
         return OK_RETURN_CODE
 
     USER_LOG.info('Running tests...')
-    import subprocess
-    from syndicate.core import CONFIG
+    
     project_path = CONFIG.project_path
     test_folder = os.path.join(project_path, test_folder_name)
+
     if not os.path.exists(test_folder):
-        msg = (f'Tests not found, \'{test_folder_name}\' folder is missing in '
-               f'\'{project_path}\'.')
+        msg = (
+            f'Tests not found, \'{test_folder_name}\' folder is missing in '
+            f'\'{project_path}\'.'
+        )
         USER_LOG.info(msg)
         return OK_RETURN_CODE
+
     test_lib_command_mapping = {
         'unittest': f'"{sys.executable}" -m unittest discover "{test_folder}" -v',
         'pytest': 'pytest --no-header -v',
@@ -173,8 +180,10 @@ def test(suite, test_folder_name, errors_allowed, skip_tests):
     }
 
     command = test_lib_command_mapping.get(suite)
-    result = subprocess.run(command, cwd=project_path, shell=True,
-                            capture_output=True, text=True)
+    result = subprocess.run(
+        command, cwd=project_path, shell=True,
+        capture_output=True, text=True,
+    )
 
     if result.returncode != OK_RETURN_CODE:
         _LOG.error(f'{result.stdout}\n{result.stderr}\n{"-" * 70}')

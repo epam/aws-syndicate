@@ -236,27 +236,35 @@ created for different runtimes:
 ```
     .
     ├── $project_path
-    │   └── src
-    │       ├── commons
-    │       │   ├── __init__.py
-    │       │   ├── abstract_lambda.py
-    │       │   ├── exceptions.py
-    │       │   └── log_helper.py
-    │       └── lambdas
-    │           ├── $lambda_name_1
-    │           │   ├── __init__.py
-    │           │   ├── deployment_resources.json
-    │           │   ├── handler.py
-    │           │   ├── lambda_config.json
-    │           │   ├── local_requirements.txt
-    │           │   └── requirements.txt
-    │           ├── $lambda_name_2
-    │           │   ├── __init__.py
-    │           │   ├── deployment_resources.json
-    │           │   ├── handler.py
-    │           │   ├── lambda_config.json
-    │           │   ├── local_requirements.txt
-    │           │   └── requirements.txt
+    │   └── pyapp
+    │       ├─── src
+    │       │   ├── commons
+    │       │   │   ├── __init__.py
+    │       │   │   ├── abstract_lambda.py
+    │       │   │   ├── exceptions.py
+    │       │   │   └── log_helper.py
+    │       │   └── lambdas
+    │       │       ├── $lambda_name_1
+    │       │       │   ├── __init__.py
+    │       │       │   ├── deployment_resources.json
+    │       │       │   ├── handler.py
+    │       │       │   ├── lambda_config.json
+    │       │       │   ├── local_requirements.txt
+    │       │       │   └── requirements.txt
+    │       │       ├── $lambda_name_2
+    │       │       │   ├── __init__.py
+    │       │       │   ├── deployment_resources.json
+    │       │       │   ├── handler.py
+    │       │       │   ├── lambda_config.json
+    │       │       │   ├── local_requirements.txt
+    │       │       │   └── requirements.txt
+    │       │       ├── __init__.py
+    │       │       └── ...
+    │       └── tests
+    │           ├── test_$lambda_name_1
+    │           │   └── test_success.py
+    │           ├── test_$lambda_name_2
+    │           │   └── test_success.py
     │           ├── __init__.py
     │           └── ...
     └── ...

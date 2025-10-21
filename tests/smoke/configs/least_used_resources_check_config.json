@@ -22,7 +22,9 @@
               "artifacts_list": [
                 "build_meta.json",
                 "sdct-at-least-used-resources-1.0.0.jar",
-                "sdct-at-java-lambda_layer-assembly.zip"
+                "sdct-at-java-lambda_layer-assembly.zip",
+                "sdct-at-python-lambda-1.0.zip",
+                "sdct-at-python-lambda_layer_layer.zip"
               ],
               "depends_on": [1]
             },
@@ -32,9 +34,6 @@
               "description": "Check if all resources exist in build meta",
               "resources": {
                 "sdct-at-lambda-basic-execution-policy": {
-                  "resource_type": "iam_policy"
-                },
-                "sdct-at-lambda-execution-policy": {
                   "resource_type": "iam_policy"
                 },
                 "sdct-at-batch-job-role": {
@@ -55,11 +54,14 @@
                 "sdct-at-cw-rule": {
                   "resource_type": "cloudwatch_rule"
                 },
-                "sdct-at-lambda-role": {
+                "sdct-at-python-lambda-role": {
                   "resource_type": "iam_role"
                 },
                 "sdct-at-python-lambda": {
                   "resource_type": "lambda"
+                },
+                "sdct-at-python-lambda_layer": {
+                  "resource_type": "lambda_layer"
                 },
                 "sdct-at-compenv": {
                   "resource_type": "batch_compenv"
@@ -93,13 +95,6 @@
                     "tests": "smoke",
                     "project": "sdct-auto-test",
                     "project-level-tag": "set-from-resource"
-                  }
-                },
-                "sdct-at-lambda-execution-policy": {
-                  "resource_type": "iam_policy",
-                  "tags": {
-                    "tests": "smoke",
-                    "project": "sdct-auto-test"
                   }
                 },
                 "sdct-at-batch-job-role": {
@@ -140,7 +135,7 @@
                     "project": "sdct-auto-test"
                   }
                 },
-                "sdct-at-lambda-role": {
+                "sdct-at-python-lambda-role": {
                   "resource_type": "iam_role",
                   "tags": {
                     "tests": "smoke",
@@ -152,7 +147,13 @@
                   "tags": {
                     "tests": "smoke",
                     "project": "sdct-auto-test"
+                  },
+                  "env_variables": {
+                    "table_name": "table name is $rn{sdct-at-table}"
                   }
+                },
+                "sdct-at-python-lambda_layer": {
+                  "resource_type": "lambda_layer"
                 },
                 "sdct-at-compenv": {
                   "resource_type": "batch_compenv",
@@ -236,9 +237,6 @@
                 "sdct-at-lambda-basic-execution-policy": {
                   "resource_type": "iam_policy"
                 },
-                "sdct-at-lambda-execution-policy": {
-                  "resource_type": "iam_policy"
-                },
                 "sdct-at-java-lambda-role": {
                   "resource_type": "iam_role"
                 },
@@ -248,7 +246,7 @@
                 "sdct-at-step-function-role": {
                   "resource_type": "iam_role"
                 },
-                "sdct-at-lambda-role": {
+                "sdct-at-python-lambda-role": {
                   "resource_type": "iam_role"
                 }
               },
@@ -262,9 +260,6 @@
                 "sdct-at-lambda-basic-execution-policy": {
                   "resource_type": "iam_policy"
                 },
-                "sdct-at-lambda-execution-policy": {
-                  "resource_type": "iam_policy"
-                },
                 "sdct-at-java-lambda-role": {
                   "resource_type": "iam_role"
                 },
@@ -274,7 +269,7 @@
                 "sdct-at-step-function-role": {
                   "resource_type": "iam_role"
                 },
-                "sdct-at-lambda-role": {
+                "sdct-at-python-lambda-role": {
                   "resource_type": "iam_role"
                 }
               },
@@ -313,9 +308,6 @@
                 "sdct-at-lambda-basic-execution-policy": {
                   "resource_type": "iam_policy"
                 },
-                "sdct-at-lambda-execution-policy": {
-                  "resource_type": "iam_policy"
-                },
                 "sdct-at-batch-job-role": {
                   "resource_type": "iam_role"
                 },
@@ -334,11 +326,14 @@
                 "sdct-at-step-function-role": {
                   "resource_type": "iam_role"
                 },
-                "sdct-at-lambda-role": {
+                "sdct-at-python-lambda-role": {
                   "resource_type": "iam_role"
                 },
                 "sdct-at-python-lambda": {
                   "resource_type": "lambda"
+                },
+                "sdct-at-python-lambda_layer": {
+                  "resource_type": "lambda_layer"
                 },
                 "sdct-at-compenv": {
                   "resource_type": "batch_compenv"
@@ -369,20 +364,20 @@
                 "sdct-at-lambda-basic-execution-policy": {
                   "resource_type": "iam_policy"
                 },
-                "sdct-at-lambda-execution-policy": {
-                  "resource_type": "iam_policy"
-                },
                 "sdct-at-batch-job-role": {
                   "resource_type": "iam_role"
                 },
                 "sdct-at-step-function-role": {
                   "resource_type": "iam_role"
                 },
-                "sdct-at-lambda-role": {
+                "sdct-at-python-lambda-role": {
                   "resource_type": "iam_role"
                 },
                 "sdct-at-python-lambda": {
                   "resource_type": "lambda"
+                },
+                "sdct-at-python-lambda_layer": {
+                  "resource_type": "lambda_layer"
                 },
                 "sdct-at-java-lambda-role": {
                   "resource_type": "iam_role"
@@ -452,9 +447,6 @@
                 "sdct-at-lambda-basic-execution-policy": {
                   "resource_type": "iam_policy"
                 },
-                "sdct-at-lambda-execution-policy": {
-                  "resource_type": "iam_policy"
-                },
                 "sdct-at-batch-job-role": {
                   "resource_type": "iam_role"
                 },
@@ -473,11 +465,14 @@
                 "sdct-at-step-function-role": {
                   "resource_type": "iam_role"
                 },
-                "sdct-at-lambda-role": {
+                "sdct-at-python-lambda-role": {
                   "resource_type": "iam_role"
                 },
                 "sdct-at-python-lambda": {
                   "resource_type": "lambda"
+                },
+                "sdct-at-python-lambda_layer": {
+                  "resource_type": "lambda_layer"
                 },
                 "sdct-at-compenv": {
                   "resource_type": "batch_compenv"
@@ -518,9 +513,6 @@
                 "sdct-at-lambda-basic-execution-policy": {
                   "resource_type": "iam_policy"
                 },
-                "sdct-at-lambda-execution-policy": {
-                  "resource_type": "iam_policy"
-                },
                 "sdct-at-batch-job-role": {
                   "resource_type": "iam_role"
                 },
@@ -539,11 +531,14 @@
                 "sdct-at-cw-rule": {
                   "resource_type": "cloudwatch_rule"
                 },
-                "sdct-at-lambda-role": {
+                "sdct-at-python-lambda-role": {
                   "resource_type": "iam_role"
                 },
                 "sdct-at-python-lambda": {
                   "resource_type": "lambda"
+                },
+                "sdct-at-python-lambda_layer": {
+                  "resource_type": "lambda_layer"
                 },
                 "sdct-at-compenv": {
                   "resource_type": "batch_compenv"
@@ -622,11 +617,14 @@
                 "sdct-at-java-lambda_layer": {
                   "resource_type": "lambda_layer"
                 },
-                "sdct-at-lambda-role": {
+                "sdct-at-python-lambda-role": {
                   "resource_type": "iam_role"
                 },
                 "sdct-at-python-lambda": {
                   "resource_type": "lambda"
+                },
+                "sdct-at-python-lambda_layer": {
+                  "resource_type": "lambda_layer"
                 },
                 "sdct-at-compenv": {
                   "resource_type": "batch_compenv"
