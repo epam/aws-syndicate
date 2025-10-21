@@ -45,9 +45,10 @@ from syndicate.core.generators.contents import (
 from syndicate.core.groups import (RUNTIME_JAVA, RUNTIME_NODEJS,
                                    RUNTIME_PYTHON, RUNTIME_PYTHON_LAYER,
                                    RUNTIME_NODEJS_LAYER, RUNTIME_DOTNET,
-                                   RUNTIME_DOTNET_LAYER, JAVA_ROOT_DIR_JAPP,
-                                   JAVA_ROOT_DIR_JSRC)
+                                   RUNTIME_DOTNET_LAYER, LAYER_SUFFIX,
+                                   RUNTIME_DOTNET_LAYER,)
 from syndicate.core.constants import DEFAULT_JSON_INDENT
+
 
 _LOG = get_logger(__name__)
 USER_LOG = get_user_logger()
@@ -146,7 +147,7 @@ def generate_lambda_function(project_path, runtime, lambda_names, tags):
         USER_LOG.info(f'State file does not exist in {CONF_PATH}')
         return
     project_state = ProjectState(project_path=project_path)
-    src_path = os.path.join(project_path, BUILD_MAPPINGS[runtime])
+    runtime_abs_path = os.path.join(project_path, BUILD_MAPPINGS[runtime])
 
     common_module_generator = COMMON_MODULE_PROCESSORS.get(runtime)
     if not common_module_generator:
@@ -154,14 +155,14 @@ def generate_lambda_function(project_path, runtime, lambda_names, tags):
             f"The runtime '{runtime}' is not currently supported to bootstrap "
             f"the project"
         )
-    common_module_generator(src_path=src_path)
+    common_module_generator(src_path=runtime_abs_path)
     project_state.add_project_build_mapping(runtime=runtime)
 
     processor = LAMBDAS_PROCESSORS.get(runtime)
     if not processor:
         raise InvalidValueError(f"Wrong project runtime '{runtime}'")
 
-    lambdas_path = os.path.join(src_path, FOLDER_LAMBDAS)
+    lambdas_path = os.path.join(runtime_abs_path, FOLDER_LAMBDAS)
 
     generated_lambdas = processor(
         project_path=project_path, lambda_names=lambda_names,
@@ -191,21 +192,21 @@ def generate_lambda_layer(name, runtime, project_path, lambda_names=None):
         USER_LOG.info(f'State file does not exist in {CONF_PATH}')
         return
     project_state = ProjectState(project_path=project_path)
-    src_path = os.path.join(project_path, BUILD_MAPPINGS[runtime])
-    common_module_generator = COMMON_MODULE_PROCESSORS.get(runtime + '_layer')
+    runtime_abs_path = os.path.join(project_path, BUILD_MAPPINGS[runtime])
+    common_module_generator = COMMON_MODULE_PROCESSORS.get(runtime + LAYER_SUFFIX)
     if not common_module_generator:
         raise InvalidValueError(
             f"The layer runtime '{runtime}' is not currently supported to "
             f"bootstrap the project"
         )
-    common_module_generator(src_path=src_path)
+    common_module_generator(runtime_abs_path=runtime_abs_path)
     project_state.add_project_build_mapping(runtime=runtime)
 
     processor = LAYERS_PROCESSORS.get(runtime)
     if not processor:
         raise InvalidValueError(f"Wrong layer runtime '{runtime}'")
 
-    layers_path = os.path.join(src_path, FOLDER_LAMBDAS, FOLDER_LAYERS)
+    layers_path = os.path.join(runtime_abs_path, FOLDER_LAMBDAS, FOLDER_LAYERS)
 
     result = processor(
         layer_name=name,
@@ -228,7 +229,7 @@ def generate_lambda_layer(name, runtime, project_path, lambda_names=None):
                                layer_name=name,
                                layer_runtime=runtime,
                                existent_lambdas=project_lambdas,
-                               lambda_path=src_path)
+                               lambda_path=runtime_abs_path)
 
 
 def _generate_python_lambdas(**kwargs):
@@ -675,20 +676,20 @@ LAYERS_PROCESSORS = {
 }
 
 
-def _common_java_module(src_path):
+def _common_java_module(runtime_abs_path):
     pass
 
 
-def _common_nodejs_module(src_path):
+def _common_nodejs_module(runtime_abs_path):
     pass
 
 
-def _common_dotnet_module(src_path):
+def _common_dotnet_module(runtime_abs_path):
     pass
 
 
-def _common_python_module(src_path):
-    common_module_path = os.path.join(src_path, FOLDER_COMMONS)
+def _common_python_module(runtime_abs_path):
+    common_module_path = os.path.join(runtime_abs_path, FOLDER_COMMONS)
     _mkdir(path=common_module_path, exist_ok=True)
 
     init_path = os.path.join(common_module_path, '__init__.py')
@@ -722,8 +723,8 @@ def resolve_lambda_path(project: Path, runtime: str, source: str) -> Path:
     return project/Path(source, _lambda)
 
 
-def _common_python_nodejs_dotnet_layer_module(src_path):
-    layer_path = os.path.join(src_path, FOLDER_LAMBDAS, FOLDER_LAYERS)
+def _common_python_nodejs_dotnet_layer_module(runtime_abs_path):
+    layer_path = os.path.join(runtime_abs_path, FOLDER_LAMBDAS, FOLDER_LAYERS)
     _mkdir(path=layer_path, exist_ok=True)
 
 

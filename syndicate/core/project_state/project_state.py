@@ -655,9 +655,10 @@ class ProjectState:
             project_path=absolute_path, project_name=project_path.name
         )
 
-        for runtime, source_path in BUILD_MAPPINGS.items():
-            lambdas_path = resolve_lambda_path(project_path, runtime,
-                                               source_path)
+        for runtime, runtime_root_path in BUILD_MAPPINGS.items():
+            lambdas_path = resolve_lambda_path(
+                project_path, runtime, runtime_root_path
+            )
             if os.path.exists(lambdas_path):
                 project_state._update_lambdas_from_path(lambdas_path, runtime)
 
