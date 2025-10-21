@@ -20,7 +20,7 @@ from syndicate.exceptions import EnvironmentError
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.constants import MVN_TARGET_DIR_NAME
 from syndicate.core.helper import build_path, execute_command_by_path, USER_LOG
-from syndicate.core.groups import JAVA_ROOT_PATH_JAPP
+from syndicate.core.groups import JAVA_ROOT_DIR_JAPP
 
 _LOG = get_logger(__name__)
 
@@ -28,7 +28,7 @@ VALID_EXTENSIONS = ('.jar', '.war', '.zip')
 
 
 def assemble_java_mvn_lambdas(
-    runtime_root_path: str, 
+    runtime_root_dir: str, 
     bundles_dir: str,
     errors_allowed: bool = False,
     skip_tests: bool = False, 
@@ -48,12 +48,12 @@ def assemble_java_mvn_lambdas(
         mvn_execute_command.append('-DerrorsAllowed')
 
 
-    if runtime_root_path == JAVA_ROOT_PATH_JAPP:
-        runtime_abs_path = build_path(project_path, JAVA_ROOT_PATH_JAPP)
+    if runtime_root_dir == JAVA_ROOT_DIR_JAPP:
+        runtime_abs_path = build_path(project_path, JAVA_ROOT_DIR_JAPP)
         _LOG.info(f'Java project are located by path: {runtime_abs_path}')
     else:
         _LOG.warning(
-            f"The specified Java root directory '{runtime_root_path}' is not "
+            f"The specified Java root directory '{runtime_root_dir}' is not "
             "standard. Executing Maven commands in the base project directory."
         )
         runtime_abs_path = project_path
@@ -62,7 +62,7 @@ def assemble_java_mvn_lambdas(
         error_message = (
             f'Cannot find the Java root directory by path: '
             f'{runtime_abs_path}. Please make sure that the Java project is '
-            f'located in the "{runtime_root_path}" subdirectory.'
+            f'located in the "{runtime_root_dir}" subdirectory.'
         )
         USER_LOG.error(error_message)
         raise EnvironmentError(error_message)
@@ -74,11 +74,11 @@ def assemble_java_mvn_lambdas(
     )
 
     target_paths = []
-    if runtime_root_path == JAVA_ROOT_PATH_JAPP:
+    if runtime_root_dir == JAVA_ROOT_DIR_JAPP:
         target_paths = _resolve_all_target_paths(base_path=runtime_abs_path)
     else:
         _LOG.warning(
-            f"The specified Java root directory '{runtime_root_path}' is not "
+            f"The specified Java root directory '{runtime_root_dir}' is not "
             "standard. Collecting artifacts from the base project directory."
         )
         target_path = build_path(project_path, MVN_TARGET_DIR_NAME)

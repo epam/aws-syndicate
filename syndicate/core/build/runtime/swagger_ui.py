@@ -33,13 +33,13 @@ USER_LOG = get_user_logger()
 
 
 def assemble_swagger_ui(
-    runtime_root_path: str, 
+    runtime_root_dir: str, 
     bundles_dir: str, 
     **kwargs
 ) -> None:
     from syndicate.core import CONFIG
     project_path = CONFIG.project_path
-    runtime_abs_path = build_path(project_path, runtime_root_path)
+    runtime_abs_path = build_path(project_path, runtime_root_dir)
     _LOG.info(f'Swagger UI sources are located by path: {runtime_abs_path}')
 
     for _, dirs, _ in os.walk(runtime_abs_path):

@@ -54,12 +54,12 @@ def _copy_js_files(search_path, destination_path):
 
 
 def assemble_node_lambdas(
-    runtime_root_path: str, 
+    runtime_root_dir: str, 
     bundles_dir: str, 
     **kwargs
 ) -> None:
     from syndicate.core import CONFIG
-    runtime_abs_path = Path(CONFIG.project_path, runtime_root_path)
+    runtime_abs_path = Path(CONFIG.project_path, runtime_root_dir)
     _LOG.info(f'Going to package lambdas starting by path {runtime_abs_path}')
     _check_npm_is_installed()
     executor = ThreadPoolExecutor(max_workers=5)

@@ -59,14 +59,14 @@ USER_LOG = get_user_logger()
 
 
 def assemble_dotnet_lambdas(
-    runtime_root_path: str, 
+    runtime_root_dir: str, 
     bundles_dir: str,
     **kwargs
 ) -> None:
     from syndicate.core import CONFIG
 
     _check_dotnet_is_installed()
-    runtime_abs_path = Path(CONFIG.project_path, runtime_root_path)
+    runtime_abs_path = Path(CONFIG.project_path, runtime_root_dir)
     _LOG.info(f'Going to package lambdas starting by path {runtime_abs_path}')
     executor = ThreadPoolExecutor(max_workers=5)
     futures = []

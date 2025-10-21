@@ -51,7 +51,7 @@ _LOG = get_logger(__name__)
 
 def assemble_artifacts(
     bundle_name: str, 
-    runtime_root_path: str,
+    runtime_root_dir: str,
     runtime: str,
     errors_allowed: bool = False,
     skip_tests: bool = False,
@@ -75,7 +75,7 @@ def assemble_artifacts(
             f"Currently available runtimes:'{SUPPORTED_RUNTIMES}'")
 
     assemble_func(
-        runtime_root_path=runtime_root_path,
+        runtime_root_dir=runtime_root_dir,
         bundles_dir=bundle_dir,
         errors_allowed=errors_allowed,
         skip_tests=skip_tests

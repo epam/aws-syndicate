@@ -32,13 +32,13 @@ USER_LOG = get_user_logger()
 
 
 def assemble_appsync(
-    runtime_root_path: str, 
+    runtime_root_dir: str, 
     bundles_dir: str, 
     **kwargs
 ) -> None:
     from syndicate.core import CONFIG
     path_to_project = CONFIG.project_path
-    runtime_abs_path = build_path(path_to_project, runtime_root_path)
+    runtime_abs_path = build_path(path_to_project, runtime_root_dir)
     if not os.path.exists(runtime_abs_path):
         raise ArtifactAssemblingError(
             f"Appsync sources are not located by path '{runtime_abs_path}'")

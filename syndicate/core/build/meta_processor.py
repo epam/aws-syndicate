@@ -43,7 +43,7 @@ from syndicate.core.constants import (API_GATEWAY_TYPE, ARTIFACTS_FOLDER,
                                       SWAGGER_UI_CONFIG_FILE_NAME,
                                       TAGS_RESOURCE_TYPE_CONFIG)
 from syndicate.core.generators.contents import FILE_POM
-from syndicate.core.groups import JAVA_ROOT_PATH_JAPP
+from syndicate.core.groups import JAVA_ROOT_DIR_JAPP
 from syndicate.core.helper import (build_path, prettify_json,
                                    resolve_aliases_for_string,
                                    write_content_to_file, validate_tags)
@@ -545,7 +545,7 @@ def create_meta(project_path: str, bundle_name: str) -> None:
     mvn_path = safe_resolve_mvn_path()
     mvn_clean_command = [mvn_path, 'clean']
 
-    java_root_path_japp = build_path(project_path, JAVA_ROOT_PATH_JAPP)
+    java_root_path_japp = build_path(project_path, JAVA_ROOT_DIR_JAPP)
     java_root_path_japp_pom = build_path(java_root_path_japp, FILE_POM)
     project_path_pom = build_path(project_path, FILE_POM)
 
@@ -556,7 +556,7 @@ def create_meta(project_path: str, bundle_name: str) -> None:
             shell=False
         )
         _LOG.info(
-            f"Cleaned up the Java project in {JAVA_ROOT_PATH_JAPP!r} "
+            f"Cleaned up the Java project in {JAVA_ROOT_DIR_JAPP!r} "
             f"after building"
         )
     elif os.path.exists(project_path_pom):
