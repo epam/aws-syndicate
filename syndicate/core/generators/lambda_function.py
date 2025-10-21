@@ -154,6 +154,7 @@ def generate_lambda_function(
             f"the project"
         )
     common_module_generator(runtime_abs_path=runtime_abs_path)
+
     PROJECT_STATE.add_project_build_mapping(runtime=runtime)
 
     processor = LAMBDAS_PROCESSORS.get(runtime)
