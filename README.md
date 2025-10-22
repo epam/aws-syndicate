@@ -275,13 +275,16 @@ created for different runtimes:
 ```
     .
     ├── $project_path
-    │   └── jsrc
-    │       └── main
-    │           └── java
-    │               └── com
-    │                   └── $projectpath
-    │                       ├── $lambda_name_1.java
-    │                       └── $lambda_name_2.java
+    │   └── japp
+    │       └── src
+    │           ├── main
+    │           │   └── java
+    │           │       └── com
+    │           │           └── $project_name
+    │           │               └── $lambda_name_1.java
+    │           │               └── $lambda_name_2.java
+    │           │               └── ...
+    │           └── pom.xml
     └── ...
 ```
 
