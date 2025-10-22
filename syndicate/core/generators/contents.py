@@ -21,7 +21,7 @@ from syndicate.core.conf.validator import (
 from syndicate.core.generators import (_alias_variable,
                                        FILE_LAMBDA_HANDLER_NODEJS)
 from syndicate.core.groups import DEFAULT_RUNTIME_VERSION, RUNTIME_PYTHON, \
-    RUNTIME_NODEJS, RUNTIME_DOTNET
+    RUNTIME_NODEJS, RUNTIME_DOTNET, PYTHON_ROOT_DIR_PYAPP
 from syndicate.core.constants import DEFAULT_JSON_INDENT
 
 POLICY_LAMBDA_BASIC_EXECUTION = "lambda-basic-execution"
@@ -505,27 +505,27 @@ class ImportFromSourceContext:
 """
 
 PYTHON_TESTS_INIT_LAMBDA_TEMPLATE = \
-"""import unittest
+f"""import unittest
 import importlib
-from tests import ImportFromSourceContext
+from {PYTHON_ROOT_DIR_PYAPP}.tests import ImportFromSourceContext
 
 with ImportFromSourceContext():
-    LAMBDA_HANDLER = importlib.import_module('lambdas.{lambda_name}.handler')
+    LAMBDA_HANDLER = importlib.import_module('lambdas.{{lambda_name}}.handler')
 
 
-class {camel_lambda_name}LambdaTestCase(unittest.TestCase):
+class {{camel_lambda_name}}LambdaTestCase(unittest.TestCase):
     \"\"\"Common setups for this lambda\"\"\"
 
     def setUp(self) -> None:
-        self.HANDLER = LAMBDA_HANDLER.{camel_lambda_name}()
+        self.HANDLER = LAMBDA_HANDLER.{{camel_lambda_name}}()
 
 """
 
 PYTHON_TESTS_BASIC_TEST_CASE_TEMPLATE = \
-"""from tests.{test_lambda_folder} import {camel_lambda_name}LambdaTestCase
+f"""from {PYTHON_ROOT_DIR_PYAPP}.tests.{{test_lambda_folder}} import {{camel_lambda_name}}LambdaTestCase
 
 
-class TestSuccess({camel_lambda_name}LambdaTestCase):
+class TestSuccess({{camel_lambda_name}}LambdaTestCase):
 
     def test_success(self):
         self.assertEqual(self.HANDLER.handle_request(dict(), dict()), 200)

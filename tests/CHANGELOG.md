@@ -1,5 +1,9 @@
+## 2025-10-21
+### Added
+- Added tests for the new `pyapp` Python structure, including backward compatibility validation
 
 ## 2025-10-17
+### Added
 - Added tests for the new `japp` Java structure, including backward compatibility validation
 
 ## 2025-10-15
