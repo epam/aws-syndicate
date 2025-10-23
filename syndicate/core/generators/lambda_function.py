@@ -42,7 +42,7 @@ from syndicate.core.generators.contents import (
     JAVA_TAGS_ANNOTATION_TEMPLATE, JAVA_TAGS_IMPORT,
     DOTNET_LAMBDA_HANDLER_TEMPLATE, DOTNET_LAMBDA_CSPROJ_TEMPLATE,
     _generate_dotnet_lambda_config, DOTNET_LAMBDA_LAYER_CSPROJ_TEMPLATE)
-from syndicate.core.groups import (RUNTIME_JAVA, RUNTIME_NODEJS,
+from syndicate.core.groups import (PYTHON_ROOT_DIR_PYAPP, RUNTIME_JAVA, RUNTIME_NODEJS,
                                    RUNTIME_PYTHON, RUNTIME_PYTHON_LAYER,
                                    RUNTIME_NODEJS_LAYER, RUNTIME_DOTNET,
                                    RUNTIME_DOTNET_LAYER, LAYER_SUFFIX,
@@ -817,12 +817,22 @@ def _common_python_module(runtime_abs_path: str) -> None:
         _write_content_to_file(file=exception_path, content=EXCEPTION_CONTENT)
 
 
-def resolve_lambda_path(project: Path, runtime: str, source: str) -> Path:
-    _lambda = ''
-    if runtime != RUNTIME_JAVA and runtime in LAMBDAS_PROCESSORS:
-        _lambda = FOLDER_LAMBDAS
+def resolve_lambda_path(
+    project: Path, 
+    runtime: str, 
+    runtime_root_dir: str,
+) -> Path:
+    if runtime == RUNTIME_JAVA or runtime not in LAMBDAS_PROCESSORS:
+        return project / runtime_root_dir
 
-    return project/Path(source, _lambda)
+    if runtime == RUNTIME_PYTHON and runtime_root_dir == PYTHON_ROOT_DIR_PYAPP:
+        lambda_relative_path = Path(
+            runtime_root_dir, PYTHON_ROOT_DIR_SRC, FOLDER_LAMBDAS
+            )
+    else:
+        lambda_relative_path = Path(runtime_root_dir, FOLDER_LAMBDAS)
+    
+    return project / lambda_relative_path
 
 
 def _common_python_nodejs_dotnet_layer_module(runtime_abs_path):
