@@ -64,15 +64,9 @@ BUILD_MAPPINGS = {
     RUNTIME_APPSYNC: APPSYNC_ROOT_DIR
 }
 
-RUNTIME_RESTORE_CONFIGS = {
-    RUNTIME_JAVA: {
-        'legacy_runtime_root_dir': JAVA_ROOT_DIR_JSRC,
-        'legacy_build_mapping': JAVA_ROOT_DIR_JSRC
-    },
-    RUNTIME_PYTHON: {
-        'legacy_runtime_root_dir': PYTHON_ROOT_DIR_SRC,
-        'legacy_build_mapping': PYTHON_ROOT_DIR_SRC
-    }
+LEGACY_BUILD_MAPPINGS = {
+    RUNTIME_JAVA: JAVA_ROOT_DIR_JSRC,
+    RUNTIME_PYTHON: PYTHON_ROOT_DIR_SRC
 }
 
 OPERATION_LOCK_MAPPINGS = {
@@ -413,11 +407,10 @@ class ProjectState:
         """
         from syndicate.core.generators.lambda_function import resolve_lambda_path
         
-        if runtime not in RUNTIME_RESTORE_CONFIGS:
+        if runtime not in LEGACY_BUILD_MAPPINGS:
             return current_path, []
             
-        config = RUNTIME_RESTORE_CONFIGS[runtime]
-        legacy_runtime_root_dir = config['legacy_runtime_root_dir']
+        legacy_runtime_root_dir = LEGACY_BUILD_MAPPINGS[runtime]
         legacy_path = resolve_lambda_path(
             Path(self.project_path), runtime, legacy_runtime_root_dir
         )
@@ -452,9 +445,8 @@ class ProjectState:
         if not lambdas:
             return
 
-        if runtime in RUNTIME_RESTORE_CONFIGS:
-            config = RUNTIME_RESTORE_CONFIGS[runtime]
-            legacy_runtime_root_dir = config['legacy_runtime_root_dir']
+        if runtime in LEGACY_BUILD_MAPPINGS:
+            legacy_runtime_root_dir = LEGACY_BUILD_MAPPINGS[runtime]
             actual_runtime_root_dir = BUILD_MAPPINGS[runtime]
             path_as_posix = path.as_posix()
 
@@ -466,7 +458,7 @@ class ProjectState:
             if is_legacy_path:
                 self.add_project_build_mapping(
                     runtime,
-                    build_mapping=config['legacy_build_mapping'],
+                    build_mapping=legacy_runtime_root_dir,
                 )
             else:
                 self.add_project_build_mapping(runtime)
