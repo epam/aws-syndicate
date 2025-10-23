@@ -75,7 +75,7 @@ from syndicate.core.constants import TEST_ACTION, BUILD_ACTION, \
     FAILED_RETURN_CODE, ABORTED_RETURN_CODE, UPDATE_RESOURCE_TYPE_PRIORITY, \
     UNDERSCORE_CREATE_DEPLOY_TARGET_BUCKET_ACTION, \
     DEPLOY_RESOURCE_TYPE_PRIORITY, CLEAN_RESOURCE_TYPE_PRIORITY
-from syndicate.core.groups import PYTHON_ROOT_DIR_PYAPP, RUNTIME_JAVA, RUNTIME_PYTHON, RUNTIME_NODEJS, \
+from syndicate.core.groups import TESTS_DIR_LOCATIONS, RUNTIME_JAVA, RUNTIME_PYTHON, RUNTIME_NODEJS, \
     RUNTIME_DOTNET, RUNTIME_SWAGGER_UI, RUNTIME_APPSYNC
 from syndicate.exceptions import ProjectStateError
 from syndicate import __version__
@@ -138,7 +138,7 @@ def syndicate():
                    'pytest, nose. Default value: unittest')
 @click.option('--test-folder-name',
               cls=MultiWordOption, nargs=1,
-              default=f'{PYTHON_ROOT_DIR_PYAPP}/tests',
+              default=None,
               help='Directory in the project that contains tests to run. '
                    'Default folder: tests')
 @click.option('--errors-allowed',
@@ -154,7 +154,7 @@ def syndicate():
 def test(suite, test_folder_name, errors_allowed, skip_tests):
     """Discovers and runs tests inside python project configuration path."""
     import subprocess
-    from syndicate.core import CONFIG
+    from syndicate.core import CONFIG, PROJECT_STATE
 
     if skip_tests:
         USER_LOG.info('Skipping tests...')
@@ -162,7 +162,28 @@ def test(suite, test_folder_name, errors_allowed, skip_tests):
 
     USER_LOG.info('Running tests...')
     
+    PROJECT_STATE.refresh_state()
     project_path = CONFIG.project_path
+
+    if not test_folder_name:
+        build_mapping = PROJECT_STATE.load_project_build_mapping()
+        if not build_mapping:
+            USER_LOG.error(
+                "Any project is not setup in the project for testing. "
+                "Please check the project present in the project."
+            )
+            return ABORTED_RETURN_CODE
+
+        python_root_dir = build_mapping.get(RUNTIME_PYTHON)
+        if not python_root_dir:
+            USER_LOG.error(
+                "Python not setup in the project for testing. "
+                "Please check the python present in the project."
+            )
+            return ABORTED_RETURN_CODE
+
+        test_folder_name = TESTS_DIR_LOCATIONS[python_root_dir]
+
     test_folder = os.path.join(project_path, test_folder_name)
 
     if not os.path.exists(test_folder):
@@ -170,7 +191,7 @@ def test(suite, test_folder_name, errors_allowed, skip_tests):
             f'Tests not found, \'{test_folder_name}\' folder is missing in '
             f'\'{project_path}\'.'
         )
-        USER_LOG.info(msg)
+        USER_LOG.warning(msg)
         return OK_RETURN_CODE
 
     test_lib_command_mapping = {
