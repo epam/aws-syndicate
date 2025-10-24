@@ -15,7 +15,6 @@
 """
 from syndicate.exceptions import InvalidValueError, ParameterError, \
     InvalidTypeError
-from syndicate.connection.ec2_connection import InstanceTypes
 from syndicate.core.constants import OPTIMAL_INSTANCE_TYPE
 
 COMPENV_STATES = ('ENABLED', 'DISABLED')
@@ -24,6 +23,10 @@ COMPUTE_RESOURCE_TYPES = ('EC2', 'SPOT', 'FARGATE', 'FARGATE_SPOT')
 FARGATE_RESOURCE_TYPES = ('FARGATE', 'FARGATE_SPOT')
 ALLOCATION_STRATEGIES = ('BEST_FIT', 'BEST_FIT_PROGRESSIVE', 'SPOT_CAPACITY_OPTIMIZED')
 
+
+def _get_ec2_connection():
+    from syndicate.core import CONN
+    return CONN.ec2()
 
 def validate_batch_compenv(compenv_name, compenv_meta):
     """
@@ -87,6 +90,8 @@ def _validate_compute_resources(compute_resources):
 
     :return: None
     """
+    ec2_conn = _get_ec2_connection()
+
     compute_resource_type = compute_resources.get('type')
     compute_resource_config = [
         {
@@ -258,10 +263,8 @@ def _validate_compute_resources(compute_resources):
     _process_config(compute_resource_config)
 
     instance_types = compute_resources.get('instance_types') or []
-    # available = set(InstanceTypes.with_groups(
-    #     InstanceTypes.from_api(region_name=CONFIG.region)
-    # ))
-    available = set(InstanceTypes.with_groups(InstanceTypes.from_botocore()))
+    available = set(ec2_conn.get_instance_types())
+
     available.add(OPTIMAL_INSTANCE_TYPE)
     for instance_type in instance_types:
         _validate_options_field(

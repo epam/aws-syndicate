@@ -77,28 +77,34 @@ class ProjectState:
         _dict variable instead of loading from a file. It comes handy when
         we need to get ProjectState object without loading from file. All
         the existing functionality remains unimpaired"""
+        from syndicate.core import CONF_PATH
+
         if not (project_path or dct):
             raise InternalError(
                 "Either 'project_path' or 'dct' of both must be specified!"
             )
         if project_path:
             self.project_path = project_path
-            self.state_path = os.path.join(project_path, PROJECT_STATE_FILE)
+            self.state_path = os.path.join(CONF_PATH, PROJECT_STATE_FILE)
         self.dct = dct if dct else self.__load_project_state_file()
         self._current_deploy = None
         self._current_bundle = None
 
     @staticmethod
     def generate(project_path, project_name):
+        from syndicate.core import CONF_PATH
+
         project_state = dict(name=project_name)
-        with open(os.path.join(project_path, PROJECT_STATE_FILE),
+        with open(os.path.join(CONF_PATH, PROJECT_STATE_FILE),
                   'w') as state_file:
             yaml.dump(project_state, state_file)
         return ProjectState(project_path=project_path)
 
     @staticmethod
-    def check_if_project_state_exists(project_path):
-        return os.path.exists(os.path.join(project_path, PROJECT_STATE_FILE))
+    def check_if_project_state_exists(project_state_path: str) -> bool:
+        return os.path.exists(
+            os.path.join(project_state_path, PROJECT_STATE_FILE)
+        )
 
     @property
     def dct(self) -> dict:
@@ -456,6 +462,9 @@ class ProjectState:
         return self.dct.get(STATE_BUILD_PROJECT_MAPPING)
 
     def log_execution_event(self, **kwargs):
+        from syndicate.core import CONFIG, CONN
+        from syndicate.core.build.bundle_processor import \
+            build_output_key
         operation = kwargs.get('operation')
         status = kwargs.get('status')
         rollback_on_error = kwargs.get('rollback_on_error')
@@ -473,17 +482,41 @@ class ProjectState:
                 None: None
             }.get(status)
 
-        if operation == DEPLOY_ACTION:
+        if operation in (DEPLOY_ACTION, UPDATE_ACTION):
             params = kwargs.copy()
             params.pop('operation', None)
             params.pop('status', None)
             params['is_succeeded'] = status
 
             if params['is_succeeded'] != ABORTED_STATUS:
-                if not (status is False and rollback_on_error is True):
+                s3 = CONN.s3()
+                bundle_name = params.get('bundle_name')
+                deploy_name = params.get('deploy_name')
+
+                keys_to_check = [
+                    PurePath(
+                        CONFIG.deploy_target_bucket_key_compound,
+                        build_output_key(bundle_name, deploy_name, True)
+                    ).as_posix(),
+                    PurePath(
+                        CONFIG.deploy_target_bucket_key_compound,
+                        build_output_key(bundle_name, deploy_name, False)
+                    ).as_posix(),
+                ]
+
+                output_file_exist = any(
+                    s3.is_file_exists(CONFIG.deploy_target_bucket, key)
+                    for key in keys_to_check
+                )
+
+                skip_rollback = not (
+                        status is False and rollback_on_error is True
+                )
+
+                if skip_rollback and output_file_exist:
                     params.pop('rollback_on_error')
                     self._set_latest_deploy_info(**params)
-
+    
         if operation == CLEAN_ACTION and status is True:
             self._delete_latest_deploy_info()
 
@@ -549,9 +582,11 @@ class ProjectState:
         self.save()
 
     def __load_project_state_file(self):
-        if not ProjectState.check_if_project_state_exists(self.project_path):
+        from syndicate.core import CONF_PATH
+
+        if not ProjectState.check_if_project_state_exists(CONF_PATH):
             raise ProjectStateError(
-                f"There is no '.syndicate' file in '{self.project_path}'"
+                f"There is no '.syndicate' file in '{CONF_PATH}'"
             )
         with open(self.state_path) as state_file:
             return yaml.safe_load(state_file.read())
@@ -583,8 +618,9 @@ class ProjectState:
             resolve_lambda_path
         absolute_path = config.project_path
         project_path = Path(absolute_path)
-        project_state = ProjectState.generate(project_path=absolute_path,
-                                              project_name=project_path.name)
+        project_state = ProjectState.generate(
+            project_path=absolute_path, project_name=project_path.name
+        )
 
         for runtime, source_path in BUILD_MAPPINGS.items():
             lambdas_path = resolve_lambda_path(project_path, runtime,

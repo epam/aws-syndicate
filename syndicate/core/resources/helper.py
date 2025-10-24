@@ -14,16 +14,18 @@
     limitations under the License.
 """
 import json
+import re
 
 from syndicate.exceptions import ParameterError, ResourceProcessingError, InvalidValueError
-from syndicate.commons.log_helper import get_logger
+from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.conf.processor import GLOBAL_AWS_SERVICES
-from typing import TypeVar, Optional
+from typing import TypeVar, Optional, Iterable
 from datetime import datetime
 
 T = TypeVar('T')
 
 _LOG = get_logger(__name__)
+USER_LOG = get_user_logger()
 
 
 def validate_params(name, meta, required_params):
@@ -38,6 +40,21 @@ def validate_params(name, meta, required_params):
                 f"Required parameters: '{parameters_string}'. "
                 f"Given parameters: '{existing_parameters_string}'"
             )
+
+
+def validate_known_params(name: str, act_params: Iterable,
+                          known_params: Iterable):
+    unknown_params = []
+    for param in act_params:
+        if param not in known_params:
+            unknown_params.append(param)
+
+    if unknown_params:
+        raise ParameterError(
+            f"Unknown parameter/s detected in the '{name}' configuration. "
+            f"Unknown parameter/s: {unknown_params}. "
+            f"Must be one of: {known_params}"
+        )
 
 
 def validate_date(name, date_str):
@@ -121,6 +138,22 @@ def resolve_dynamic_identifier(to_replace, resource_meta):
     for name, value in to_replace.items():
         raw_json = raw_json.replace(name, value)
     return json.loads(raw_json)
+
+
+def detect_unresolved_aliases(resource_meta: dict) -> None:
+    """
+    Extract unresolved aliases in the given meta string.
+    :param resource_meta: Input dict.
+    """
+    pattern = r'\$\{([^}]+)\}'
+    if missing_aliases := list(set(re.findall(pattern,
+                                              json.dumps(resource_meta)))):
+        placeholders = [f'${{{alias}}}' for alias in missing_aliases]
+        USER_LOG.warning(
+            'Unresolved alias placeholders are present in the meta, which may '
+            'lead to errors in resource processing. Please check the '
+            'syndicate aliases and resource definitions. '
+            f'Unresolved placeholders: {placeholders}')
 
 
 def build_description_obj(response, name, meta):

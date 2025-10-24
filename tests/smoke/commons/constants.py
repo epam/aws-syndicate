@@ -1,15 +1,14 @@
-from datetime import datetime
 
 DEPLOY_NAME = 'autotest'
 BUNDLE_NAME = 'happy_path_autotest'
-UPDATED_BUNDLE_NAME = 'happy_path_autotest_updated_{time}'.format(
-    time=datetime.now().isoformat().replace(':', '_')
-)
 
 BUILD_COMMAND = 'build'
 DEPLOY_COMMAND = 'deploy'
 UPDATE_COMMAND = 'update'
 CLEAN_COMMAND = 'clean'
+VERBOSE_NOT_COMPATIBLE_COMMANDS = (
+    ['syndicate', '--version']
+)
 
 STAGES_CONFIG_PARAM = 'stages'
 INIT_PARAMS_CONFIG_PARAM = 'init_parameters'
@@ -33,3 +32,4 @@ STAGE_PASSED_REPORT_PARAM = 'stage_passed'
 SWAGGER_UI_RESOURCE_TYPE = 'swagger_ui'
 API_GATEWAY_OAS_V3_RESOURCE_TYPE = 'api_gateway_oas_v3'
 LAMBDA_LAYER_RESOURCE_TYPE = 'lambda_layer'
+RDS_DB_INSTANCE_RESOURCE_TYPE = 'rds_db_instance'

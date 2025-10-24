@@ -1,0 +1,370 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "sdct-at-open-api-gw",
+    "version": "2024-03-26T11:19:47Z"
+  },
+  "x-syndicate-server": {
+    "resource_name": "sdct-at-api-gw",
+    "resource_type": "api_gateway",
+    "parameter_type": "stage_name",
+    "parameter_name": "api"
+  },
+  "servers": [
+    {
+      "url": "https://qoqbs93luk.execute-api.eu-central-1.amazonaws.com/{basePath}",
+      "variables": {
+        "basePath": {
+          "default": "api"
+        }
+      }
+    }
+  ],
+  "paths": {
+    "/test": {
+      "get": {
+        "summary": "Get tables information",
+        "description": "To retrieve information about all tables in database.",
+        "responses": {
+          "200": {
+            "description": "Displays all existing tables",
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TableGetResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "authorizer": []
+          }
+        ],
+        "x-amazon-apigateway-integration": {
+          "httpMethod": "POST",
+          "uri": "arn:aws:apigateway:${region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${region}:${account_id}:function:sdct-at-python-lambda:${lambdas_alias_name}/invocations",
+          "responses": {
+            "default": {
+              "statusCode": "200",
+              "responseParameters": {
+                "method.response.header.Access-Control-Allow-Origin": "'*'"
+              }
+            }
+          },
+          "passthroughBehavior": "when_no_match",
+          "type": "aws_proxy"
+        }
+      },
+      "post": {
+        "summary": "Add new table",
+        "description": "To register a new table.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TableModel"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Add new table",
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TablePostResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "authorizer": []
+          }
+        ],
+        "x-amazon-apigateway-integration": {
+          "httpMethod": "POST",
+          "uri": "arn:aws:apigateway:${region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${region}:${account_id}:function:sdct-at-python-lambda:${lambdas_alias_name}/invocations",
+          "responses": {
+            "default": {
+              "statusCode": "200",
+              "responseParameters": {
+                "method.response.header.Access-Control-Allow-Origin": "'*'"
+              }
+            }
+          },
+          "passthroughBehavior": "when_no_match",
+          "type": "aws_proxy"
+        }
+      },
+      "options": {
+        "responses": {
+          "200": {
+            "description": "200 response",
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Access-Control-Allow-Methods": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Access-Control-Allow-Headers": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Empty"
+                }
+              }
+            }
+          }
+        },
+        "x-amazon-apigateway-integration": {
+          "responses": {
+            "default": {
+              "statusCode": "200",
+              "responseParameters": {
+                "method.response.header.Access-Control-Allow-Methods": "'*'",
+                "method.response.header.Access-Control-Allow-Headers": "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'",
+                "method.response.header.Access-Control-Allow-Origin": "'*'"
+              }
+            }
+          },
+          "requestTemplates": {
+            "application/json": "{\"statusCode\": 200}"
+          },
+          "passthroughBehavior": "when_no_match",
+          "type": "mock"
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Empty": {
+        "title": "Empty Schema",
+        "type": "object"
+      },
+      "Message": {
+        "title": "Message Schema",
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "description": "Message"
+          }
+        },
+        "required": ["message"]
+      },
+      "ReservationPostResponse": {
+        "type": "object",
+        "properties": {
+          "reservationId": {
+            "type": "string",
+            "description": "Reservation id"
+          }
+        },
+        "required": [
+          "reservationId"
+        ]
+      },
+      "ReservationGetResponse": {
+        "type": "object",
+        "properties": {
+          "reservations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReservationModel"
+            }
+          }
+        }
+      },
+      "ReservationModel": {
+        "type": "object",
+        "properties": {
+          "tableNumber": {
+            "type": "integer",
+            "description": "Table number"
+          },
+          "clientName": {
+            "type": "string",
+            "description": "Name of the client that makes reservation"
+          },
+          "phoneNumber": {
+            "type": "string",
+            "description": "Client phone number"
+          },
+          "date": {
+            "type": "string",
+            "description": "Date on which the table is booked"
+          },
+          "slotTimeStart": {
+            "type": "string",
+            "description": "Start time for which the table is booked"
+          },
+          "slotTimeEnd": {
+            "type": "string",
+            "description": "End time for which the table is booked"
+          }
+        },
+        "required": [
+          "clientName",
+          "tableNumber",
+          "phoneNumber",
+          "date",
+          "slotTimeStart",
+          "slotTimeEnd"
+        ]
+      },
+      "TableModel": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "Id"
+          },
+          "number": {
+            "type": "integer",
+            "description": "Number of the table"
+          },
+          "places": {
+            "type": "integer",
+            "description": "Amount of people to sit at the table"
+          },
+          "isVip": {
+            "type": "boolean",
+            "description": "Is the table in the VIP hall"
+          },
+          "minOrder": {
+            "type": "integer",
+            "description": "Table deposit required to book it"
+          }
+        },
+        "required": [
+          "id",
+          "number",
+          "places",
+          "isVip"
+        ]
+      },
+      "TableGetResponse": {
+        "type": "object",
+        "properties": {
+          "tables": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TableModel"
+            }
+          }
+        }
+      },
+      "TablePostResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Table ID"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
+      "SignInResponse": {
+        "type": "object",
+        "properties": {
+          "accessToken": {
+            "type": "string",
+            "description": "Authorization token"
+          }
+        },
+        "required": [
+          "accessToken"
+        ]
+      },
+      "SignUpRequest": {
+        "type": "object",
+        "properties": {
+          "firstName": {
+            "type": "string",
+            "description": "User first name"
+          },
+          "lastName": {
+            "type": "string",
+            "description": "User last name"
+          },
+          "email": {
+            "type": "string",
+            "description": "User email"
+          },
+          "password": {
+            "type": "string",
+            "description": "Password must be alphanumeric + any of special characters, 12+ chars"
+          }
+        },
+        "required": [
+          "firstName",
+          "lastName",
+          "email",
+          "password"
+        ]
+      },
+      "SignInRequest": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "User email"
+          },
+          "password": {
+            "type": "string",
+            "description": "User password"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ]
+      }
+    },
+    "securitySchemes": {
+      "authorizer": {
+        "type": "apiKey",
+        "name": "Authorization",
+        "in": "header",
+        "x-amazon-apigateway-authtype": "cognito_user_pools",
+        "x-amazon-apigateway-authorizer": {
+          "x-syndicate-cognito-userpool-names": ["${booking_userpool}"],
+          "type": "cognito_user_pools"
+        }
+      }
+    }
+  }
+}

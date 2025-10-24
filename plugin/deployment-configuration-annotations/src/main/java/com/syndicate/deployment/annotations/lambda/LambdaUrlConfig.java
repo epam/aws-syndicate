@@ -25,14 +25,37 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Created by Roman Ivanov on 2023-11-07
+ * Enables Lambda function URL configuration for the annotated Lambda function.
+ *
+ * <p>Lambda function URLs are dedicated HTTP(S) endpoints for Lambda functions that allow
+ * you to invoke functions via HTTP requests without using API Gateway or Application Load Balancer.
+ * This annotation configures the authentication type and invoke mode for the function URL.</p>
+ *
+ * <p>For more information about Lambda function URLs, see the
+ * <a href="https://docs.aws.amazon.com/lambda/latest/dg/urls-configuration.html">
+ * AWS Lambda function URLs documentation</a>.</p>
+ *
+ * @see AuthType
+ * @see InvokeMode
+ * @since 2023-11-07
+ * @author Roman Ivanov
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
 public @interface LambdaUrlConfig {
 
+    /**
+     * Specifies the authentication type for the Lambda function URL.
+     *
+     * @return the authentication type, defaults to {@link AuthType#NONE}
+     */
     AuthType authType() default AuthType.NONE;
 
+    /**
+     * Specifies the invoke mode for the Lambda function URL.
+     *
+     * @return the invoke mode, defaults to {@link InvokeMode#BUFFERED}
+     */
     InvokeMode invokeMode() default InvokeMode.BUFFERED;
 
 }

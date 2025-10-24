@@ -1,0 +1,64 @@
+{
+    "name": "sdct-at-appsync",
+    "resource_type": "appsync",
+    "primary_auth_type": "API_KEY",
+    "api_key_expiration_days": 7,
+    "tags": {
+        "project-level-tag": "set-from-resource"
+    },
+    "schema_path": "scheme.graphql",
+    "data_sources": [
+        {
+            "name": "table",
+            "type": "AMAZON_DYNAMODB",
+            "service_role_name": "sdct-at-appsync-role",
+            "dynamodb_config": {
+                "table_name": "sdct-at-table",
+                "aws_region": "${region}"
+            }
+        },
+        {
+            "name": "lambda",
+            "type": "AWS_LAMBDA",
+            "service_role_name": "sdct-at-appsync-role",
+            "lambda_config": {
+                "lambda_name": "sdct-at-python-lambda",
+                "aws_region": "${region}"
+            }
+        }
+    ],
+    "resolvers": [
+        {
+            "kind": "UNIT",
+            "type_name": "Post",
+            "field_name": "id",
+            "data_source_name": "table",
+            "request_mapping_template_path": "resolvers/post/id/req_mapping_template.vtl",
+            "response_mapping_template_path": "resolvers/post/id/res_mapping_template.txt",
+            "runtime": "VTL"
+        },
+        {
+            "kind": "PIPELINE",
+            "type_name": "Mutation",
+            "field_name": "addPost",
+            "data_source_name": "table",
+            "code_path": "resolvers/mutation/addpost/file.js",
+            "pipeline_config": {
+                "functions": [
+                    "get_device"
+                ]
+            },
+            "runtime": "JS"
+        }
+    ],
+    "functions": [
+        {
+            "name": "get_device",
+            "description": "Test function",
+            "data_source_name": "table",
+            "runtime": "JS",
+            "code_path": "functions/get_device/code.js"
+        }
+    ],
+    "deployment_package": "appsync_sdct-at-appsync.zip"
+}

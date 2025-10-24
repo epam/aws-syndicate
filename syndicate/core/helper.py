@@ -15,6 +15,7 @@
 """
 import concurrent.futures
 import getpass
+import hashlib
 import json
 import os
 import re
@@ -29,9 +30,10 @@ from pathlib import Path
 from signal import SIGINT
 from threading import Thread
 from time import time
+from typing import Union
 
 import click
-from click import BadParameter
+from click import BadParameter, MissingParameter
 from tqdm import tqdm
 
 from syndicate.exceptions import ArtifactAssemblingError, \
@@ -44,7 +46,9 @@ from syndicate.core.conf.validator import ConfigValidator, ALL_REGIONS
 from syndicate.core.constants import (BUILD_META_FILE_NAME,
                                       DEFAULT_SEP, DATE_FORMAT_ISO_8601,
                                       CUSTOM_AUTHORIZER_KEY, OK_RETURN_CODE,
-                                      ABORTED_RETURN_CODE, FAILED_RETURN_CODE)
+                                      ABORTED_RETURN_CODE, FAILED_RETURN_CODE,
+                                      PROFILER_ACTION, UPDATE_ACTION,
+                                      WARMUP_ACTION)
 from syndicate.core.project_state.project_state import MODIFICATION_LOCK, \
     WARMUP_LOCK, ProjectState
 from syndicate.core.project_state.sync_processor import sync_project_state
@@ -157,7 +161,7 @@ def resolve_aliases_for_string(string_value):
                     input_string = _find_alias_and_replace(input_string)
             else:
                 raise InvalidValueError(
-                    "Broken alias in value: '{string_value}'."
+                    f"Broken alias in value: '{string_value}'."
                 )
         return input_string
     except ValueError:
@@ -187,6 +191,11 @@ def generate_default_bundle_name(ctx, param, value):
     if value:
         return value
     from syndicate.core import CONFIG
+    if CONFIG is None:
+        USER_LOG.error('Configuration is not initialized. '
+                       'Please check your configuration.')
+        sys.exit(ABORTED_RETURN_CODE)
+
     # regex to replace all special characters except dash, underscore and dot
     pattern = re.compile('[^0-9a-zA-Z.\-_]')
     project_path = CONFIG.project_path
@@ -204,7 +213,7 @@ def generate_default_bundle_name(ctx, param, value):
 
 def resolve_default_bundle_name(command_name):
     from syndicate.core import PROJECT_STATE
-    if command_name in 'clean':
+    if command_name in (PROFILER_ACTION, WARMUP_ACTION):
         bundle_name = PROJECT_STATE.latest_deployed_bundle_name
     else:
         bundle_name = PROJECT_STATE.latest_bundle_name
@@ -219,7 +228,7 @@ def resolve_default_bundle_name(command_name):
 
 def resolve_default_deploy_name(command_name):
     from syndicate.core import PROJECT_STATE
-    if command_name in ('clean', 'update'):
+    if command_name in (PROFILER_ACTION, UPDATE_ACTION, WARMUP_ACTION):
         deploy_name = PROJECT_STATE.latest_deployed_deploy_name
     else:
         deploy_name = PROJECT_STATE.default_deploy_name
@@ -242,9 +251,10 @@ def resolve_default_value(ctx, param, value):
     if not param_resolver:
         raise InternalError(
             f"There is no resolver of default value "
-            f"for param {param.name}")
+            f"for param {param.human_readable_name}")
     resolved_value = param_resolver(command_name=command_name)
-    USER_LOG.info(f'Resolved value of {param.name}: {resolved_value}')
+    USER_LOG.info(
+        f'Resolved value of {param.human_readable_name}: {resolved_value}')
     return resolved_value
 
 
@@ -282,7 +292,9 @@ def verify_meta_bundle_callback(ctx, param, value):
 
 def resolve_and_verify_bundle_callback(ctx, param, value):
     if not value:
-        _LOG.debug(f'{param.name} is not specified, latest build will be used')
+        _LOG.debug(
+            f'{param.human_readable_name} is not specified, latest build will '
+            f'be used')
         value = resolve_default_value(ctx, param, value)
         if not value:
             raise click.BadParameter(
@@ -481,19 +493,143 @@ class OptionRequiredIf(click.Option):
         is_current_present: bool = self.name in opts
         if self.required_if_values:
             is_required_ok: bool = \
-                opts.get(self.required_if) in self.required_if_values
+                opts.get(self.required_if.replace('-','_')) in self.required_if_values
             message = (
-                f"Option '{self.name}' and '{self.required_if}' must be "
-                f"specified together, and '{self.required_if}' must have one "
-                f"of the next values {self.required_if_values}")
+                f"Option '{self.human_readable_name}' and '{self.required_if}' "
+                f"must be specified together, and '{self.required_if}' must "
+                f"have one of the next values {self.required_if_values}")
         else:
             is_required_ok: bool = self.required_if in opts
-            message = (f"options: '{self.name}' and '{self.required_if}' "
-                       f"must be specified together")
+            message = (f"options: '{self.human_readable_name}' and "
+                       f"'{self.required_if}' must be specified together")
         if is_current_present ^ is_required_ok:
             raise click.UsageError(message)
         else:
             return super().handle_parse_result(ctx, opts, args)
+
+
+class MultiWordOption(click.Option):
+    def __init__(self, *args, **kwargs):
+        # Find name with "-" and add alias with "_"
+        new_args = []
+
+        for opt in args:
+            alias_opts = []
+            for alias in opt:
+                if alias.startswith('--'):
+                    underscored = alias[:2] + alias[2:].replace('-', '_')
+                elif alias.startswith('-'):
+                    underscored = alias[:1] + alias[1:].replace('-', '_')
+                else:
+                    underscored = alias.replace('-', '_')
+
+                if underscored not in opt:
+                    alias_opts.append(underscored)
+            new_args.append(tuple(list(opt) + alias_opts))
+
+        super().__init__(*new_args, **kwargs)
+
+    def get_help_record(self, ctx):
+        """
+        Overrides the display of options in help, hiding aliases with
+        underscores.
+        """
+        help_record = super().get_help_record(ctx)
+        if help_record is None:
+            return
+
+        option_names = self.opts
+
+        filtered = list(set([
+            name.replace('_', '-') for name in option_names
+        ]))
+
+        if not self.is_flag and not self.count:
+            filtered[-1] += f' {self.make_metavar()}'
+
+        return ', '.join(filtered), help_record[1]
+
+    @property
+    def human_readable_name(self):
+        """
+        Overrides the human_readable_name to show the original name with dashes.
+        """
+        return self.name.replace('_', '-')
+
+
+def combine_option_classes(*classes):
+    """
+    Combine multiple Click option classes into one.
+    The order of classes matters, methods overlap in order of occurrence.
+    """
+
+    class CombinedOption(*classes, click.Option):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+
+    return CombinedOption
+
+
+class AliasedCommandsGroup(click.Group):
+    """
+    Custom Click Group to support command aliases.
+    """
+
+    def parse_args(self, ctx, args):
+        current_cmd = self
+        cmd_chain = []
+        while args:
+            next_arg = args[0]
+            cmd = current_cmd.get_command(ctx, next_arg)
+            if cmd is None:
+                break
+            cmd_chain.append(next_arg)
+            args.pop(0)
+            current_cmd = cmd
+            if not isinstance(cmd, click.Group):
+                break
+
+        if isinstance(current_cmd, click.Group) and not args:
+            sys.argv.append('--help')
+
+        return super().parse_args(ctx, cmd_chain + args)
+
+    def add_command(self, cmd, name=None):
+        name = name or cmd.name
+        super().add_command(cmd, name)
+
+        alias_name = name.replace('-', '_')
+        if alias_name != name and alias_name not in self.commands:
+            self.commands[alias_name] = cmd
+
+    def format_commands(self, ctx, formatter):
+        """Format command list to hide aliases with underscore"""
+        rows = []
+        for subcommand in self.list_commands(ctx):
+            command = self.get_command(ctx, subcommand)
+            if command is None:
+                continue
+            help_text = command.get_short_help_str()
+
+            if '-' in subcommand or '_' not in subcommand:
+                rows.append((subcommand, help_text))
+        if rows:
+            with formatter.section('Commands'):
+                formatter.write_dl(rows)
+
+    def get_command(self, ctx, cmd_name):
+        # get aliases
+        rv = click.Group.get_command(self, ctx, cmd_name)
+        if rv is not None:
+            return rv
+
+        matches = [
+            name for name, cmd in self.commands.items()
+            if hasattr(cmd, 'aliases') and cmd_name in cmd.aliases
+        ]
+        if not matches:
+            return None
+        return self.commands[matches[0]]
 
 
 class ValidRegionParamType(click.types.StringParamType):
@@ -614,7 +750,7 @@ class DeepDictParamType(click.types.StringParamType):
         )
 
 
-def check_bundle_bucket_name(ctx, param, value):
+def validate_bucket_name(ctx, param, value):
     try:
         from syndicate.core.resources.s3_resource import validate_bucket_name
         bucket_name = value
@@ -631,10 +767,13 @@ def check_prefix(ctx, param, value):
     if value:
         value = value.lower().strip()
         if extended_prefix:
-            result = ConfigValidator.validate_extended_prefix(param.name,
-                                                              value)
+            result = \
+                ConfigValidator.validate_extended_prefix(
+                    param.human_readable_name, value)
         else:
-            result = ConfigValidator.validate_prefix_suffix(param.name, value)
+            result = \
+                ConfigValidator.validate_prefix_suffix(
+                    param.human_readable_name, value)
         if result:
             raise BadParameter(result)
         return value
@@ -643,7 +782,9 @@ def check_prefix(ctx, param, value):
 def check_suffix(ctx, param, value):
     if value:
         value = value.lower().strip()
-        result = ConfigValidator.validate_prefix_suffix(param.name, value)
+        result = \
+            ConfigValidator.validate_prefix_suffix(param.human_readable_name,
+                                                   value)
         if result:
             raise BadParameter(result)
         return value
@@ -652,12 +793,13 @@ def check_suffix(ctx, param, value):
 def resolve_project_path(ctx, param, value):
     from syndicate.core import CONFIG
     if not value:
-        USER_LOG.info(f"Parameter: '{param.name}' wasn't specified. "
-                      f"Getting automatically")
+        USER_LOG.info(
+            f"Parameter: '{param.human_readable_name}' wasn't specified. "
+            f"Getting automatically")
         value = CONFIG.project_path \
             if CONFIG and CONFIG.project_path else os.getcwd()
         USER_LOG.info(f"Path: '{value}' was assigned to the "
-                      f"parameter: '{param.name}'")
+                      f"parameter: '{param.human_readable_name}'")
     return value
 
 
@@ -714,8 +856,9 @@ def check_lambda_existence(ctr, param, value):
     lambdas = PROJECT_STATE.lambdas
     for lambda_name in value:
         if lambda_name not in lambdas:
-            raise BadParameter(f'Lambda with name \'{lambda_name}\' not found. '
-                               f'Please check the lambda name and try again')
+            raise BadParameter(
+                f'Lambda with name \'{lambda_name}\' not found. '
+                f'Please check the lambda name and try again')
     return value
 
 
@@ -801,11 +944,16 @@ def check_file_extension(ctx, param, value, extensions):
 
 def validate_incompatible_options(ctx, param, value, incompatible_options):
     if value:
-        conflict_options = [option for option in incompatible_options if
-                            ctx.params.get(option)]
+        conflict_options = [
+            option for option in incompatible_options if
+            ctx.params.get(option.replace('-', '_')) or
+            ctx.params.get(option)
+        ]
         if conflict_options:
-            raise BadParameter(f'Parameter \'{param.name}\' is incompatible '
-                               f'with {conflict_options}')
+            raise BadParameter(
+                f'Parameter \'{param.human_readable_name}\' is incompatible '
+                f'with {conflict_options}'
+            )
         return value
 
 
@@ -813,37 +961,43 @@ def validate_authorizer_name_option(ctx, param, value):
     if value:
         authorization_type = ctx.params.get('authorization_type')
         if not authorization_type:
-            raise BadParameter(f'Parameter \'{param.name}\' can\'t be used '
-                               f'without \'authorization_type\' parameter')
+            raise BadParameter(
+                f'Parameter \'{param.human_readable_name}\' can\'t be used '
+                f'without \'authorization-type\' parameter')
         if authorization_type != CUSTOM_AUTHORIZER_KEY:
-            raise BadParameter(f'Parameter \'{param.name}\' can\'t be used '
-                               f'with \'authorization_type\' '
-                               f'\'{authorization_type}\'')
+            raise BadParameter(
+                f"Parameter '{param.human_readable_name}' can't be used "
+                f"with 'authorization_type' '{authorization_type}")
         return value
 
 
 def validate_api_gw_path(ctx, param, value):
-    pattern = (r'^/[a-zA-Z0-9-._~+]+(?:(?:/*)?[a-zA-Z0-9-._~]*\{?[a-zA-Z0-9-.'
-               r'_~]+\}?)*$')
-    _LOG.debug(f"The parameter '--{param.name}' value is '{value}'")
+    pattern = (
+        r'^/(?:([a-zA-Z0-9-._~]+|\{[a-zA-Z0-9-._~]+\})/)*([a-zA-Z0-9-._~]+|'
+        r'\{[a-zA-Z0-9-._~]+\}|\{proxy\+\})$')
+    _LOG.debug(
+        f"The parameter '--{param.human_readable_name}' value is '{value}'")
     if os.name == 'nt' and Path(value).is_absolute():
         raise BadParameter(
-            f"Your terminal resolves the parameter '--{param.name}' value as "
-            f"a filesystem path. Please pass the parameter '--{param.name}' "
+            f"Your terminal resolves the parameter "
+            f"'--{param.human_readable_name}' value as a filesystem path. "
+            f"Please pass the parameter '--{param.human_readable_name}' "
             f"value without starting slash ('/')")
     if not value.startswith('/'):
         value = '/' + value
     if not re.match(pattern, value):
         raise BadParameter(
+            f"'{value}'. "
             f"A valid API gateway path must begin with a '/' and can contain "
             f"alphanumeric characters, hyphens, periods, underscores or "
-            "dynamic parameters wrapped in '{}'")
+            "dynamic parameters wrapped in '{}'. "
+        )
     return value
 
 
 def check_tags(ctx, param, value):
     if value:
-        errors = validate_tags(param.name, value)
+        errors = validate_tags(param.human_readable_name, value)
         if errors:
             raise BadParameter(errors)
         return value
@@ -877,4 +1031,64 @@ def verbose_option(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
         return func(*args, **kwargs)
+
     return wrapper
+
+
+def compute_file_hash(file_path: Union[str, Path],
+                      algorithm: str = 'sha256') -> str:
+    hash_obj = hashlib.new(algorithm)
+    with open(file_path, 'rb') as f:
+        while True:
+            chunk = f.read(4096)
+            if not chunk:
+                break
+            hash_obj.update(chunk)
+    return hash_obj.hexdigest()
+
+
+def resolve_deploy_target_bucket_param(ctx, param, value):
+    if bundle_bucket_name := ctx.params.get('bundle_bucket_name'):
+        USER_LOG.warn(
+            "The parameter '--bundle-bucket-name' is deprecated! "
+            "It is highly recommended to use '--deploy-target-bucket' instead."
+        )
+
+    bucket_name = value or bundle_bucket_name
+    if not bucket_name:
+        raise MissingParameter()
+
+    return validate_bucket_name(ctx, param, bucket_name)
+
+
+def are_resource_types_valid(param_name: str,
+                             types: list[str] | None,
+                             allowed_types: list[str]) -> bool:
+    """
+    Validate incoming from click AWS resource types
+    """
+    if not types:
+        return True
+
+    invalid_types = [t for t in types if
+                     t not in allowed_types]
+    if invalid_types:
+        USER_LOG.error(
+            f"Invalid resource type(s) in `{param_name}` "
+            f"parameter: {', '.join(invalid_types)}. "
+            f"Allowed types: {', '.join(allowed_types)}"
+        )
+        return False
+    return True
+
+
+def strip_prefix_suffix(res_name: str) -> str:
+    """
+    Strips the resource prefix and suffix if it is present.
+    """
+    from syndicate.core import CONFIG
+    if CONFIG.resources_prefix and res_name.startswith(CONFIG.resources_prefix):
+        res_name = res_name[len(CONFIG.resources_prefix):]
+    if CONFIG.resources_suffix and res_name.endswith(CONFIG.resources_suffix):
+        res_name = res_name[:-len(CONFIG.resources_suffix)]
+    return res_name

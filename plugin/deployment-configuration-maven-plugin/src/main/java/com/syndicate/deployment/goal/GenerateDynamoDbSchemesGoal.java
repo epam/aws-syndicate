@@ -12,7 +12,7 @@ import org.apache.maven.plugins.annotations.ResolutionScope;
 import java.io.IOException;
 import java.util.Map;
 
-@Mojo(name = "generate-dynamodb-schemes", requiresDependencyResolution = ResolutionScope.RUNTIME)
+@Mojo(name = "generate-dynamodb-schemes", requiresDependencyResolution = ResolutionScope.RUNTIME, threadSafe = true)
 public class GenerateDynamoDbSchemesGoal extends AbstractMetaGoal {
 
     IAnnotationProcessor<JsonSchema> dynamoDbDocumentAnnotationProcessor;

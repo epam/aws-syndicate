@@ -24,6 +24,7 @@ config = Config(
 session = boto3.session.Session()
 lambda_client = boto3.client('lambda', config=config)
 api_gw_client = boto3.client('apigateway', config=config)
+api_gwv2_client = boto3.client('apigatewayv2', config=config)
 sqs_client = boto3.client('sqs', config=config)
 sns_client = boto3.client('sns', config=config)
 dynamodb_client = boto3.client('dynamodb', config=config)
@@ -35,6 +36,10 @@ iam_client = boto3.client('iam', config=config)
 sts_client = boto3.client('sts', config=config)
 cloudtrail_client = boto3.client('cloudtrail', config=config)
 appsync_client = boto3.client('appsync', config=config)
+batch_client = boto3.client('batch', config=config)
+sf_client = boto3.client('stepfunctions', config=config)
+cloudwatch_client = boto3.client('cloudwatch', config=config)
+rds_client = boto3.client('rds', config=config)
 
 ACCOUNT_ID = sts_client.get_caller_identity()['Account']
 REGION = sts_client.meta.region_name
@@ -52,6 +57,9 @@ def get_s3_bucket_file_content(bucket_name, file_key):
 def get_s3_bucket_object(bucket_name, file_key):
     try:
         file_obj = s3_client.get_object(Bucket=bucket_name, Key=file_key)
+    except s3_client.exceptions.NoSuchBucket:
+        print(f'Not found bucket {bucket_name}')
+        return
     except s3_client.exceptions.NoSuchKey:
         print(f'Not found key {file_key} in the bucket {bucket_name}')
         return
@@ -76,6 +84,15 @@ def get_s3_list_objects(bucket_name, prefix=None):
     response = s3_client.list_objects_v2(Bucket=bucket_name,
                                          Prefix=prefix)
     return response
+
+
+def get_bucket_notification_configuration(bucket_name: str) -> dict:
+    try:
+        response = s3_client.get_bucket_notification_configuration(
+            Bucket=bucket_name)
+        return response
+    except s3_client.exceptions.ClientError as e:
+        return {}
 
 
 def get_iam_policy(policy_name: str) -> Union[dict | None]:
@@ -547,6 +564,26 @@ def list_appsync_tags(name: str, tag_keys: list = None) -> Union[dict | None]:
         return result
 
 
+def list_batch_tags(resource_arn: str, tag_keys: list = None) \
+        -> Union[dict | None]:
+    try:
+        response = batch_client.list_tags_for_resource(
+            resourceArn=resource_arn)
+    except appsync_client.exceptions.NotFoundException:
+        print(f'Batch resource with arn \'{resource_arn}\' not found')
+        return {}
+
+    response_tags = response.get('tags')
+    if not tag_keys:
+        return response_tags
+    else:
+        result = {}
+        for tag in tag_keys:
+            if tag in response_tags:
+                result[tag] = response_tags[tag]
+        return result
+
+
 def get_lambda_event_source_mappings(name):
     result = []
     paginator = lambda_client.get_paginator('list_event_source_mappings')
@@ -641,7 +678,7 @@ def list_appsync_resolvers(api_id: str, type_name: str):
     return result
 
 
-def list_appsync_functions(api_id: str):
+def list_appsync_functions(api_id: str) -> list:
     result = []
     try:
         paginator = appsync_client.get_paginator('list_functions')
@@ -652,3 +689,244 @@ def list_appsync_functions(api_id: str):
         return []
 
     return result
+
+
+def get_batch_comp_env(name: str):
+    arns = []
+    paginator = batch_client.get_paginator('describe_compute_environments')
+    for response in paginator.paginate(computeEnvironments=[name]):
+        for env in response.get('computeEnvironments'):
+            if env['computeEnvironmentName'] == name:
+                arns.append(env['computeEnvironmentArn'])
+
+    if len(arns) == 1:
+        return arns[0]
+    if len(arns) > 1:
+        print(
+            f'Batch compute environment can\'t be identified unambiguously '
+            f'because there is more than one resource with the name \'{name}\''
+        )
+    else:
+        print(f'Batch compute environment \'{name}\' not found')
+    return
+
+
+def get_batch_job_queue(name: str) -> Union[dict | None]:
+    arns = []
+    paginator = batch_client.get_paginator('describe_job_queues')
+    for response in paginator.paginate(jobQueues=[name]):
+        for env in response.get('jobQueues'):
+            if env['jobQueueName'] == name:
+                arns.append(env['jobQueueArn'])
+
+    if len(arns) == 1:
+        return arns[0]
+    if len(arns) > 1:
+        print(
+            f'Batch job queue can\'t be identified unambiguously '
+            f'because there is more than one resource with the name \'{name}\''
+        )
+    else:
+        print(f'Batch job queue \'{name}\' not found')
+    return
+
+
+def get_batch_job_definition(name: str) -> Union[dict | None]:
+    arns = []
+    paginator = batch_client.get_paginator('describe_job_definitions')
+    for response in paginator.paginate(jobDefinitionName=name):
+        for env in response.get('jobDefinitions'):
+            if env['jobDefinitionName'] == name and env['status'] == 'ACTIVE':
+                arns.append(env['jobDefinitionArn'])
+
+    if len(arns) == 1:
+        return arns[0]
+    if len(arns) > 1:
+        print(
+            f'Batch job definitions can\'t be identified unambiguously '
+            f'because there is more than one resource with the name \'{name}\''
+        )
+    else:
+        print(f'Batch job definition \'{name}\' not found')
+    return
+
+
+def get_step_functions(name: str) -> Union[dict | None]:
+    arns = []
+    paginator = sf_client.get_paginator('list_state_machines')
+    for response in paginator.paginate():
+        for state in response.get('stateMachines'):
+            if state['name'] == name:
+                arns.append(state['stateMachineArn'])
+
+    if len(arns) == 1:
+        return arns[0]
+    if len(arns) > 1:
+        print(
+            f'Step Function can\'t be identified unambiguously '
+            f'because there is more than one resource with the name \'{name}\''
+        )
+    else:
+        print(f'Step Function \'{name}\' not found')
+    return
+
+
+def list_step_function_tags(resource_arn: str, tag_keys: list = None) \
+        -> Union[dict | None]:
+    try:
+        response = sf_client.list_tags_for_resource(
+            resourceArn=resource_arn)
+    except sf_client.exceptions.ResourceNotFound:
+        print(f'Step function with arn \'{resource_arn}\' not found')
+        return {}
+
+    response_tags = response.get('tags')
+    if not tag_keys:
+        return response_tags
+    else:
+        result = {}
+        for tag in tag_keys:
+            if tag in response_tags:
+                result[tag] = response_tags[tag]
+        return result
+
+
+def get_cw_alarm(name: str) -> Union[dict | None]:
+    arns = []
+    paginator = cloudwatch_client.get_paginator('describe_alarms')
+    for response in paginator.paginate(AlarmNames=[name]):
+        for state in response.get('MetricAlarms'):
+            arns.append(state['AlarmArn'])
+
+    if len(arns) == 1:
+        return arns[0]
+    if len(arns) > 1:
+        print(
+            f'Cloudwatch Alarm can\'t be identified unambiguously '
+            f'because there is more than one resource with the name \'{name}\''
+        )
+    else:
+        print(f'Cloudwatch Alarm \'{name}\' not found')
+    return
+
+
+def list_cw_alarm_tags(resource_arn: str, tag_keys: list = None) \
+        -> Union[dict | None]:
+    try:
+        response = cloudwatch_client.list_tags_for_resource(
+            ResourceARN=resource_arn)
+    except cloudwatch_client.exceptions.ResourceNotFoundException:
+        print(f'Cloudwatch resource with arn \'{resource_arn}\' not found')
+        return {}
+
+    response_tags = response.get('Tags')
+    if not tag_keys:
+        return response_tags
+    else:
+        result = {}
+        for tag in tag_keys:
+            if tag in response_tags:
+                result[tag] = response_tags[tag]
+        return result
+
+
+def get_web_socket_api_gateway(name: str) -> Union[dict | None]:
+    result = []
+    paginator = api_gwv2_client.get_paginator('get_apis')
+    for response in paginator.paginate():
+        for item in response.get('Items', []):
+            if item['Name'] == name:
+                result.append(item['ApiId'])
+
+    if len(result) == 1:
+        return result[0]
+    if len(result) > 1:
+        print(
+            f'API Gateway can\'t be identified unambiguously '
+            f'because there is more than one resource with the name \'{name}\''
+        )
+    else:
+        print(f'API Gateway \'{name}\' not found')
+
+
+def list_web_socket_api_gateway_tags(resource_arn: str,
+                                     tag_keys: list = None) \
+        -> Union[dict | None]:
+    try:
+        response = api_gwv2_client.get_tags(ResourceArn=resource_arn)
+    except api_gwv2_client.exceptions.NotFoundException:
+        print(f'API Gateway with arn \'{resource_arn}\' not found')
+        return {}
+
+    response_tags = response.get('Tags')
+    if not tag_keys:
+        return response_tags
+    else:
+        result = {}
+        for tag in tag_keys:
+            if tag in response_tags:
+                result[tag] = response_tags[tag]
+        return result
+
+
+def get_rds_db_cluster(name: str) -> dict:
+    try:
+        response = rds_client.describe_db_clusters(
+            DBClusterIdentifier=name)
+        return response['DBClusters'][0] if response['DBClusters'] \
+            else {}
+    except rds_client.exceptions.DBClusterNotFoundFault:
+        print(f'RDS DB cluster {name} is not found')
+        return {}
+
+
+def list_rds_db_cluster_tags(name: str, tags: dict) -> dict:
+    description = get_rds_db_cluster(name)
+
+    response_tags = transform_tags(description.get('TagList', []))
+    if not tags:
+        return response_tags
+    else:
+        result = {}
+        for tag in tags:
+            if tag in response_tags:
+                result[tag] = response_tags[tag]
+        return result
+
+
+def get_rds_db_instance(instance_name: str = None,
+                        cluster_name: str = None) -> dict:
+    params = dict()
+    if cluster_name:
+        params['Filters'] = [
+            {
+                'Name': 'db-cluster-id',
+                'Values': [cluster_name]
+            }
+        ]
+
+    if instance_name:
+        params['DBInstanceIdentifier'] = instance_name
+
+    try:
+        response = rds_client.describe_db_instances(**params)
+        return response['DBInstances'][0] if response['DBInstances'] \
+            else {}
+    except rds_client.exceptions.DBInstanceNotFoundFault:
+        print(f'RDS DB instance is not found')
+        return {}
+
+
+def list_rds_db_instance_tags(instance_name: str, cluster_name: str,
+                              tags: dict) -> dict:
+    description = get_rds_db_instance(instance_name, cluster_name)
+
+    response_tags = transform_tags(description.get('TagList', []))
+    if not tags:
+        return response_tags
+    else:
+        result = {}
+        for tag in tags:
+            if tag in response_tags:
+                result[tag] = response_tags[tag]
+        return result

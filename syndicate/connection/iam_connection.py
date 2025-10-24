@@ -190,7 +190,7 @@ class IAMConnection(object):
             return role['Role']
         except ClientError as e:
             if e.response['Error']['Code'] == 'EntityAlreadyExists':
-                return self.client.get_role(role_name)['Role']
+                return self.client.get_role(RoleName=role_name)['Role']
             raise e
 
     @staticmethod

@@ -19,9 +19,13 @@ tests
 │   README.md  
 │
 └───smoke
-│   │   happy_path.py
-│   │   happy_path_config.json
+│   │   entry_point.py
 │   │   requirements.txt
+│   │
+│   └───configs
+│   │   │   ddis_resources_check_config.json
+│   │   │   least_used_resources_check_config.json
+│   │   │   ...
 │   │
 │   └───commons
 │   │   │   checkers.py
@@ -32,7 +36,10 @@ tests
 │   │   │   utils.py
 │   │   │   ...
 │   │
-│   └───sdct-auto-test
+│   └───sdct-at-ddis
+│   │   │   ...
+│   │
+│   └───sdct-at-least-used-resources
 │       │   ...
 │   
 └─── ...
@@ -41,9 +48,14 @@ tests
 ### Description of Key Components
 
 - **`smoke` directory**: Contains test scripts that are designed to quickly verify the basic functionalities of the system. This directory is intended for smoke testing.
-  - **`happy_path.py`**: Serves as the entry point for a test scenario that verifies the successful passage of basic flows of the system.
-  - **`happy_path_config.json`**: A configuration file that specifies parameters and settings for running the tests. The file name is not strict, it can be passed to the script as a parameter `-c`, `--config`. See the [Configuration](#configuration) section for more details.
+  - **`entry_point.py`**: Serves as the entry point for a test scenario that verifies the successful passage of basic flows of the system.
   - **`requirements.txt`**: Lists all the libraries required to execute the tests.
+
+#### `configs` Subdirectory
+- Contains configuration files that specify parameters and settings for running the tests. 
+The file name is not strict, it can be passed to the script as a parameter `-c`, `--config`. See the [Configuration](#configuration) section for more details.
+  - **`ddis_resources_check_config.json`**: configuration file for the `sdct-at-ddis` project.
+  - **`least_used_resources_check_config.json`**: configuration file for the `sdct-at-least-used-resources` project.
 
 #### `commons` Subdirectory
 - Contains common utility scripts and modules used across different tests:
@@ -51,21 +63,24 @@ tests
   - **`connections.py`**: Manages boto3 connections.
   - **`constants.py`**: Defines constants used throughout the tests.
   - **`handlers.py`**: Contains mappings and functions that are a layer between the checkers and the step processor.
-  - **`step_processors.py`**: Implements logic for processing steps of each stage according to the definition in `happy_path_config.json`.
+  - **`step_processors.py`**: Implements logic for processing steps of each stage according to the definition in configuration file.
   - **`utils.py`**: Includes utility functions for general purposes like file or complex structure manipulation.
 
-#### `sdct-auto-test` Subdirectory
-- Contains the aws-project on which testing will be carried out. More details about the project can be found [here](sdct-auto-test/README.md)
+#### `sdct-at-ddis` Subdirectory
+- Contains the aws-project on which testing will be carried out. More details about the project can be found [here](sdct-at-ddis/README.md)
+
+#### `sdct-at-least-used-resources` Subdirectory
+- Contains the aws-project with rare used resources. More details about the project can be found [here](sdct-at-least-used-resources/README.md)
 
 ### Files to update
 - Lambda and overall resources configuration files with the `_updated` suffix are required to test the `syndicate update` command. 
 The content of these files apply to the current corresponding configs while the resources are being updated. 
 Afterwards, the original configs return the original content. Example: 
   1. Start testing `syndicate update` stage;
-  2. Change content of `app/lambdas/sdct-at-nodejs-lambda/lambda_config.json` file to content of `app/lambdas/sdct-at-nodejs-lambda/lambda_config_updated.json`;
+  2. Change content of `sdct-at-ddis/app/lambdas/sdct-at-nodejs-lambda/lambda_config.json` file to content of `sdct-at-ddis/app/lambdas/sdct-at-nodejs-lambda/lambda_config_updated.json`;
   3. Build bundle with updated configuration;
   4. Wait for `syndicate update` to finish executing (successfully or not, whatever);
-  5. Return original content of `app/lambdas/sdct-at-nodejs-lambda/lambda_config.json` file.
+  5. Return original content of `sdct-at-ddis/app/lambdas/sdct-at-nodejs-lambda/lambda_config.json` file.
 
 ## Configuration
 
@@ -73,9 +88,6 @@ Afterwards, the original configs return the original content. Example:
 ```json5
 {
   "init_parameters": {
-    "suffix": "-test",
-    "deploy_target_bucket": "bucket",
-    "prefix": "sdct-",
     "output_file": "output",
     // more params if needed
   },
@@ -109,16 +121,16 @@ Afterwards, the original configs return the original content. Example:
 ```
 
 ### Description of Config Components
-- `init_parameters`: Section where you can specify all the additional parameters that are needed to run the tests. For example: the name of the deployment bucket with the bundle, the suffix and prefix of the resources, the name of the output file, etc.
+- `init_parameters`: Section where you can specify all the additional parameters that are needed to run the tests. For example: the name of the output file, etc.
 - `stages`: Section with a description of each stage.
   - `$STAGE_NAME`: Related to the syndicate command name to check. Should be clear for further processing of the resulting JSON.
     - `steps`: Section with a description of each step of the stage. 
     - `depends_on`: The list of stage names, the result of which determines the execution of the current one. If at least one stage from the list fails, then the current stage will not execute.
     - `description`: Humanreadable command description.
     - `command`: List with the command plus command line arguments. Here are some default arguments for some commands that are automatically added:
-      - `build` - ["--bundle_name", "$BUNDLE_NAME", "--deploy_name", "$DEPLOY_NAME"]
-      - `deploy` - ["--bundle_name", "$BUNDLE_NAME", "--deploy_name", "$DEPLOY_NAME", "--replace_output"]
-      - `update` - ["--bundle_name", "$BUNDLE_NAME", "--deploy_name", "$DEPLOY_NAME", "--replace_output"]
+      - `build` - ["--bundle-name", "$BUNDLE_NAME", "--deploy-name", "$DEPLOY_NAME"]
+      - `deploy` - ["--bundle-name", "$BUNDLE_NAME", "--deploy-name", "$DEPLOY_NAME", "--replace-output"]
+      - `update` - ["--bundle-name", "$BUNDLE_NAME", "--deploy-name", "$DEPLOY_NAME", "--replace-output"]
     
       `$BUNDLE_NAME` and `$DEPLOY_NAME` have internal values and DO NOT need to be specified.
     - `checks`: Section with a description of each check.
@@ -273,9 +285,29 @@ not matter and only the presence of a particular key will be checked.
               }
           }
         ```
+- `trusted_relationships_content` - Checks resources in trusted relationships of IAM role.
+  - parameters:
+    - `resources` (dict) [REQUIRED] - IAM roles configuration to check. Should include either `resources_absence` or `resources_presence`.
+        structure:
+        ```json5
+          {
+              "resources": {
+                "iam_role_name": {
+                  "resources_absence": [
+                    "not_trusted_resource_name1",
+                    "not_trusted_resource_nameN"
+                  ],
+                  "resources_presence": [
+                    "trusted_resource_name1",
+                    "trusted_resource_nameN"
+                  ]
+                }
+              }
+          }
+        ```
 
 ### Temporary checks conditions
-- Use tags from `tests/smoke/sdct-auto-test/.syndicate-config/syndicate.yml` unless change them in happy_path_config.json:
+- Use tags from `tests/smoke/sdct-at-ddis/.syndicate-config/syndicate.yml` unless change them in happy_path_config.json:
 ```json5
 {
   "index": 6,
@@ -296,6 +328,12 @@ not matter and only the presence of a particular key will be checked.
 ```
 
 ## How to run
+
+### Important notice
+- Utilizing various prefixes and/or suffixes in extended prefix mode for different test projects (e.g., sdct-at-ddis, sdct-at-least-used-resources) is essential for conducting simultaneous tests due to the duplication of resource names across different test projects.
+- The AWS region where test resources will be deployed must include a default VPC and default subnet, as these are necessary for the deployment of RDS Aurora instances.
+- Due to the slow deployment and cleaning of RDS resources, tests may take up to 40 minutes.
+
 ### Prerequisites
 1. Specify valid credentials in the `.aws/credentials` file or set credentials in the `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN` env variables.
 2. Install python 3.10+.
@@ -303,10 +341,10 @@ not matter and only the presence of a particular key will be checked.
 4. Install .NET SDK.
 5. Install aws-syndicate from pypi: `pip install aws-syndicate`; or from local folder: `pip install -e PATH_TO_REPO/aws-syndicate`.
 6. Create aws-syndicate config files and set its path to `SDCT_CONF` env variable. Example of syndicate configs in the 
-`tests/smoke/sdct-auto-test/.syndicate-config` folder.
+`tests/smoke/sdct-at-ddis/.syndicate-config` folder.
 7. Create deployment bucket if needed: `syndicate create_deploy_target_bucket`.
-8. Example command to run the test via the console: `python3 tests/smoke/happy_path.py --verbose`
+8. Example command to run the test via the console: `python3 tests/smoke/entry_point.py --verbose`
 
 ### Available script parameters
-  - `-c, --config`: [optional] full path to the config file with described stage checks. Default config is happy_path_config.json
+  - `-c, --config`: [optional] full path to the config file with described stage checks. Default config is tests/smoke/configs/ddis_resources_check_config.json
   - `--verbose`: [optional] Enable logging verbose mode. Disabled by default.

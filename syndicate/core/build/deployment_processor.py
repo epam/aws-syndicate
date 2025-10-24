@@ -29,13 +29,14 @@ from syndicate.core.build.bundle_processor import create_deploy_output, \
 from syndicate.core.build.meta_processor import resolve_meta, \
     populate_s3_paths, resolve_resource_name, get_meta_from_output, \
     resolve_tags, preprocess_tags
+from syndicate.core.conf.processor import GLOBAL_AWS_SERVICES
 from syndicate.core.constants import (BUILD_META_FILE_NAME,
                                       CLEAN_RESOURCE_TYPE_PRIORITY,
                                       DEPLOY_RESOURCE_TYPE_PRIORITY,
                                       UPDATE_RESOURCE_TYPE_PRIORITY,
                                       PARTIAL_CLEAN_ACTION, ABORTED_STATUS,
                                       LAMBDA_TYPE, LAMBDA_LAYER_TYPE)
-from syndicate.core.helper import prettify_json
+from syndicate.core.helper import prettify_json, strip_prefix_suffix
 from syndicate.core.build.helper import assert_bundle_bucket_exists, \
     construct_deploy_s3_key_path
 
@@ -51,7 +52,7 @@ def _process_resources(
         handlers_mapping: dict,
         describe_handlers: dict | None = None,
         pass_context: bool = False,
-        output = None,
+        output: dict | None = None
 ) -> tuple[bool, Any]:
     output = output or {}
     errors = []
@@ -159,7 +160,7 @@ def _process_resources_with_dependencies(resources, handlers_mapping,
                 for overall_res_name, overall_res_meta in overall_resources:
                     if overall_res_name == dep_res_name:
                         depends_on_resources.append((overall_res_name,
-                                                    overall_res_meta))
+                                                     overall_res_meta))
 
             if depends_on_resources:
                 _LOG.info(
@@ -304,15 +305,16 @@ def deploy_resources(
 def update_resources(
         resources: list[tuple[str, dict]],
         old_resources: set,
-)-> tuple[bool, Any]:
+) -> tuple[bool, Any]:
     from syndicate.core import PROCESSOR_FACADE
     # exclude new resources that were added after deployment
     to_remove = \
         [i for i, res in enumerate(resources) if res[0] not in old_resources]
     for i in reversed(to_remove):
-        _LOG.warning(
-            f'Skipping resource {resources[i][0]} due to absence in initial '
-            f'deployment output.'
+        USER_LOG.warning(
+            f'Skipping resource `{resources[i][0]}` due to absence in initial '
+            f'deployment output. If this is an unexpected behaviour, '
+            f'please check your configuration.'
         )
         resources.pop(i)
 
@@ -383,7 +385,6 @@ def clean_resources(output):
 
 
 def continue_deploy_resources(resources, latest_deploy_output):
-
     for arn, meta in latest_deploy_output.items():
         for resource_name, resource_meta in resources:
             if resource_name == meta['resource_name']:
@@ -448,10 +449,14 @@ def _compare_external_resources(expected_resources):
     compare_funcs = PROCESSOR_FACADE.compare_meta_handlers()
 
     errors = {}
-
     for resource_name, resource_meta in expected_resources.items():
-        func = compare_funcs[resource_meta.get('resource_type')]
-        resource_errors = func(resource_name, resource_meta)
+        resource_type = resource_meta.get('resource_type')
+        if not (func := compare_funcs.get(resource_type)):
+            resource_errors = f'The resource type \'{resource_type}\' is ' \
+                              f'not supported for external configuration.'
+        else:
+            resource_errors = func(resource_name, resource_meta)
+
         if resource_errors:
             errors[resource_name] = resource_errors
 
@@ -472,7 +477,7 @@ def create_deployment_resources(
         continue_deploy: bool = False,
         replace_output: bool = False,
         rollback_on_error: bool = False,
-) -> bool:
+) -> bool | str:
     is_ld_output_regular, latest_deploy_output = \
         load_latest_deploy_output(failsafe=True)
     if latest_deploy_output is False:
@@ -515,6 +520,9 @@ def create_deployment_resources(
         exclude_types=excluded_types
     )
 
+    if not resources:
+        return ABORTED_STATUS
+
     _LOG.debug(f'Going to create: {resources}')
 
     # sort resources with priority
@@ -551,7 +559,7 @@ def create_deployment_resources(
 
             if latest_deploy_output:
                 deploy_output_names = list(latest_deploy_output.keys())
-                rollback_resources_list =\
+                rollback_resources_list = \
                     [resource for resource in output_resources_list if
                      resource[0] not in deploy_output_names]
                 clean_resources(rollback_resources_list)
@@ -606,32 +614,33 @@ def update_deployment_resources(
         excluded_types: tuple | None = None,
         replace_output: bool = False,
         force: bool = False,
-) -> bool:
-    from syndicate.core import PROCESSOR_FACADE, PROJECT_STATE
-    from click import confirm as click_confirm
-    latest_bundle = PROJECT_STATE.get_latest_deployed_or_updated_bundle(
-        bundle_name, latest_if_not_found=True)
-    if not latest_bundle:
-        latest_bundle = PROJECT_STATE.latest_deployed_bundle_name
-    _LOG.debug(f'Latest bundle name: {latest_bundle}')
+) -> bool | str:
+    from click import confirm as click_confirm, Abort
 
-    try:
-        old_output = load_deploy_output(latest_bundle, deploy_name)
-        _LOG.info('Output file was loaded successfully')
-    except ProjectStateError:
-        try:
-            old_output = load_failed_deploy_output(latest_bundle, deploy_name)
-            if not force:
+    is_ld_output_regular, old_output = load_latest_deploy_output(failsafe=True)
+    if is_ld_output_regular is None or old_output is False:
+        USER_LOG.error('Deployment to update not found.')
+        return ABORTED_STATUS
+    elif is_ld_output_regular is True:
+        _LOG.info(f'The latest deployment has status succeeded. '
+                  f'Loaded output:\n {prettify_json(old_output)}')
+    elif is_ld_output_regular is False:
+        if not force:
+            try:
                 if not click_confirm(
                         "The latest deployment has status failed. "
                         "Do you want to proceed with updating?"):
                     return ABORTED_STATUS
+            except Abort:
+                _LOG.error(
+                    "The latest deployment has status failed. Please rerun "
+                    "the command with the --force flag to proceed."
+                )
+                return ABORTED_STATUS
 
-                _LOG.warning(
-                    'Updating resources despite previous deployment failures')
-        except ProjectStateError:
-            USER_LOG.error('Deployment to update not found.')
-            return ABORTED_STATUS
+            _LOG.warning(
+                'Updating resources despite previous deployment failures')
+            _LOG.info(f'Loaded output:\n {prettify_json(old_output)}')
 
     old_resources = get_meta_from_output(old_output)
     old_resources = _resolve_names(tuple(old_resources.keys()))
@@ -644,19 +653,41 @@ def update_deployment_resources(
     _LOG.debug('Artifacts s3 paths were resolved')
     resolve_tags(resources)
 
-    USER_LOG.warning(
-        'Please pay attention that only the '
-        'following resources types are supported for update: {}'.format(
-            list(PROCESSOR_FACADE.update_handlers().keys())))
-
     update_only_resources = _resolve_names(update_only_resources)
     _LOG.info(
         'Prefixes and suffixes of any resource names have been resolved.')
 
+    updatable_types = UPDATE_RESOURCE_TYPE_PRIORITY.keys()
+    non_updatable_res = set()
+    for name in update_only_resources:
+        if name in resources and resources[name]['resource_type'] not in updatable_types:
+            non_updatable_res.add(name)
+    if non_updatable_res:
+        non_updatable_res = list(map(strip_prefix_suffix, non_updatable_res))
+        USER_LOG.error(
+            f'The following resource(s) have a resource type that cannot be '
+            f'updated {non_updatable_res}'
+        )
+        return ABORTED_STATUS
+
+    # Split resources into updatable and non-updatable
+    non_updatable_resources = list(
+        k for (k, v) in resources.items()
+        if v['resource_type'] not in updatable_types
+    )
     resources = dict(
         (k, v) for (k, v) in resources.items()
-        if v['resource_type'] in PROCESSOR_FACADE.update_handlers().keys()
+        if v['resource_type'] in updatable_types
     )
+
+    if not (update_only_types or update_only_resources) and non_updatable_resources:
+        non_updatable_resources = list(map(strip_prefix_suffix,
+                                           non_updatable_resources))
+        USER_LOG.warning(
+            f'Please note that the following resource(s) will not be updated '
+            f'because they have a resource type that cannot be updated '
+            f'{non_updatable_resources}')
+
     resources = _filter_resources(
         resources_meta=resources,
         resource_names=update_only_resources,
@@ -664,6 +695,9 @@ def update_deployment_resources(
         exclude_names=excluded_resources,
         exclude_types=excluded_types
     )
+
+    if not resources:
+        return ABORTED_STATUS
 
     _LOG.debug(
         f'Going to update the following resources: {prettify_json(resources)}')
@@ -703,6 +737,7 @@ def remove_deployment_resources(
         preserve_state: bool = False,
 ):
     is_regular_output = True
+    externals = {}
     try:
         output = load_deploy_output(bundle_name, deploy_name)
         _LOG.info('Output file was loaded successfully')
@@ -711,7 +746,7 @@ def remove_deployment_resources(
             output = load_failed_deploy_output(bundle_name, deploy_name)
             is_regular_output = False
         except ProjectStateError:
-            USER_LOG.error("Deployment to clean not found.")
+            USER_LOG.error('Deployment to clean not found.')
             return ABORTED_STATUS
 
     new_output = copy.deepcopy(output)
@@ -720,11 +755,13 @@ def remove_deployment_resources(
     excluded_resources = _resolve_names(excluded_resources)
     _LOG.info('Prefixes and suffixes of any resource names have been resolved')
 
-    if clean_externals:
-        new_output = {
-            k: v for k, v in new_output.items() if
-            v['resource_meta'].get('external')
-        }
+    if not clean_externals:
+        new_output = {}
+        for k, v in output.items():
+            if v['resource_meta'].get('external'):
+                externals.update({k: v})
+            else:
+                new_output.update({k: v})
 
     new_output = _filter_resources(
         resources_meta=new_output,
@@ -734,6 +771,10 @@ def remove_deployment_resources(
         exclude_names=excluded_resources,
         exclude_types=excluded_types
     )
+
+    if not new_output:
+        return ABORTED_STATUS
+
     # sort resources with priority
     resources_list = list(new_output.items())
     resources_list.sort(key=cmp_to_key(_compare_clean_resources))
@@ -757,6 +798,7 @@ def remove_deployment_resources(
         new_output=new_output,
         is_regular_output=is_regular_output,
         success=success,
+        externals=externals,
         preserve_state=preserve_state,
     )
 
@@ -768,22 +810,37 @@ def _post_remove_output_handling(
         new_output: dict,
         is_regular_output: bool,
         success: bool,
-        preserve_state: bool = False,
+        externals: dict = None,
+        preserve_state: bool = False
 ) -> bool | dict:
+    not_success_msg = 'All resources specified for this operation were ' \
+                      'cleaned despite errors when cleaning the resources.'
     if output == new_output:
-        if not preserve_state:
-            # remove output from bucket
-            remove_failed_deploy_output(bundle_name, deploy_name)
-            remove_deploy_output(bundle_name, deploy_name)
-            if not success:
-                USER_LOG.warning(
-                    'All resources specified for this operation were cleaned '
-                    'despite errors when cleaning the resources.'
-                )
-                success = True
+        if preserve_state:
+            return success
+
+        # remove output from bucket
+        remove_failed_deploy_output(bundle_name, deploy_name)
+        remove_deploy_output(bundle_name, deploy_name)
+        if not success:
+            USER_LOG.warning(not_success_msg)
+            success = True
     else:
         for key, value in new_output.items():
             output.pop(key, None)
+        if externals:
+            # if only external resources remain
+            if set(output.keys()) == set(externals.keys()):
+                if preserve_state:
+                    return success
+
+                remove_failed_deploy_output(bundle_name, deploy_name)
+                remove_deploy_output(bundle_name, deploy_name)
+                if not success:
+                    USER_LOG.warning(not_success_msg)
+                    success = True
+                return success
+
         create_deploy_output(bundle_name=bundle_name,
                              deploy_name=deploy_name,
                              output=output,
@@ -798,7 +855,7 @@ def _post_remove_output_handling(
 
 
 def _apply_dynamic_changes(resources, output):
-    from syndicate.core import PROCESSOR_FACADE
+    from syndicate.core import PROCESSOR_FACADE, CONFIG
     pool = ThreadPoolExecutor(max_workers=5)
     futures = []
     for name, meta in resources.items():
@@ -823,17 +880,20 @@ def _apply_dynamic_changes(resources, output):
                         apply_func = PROCESSOR_FACADE.mapping_applier() \
                             .get(change_type)
                         if apply_func:
+                            if (CONFIG.extended_prefix_mode or
+                                    resource_type in GLOBAL_AWS_SERVICES):
+                                name = _resolve_plain_names([name])[0]
                             alias = '#{' + name + '}'
                             f = pool.submit(apply_func, alias, identifier,
                                             apply_item)
                             futures.append(f)
                         else:
-                            _LOG.warn('Dynamic apply is not defined '
-                                      'for {0} type'.format(change_type))
+                            _LOG.warn(f'Dynamic apply is not defined '
+                                      f'for {change_type} type')
                     else:
-                        _LOG.warn('Resource identifier is not defined '
-                                  'for {0} type'.format(dependency_type))
-            _LOG.info('Dynamic changes were applied to {0}'.format(name))
+                        _LOG.warn(f'Resource identifier is not defined '
+                                  f'for {dependency_type} type')
+            _LOG.info(f'Dynamic changes were applied to {name}')
     concurrent.futures.wait(futures, timeout=None, return_when=ALL_COMPLETED)
 
 
@@ -900,6 +960,24 @@ def _resolve_names(names):
     return resolve_n_unify_names(names or tuple())
 
 
+def _resolve_plain_names(names: list | tuple | set) -> list:
+    """
+    Strip prefix and suffix from provided names and return set of unified names
+    """
+    from syndicate.core import CONFIG
+    resolved_names = set()
+    for name in names:
+        if (CONFIG.resources_prefix and
+                name.startswith(CONFIG.resources_prefix)):
+            name = name[len(CONFIG.resources_prefix):]
+        if (CONFIG.resources_suffix and
+                name.endswith(CONFIG.resources_suffix)):
+            name = name[:-len(CONFIG.resources_suffix)]
+        resolved_names.add(name)
+
+    return list(resolved_names)
+
+
 def _filter_resources(
         resources_meta: dict,
         resources_meta_type: str = BUILD_META,
@@ -908,6 +986,14 @@ def _filter_resources(
         exclude_names: set | None = None,
         exclude_types: tuple | None = None,
 ) -> dict:
+    """
+    Returns filtered resources based on provided names and types.
+
+    `resources_meta_type` parameter could be either BUILD_META or
+    DEPLOYMENT_OUTPUT.
+    """
+
+    filtered = {}
     resource_names = set() if resource_names is None else set(resource_names)
     resource_types = set() if resource_types is None else set(resource_types)
     exclude_names = set() if exclude_names is None else set(exclude_names)
@@ -941,6 +1027,30 @@ def _filter_resources(
             if (v['resource_name'] in exclude_names
                     or v['resource_meta']['resource_type'] in exclude_types):
                 filtered.pop(k)
+    if resources_meta_type == BUILD_META:
+        meta_source = 'build meta'
+        filtered_names = set(map(strip_prefix_suffix, filtered.keys()))
+        missing_names = (
+                set(map(strip_prefix_suffix, resource_names)) - filtered_names
+        )
+    else:
+        meta_source = 'deployment output'
+        filtered_names = set(map(strip_prefix_suffix,
+                                 [v['resource_name'] for v in filtered.values()]))
+        missing_names = set(map(strip_prefix_suffix, resource_names)) - filtered_names
+
+    if missing_names:
+        USER_LOG.warning(
+            f'The following resource(s) will be skipped due to absence in '
+            f'{meta_source}: {list(missing_names)}. If this is an unexpected '
+            f'behaviour, please check the command parameters.')
+
+    if filtered:
+        USER_LOG.info(f'The following resource(s) will be processed: '
+                      f'{list(filtered_names)}')
+    else:
+        USER_LOG.warning(
+            'No resources to process. Please check the command parameters.')
 
     return filtered
 

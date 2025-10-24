@@ -1,6 +1,6 @@
 import os
 import subprocess
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 import sys
 from pathlib import Path
@@ -8,17 +8,17 @@ from pathlib import Path
 parent_dir = str(Path(__file__).resolve().parent.parent)
 sys.path.append(parent_dir)
 
-from commons.constants import STEPS_CONFIG_PARAM, UPDATED_BUNDLE_NAME, \
+from commons.constants import STEPS_CONFIG_PARAM, STAGE_PASSED_REPORT_PARAM, \
     COMMAND_CONFIG_PARAM, CHECKS_CONFIG_PARAM, NAME_CONFIG_PARAM, \
     DESCRIPTION_CONFIG_PARAM, DEPENDS_ON_CONFIG_PARAM, BUILD_COMMAND, \
     BUNDLE_NAME, DEPLOY_COMMAND, UPDATE_COMMAND, DEPLOY_NAME, \
-    INDEX_CONFIG_PARAM, STAGE_PASSED_REPORT_PARAM
+    INDEX_CONFIG_PARAM, VERBOSE_NOT_COMPATIBLE_COMMANDS
 from commons.handlers import HANDLERS_MAPPING
 from commons.utils import UpdateContent
 
 
 def process_steps(steps: dict[str: List[dict]],
-                  verbose: Optional[bool] = False,skip_stage: bool = False,
+                  verbose: Optional[bool] = False, skip_stage: bool = False,
                   **kwargs):
     result = []
     for step in steps[STEPS_CONFIG_PARAM]:
@@ -36,32 +36,33 @@ def process_steps(steps: dict[str: List[dict]],
 
         validation_checks = validation_steps[CHECKS_CONFIG_PARAM]
         command_to_execute = step[COMMAND_CONFIG_PARAM]
-        if verbose:
+        if verbose and not any(
+                command_to_execute != c for c in VERBOSE_NOT_COMPATIBLE_COMMANDS
+        ):
             command_to_execute.append('--verbose')
         if BUILD_COMMAND in command_to_execute:
-            command_to_execute.extend(['--bundle_name', BUNDLE_NAME,
-                                       '--force_upload'])
+            command_to_execute.extend(['--bundle-name', BUNDLE_NAME,
+                                       '--force-upload'])
         if DEPLOY_COMMAND in command_to_execute:
-            command_to_execute.extend(['--bundle_name', BUNDLE_NAME,
-                                       '--deploy_name', DEPLOY_NAME,
-                                       '--replace_output'])
+            command_to_execute.extend(['--bundle-name', BUNDLE_NAME,
+                                       '--deploy-name', DEPLOY_NAME,
+                                       '--replace-output'])
         if UPDATE_COMMAND in command_to_execute:
-            command_to_execute.extend(['--bundle_name', UPDATED_BUNDLE_NAME,
-                                       '--replace_output'])
+            command_to_execute.extend(['--bundle-name', BUNDLE_NAME,
+                                       '--deploy-name', DEPLOY_NAME,
+                                       '--replace-output'])
+        # TODO datetime.utcnow() is deprecated in Python 3.12+
         execution_datetime = datetime.utcnow()
 
         with UpdateContent(
                 command=command_to_execute,
-                lambda_paths=[os.path.join('sdct-auto-test',
-                                           'app', 'lambdas',
+                lambda_paths=[os.path.join('app', 'lambdas',
                                            'sdct-at-nodejs-lambda')],
-                resources_paths=['sdct-auto-test'],
-                appsync_path=[os.path.join('sdct-auto-test',
-                                           'appsync_src',
+                appsync_path=[os.path.join('appsync_src',
                                            'sdct-at-appsync')]):
             if UPDATE_COMMAND in command_to_execute:
-                build_command = ['syndicate', 'build',
-                                 '--bundle_name', UPDATED_BUNDLE_NAME]
+                build_command = ['syndicate', 'build', '--bundle_name',
+                                 BUNDLE_NAME, '--force-upload']
                 if verbose:
                     build_command.append('--verbose')
                 print(f'Run command: {build_command}')

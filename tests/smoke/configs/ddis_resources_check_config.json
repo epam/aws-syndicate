@@ -1,0 +1,1690 @@
+{
+  "init_parameters": {
+    "output_file": "ddis_output"
+  },
+  "stages": {
+    "version": {
+      "steps": [
+        {
+          "description": "Version check",
+          "command": [
+            "syndicate",
+            "--version"
+          ],
+          "checks": [
+            {
+              "index": 1,
+              "name": "exit_code",
+              "description": "Check if actual status code equals expected",
+              "expected_exit_code": 0
+            }
+          ]
+        }
+      ]
+    },
+    "build": {
+      "steps": [
+        {
+          "description": "Build bundle",
+          "command": [
+            "syndicate",
+            "build"
+          ],
+          "checks": [
+            {
+              "index": 1,
+              "name": "exit_code",
+              "description": "Check if actual status code equals expected",
+              "expected_exit_code": 0
+            },
+            {
+              "index": 2,
+              "name": "artifacts_existence",
+              "description": "Check if artifacts exist",
+              "artifacts_list": [
+                "build_meta.json",
+                "sdct-at-dotnet-lambda-1.0.zip",
+                "sdct-at-ddis-1.0.0.jar",
+                "sdct-at-dotnet-lambda_layer_layer.zip",
+                "sdct-at-java-lambda_layer-assembly.zip",
+                "sdct-at-nodejs-lambda-1.0.zip",
+                "sdct-at-nodejs-lambda_layer_layer.zip",
+                "sdct-at-python-lambda-1.0.zip",
+                "sdct-at-python-lambda_layer_layer.zip",
+                "swagger_ui_sdct-at-swagger-ui.zip",
+                "appsync_sdct-at-appsync.zip"
+              ],
+              "depends_on": [
+                1
+              ]
+            },
+            {
+              "index": 3,
+              "name": "build_meta",
+              "description": "Check if all resources exist in build meta",
+              "resources": {
+                "sdct-at-lambda-basic-execution-policy": {
+                  "resource_type": "iam_policy"
+                },
+                "sdct-at-dynamic-aliases-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-java-lambda-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-appsync-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-java-lambda": {
+                  "resource_type": "lambda"
+                },
+                "sdct-at-java-lambda_layer": {
+                  "resource_type": "lambda_layer"
+                },
+                "sdct-at-dotnet-lambda-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-dotnet-lambda": {
+                  "resource_type": "lambda"
+                },
+                "sdct-at-dotnet-lambda_layer": {
+                  "resource_type": "lambda_layer"
+                },
+                "sdct-at-python-lambda-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-python-lambda": {
+                  "resource_type": "lambda"
+                },
+                "sdct-at-python-lambda_layer": {
+                  "resource_type": "lambda_layer"
+                },
+                "sdct-at-queue": {
+                  "resource_type": "sqs_queue"
+                },
+                "sdct-at-topic": {
+                  "resource_type": "sns_topic"
+                },
+                "sdct-at-table": {
+                  "resource_type": "dynamodb_table"
+                },
+                "sdct-at-reservation": {
+                  "resource_type": "dynamodb_table"
+                },
+                "sdct-at-cw-rule": {
+                  "resource_type": "cloudwatch_rule"
+                },
+                "sdct-at-nodejs-lambda-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-nodejs-lambda": {
+                  "resource_type": "lambda"
+                },
+                "sdct-at-nodejs-lambda_layer": {
+                  "resource_type": "lambda_layer"
+                },
+                "${booking_userpool}": {
+                  "resource_type": "cognito_idp"
+                },
+                "sdct-at-api-gw": {
+                  "resource_type": "api_gateway"
+                },
+                "sdct-at-s3-bucket": {
+                  "resource_type": "s3_bucket"
+                },
+                "sdct-at-swagger-ui": {
+                  "resource_type": "swagger_ui"
+                },
+                "sdct-at-appsync": {
+                  "resource_type": "appsync"
+                },
+                "sdct-at-open-api-gw": {
+                  "resource_type": "api_gateway_oas_v3"
+                }
+              },
+              "depends_on": [
+                1
+              ]
+            },
+            {
+              "index": 4,
+              "name": "build_meta_content",
+              "description": "Check if all resources in build meta contain required meta",
+              "resources": {
+                "sdct-at-lambda-basic-execution-policy": {
+                  "resource_type": "iam_policy",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test",
+                    "project-level-tag": "set-from-resource"
+                  }
+                },
+                "sdct-at-dynamic-aliases-role": {
+                  "resource_type": "iam_role",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test"
+                  }
+                },
+                "sdct-at-java-lambda-role": {
+                  "resource_type": "iam_role",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test"
+                  }
+                },
+                "sdct-at-appsync-role": {
+                  "resource_type": "iam_role",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test"
+                  }
+                },
+                "sdct-at-java-lambda": {
+                  "resource_type": "lambda",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test"
+                  }
+                },
+                "sdct-at-java-lambda_layer": {
+                  "resource_type": "lambda_layer"
+                },
+                "sdct-at-dotnet-lambda-role": {
+                  "resource_type": "iam_role",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test"
+                  }
+                },
+                "sdct-at-dotnet-lambda": {
+                  "resource_type": "lambda",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test"
+                  }
+                },
+                "sdct-at-dotnet-lambda_layer": {
+                  "resource_type": "lambda_layer"
+                },
+                "sdct-at-python-lambda-role": {
+                  "resource_type": "iam_role",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test"
+                  }
+                },
+                "sdct-at-python-lambda": {
+                  "resource_type": "lambda",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test"
+                  },
+                  "env_variables": {
+                    "table_name": "table name is $rn{sdct-at-table}"
+                  }
+                },
+                "sdct-at-python-lambda_layer": {
+                  "resource_type": "lambda_layer"
+                },
+                "sdct-at-queue": {
+                  "resource_type": "sqs_queue",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test"
+                  }
+                },
+                "sdct-at-topic": {
+                  "resource_type": "sns_topic",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test"
+                  }
+                },
+                "sdct-at-table": {
+                  "resource_type": "dynamodb_table",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test"
+                  }
+                },
+                "sdct-at-reservation": {
+                  "resource_type": "dynamodb_table",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test"
+                  }
+                },
+                "sdct-at-cw-rule": {
+                  "resource_type": "cloudwatch_rule",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test"
+                  }
+                },
+                "sdct-at-nodejs-lambda-role": {
+                  "resource_type": "iam_role",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test"
+                  }
+                },
+                "sdct-at-nodejs-lambda": {
+                  "resource_type": "lambda",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test"
+                  },
+                  "env_variables": {
+                    "region": "${region}",
+                    "tables_table": "${tables_table}",
+                    "reservations_table": "${reservations_table}",
+                    "cup_id": {
+                      "resource_name": "${booking_userpool}",
+                      "resource_type": "cognito_idp",
+                      "parameter": "id"
+                    },
+                    "cup_client_id": {
+                      "resource_name": "${booking_userpool}",
+                      "resource_type": "cognito_idp",
+                      "parameter": "client_id"
+                    }
+                  }
+                },
+                "sdct-at-nodejs-lambda_layer": {
+                  "resource_type": "lambda_layer"
+                },
+                "${booking_userpool}": {
+                  "resource_type": "cognito_idp",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test"
+                  }
+                },
+                "sdct-at-api-gw": {
+                  "resource_type": "api_gateway",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test"
+                  }
+                },
+                "sdct-at-s3-bucket": {
+                  "resource_type": "s3_bucket",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test"
+                  }
+                },
+                "sdct-at-swagger-ui": {
+                  "resource_type": "swagger_ui"
+                },
+                "sdct-at-appsync": {
+                  "resource_type": "appsync",
+                  "tags": {
+                    "project-level-tag": "set-from-resource"
+                  }
+                },
+                "sdct-at-open-api-gw": {
+                  "resource_type": "api_gateway_oas_v3"
+                }
+              },
+              "depends_on": [
+                1
+              ]
+            }
+          ]
+        }
+      ],
+      "depends_on": [
+        "version"
+      ]
+    },
+    "deploy": {
+      "steps": [
+        {
+          "description": "Deployment without dependencies",
+          "command": [
+            "syndicate",
+            "deploy",
+            "-exresources",
+            "sdct-at-nodejs-lambda-role",
+            "-exresources",
+            "sdct-at-nodejs-lambda",
+            "-exresources",
+            "sdct-at-nodejs-lambda_layer",
+            "-exresources",
+            "sdct-at-cup",
+            "-exresources",
+            "sdct-at-api-gw",
+            "-exresources",
+            "sdct-at-open-api-gw"
+          ],
+          "checks": [
+            {
+              "index": 1,
+              "name": "exit_code",
+              "description": "Check if actual status code equals expected",
+              "expected_exit_code": 0
+            },
+            {
+              "index": 2,
+              "name": "artifacts_existence",
+              "description": "Check if succeeded deployment output file exists in S3 bucket",
+              "succeeded_deploy": true,
+              "artifacts_list": [
+                "autotest.json"
+              ],
+              "depends_on": [
+                1
+              ]
+            },
+            {
+              "index": 3,
+              "name": "deployment_output",
+              "description": "Check if all resources present in deployment output",
+              "succeeded_deploy": true,
+              "resources": {
+                "sdct-at-lambda-basic-execution-policy": {
+                  "resource_type": "iam_policy"
+                },
+                "sdct-at-dynamic-aliases-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-java-lambda-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-appsync-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-java-lambda": {
+                  "resource_type": "lambda"
+                },
+                "sdct-at-java-lambda_layer": {
+                  "resource_type": "lambda_layer"
+                },
+                "sdct-at-dotnet-lambda-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-dotnet-lambda": {
+                  "resource_type": "lambda"
+                },
+                "sdct-at-dotnet-lambda_layer": {
+                  "resource_type": "lambda_layer"
+                },
+                "sdct-at-python-lambda-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-python-lambda": {
+                  "resource_type": "lambda"
+                },
+                "sdct-at-python-lambda_layer": {
+                  "resource_type": "lambda_layer"
+                },
+                "sdct-at-queue": {
+                  "resource_type": "sqs_queue"
+                },
+                "sdct-at-topic": {
+                  "resource_type": "sns_topic"
+                },
+                "sdct-at-table": {
+                  "resource_type": "dynamodb_table"
+                },
+                "sdct-at-reservation": {
+                  "resource_type": "dynamodb_table"
+                },
+                "sdct-at-cw-rule": {
+                  "resource_type": "cloudwatch_rule"
+                },
+                "sdct-at-s3-bucket": {
+                  "resource_type": "s3_bucket"
+                },
+                "sdct-at-swagger-ui": {
+                  "resource_type": "swagger_ui"
+                },
+                "sdct-at-appsync": {
+                  "resource_type": "appsync"
+                }
+              },
+              "depends_on": [
+                1,
+                2
+              ]
+            },
+            {
+              "index": 4,
+              "name": "deployment_output",
+              "description": "Check if resources are not present in deployment output",
+              "succeeded_deploy": true,
+              "reverse_check": true,
+              "resources": {
+                "sdct-at-nodejs-lambda-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-nodejs-lambda": {
+                  "resource_type": "lambda"
+                },
+                "sdct-at-nodejs-lambda_layer": {
+                  "resource_type": "lambda_layer"
+                },
+                "sdct-at-cup": {
+                  "resource_type": "cognito_idp"
+                },
+                "sdct-at-api-gw": {
+                  "resource_type": "api_gateway"
+                },
+                "sdct-at-open-api-gw": {
+                  "resource_type": "api_gateway_oas_v3"
+                }
+              },
+              "depends_on": [
+                1,
+                2
+              ]
+            },
+            {
+              "index": 5,
+              "name": "resource_existence",
+              "description": "Check if all resources present in account",
+              "resources": {
+                "sdct-at-lambda-basic-execution-policy": {
+                  "resource_type": "iam_policy"
+                },
+                "sdct-at-dynamic-aliases-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-java-lambda-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-appsync-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-java-lambda": {
+                  "resource_type": "lambda"
+                },
+                "sdct-at-java-lambda_layer": {
+                  "resource_type": "lambda_layer"
+                },
+                "sdct-at-dotnet-lambda-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-dotnet-lambda": {
+                  "resource_type": "lambda"
+                },
+                "sdct-at-dotnet-lambda_layer": {
+                  "resource_type": "lambda_layer"
+                },
+                "sdct-at-python-lambda-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-python-lambda": {
+                  "resource_type": "lambda"
+                },
+                "sdct-at-python-lambda_layer": {
+                  "resource_type": "lambda_layer"
+                },
+                "sdct-at-queue": {
+                  "resource_type": "sqs_queue"
+                },
+                "sdct-at-topic": {
+                  "resource_type": "sns_topic"
+                },
+                "sdct-at-table": {
+                  "resource_type": "dynamodb_table"
+                },
+                "sdct-at-reservation": {
+                  "resource_type": "dynamodb_table"
+                },
+                "sdct-at-cw-rule": {
+                  "resource_type": "cloudwatch_rule"
+                },
+                "sdct-at-s3-bucket": {
+                  "resource_type": "s3_bucket"
+                },
+                "sdct-at-swagger-ui": {
+                  "resource_type": "swagger_ui"
+                },
+                "sdct-at-appsync": {
+                  "resource_type": "appsync"
+                }
+              },
+              "depends_on": [
+                1,
+                2,
+                3
+              ]
+            },
+            {
+              "index": 6,
+              "name": "resource_existence",
+              "reverse_check": true,
+              "description": "Check if resources are not present in account",
+              "resources": {
+                "sdct-at-nodejs-lambda-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-nodejs-lambda": {
+                  "resource_type": "lambda"
+                },
+                "sdct-at-nodejs-lambda_layer": {
+                  "resource_type": "lambda_layer"
+                },
+                "sdct-at-cup": {
+                  "resource_type": "cognito_idp"
+                },
+                "sdct-at-api-gw": {
+                  "resource_type": "api_gateway"
+                },
+                "sdct-at-open-api-gw": {
+                  "resource_type": "api_gateway_oas_v3"
+                }
+              },
+              "depends_on": [
+                1,
+                2,
+                3
+              ]
+            }
+          ]
+        },
+        {
+          "description": "Deployment with dependencies",
+          "command": [
+            "syndicate",
+            "deploy",
+            "--continue-deploy",
+            "-resources",
+            "sdct-at-nodejs-lambda-role",
+            "-resources",
+            "sdct-at-nodejs-lambda",
+            "-resources",
+            "sdct-at-nodejs-lambda_layer",
+            "-resources",
+            "sdct-at-cup",
+            "-resources",
+            "sdct-at-api-gw",
+            "-resources",
+            "sdct-at-open-api-gw"
+          ],
+          "checks": [
+            {
+              "index": 1,
+              "name": "exit_code",
+              "description": "Check if actual status code equals expected",
+              "expected_exit_code": 0
+            },
+            {
+              "index": 2,
+              "name": "artifacts_existence",
+              "description": "Check if succeeded deployment output file exists in S3 bucket",
+              "succeeded_deploy": true,
+              "artifacts_list": [
+                "autotest.json"
+              ]
+            },
+            {
+              "index": 3,
+              "name": "deployment_output",
+              "description": "Check if all resources present in deployment output",
+              "succeeded_deploy": true,
+              "resources": {
+                "sdct-at-lambda-basic-execution-policy": {
+                  "resource_type": "iam_policy"
+                },
+                "sdct-at-dynamic-aliases-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-java-lambda-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-appsync-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-java-lambda": {
+                  "resource_type": "lambda"
+                },
+                "sdct-at-java-lambda_layer": {
+                  "resource_type": "lambda_layer"
+                },
+                "sdct-at-dotnet-lambda-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-dotnet-lambda": {
+                  "resource_type": "lambda"
+                },
+                "sdct-at-dotnet-lambda_layer": {
+                  "resource_type": "lambda_layer"
+                },
+                "sdct-at-python-lambda-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-python-lambda": {
+                  "resource_type": "lambda"
+                },
+                "sdct-at-python-lambda_layer": {
+                  "resource_type": "lambda_layer"
+                },
+                "sdct-at-queue": {
+                  "resource_type": "sqs_queue"
+                },
+                "sdct-at-topic": {
+                  "resource_type": "sns_topic"
+                },
+                "sdct-at-table": {
+                  "resource_type": "dynamodb_table"
+                },
+                "sdct-at-reservation": {
+                  "resource_type": "dynamodb_table"
+                },
+                "sdct-at-cw-rule": {
+                  "resource_type": "cloudwatch_rule"
+                },
+                "sdct-at-s3-bucket": {
+                  "resource_type": "s3_bucket"
+                },
+                "sdct-at-swagger-ui": {
+                  "resource_type": "swagger_ui"
+                },
+                "sdct-at-nodejs-lambda-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-nodejs-lambda": {
+                  "resource_type": "lambda"
+                },
+                "sdct-at-nodejs-lambda_layer": {
+                  "resource_type": "lambda_layer"
+                },
+                "sdct-at-cup": {
+                  "resource_type": "cognito_idp"
+                },
+                "sdct-at-api-gw": {
+                  "resource_type": "api_gateway"
+                },
+                "sdct-at-open-api-gw": {
+                  "resource_type": "api_gateway_oas_v3"
+                },
+                "sdct-at-appsync": {
+                  "resource_type": "appsync"
+                }
+              }
+            },
+            {
+              "index": 4,
+              "name": "resource_existence",
+              "description": "Check if all resources present in account",
+              "resources": {
+                "sdct-at-lambda-basic-execution-policy": {
+                  "resource_type": "iam_policy"
+                },
+                "sdct-at-dynamic-aliases-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-java-lambda-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-appsync-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-java-lambda": {
+                  "resource_type": "lambda"
+                },
+                "sdct-at-java-lambda_layer": {
+                  "resource_type": "lambda_layer"
+                },
+                "sdct-at-dotnet-lambda-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-dotnet-lambda": {
+                  "resource_type": "lambda"
+                },
+                "sdct-at-dotnet-lambda_layer": {
+                  "resource_type": "lambda_layer"
+                },
+                "sdct-at-python-lambda-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-python-lambda": {
+                  "resource_type": "lambda"
+                },
+                "sdct-at-python-lambda_layer": {
+                  "resource_type": "lambda_layer"
+                },
+                "sdct-at-queue": {
+                  "resource_type": "sqs_queue"
+                },
+                "sdct-at-topic": {
+                  "resource_type": "sns_topic"
+                },
+                "sdct-at-table": {
+                  "resource_type": "dynamodb_table"
+                },
+                "sdct-at-reservation": {
+                  "resource_type": "dynamodb_table"
+                },
+                "sdct-at-cw-rule": {
+                  "resource_type": "cloudwatch_rule"
+                },
+                "sdct-at-s3-bucket": {
+                  "resource_type": "s3_bucket"
+                },
+                "sdct-at-swagger-ui": {
+                  "resource_type": "swagger_ui"
+                },
+                "sdct-at-nodejs-lambda-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-nodejs-lambda": {
+                  "resource_type": "lambda"
+                },
+                "sdct-at-nodejs-lambda_layer": {
+                  "resource_type": "lambda_layer"
+                },
+                "sdct-at-cup": {
+                  "resource_type": "cognito_idp"
+                },
+                "sdct-at-api-gw": {
+                  "resource_type": "api_gateway"
+                },
+                "sdct-at-open-api-gw": {
+                  "resource_type": "api_gateway_oas_v3"
+                },
+                "sdct-at-appsync": {
+                  "resource_type": "appsync"
+                }
+              }
+            },
+            {
+              "index": 5,
+              "name": "tag_existence",
+              "description": "Check if all tags have been added to the resources",
+              "succeeded_deploy": true,
+              "resources": {
+                "sdct-at-dynamic-aliases-role": {
+                  "resource_type": "iam_role",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test",
+                    "project-level-tag": "set-from-project"
+                  }
+                },
+                "sdct-at-java-lambda-role": {
+                  "resource_type": "iam_role",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test",
+                    "project-level-tag": "set-from-project"
+                  }
+                },
+                "sdct-at-appsync-role": {
+                  "resource_type": "iam_role",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test",
+                    "project-level-tag": "set-from-project"
+                  }
+                },
+                "sdct-at-java-lambda": {
+                  "resource_type": "lambda",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test",
+                    "project-level-tag": "set-from-project"
+                  }
+                },
+                "sdct-at-dotnet-lambda-role": {
+                  "resource_type": "iam_role",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test",
+                    "project-level-tag": "set-from-project"
+                  }
+                },
+                "sdct-at-dotnet-lambda": {
+                  "resource_type": "lambda",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test",
+                    "project-level-tag": "set-from-project"
+                  }
+                },
+                "sdct-at-python-lambda-role": {
+                  "resource_type": "iam_role",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test",
+                    "project-level-tag": "set-from-project"
+                  }
+                },
+                "sdct-at-python-lambda": {
+                  "resource_type": "lambda",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test",
+                    "project-level-tag": "set-from-project"
+                  }
+                },
+                "sdct-at-queue": {
+                  "resource_type": "sqs_queue",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test",
+                    "project-level-tag": "set-from-project"
+                  }
+                },
+                "sdct-at-topic": {
+                  "resource_type": "sns_topic",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test",
+                    "project-level-tag": "set-from-project"
+                  }
+                },
+                "sdct-at-table": {
+                  "resource_type": "dynamodb_table",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test",
+                    "project-level-tag": "set-from-project"
+                  }
+                },
+                "sdct-at-reservation": {
+                  "resource_type": "dynamodb_table",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test",
+                    "project-level-tag": "set-from-project"
+                  }
+                },
+                "sdct-at-cw-rule": {
+                  "resource_type": "cloudwatch_rule",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test",
+                    "project-level-tag": "set-from-project"
+                  }
+                },
+                "sdct-at-s3-bucket": {
+                  "resource_type": "s3_bucket",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test",
+                    "project-level-tag": "set-from-project"
+                  }
+                },
+                "sdct-at-nodejs-lambda-role": {
+                  "resource_type": "iam_role",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test",
+                    "project-level-tag": "set-from-project"
+                  }
+                },
+                "sdct-at-nodejs-lambda": {
+                  "resource_type": "lambda",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test",
+                    "project-level-tag": "set-from-project"
+                  }
+                },
+                "sdct-at-cup": {
+                  "resource_type": "cognito_idp",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test",
+                    "project-level-tag": "set-from-project"
+                  }
+                },
+                "sdct-at-api-gw": {
+                  "resource_type": "api_gateway",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test",
+                    "project-level-tag": "set-from-project"
+                  }
+                }
+              },
+              "depends_on": [
+                1,
+                4
+              ]
+            },
+            {
+              "index": 6,
+              "name": "tag_existence",
+              "description": "Check if resource-level tag overwrites the value of the same project-level tag",
+              "resources": {
+                "sdct-at-lambda-basic-execution-policy": {
+                  "resource_type": "iam_policy",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test",
+                    "project-level-tag": "set-from-resource"
+                  }
+                },
+                "sdct-at-appsync": {
+                  "resource_type": "appsync",
+                  "tags": {
+                    "project-level-tag": "set-from-resource"
+                  }
+                }
+              },
+              "depends_on": [
+                1,
+                5
+              ]
+            },
+            {
+              "index": 7,
+              "name": "lambda_trigger_existence",
+              "description": "Check if lambda trigger exists",
+              "triggers": {
+                "sdct-at-python-lambda": [
+                  {
+                    "resource_name": "sdct-at-queue",
+                    "resource_type": "sqs_queue"
+                  },
+                  {
+                    "resource_name": "sdct-at-reservation",
+                    "resource_type": "dynamodb_trigger"
+                  }
+                ],
+                "sdct-at-java-lambda": [
+                  {
+                    "resource_name": "sdct-at-cw-rule",
+                    "resource_type": "cloudwatch_rule"
+                  }
+                ],
+                "sdct-at-dotnet-lambda": [
+                  {
+                    "resource_name": "sdct-at-topic",
+                    "resource_type": "sns_topic"
+                  },
+                  {
+                    "resource_name": "sdct-at-s3-bucket",
+                    "resource_type": "s3_trigger"
+                  }
+                ]
+              },
+              "depends_on": [
+                1,
+                4
+              ]
+            },
+            {
+              "index": 8,
+              "name": "lambda_env_existence",
+              "description": "Check if lambda environment variables exist",
+              "env_variables": {
+                "sdct-at-dotnet-lambda": {
+                  "DOTNET_SHARED_STORE": "/opt/dotnetcore/store/"
+                },
+                "sdct-at-python-lambda": {
+                  "table_name": "table name is *sdct-at-table*"
+                },
+                "sdct-at-nodejs-lambda": {
+                  "cup_client_id": "*",
+                  "cup_id": "*",
+                  "reservations_table": "*${reservations_table}*",
+                  "tables_table": "*${tables_table}*",
+                  "region": "${region}"
+                }
+              },
+              "depends_on": [
+                1,
+                4
+              ]
+            },
+            {
+              "index": 9,
+              "name": "trusted_relationships_content",
+              "description": "Check that IAM Role trusted relationships are correct",
+              "resources": {
+                "sdct-at-dynamic-aliases-role": {
+                  "resources_absence": ["#{sdct-at-api-gw}"]
+                }
+              },
+              "depends_on": [
+                1,
+                4
+              ]
+            }
+          ]
+        }
+      ],
+      "depends_on": [
+        "build"
+      ]
+    },
+    "update": {
+      "steps": [
+        {
+          "description": "Updating resources",
+          "command": [
+            "syndicate",
+            "update",
+            "--force"
+          ],
+          "checks": [
+            {
+              "index": 1,
+              "name": "exit_code",
+              "description": "Check if actual status code equals expected",
+              "expected_exit_code": 0
+            },
+            {
+              "index": 2,
+              "name": "artifacts_existence",
+              "description": "Check if succeeded deployment output file exists in S3 bucket",
+              "succeeded_deploy": true,
+              "artifacts_list": [
+                "autotest.json"
+              ],
+              "depends_on": [
+                1
+              ]
+            },
+            {
+              "index": 3,
+              "name": "deployment_output",
+              "description": "Check if all resources present in deployment output",
+              "succeeded_deploy": true,
+              "resources": {
+                "sdct-at-lambda-basic-execution-policy": {
+                  "resource_type": "iam_policy"
+                },
+                "sdct-at-dynamic-aliases-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-java-lambda-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-appsync-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-java-lambda": {
+                  "resource_type": "lambda"
+                },
+                "sdct-at-java-lambda_layer": {
+                  "resource_type": "lambda_layer"
+                },
+                "sdct-at-dotnet-lambda-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-dotnet-lambda": {
+                  "resource_type": "lambda"
+                },
+                "sdct-at-dotnet-lambda_layer": {
+                  "resource_type": "lambda_layer"
+                },
+                "sdct-at-python-lambda-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-python-lambda": {
+                  "resource_type": "lambda"
+                },
+                "sdct-at-python-lambda_layer": {
+                  "resource_type": "lambda_layer"
+                },
+                "sdct-at-queue": {
+                  "resource_type": "sqs_queue"
+                },
+                "sdct-at-topic": {
+                  "resource_type": "sns_topic"
+                },
+                "sdct-at-table": {
+                  "resource_type": "dynamodb_table"
+                },
+                "sdct-at-reservation": {
+                  "resource_type": "dynamodb_table"
+                },
+                "sdct-at-cw-rule": {
+                  "resource_type": "cloudwatch_rule"
+                },
+                "sdct-at-s3-bucket": {
+                  "resource_type": "s3_bucket"
+                },
+                "sdct-at-swagger-ui": {
+                  "resource_type": "swagger_ui"
+                },
+                "sdct-at-nodejs-lambda-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-nodejs-lambda": {
+                  "resource_type": "lambda"
+                },
+                "sdct-at-nodejs-lambda_layer": {
+                  "resource_type": "lambda_layer"
+                },
+                "sdct-at-cup": {
+                  "resource_type": "cognito_idp"
+                },
+                "sdct-at-api-gw": {
+                  "resource_type": "api_gateway"
+                },
+                "sdct-at-open-api-gw": {
+                  "resource_type": "api_gateway_oas_v3"
+                },
+                "sdct-at-appsync": {
+                  "resource_type": "appsync"
+                }
+              },
+              "depends_on": [
+                1
+              ]
+            },
+            {
+              "index": 4,
+              "name": "resource_modification",
+              "description": "Check if resources were modified",
+              "resources": {
+                "sdct-at-java-lambda": {
+                  "resource_type": "lambda"
+                },
+                "sdct-at-dotnet-lambda": {
+                  "resource_type": "lambda"
+                },
+                "sdct-at-python-lambda": {
+                  "resource_type": "lambda"
+                },
+                "sdct-at-nodejs-lambda": {
+                  "resource_type": "lambda"
+                },
+                "sdct-at-lambda-basic-execution-policy": {
+                  "resource_type": "iam_policy"
+                }
+              },
+              "depends_on": [
+                1
+              ]
+            },
+            {
+              "index": 5,
+              "name": "lambda_trigger_existence",
+              "description": "Check if lambda trigger exists",
+              "triggers": {
+                "sdct-at-python-lambda": [
+                  {
+                    "resource_name": "sdct-at-queue",
+                    "resource_type": "sqs_queue"
+                  },
+                  {
+                    "resource_name": "sdct-at-reservation",
+                    "resource_type": "dynamodb_trigger"
+                  }
+                ],
+                "sdct-at-java-lambda": [
+                  {
+                    "resource_name": "sdct-at-cw-rule",
+                    "resource_type": "cloudwatch_rule"
+                  }
+                ],
+                "sdct-at-dotnet-lambda": [
+                  {
+                    "resource_name": "sdct-at-topic",
+                    "resource_type": "sns_topic"
+                  },
+                  {
+                    "resource_name": "sdct-at-s3-bucket",
+                    "resource_type": "s3_trigger"
+                  }
+                ]
+              },
+              "depends_on": [
+                1,
+                4
+              ]
+            },
+            {
+              "index": 6,
+              "name": "lambda_env_existence",
+              "description": "Check if lambda environment variables were updated",
+              "env_variables": {
+                "sdct-at-dotnet-lambda": {
+                  "DOTNET_SHARED_STORE": "/opt/dotnetcore/store/"
+                },
+                "sdct-at-python-lambda": {
+                  "table_name": "table name is *sdct-at-table*"
+                },
+                "sdct-at-nodejs-lambda": {
+                  "new_region": "${region}",
+                  "region": "updated_${region}",
+                  "reservations_table": "*${reservations_table}*",
+                  "tables_table": "*${tables_table}*",
+                  "cup_client_id": "*",
+                  "cup_id": "*"
+                }
+              },
+              "depends_on": [
+                1,
+                2
+              ]
+            },
+            {
+              "index": 7,
+              "name": "tag_existence",
+              "description": "Check if tags were updated",
+              "resources": {
+                "sdct-at-nodejs-lambda": {
+                  "resource_type": "lambda",
+                  "tags": {
+                    "updated_tests": "updated_smoke",
+                    "project": "sdct-auto-test",
+                    "project-level-tag": "set-from-project"
+                  }
+                }
+              },
+              "depends_on": [
+                1,
+                2
+              ]
+            },
+            {
+              "index": 8,
+              "name": "appsync_modification",
+              "description": "Check if appsync configuration was updated",
+              "resources": {
+                "sdct-at-appsync": {
+                  "data_sources": [
+                    {
+                      "name": "table",
+                      "type": "AMAZON_DYNAMODB"
+                    }
+                  ],
+                  "resolvers": [
+                    {
+                      "type_name": "Post",
+                      "field_name": "id",
+                      "data_source_name": "table"
+                    }
+                  ],
+                  "functions": [
+                    {
+                      "name": "get_device",
+                      "data_source_name": "table"
+                    }
+                  ]
+                }
+              },
+              "depends_on": [
+                1,
+                2
+              ]
+            }
+          ]
+        }
+      ],
+      "depends_on": [
+        "deploy"
+      ]
+    },
+    "clean": {
+      "steps": [
+        {
+          "description": "Partial clean resources",
+          "command": [
+            "syndicate",
+            "clean",
+            "-resources",
+            "sdct-at-nodejs-lambda-role",
+            "-resources",
+            "sdct-at-nodejs-lambda",
+            "-resources",
+            "sdct-at-nodejs-lambda_layer",
+            "-resources",
+            "sdct-at-cup",
+            "-resources",
+            "sdct-at-api-gw",
+            "-resources",
+            "sdct-at-open-api-gw"
+          ],
+          "checks": [
+            {
+              "index": 1,
+              "name": "exit_code",
+              "description": "Check if actual status code equals expected",
+              "expected_exit_code": 0
+            },
+            {
+              "index": 2,
+              "name": "artifacts_existence",
+              "description": "Check if succeeded deployment output file exists in S3 bucket",
+              "succeeded_deploy": true,
+              "artifacts_list": [
+                "autotest.json"
+              ],
+              "depends_on": [
+                1
+              ]
+            },
+            {
+              "index": 3,
+              "name": "deployment_output",
+              "description": "Check if all resources present in succeeded deployment output",
+              "succeeded_deploy": true,
+              "resources": {
+                "sdct-at-lambda-basic-execution-policy": {
+                  "resource_type": "iam_policy"
+                },
+                "sdct-at-dynamic-aliases-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-java-lambda-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-appsync-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-java-lambda": {
+                  "resource_type": "lambda"
+                },
+                "sdct-at-java-lambda_layer": {
+                  "resource_type": "lambda_layer"
+                },
+                "sdct-at-dotnet-lambda-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-dotnet-lambda": {
+                  "resource_type": "lambda"
+                },
+                "sdct-at-dotnet-lambda_layer": {
+                  "resource_type": "lambda_layer"
+                },
+                "sdct-at-python-lambda-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-python-lambda": {
+                  "resource_type": "lambda"
+                },
+                "sdct-at-python-lambda_layer": {
+                  "resource_type": "lambda_layer"
+                },
+                "sdct-at-queue": {
+                  "resource_type": "sqs_queue"
+                },
+                "sdct-at-topic": {
+                  "resource_type": "sns_topic"
+                },
+                "sdct-at-table": {
+                  "resource_type": "dynamodb_table"
+                },
+                "sdct-at-reservation": {
+                  "resource_type": "dynamodb_table"
+                },
+                "sdct-at-cw-rule": {
+                  "resource_type": "cloudwatch_rule"
+                },
+                "sdct-at-s3-bucket": {
+                  "resource_type": "s3_bucket"
+                },
+                "sdct-at-swagger-ui": {
+                  "resource_type": "swagger_ui"
+                },
+                "sdct-at-appsync": {
+                  "resource_type": "appsync"
+                }
+              },
+              "depends_on": [
+                1,
+                2
+              ]
+            },
+            {
+              "index": 4,
+              "name": "deployment_output",
+              "description": "Check if resources are not present in deployment output",
+              "succeeded_deploy": true,
+              "reverse_check": true,
+              "resources": {
+                "sdct-at-nodejs-lambda-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-nodejs-lambda": {
+                  "resource_type": "lambda"
+                },
+                "sdct-at-nodejs-lambda_layer": {
+                  "resource_type": "lambda_layer"
+                },
+                "sdct-at-cup": {
+                  "resource_type": "cognito_idp"
+                },
+                "sdct-at-api-gw": {
+                  "resource_type": "api_gateway"
+                },
+                "sdct-at-open-api-gw": {
+                  "resource_type": "api_gateway_oas_v3"
+                }
+              },
+              "depends_on": [
+                1,
+                2
+              ]
+            },
+            {
+              "index": 5,
+              "name": "resource_existence",
+              "description": "Check if all resources present in account and were not deleted",
+              "resources": {
+                "sdct-at-lambda-basic-execution-policy": {
+                  "resource_type": "iam_policy"
+                },
+                "sdct-at-dynamic-aliases-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-java-lambda-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-appsync-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-java-lambda": {
+                  "resource_type": "lambda"
+                },
+                "sdct-at-java-lambda_layer": {
+                  "resource_type": "lambda_layer"
+                },
+                "sdct-at-dotnet-lambda-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-dotnet-lambda": {
+                  "resource_type": "lambda"
+                },
+                "sdct-at-dotnet-lambda_layer": {
+                  "resource_type": "lambda_layer"
+                },
+                "sdct-at-python-lambda-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-python-lambda": {
+                  "resource_type": "lambda"
+                },
+                "sdct-at-python-lambda_layer": {
+                  "resource_type": "lambda_layer"
+                },
+                "sdct-at-queue": {
+                  "resource_type": "sqs_queue"
+                },
+                "sdct-at-topic": {
+                  "resource_type": "sns_topic"
+                },
+                "sdct-at-table": {
+                  "resource_type": "dynamodb_table"
+                },
+                "sdct-at-reservation": {
+                  "resource_type": "dynamodb_table"
+                },
+                "sdct-at-cw-rule": {
+                  "resource_type": "cloudwatch_rule"
+                },
+                "sdct-at-s3-bucket": {
+                  "resource_type": "s3_bucket"
+                },
+                "sdct-at-swagger-ui": {
+                  "resource_type": "swagger_ui"
+                },
+                "sdct-at-appsync": {
+                  "resource_type": "appsync"
+                }
+              },
+              "depends_on": [
+                1,
+                2,
+                3
+              ]
+            },
+            {
+              "index": 6,
+              "name": "resource_existence",
+              "reverse_check": true,
+              "description": "Check if resources are not present in account",
+              "resources": {
+                "sdct-at-nodejs-lambda-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-nodejs-lambda": {
+                  "resource_type": "lambda"
+                },
+                "sdct-at-nodejs-lambda_layer": {
+                  "resource_type": "lambda_layer"
+                },
+                "sdct-at-cup": {
+                  "resource_type": "cognito_idp"
+                },
+                "sdct-at-api-gw": {
+                  "resource_type": "api_gateway"
+                },
+                "sdct-at-open-api-gw": {
+                  "resource_type": "api_gateway_oas_v3"
+                }
+              },
+              "depends_on": [
+                1,
+                2
+              ]
+            }
+          ]
+        },
+        {
+          "description": "Clean all remaining resources",
+          "command": [
+            "syndicate",
+            "clean"
+          ],
+          "checks": [
+            {
+              "index": 1,
+              "name": "exit_code",
+              "description": "Check if actual status code equals expected",
+              "expected_exit_code": 0
+            },
+            {
+              "index": 2,
+              "name": "artifacts_existence",
+              "description": "Check if succeeded deployment output file does not exist in S3 bucket",
+              "succeeded_deploy": true,
+              "reverse_check": true,
+              "artifacts_list": [
+                "autotest.json"
+              ],
+              "depends_on": [
+                1
+              ]
+            },
+            {
+              "index": 3,
+              "name": "resource_existence",
+              "reverse_check": true,
+              "description": "Check if all resources are not present in account",
+              "resources": {
+                "sdct-at-lambda-basic-execution-policy": {
+                  "resource_type": "iam_policy"
+                },
+                "sdct-at-dynamic-aliases-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-java-lambda-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-appsync-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-java-lambda": {
+                  "resource_type": "lambda"
+                },
+                "sdct-at-java-lambda_layer": {
+                  "resource_type": "lambda_layer"
+                },
+                "sdct-at-dotnet-lambda-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-dotnet-lambda": {
+                  "resource_type": "lambda"
+                },
+                "sdct-at-dotnet-lambda_layer": {
+                  "resource_type": "lambda_layer"
+                },
+                "sdct-at-python-lambda-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-python-lambda": {
+                  "resource_type": "lambda"
+                },
+                "sdct-at-python-lambda_layer": {
+                  "resource_type": "lambda_layer"
+                },
+                "sdct-at-queue": {
+                  "resource_type": "sqs_queue"
+                },
+                "sdct-at-topic": {
+                  "resource_type": "sns_topic"
+                },
+                "sdct-at-table": {
+                  "resource_type": "dynamodb_table"
+                },
+                "sdct-at-reservation": {
+                  "resource_type": "dynamodb_table"
+                },
+                "sdct-at-cw-rule": {
+                  "resource_type": "cloudwatch_rule"
+                },
+                "sdct-at-s3-bucket": {
+                  "resource_type": "s3_bucket"
+                },
+                "sdct-at-swagger-ui": {
+                  "resource_type": "swagger_ui"
+                },
+                "sdct-at-nodejs-lambda-role": {
+                  "resource_type": "iam_role"
+                },
+                "sdct-at-nodejs-lambda": {
+                  "resource_type": "lambda"
+                },
+                "sdct-at-nodejs-lambda_layer": {
+                  "resource_type": "lambda_layer"
+                },
+                "sdct-at-cup": {
+                  "resource_type": "cognito_idp"
+                },
+                "sdct-at-api-gw": {
+                  "resource_type": "api_gateway"
+                },
+                "sdct-at-open-api-gw": {
+                  "resource_type": "api_gateway_oas_v3"
+                },
+                "sdct-at-appsync": {
+                  "resource_type": "appsync"
+                }
+              },
+              "depends_on": [
+                1
+              ]
+            }
+          ]
+        }
+      ],
+      "depends_on": [
+        "build",
+        "deploy"
+      ]
+    }
+  }
+}

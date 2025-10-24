@@ -14,9 +14,10 @@
     limitations under the License.
 """
 import json
+import re
 import time
 from pathlib import PurePath
-from typing import Optional
+from typing import Optional, Dict
 
 from botocore.exceptions import ClientError
 
@@ -24,7 +25,7 @@ from syndicate.exceptions import ArtifactError, ResourceNotFoundError, \
     ParameterError, InvalidValueError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.connection.helper import retry
-from syndicate.core.build.bundle_processor import _build_output_key
+from syndicate.core.build.bundle_processor import load_latest_deploy_output
 from syndicate.core.build.meta_processor import S3_PATH_NAME
 from syndicate.core.constants import DEFAULT_LOGS_EXPIRATION, \
     DYNAMO_DB_TRIGGER, CLOUD_WATCH_RULE_TRIGGER, EVENT_BRIDGE_RULE_TRIGGER, \
@@ -51,10 +52,17 @@ LAMBDA_CONCUR_QUALIFIER_VERSION = 'VERSION'
 _LAMBDA_PROV_CONCURRENCY_QUALIFIERS = [LAMBDA_CONCUR_QUALIFIER_ALIAS,
                                        LAMBDA_CONCUR_QUALIFIER_VERSION]
 SNAP_START = 'snap_start'
-_APPLY_SNAP_START_VERSIONS = 'PublishedVersions'
-_APPLY_SNAP_START_NONE = 'None'
+_APPLY_SNAP_START_VERSIONS = 'publishedversions'
+_APPLY_SNAP_START_VERSIONS_SNAKE_CASE = 'published_versions'
+_APPLY_SNAP_START_NONE = 'none'
 _SNAP_START_CONFIGURATIONS = [_APPLY_SNAP_START_VERSIONS,
+                              _APPLY_SNAP_START_VERSIONS_SNAKE_CASE,
                               _APPLY_SNAP_START_NONE]
+_MIN_SNAP_START_SUPPORTED_RUNTIME = {
+    "python": (3, 12),
+    "java": (11,),
+    "dotnet": (8,)
+}
 
 NOT_AVAILABLE = 'N/A'
 
@@ -67,8 +75,8 @@ class LambdaResource(BaseResource):
 
     def __init__(self, lambda_conn, s3_conn, cw_logs_conn, sns_res, sns_conn,
                  iam_conn, dynamodb_conn, sqs_conn, kinesis_conn,
-                 cw_events_conn, cognito_idp_conn, region, account_id,
-                 deploy_target_bucket) -> None:
+                 cw_events_conn, cognito_idp_conn, rds_conn, region,
+                 account_id, deploy_target_bucket) -> None:
         self.lambda_conn = lambda_conn
         self.s3_conn = s3_conn
         self.cw_logs_conn = cw_logs_conn
@@ -80,6 +88,7 @@ class LambdaResource(BaseResource):
         self.kinesis_conn = kinesis_conn
         self.cw_events_conn = cw_events_conn
         self.cognito_idp_conn = cognito_idp_conn
+        self.rds_conn = rds_conn
         self.region = region
         self.account_id = account_id
         self.deploy_target_bucket = deploy_target_bucket
@@ -88,7 +97,13 @@ class LambdaResource(BaseResource):
             ('cognito_idp', 'id'):
                 self.cognito_idp_conn.if_pool_exists_by_name,
             ('cognito_idp', 'client_id'):
-                self.cognito_idp_conn.if_cup_client_exist
+                self.cognito_idp_conn.if_cup_client_exist,
+            ('rds_db_cluster', 'endpoint'):
+                self.rds_conn.get_db_cluster_endpoint,
+            ('rds_db_cluster', 'reader_endpoint'):
+                self.rds_conn.get_db_cluster_reader_endpoint,
+            ('rds_db_cluster', 'master_user_secret_name'):
+                self.rds_conn.get_db_cluster_master_user_secret_name
         }
 
     def qualifier_alias_resolver(self, lambda_def):
@@ -200,7 +215,10 @@ class LambdaResource(BaseResource):
             response = self.lambda_conn.get_function(lambda_name=name)
         if not response:
             return {}
-        arn = self.build_lambda_arn_with_alias(response, meta.get('alias'))
+
+        aliases = list(self.lambda_conn.get_aliases(name))
+        alias = aliases[0] if aliases else None
+        arn = self.build_lambda_arn_with_alias(response, alias)
 
         del response['Configuration']['FunctionArn']
         return {
@@ -513,6 +531,8 @@ class LambdaResource(BaseResource):
         if env_vars:
             self._resolve_env_variables(env_vars)
 
+        tracing_mode = meta.get('tracing_mode')
+
         _LOG.info(f'Updating lambda {name} configuration')
         self.lambda_conn.update_lambda_configuration(
             lambda_name=name, role=role_arn, handler=handler,
@@ -521,7 +541,8 @@ class LambdaResource(BaseResource):
             vpc_sub_nets=vpc_subnets, vpc_security_group=vpc_security_group,
             dead_letter_arn=dl_target_arn, layers=lambda_layers_arns,
             ephemeral_storage=ephemeral_storage,
-            snap_start=self._resolve_snap_start(meta=meta)
+            snap_start=self._resolve_snap_start(meta=meta),
+            tracing_mode=tracing_mode
         )
         _LOG.info(f'Lambda configuration has been updated')
 
@@ -1177,35 +1198,9 @@ class LambdaResource(BaseResource):
             func(self, name, arn, role_name, event_source)
 
     def update_lambda_triggers(self, name, arn, role_name, event_sources_meta):
-        from syndicate.core import CONFIG, PROJECT_STATE
-
-        # load latest output to compare it with current event sources
-        deploy_name = PROJECT_STATE.latest_deploy.get('deploy_name')
-        bundle_name = PROJECT_STATE.get_latest_deployed_or_updated_bundle(
-            PROJECT_STATE.current_bundle, latest_if_not_found=True)
-        if not bundle_name:
-            bundle_name = PROJECT_STATE.latest_modification.get('bundle_name')
-
-        regular_key_compound = PurePath(
-            CONFIG.deploy_target_bucket_key_compound,
-            _build_output_key(
-                bundle_name=bundle_name, deploy_name=deploy_name,
-                is_regular_output=True)).as_posix()
-
-        if self.s3_conn.is_file_exists(
-                CONFIG.deploy_target_bucket,
-                regular_key_compound):
-            key_compound = regular_key_compound
-        else:
-            key_compound = PurePath(
-                CONFIG.deploy_target_bucket_key_compound,
-                _build_output_key(
-                    bundle_name=bundle_name, deploy_name=deploy_name,
-                    is_regular_output=False)).as_posix()
-
-        output_file = self.s3_conn.load_file_body(
-            CONFIG.deploy_target_bucket, key_compound)
-        latest_output = json.loads(output_file)
+        _, latest_output = load_latest_deploy_output(
+            failsafe=True)
+        latest_output = latest_output or {}
 
         prev_event_sources_meta = []
         for resource in latest_output:
@@ -1408,9 +1403,9 @@ class LambdaResource(BaseResource):
         layers_list = self.lambda_conn.list_lambda_layer_versions(layer_name)
 
         try:
-            for arn in [layer['LayerVersionArn'] for layer in layers_list]:
-                layer_version = arn.split(':')[-1]
-                self.lambda_conn.delete_layer(arn, log_not_found_error=False)
+            for l_arn in [layer['LayerVersionArn'] for layer in layers_list]:
+                layer_version = l_arn.split(':')[-1]
+                self.lambda_conn.delete_layer(l_arn, log_not_found_error=False)
                 _LOG.info('Lambda layer {0} version {1} was removed.'.format(
                     layer_name, layer_version))
             return {arn: config}
@@ -1445,25 +1440,60 @@ class LambdaResource(BaseResource):
             arn: build_description_obj(response, name, meta)
         }
 
-    @staticmethod
-    def _resolve_snap_start(meta: dict) -> Optional[str]:
+    def _resolve_snap_start(self, meta: Dict[str, any]) -> Optional[str]:
         runtime: str = meta.get('runtime')
         if not runtime:
-            return
+            return None
 
         runtime = runtime.lower()
-        snap_start = meta.get(SNAP_START, None)
-        if snap_start and snap_start not in _SNAP_START_CONFIGURATIONS:
-            values = ', '.join(map('"{}"'.format, _SNAP_START_CONFIGURATIONS))
-            issue = f'must reflect one of the following values: {values}'
-            _LOG.warn(f'If given "{SNAP_START}" - {issue}.')
-            snap_start = None
+        snap_start = meta.get(SNAP_START)
+        if not snap_start:
+            return None
 
-        if snap_start and 'java' not in runtime:
-            _LOG.warn(f'"{runtime}" runtime does support \'{SNAP_START}\'.')
-            snap_start = None
+        if not isinstance(snap_start, str):
+            raise ParameterError(
+                f'Invalid SnapStart value in "{SNAP_START}". '
+                f'Expected a string, but got {type(snap_start).__name__}.'
+            )
 
-        return snap_start
+        if snap_start.lower() not in _SNAP_START_CONFIGURATIONS:
+            raise ParameterError(
+                f'Invalid SnapStart value in "{SNAP_START}". '
+                f'Expected one of these: published_versions, '
+                f'PublishedVersions, NONE. But got "{snap_start}".'
+            )
+
+        if not self.snap_start_supported_runtime(runtime):
+            supported_runtimes = ", ".join(
+                f"{k}{'.'.join(map(str, v))}+" for k, v in
+                _MIN_SNAP_START_SUPPORTED_RUNTIME.items()
+                )
+            raise ParameterError(
+                f'"{SNAP_START}" parameter is not available in runtime '
+                f'"{runtime}". Supported runtimes are: {supported_runtimes}'
+            )
+
+        return 'None' if snap_start.lower() == _APPLY_SNAP_START_NONE \
+            else 'PublishedVersions'
+
+    @staticmethod
+    def snap_start_supported_runtime(runtime: str) -> bool:
+        """
+        Splits runtime string into language and version parts
+        and checks if the runtime is supported for SnapStart.
+        """
+        match = re.match(r"([a-z]+)([\d.]+)", runtime)
+        if not match:
+            return False
+
+        lang, version_str = match.groups()
+        version_parts = tuple(int(v) for v in version_str.split('.'))
+
+        if lang not in _MIN_SNAP_START_SUPPORTED_RUNTIME:
+            return False
+
+        min_version = _MIN_SNAP_START_SUPPORTED_RUNTIME[lang]
+        return version_parts >= min_version
 
     @staticmethod
     def _resolve_batch_size_batch_window(trigger_meta):

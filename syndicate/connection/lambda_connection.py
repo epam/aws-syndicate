@@ -608,8 +608,9 @@ class LambdaConnection(object):
                                     vpc_security_group=None,
                                     env_vars=None, runtime=None,
                                     dead_letter_arn=None, kms_key_arn=None,
-                                    layers=None, ephemeral_storage=None,
-                                    snap_start: str = None):
+                                    layers=None, ephemeral_storage: int = None,
+                                    snap_start: str = None,
+                                    tracing_mode: str = None):
         params = dict(FunctionName=lambda_name)
         if ephemeral_storage:
             params['EphemeralStorage'] = {'Size': ephemeral_storage}
@@ -645,6 +646,14 @@ class LambdaConnection(object):
         if snap_start:
             params['SnapStart'] = {
                 'ApplyOn': snap_start
+            }
+        if not tracing_mode:
+            params['TracingConfig'] = {
+                'Mode': 'PassThrough'
+            }
+        else:
+            params['TracingConfig'] = {
+                'Mode': tracing_mode
             }
         return self.client.update_function_configuration(**params)
 

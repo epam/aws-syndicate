@@ -4,8 +4,81 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [1.17.1] - 2025-03-14
+# [1.18.4] - 2025-10-24
+- Fixed an issue when failed 'update' overrides latest_deploy in state file.
+- Fixed an issue when `syndicate build` reset indent to 0 in `appsync_config.json` file.
+- Added new resource name placeholder `$rn{}` to explicitly indicate the resource name part 
+(e.g., SQS queue URL: https://sqs.region.amazonaws.com/account_id/$rn{test_queue})
+- Fixed dynamic resource aliases resolving when extended prefix mode is enabled
+- Fix `syndicate test` command for python runtime in case the project path contains spaces
 - Fixed an API Gateway cleanup error triggered by insufficient permissions to retrieve the Lambda policy.
+
+# [1.18.3] - 2025-09-11
+- Fixed issue in the lambda function with the runtime Python template
+- Fixed issue with the command `syndicate --version`
+- Fixed issue with traceback displaying in case of running the `syndicate update` command in non-interactive mode without the '--force' flag
+
+# [1.18.2] - 2025-09-05
+- Added SQS queue to supported resource types for updating
+- Fixed an issue related to updating DynamoDB tables
+- Fixed an issue related to removing lambda layers from the output file after cleaning them
+- Fixed an issue that leads to the permanent warning in case of filtering resources by name during the `deploy`, `update`, and `clean` commands
+- Added information message with resource names to be processed to the user console log in case of filtering resources during the `deploy`, `update`, and `clean` commands
+- Added abortion of the `deploy`, `update`, and `clean` commands in case no resources to process after filtering
+- The Syndicate Java root pom template changed to use the Syndicate Java plugin version 1.17.1
+- The Java plugin version updated to 1.17.1 with changes:
+  - Added embedded documentation for annotations: @LambdaLayer`, `@LambdaUrlConfig`
+- Fixed displaying warning message about supported resource types to update only when non-supported types are specified
+
+# [1.18.1] - 2025-08-20
+- Added warning message in case the resource that was specified using parameter `-resources` is not found in the build meta during the `syndicate deploy/update/clean` command execution
+- Add `tracing_mode` parameter to the list of supported parameters to update
+- Added support of `snapstart` parameter in lambda resource for python 3.12+ and .NET 8+ runtimes
+- Added validation of incoming resource type for `deploy`, `update`, and `clean` commands
+- Moved `.syndicate` file location from project path to config path to avoid merging project states for different configurations within a single project
+- Java plugin version updated to 1.17.0 with changes:
+  - Changed `snapstart` parameter in Java plugin to produce the same meta as for Python and .NET runtimes
+  - Implemented thread-safe processing of the lambda function meta generation
+- Syndicate `generate lambda` template for Java runtime updated to use the Syndicate Java plugin version 1.17.0
+- Fixed an issue in the case of an attempt to create an IAM role that already exists
+
+# [1.18.0] - 2025-08-01
+- Added support for DynamoDB `OnDemandThroughput` limitation
+- Added support for `rds_db_cluster` resource
+- Added support for `rds_db_instance` resource
+- Added support for Lambda proxy integrations in API Gateway
+- Added caching for third-party libraries of lambdas (Python runtime) used in the project
+- Updated `boto3` and `botocore` to version 1.38.12
+- Updated `tqdm` to version 4.67.1
+- Updated `requests` to version 2.32.3
+- Removed the limitation on setuptools version
+- Changed the installation configuration from setup.py to pyproject.toml
+- Fixed prefix and suffix resolving in the list of ARNs
+- Fixed issue when the `commons` folder was overwritten after creating a new lambda
+- Added warning message if there are unresolved alias placeholders in resource metadata
+- Removed requirements.txt in favor of pyproject.toml
+- Fixed issue related to the API Gateway configuration merge conflicts
+- Fixed issue related to getting the list of available instance types
+- Changed CLI command and option naming convention from underscores to dashes for consistency. Underscore variants remain supported but are hidden from help output
+- Renamed `bundle-bucket-name` option to `deploy-target-bucket` in the command `syndicate generate project`. Deprecated parameter is still supported but hidden from help output
+- Added `-path` alias to all `--project-path` options in CLI commands
+- Enhanced the error message when the deploy target bucket is missing
+- Improved the error message in case of temporary credentials expiration
+- Removed unnecessary file sync with files in S3 bucket when invoking help message for nested CLI commands
+- Added support of `python 3.13`, `nodejs 22.x` lambda runtimes
+- Removed support of `python 3.8`, `nodejs 16.x` lambda runtimes
+- Changed the resolution flow of the deployment output file, so the latest deploy output file is used for update, continue deploy, and clean operations.
+
+# [1.17.1] - 2025-03-25
+- Changed `--force_upload` parameter type for assemble commands from `string` to `flag`
+- Fixed logic of `--force_upload` flag in assemble commands
+- Added `--force_upload` flag to `assemble_appsync` and `assemble_swagger_ui` commands
+- Fixed issue if the last deploy output file was deleted from the s3 bucket, and it would result that lambda triggers not being able to update
+- Fixed subnet group deletion during a DAX cluster cleaning
+- Fixed records duplication in the deployment output in case of deployment after changing `lambda` `alias` name and existence of the lambda
+- Fixed dynamic setting of active API link in Swagger UI json file
+- Adjusted the logic of `--clean_externals` parameter in `syndicate clean` command to clean not only external resources 
+but all filtered resources plus external resources which fit the filters
 
 # [1.17.0] - 2025-03-03
 - Added the possibility to generate meta for the resources `firehose` and `eventbridge_schedule`
@@ -33,7 +106,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 # [1.16.1] - 2025-01-21
 - Added sync project state to the project state initialization
 - Fixed an issue related to `build_project_mapping` resolving for `appsync`, `swagger_ui`, and `lambda` functions with runtime .NET  resources
-- Separated parameters required to execute maven commands for Windows and for other operating systems
+- Fixed issue with building java artifacts for Unix OS
 
 # [1.16.0] - 2025-01-14
 - Added support for the AppSync resource

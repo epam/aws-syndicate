@@ -19,7 +19,7 @@ from pathlib import Path
 
 from syndicate.exceptions import InvalidValueError
 from syndicate.commons.log_helper import get_logger, get_user_logger
-from syndicate.core import ProjectState
+from syndicate.core import ProjectState, CONF_PATH
 from syndicate.core.project_state.project_state import BUILD_MAPPINGS
 from syndicate.core.generators import (_touch,
                                        _mkdir, _write_content_to_file,
@@ -140,9 +140,8 @@ def generate_lambda_function(project_path, runtime, lambda_names, tags):
                       f'have provided does not exist')
         return
 
-    if not ProjectState.check_if_project_state_exists(
-            project_path=project_path):
-        USER_LOG.info(f'Seems that the path {project_path} is not a project')
+    if not ProjectState.check_if_project_state_exists(CONF_PATH):
+        USER_LOG.info(f'State file does not exist in {CONF_PATH}')
         return
     project_state = ProjectState(project_path=project_path)
     src_path = os.path.join(project_path, BUILD_MAPPINGS[runtime])
@@ -186,9 +185,8 @@ def generate_lambda_layer(name, runtime, project_path, lambda_names=None):
                       f'have provided does not exist')
         return
 
-    if not ProjectState.check_if_project_state_exists(
-            project_path=project_path):
-        USER_LOG.info(f'Seems that the path {project_path} is not a project')
+    if not ProjectState.check_if_project_state_exists(CONF_PATH):
+        USER_LOG.info(f'State file does not exist in {CONF_PATH}')
         return
     project_state = ProjectState(project_path=project_path)
     src_path = os.path.join(project_path, BUILD_MAPPINGS[runtime])
@@ -690,22 +688,26 @@ def _common_python_module(src_path):
     _mkdir(path=common_module_path, exist_ok=True)
 
     init_path = os.path.join(common_module_path, '__init__.py')
-    _touch(init_path)
-    _write_content_to_file(file=init_path, content=INIT_CONTENT)
+    if not os.path.exists(init_path):
+        _touch(init_path)
+        _write_content_to_file(file=init_path, content=INIT_CONTENT)
 
     abstract_lambda_path = os.path.join(common_module_path,
                                         'abstract_lambda.py')
-    _touch(path=abstract_lambda_path)
-    _write_content_to_file(file=abstract_lambda_path,
-                           content=ABSTRACT_LAMBDA_CONTENT)
+    if not os.path.exists(abstract_lambda_path):
+        _touch(path=abstract_lambda_path)
+        _write_content_to_file(file=abstract_lambda_path,
+                               content=ABSTRACT_LAMBDA_CONTENT)
 
     logger_path = os.path.join(common_module_path, 'log_helper.py')
-    _touch(path=logger_path)
-    _write_content_to_file(file=logger_path, content=LOG_HELPER_CONTENT)
+    if not os.path.exists(logger_path):
+        _touch(path=logger_path)
+        _write_content_to_file(file=logger_path, content=LOG_HELPER_CONTENT)
 
-    exception_path = os.path.join(common_module_path, 'exception.py')
-    _touch(path=exception_path)
-    _write_content_to_file(file=exception_path, content=EXCEPTION_CONTENT)
+    exception_path = os.path.join(common_module_path, 'exceptions.py')
+    if not os.path.exists(exception_path):
+        _touch(path=exception_path)
+        _write_content_to_file(file=exception_path, content=EXCEPTION_CONTENT)
 
 
 def resolve_lambda_path(project: Path, runtime: str, source: str) -> Path:

@@ -47,6 +47,7 @@ LEGACY_ALIASES_FILE_NAME = 'sdct_aliases.conf'
 _LOG = get_logger(__name__)
 
 GLOBAL_AWS_SERVICES = {IAM_ROLE, IAM_POLICY, S3_BUCKET_TYPE}
+GLOBAL_AWS_SERVICE_PREFIXES = {'role/', 'policy/', 'user/', 'group/'}
 
 DEFAULT_LOCK_TIME_IN_MINUTES = 20
 
