@@ -76,7 +76,7 @@ from syndicate.core.constants import TEST_ACTION, BUILD_ACTION, \
     UNDERSCORE_CREATE_DEPLOY_TARGET_BUCKET_ACTION, \
     DEPLOY_RESOURCE_TYPE_PRIORITY, CLEAN_RESOURCE_TYPE_PRIORITY
 from syndicate.core.groups import TESTS_DIR_LOCATIONS, RUNTIME_JAVA, RUNTIME_PYTHON, RUNTIME_NODEJS, \
-    RUNTIME_DOTNET, RUNTIME_SWAGGER_UI, RUNTIME_APPSYNC
+    RUNTIME_DOTNET, RUNTIME_SWAGGER_UI, RUNTIME_APPSYNC, PYTHON_ROOT_DIR_PYAPP
 from syndicate.exceptions import ProjectStateError
 from syndicate import __version__
 
@@ -138,7 +138,7 @@ def syndicate():
                    'pytest, nose. Default value: unittest')
 @click.option('--test-folder-name',
               cls=MultiWordOption, nargs=1,
-              default=None,
+              default="tests",
               help='Directory in the project that contains tests to run. '
                    'Default folder: tests')
 @click.option('--errors-allowed',
@@ -164,38 +164,30 @@ def test(suite, test_folder_name, errors_allowed, skip_tests):
     
     PROJECT_STATE.refresh_state()
     project_path = CONFIG.project_path
+    build_mapping = PROJECT_STATE.load_project_build_mapping()
 
-    if not test_folder_name:
-        build_mapping = PROJECT_STATE.load_project_build_mapping()
-        if not build_mapping:
-            USER_LOG.error(
-                "Any project is not setup in the project for testing. "
-                "Please check the project present in the project."
-            )
-            return ABORTED_RETURN_CODE
+    if not build_mapping or not build_mapping.get(RUNTIME_PYTHON):
+        msg = f"No Python runtime found in '{project_path}'. Skipping tests..."
+        USER_LOG.info(msg)
+        return OK_RETURN_CODE
 
-        python_root_dir = build_mapping.get(RUNTIME_PYTHON)
-        if not python_root_dir:
-            USER_LOG.error(
-                "Python not setup in the project for testing. "
-                "Please check the python present in the project."
-            )
-            return ABORTED_RETURN_CODE
+    python_root_dir = build_mapping[RUNTIME_PYTHON]
+    test_folder_location = TESTS_DIR_LOCATIONS[python_root_dir]
 
-        test_folder_name = TESTS_DIR_LOCATIONS[python_root_dir]
+    test_folder_location_path = os.path.join(project_path, test_folder_location)
+    test_folder_path = os.path.join(test_folder_location_path, test_folder_name)
 
-    test_folder = os.path.join(project_path, test_folder_name)
-
-    if not os.path.exists(test_folder):
+    if not os.path.exists(test_folder_path):
         msg = (
-            f'Tests not found, \'{test_folder_name}\' folder is missing in '
-            f'\'{project_path}\'.'
+            f"Python runtime found but tests not found, '{test_folder_name}' "
+            f"folder is missing in '{test_folder_location_path}'. "
+            "Skipping tests..."
         )
         USER_LOG.warning(msg)
         return OK_RETURN_CODE
 
     test_lib_command_mapping = {
-        'unittest': f'"{sys.executable}" -m unittest discover "{test_folder}" -v',
+        'unittest': f'"{sys.executable}" -m unittest discover "{test_folder_path}" -v',
         'pytest': 'pytest --no-header -v',
         'nose': 'nosetests --verbose'
     }

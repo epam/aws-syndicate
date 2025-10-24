@@ -41,6 +41,6 @@ DEFAULT_RUNTIME_VERSION = {
 }
 
 TESTS_DIR_LOCATIONS = {
-    PYTHON_ROOT_DIR_SRC: 'tests',
-    PYTHON_ROOT_DIR_PYAPP: 'pyapp/tests',
+    PYTHON_ROOT_DIR_SRC: '',
+    PYTHON_ROOT_DIR_PYAPP: 'pyapp',
 }
