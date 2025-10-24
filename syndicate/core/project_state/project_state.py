@@ -34,7 +34,8 @@ from syndicate.core.constants import DATE_FORMAT_ISO_8601
 from syndicate.core.groups import RUNTIME_JAVA, RUNTIME_NODEJS, RUNTIME_PYTHON, \
     RUNTIME_SWAGGER_UI, RUNTIME_DOTNET, RUNTIME_APPSYNC, JAVA_ROOT_DIR_JAPP, \
     NODEJS_ROOT_DIR, PYTHON_ROOT_DIR_PYAPP, DOTNET_ROOT_DIR, \
-    SWAGGER_UI_ROOT_DIR, APPSYNC_ROOT_DIR, JAVA_ROOT_DIR_JSRC
+    SWAGGER_UI_ROOT_DIR, APPSYNC_ROOT_DIR, JAVA_ROOT_DIR_JSRC, \
+    PYTHON_ROOT_DIR_SRC
 
 CAPITAL_LETTER_REGEX = '[A-Z][^A-Z]*'
 
@@ -61,6 +62,11 @@ BUILD_MAPPINGS = {
     RUNTIME_DOTNET: DOTNET_ROOT_DIR,
     RUNTIME_SWAGGER_UI: SWAGGER_UI_ROOT_DIR,
     RUNTIME_APPSYNC: APPSYNC_ROOT_DIR
+}
+
+LEGACY_BUILD_MAPPINGS = {
+    RUNTIME_JAVA: JAVA_ROOT_DIR_JSRC,
+    RUNTIME_PYTHON: PYTHON_ROOT_DIR_SRC
 }
 
 OPERATION_LOCK_MAPPINGS = {
@@ -388,17 +394,85 @@ class ProjectState:
         if _persistence_need:
             self.save()
 
+    def _check_legacy_path(
+        self, 
+        runtime: str, 
+        current_path: Path,
+    ) -> tuple[Path, list]:
+        """
+        Check legacy path structure for lambdas if none found in current path.
+        :param runtime: Runtime type
+        :param current_path: Current path being checked
+        :return: Tuple of (path, lambdas_list)
+        """
+        from syndicate.core.generators.lambda_function import resolve_lambda_path
+        
+        if runtime not in LEGACY_BUILD_MAPPINGS:
+            return current_path, []
+            
+        legacy_runtime_root_dir = LEGACY_BUILD_MAPPINGS[runtime]
+        legacy_path = resolve_lambda_path(
+            Path(self.project_path), runtime, legacy_runtime_root_dir
+        )
+        
+        if os.path.exists(legacy_path):
+            _LOG.info(
+                f'No {runtime} lambdas found in the {BUILD_MAPPINGS[runtime]!r} '
+                f'dir. Checking the {legacy_runtime_root_dir!r} dir for '
+                f'{runtime} lambdas.'
+            )
+            lambdas = self._resolve_lambdas_from_path(legacy_path, runtime)
+            _LOG.info(
+                f'Found the following {runtime} lambdas in the '
+                f'{legacy_runtime_root_dir!r} dir: {lambdas}.'
+            )
+            return legacy_path, lambdas
+            
+        return current_path, []
+
+    def _add_build_mapping_for_runtime(
+        self, 
+        runtime: str, 
+        path: Path, 
+        lambdas: list,
+    ) -> None:
+        """
+        Add build mapping based on runtime and path structure.
+        :param runtime: Runtime type
+        :param path: Current path
+        :param lambdas: List of found lambdas
+        """
+        if not lambdas:
+            return
+
+        if runtime in LEGACY_BUILD_MAPPINGS:
+            legacy_runtime_root_dir = LEGACY_BUILD_MAPPINGS[runtime]
+            actual_runtime_root_dir = BUILD_MAPPINGS[runtime]
+            path_as_posix = path.as_posix()
+
+            is_legacy_path = (
+                legacy_runtime_root_dir in path_as_posix and 
+                actual_runtime_root_dir not in path_as_posix
+            )
+            
+            if is_legacy_path:
+                self.add_project_build_mapping(
+                    runtime,
+                    build_mapping=legacy_runtime_root_dir,
+                )
+            else:
+                self.add_project_build_mapping(runtime)
+        else:
+            self.add_project_build_mapping(runtime)
+
     def _update_lambdas_from_path(self, path: Union[str, Path], runtime: str):
         """
         Non persistently updates ProjectState runtime and
         any found lambdas from a given path.
-        :parameter path:Path
+        :parameter path: Path
         :parameter runtime: str
         :return: List
         """
-        from syndicate.core.generators.lambda_function import \
-            resolve_lambda_path
-
         try:
             path = path if isinstance(path, Path) else Path(path)
         except (TypeError, Exception):
@@ -407,41 +481,20 @@ class ProjectState:
 
         _LOG.info(f'Going to resolve any lambda names from a given path: '
                   f'{path.absolute()}.')
-        _lambdas: list = self._resolve_lambdas_from_path(path, runtime)
+        
+        lambdas = self._resolve_lambdas_from_path(path, runtime)
+        
+        if not lambdas:
+            path, lambdas = self._check_legacy_path(runtime, path)
 
-        if not _lambdas and runtime == RUNTIME_JAVA:
-            # in case of java lambdas presence in the old path structure
-            # we need to check the old path structure for java lambdas
-            path = resolve_lambda_path(
-                Path(self.project_path), RUNTIME_JAVA, JAVA_ROOT_DIR_JSRC
-            )
-            if os.path.exists(path):
-                _LOG.info(
-                    f'No java lambdas found in the {JAVA_ROOT_DIR_JAPP} '
-                    f'dir. Checking the {JAVA_ROOT_DIR_JSRC} dir for '
-                    'java lambdas.'
-                )
-                _lambdas = self._resolve_lambdas_from_path(path,
-                                                           RUNTIME_JAVA)
-                _LOG.info(
-                    'Found the following java lambdas in the '
-                    f'{JAVA_ROOT_DIR_JSRC} dir: {_lambdas}. '
-                )
-
-        for name in _lambdas:
+        for name in lambdas:
             _LOG.info(f'Going to add the following \'{runtime}\' lambda:'
                       f'\'{name}\' to the pending ProjectState.')
             self.add_lambda(lambda_name=name, runtime=runtime)
-        if _lambdas:
-            # if path endwith the new java root dir we need to add mapping
-            is_java_runtime = runtime == RUNTIME_JAVA
-            is_java_root_dir_old = JAVA_ROOT_DIR_JSRC in path.as_posix()
-
-            if is_java_runtime and is_java_root_dir_old:
-                self.add_project_build_mapping(runtime, build_mapping=JAVA_ROOT_DIR_JSRC)
-            else:
-                self.add_project_build_mapping(runtime)
-        return _lambdas
+        
+        self._add_build_mapping_for_runtime(runtime, path, lambdas)
+        
+        return lambdas
 
     def add_lambda(self, lambda_name, runtime):
         lambdas = self.dct.get(STATE_LAMBDAS)
@@ -642,7 +695,7 @@ class ProjectState:
         self.save()
 
     @staticmethod
-    def build_from_structure(config):
+    def build_from_structure(config: "ProjectState"):
         """Builds project state file from existing project folder in case of
         moving from older versions
         :type config: syndicate.core.conf.processor.ConfigHolder
@@ -655,9 +708,9 @@ class ProjectState:
             project_path=absolute_path, project_name=project_path.name
         )
 
-        for runtime, runtime_root_path in BUILD_MAPPINGS.items():
+        for runtime, runtime_root_dir in BUILD_MAPPINGS.items():
             lambdas_path = resolve_lambda_path(
-                project_path, runtime, runtime_root_path
+                project_path, runtime, runtime_root_dir
             )
             if os.path.exists(lambdas_path):
                 project_state._update_lambdas_from_path(lambdas_path, runtime)
