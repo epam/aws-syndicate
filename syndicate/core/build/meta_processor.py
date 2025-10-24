@@ -43,7 +43,7 @@ from syndicate.core.constants import (API_GATEWAY_TYPE, ARTIFACTS_FOLDER,
                                       SWAGGER_UI_CONFIG_FILE_NAME,
                                       TAGS_RESOURCE_TYPE_CONFIG)
 from syndicate.core.generators.contents import FILE_POM
-from syndicate.core.groups import JAVA_ROOT_DIR_JAPP
+from syndicate.core.groups import JAVA_ROOT_DIR_JAPP, RUNTIME_JAVA
 from syndicate.core.helper import (build_path, prettify_json,
                                    resolve_aliases_for_string,
                                    write_content_to_file, validate_tags)
@@ -531,6 +531,7 @@ def _resolve_name_in_arn(arn, old_value, new_value):
 
 def create_meta(project_path: str, bundle_name: str) -> None:
     from syndicate.core.build.runtime.java import safe_resolve_mvn_path
+    from syndicate.core import PROJECT_STATE
 
     # create overall meta.json with all resource meta info
     meta_path = build_path(project_path, ARTIFACTS_FOLDER,
@@ -541,34 +542,38 @@ def create_meta(project_path: str, bundle_name: str) -> None:
     bundle_dir = resolve_bundle_directory(bundle_name=bundle_name)
     write_content_to_file(bundle_dir, BUILD_META_FILE_NAME, overall_meta)
 
-    # remove Java runtime temporary files
-    mvn_path = safe_resolve_mvn_path()
-    mvn_clean_command = [mvn_path, 'clean']
+    PROJECT_STATE.refresh_state()
+    build_mapping_dict = PROJECT_STATE.load_project_build_mapping()
+    is_java_exists = RUNTIME_JAVA in build_mapping_dict
 
-    java_root_path_japp = build_path(project_path, JAVA_ROOT_DIR_JAPP)
-    java_root_path_japp_pom = build_path(java_root_path_japp, FILE_POM)
-    project_path_pom = build_path(project_path, FILE_POM)
+    if is_java_exists:
+        mvn_path = safe_resolve_mvn_path()
+        mvn_clean_command = [mvn_path, 'clean']
 
-    if os.path.exists(java_root_path_japp_pom):
-        execute_command_by_path(
-            command=mvn_clean_command,
-            path=java_root_path_japp,
-            shell=False
-        )
-        _LOG.info(
-            f"Cleaned up the Java project in {JAVA_ROOT_DIR_JAPP!r} "
-            f"after building"
-        )
-    elif os.path.exists(project_path_pom):
-        execute_command_by_path(
-            command=mvn_clean_command,
-            path=project_path,
-            shell=False
-        )
-        _LOG.info(
-            "Cleaned up the Java project in the base project directory "
-            "after building"
-        )
+        java_root_path_japp = build_path(project_path, JAVA_ROOT_DIR_JAPP)
+        java_root_path_japp_pom = build_path(java_root_path_japp, FILE_POM)
+        project_path_pom = build_path(project_path, FILE_POM)
+
+        if os.path.exists(java_root_path_japp_pom):
+            execute_command_by_path(
+                command=mvn_clean_command,
+                path=java_root_path_japp,
+                shell=False
+            )
+            _LOG.info(
+                f"Cleaned up the Java project in {JAVA_ROOT_DIR_JAPP!r} "
+                f"after building"
+            )
+        elif os.path.exists(project_path_pom):
+            execute_command_by_path(
+                command=mvn_clean_command,
+                path=project_path,
+                shell=False
+            )
+            _LOG.info(
+                "Cleaned up the Java project in the base project directory "
+                "after building"
+            )
 
 
 def resolve_meta(overall_meta):
