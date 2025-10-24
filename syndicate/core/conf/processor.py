@@ -255,7 +255,6 @@ class ConfigHolder:
     @property
     def build_projects_mapping(self):
         mapping_value = self._resolve_variable(PROJECTS_MAPPING_CFG)
-        print(f"mapping_value: {mapping_value}")
         if type(mapping_value) == dict:
             return mapping_value
         if mapping_value:
