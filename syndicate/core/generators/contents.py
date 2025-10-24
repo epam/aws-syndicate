@@ -15,20 +15,20 @@
 """
 import json
 
-from syndicate.core.build.artifact_processor import RUNTIME_NODEJS, \
-    RUNTIME_DOTNET
 from syndicate.core.conf.validator import (
     LAMBDAS_ALIASES_NAME_CFG, LOGS_EXPIRATION
 )
 from syndicate.core.generators import (_alias_variable,
                                        FILE_LAMBDA_HANDLER_NODEJS)
-from syndicate.core.groups import DEFAULT_RUNTIME_VERSION
+from syndicate.core.groups import DEFAULT_RUNTIME_VERSION, RUNTIME_PYTHON, \
+    RUNTIME_NODEJS, RUNTIME_DOTNET, PYTHON_ROOT_DIR_PYAPP
+from syndicate.core.constants import DEFAULT_JSON_INDENT
 
 POLICY_LAMBDA_BASIC_EXECUTION = "lambda-basic-execution"
 
 LAMBDA_ROLE_NAME_PATTERN = '{0}-role'  # 0 - lambda_name
 
-SRC_MAIN_JAVA = 'jsrc/main/java'
+SRC_MAIN_JAVA = 'src/main/java'
 FILE_POM = 'pom.xml'
 CANCEL_MESSAGE = 'Creating of {} has been canceled.'
 
@@ -88,8 +88,8 @@ JAVA_ROOT_POM_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <src.dir>jsrc/main/java</src.dir>
-        <resources.dir>jsrc/main/resources</resources.dir>
+        <src.dir>src/main/java</src.dir>
+        <resources.dir>src/main/resources</resources.dir>
     </properties>
 
     <dependencies>
@@ -122,6 +122,7 @@ JAVA_ROOT_POM_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
                 <configuration>
                     <packages>
                         <!--packages to scan-->
+                        <package>{java_package_name}</package>
                     </packages>
                     <fileName>${project.name}-${project.version}.jar</fileName>
                 </configuration>
@@ -504,27 +505,27 @@ class ImportFromSourceContext:
 """
 
 PYTHON_TESTS_INIT_LAMBDA_TEMPLATE = \
-"""import unittest
+f"""import unittest
 import importlib
-from tests import ImportFromSourceContext
+from {PYTHON_ROOT_DIR_PYAPP}.tests import ImportFromSourceContext
 
 with ImportFromSourceContext():
-    LAMBDA_HANDLER = importlib.import_module('lambdas.{lambda_name}.handler')
+    LAMBDA_HANDLER = importlib.import_module('lambdas.{{lambda_name}}.handler')
 
 
-class {camel_lambda_name}LambdaTestCase(unittest.TestCase):
+class {{camel_lambda_name}}LambdaTestCase(unittest.TestCase):
     \"\"\"Common setups for this lambda\"\"\"
 
     def setUp(self) -> None:
-        self.HANDLER = LAMBDA_HANDLER.{camel_lambda_name}()
+        self.HANDLER = LAMBDA_HANDLER.{{camel_lambda_name}}()
 
 """
 
 PYTHON_TESTS_BASIC_TEST_CASE_TEMPLATE = \
-"""from tests.{test_lambda_folder} import {camel_lambda_name}LambdaTestCase
+f"""from {PYTHON_ROOT_DIR_PYAPP}.tests.{{test_lambda_folder}} import {{camel_lambda_name}}LambdaTestCase
 
 
-class TestSuccess({camel_lambda_name}LambdaTestCase):
+class TestSuccess({{camel_lambda_name}}LambdaTestCase):
 
     def test_success(self):
         self.assertEqual(self.HANDLER.handle_request(dict(), dict()), 200)
@@ -593,7 +594,7 @@ LOCAL_REQUIREMENTS_FILE_CONTENT = '# local requirements'
 
 
 def _stringify(dict_content):
-    return json.dumps(dict_content, indent=2)
+    return json.dumps(dict_content, indent=DEFAULT_JSON_INDENT)
 
 
 def _generate_python_node_lambda_config(lambda_name, lambda_relative_path,
@@ -604,7 +605,7 @@ def _generate_python_node_lambda_config(lambda_name, lambda_relative_path,
         'func_name': 'handler.lambda_handler',
         'resource_type': 'lambda',
         'iam_role_name': LAMBDA_ROLE_NAME_PATTERN.format(lambda_name),
-        'runtime': 'python3.10',
+        'runtime': DEFAULT_RUNTIME_VERSION[RUNTIME_PYTHON],
         'memory': 128,
         'timeout': 100,
         'lambda_path': lambda_relative_path,
@@ -631,7 +632,7 @@ def _generate_python_node_layer_config(layer_name, runtime):
         ],
         "deployment_package": f"{layer_name}_layer.zip"
     }
-    if runtime in RUNTIME_DOTNET:
+    if runtime in DEFAULT_RUNTIME_VERSION[RUNTIME_DOTNET]:
         layer_template["custom_packages"] = []
     return _stringify(layer_template)
 
@@ -667,7 +668,7 @@ def _generate_nodejs_node_lambda_config(lambda_name, lambda_relative_path,
         'func_name': f'lambdas/{lambda_name}/index.handler',
         'resource_type': 'lambda',
         'iam_role_name': LAMBDA_ROLE_NAME_PATTERN.format(lambda_name),
-        'runtime': RUNTIME_NODEJS,
+        'runtime': DEFAULT_RUNTIME_VERSION[RUNTIME_NODEJS],
         'memory': 128,
         'timeout': 100,
         'lambda_path': lambda_relative_path,
@@ -713,7 +714,7 @@ def _generate_dotnet_lambda_config(lambda_name, lambda_relative_path, tags):
         'func_name': 'SimpleLambdaFunction::SimpleLambdaFunction.Function::FunctionHandler',
         'resource_type': 'lambda',
         'iam_role_name': LAMBDA_ROLE_NAME_PATTERN.format(lambda_name),
-        'runtime': RUNTIME_DOTNET,
+        'runtime': DEFAULT_RUNTIME_VERSION[RUNTIME_DOTNET],
         'memory': 128,
         'timeout': 100,
         'lambda_path': lambda_relative_path,

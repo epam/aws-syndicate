@@ -1,31 +1,9 @@
 {
-  "sdct-at-lambda-execution-policy": {
-    "policy_content": {
-      "Statement": [
-        {
-          "Action": [
-            "logs:CreateLogGroup",
-            "logs:CreateLogStream",
-            "logs:PutLogEvents",
-            "sts:AssumeRole"
-          ],
-          "Effect": "Allow",
-          "Resource": "*"
-        }
-      ],
-      "Version": "2012-10-17"
-    },
-    "resource_type": "iam_policy",
-    "tags": {
-      "tests": "smoke",
-      "project": "sdct-auto-test"
-    }
-  },
-  "sdct-at-lambda-role": {
-    "predefined_policies": [],
+  "sdct-at-python-lambda-role": {
+    "predefined_policies": ["AWSLambdaSQSQueueExecutionRole"],
     "principal_service": "lambda",
     "custom_policies": [
-      "sdct-at-lambda-execution-policy"
+      "sdct-at-lambda-basic-execution-policy"
     ],
     "resource_type": "iam_role",
     "tags": {

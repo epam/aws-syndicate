@@ -1,4 +1,39 @@
 {
+  "sdct-at-lambda-basic-execution-policy": {
+    "policy_content": {
+      "Statement": [
+        {
+          "Action": [
+            "logs:CreateLogGroup",
+            "logs:CreateLogStream",
+            "logs:PutLogEvents",
+            "dynamodb:GetItem",
+            "dynamodb:Query",
+            "dynamodb:PutItem",
+            "dynamodb:Batch*",
+            "dynamodb:DeleteItem",
+            "ssm:PutParameter",
+            "ssm:GetParameter",
+            "kms:Decrypt",
+            "dynamodb:GetRecords",
+            "dynamodb:GetShardIterator",
+            "dynamodb:DescribeStream",
+            "dynamodb:ListStreams",
+            "sts:AssumeRole"
+          ],
+          "Effect": "Allow",
+          "Resource": "*"
+        }
+      ],
+      "Version": "2012-10-17"
+    },
+    "resource_type": "iam_policy",
+    "tags": {
+      "tests": "smoke",
+      "project": "sdct-auto-test",
+      "project-level-tag": "set-from-resource"
+    }
+  },
   "sdct-at-batch-job-role": {
     "resource_type": "iam_role",
     "predefined_policies": [
@@ -126,6 +161,27 @@
     "threshold": 1.0,
     "comparison_operator": "GreaterThanOrEqualToThreshold",
     "statistic": "SampleCount",
+    "tags": {
+      "tests": "smoke",
+      "project": "sdct-auto-test"
+    }
+  },
+  "sdct-at-java-lambda-role": {
+    "predefined_policies": [],
+    "principal_service": "lambda",
+    "custom_policies": [
+      "sdct-at-lambda-basic-execution-policy"
+    ],
+    "resource_type": "iam_role",
+    "tags": {
+      "tests": "smoke",
+      "project": "sdct-auto-test"
+    }
+  },
+  "sdct-at-cw-rule": {
+    "resource_type": "cloudwatch_rule",
+    "rule_type": "schedule",
+    "expression": "rate(1 minute)",
     "tags": {
       "tests": "smoke",
       "project": "sdct-auto-test"

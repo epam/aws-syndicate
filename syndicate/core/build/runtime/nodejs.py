@@ -53,14 +53,18 @@ def _copy_js_files(search_path, destination_path):
             shutil.copy2(js_file, destination_path)
 
 
-def assemble_node_lambdas(project_path, bundles_dir, **kwargs):
+def assemble_node_lambdas(
+    runtime_root_dir: str, 
+    bundles_dir: str, 
+    **kwargs
+) -> None:
     from syndicate.core import CONFIG
-    project_abs_path = Path(CONFIG.project_path, project_path)
-    _LOG.info(f'Going to package lambdas starting by path {project_abs_path}')
+    runtime_abs_path = Path(CONFIG.project_path, runtime_root_dir)
+    _LOG.info(f'Going to package lambdas starting by path {runtime_abs_path}')
     _check_npm_is_installed()
     executor = ThreadPoolExecutor(max_workers=5)
     futures = []
-    for root, sub_dirs, files in os.walk(project_abs_path):
+    for root, _, files in os.walk(runtime_abs_path):
         for item in files:
             if item.endswith(LAMBDA_CONFIG_FILE_NAME):
                 _LOG.info(f'Going to build artifact in: {root}')
