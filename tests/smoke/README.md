@@ -114,7 +114,15 @@ Afterwards, the original configs return the original content. Example:
           ],
           "depends_on": ["$ANOTHER_STAGE_NAME"]
         }
-      ]
+      ],
+      "update_content": {
+        "lambda_paths": [
+          "path/to/lambda/to/update"
+        ],
+        "appsync_path": [
+          "path/to/appsync/to/update"
+        ]
+      }
     }
   }
 }
@@ -124,8 +132,11 @@ Afterwards, the original configs return the original content. Example:
 - `init_parameters`: Section where you can specify all the additional parameters that are needed to run the tests. For example: the name of the output file, etc.
 - `stages`: Section with a description of each stage.
   - `$STAGE_NAME`: Related to the syndicate command name to check. Should be clear for further processing of the resulting JSON.
-    - `steps`: Section with a description of each step of the stage. 
     - `depends_on`: The list of stage names, the result of which determines the execution of the current one. If at least one stage from the list fails, then the current stage will not execute.
+    - `update_content`: Defines the Lambda and AppSync resources to be updated during the step execution; applicable only when running the `syndicate update` command. The path should contain both regular `lambda_config.json`/`appsync_config.json` files and their corresponding updated versions named `lambda_config_updated.json`/`appsync_config_updated.json`.
+      - `lambda_paths`: List of paths to the Lambda resources to be updated.
+      - `appsync_path`: List of paths to the AppSync resources to be updated.
+    - `steps`: Section with a description of each step of the stage. 
     - `description`: Humanreadable command description.
     - `command`: List with the command plus command line arguments. Here are some default arguments for some commands that are automatically added:
       - `build` - ["--bundle-name", "$BUNDLE_NAME", "--deploy-name", "$DEPLOY_NAME"]
