@@ -17,11 +17,11 @@ from commons.handlers import HANDLERS_MAPPING
 from commons.utils import UpdateContent
 
 
-def process_steps(steps: dict[str: List[dict]],
+def process_steps(stage_info: dict[str: List[dict]],
                   verbose: Optional[bool] = False, skip_stage: bool = False,
                   **kwargs):
     result = []
-    for step in steps[STEPS_CONFIG_PARAM]:
+    for step in stage_info[STEPS_CONFIG_PARAM]:
         verifications = {}
         step_description = step.get(DESCRIPTION_CONFIG_PARAM, None)
         validation_steps = {
@@ -53,29 +53,29 @@ def process_steps(steps: dict[str: List[dict]],
                                        '--replace-output'])
         execution_datetime = datetime.now(timezone.utc).replace(tzinfo=None)
 
-        with UpdateContent(
-                command=command_to_execute,
-                lambda_paths=[os.path.join('app', 'lambdas',
-                                           'sdct-at-nodejs-lambda')],
-                appsync_path=[os.path.join('appsync_src',
-                                           'sdct-at-appsync')]):
-            if UPDATE_COMMAND in command_to_execute:
-                build_command = ['syndicate', 'build', '--bundle_name',
-                                 BUNDLE_NAME, '--force-upload']
-                if verbose:
-                    build_command.append('--verbose')
-                print(f'Run command: {build_command}')
-                subprocess.run(build_command, check=False,
-                               env=os.environ.copy(),
-                               capture_output=True, text=True)
+        if UPDATE_COMMAND in command_to_execute:
+            with UpdateContent(
+                    command=command_to_execute,
+                    lambda_paths=stage_info.get('update_content', {}).get(
+                        'lambda_paths', []),
+                    appsync_path=stage_info.get('update_content', {}).get(
+                        'appsync_path', [])):
+                    build_command = ['syndicate', 'build', '--bundle_name',
+                                     BUNDLE_NAME, '--force-upload']
+                    if verbose:
+                        build_command.append('--verbose')
+                    print(f'Run command: {build_command}')
+                    subprocess.run(build_command, check=False,
+                                   env=os.environ.copy(),
+                                   capture_output=True, text=True)
 
-            print(f'Run command: {command_to_execute}')
-            exec_result = subprocess.run(command_to_execute, check=False,
-                                         encoding='utf-8',
-                                         env=os.environ.copy(),
-                                         capture_output=True, text=True)
-            print(f'stdout: {exec_result.stdout}')
-            print(f'stderr: {exec_result.stderr}')
+        print(f'Run command: {command_to_execute}')
+        exec_result = subprocess.run(command_to_execute, check=False,
+                                     encoding='utf-8',
+                                     env=os.environ.copy(),
+                                     capture_output=True, text=True)
+        print(f'stdout: {exec_result.stdout}')
+        print(f'stderr: {exec_result.stderr}')
         for check in step[CHECKS_CONFIG_PARAM]:
             index = check[INDEX_CONFIG_PARAM]
             depends_on = check.pop(DEPENDS_ON_CONFIG_PARAM, None)

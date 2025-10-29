@@ -1314,6 +1314,14 @@
           ]
         }
       ],
+      "update_content": {
+        "lambda_paths": [
+          "app/lambdas/sdct-at-nodejs-lambda"
+        ],
+        "appsync_path": [
+          "appsync_src/sdct-at-appsync"
+        ]
+      },
       "depends_on": [
         "deploy"
       ]
