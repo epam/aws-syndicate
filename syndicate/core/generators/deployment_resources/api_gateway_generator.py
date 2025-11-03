@@ -168,7 +168,12 @@ class ApiGatewayAuthorizerGenerator(ApiGatewayConfigurationGenerator):
 
 class ApiGatewayResourceGenerator(ApiGatewayConfigurationGenerator):
     CONFIGURATION = {
-        'enable_cors': bool
+        'enable_cors': {
+            'state': bool,
+            'custom_headers': list,
+            'custom_methods': list,
+            'custom_origins': list
+        }
     }
 
     def __init__(self, **kwargs):

@@ -722,6 +722,19 @@ class ApiGatewayResource(BaseResource):
                 if resource_id:
                     _LOG.info('Resource %s exists.', each)
                     enable_cors = resource_meta.get('enable_cors')
+                    if isinstance(enable_cors, bool):
+                        USER_LOG.warning(
+                            'Deprecated parameter "enable_cors" format. '
+                            'Please check the documentation for more details.')
+                        if enable_cors:
+                            enable_cors = {
+                                'state': True
+                            }
+                        else:
+                            enable_cors = {
+                                'state': False
+                            }
+
                     self._check_existing_methods(
                         api_id=api_id, resource_id=resource_id,
                         resource_path=each,
@@ -784,7 +797,7 @@ class ApiGatewayResource(BaseResource):
         :type api_id: str
         :type resource_id: str
         :type resource_meta: dict
-        :type enable_cors: bool or None
+        :type enable_cors: dict
         :type:
         """
         methods_statement_singleton = resource_meta.get(
@@ -811,11 +824,11 @@ class ApiGatewayResource(BaseResource):
                     resources_statement_singleton=resources_statement_singleton,
                     methods_statement_singleton=methods_statement_singleton
                 )
-            if enable_cors and not self.connection.get_method(api_id,
-                                                              resource_id,
-                                                              'OPTIONS'):
-                _LOG.info('Enabling CORS for resource %s...', resource_id)
-                self.connection.enable_cors_for_resource(api_id, resource_id)
+            if enable_cors.get('state') and not self.connection.get_method(
+                    api_id, resource_id, 'OPTIONS'):
+                _LOG.info(f'Enabling CORS for resource {resource_id}...')
+                self.connection.enable_cors_for_resource(
+                    api_id, resource_id, enable_cors)
 
     @unpack_kwargs
     def _create_resource_from_metadata(self, api_id, resource_path,
@@ -823,19 +836,32 @@ class ApiGatewayResource(BaseResource):
                                        authorizers_mapping,
                                        resources_statement_singleton: bool = False):
         self.connection.create_resource(api_id, resource_path)
-        _LOG.info('Resource %s created.', resource_path)
+        _LOG.info(f'Resource {resource_path} created.')
         resource_id = self.connection.get_resource_id(api_id, resource_path)
-        enable_cors = resource_meta.get('enable_cors')
         methods_statement_singleton = resource_meta.get(
             POLICY_STATEMENT_SINGLETON)
+        enable_cors = resource_meta.get('enable_cors')
+        if isinstance(enable_cors, bool):
+            USER_LOG.warning(
+                'Deprecated parameter "enable_cors" format. '
+                'Please check the documentation for more details.')
+            if enable_cors:
+                enable_cors = {
+                    'state': True
+                }
+            else:
+                enable_cors = {
+                    'state': False
+                }
+
         for method in resource_meta:
             try:
                 if method == 'enable_cors' or method not in SUPPORTED_METHODS:
                     continue
 
                 method_meta = resource_meta[method]
-                _LOG.info('Creating method %s for resource %s...',
-                          method, resource_path)
+                _LOG.info(f'Creating method {method} for resource '
+                          f'{resource_path}...',)
                 self._create_method_from_metadata(
                     api_id=api_id,
                     resource_id=resource_id,
@@ -848,19 +874,19 @@ class ApiGatewayResource(BaseResource):
                     methods_statement_singleton=methods_statement_singleton
                 )
             except Exception as e:
-                _LOG.error('Resource: {0}, method {1}.'
-                           .format(resource_path, method), exc_info=True)
+                _LOG.error(f'Resource: {resource_path}, method {method}.',
+                           exc_info=True)
                 raise e
-            _LOG.info('Method %s for resource %s created.', method,
-                      resource_path)
+            _LOG.info(f'Method {method} for resource {resource_path} created.')
         # create enable cors only after all methods in resource created
-        if enable_cors:
-            self.connection.enable_cors_for_resource(api_id, resource_id)
-            _LOG.info('CORS enabled for resource %s', resource_path)
+        if enable_cors.get('state'):
+            self.connection.enable_cors_for_resource(
+                api_id, resource_id, enable_cors)
+            _LOG.info(f'CORS enabled for resource {resource_path}')
 
     def _create_method_from_metadata(
             self, api_id, resource_id, resource_path, method, method_meta,
-            authorizers_mapping, enable_cors=False, api_resp=None,
+            authorizers_mapping, enable_cors: dict = None, api_resp=None,
             api_integration_resp=None,
             resources_statement_singleton: bool = False,
             methods_statement_singleton: bool = False):

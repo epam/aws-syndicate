@@ -522,7 +522,7 @@ class ApiGatewayConnection(object):
                                     status_code=None, selection_pattern=None,
                                     response_parameters=None,
                                     response_templates=None,
-                                    enable_cors=False):
+                                    enable_cors=None):
         """
         :type api_id: str
         :type resource_id: str
@@ -532,7 +532,7 @@ class ApiGatewayConnection(object):
         :type selection_pattern: str
         :type response_parameters: dict
         :type response_templates: dict
-        :type enable_cors: bool
+        :type enable_cors: dict
         """
         response_allow_origin = "response.header.Access-Control-Allow-Origin"
         method_allow_origin = "method.{0}".format(response_allow_origin)
@@ -540,14 +540,21 @@ class ApiGatewayConnection(object):
                       resourceId=resource_id,
                       responseTemplates={'application/json': ''})
         if enable_cors:
-            params['responseParameters'] = {method_allow_origin: "\'*\'"}
+            origins = enable_cors.get('custom_origins')
+            params['responseParameters'] = {
+                method_allow_origin:
+                    f"'{','.join(origins)}'" if origins else "\'*\'"
+            }
+
         if selection_pattern:
             params['selectionPattern'] = selection_pattern
         if status_code:
             params['statusCode'] = status_code
         if response_parameters:
             if enable_cors:
-                response_parameters[method_allow_origin] = "\'*\'"
+                origins = enable_cors.get('custom_origins')
+                response_parameters[method_allow_origin] = \
+                    f"'{','.join(origins)}'" if origins else "\'*\'"
             params['responseParameters'] = response_parameters
         if response_templates:
             params['responseTemplates'] = response_templates
@@ -555,7 +562,7 @@ class ApiGatewayConnection(object):
 
     def create_method_response(self, api_id, resource_id, method,
                                status_code=None, response_parameters=None,
-                               response_models=None, enable_cors=False):
+                               response_models=None, enable_cors=None):
         """
         :type api_id: str
         :type resource_id: str
@@ -564,32 +571,38 @@ class ApiGatewayConnection(object):
         :type status_code: str
         :type response_parameters: dict
         :type response_models: dict
-        :type enable_cors: bool
+        :type enable_cors: dict
         """
+        origins = None
         response_allow_origin = "response.header.Access-Control-Allow-Origin"
         method_allow_origin = "method.{0}".format(response_allow_origin)
         params = dict(restApiId=api_id, resourceId=resource_id,
                       httpMethod=method, statusCode='200',
                       responseModels={'application/json': 'Empty'})
         if enable_cors:
-            params['responseParameters'] = {method_allow_origin: False}
+            origins = enable_cors.get('custom_origins')
+
+        if response_parameters:
+            response_parameters[method_allow_origin] = True if origins else False
+            params['responseParameters'] = response_parameters
+        else:
+            params['responseParameters'] = {
+                method_allow_origin: True if origins else False
+            }
         if status_code:
             params['statusCode'] = status_code
-        if response_parameters:
-            if enable_cors:
-                response_parameters[method_allow_origin] = False
-            params['responseParameters'] = response_parameters
         if response_models:
             params['responseModels'] = response_models
         self.client.put_method_response(**params)
 
-    def enable_cors_for_resource(self, api_id, resource_id):
+    def enable_cors_for_resource(self, api_id, resource_id, enable_cors):
         """ When your API's resources receive requests from a domain other than
         the API's own domain, you must enable cross-origin resource sharing
         (CORS) for selected methods on the resource.
 
         :type api_id: str
         :type resource_id: str
+        :type enable_cors: dict
         """
         self.create_method(api_id, resource_id, 'OPTIONS')
         self.create_integration(api_id=api_id, resource_id=resource_id,
@@ -597,20 +610,26 @@ class ApiGatewayConnection(object):
                                 request_templates={
                                     'application/json': '{"statusCode": 200}'
                                 })
+        origins = enable_cors.get('custom_origins', [])
+        headers = enable_cors.get('custom_headers', [])
+        methods = enable_cors.get('custom_methods', [])
 
         self.create_method_response(
             api_id, resource_id, 'OPTIONS', response_parameters={
-                RESPONSE_PARAM_ALLOW_HEADERS: False,
-                RESPONSE_PARAM_ALLOW_METHODS: False,
-                RESPONSE_PARAM_ALLOW_ORIGIN: False
+                RESPONSE_PARAM_ALLOW_HEADERS: True if headers else False,
+                RESPONSE_PARAM_ALLOW_METHODS: True if methods else False,
+                RESPONSE_PARAM_ALLOW_ORIGIN: True if origins else False
             })
-        content_types = ("'Content-Type,X-Amz-Date,Authorization,X-Api-Key,"
-                         "X-Amz-Security-Token'")
+        content_types = ('Content-Type','X-Amz-Date','Authorization',
+                         'X-Api-Key', 'X-Amz-Security-Token')
         self.create_integration_response(
             api_id, resource_id, 'OPTIONS', response_parameters={
-                RESPONSE_PARAM_ALLOW_HEADERS: content_types,
-                RESPONSE_PARAM_ALLOW_METHODS: "\'*\'",
-                RESPONSE_PARAM_ALLOW_ORIGIN: "\'*\'"
+                RESPONSE_PARAM_ALLOW_HEADERS:
+                    f"'{','.join([*content_types, *headers])}'",
+                RESPONSE_PARAM_ALLOW_METHODS:
+                    f"'{','.join(methods)}'" if methods else "'*'",
+                RESPONSE_PARAM_ALLOW_ORIGIN:
+                    f"'{','.join(origins)}'" if origins else "'*'"
             })
 
     def deploy_api(self, api_id, stage_name, stage_description='',
