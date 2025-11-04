@@ -523,11 +523,16 @@ class ProjectState:
             f'Going to resolve any build project mapping dependent resources '
             f'from a given path: {path.absolute()}.'
         )
-        build_project_mappings: dict = self.dct.get(
+        build_project_mappings: dict | None = self.dct.get(
             STATE_BUILD_PROJECT_MAPPING
         )
         _bpm_resources = self._resolve_bpm_resources_from_path(path, runtime)
-        if _bpm_resources and runtime not in build_project_mappings:
+
+        missing_build_project_mapping = (
+            not build_project_mappings or 
+            runtime not in build_project_mappings
+        )
+        if _bpm_resources and (missing_build_project_mapping):
             _LOG.info(
                 f'Going to add build project mapping for the following '
                 f'resource type\'{runtime}\' to the pending ProjectState.')
