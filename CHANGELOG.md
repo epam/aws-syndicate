@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [1.20.0] - 2025-X-X
+- Added support of custom headers/methods/origins in CORS
+- Changed format of CORS configuration in API Gateway resource meta from bool to map
+
 # [1.19.0] - 2025-10-17
 - Fixed an issue when failed 'update' overrides latest_deploy in state file.
 - Fixed an issue when `syndicate build` reset indent to 0 in `appsync_config.json` file.
