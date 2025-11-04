@@ -4,11 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [1.20.0] - 2025-X-X
-- Added support of custom headers/methods/origins in CORS
-- Changed format of CORS configuration in API Gateway resource meta from bool to map
-
-# [1.19.0] - 2025-10-17
+# [1.19.0] - 2025-11-04
 - Fixed an issue when failed 'update' overrides latest_deploy in state file.
 - Fixed an issue when `syndicate build` reset indent to 0 in `appsync_config.json` file.
 - Added new resource name placeholder `$rn{}` to explicitly indicate the resource name part 
@@ -24,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Renamed `project_path` to clearly distinguish runtime-specific paths from the global `CONFIG.project_path`, preventing confusion and improving code readability.
 - Encapsulated Python in a dedicated `pyapp` runtime root directory (`tests` and `src` folders)
 - Added example of Python application project structure `pyapp` (`examples/python/demo-pyapp-structure`)
+- Added support of custom headers/methods/origins in CORS
+- Changed format of CORS configuration in API Gateway resource meta from bool to map
 
 # [1.18.3] - 2025-09-11
 - Fixed issue in the lambda function with the runtime Python template
