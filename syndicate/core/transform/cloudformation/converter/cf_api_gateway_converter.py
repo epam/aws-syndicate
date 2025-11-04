@@ -69,9 +69,23 @@ class CfApiGatewayConverter(CfResourceConverter):
             raise InvalidValueError(
                 "API resource must starts with '/', "
                 f"but found '{path}'")
-        enable_cors = str(resource_meta.get('enable_cors')).lower() == 'true'
         target_resource = self._convert_resource(rest_api=rest_api,
                                                  resource_path=path)
+
+        enable_cors = resource_meta.get('enable_cors')
+        if isinstance(enable_cors, bool):
+            _LOG.warning(
+                'Deprecated parameter "enable_cors" format. '
+                'Please check the documentation for more details.')
+            if enable_cors:
+                enable_cors = {
+                    'state': True
+                }
+            else:
+                enable_cors = {
+                    'state': False
+                }
+
         methods = []
         for method, method_meta in resource_meta.items():
             method_res = apigateway.Method(api_gateway_method_logic_name(path, method))
@@ -119,8 +133,8 @@ class CfApiGatewayConverter(CfResourceConverter):
             integration_responses = self._convert_integration_responses(enable_cors, meta, method_meta)
             integration.IntegrationResponses = integration_responses
             methods.append(method_res)
-        if enable_cors:
-            methods.append(self._enable_cors_for_resource(rest_api, path, target_resource))
+        if enable_cors.get('state'):
+            methods.append(self._enable_cors_for_resource(rest_api, path, target_resource, enable_cors))
         return methods
 
     def _convert_request_validator(self, method_meta, method_resource, rest_api):
@@ -288,7 +302,8 @@ class CfApiGatewayConverter(CfResourceConverter):
                 enable_cors=enable_cors))
         return integration_responses
 
-    def _enable_cors_for_resource(self, rest_api, path, target_resource):
+    def _enable_cors_for_resource(self, rest_api, path, target_resource,
+                                  enable_cors):
         method = 'OPTIONS'
         options_method = apigateway.Method(api_gateway_method_logic_name(path, method))
         options_method.HttpMethod = method
@@ -302,20 +317,29 @@ class CfApiGatewayConverter(CfResourceConverter):
         }
         integration.Type = 'MOCK'
         options_method.Integration = integration
+
+        origins = enable_cors.get('custom_origins')
+        headers = enable_cors.get('custom_headers', [])
+        methods = enable_cors.get('custom_methods')
+
         method_resp = self._convert_method_response(
             response_params={
-                RESPONSE_PARAM_ALLOW_HEADERS: False,
-                RESPONSE_PARAM_ALLOW_METHODS: False,
-                RESPONSE_PARAM_ALLOW_ORIGIN: False
+                RESPONSE_PARAM_ALLOW_HEADERS: True if headers else False,
+                RESPONSE_PARAM_ALLOW_METHODS: True if methods else False,
+                RESPONSE_PARAM_ALLOW_ORIGIN: True if origins else False
             })
+
         options_method.MethodResponses = [method_resp]
-        content_types = ("'Content-Type,X-Amz-Date,Authorization,X-Api-Key,"
-                         "X-Amz-Security-Token'")
+        content_types = ('Content-Type','X-Amz-Date','Authorization',
+                         'X-Api-Key', 'X-Amz-Security-Token')
         integr_resp = self._convert_integration_method_response(
             response_params={
-                RESPONSE_PARAM_ALLOW_HEADERS: content_types,
-                RESPONSE_PARAM_ALLOW_METHODS: "'*'",
-                RESPONSE_PARAM_ALLOW_ORIGIN: "'*'"
+                RESPONSE_PARAM_ALLOW_HEADERS:
+                    f"'{','.join([*content_types, *headers])}'",
+                RESPONSE_PARAM_ALLOW_METHODS:
+                    f"'{','.join(methods)}'" if methods else "'*'",
+                RESPONSE_PARAM_ALLOW_ORIGIN:
+                    f"'{','.join(origins)}'" if origins else "'*'"
             })
         integration.IntegrationResponses = [integr_resp]
         return options_method
@@ -337,13 +361,13 @@ class CfApiGatewayConverter(CfResourceConverter):
         return Join('', [left_part, api_id, right_part])
 
     @staticmethod
-    def _convert_method_response(enable_cors=False, status_code=None,
+    def _convert_method_response(enable_cors: dict = None, status_code=None,
                                  response_params=None, response_models=None):
         response_allow_origin = "response.header.Access-Control-Allow-Origin"
         method_allow_origin = "method.{0}".format(response_allow_origin)
         if not response_params:
             response_params = {}
-        if enable_cors:
+        if enable_cors.get('state'):
             response_params[method_allow_origin] = False
         if not response_models:
             response_models = {'application/json': 'Empty'}
@@ -353,7 +377,7 @@ class CfApiGatewayConverter(CfResourceConverter):
             StatusCode=status_code if status_code else '200')
 
     @staticmethod
-    def _convert_integration_method_response(enable_cors=False,
+    def _convert_integration_method_response(enable_cors: dict = None,
                                              status_code=None,
                                              response_params=None,
                                              response_templates=None,
@@ -363,7 +387,8 @@ class CfApiGatewayConverter(CfResourceConverter):
         if not response_params:
             response_params = {}
         if enable_cors:
-            response_params[method_allow_origin] = "'*'"
+            origins = enable_cors.get('custom_origins')
+            response_params[method_allow_origin] = origins if origins else "'*'"
         if not response_templates:
             response_templates = {'application/json': ''}
         response = apigateway.IntegrationResponse(
