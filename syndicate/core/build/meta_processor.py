@@ -544,7 +544,7 @@ def create_meta(project_path: str, bundle_name: str) -> None:
 
     PROJECT_STATE.refresh_state()
     build_mapping_dict = PROJECT_STATE.load_project_build_mapping()
-    is_java_exists = RUNTIME_JAVA in build_mapping_dict
+    is_java_exists = RUNTIME_JAVA in (build_mapping_dict or {})
 
     if is_java_exists:
         mvn_path = safe_resolve_mvn_path()
