@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed an issue related to build project mapping resolving for `appsync` and `swagger_ui` resources
 - Updated Java and Python examples to use the new runtime root directories `japp` and `pyapp`
 - Updated Java examples to use the Syndicate Java plugin version 1.17.1
+- Added support for `update`, `publish version`, and  `state machine aliases` features to the `step_functions` resource
 
 # [1.18.3] - 2025-09-11
 - Fixed issue in the lambda function with the runtime Python template
