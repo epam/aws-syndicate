@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added support of custom headers/methods/origins in CORS
 - Changed format of CORS configuration in API Gateway resource meta from bool to map
 - Fixed an issue related to build project mapping resolving for `appsync` and `swagger_ui` resources
+- Added support for `update`, `publish version`, and  `state machine aliases` features to the `step_functions` resource
 
 # [1.18.3] - 2025-09-11
 - Fixed issue in the lambda function with the runtime Python template

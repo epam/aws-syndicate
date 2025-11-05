@@ -130,47 +130,14 @@ class StepFunctionResource(BaseResource):
                 f"IAM role '{iam_role}' does not exist."
             )
 
-        # check resource exists and get arn
-        definition = meta['definition']
-        definition_copy = definition.copy()
-        for key in definition['States']:
-            definition_meta = definition['States'][key]
-            if definition_meta.get('Lambda'):
-                lambda_name = definition_meta['Lambda']
-                # alias has a higher priority than version in arn resolving
-                lambda_version = definition_meta.get('Lambda_version')
-                lambda_alias = definition_meta.get('Lambda_alias')
-                lambda_arn = self.resolve_lambda_arn_by_version_and_alias(
-                    lambda_name,
-                    lambda_version,
-                    lambda_alias)
-                self.__remove_key_from_dict(definition_copy['States'][key],
-                                            'Lambda')
-                self.__remove_key_from_dict(definition_copy['States'][key],
-                                            'Lambda_version')
-                self.__remove_key_from_dict(definition_copy['States'][key],
-                                            'Lambda_alias')
-
-                definition_copy['States'][key]['Resource'] = lambda_arn
-
-            if definition_meta.get('Activity'):
-                activity_name = definition_meta['Activity']
-                activity_arn = 'arn:aws:states:{0}:{1}:activity:{2}'.format(
-                    self.region, self.account_id, activity_name)
-                activity_info = self.sf_conn.describe_activity(
-                    arn=activity_arn)
-                if not activity_info:
-                    raise ResourceNotFoundError(
-                        f"Activity does not exists: '{activity_name}'"
-                        )
-                activity_arn = activity_info['activityArn']
-                del definition_copy['States'][key]['Activity']
-                definition_copy['States'][key]['Resource'] = activity_arn
         machine_info = self.sf_conn.create_state_machine(
             machine_name=name,
             role_arn=role_arn,
-            definition=definition_copy,
-            tags=meta.get('tags'))
+            definition=self._resolve_sm_definition(definition),
+            publish_version=publish_version,
+            version_description=version_description,
+            tags=meta.get('tags'),
+        )
 
         alias_arn = None
         if alias_name is not None:
@@ -352,7 +319,7 @@ class StepFunctionResource(BaseResource):
     def _resolve_sm_definition(self, definition):
         # check resource exists and get arn
         definition_copy = definition.copy()
-        for key in definition['States']:
+        for key in definition.get('States', {}):
             definition_meta = definition['States'][key]
             if definition_meta.get('Lambda'):
                 lambda_name = definition_meta['Lambda']
