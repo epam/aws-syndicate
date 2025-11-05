@@ -10,7 +10,7 @@
 
     <properties>
         <maven-shade-plugin.version>3.6.0</maven-shade-plugin.version>
-        <syndicate.java.plugin.version>1.15.0</syndicate.java.plugin.version>
+        <syndicate.java.plugin.version>1.17.1</syndicate.java.plugin.version>
         <dagger.version>2.52</dagger.version>
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>

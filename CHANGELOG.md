@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Changed format of CORS configuration in API Gateway resource meta from bool to map
 - Fixed an issue related to build project mapping resolving for `appsync` and `swagger_ui` resources
 - Updated Java and Python examples to use the new runtime root directories `japp` and `pyapp`
+- Updated Java examples to use the Syndicate Java plugin version 1.17.1
 
 # [1.18.3] - 2025-09-11
 - Fixed issue in the lambda function with the runtime Python template
