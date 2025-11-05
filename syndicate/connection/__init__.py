@@ -15,10 +15,13 @@
 """
 from functools import lru_cache
 
+from botocore.config import Config
+
 from syndicate.connection.api_gateway_connection import ApiGatewayConnection, \
     ApiGatewayV2Connection
 from syndicate.connection.application_autoscaling_connection import (
     ApplicationAutoscaling)
+from syndicate.connection.appsync_connection import AppSyncConnection
 from syndicate.connection.batch_connection import BatchConnection
 from syndicate.connection.cloud_watch_connection import (EventConnection,
                                                          LogsConnection,
@@ -39,6 +42,7 @@ from syndicate.connection.iam_connection import IAMConnection
 from syndicate.connection.kinesis_connection import KinesisConnection
 from syndicate.connection.kms_connection import KMSConnection
 from syndicate.connection.lambda_connection import LambdaConnection
+from syndicate.connection.rds_connection import RDSConnection
 from syndicate.connection.s3_connection import S3Connection
 from syndicate.connection.sns_connection import SNSConnection
 from syndicate.connection.sqs_connection import SqsConnection
@@ -51,6 +55,12 @@ from syndicate.connection.dax_connection import DaxConnection
 class ConnectionProvider(object):
     def __init__(self, credentials):
         self.credentials = credentials.copy()
+        self.client_config = Config(
+            retries={
+                'max_attempts': 10,
+                'mode': 'standard'
+            }
+        )
 
     @lru_cache(maxsize=None)
     def api_gateway(self, region=None):
@@ -64,6 +74,13 @@ class ConnectionProvider(object):
         if region:
             creds = {**creds, 'region': region}
         return ApiGatewayV2Connection(**creds)
+
+    @lru_cache(maxsize=None)
+    def appsync(self, region=None):
+        creds = self.credentials
+        if region:
+            creds = {**creds, 'region': region}
+        return AppSyncConnection(**creds)
 
     @lru_cache(maxsize=None)
     def lambda_conn(self, region=None):
@@ -95,10 +112,11 @@ class ConnectionProvider(object):
 
     @lru_cache(maxsize=None)
     def cognito_identity_provider(self, region=None):
-        credentials = self.credentials.copy()
+        params = self.credentials.copy()
         if region:
-            credentials['region'] = region
-        return CognitoIdentityProviderConnection(**credentials)
+            params['region'] = region
+        params['client_config'] = self.client_config
+        return CognitoIdentityProviderConnection(**params)
 
     @lru_cache(maxsize=None)
     def iam(self):
@@ -229,3 +247,10 @@ class ConnectionProvider(object):
         if region:
             credentials['region'] = region
         return DaxConnection(**credentials)
+
+    @lru_cache(maxsize=None)
+    def rds(self, region=None):
+        credentials = self.credentials.copy()
+        if region:
+            credentials['region'] = region
+        return RDSConnection(**credentials)

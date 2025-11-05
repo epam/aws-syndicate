@@ -1,9 +1,11 @@
+from botocore.exceptions import ClientError
+
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.helper import unpack_kwargs, delete_none
 from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import build_description_obj
 
-_LOG = get_logger('syndicate.core.resources.firehose_resource')
+_LOG = get_logger(__name__)
 
 
 class FirehoseResource(BaseResource):
@@ -46,7 +48,8 @@ class FirehoseResource(BaseResource):
         arn = self.connection.create_delivery_stream(
             stream_name=name, s3_configuration=s3_configuration,
             stream_type=stream_type,
-            kinesis_stream_source=kinesis_configuration)
+            kinesis_stream_source=kinesis_configuration,
+            tags=meta.get('tags'))
         _LOG.info(f'Created firehose stream {arn}')
         return self.describe_stream(name=name, meta=meta, arn=arn)
 
@@ -63,5 +66,13 @@ class FirehoseResource(BaseResource):
     @unpack_kwargs
     def _delete_stream(self, arn, config):
         name = config['resource_name']
-        response = self.connection.delete_delivery_stream(name)
-        return response
+        try:
+            self.connection.delete_delivery_stream(name,
+                                                   log_not_found_error=False)
+            return {arn: config}
+        except ClientError as e:
+            if e.response['Error']['Code'] == 'ResourceNotFoundException':
+                _LOG.warning(f'Cannot find delivery stream with name {name}')
+                return {arn: config}
+            else:
+                raise e

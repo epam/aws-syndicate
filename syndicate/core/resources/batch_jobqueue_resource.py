@@ -13,6 +13,8 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+from time import sleep
+
 from botocore.exceptions import WaiterError
 
 from syndicate.commons.log_helper import get_logger
@@ -20,7 +22,7 @@ from syndicate.core.helper import unpack_kwargs
 from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import build_description_obj
 
-_LOG = get_logger('syndicate.core.resources.batch_jobqueue')
+_LOG = get_logger(__name__)
 
 DEFAULT_STATE = 'ENABLED'
 
@@ -42,7 +44,7 @@ class BatchJobQueueResource(BaseResource):
             return {}
 
     def remove_job_queue(self, args):
-        self.create_pool(self._remove_job_queue, args)
+        return self.create_pool(self._remove_job_queue, args)
 
     @unpack_kwargs
     def _remove_job_queue(self, arn, config):
@@ -53,8 +55,12 @@ class BatchJobQueueResource(BaseResource):
             state='DISABLED',
             compute_environment_order=[]
         )
+
+        sleep(5)  # to avoid exception while resource is being modified
+
         self.batch_conn.delete_job_queue(job_queue=arn)
-        _LOG.info('Batch Job Queue %s was removed.', job_queue_name)
+        _LOG.info(f'Batch Job Queue {job_queue_name} was removed.')
+        return {arn: config}
 
     @unpack_kwargs
     def _create_job_queue_from_meta(self, name, meta):

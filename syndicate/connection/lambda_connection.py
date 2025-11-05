@@ -20,12 +20,13 @@ from typing import Optional, List, Tuple, Iterable
 from boto3 import client
 from botocore.exceptions import ClientError
 
+from syndicate.exceptions import InvalidValueError
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import apply_methods_decorator, retry
 from syndicate.core.constants import NONE_AUTH_TYPE, IAM_AUTH_TYPE
 from syndicate.core.helper import dict_keys_to_capitalized_camel_case
 
-_LOG = get_logger('lambda_connection')
+_LOG = get_logger(__name__)
 
 AUTH_TYPE_TO_STATEMENT_ID = {
     NONE_AUTH_TYPE: 'FunctionURLAllowPublicAccess-Syndicate',
@@ -41,8 +42,8 @@ def _str_list_to_list(param, param_name):
     elif isinstance(param, str):
         result = [param]
     else:
-        raise ValueError(
-            '{} must be a str or an iterable of strings.'.format(param_name))
+        raise InvalidValueError(
+            f"'{param_name}' must be a str or an iterable of strings.")
     return result
 
 
@@ -64,7 +65,8 @@ class LambdaConnection(object):
                       vpc_sub_nets=None, vpc_security_group=None,
                       env_vars=None, dl_target_arn=None, tracing_mode=None,
                       publish_version=False, layers=None,
-                      ephemeral_storage=512, snap_start: str = None):
+                      ephemeral_storage=512, snap_start: str = None,
+                      tags: dict = None):
         """ Create Lambda method
         :type lambda_name: str
         :type func_name: str
@@ -85,6 +87,7 @@ class LambdaConnection(object):
         :param ephemeral_storage: amount of ephemeral storage between 512 MB
         and 10,240 MB
         :param snap_start: Optional[str] denotes `PublishedVersions`|`None`
+        :type tags: dict
         :return: response
         """
         layers = [] if layers is None else layers
@@ -115,6 +118,8 @@ class LambdaConnection(object):
             }
         if architectures:
             params['Architectures'] = architectures
+        if tags:
+            params['Tags'] = tags
         return self.client.create_function(**params)
 
     def get_existing_permissions(self, lambda_arn):
@@ -267,7 +272,7 @@ class LambdaConnection(object):
 
         return self.client.create_alias(**params)
 
-    def get_alias(self, function_name, name):
+    def get_aliases(self, function_name: str, name: str = None) -> dict:
         all_aliases = {}
         next_marker = 1  # to enter the loop
         while next_marker:
@@ -284,11 +289,20 @@ class LambdaConnection(object):
             if all_aliases.get(name):
                 return all_aliases.get(name)
             next_marker = response.get('NextMarker')
+        return all_aliases
+
+    def delete_alias(self, function_name: str, name: str) -> None:
+        _LOG.debug(f'Removing lamba\'s \'{function_name}\' alias \'{name}\'')
+        self.client.delete_alias(
+            FunctionName=function_name,
+            Name=name
+        )
 
     def add_event_source(self, func_name, stream_arn, batch_size=10,
                          batch_window: Optional[int] = None,
                          start_position=None,
-                         filters: Optional[List] = None):
+                         filters: Optional[List] = None,
+                         function_response_types: Optional[List] = None):
         """ Create event source for Lambda
         :type func_name: str
         :type stream_arn: str
@@ -296,6 +310,8 @@ class LambdaConnection(object):
         :param batch_size: max limit of Lambda event process in one time
         :param start_position: option for Lambda reading event mode
         :param filters: Optional[list]
+        :param function_response_types: Optional[list] list of function
+               response types
         :return: response
         """
         params = dict(
@@ -308,7 +324,8 @@ class LambdaConnection(object):
             params['StartingPosition'] = start_position
         if filters:
             params['FilterCriteria'] = {'Filters': filters}
-
+        if function_response_types:
+            params['FunctionResponseTypes'] = function_response_types
         response = self.client.create_event_source_mapping(**params)
         return response
 
@@ -369,27 +386,27 @@ class LambdaConnection(object):
             marker = response.get('NextMarker')
         return versions
 
-    def delete_lambda(self, func_name):
+    def delete_lambda(self, func_name, log_not_found_error=True):
         """ Delete Lambda.
 
         :param func_name: str
+        :param log_not_found_error: boolean, parameter is needed for proper log
+        handling in the retry decorator
         """
         self.client.delete_function(FunctionName=func_name)
 
-    def remove_trigger(self, lambda_name):
+    def remove_event_sources(self, lambda_name):
         """ Remove trigger by name. Trigger has the same name as Lambda.
 
         :type lambda_name: str
         """
         triggers = self.triggers_list(lambda_name)
         for trigger in triggers:
-            trigger_name = trigger['FunctionArn'].split(':')[-1]
-            if trigger_name == lambda_name:
-                try:
-                    self.client.delete_event_source_mapping(
-                        UUID=trigger['UUID'])
-                except ClientError:
-                    _LOG.error('Failed to delete trigger.', exc_info=True)
+            try:
+                self.client.delete_event_source_mapping(
+                    UUID=trigger['UUID'])
+            except ClientError:
+                _LOG.error('Failed to delete trigger.', exc_info=True)
 
     def remove_lambdas(self):
         """ Removes all specified lambdas.
@@ -405,7 +422,7 @@ class LambdaConnection(object):
                     'Failed to delete lambda %s', each['FunctionName'],
                     exc_info=True)
 
-    def delete_trigger(self, uuid):
+    def remove_event_source(self, uuid):
         """ Delete event source stream.
 
         :param uuid: str
@@ -500,14 +517,20 @@ class LambdaConnection(object):
                                          Publish=publish_version)
 
     def update_event_source(self, uuid, function_name, batch_size,
-                            batch_window=None, filters: Optional[List] = None):
+                            batch_window=None, filters: Optional[List] = None,
+                            function_response_types: Optional[List] = None):
         params = dict(
-            UUID=uuid, FunctionName=function_name, BatchSize=batch_size
+            UUID=uuid, FunctionName=function_name, BatchSize=batch_size,
+            Enabled=True
         )
         if batch_window is not None:
             params['MaximumBatchingWindowInSeconds'] = batch_window
         if filters is not None:
             params['FilterCriteria'] = {'Filters': filters}
+        if function_response_types:
+            params['FunctionResponseTypes'] = function_response_types
+        else:
+            params['FunctionResponseTypes'] = []
         return self.client.update_event_source_mapping(**params)
 
     def get_function(self, lambda_name, qualifier=None):
@@ -585,12 +608,13 @@ class LambdaConnection(object):
                                     vpc_security_group=None,
                                     env_vars=None, runtime=None,
                                     dead_letter_arn=None, kms_key_arn=None,
-                                    layers=None, ephemeral_storage=None,
-                                    snap_start: str =None):
+                                    layers=None, ephemeral_storage: int = None,
+                                    snap_start: str = None,
+                                    tracing_mode: str = None):
         params = dict(FunctionName=lambda_name)
         if ephemeral_storage:
             params['EphemeralStorage'] = {'Size': ephemeral_storage}
-        if layers:
+        if layers is not None:
             params['Layers'] = layers
         if role:
             params['Role'] = role
@@ -622,6 +646,14 @@ class LambdaConnection(object):
         if snap_start:
             params['SnapStart'] = {
                 'ApplyOn': snap_start
+            }
+        if not tracing_mode:
+            params['TracingConfig'] = {
+                'Mode': 'PassThrough'
+            }
+        else:
+            params['TracingConfig'] = {
+                'Mode': tracing_mode
             }
         return self.client.update_function_configuration(**params)
 
@@ -675,7 +707,15 @@ class LambdaConnection(object):
     def get_lambda_layer_by_arn(self, arn):
         return self.client.get_layer_version_by_arn(Arn=arn)
 
-    def delete_layer(self, arn):
+    def get_layer_version(self, name, version):
+        return self.client.get_layer_version(LayerName=name,
+                                             VersionNumber=version)
+
+    def delete_layer(self, arn, log_not_found_error=True):
+        """
+        log_not_found_error parameter is needed for proper log handling in the
+        retry decorator
+        """
         version = arn.split(':')[len(arn.split(':')) - 1]
         arn = arn[:-len(version) - 1]
         return self.client.delete_layer_version(
@@ -699,9 +739,11 @@ class LambdaConnection(object):
     def configure_provisioned_concurrency(self, name, qualifier,
                                           concurrent_executions):
         if type(concurrent_executions) is not int:
-            raise AssertionError(
-                f'Parameter `concurrent_executions` '
-                f'must be type of int, but not {type(concurrent_executions)}')
+            raise InvalidValueError(
+                f"Parameter 'concurrent_executions' "
+                f"must be type of int, but not "
+                f"'{type(concurrent_executions).__name__}'"
+            )
         return self.client.put_provisioned_concurrency_config(
             FunctionName=name,
             Qualifier=qualifier,

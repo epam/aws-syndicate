@@ -1,0 +1,34 @@
+{
+  "version": "1.0",
+  "name": "demo-cognito-project",
+  "func_name": "lambdas/demo-cognito-project/index.handler",
+  "resource_type": "lambda",
+  "iam_role_name": "BasicExecutionRole",
+  "runtime": "nodejs20.x",
+  "memory": 128,
+  "timeout": 100,
+  "lambda_path": "lambdas\\demo-cognito-project",
+  "dependencies": [
+    {
+      "resource_name": "${userpool_name}",
+      "resource_type": "cognito_idp"
+    }
+  ],
+  "event_sources": [],
+  "env_variables": {
+    "CUPId": {
+      "resource_name": "${userpool_name}",
+      "resource_type": "cognito_idp",
+      "parameter": "id"
+    },
+    "CUPClientId": {
+      "resource_name": "${userpool_name}",
+      "resource_type": "cognito_idp",
+      "parameter": "client_id"
+    }
+  },
+  "publish_version": true,
+  "alias": "${lambdas_alias_name}",
+  "url_config": {},
+  "ephemeral_storage": 512
+}

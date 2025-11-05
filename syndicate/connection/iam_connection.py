@@ -19,10 +19,11 @@ from functools import lru_cache
 from boto3 import client, resource
 from botocore.exceptions import ClientError
 
+from syndicate.exceptions import InvalidValueError
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import apply_methods_decorator, retry
 
-_LOG = get_logger('syndicate.connection.iam_connection')
+_LOG = get_logger(__name__)
 
 
 def get_account_role_arn(account_number):
@@ -131,21 +132,27 @@ class IAMConnection(object):
             PolicyArn=policy_arn, VersionId=policy_version)
         return policy_content['PolicyVersion']['Document']
 
-    def create_custom_policy(self, policy_name, policy_document):
+    def create_custom_policy(self, policy_name, policy_document, tags):
         """
         :type policy_name: str
         :type policy_document: dict or str
+        :type tags: list of dict
         """
         if isinstance(policy_document, dict):
             policy_document = dumps(policy_document)
-        return self.client.create_policy(
+
+        params = dict(
             PolicyName=policy_name,
-            PolicyDocument=policy_document,
-        )['Policy']
+            PolicyDocument=policy_document
+        )
+        if tags:
+            params['Tags'] = tags
+        return self.client.create_policy(**params)['Policy']
 
     def create_custom_role(self, role_name, allowed_account=None,
                            allowed_service=None, trusted_relationships=None,
-                           external_id=None, permissions_boundary=None):
+                           external_id=None, permissions_boundary=None,
+                           tags=None):
         """ Create custom role with trusted relationships. You can specify
         custom policy, or set principal_account and principal_service params
         to use default.
@@ -155,6 +162,7 @@ class IAMConnection(object):
         :type allowed_service: str
         :type trusted_relationships: dict
         :param trusted_relationships: if not specified will use default
+        :param tags: list of dict: List of resource tags key-value pairs
         """
         if not trusted_relationships:
             trusted_relationships = IAMConnection.empty_trusted_relationships()
@@ -174,12 +182,15 @@ class IAMConnection(object):
         if permissions_boundary:
             params['PermissionsBoundary'] = permissions_boundary
 
+        if tags:
+            params['Tags'] = tags
+
         try:
             role = self.client.create_role(**params)
             return role['Role']
         except ClientError as e:
             if e.response['Error']['Code'] == 'EntityAlreadyExists':
-                return self.client.get_role(role_name)['Role']
+                return self.client.get_role(RoleName=role_name)['Role']
             raise e
 
     @staticmethod
@@ -274,19 +285,14 @@ class IAMConnection(object):
             params['SetAsDefault'] = set_as_default
         self.client.create_policy_version(**params)
 
-    def remove_policy(self, policy_arn):
+    def remove_policy(self, policy_arn, log_not_found_error=True):
         """ To remove policy all it version must be removed before default one.
 
         :type policy_arn: str
+        :type log_not_found_error: boolean, parameter is needed for proper log
+        handling in the retry decorator
         """
-        try:
-            version = self.client.list_policy_versions(PolicyArn=policy_arn)
-        except ClientError as e:
-            if e.response['Error']['Code'] == 'NoSuchEntity':
-                _LOG.warn(f'Policy \'{policy_arn}\' not found')
-                return
-            else:
-                raise e
+        version = self.client.list_policy_versions(PolicyArn=policy_arn)
         policy_versions = version['Versions']
         if policy_versions:
             for each in policy_versions:
@@ -295,7 +301,11 @@ class IAMConnection(object):
                 self.remove_policy_version(policy_arn, each['VersionId'])
         self.client.delete_policy(PolicyArn=policy_arn)
 
-    def remove_role(self, role_name):
+    def remove_role(self, role_name, log_not_found_error=True):
+        """
+        log_not_found_error parameter is needed for proper log handling in the
+        retry decorator
+        """
         self.client.delete_role(RoleName=role_name)
 
     def create_instance_profile(self, profile_name):
@@ -525,9 +535,10 @@ class IAMConnection(object):
             for each in allowed_account:
                 principal.append(get_account_role_arn(each))
         else:
-            raise TypeError(
-                f'Can not {action} role. \'allowed_account\' must be list '
-                f'or string. Actual type: {type(allowed_account)}')
+            raise InvalidValueError(
+                f"Can not '{action}' role. 'allowed_account' must be list "
+                f"or string. Actual type: '{type(allowed_account)}'"
+            )
         trusted_accounts = {
             "Sid": "",
             "Effect": "Allow",
@@ -553,9 +564,10 @@ class IAMConnection(object):
             for each in allowed_service:
                 principal.append("{0}.amazonaws.com".format(each))
         else:
-            raise TypeError(
-                f'Can not {action} role. \'allowed_service\' must be list '
-                f'or string. Actual type: {type(allowed_service)}')
+            raise InvalidValueError(
+                f"Can not '{action}' role. 'allowed_service' must be list "
+                f"or string. Actual type: '{type(allowed_service)}'"
+            )
         trusted_services = {
             "Effect": "Allow",
             "Principal": {

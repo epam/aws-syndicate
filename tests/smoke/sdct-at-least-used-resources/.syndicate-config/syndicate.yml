@@ -1,0 +1,14 @@
+aws_access_key_id: 
+aws_secret_access_key: 
+aws_session_token: 
+account_id:
+deploy_target_bucket: 
+extended_prefix_mode: true
+iam_permissions_boundary:
+project_path: FULL_PATH\aws-syndicate\tests\smoke\sdct-at-least-used-resources
+region: eu-central-1
+resources_prefix: lur-
+resources_suffix: -test
+tags:
+  project-level-tag: set-from-project
+

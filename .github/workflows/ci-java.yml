@@ -1,0 +1,159 @@
+---
+name: Java CI
+
+on:
+  pull_request:
+    branches:
+      - master
+      - develop
+    paths:
+      - 'plugin/**'
+  push:
+    branches:
+      - master
+    paths:
+      - 'plugin/**'
+  release:
+    types:
+      - published
+    paths:
+      - 'plugin/**'
+  workflow_dispatch:
+
+jobs:
+  maven:
+    uses: ./.github/workflows/maven.yml
+    if: github.repository_owner == 'epam'
+
+  check-modified-files:
+    runs-on: ubuntu-latest
+    outputs:
+      files_modified: ${{ steps.check_files.outputs.run_publish_steps }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Check modified files
+        id: check_files
+        run: |
+          git fetch origin master
+          changed_files=$(git diff --name-only origin/master)
+          echo "Changed files: ${changed_files}"
+          checked_directory="plugin/"
+          for file in ${changed_files}
+          do
+            if [[ ${file} == ${checked_directory}* ]]
+            then
+              echo "Target directory was modified."
+              echo "run_publish_steps=true" >>$GITHUB_OUTPUT
+              exit 0
+            fi
+          done
+          echo "Target directory was not modified."
+          echo "run_publish_steps=false" >>$GITHUB_OUTPUT
+          echo "dist=/tmp/bavp/dist" >>$GITHUB_OUTPUT
+        shell: bash
+
+  check-modified-release-files:
+    runs-on: ubuntu-latest
+    if: github.repository_owner == 'epam' && github.event.action == 'published'
+    outputs:
+      files_modified: ${{ steps.check_files.outputs.run_publish_steps }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check modified files
+        id: check_files
+        run: |
+          git fetch --tags
+          tags=$(git tag --sort=-creatordate | head -n 2)
+          previous_tag=$(echo "$tags" | tail -n 1)
+          echo "Previous tag: $previous_tag"
+          changed_files=$(git diff --name-only $previous_tag HEAD)
+          echo "Changed files: ${changed_files}"
+          checked_directory="plugin/"
+          for file in ${changed_files}
+          do
+            if [[ ${file} == ${checked_directory}* ]]
+            then
+              echo "Target directory was modified."
+              echo "run_publish_steps=true" >>$GITHUB_OUTPUT
+              exit 0
+            fi
+          done
+          echo "Target directory was not modified."
+          echo "run_publish_steps=false" >>$GITHUB_OUTPUT
+          echo "dist=/tmp/bavp/dist" >>$GITHUB_OUTPUT
+        shell: bash
+
+  release-snapshot-to-maven-central:
+    name: Publish SNAPSHOT package to MavenCentral
+    environment: release-snapshot
+    needs: [maven, check-modified-files]
+    runs-on: ubuntu-latest
+    if: github.repository_owner == 'epam' && github.event_name == 'push' && github.ref == 'refs/heads/master' && needs.check-modified-files.outputs.files_modified == 'true'
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Maven Central Repository
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'corretto'
+          server-id: ossrh
+          server-username: OSS_SONATYPE_USERNAME
+          server-password: OSS_SONATYPE_TOKEN
+          cache: 'maven'
+          settings-path: ${{ github.workspace }}
+      - name: Set SNAPSHOT in version
+        run: |
+          gpg --version
+          syndicate_plugin_version=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout --file ./plugin/pom.xml | xargs) 
+          mvn versions:set -DnewVersion="${syndicate_plugin_version}-SNAPSHOT" --file ./plugin/pom.xml
+          mvn versions:commit --file ./plugin/pom.xml
+      - name: Build with Maven
+        run: mvn -B package --file ./plugin/pom.xml
+      - name: Deploy development version binaries (Snapshots)
+        env:
+          OSS_SONATYPE_USERNAME: ${{ secrets.OSSRH_USERNAME  }}
+          OSS_SONATYPE_TOKEN: ${{ secrets.OSSRH_TOKEN }}
+        run: |
+          echo Checking variables ${{ secrets.OSSRH_USERNAME }}
+          cat $GITHUB_WORKSPACE/settings.xml
+          mvn clean deploy -B --file ./plugin/pom.xml --settings $GITHUB_WORKSPACE/settings.xml
+
+  # Upload to MavenCentral on every GitHub Release
+  release-to-maven-central:
+    name: Publish released package to MavenCentral
+    environment: release-maven-central
+    needs: [maven, check-modified-release-files]
+    runs-on: ubuntu-latest
+    if: github.repository_owner == 'epam' && github.event.action == 'published' && needs.check-modified-release-files.outputs.files_modified == 'true'
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Maven Central Repository
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'corretto'
+          server-id: central
+          server-username: MAVEN_USERNAME
+          server-password: MAVEN_PASSWORD
+          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
+          gpg-passphrase: GPG_PASSPHRASE
+          cache: 'maven'
+      - name: Build with Maven
+        run: mvn -B package --file ./plugin/pom.xml
+      - name: Publish to Maven Central
+        run: |
+          # -U force updates just to make sure we are using latest dependencies
+          # -B Batch mode (do not ask for user input), just in case
+          # -P activate profile
+          gpg --version
+          mvn -U -B clean deploy -P release --file ./plugin/pom.xml
+        env:
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+          MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+          MAVEN_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}

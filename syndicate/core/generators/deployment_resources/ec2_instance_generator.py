@@ -16,6 +16,7 @@ class EC2InstanceGenerator(BaseDeploymentResourceGenerator):
         'iam_role': None,
         'security_group_names': list,
         'security_group_ids': list,
+        'tags': dict
     }
 
     def __init__(self, **kwargs):

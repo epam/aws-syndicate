@@ -1,8 +1,8 @@
 package com.syndicate.deployment.model;
 
 public enum LambdaSnapStart {
-    PublishedVersions("PublishedVersions"),
-    None("None");
+    PublishedVersions("published_versions"),
+    None("NONE");
 
     final String value;
 

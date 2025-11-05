@@ -14,9 +14,10 @@
     limitations under the License.
 """
 import re
-import click
-import sys
 
+from syndicate.exceptions import InvalidValueError, \
+    ResourceMetadataError
+from syndicate.commons.log_helper import get_user_logger
 from syndicate.core.build.validator import assert_required_property
 
 HASH_KEY_NAME = 'hash_key_name'
@@ -38,12 +39,15 @@ LOCAL_INDEXES = 'local_indexes'
 dynamodb_valid_key_types = ['S', 'N', 'B']
 
 
+USER_LOG = get_user_logger()
+
+
 def validate_dynamodb(table_name, table_meta):
     """
     Performs check of DynamoDB resources.
     :param table_name: name of resource
     :param table_meta: resource definition
-    :raises AssertionError in case of invalidity.
+    :raises an exception in case of invalidity.
     :return: None
     """
     # check hash key
@@ -53,9 +57,10 @@ def validate_dynamodb(table_name, table_meta):
                 key_type_attr=HASH_KEY_TYPE)
     hash_key_type = table_meta[HASH_KEY_TYPE]
     if hash_key_type not in dynamodb_valid_key_types:
-        raise AssertionError(
-            'Hash key type of Table {0} is unsupported by DynamoDB. '
-            'Valid types are {1}'.format(table_name, dynamodb_valid_key_types))
+        raise InvalidValueError(
+            f"Hash key type of Table '{table_name}' is unsupported by "
+            f"DynamoDB. Valid types are '{dynamodb_valid_key_types}'"
+        )
 
     # check sort key
     if table_meta.get(SORT_KEY_NAME):
@@ -65,10 +70,10 @@ def validate_dynamodb(table_name, table_meta):
                     key_type_attr=SORT_KEY_TYPE)
         table_sort_key_type = table_meta[SORT_KEY_TYPE]
         if table_sort_key_type not in dynamodb_valid_key_types:
-            raise AssertionError(
-                'Sort key type of Table {0} is unsupported by DynamoDB. '
-                'Valid types are {1}'.format(table_name,
-                                             dynamodb_valid_key_types))
+            raise InvalidValueError(
+                f"Sort key type of Table '{table_name}' is unsupported by "
+                f"DynamoDB. Valid types are '{dynamodb_valid_key_types}'"
+            )
 
     # check LSIs
     if table_meta.get(LOCAL_INDEXES):
@@ -90,24 +95,22 @@ def validate_dynamodb(table_name, table_meta):
                                          INDEX_KEY_TYPE),
                                      property_value=index_key_type_value)
             if index_key_type_value not in dynamodb_valid_key_types:
-                raise AssertionError(
-                    'Local Index hash key type of Table {0} '
-                    'is unsupported by DynamoDB. Valid types are {1}'.format(
-                        table_name, dynamodb_valid_key_types))
+                raise InvalidValueError(
+                    f"Local Index hash key type of Table '{table_name}' "
+                    f"is unsupported by DynamoDB. Valid types are "
+                    f"'{dynamodb_valid_key_types}'")
 
             # LSI hash key must be equal to table's hash key
             table_hash_key_name = table_meta[HASH_KEY_NAME]
             if index_key_name != table_hash_key_name or \
                     index_key_type_value != hash_key_type:
-                raise AssertionError(
-                    'Hash key name and type of LocalSecondaryIndex named {0}'
-                    ' must be equal to Table\'s {1} one. Expected: {2}:{3}; '
-                    'Actual: {4}:{5}'.format(index_name,
-                                             table_name,
-                                             table_hash_key_name,
-                                             hash_key_type,
-                                             index_key_name,
-                                             index_key_type_value))
+                raise InvalidValueError(
+                    f"Hash key name and type of LocalSecondaryIndex named "
+                    f"'{index_name}' must be equal to Table's '{table_name}' "
+                    f"one. "
+                    f"Expected: '{table_hash_key_name}': '{hash_key_type}'; "
+                    f"Actual: '{index_key_name}': '{index_key_type_value}'"
+                )
 
             index_sort_key_name = index.get(INDEX_SORT_KEY_NAME)
             assert_required_property(resource_name=INDEX_SORT_KEY_NAME,
@@ -121,22 +124,20 @@ def validate_dynamodb(table_name, table_meta):
                                      property_value=index_sort_key_type_value)
 
             if index_sort_key_type_value not in dynamodb_valid_key_types:
-                raise AssertionError(
-                    'Local Index sort key type of Table {0} '
-                    'is unsupported by DynamoDB. Valid types are {1}'.format(
-                        table_name, dynamodb_valid_key_types))
+                raise InvalidValueError(
+                    f"Local Index sort key type of Table '{table_name}' is "
+                    f"unsupported by DynamoDB. Valid types are "
+                    f"'{dynamodb_valid_key_types}'"
+                )
             # LSI hash key must be equal to table's hash key
             if table_meta.get(SORT_KEY_NAME):
                 if index_sort_key_name == table_meta[SORT_KEY_NAME]:
-                    raise AssertionError(
-                        'Sort key name of LocalSecondaryIndex '
-                        'named {0} is equal to Table\'s {1} ones. '
-                        'Sort key of LSI must differ from table\s. '
-                        'Value: {2}'.format(
-                            index_name,
-                            table_name,
-                            index_sort_key_name
-                        ))
+                    raise InvalidValueError(
+                        f"Sort key name of LocalSecondaryIndex "
+                        f"named '{index_name}' is equal to Table's "
+                        f"'{table_name}' one. Sort key of LSI must differ "
+                        f"from table's. Value: '{index_sort_key_name}'"
+                    )
 
 
 def _assert_key(meta, res_name, key_name_attr, key_type_attr):
@@ -196,6 +197,7 @@ def validate_dax_cluster(cluster_name: str, cluster_meta: dict):
                       f'By default it is \'TLS\'')
     if errors:
         errors_string = '\n'.join(errors)
-        click.echo(f'Errors occurred during Dax cluster meta '
-                   f'validation:\n{errors_string}')
-        sys.exit(1)
+        raise ResourceMetadataError(
+            f"Errors occurred during Dax cluster meta validation:"
+            f"\n{errors_string}"
+        )

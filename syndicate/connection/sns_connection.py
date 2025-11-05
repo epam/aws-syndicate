@@ -19,10 +19,12 @@ from json import dumps, loads
 from boto3 import client
 from botocore.exceptions import ClientError
 
+from syndicate.exceptions import ResourceNotFoundError, \
+    InvalidValueError
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import apply_methods_decorator, retry
 
-_LOG = get_logger('syndicate.connection.sns_connection')
+_LOG = get_logger(__name__)
 
 
 @apply_methods_decorator(retry())
@@ -35,12 +37,18 @@ class SNSConnection(object):
                              aws_session_token=aws_session_token)
         _LOG.debug('Opened new SNS connection.')
 
-    def create_topic(self, name):
+    def create_topic(self, name, tags):
         """ Crete SNS topic and return topic arn.
 
         :type name: str
+        :type tags: list
         """
-        return self.client.create_topic(Name=name)['TopicArn']
+        params = dict(
+            Name=name
+        )
+        if tags:
+            params['Tags'] = tags
+        return self.client.create_topic(**params)['TopicArn']
 
     def subscribe(self, endpoint, topic_name, protocol):
         """
@@ -71,8 +79,9 @@ class SNSConnection(object):
         """
         topic_arn = self.get_topic_arn(topic_name)
         if topic_arn is None:
-            raise AssertionError(
-                'Topic does not exist: {0}.'.format(topic_name))
+            raise ResourceNotFoundError(
+                f"Topic does not exist: '{topic_name}'."
+            )
         self.client.subscribe(TopicArn=topic_arn,
                               Protocol=protocol,
                               Endpoint=endpoint)
@@ -144,12 +153,16 @@ class SNSConnection(object):
             token = response.get('NextToken')
         return applications
 
-    def remove_topic_by_arn(self, topic_arn):
+    def remove_topic_by_arn(self, topic_arn, log_not_found_error=True):
         """ Remove topic by arn.
 
         :type topic_arn: str
+        :type log_not_found_error: boolean, parameter is needed for proper log
+        handling in the retry decorator
         """
-        self.client.delete_topic(TopicArn=topic_arn)
+        # make get api call first, because the delete function is idempotent
+        if self.get_topic_attributes(topic_arn):
+            self.client.delete_topic(TopicArn=topic_arn)
 
     def remove_topic_by_name(self, topic_name):
         """ Remove topic by arn.
@@ -199,12 +212,12 @@ class SNSConnection(object):
         if isinstance(account_id, str):
             account_id = [account_id]
         if not isinstance(account_id, list):
-            raise AssertionError('Incorrect account id {0}'.format(account_id))
+            raise InvalidValueError(f"Incorrect account id '{account_id}'")
 
         if isinstance(action, str):
             action = [action]
         if not isinstance(action, list):
-            raise AssertionError('Incorrect action {0}'.format(action))
+            raise InvalidValueError(f"Incorrect action '{action}'")
 
         self.client.add_permission(TopicArn=topic_arn, Label=label,
                                    AWSAccountId=account_id,
@@ -249,10 +262,22 @@ class SNSConnection(object):
             Name=name, Platform=platform, Attributes=attributes)
         return response.get('PlatformApplicationArn')
 
-    def remove_application_by_arn(self, application_arn):
+    def remove_application_by_arn(self, application_arn,
+                                  log_not_found_error=True):
         """ Remove application by arn.
 
         :type application_arn: str
+        :type log_not_found_error boolean, parameter is needed for proper log
+        handling in the retry decorator
         """
         self.client.delete_platform_application(
             PlatformApplicationArn=application_arn)
+
+    def list_subscriptions(self):
+        paginator = self.client.get_paginator('list_subscriptions')
+
+        subscriptions = []
+        for page in paginator.paginate():
+            subscriptions.extend(page['Subscriptions'])
+
+        return subscriptions

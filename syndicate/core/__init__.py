@@ -19,6 +19,7 @@ from datetime import datetime, timedelta, timezone
 
 from botocore.exceptions import ClientError
 
+from syndicate.exceptions import InternalError, ConfigurationError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.connection import ConnectionProvider
 from syndicate.connection.sts_connection import STSConnection
@@ -30,7 +31,7 @@ from syndicate.core.conf.bucket_view import URIBucketView, RegexViewDigest, \
     NAMED_S3_URI_PATTERN, S3_PATTERN_GROUP_NAMES
 from syndicate.core.helper import handle_interruption
 
-_LOG = get_logger('deployment.__init__')
+_LOG = get_logger(__name__)
 USER_LOG = get_user_logger()
 
 SESSION_TOKEN = 'aws_session_token'
@@ -55,8 +56,8 @@ CONF_PATH = os.environ.get('SDCT_CONF')
 CONFIG: ConfigHolder = None
 CONN = None
 CREDENTIALS = None
-RESOURCES_PROVIDER = None
-PROCESSOR_FACADE = None
+RESOURCES_PROVIDER: ResourceProvider = None
+PROCESSOR_FACADE: ProcessorFacade = None
 PROJECT_STATE: ProjectState = None
 
 
@@ -75,14 +76,16 @@ def _ready_to_use_provided_temp_creds():
                               and CONFIG.temp_aws_session_token \
                               and CONFIG.expiration
 
-    credentials_valid = validate_temp_credentials(
-        aws_access_key_id=CONFIG.temp_aws_access_key_id,
-        aws_secret_access_key=CONFIG.temp_aws_secret_access_key,
-        aws_session_token=CONFIG.temp_aws_session_token,
-        expiration=CONFIG.expiration
-    )
+    credentials_expired = True
+    
+    if has_temporary_creds_set:
+        credentials_expired = validate_temp_credentials_expiration(
+            expiration=CONFIG.expiration
+        )
+        if credentials_expired and CONFIG.use_temp_creds:
+            raise ConfigurationError('Temporary credentials have expired')
 
-    return has_temporary_creds_set and credentials_valid
+    return has_temporary_creds_set and not credentials_expired
 
 
 def _ready_to_generate_temp_creds():
@@ -177,39 +180,42 @@ def initialize_connection():
             resources_provider=RESOURCES_PROVIDER)
         _LOG.debug('aws-syndicate has been initialized')
     except ClientError as e:
-        message = f'An unexpected error has occurred trying to ' \
-                  f'init connection: {e}'
-        _LOG.error(message)
-        raise AssertionError(message)
+        raise InternalError(
+            f'An unexpected error has occurred trying to init connection: {e}'
+        )
 
 
-def initialize_project_state():
+def initialize_project_state(do_not_sync_state=False):
     from syndicate.core.project_state.sync_processor import sync_project_state
     global PROJECT_STATE
-    if not ProjectState.check_if_project_state_exists(CONFIG.project_path):
-        USER_LOG.warn("\033[93mConfig is set and generated but project "
-                      "state does not exist, seems that you've come from the "
-                      "previous version.\033[0m")
-        USER_LOG.warn("\033[93mGenerating project state file "
-                      "(.syndicate) from the existing structure..."
-                      "\033[0m")
-        PROJECT_STATE = ProjectState.build_from_structure(CONFIG)
-    else:
-        PROJECT_STATE = ProjectState(project_path=CONFIG.project_path)
+    if not PROJECT_STATE:
+        if not ProjectState.check_if_project_state_exists(CONF_PATH):
+            USER_LOG.warning(
+                "Config is set and generated, but project state file does not "
+                "exist."
+            )
+            USER_LOG.warning(
+                "Generating project state file '.syndicate' from the existing "
+                "structure..."
+            )
+            PROJECT_STATE = ProjectState.build_from_structure(CONFIG)
+        else:
+            PROJECT_STATE = ProjectState(project_path=CONFIG.project_path)
+
+    if do_not_sync_state:
+        return
+
+    sync_project_state()
 
 
-def validate_temp_credentials(aws_access_key_id, aws_secret_access_key,
-                              aws_session_token, expiration):
-    if not all((aws_access_key_id, aws_secret_access_key,
-                aws_session_token, expiration)):
-        return False
+def validate_temp_credentials_expiration(expiration):
     if not isinstance(expiration, datetime):
         expiration = datetime.fromisoformat(expiration)
     expiration_datetime = expiration - timedelta(
         minutes=CREDENTIALS_EXPIRATION_THRESHOLD_MIN)
     now_datetime = datetime.now(timezone.utc)
 
-    return expiration_datetime > now_datetime
+    return expiration_datetime <= now_datetime
 
 
 def prompt_mfa_code():

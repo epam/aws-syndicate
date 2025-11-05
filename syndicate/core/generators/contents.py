@@ -15,33 +15,46 @@
 """
 import json
 
-from syndicate.core.build.artifact_processor import RUNTIME_NODEJS
 from syndicate.core.conf.validator import (
     LAMBDAS_ALIASES_NAME_CFG, LOGS_EXPIRATION
 )
 from syndicate.core.generators import (_alias_variable,
                                        FILE_LAMBDA_HANDLER_NODEJS)
-from syndicate.core.groups import DEFAULT_RUNTIME_VERSION
+from syndicate.core.groups import DEFAULT_RUNTIME_VERSION, RUNTIME_PYTHON, \
+    RUNTIME_NODEJS, RUNTIME_DOTNET, PYTHON_ROOT_DIR_PYAPP
+from syndicate.core.constants import DEFAULT_JSON_INDENT
 
 POLICY_LAMBDA_BASIC_EXECUTION = "lambda-basic-execution"
 
 LAMBDA_ROLE_NAME_PATTERN = '{0}-role'  # 0 - lambda_name
 
-SRC_MAIN_JAVA = 'jsrc/main/java'
+SRC_MAIN_JAVA = 'src/main/java'
 FILE_POM = 'pom.xml'
 CANCEL_MESSAGE = 'Creating of {} has been canceled.'
+
+JAVA_TAGS_IMPORT = """
+import com.syndicate.deployment.annotations.tag.Tag;
+import com.syndicate.deployment.annotations.tag.Tags;"""
+
+JAVA_TAGS_ANNOTATION_TEMPLATE = """
+@Tags(value = {
+{tags}})
+"""
+
+JAVA_TAG_ANNOTATION_TEMPLATE = '    @Tag(key = "{key}", value = "{value}")'
 
 JAVA_LAMBDA_HANDLER_CLASS = """package {java_package_name};
 
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
-import com.syndicate.deployment.annotations.lambda.LambdaHandler;
+import com.syndicate.deployment.annotations.lambda.LambdaHandler;{tags_import}
 import com.syndicate.deployment.model.RetentionSetting;
 
 import java.util.HashMap;
 import java.util.Map;
-
-@LambdaHandler(lambdaName = "{lambda_name}",
+{tags}
+@LambdaHandler(
+    lambdaName = "{lambda_name}",
 	roleName = "{lambda_role_name}",
 	isPublishVersion = true,
 	aliasName = "${lambdas_alias_name}",
@@ -71,12 +84,12 @@ JAVA_ROOT_POM_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
 
     <properties>
         <maven-shade-plugin.version>3.5.2</maven-shade-plugin.version>
-        <syndicate.java.plugin.version>1.11.1</syndicate.java.plugin.version>
+        <syndicate.java.plugin.version>1.17.1</syndicate.java.plugin.version>
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <src.dir>jsrc/main/java</src.dir>
-        <resources.dir>jsrc/main/resources</resources.dir>
+        <src.dir>src/main/java</src.dir>
+        <resources.dir>src/main/resources</resources.dir>
     </properties>
 
     <dependencies>
@@ -109,6 +122,7 @@ JAVA_ROOT_POM_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
                 <configuration>
                     <packages>
                         <!--packages to scan-->
+                        <package>{java_package_name}</package>
                     </packages>
                     <fileName>${project.name}-${project.version}.jar</fileName>
                 </configuration>
@@ -159,7 +173,7 @@ JAVA_ROOT_POM_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
 PYTHON_LAMBDA_HANDLER_TEMPLATE = """from commons.log_helper import get_logger
 from commons.abstract_lambda import AbstractLambda
 
-_LOG = get_logger('LambdaName-handler')
+_LOG = get_logger(__name__)
 
 
 class LambdaName(AbstractLambda):
@@ -191,6 +205,59 @@ NODEJS_LAMBDA_HANDLER_TEMPLATE = """exports.handler = async (event) => {
     return response;
 };
 """
+
+DOTNET_LAMBDA_HANDLER_TEMPLATE = """using System.Collections.Generic;
+using Amazon.Lambda.Core;
+using Amazon.Lambda.APIGatewayEvents;
+
+[assembly: LambdaSerializer(typeof(Amazon.Lambda.Serialization.SystemTextJson.DefaultLambdaJsonSerializer))]
+
+namespace SimpleLambdaFunction;
+
+public class Function
+{
+    public APIGatewayProxyResponse FunctionHandler(APIGatewayProxyRequest request, ILambdaContext context)
+    {
+        return new APIGatewayProxyResponse
+        {
+            StatusCode = 200,
+            Body = "Hello world!",
+            Headers = new Dictionary<string, string> { { "Content-Type", "text/plain" } }
+        };
+    }
+}
+"""
+
+DOTNET_LAMBDA_CSPROJ_TEMPLATE = """<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+		<AssemblyName>SimpleLambdaFunction</AssemblyName>
+        <TargetFramework>net8.0</TargetFramework>
+        <OutputType>Library</OutputType>
+        <Nullable>enable</Nullable>
+        <GenerateRuntimeConfigurationFiles>true</GenerateRuntimeConfigurationFiles>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Amazon.Lambda.APIGatewayEvents" Version="2.4.0" />
+        <PackageReference Include="Amazon.Lambda.Core" Version="2.2.0" />
+        <PackageReference Include="Amazon.Lambda.Serialization.SystemTextJson" Version="2.2.0" />
+    </ItemGroup>
+
+</Project>
+"""
+
+DOTNET_LAMBDA_LAYER_CSPROJ_TEMPLATE = '''<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Layer packages here -->
+    <PackageReference Include="Amazon.Lambda.Core" Version="2.2.0" />
+  </ItemGroup>
+</Project>
+
+'''
 
 GITIGNORE_CONTENT = """.syndicate
 logs/
@@ -268,7 +335,7 @@ ABSTRACT_LAMBDA_CONTENT = """from abc import abstractmethod
 from commons import ApplicationException, build_response
 from commons.log_helper import get_logger
 
-_LOG = get_logger('abstract-lambda')
+_LOG = get_logger(__name__)
 
 
 class AbstractLambda:
@@ -316,7 +383,7 @@ class AbstractLambda:
                                   content='Internal server error')
 """
 
-INIT_CONTENT = """from commons.exception import ApplicationException
+INIT_CONTENT = """from commons.exceptions import ApplicationException
 
 RESPONSE_BAD_REQUEST_CODE = 400
 RESPONSE_UNAUTHORIZED = 401
@@ -438,38 +505,38 @@ class ImportFromSourceContext:
 """
 
 PYTHON_TESTS_INIT_LAMBDA_TEMPLATE = \
-"""import unittest
+f"""import unittest
 import importlib
-from tests import ImportFromSourceContext
+from {PYTHON_ROOT_DIR_PYAPP}.tests import ImportFromSourceContext
 
 with ImportFromSourceContext():
-    LAMBDA_HANDLER = importlib.import_module('lambdas.{lambda_name}.handler')
+    LAMBDA_HANDLER = importlib.import_module('lambdas.{{lambda_name}}.handler')
 
 
-class {camel_lambda_name}LambdaTestCase(unittest.TestCase):
+class {{camel_lambda_name}}LambdaTestCase(unittest.TestCase):
     \"\"\"Common setups for this lambda\"\"\"
 
     def setUp(self) -> None:
-        self.HANDLER = LAMBDA_HANDLER.{camel_lambda_name}()
+        self.HANDLER = LAMBDA_HANDLER.{{camel_lambda_name}}()
 
 """
 
 PYTHON_TESTS_BASIC_TEST_CASE_TEMPLATE = \
-"""from tests.{test_lambda_folder} import {camel_lambda_name}LambdaTestCase
+f"""from {PYTHON_ROOT_DIR_PYAPP}.tests.{{test_lambda_folder}} import {{camel_lambda_name}}LambdaTestCase
 
 
-class TestSuccess({camel_lambda_name}LambdaTestCase):
+class TestSuccess({{camel_lambda_name}}LambdaTestCase):
 
     def test_success(self):
         self.assertEqual(self.HANDLER.handle_request(dict(), dict()), 200)
 
 """
 
-S3_BUCKET_PUBLIC_READ_POLICY = {
+S3_BUCKET_WEBSITE_HOSTING_POLICY = {
     "Version": "2012-10-17",
     "Statement": [
         {
-            "Sid": "PublicReadGetObject",
+            "Sid": "WebSiteHostingGetObject",
             "Effect": "Allow",
             "Principal": "*",
             "Action": [
@@ -477,7 +544,14 @@ S3_BUCKET_PUBLIC_READ_POLICY = {
             ],
             "Resource": [
                 "arn:aws:s3:::{bucket_name}/*"
-            ]
+            ],
+            "Condition": {
+                "IpAddress": {
+                    "aws:SourceIp": [
+                        "XXX.XXX.XXX.XXX/32"
+                    ]
+                }
+            }
         }
     ]
 }
@@ -520,17 +594,18 @@ LOCAL_REQUIREMENTS_FILE_CONTENT = '# local requirements'
 
 
 def _stringify(dict_content):
-    return json.dumps(dict_content, indent=2)
+    return json.dumps(dict_content, indent=DEFAULT_JSON_INDENT)
 
 
-def _generate_python_node_lambda_config(lambda_name, lambda_relative_path):
+def _generate_python_node_lambda_config(lambda_name, lambda_relative_path,
+                                        tags):
     return _stringify({
         'version': '1.0',
         'name': lambda_name,
         'func_name': 'handler.lambda_handler',
         'resource_type': 'lambda',
         'iam_role_name': LAMBDA_ROLE_NAME_PATTERN.format(lambda_name),
-        'runtime': 'python3.10',
+        'runtime': DEFAULT_RUNTIME_VERSION[RUNTIME_PYTHON],
         'memory': 128,
         'timeout': 100,
         'lambda_path': lambda_relative_path,
@@ -541,21 +616,25 @@ def _generate_python_node_lambda_config(lambda_name, lambda_relative_path):
         'alias': _alias_variable(LAMBDAS_ALIASES_NAME_CFG),
         'url_config': {},
         'ephemeral_storage': 512,
-        'logs_expiration': _alias_variable(LOGS_EXPIRATION)
+        'logs_expiration': _alias_variable(LOGS_EXPIRATION),
+        'tags': tags
         # 'platforms': ['manylinux2014_x86_64']
         # by default (especially if you have linux), you don't need it
     })
 
 
 def _generate_python_node_layer_config(layer_name, runtime):
-    return _stringify({
+    layer_template = {
         "name": layer_name,
         "resource_type": "lambda_layer",
         "runtimes": [
             DEFAULT_RUNTIME_VERSION.get(runtime)
         ],
         "deployment_package": f"{layer_name}_layer.zip"
-    })
+    }
+    if runtime in DEFAULT_RUNTIME_VERSION[RUNTIME_DOTNET]:
+        layer_template["custom_packages"] = []
+    return _stringify(layer_template)
 
 
 def _generate_node_layer_package_file(layer_name):
@@ -573,22 +652,23 @@ def _generate_node_layer_package_file(layer_name):
 
 def _generate_node_layer_package_lock_file(layer_name):
     return _stringify({
-            "name": layer_name,
-            "version": "1.0.0",
-            "lockfileVersion": 1,
-            "requires": True,
-            "dependencies": {}
-        })
+        "name": layer_name,
+        "version": "1.0.0",
+        "lockfileVersion": 1,
+        "requires": True,
+        "dependencies": {}
+    })
 
 
-def _generate_nodejs_node_lambda_config(lambda_name, lambda_relative_path):
+def _generate_nodejs_node_lambda_config(lambda_name, lambda_relative_path,
+                                        tags):
     return _stringify({
         'version': '1.0',
         'name': lambda_name,
         'func_name': f'lambdas/{lambda_name}/index.handler',
         'resource_type': 'lambda',
         'iam_role_name': LAMBDA_ROLE_NAME_PATTERN.format(lambda_name),
-        'runtime': RUNTIME_NODEJS,
+        'runtime': DEFAULT_RUNTIME_VERSION[RUNTIME_NODEJS],
         'memory': 128,
         'timeout': 100,
         'lambda_path': lambda_relative_path,
@@ -598,7 +678,8 @@ def _generate_nodejs_node_lambda_config(lambda_name, lambda_relative_path):
         'publish_version': True,
         'alias': _alias_variable(LAMBDAS_ALIASES_NAME_CFG),
         'url_config': {},
-        'ephemeral_storage': 512
+        'ephemeral_storage': 512,
+        'tags': tags
     })
 
 
@@ -626,6 +707,28 @@ def _generate_package_lock_nodejs_lambda(lambda_name):
     })
 
 
+def _generate_dotnet_lambda_config(lambda_name, lambda_relative_path, tags):
+    return _stringify({
+        'version': '1.0',
+        'name': lambda_name,
+        'func_name': 'SimpleLambdaFunction::SimpleLambdaFunction.Function::FunctionHandler',
+        'resource_type': 'lambda',
+        'iam_role_name': LAMBDA_ROLE_NAME_PATTERN.format(lambda_name),
+        'runtime': DEFAULT_RUNTIME_VERSION[RUNTIME_DOTNET],
+        'memory': 128,
+        'timeout': 100,
+        'lambda_path': lambda_relative_path,
+        'dependencies': [],
+        'event_sources': [],
+        'env_variables': {},
+        'publish_version': True,
+        'alias': _alias_variable(LAMBDAS_ALIASES_NAME_CFG),
+        'url_config': {},
+        'ephemeral_storage': 512,
+        'tags': tags
+    })
+
+
 def _get_lambda_default_policy():
     return _stringify({
         POLICY_LAMBDA_BASIC_EXECUTION: {
@@ -650,12 +753,13 @@ def _get_lambda_default_policy():
                     }
                 ],
                 "Version": "2012-10-17"},
-            "resource_type": "iam_policy"
+            "resource_type": "iam_policy",
+            "tags": {}
         }
     })
 
 
-def _generate_lambda_role_config(role_name, stringify=True):
+def _generate_lambda_role_config(role_name, tags, stringify=True):
     role_content = {
         role_name: {
             "predefined_policies": [],
@@ -663,7 +767,8 @@ def _generate_lambda_role_config(role_name, stringify=True):
             "custom_policies": [
                 POLICY_LAMBDA_BASIC_EXECUTION
             ],
-            "resource_type": "iam_role"
+            "resource_type": "iam_role",
+            "tags": tags
         }
     }
     return _stringify(role_content) if stringify else role_content
@@ -671,8 +776,147 @@ def _generate_lambda_role_config(role_name, stringify=True):
 
 def _generate_swagger_ui_config(resource_name, path_to_spec, target_bucket):
     return _stringify({
-            "name": resource_name,
-            "resource_type": "swagger_ui",
-            "path_to_spec": path_to_spec,
-            "target_bucket": target_bucket
-        })
+        "name": resource_name,
+        "resource_type": "swagger_ui",
+        "path_to_spec": path_to_spec,
+        "target_bucket": target_bucket
+    })
+
+
+def _generate_syncapp_config(resource_name, schema_file_name, tags=None):
+    config_content = {
+        "name": resource_name,
+        "resource_type": "appsync",
+        "primary_auth_type": "API_KEY",
+        "api_key_expiration_days": 7,
+        "schema_path": schema_file_name,
+        "data_sources": [],
+        "resolvers": [],
+        "functions": [],
+        "log_config": {
+            "logging_enabled": False,
+            "field_log_level": "ERROR",
+            "cloud_watch_logs_role_name": '',
+            'exclude_verbose_content': False
+        },
+        "tags": tags or {},
+    }
+    return _stringify(config_content)
+
+
+def _generate_syncapp_default_schema():
+    content = '''# Define the structure of your API with the GraphQL
+# schema definition language (SDL) here.
+
+type Query {
+	test: String
+}
+
+schema {
+	query: Query
+}
+    '''
+    return content
+
+
+def _generate_syncapp_js_resolver_code():
+    default_code = '''/**
+ * Sends a request to the attached data source
+ * @param {import('@aws-appsync/utils').Context} ctx the context
+ * @returns {*} the request
+ */
+export function request(ctx) {
+    // Update with custom logic or select a code sample.
+    return {};
+}
+
+/**
+ * Returns the resolver result
+ * @param {import('@aws-appsync/utils').Context} ctx the context
+ * @returns {*} the result
+ */
+export function response(ctx) {
+    // Update with response logic
+    return ctx.result;
+}
+'''
+    return default_code
+
+
+def _generate_syncapp_vtl_resolver_req_mt(data_source_type):
+    match data_source_type:
+        case 'NONE':
+            content = \
+                '''#**Resolvers with None data sources can locally publish events that fire
+                subscriptions or otherwise transform data without hitting a backend data source.
+                The value of 'payload' is forwarded to $ctx.result in the response mapping template.
+                *#
+                {
+                    "version": "2018-05-29",
+                    "payload": {
+                        "hello": "local",
+                    }
+                }
+                            '''
+        case 'AWS_LAMBDA':
+            content = \
+                '''#**The value of 'payload' after the template has been evaluated
+                will be passed as the event to AWS Lambda.
+                *#
+                {
+                  "version" : "2018-05-29",
+                  "operation": "Invoke",
+                  "payload": $util.toJson($context.args)
+                }
+                                            '''
+        case 'AMAZON_DYNAMODB':
+            content = \
+                '''## Below example shows how to look up an item with a Primary Key of "id" from GraphQL arguments
+                ## The helper $util.dynamodb.toDynamoDBJson automatically converts to a DynamoDB formatted request
+                ## There is a "context" object with arguments, identity, headers, and parent field information you can access.
+                ## It also has a shorthand notation available:
+                ##  - $context or $ctx is the root object
+                ##  - $ctx.arguments or $ctx.args contains arguments
+                ##  - $ctx.identity has caller information, such as $ctx.identity.username
+                ##  - $ctx.request.headers contains headers, such as $context.request.headers.xyz
+                ##  - $ctx.source is a map of the parent field, for instance $ctx.source.xyz
+                ## Read more: https://docs.aws.amazon.com/appsync/latest/devguide/resolver-mapping-template-reference.html
+                
+                {
+                    "version": "2018-05-29",
+                    "operation": "GetItem",
+                    "key": {
+                        "id": $util.dynamodb.toDynamoDBJson($ctx.args.id),
+                    }
+                }
+                '''
+        case 'PIPELINE':
+            content = \
+                '''## By default in a before template, all you need is a valid JSON payload.
+                ## You can also stash data to be made available to the functions in the pipeline.
+                ## Examples: 
+                ## - $ctx.stash.put("email", $ctx.args.email)
+                ## - $ctx.stash.put("badgeNumber", $ctx.args.input.badgeNumber)
+                ## - $ctx.stash.put("username", $ctx.identity.username)
+                
+                {}
+                '''
+    return content
+
+
+def _generate_syncapp_vtl_resolver_resp_mt(data_source_type):
+    match data_source_type:
+        case 'NONE':
+            content = '''$util.toJson($context.result)'''
+        case 'AWS_LAMBDA':
+            content = '''$util.toJson($context.result)'''
+        case 'AMAZON_DYNAMODB':
+            content = \
+                '''## Pass back the result from DynamoDB. **
+                $util.toJson($ctx.result)
+                '''
+        case 'PIPELINE':
+            content = \
+                '''## The after mapping template is used to collect the final value that is returned by the resolver.
+                $util.toJson($ctx.result)'''
+    return content

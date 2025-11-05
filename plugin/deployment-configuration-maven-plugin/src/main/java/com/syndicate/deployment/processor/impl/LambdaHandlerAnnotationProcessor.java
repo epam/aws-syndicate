@@ -25,24 +25,27 @@ import com.syndicate.deployment.annotations.events.SnsEventSource;
 import com.syndicate.deployment.annotations.events.SqsTriggerEventSource;
 import com.syndicate.deployment.annotations.lambda.LambdaHandler;
 import com.syndicate.deployment.annotations.resources.DependsOn;
+import com.syndicate.deployment.annotations.tag.Tag;
 import com.syndicate.deployment.factories.DependencyItemFactory;
 import com.syndicate.deployment.factories.LambdaConfigurationFactory;
 import com.syndicate.deployment.model.DependencyItem;
 import com.syndicate.deployment.model.EventSourceType;
 import com.syndicate.deployment.model.LambdaConfiguration;
 import com.syndicate.deployment.model.Pair;
+import com.syndicate.deployment.model.environment.ValueTransformer;
 import com.syndicate.deployment.model.events.EventSourceItem;
 import com.syndicate.deployment.processor.AbstractAnnotationProcessor;
 import com.syndicate.deployment.processor.IAnnotationProcessor;
-import org.reflections.Reflections;
+import com.syndicate.deployment.resolvers.reflection.ReflectionsHolder;
 
 import java.lang.annotation.Annotation;
-import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Created by Vladyslav Tereshchenko on 10/5/2016.
@@ -79,27 +82,38 @@ public class LambdaHandlerAnnotationProcessor extends AbstractAnnotationProcesso
         for (DependsOn annotation : dependsOnAnnotations) {
             dependencies.add(DependencyItemFactory.createDependencyItem(annotation));
         }
-        Map<String, String> envVariables = getEnvVariables(lambdaClass);
+        Map<String, Object> envVariables = getEnvVariables(lambdaClass);
+        Map<String, String > tags = getTags(lambdaClass);
         LambdaConfiguration lambdaConfiguration = LambdaConfigurationFactory.createLambdaConfiguration(version, lambdaClass, lambdaHandler, dependencies,
-                events, envVariables, fileName, path);
+                events, envVariables, tags, fileName, path);
         return new Pair<>(lambdaHandler.lambdaName(), lambdaConfiguration);
     }
 
     @Override
-    public List<Class<?>> getAnnotatedClasses(String[] packages) {
-        List<Class<?>> lambdasClasses = new ArrayList<>();
-        for (String nestedPackage : packages) {
-            lambdasClasses.addAll(new Reflections(nestedPackage).getTypesAnnotatedWith(LambdaHandler.class));
-        }
-        return lambdasClasses;
+    protected Collection<Class<?>> getAnnotatedClasses(String[] packages) {
+        return ReflectionsHolder.getTypesAnnotatedWith(packages, LambdaHandler.class);
     }
 
-    private Map<String, String> getEnvVariables(Class<?> lambdaClass) {
-        Map<String, String> envVariables = new HashMap<>();
+    private Map<String, Object> getEnvVariables(Class<?> lambdaClass) {
+        Map<String, Object> envVariables = new HashMap<>();
         EnvironmentVariable[] environmentVariablesAnnotations = lambdaClass.getDeclaredAnnotationsByType(EnvironmentVariable.class);
         for (EnvironmentVariable annotation : environmentVariablesAnnotations) {
-            envVariables.put(annotation.key(), annotation.value());
+            envVariables.put(annotation.key(), getValue(annotation));
         }
         return envVariables;
     }
+
+    private Object getValue(EnvironmentVariable annotation) {
+        return annotation.valueTransformer() == ValueTransformer.NONE
+                ? annotation.value()
+                : Map.of(annotation.valueTransformer().getSourceParameter(), annotation.value(),
+                "resource_type", annotation.valueTransformer().getResourceType(),
+                "parameter", annotation.valueTransformer().getParameter());
+    }
+
+    private Map<String, String> getTags(Class<?> lambdaClass) {
+        return Stream.of(lambdaClass.getDeclaredAnnotationsByType(Tag.class))
+                .collect(Collectors.toMap(Tag::key, Tag::value));
+    }
+
 }

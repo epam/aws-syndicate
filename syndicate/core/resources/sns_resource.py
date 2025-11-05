@@ -15,6 +15,7 @@
 """
 from botocore.exceptions import ClientError
 
+from syndicate.exceptions import InvalidValueError
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.conf.validator import ALL_REGIONS
 from syndicate.core.helper import unpack_kwargs
@@ -26,7 +27,7 @@ from syndicate.core.resources.helper import (build_description_obj,
 
 SNS_CLOUDWATCH_TRIGGER_REQUIRED_PARAMS = ['target_rule']
 
-_LOG = get_logger('core.resources.sns_resource')
+_LOG = get_logger(__name__)
 
 
 class SnsResource(BaseResource):
@@ -71,9 +72,9 @@ class SnsResource(BaseResource):
                 topic_arn)
             if response:
                 responses.append({'arn': topic_arn, 'response': response})
-        description = []
+        description = {}
         for topic in responses:
-            description.append({
+            description.update({
                 topic['arn']: build_description_obj(
                     topic['response'], name, meta)
             })
@@ -111,9 +112,9 @@ class SnsResource(BaseResource):
                 app_arn)
             if response:
                 responses.append({'arn': app_arn, 'response': response})
-        description = []
+        description = {}
         for topic in responses:
-            description.append({
+            description.update({
                 topic['arn']: build_description_obj(
                     topic['response'], name, meta)
             })
@@ -145,7 +146,8 @@ class SnsResource(BaseResource):
                 '{0} sns topic exists in region {1}.'.format(name, region))
             return self.describe_sns(name=name, meta=meta, region=region,
                                      arn=arn)
-        arn = self.connection_provider.sns(region).create_topic(name)
+        arn = self.connection_provider.sns(region).create_topic(
+            name, meta.get('tags'))
         event_sources = meta.get('event_sources')
         if event_sources:
             for trigger_meta in event_sources:
@@ -198,8 +200,9 @@ class SnsResource(BaseResource):
                                                             topic_name,
                                                             each)
             else:
-                raise AssertionError('Invalid value for SNS region: %s.',
-                                     region)
+                raise InvalidValueError(
+                    f"Invalid value for SNS region: '{region}'."
+                    )
         else:
             self._subscribe_lambda_to_sns_topic(lambda_arn, topic_name,
                                                 self.region)
@@ -220,7 +223,7 @@ class SnsResource(BaseResource):
                   rule_name)
 
     def remove_sns_topics(self, args):
-        self.create_pool(self._remove_sns_topic, args)
+        return self.create_pool(self._remove_sns_topic, args)
 
     @unpack_kwargs
     def _remove_sns_topic(self, arn, config):
@@ -230,12 +233,15 @@ class SnsResource(BaseResource):
         #  deleting subscriptions with related SNS topic deletion
         self._remove_sns_topic_subscriptions(arn)
         try:
-            self.connection_provider.sns(region).remove_topic_by_arn(arn)
+            self.connection_provider.sns(region).remove_topic_by_arn(
+                arn, log_not_found_error=False)
             _LOG.info('SNS topic %s was removed.', topic_name)
+            return {arn: config}
         except ClientError as e:
             exception_type = e.response['Error']['Code']
             if exception_type == 'ResourceNotFoundException':
                 _LOG.warn('SNS topic %s is not found', topic_name)
+                return {arn: config}
             else:
                 raise e
 
@@ -247,6 +253,13 @@ class SnsResource(BaseResource):
             subscription_arn = subscription['SubscriptionArn']
             self.connection_provider.sns(region).unsubscribe(
                     subscription_arn)
+
+    def unsubscribe_arn(self, subscription_arn):
+        self.connection_provider.sns().unsubscribe(
+            subscription_arn=subscription_arn)
+
+    def list_subscriptions(self):
+        return self.connection_provider.sns().list_subscriptions()
 
     @unpack_kwargs
     def _create_platform_application_from_meta(self, name, meta, region):
@@ -278,18 +291,21 @@ class SnsResource(BaseResource):
         return self.describe_sns_application(name, meta, region, arn)
 
     def remove_sns_application(self, args):
-        self.create_pool(self._remove_sns_application, args)
+        return self.create_pool(self._remove_sns_application, args)
 
     @unpack_kwargs
     def _remove_sns_application(self, arn, config):
         region = arn.split(':')[3]
         application_name = config['resource_name']
         try:
-            self.connection_provider.sns(region).remove_application_by_arn(arn)
+            self.connection_provider.sns(region).remove_application_by_arn(
+                arn, log_not_found_error=False)
             _LOG.info('SNS application %s was removed.', application_name)
+            return {arn: config}
         except ClientError as e:
             exception_type = e.response['Error']['Code']
             if exception_type == 'ResourceNotFoundException':
                 _LOG.warn('SNS application %s is not found', application_name)
+                return {arn: config}
             else:
                 raise e

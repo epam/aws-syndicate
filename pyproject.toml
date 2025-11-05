@@ -1,0 +1,57 @@
+[build-system]
+build-backend = "setuptools.build_meta"
+requires = ["setuptools"]
+
+
+[project]
+name = "aws-syndicate"
+dynamic = ["version"]
+description = "AWS-syndicate is an Amazon Web Services deployment framework written in Python, which allows to easily deploy serverless applications using resource descriptions."
+readme = { file = "README.md", content-type = "text/markdown" }
+requires-python = ">=3.10"
+license-files = ["LICENSE"]
+authors = [
+    { name = "EPAM Systems", email = "support@syndicate.team" },
+]
+keywords = ["AWS", "SERVERLESS", "CLOUD", "LAMBDA", "DEPLOY"]
+
+# https://pypi.org/classifiers/
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Build Tools",
+    "Programming Language :: Python :: 3.10"
+]
+
+dependencies = [
+    "click==7.1.2",
+    "botocore==1.38.12",
+    "boto3==1.38.12",
+    "tqdm==4.67.1",
+    "pyyaml==6.0.1",
+    "requests-aws-sign==0.1.6",
+    "requests==2.32.3",
+    "tabulate==0.9.0",
+    "troposphere==4.1.0"
+]
+
+[project.scripts]
+syndicate = "syndicate.core.handlers:syndicate"
+
+[project.urls]
+"Homepage" = "https://github.com/epam/aws-syndicate"
+"Documentation" = "https://github.com/epam/aws-syndicate/wiki"
+"Changelog" = "https://github.com/epam/aws-syndicate/blob/master/CHANGELOG.md"
+
+
+[tool.setuptools]
+platforms = ["Linux", "Windows"]
+include-package-data = true
+zip-safe = true
+
+[tool.setuptools.dynamic]
+version = {attr = "syndicate.__version__"}
+
+
+[tool.setuptools.packages.find]
+exclude = ["tests", "tests.*", "examples", "examples.*"]

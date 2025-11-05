@@ -1,0 +1,101 @@
+{
+  "LambdaBasicExecution": {
+    "policy_content": {
+      "Statement": [
+        {
+          "Action": [
+            "logs:CreateLogGroup",
+            "logs:CreateLogStream",
+            "logs:PutLogEvents",
+            "cognito-idp:AdminCreateUser",
+            "cognito-idp:AdminInitiateAuth",
+            "cognito-idp:GetIdentityProviderByIdentifier",
+            "cognito-idp:AdminRespondToAuthChallenge",
+            "cognito-idp:AdminConfirmSignUp"
+          ],
+          "Effect": "Allow",
+          "Resource": "*"
+        }
+      ],
+      "Version": "2012-10-17"
+    },
+    "resource_type": "iam_policy"
+  },
+  "BasicExecutionRole": {
+    "predefined_policies": [],
+    "principal_service": "lambda",
+    "custom_policies": [
+      "LambdaBasicExecution"
+    ],
+    "resource_type": "iam_role",
+    "allowed_accounts": [
+      "${account_id}"
+    ]
+  },
+  "${userpool_name}": {
+    "resource_type": "cognito_idp",
+    "password_policy": {
+      "require_uppercase": true,
+      "require_numbers": true
+    },
+    "auto_verified_attributes": [],
+    "sms_configuration": {},
+    "username_attributes": [],
+    "client": {
+      "client_name": "client-app",
+      "generate_secret": false,
+      "explicit_auth_flows": [
+        "ALLOW_ADMIN_USER_PASSWORD_AUTH",
+        "ALLOW_REFRESH_TOKEN_AUTH"
+      ]
+    }
+  },
+  "syndicate-demo-api": {
+    "authorizers": {
+      "authorizer": {
+        "type": "COGNITO_USER_POOLS",
+        "identity_source": "method.request.header.Authorization",
+        "user_pools": [
+          "${userpool_name}"
+        ],
+        "ttl": 300
+      }
+    },
+    "deploy_stage": "dev",
+    "dependencies": [
+      {
+        "resource_name": "demo-cognito-project",
+        "resource_type": "lambda"
+      }
+    ],
+    "resources": {
+      "/login": {
+        "enable_cors": true,
+        "POST": {
+          "enable_proxy": true,
+          "integration_request_body_template": {},
+          "authorization_type": "NONE",
+          "integration_type": "lambda",
+          "method_request_parameters": {},
+          "default_error_pattern": true,
+          "integration_passthrough_behavior": "WHEN_NO_TEMPLATES",
+          "lambda_name": "demo-cognito-project"
+        }
+      },
+      "/signup": {
+        "enable_cors": true,
+        "POST": {
+          "enable_proxy": true,
+          "integration_request_body_template": {},
+          "authorization_type": "NONE",
+          "integration_type": "lambda",
+          "method_request_parameters": {},
+          "default_error_pattern": true,
+          "integration_passthrough_behavior": "WHEN_NO_TEMPLATES",
+          "lambda_name": "demo-cognito-project"
+        }
+      }
+    },
+    "resource_type": "api_gateway"
+  }
+}

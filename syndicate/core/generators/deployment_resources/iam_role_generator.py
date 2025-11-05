@@ -1,6 +1,4 @@
-from syndicate.core.generators.deployment_resources.base_generator import \
-    BaseDeploymentResourceGenerator
-import click
+from syndicate.exceptions import ResourceNotFoundError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.constants import IAM_ROLE, IAM_POLICY
 from syndicate.core.generators.deployment_resources.base_generator import \
@@ -20,7 +18,8 @@ class IAMRoleGenerator(BaseDeploymentResourceGenerator):
         "allowed_accounts": list,
         "external_id": None,
         "instance_profile": bool,
-        "permissions_boundary": str
+        "permissions_boundary": str,
+        "tags": dict
     }
 
     def _resolve_configuration(self, defaults_dict=None) -> dict:
@@ -44,8 +43,8 @@ class IAMRoleGenerator(BaseDeploymentResourceGenerator):
 
         custom_policies = custom_policies - available_policies
         if custom_policies:
-            message = f"Custom policies: {custom_policies} was not found " \
-                      f"in deployment resources"
-            _LOG.error(f"Validation error: {message}")
-            raise ValueError(message)
+            raise ResourceNotFoundError(
+                f"Custom policies: '{custom_policies}' was not found in "
+                f"deployment resources"
+            )
         _LOG.info(f"Validation successfully finished, policies exist")

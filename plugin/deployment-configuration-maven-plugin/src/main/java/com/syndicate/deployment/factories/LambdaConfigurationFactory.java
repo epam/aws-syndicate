@@ -45,8 +45,8 @@ public final class LambdaConfigurationFactory {
 
     public static LambdaConfiguration createLambdaConfiguration(String version, Class<?> lambdaClass,
                                                                 LambdaHandler lambdaHandler, Set<DependencyItem> dependencies,
-                                                                Set<EventSourceItem> events, Map<String, String> variables,
-                                                                String packageName, String lambdaPath) {
+                                                                Set<EventSourceItem> events, Map<String, Object> variables,
+                                                                Map<String, String> tags, String packageName, String lambdaPath) {
         StringBuilder function = new StringBuilder(lambdaClass.getName());
         String methodName = lambdaHandler.methodName();
         if (!methodName.isEmpty()) {
@@ -61,7 +61,7 @@ public final class LambdaConfigurationFactory {
                 .withArchitectures(new Architecture[]{lambdaHandler.architecture()})
                 .withLogsExpirations(lambdaHandler.logsExpiration().getValue())
                 .withDependencies(dependencies).withEventSources(events)
-                .withVariables(variables).withSubnetIds(lambdaHandler.subnetsIds())
+                .withVariables(variables).withTags(tags).withSubnetIds(lambdaHandler.subnetsIds())
                 .withSecurityGroupIds(lambdaHandler.securityGroupIds())
                 .withPublishVersion(lambdaHandler.isPublishVersion())
                 .withSnapStart(lambdaHandler.snapStart())

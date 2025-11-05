@@ -15,17 +15,19 @@
 """
 from botocore.exceptions import ClientError
 
+from syndicate.exceptions import InvalidValueError, \
+    ResourceNotFoundError
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.helper import unpack_kwargs
 from syndicate.core.resources.base_resource import BaseResource
-from syndicate.core.resources.helper import (build_description_obj, chunks,
+from syndicate.core.resources.helper import (build_description_obj,
                                              validate_params)
 
 CLOUDWATCH_ALARM_REQUIRED_PARAMS = ['metric_name', 'namespace', 'period',
                                     'threshold', 'evaluation_periods',
                                     'comparison_operator', 'statistic']
 
-_LOG = get_logger('syndicate.core.resources.alarm_resource')
+_LOG = get_logger(__name__)
 
 
 class CloudWatchAlarmResource(BaseResource):
@@ -46,8 +48,10 @@ class CloudWatchAlarmResource(BaseResource):
         return self.create_pool(self._create_alarm_from_meta, args)
 
     def describe_alarm(self, name, meta):
-        response = self.client.describe_alarms([name])[0]
-        arn = response['AlarmArn']
+        response = self.client.describe_alarms([name])
+        if not response:
+            return {}
+        arn = response[0]['AlarmArn']
         return {
             arn: build_description_obj(response, name, meta)
         }
@@ -74,7 +78,8 @@ class CloudWatchAlarmResource(BaseResource):
                       dimensions=meta.get('dimensions'),
                       datapoints=meta.get('datapoints'), alarm_actions=[],
                       evaluate_low_sample_count_percentile=meta.get(
-                          'evaluate_low_sample_count_percentile'))
+                          'evaluate_low_sample_count_percentile'),
+                      tags=meta.get('tags'))
 
         if sns_topics := meta.get('sns_topics'):
             for each in sns_topics:
@@ -82,8 +87,7 @@ class CloudWatchAlarmResource(BaseResource):
                     params['alarm_actions'].append(arn)
         if lambdas := meta.get('lambdas'):
             for each in lambdas:
-                arn = self.lambda_res.build_lambda_arn(each)
-                if self.lambda_conn.get_function(arn):
+                if arn := self._validate_lambda_resource(each):
                     params['alarm_actions'].append(arn)
         if response_plans := meta.get('ssm_response_plan'):
             for each in response_plans:
@@ -95,16 +99,48 @@ class CloudWatchAlarmResource(BaseResource):
         return self.describe_alarm(name, meta)
 
     def remove_alarms(self, args):
-        for param_chunk in chunks(args, 100):
-            self.remove_alarm_list(param_chunk)
+        return self.create_pool(self._remove_alarms, args)
 
-    def remove_alarm_list(self, alarm_list):
-        alarm_names = [x['config']['resource_name'] for x in alarm_list]
+    @unpack_kwargs
+    def _remove_alarms(self, arn, config):
+        alarm_name = config['resource_name']
         try:
-            self.client.remove_alarms(alarm_names=alarm_names)
-            _LOG.info('Alarms %s were removed.', str(alarm_names))
+            self.client.remove_alarms(alarm_names=[alarm_name],
+                                      log_not_found_error=False)
+            _LOG.info(f'Alarm {alarm_name} was removed.')
+
         except ClientError as e:
             if e.response['Error']['Code'] == 'ResourceNotFoundException':
-                _LOG.warn('Alarms %s are not found', str(alarm_names))
+                _LOG.warn(f'Alarm {alarm_name} not found.')
             else:
                 raise e
+            described_alarms = self.client.alarm_list(alarm_names=[alarm_name])
+            if described_alarms and any(alarm['AlarmName'] == alarm_name
+                                        for alarm in described_alarms):
+                _LOG.warn(f'Alarm {alarm_name} was found despite the '
+                          f'`ResourceNotFoundException` error.')
+                raise e
+
+        return {arn: config}
+
+    def _validate_lambda_resource(self, resource: str) -> str | None:
+        from syndicate.core import CONFIG
+        qualifier = None
+        if ':' in resource:
+            if resource.count(':') > 1:
+                raise InvalidValueError(
+                    f'Invalid lambda qualifier \'{resource}\''
+                )
+
+            resource_name, qualifier = resource.split(':')
+            resource = f'{CONFIG.resources_prefix}{resource_name}' \
+                       f'{CONFIG.resources_suffix}'
+
+        arn = self.lambda_res.build_lambda_arn(resource)
+        if self.lambda_conn.get_function(arn, qualifier):
+            return arn
+        else:
+            raise ResourceNotFoundError(
+                f'Cannot find lambda with arn \'{arn}\' '
+                f'and qualifier \'{qualifier}\''
+            )

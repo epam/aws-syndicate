@@ -21,7 +21,7 @@ from botocore.exceptions import ClientError
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import apply_methods_decorator, retry
 
-_LOG = get_logger('syndicate.connection.step_functions_connection')
+_LOG = get_logger(__name__)
 
 
 @apply_methods_decorator(retry())
@@ -36,58 +36,17 @@ class SFConnection(object):
                              aws_session_token=aws_session_token)
         _LOG.debug('Opened new Step Functions connection.')
 
-    def create_state_machine(self, machine_name, definition, role_arn,
-                             publish_version=False, version_description=None):
-        params = {
-            'name': machine_name,
-            'roleArn': role_arn
-        }
-
+    def create_state_machine(self, machine_name, definition, role_arn, tags):
         if isinstance(definition, dict):
-            params['definition'] = dumps(definition)
-
-        if publish_version:
-            params['publish'] = True
-            if version_description:
-                params['versionDescription'] = str(version_description)
+            definition = dumps(definition)
+        params = dict(
+            name=machine_name,
+            definition=definition,
+            roleArn=role_arn
+        )
+        if tags:
+            params['tags'] = tags
         return self.client.create_state_machine(**params)
-
-    def update_state_machine(self, machine_arn, definition, role_arn,
-                             publish_version=False, version_description=None):
-        params = {
-            'stateMachineArn': machine_arn,
-            'roleArn': role_arn
-        }
-
-        if isinstance(definition, dict):
-            params['definition'] = dumps(definition)
-
-        if publish_version:
-            params['publish'] = True
-            if version_description:
-                params['versionDescription'] = str(version_description)
-        return self.client.update_state_machine(**params)
-
-    def create_state_machine_alias(self, name, routing_config,
-                                   description=None):
-        params = {
-            'name': name,
-            'routingConfiguration': routing_config
-        }
-        if description:
-            params['description'] = description
-        response = self.client.create_state_machine_alias(**params)
-        return response['stateMachineAliasArn']
-
-    def update_state_machine_alias(self, arn, routing_config,
-                                   description=None):
-        params = {
-            'stateMachineAliasArn': arn,
-            'routingConfiguration': routing_config
-        }
-        if description:
-            params['description'] = description
-        self.client.update_state_machine_alias(**params)
 
     def describe_state_machine(self, arn):
         try:
@@ -108,7 +67,11 @@ class SFConnection(object):
             else:
                 raise e
 
-    def delete_state_machine(self, arn):
+    def delete_state_machine(self, arn, log_not_found_error=True):
+        """
+        log_not_found_error parameter is needed for proper log handling in the
+        retry decorator
+        """
         return self.client.delete_state_machine(stateMachineArn=arn)
 
     def list_state_machines(self):
@@ -147,7 +110,12 @@ class SFConnection(object):
     def stop_execution(self, execution_arn):
         return self.client.stop_execution(executionArn=execution_arn)
 
-    def create_activity(self, name):
+    def create_activity(self, name, tags):
+        params = dict(
+            name=name
+        )
+        if tags:
+            params['tags'] = tags
         return self.client.create_activity(name=name)
 
     def describe_activity(self, arn):
@@ -159,7 +127,11 @@ class SFConnection(object):
             else:
                 raise e
 
-    def delete_activity(self, arn):
+    def delete_activity(self, arn, log_not_found_error=True):
+        """
+        log_not_found_error parameter is needed for proper log handling in the
+        retry decorator
+        """
         self.client.delete_activity(activityArn=arn)
 
     def list_activities(self):

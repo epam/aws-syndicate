@@ -70,7 +70,10 @@ public class TerraformLambdaConfiguration {
     private TerraformLambdaVpcConfig vpcConfig;
 
     @JsonProperty("environment")
-    private Map<String, String> environmentVariables;
+    private Map<String, Object> environmentVariables;
+
+    @JsonProperty("tags")
+    private Map<String, String> tags;
 
     @JsonProperty("dead_letter_config")
     private Map<String, String> deadLetterConfig;
@@ -132,12 +135,21 @@ public class TerraformLambdaConfiguration {
             return this;
         }
 
-        public Builder withEnvironmentVariables(Map<String, String> environmentVariables) {
+        public Builder withEnvironmentVariables(Map<String, Object> environmentVariables) {
             Objects.requireNonNull(environmentVariables, "Environment variables cannot be null");
             if (environmentVariables.isEmpty()) {
                 throw new InvalidParameterException("Environment variables cannot be empty");
             }
             configuration.environmentVariables = environmentVariables;
+            return this;
+        }
+
+        public Builder withTags(Map<String, String> tags) {
+            Objects.requireNonNull(tags, "Tags variables cannot be null");
+            if (tags.isEmpty()) {
+                throw new InvalidParameterException("Tags variables cannot be empty");
+            }
+            configuration.tags = tags;
             return this;
         }
 
@@ -197,7 +209,12 @@ public class TerraformLambdaConfiguration {
         return vpcConfig;
     }
 
-    public Map<String, String> getEnvironmentVariables() {
+    public Map<String, Object> getEnvironmentVariables() {
         return environmentVariables;
     }
+
+    public Map<String, String> getTags() {
+        return tags;
+    }
+
 }

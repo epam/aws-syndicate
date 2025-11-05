@@ -15,6 +15,7 @@
 """
 from syndicate.connection import ConnectionProvider
 from syndicate.core.resources.api_gateway_resource import ApiGatewayResource
+from syndicate.core.resources.appsync_resource import AppSyncResource
 from syndicate.core.resources.cloud_watch_alarm_resource import (
     CloudWatchAlarmResource)
 from syndicate.core.resources.cloud_watch_resource import CloudWatchResource
@@ -35,6 +36,8 @@ from syndicate.core.resources.eventbridge_scheduler_resource import EventBridgeS
 from syndicate.core.resources.iam_resource import IamResource
 from syndicate.core.resources.kinesis_resource import KinesisResource
 from syndicate.core.resources.lambda_resource import LambdaResource
+from syndicate.core.resources.rds_resource import RDSDBClusterResource, \
+    RDSDBInstanceResource
 from syndicate.core.resources.s3_resource import S3Resource
 from syndicate.core.resources.sns_resource import SnsResource
 from syndicate.core.resources.sqs_resource import SqsResource
@@ -75,6 +78,7 @@ class ResourceProvider:
         _cw_resource = None
         _sns_resource = None
         _api_gateway_resource = None
+        _appsync_resource = None
         _cognito_identity_resource = None
         _cognito_user_pool_resource = None
         _dynamodb_resource = None
@@ -96,6 +100,8 @@ class ResourceProvider:
         _dax_cluster_resource = None
         _eventbridge_scheduler_resource = None
         _swagger_ui_resource = None
+        _rds_db_cluster_resource = None
+        _rds_db_instance_resource = None
 
         def __init__(self, config, credentials) -> None:
             self.credentials = credentials
@@ -130,17 +136,32 @@ class ResourceProvider:
                     region=self.credentials.get('region'))
             return self._sns_resource
 
-        def api_gw(self):
+        def api_gw(self) -> ApiGatewayResource:
             if not self._api_gateway_resource:
                 self._api_gateway_resource = ApiGatewayResource(
                     apigw_conn=self._conn_provider.api_gateway(),
                     apigw_v2_conn=self._conn_provider.api_gateway_v2(),
+                    cw_logs_conn=self._conn_provider.cw_logs(),
                     lambda_res=self.lambda_resource(),
                     cognito_res=self.cognito_user_pool(),
                     account_id=self.config.account_id,
                     region=self.config.region
                 )
             return self._api_gateway_resource
+
+        def appsync(self):
+            if not self._appsync_resource:
+                self._appsync_resource = AppSyncResource(
+                    appsync_conn=self._conn_provider.appsync(),
+                    s3_conn=self._conn_provider.s3(),
+                    cup_conn=self._conn_provider.cognito_identity_provider(),
+                    cw_logs_conn=self._conn_provider.cw_logs(),
+                    deploy_target_bucket_key_compound=
+                    self.config.deploy_target_bucket_key_compound,
+                    deploy_target_bucket=self.config.deploy_target_bucket,
+                    account_id=self.config.account_id
+                )
+            return self._appsync_resource
 
         def cognito_identity(self):
             self._cognito_identity_resource = CognitoIdentityResource(
@@ -243,12 +264,16 @@ class ResourceProvider:
                     lambda_conn=self._conn_provider.lambda_conn(),
                     s3_conn=self._conn_provider.s3(),
                     cw_logs_conn=self._conn_provider.cw_logs(),
-                    sns_conn=self.sns(),
+                    sns_res=self.sns(),
+                    sns_conn=self._conn_provider.sns(),
                     iam_conn=self._conn_provider.iam(),
                     dynamodb_conn=self._conn_provider.dynamodb(),
                     sqs_conn=self._conn_provider.sqs(),
                     kinesis_conn=self._conn_provider.kinesis(),
                     cw_events_conn=self._conn_provider.cw_events(),
+                    cognito_idp_conn=
+                    self._conn_provider.cognito_identity_provider(),
+                    rds_conn=self._conn_provider.rds(),
                     region=self.config.region,
                     account_id=self.config.account_id,
                     deploy_target_bucket=self.config.deploy_target_bucket
@@ -350,3 +375,17 @@ class ResourceProvider:
                     suffix=self.config.resources_suffix
                 )
             return self._swagger_ui_resource
+
+        def rds_db_cluster(self):
+            if not self._rds_db_cluster_resource:
+                self._rds_db_cluster_resource = RDSDBClusterResource(
+                    rds_conn=self._conn_provider.rds()
+                )
+            return self._rds_db_cluster_resource
+
+        def rds_db_instance(self):
+            if not self._rds_db_instance_resource:
+                self._rds_db_instance_resource = RDSDBInstanceResource(
+                    rds_conn=self._conn_provider.rds()
+                )
+            return self._rds_db_instance_resource

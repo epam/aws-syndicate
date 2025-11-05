@@ -19,7 +19,7 @@ from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import apply_methods_decorator, retry
 from syndicate.connection.iam_connection import IAMConnection
 
-_LOG = get_logger('syndicate.connection.cognito_identity_connection')
+_LOG = get_logger(__name__)
 
 
 @apply_methods_decorator(retry())
@@ -42,7 +42,8 @@ class CognitoIdentityConnection(object):
                              allow_unauthenticated=False, login_providers=None,
                              open_id_connect_provider_arns=None,
                              cognito_identity_providers=None,
-                             saml_provider_arns=None):
+                             saml_provider_arns=None,
+                             tags=None):
         """ Crete Cognito identity pool and get identity pool id.
 
         :type pool_name: str
@@ -52,6 +53,7 @@ class CognitoIdentityConnection(object):
         :type open_id_connect_provider_arns: list
         :type cognito_identity_providers: list
         :type saml_provider_arns: list
+        :type tags: dict
         """
         params = dict(IdentityPoolName=pool_name,
                       AllowUnauthenticatedIdentities=allow_unauthenticated)
@@ -65,6 +67,8 @@ class CognitoIdentityConnection(object):
             params['CognitoIdentityProviders'] = cognito_identity_providers
         if saml_provider_arns:
             params['SamlProviderARNs'] = saml_provider_arns
+        if tags:
+            params['IdentityPoolTags'] = tags
 
         response = self.client.create_identity_pool(**params)
         return response.get('IdentityPoolId')
@@ -124,10 +128,12 @@ class CognitoIdentityConnection(object):
         return self.client.describe_identity_pool(
             IdentityPoolId=identity_pool_id)
 
-    def remove_identity_pool(self, identity_pool_id):
+    def remove_identity_pool(self, identity_pool_id, log_not_found_error=True):
         """ Remove identity pool by id.
 
         :type identity_pool_id: str
+        :type log_not_found_error: boolean, parameter is needed for proper log
+        handling in the retry decorator
         """
         self.client.delete_identity_pool(IdentityPoolId=identity_pool_id)
 

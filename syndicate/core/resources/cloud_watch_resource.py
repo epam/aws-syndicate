@@ -17,6 +17,7 @@ import time
 
 from botocore.exceptions import ClientError
 
+from syndicate.exceptions import InvalidValueError
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.conf.validator import ALL_REGIONS
 from syndicate.core.helper import unpack_kwargs
@@ -25,7 +26,7 @@ from syndicate.core.resources.helper import (build_description_obj,
                                              create_args_for_multi_region,
                                              validate_params)
 
-_LOG = get_logger('syndicate.core.resources.cloud_watch_resource')
+_LOG = get_logger(__name__)
 ARN_KEY = 'Arn'
 
 
@@ -33,12 +34,14 @@ def _create_ec2_rule(rule_name, rule_meta, cw_conn):
     cw_conn.create_ec2_rule(name=rule_name,
                             instances=rule_meta.get('instance_ids'),
                             instance_states=rule_meta.get(
-                                'instance_states'))
+                                'instance_states'),
+                            tags=rule_meta.get('tags'))
 
 
 def _create_schedule_rule(rule_name, rule_meta, cw_conn):
     cw_conn.create_schedule_rule(name=rule_name,
-                                 expression=rule_meta['expression'])
+                                 expression=rule_meta['expression'],
+                                 tags=rule_meta.get('tags'))
 
 
 def _create_api_call_rule(rule_name, rule_meta, cw_conn):
@@ -46,7 +49,8 @@ def _create_api_call_rule(rule_name, rule_meta, cw_conn):
                                  aws_service=rule_meta.get('aws_service'),
                                  operations=rule_meta.get('operations'),
                                  custom_pattern=rule_meta.get(
-                                     'custom_pattern'))
+                                     'custom_pattern'),
+                                 tags=rule_meta.get('tags'))
 
 
 RULE_TYPES = {
@@ -99,11 +103,11 @@ class CloudWatchResource(BaseResource):
             if rule:
                 responses.append(rule)
 
-        description = []
+        description = {}
         for rule in responses:
             arn = rule[ARN_KEY]
             del rule[ARN_KEY]
-            description.append({arn: build_description_obj(rule, name, meta)})
+            description.update({arn: build_description_obj(rule, name, meta)})
         return description
 
     def create_cloud_watch_rule(self, args):
@@ -137,7 +141,7 @@ class CloudWatchResource(BaseResource):
             return self.describe_rule(name=name, meta=meta, region=region,
                                       response=response)
         except KeyError:
-            raise AssertionError(
+            raise InvalidValueError(
                 'Invalid rule type: {0} for resource {1}. '
                 'Please, change rule type with existing: '
                 'schedule|ec2|api_call.'.format(rule_type, name))
@@ -178,18 +182,21 @@ class CloudWatchResource(BaseResource):
             _LOG.debug('Rule %s removed', rule_name)
 
     def remove_cloud_watch_rules(self, args):
-        self.create_pool(self._remove_cloud_watch_rule, args)
+        return self.create_pool(self._remove_cloud_watch_rule, args)
 
     @unpack_kwargs
     def _remove_cloud_watch_rule(self, arn, config):
         region = arn.split(':')[3]
         resource_name = config['resource_name']
         try:
-            self._cw_events_conn_builder(region).remove_rule(resource_name)
+            self._cw_events_conn_builder(region).remove_rule(
+                resource_name, log_not_found_error=False)
             _LOG.info('Rule %s was removed', resource_name)
+            return {arn: config}
         except ClientError as e:
             exception_type = e.response['Error']['Code']
             if exception_type == 'ResourceNotFoundException':
                 _LOG.warn('Rule %s is not found', resource_name)
+                return {arn: config}
             else:
                 raise e

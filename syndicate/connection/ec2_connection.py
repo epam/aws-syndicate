@@ -17,16 +17,18 @@ import inspect
 import json
 import time
 from pathlib import Path
-from typing import Generator, Optional, List, Iterable
+from typing import Generator, Optional, List, Iterable, Any
 
 import botocore
 from botocore.exceptions import ClientError
 from boto3 import client
 
+from syndicate.exceptions import InvalidValueError, ParameterError
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import apply_methods_decorator, retry
+from syndicate.core.constants import EC2_LT_RESOURCE_TAGS
 
-_LOG = get_logger('syndicate.connection.ec2_connection')
+_LOG = get_logger(__name__)
 
 
 def create_permissions(ranges):
@@ -67,14 +69,14 @@ class EC2Connection(object):
             elif isinstance(name, str):
                 filters.append({'Name': 'group-name', 'Values': [name]})
             else:
-                _LOG.warn('Unacceptable name type: %s', type(name))
+                _LOG.warning('Unacceptable name type: %s', type(name))
         if sg_id:
             if isinstance(sg_id, list):
                 filters.append({'Name': 'group-id', 'Values': sg_id})
             elif isinstance(sg_id, str):
                 filters.append({'Name': 'group-id', 'Values': [sg_id]})
             else:
-                _LOG.warn(
+                _LOG.warning(
                     f'Unacceptable security group id type: {type(sg_id)}')
         if vpc_id:
             filters.append({'Name': 'vpc-id', 'Values': [vpc_id]})
@@ -89,7 +91,7 @@ class EC2Connection(object):
             elif isinstance(name, str):
                 filters.append({'Name': 'region-name', 'Values': [name]})
             else:
-                _LOG.warn('Unacceptable name type: %s', type(name))
+                _LOG.warning('Unacceptable name type: %s', type(name))
         return self.client.describe_regions(Filters=filters)['Regions']
 
     def get_default_vpc_id(self):
@@ -134,7 +136,12 @@ class EC2Connection(object):
         if group:
             return group['GroupId']
 
-    def get_key_pairs(self, dry_run=False, key_names=None, filters=None):
+    def get_key_pairs(
+            self,
+            dry_run: bool = False,
+            key_names: list | None = None,
+            filters: list | None = None,
+    ) -> dict | list[dict]:
         """
         :type dry_run: bool
         :type key_names: list
@@ -188,15 +195,20 @@ class EC2Connection(object):
         response = self.client.describe_images(**params)
         return response['Images']
 
-    def describe_instances(self, filters):
+    def describe_instances(self, filters, instance_ids=None):
+        params = {}
         result_list = []
-        response = self.client.describe_instances(Filters=filters)
+        if filters:
+            params['Filters'] = filters
+        if instance_ids:
+            params['InstanceIds'] = instance_ids
+        response = self.client.describe_instances(**params)
         result_list.extend([reservation['Instances'][0]
                             for reservation in response['Reservations']])
         token = response.get('NextToken')
         while token:  # value is 'null' if there is no token
-            response = self.client.describe_instances(Filters=filters,
-                                                      NextToken=token)
+            params['NextToken'] = token
+            response = self.client.describe_instances(**params)
             result_list.extend([reservation['Instances'][0]
                                 for reservation in response['Reservations']])
             token = response.get('NextToken')
@@ -212,46 +224,37 @@ class EC2Connection(object):
                         security_group_ids=None,
                         iam_instance_profile=None,
                         name=None, key_name=None,
-                        user_data=None, tags_list=None,
+                        user_data=None, tags=None,
                         subnet_id=None, availability_zone=None):
+
+        tags = tags or []
 
         if iam_instance_profile:
             if not iam_instance_profile.get('Arn') \
                     and not iam_instance_profile.get('Name'):
-                raise AssertionError('Provided instance profile {0}'
-                                     'is not well-formed. '
-                                     'Arn or Name nodes required.'
-                                     .format(iam_instance_profile))
+                raise InvalidValueError(
+                    f"Provided instance profile '{iam_instance_profile}'is "
+                    f"not well-formed. Arn or Name nodes required."
+                )
 
-        tag_specification = {
-            'ResourceType': 'instance',
-        }
-        name_tag = None
         if name:
-            name_tag = {
+            tags.append({
                 'Key': 'Name',
                 'Value': name
-            }
-
-        if tags_list:
-            valid_tags = [tag for tag in tags_list
-                          if tag['Key'] and tag['Value']]
-            if not valid_tags:
-                _LOG.warn('There are no valid tags in tags_list specified')
-            else:
-                if name_tag:
-                    valid_tags.append(name_tag)
-                tag_specification['Tags'] = valid_tags
-        else:
-            tag_specification['Tags'] = [name_tag]
+            })
 
         instance_parameters = {
             'ImageId': image_id,
             'InstanceType': instance_type,
-            'TagSpecifications': [tag_specification],
             'MinCount': 1,
             'MaxCount': 1
         }
+
+        if tags:
+            instance_parameters['TagSpecifications'] = [{
+                'ResourceType': 'instance',
+                'Tags': tags
+            }]
 
         if availability_zone:
             instance_parameters['Placement'] = {
@@ -279,8 +282,13 @@ class EC2Connection(object):
             return launched_instances[0]
 
     def modify_instance_attribute(self, **kwargs):
+        """
+        log_not_found_error parameter is needed for proper log handling in the
+        retry decorator
+        """
+        kwargs.pop('log_not_found_error', None)
         if not kwargs['InstanceId']:
-            raise AssertionError('InstanceId must be specified')
+            raise ParameterError('InstanceId must be specified')
         self.client.modify_instance_attribute(**kwargs)
 
     def deploy_security_groups(self, groups):
@@ -364,57 +372,126 @@ class EC2Connection(object):
             params['PublicIp'] = public_ip
         return self.client.associate_address(**params)
 
-    def create_launch_template(self, name, lt_data, version_description=None,
-                               tag_specifications=None):
-        params = dict()
-        params['LaunchTemplateName'] = name
-        params['LaunchTemplateData'] = lt_data
+    def resolve_resource_tags(  # noqa Reason: @apply_methods_decorator(retry())
+            self,
+            resource_tags: dict[str, dict[str, str]],
+    ) -> list[dict | None]:
+        base_error_message = (
+            "Failed to process 'resource_tags' for the EC2 launch template. "
+            "This step will be skipped."
+        )
+        if not isinstance(resource_tags, dict):
+            _LOG.error(
+                f"{base_error_message} Reason: 'resource_tags' should be a "
+                f"dictionary."
+            )
+            return []
+
+        resource_tag_specs = []
+        for resource_type, tags_dict in resource_tags.items():
+            if not isinstance(tags_dict, dict):
+                _LOG.error(
+                    f"{base_error_message} The value for key '{resource_type}' "
+                    f"is not a dictionary as expected"
+                )
+                return []
+            if resource_type not in EC2_LT_RESOURCE_TAGS:
+                _LOG.error(
+                    f"{base_error_message} "
+                    f"Encountered an invalid resource type '{resource_type}'. "
+                    f"Valid types include: {EC2_LT_RESOURCE_TAGS}"
+                )
+                return []
+
+            tag_list = [{'Key': k, 'Value': v} for k, v in tags_dict.items()]
+            resource_tag_specs.append({
+                'ResourceType': resource_type,
+                'Tags': tag_list,
+            })
+
+        return resource_tag_specs
+
+    def create_launch_template(
+            self,
+            name: str,
+            lt_data: dict,
+            version_description: str | None = None,
+            tags: list[dict[str, Any]] | None = None,
+            resource_tags: dict[str, dict[str, str]] | None = None,
+    ) -> dict:
+        params = {
+            'LaunchTemplateName': name,
+            'LaunchTemplateData': lt_data,
+        }
         if version_description is not None:
             params['VersionDescription'] = version_description
-        if tag_specifications is not None:
-            params['TagSpecifications'] = tag_specifications
+        if tags:
+            params['TagSpecifications'] = [{
+                'ResourceType': 'launch-template',
+                'Tags': tags,
+            }]
+        if resource_tags:
+            resource_tag_specs = self.resolve_resource_tags(resource_tags)
+            if 'TagSpecifications' not in lt_data:
+                lt_data['TagSpecifications'] = []
+            lt_data['TagSpecifications'].extend(resource_tag_specs)
+
         return self.client.create_launch_template(**params)
 
-    def create_launch_template_version(self, lt_name=None, lt_id=None,
-                                       source_version=None, lt_data=None,
-                                       version_description=None):
-        params = dict()
-        if source_version is not None:
-            params['SourceVersion'] = source_version
-        if lt_data is not None:
-            params['LaunchTemplateData'] = lt_data
-        if version_description is not None:
-            params['VersionDescription'] = version_description
+    def create_launch_template_version(
+            self,
+            lt_name: str | None = None,
+            lt_id: str | None = None,
+            source_version: str | None = None,
+            lt_data: dict | None = None,
+            version_description: str | None = None,
+            resource_tags: dict[str, dict[str, str]] | None = None,
+    ) -> dict | None:
+        if not lt_name and not lt_id:
+            _LOG.error(
+                'A launch template version cannot be created without the name '
+                'or ID of the launch template'
+            )
+            return None
 
-        if lt_name is not None and lt_id is not None:
-            _LOG.warn('Both the launch template name and ID are specified. '
-                      'The request will be made by ID.')
-            params['LaunchTemplateId'] = lt_id
+        params = {
+            'LaunchTemplateId': lt_id or None,
+            'LaunchTemplateName': lt_name if not lt_id else None,
+            'SourceVersion': source_version or None,
+            'VersionDescription': version_description or None,
+            'LaunchTemplateData': lt_data or {},
+        }
+        if lt_name and lt_id:
+            _LOG.warning(
+                'Both the launch template name and ID are specified. The '
+                'request will be made by ID'
+            )
+        if resource_tags:
+            resource_tag_specs = self.resolve_resource_tags(resource_tags)
+            if 'TagSpecifications' not in lt_data:
+                lt_data['TagSpecifications'] = []
+            lt_data['TagSpecifications'].extend(resource_tag_specs)
 
-        elif lt_name is not None:
-            params['LaunchTemplateName'] = lt_name
+        return self.client.create_launch_template_version(
+            **{k: v for k, v in params.items() if v is not None}
+        )
 
-        elif lt_id is not None:
-            params['LaunchTemplateId'] = lt_id
-
-        else:
-            _LOG.error('A launch template version can not be created without '
-                       'the name or ID of the launch template.')
-            return
-        return self.client.create_launch_template_version(**params)
-
-    def describe_launch_templates(self, lt_name=None, lt_id=None):
+    def describe_launch_templates(
+            self,
+            lt_name: str | None = None,
+            lt_id = None,
+    ) -> list:
         result_list = list()
         params = dict()
         if lt_name is not None and lt_id is not None:
-            _LOG.warn('Both the launch template name and ID are specified. '
-                      'The request will be made by ID.')
+            _LOG.warning('Both the launch template name and ID are specified. '
+                         'The request will be made by ID.')
             if isinstance(lt_id, list):
                 params['LaunchTemplateIds'] = lt_id
             elif isinstance(lt_id, str):
                 params['LaunchTemplateIds'] = [lt_id]
             else:
-                _LOG.warn(
+                _LOG.warning(
                     f'Unsupported launch template ID type {type(lt_id)}')
 
         elif lt_name is not None:
@@ -423,7 +500,7 @@ class EC2Connection(object):
             elif isinstance(lt_name, str):
                 params['LaunchTemplateNames'] = [lt_name]
             else:
-                _LOG.warn(
+                _LOG.warning(
                     f'Unsupported launch template name type {type(lt_name)}')
 
         elif lt_id is not None:
@@ -432,7 +509,7 @@ class EC2Connection(object):
             elif isinstance(lt_id, str):
                 params['LaunchTemplateIds'] = [lt_id]
             else:
-                _LOG.warn(
+                _LOG.warning(
                     f'Unsupported launch template ID type {type(lt_id)}')
         try:
             response = self.client.describe_launch_templates(**params) if (
@@ -452,16 +529,27 @@ class EC2Connection(object):
                     'InvalidLaunchTemplateId.NotFound' in str(e)):
                 dynamic_message = f"by name '{lt_name}'" if lt_name else \
                     f"by ID '{lt_id}'"
-                _LOG.warn(f"Launch template not found by {dynamic_message}")
+                _LOG.warning(f"Launch template not found by {dynamic_message}")
             else:
                 raise e
         return result_list
 
-    def delete_launch_template(self, lt_name=None, lt_id=None):
+    def delete_launch_template(
+            self,
+            lt_name = None,
+            lt_id = None,
+            log_not_found_error: bool = True,
+    ) -> None:
+        """
+        log_not_found_error parameter is needed for proper log handling in the
+        retry decorator
+        """
         params = dict()
         if lt_name is not None and lt_id is not None:
-            _LOG.warn('Both the launch template name and ID are specified. '
-                      'The request will be made by ID.')
+            _LOG.warning(
+                'Both the launch template name and ID are specified. The '
+                'request will be made by ID.'
+            )
             params['LaunchTemplateId'] = lt_id
 
         elif lt_name is not None:
@@ -470,19 +558,25 @@ class EC2Connection(object):
         elif lt_id is not None:
             params['LaunchTemplateId'] = lt_id
         else:
-            raise AssertionError(
+            raise ParameterError(
                 'Either the launch template name or ID must be provided for '
                 'removing the launch template.')
         self.client.delete_launch_template(**params)
 
-    def modify_launch_template(self, default_version, lt_name=None,
-                               lt_id=None):
+    def modify_launch_template(
+            self,
+            default_version,
+            lt_name=None,
+            lt_id=None,
+    ) -> None:
         params = dict()
         params['DefaultVersion'] = default_version
 
         if lt_name is not None and lt_id is not None:
-            _LOG.warn('Both the launch template name and ID are specified. '
-                      'The request will be made by ID.')
+            _LOG.warning(
+                'Both the launch template name and ID are specified. The '
+                'request will be made by ID.'
+            )
             params['LaunchTemplateId'] = lt_id
 
         elif lt_name is not None:
@@ -497,62 +591,40 @@ class EC2Connection(object):
             return
         return self.client.modify_launch_template(**params)
 
+    def get_instance_types(self, current_generation: Optional[bool] = None,
+                           arch: Optional[List] = None
+                           ) -> Generator[str, None, None]:
 
-class InstanceTypes:
-    @staticmethod
-    def from_api(region_name: Optional[str] = None,
-                 current_generation: Optional[bool] = None,
-                 arch: Optional[List] = None,
-                 ) -> Generator[str, None, None]:
-        filters = []
-        if isinstance(current_generation, bool):
-            filters.append({
-                'Name': 'current-generation',
-                'Values': [str(current_generation).lower()]
-            })
-        if isinstance(arch, list):
-            assert set(arch).issubset({'arm64', 'i386', 'x86_64'})
-            filters.append({
-                'Name': 'processor-info.supported-architecture',
-                'Values': arch
-            })
+        def instance_types():
+            filters = []
+            if isinstance(current_generation, bool):
+                filters.append({
+                    'Name': 'current-generation',
+                    'Values': [str(current_generation).lower()]
+                })
+            if isinstance(arch, list):
+                assert set(arch).issubset({'arm64', 'i386', 'x86_64'})
+                filters.append({
+                    'Name': 'processor-info.supported-architecture',
+                    'Values': arch
+                })
 
-        params = {}
-        if filters:
-            params['Filters'] = filters
+            params = {}
+            if filters:
+                params['Filters'] = filters
 
-        ec2 = client('ec2', region_name=region_name)
-        while True:
-            res = ec2.describe_instance_types(**params)
-            yield from (item['InstanceType'] for item in res['InstanceTypes'])
-            _next = res.get('NextToken')
-            if not _next:
-                break
-            params['NextToken'] = _next
+            while True:
+                res = self.client.describe_instance_types(**params)
+                yield from (item['InstanceType'] for item in
+                            res['InstanceTypes'])
+                _next = res.get('NextToken')
+                if not _next:
+                    break
+                params['NextToken'] = _next
 
-    @staticmethod
-    def from_botocore() -> Generator[str, None, None]:
-        path = Path(inspect.getfile(botocore)).parent
-        with open(Path(path, 'data', 'ec2', '2016-11-15',
-                       'service-2.json'), encoding="utf8") as fp:
-            data = json.load(fp)
-        yield from data['shapes']['InstanceType']['enum']
-
-    @staticmethod
-    def instance_type_group(instance_type: str) -> str:
-        return instance_type.split('.')[0]
-
-    @staticmethod
-    def with_groups(it: Iterable[str]) -> Generator[str, None, None]:
-        """
-        Before yielding an instance type, yields its group.
-        A group is yielded only once.
-        :param it: Iterable[str]
-        :return: Generator[str, None, None]
-        """
         emitted = set()
-        for instance_type in it:
-            group = InstanceTypes.instance_type_group(instance_type)
+        for instance_type in instance_types():
+            group = instance_type.split('.')[0]
             if group not in emitted:
                 yield group
                 emitted.add(group)

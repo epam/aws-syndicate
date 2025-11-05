@@ -1,17 +1,17 @@
 import json
 import os
-import sys
 
-import click
-
+from syndicate.exceptions import ResourceMetadataError, \
+    ResourceProcessingError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.build.bundle_processor import load_deploy_output
-from syndicate.core.constants import OAS_V3_FILE_NAME, API_GATEWAY_TYPE
+from syndicate.core.constants import OAS_V3_FILE_NAME, API_GATEWAY_TYPE, \
+                                    DEFAULT_JSON_INDENT
 from syndicate.core.export.configuration_exporter import OASV3Exporter
 from syndicate.core.helper import build_path
 
 
-_LOG = get_logger('syndicate.core.export.export_processor')
+_LOG = get_logger(__name__)
 USER_LOG = get_user_logger()
 
 EXPORT_PROCESSORS = {
@@ -23,17 +23,25 @@ RESOURCE_TYPES_MAPPING = {
 }
 
 
-def export_specification(deploy_name, bundle_name, output_directory,
-                         resource_type, dsl):
+def export_specification(
+        *,
+        resource_type: str,
+        dsl: str,
+        deploy_name: str,
+        bundle_name: str,
+        output_directory: str | None = None,
+):
     processor_type = EXPORT_PROCESSORS.get(resource_type)
     processor = processor_type()
     resource_key = RESOURCE_TYPES_MAPPING.get(resource_type)
     output = load_deploy_output(bundle_name, deploy_name)
-    resource_meta = {key: value for key, value in output.items() if
-                     resource_key in key}
+    resource_meta = \
+        {key: value for key, value in output.items() if resource_key in key}
     if not resource_meta:
-        raise AssertionError(f'Meta for the resource type "{resource_key}" '
-                             f'not found in the deploy name "{deploy_name}".')
+        raise ResourceMetadataError(
+            f'Meta for the resource type "{resource_key}" not found in the '
+            f'deploy name "{deploy_name}".'
+        )
     _LOG.info(f'Meta for the resource type "{resource_key}" resolved '
               f'successfully')
     output_dir_path = processor.prepare_output_directory(output_directory)
@@ -42,20 +50,27 @@ def export_specification(deploy_name, bundle_name, output_directory,
         if not specification:
             continue
         try:
-            specification = json.dumps(specification, indent=2)
+            specification = json.dumps(
+                specification, 
+                indent=DEFAULT_JSON_INDENT
+            )
         except json.JSONDecodeError as e:
-            click.echo(f'An error occurred when serialising specification. '
-                       f'{e}')
-            sys.exit(1)
+            raise ResourceProcessingError(
+                f'An error occurred when serialising specification. {e}'
+            )
         _LOG.info(f'Specification for resource "{arn}" exported successfully')
         filename = resource_id + '_' + OAS_V3_FILE_NAME
         output_path = build_path(output_dir_path, filename)
         if os.path.exists(output_path):
-            USER_LOG.warn(f'Specification file "{filename}" already exists '
-                          f'and will be overwritten.')
+            USER_LOG.warning(
+                f'Specification file "{filename}" already exists and will be '
+                f'overwritten.'
+            )
         with open(output_path, 'w') as output_file:
             output_file.write(specification)
         _LOG.info(f'Specification saved successfully to the file '
                   f'"{output_path}"')
-        click.echo(f'Specification of the "{resource_key}" with ARN "{arn}" '
-                   f'saved successfully to the file "{output_path}"')
+        USER_LOG.info(
+            f'Specification of the "{resource_key}" with ARN "{arn}" '
+            f'saved successfully to the file "{output_path}"'
+        )

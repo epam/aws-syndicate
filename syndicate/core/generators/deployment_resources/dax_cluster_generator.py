@@ -13,5 +13,6 @@ class DaxClusterGenerator(BaseDeploymentResourceGenerator):
         'cluster_endpoint_encryption_type': 'TLS',
         'parameter_group_name': None,
         'subnet_group_name': None,
-        'subnet_ids': []
+        'subnet_ids': [],
+        'tags': dict
     }

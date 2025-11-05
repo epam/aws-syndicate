@@ -35,7 +35,7 @@ REQ_VALIDATOR_PARAM_VALIDATE_PARAMS = 'validateRequestParameters'
 REQ_VALIDATOR_PARAM_VALIDATE_BODY = 'validateRequestBody'
 REQ_VALIDATOR_PARAM_NAME = 'name'
 
-_LOG = get_logger('syndicate.connection.api_gateway_connection')
+_LOG = get_logger(__name__)
 
 
 @apply_methods_decorator(retry())
@@ -57,13 +57,15 @@ class ApiGatewayConnection(object):
     def create_rest_api(self, api_name,
                         binary_media_types=None,
                         description=None,
-                        clone_from=None):
+                        clone_from=None,
+                        tags=None):
         """
         :type api_name: str
         :type description: str
         :type binary_media_types: list
         :type clone_from: str
         :param clone_from: The ID of the RestApi that you want to clone from.
+        :param tags: dict The resource tags key-value pairs
         """
         params = dict(name=api_name)
         if description:
@@ -72,6 +74,8 @@ class ApiGatewayConnection(object):
             params['cloneFrom'] = clone_from
         if binary_media_types:
             params['binaryMediaTypes'] = binary_media_types
+        if tags:
+            params['tags'] = tags
         return self.client.create_rest_api(**params)
 
     def create_openapi(self, openapi_context):
@@ -83,6 +87,19 @@ class ApiGatewayConnection(object):
         api_id = response['id']
         _LOG.debug(f"API Gateway created successfully with ID: {api_id}")
         return api_id
+
+    def tag_openapi(self, openapi_id, tags):
+        try:
+            self.client.tag_resource(
+                resourceArn=\
+                    f'arn:aws:apigateway:{self.client.meta.region_name}'
+                    f'::/restapis/{openapi_id}',
+                tags={**tags}
+            )
+            _LOG.debug(f"Tags: {tags} applied to openapi with id:"
+                       f" {openapi_id}.")
+        except self.client.exceptions.BadRequestException as e:
+            _LOG.error(f"Unexpected error happened while tagging openapi: {e}")
 
     def describe_openapi(self, api_id, stage_name):
         try:
@@ -100,6 +117,14 @@ class ApiGatewayConnection(object):
                          f"and stage name: {stage_name}")
             return None
 
+    def describe_tags(self, api_arn: str) -> dict | None:
+        try:
+            response = self.client.get_tags(resourceArn=api_arn)
+            return response
+        except self.client.exceptions.BadRequestException as e:
+            _LOG.error(f"Failed to retrieve tags for ARN {api_arn}: {str(e)}")
+            return None
+
     def update_openapi(self, api_id, openapi_context):
         # Update the API Gateway with the OpenAPI definition
         self.client.put_rest_api(
@@ -110,9 +135,11 @@ class ApiGatewayConnection(object):
         )
         _LOG.debug("API Gateway updated successfully.")
 
-    def remove_api(self, api_id):
+    def remove_api(self, api_id, log_not_found_error=True):
         """
         :type api_id: str
+        :type log_not_found_error: boolean, parameter is needed for proper
+        log handling in the retry decorator
         """
         self.client.delete_rest_api(restApiId=api_id)
 
@@ -121,10 +148,17 @@ class ApiGatewayConnection(object):
         :type api_name: str
         """
         apis = self.get_all_apis()
-        if apis:
-            for each in apis:
-                if each['name'] == api_name:
-                    return each
+        target_apis = [api for api in apis if api['name'] == api_name]
+        if len(target_apis) == 1:
+            return target_apis[0]
+        if len(target_apis) > 1:
+            _LOG.warn(f"API Gateway can\'t be identified unambiguously "
+                      f"because there is more than one resource with the name "
+                      f"'{api_name}' in the region {self.region}. Determined "
+                      f"APIs: {[api['name'] for api in target_apis]}")
+        else:
+            _LOG.warn(f'API Gateway with the name "{api_name}" '
+                      f'not found in the region {self.region}')
 
     def get_api_id(self, api_name):
         """
@@ -488,7 +522,7 @@ class ApiGatewayConnection(object):
                                     status_code=None, selection_pattern=None,
                                     response_parameters=None,
                                     response_templates=None,
-                                    enable_cors=False):
+                                    enable_cors=None):
         """
         :type api_id: str
         :type resource_id: str
@@ -498,7 +532,7 @@ class ApiGatewayConnection(object):
         :type selection_pattern: str
         :type response_parameters: dict
         :type response_templates: dict
-        :type enable_cors: bool
+        :type enable_cors: dict
         """
         response_allow_origin = "response.header.Access-Control-Allow-Origin"
         method_allow_origin = "method.{0}".format(response_allow_origin)
@@ -506,14 +540,21 @@ class ApiGatewayConnection(object):
                       resourceId=resource_id,
                       responseTemplates={'application/json': ''})
         if enable_cors:
-            params['responseParameters'] = {method_allow_origin: "\'*\'"}
+            origins = enable_cors.get('custom_origins')
+            params['responseParameters'] = {
+                method_allow_origin:
+                    f"'{','.join(origins)}'" if origins else "\'*\'"
+            }
+
         if selection_pattern:
             params['selectionPattern'] = selection_pattern
         if status_code:
             params['statusCode'] = status_code
         if response_parameters:
             if enable_cors:
-                response_parameters[method_allow_origin] = "\'*\'"
+                origins = enable_cors.get('custom_origins')
+                response_parameters[method_allow_origin] = \
+                    f"'{','.join(origins)}'" if origins else "\'*\'"
             params['responseParameters'] = response_parameters
         if response_templates:
             params['responseTemplates'] = response_templates
@@ -521,7 +562,7 @@ class ApiGatewayConnection(object):
 
     def create_method_response(self, api_id, resource_id, method,
                                status_code=None, response_parameters=None,
-                               response_models=None, enable_cors=False):
+                               response_models=None, enable_cors=None):
         """
         :type api_id: str
         :type resource_id: str
@@ -530,32 +571,38 @@ class ApiGatewayConnection(object):
         :type status_code: str
         :type response_parameters: dict
         :type response_models: dict
-        :type enable_cors: bool
+        :type enable_cors: dict
         """
+        origins = None
         response_allow_origin = "response.header.Access-Control-Allow-Origin"
         method_allow_origin = "method.{0}".format(response_allow_origin)
         params = dict(restApiId=api_id, resourceId=resource_id,
                       httpMethod=method, statusCode='200',
                       responseModels={'application/json': 'Empty'})
         if enable_cors:
-            params['responseParameters'] = {method_allow_origin: False}
+            origins = enable_cors.get('custom_origins')
+
+        if response_parameters:
+            response_parameters[method_allow_origin] = True if origins else False
+            params['responseParameters'] = response_parameters
+        else:
+            params['responseParameters'] = {
+                method_allow_origin: True if origins else False
+            }
         if status_code:
             params['statusCode'] = status_code
-        if response_parameters:
-            if enable_cors:
-                response_parameters[method_allow_origin] = False
-            params['responseParameters'] = response_parameters
         if response_models:
             params['responseModels'] = response_models
         self.client.put_method_response(**params)
 
-    def enable_cors_for_resource(self, api_id, resource_id):
+    def enable_cors_for_resource(self, api_id, resource_id, enable_cors):
         """ When your API's resources receive requests from a domain other than
         the API's own domain, you must enable cross-origin resource sharing
         (CORS) for selected methods on the resource.
 
         :type api_id: str
         :type resource_id: str
+        :type enable_cors: dict
         """
         self.create_method(api_id, resource_id, 'OPTIONS')
         self.create_integration(api_id=api_id, resource_id=resource_id,
@@ -563,20 +610,26 @@ class ApiGatewayConnection(object):
                                 request_templates={
                                     'application/json': '{"statusCode": 200}'
                                 })
+        origins = enable_cors.get('custom_origins', [])
+        headers = enable_cors.get('custom_headers', [])
+        methods = enable_cors.get('custom_methods', [])
 
         self.create_method_response(
             api_id, resource_id, 'OPTIONS', response_parameters={
-                RESPONSE_PARAM_ALLOW_HEADERS: False,
-                RESPONSE_PARAM_ALLOW_METHODS: False,
-                RESPONSE_PARAM_ALLOW_ORIGIN: False
+                RESPONSE_PARAM_ALLOW_HEADERS: True if headers else False,
+                RESPONSE_PARAM_ALLOW_METHODS: True if methods else False,
+                RESPONSE_PARAM_ALLOW_ORIGIN: True if origins else False
             })
-        content_types = ("'Content-Type,X-Amz-Date,Authorization,X-Api-Key,"
-                         "X-Amz-Security-Token'")
+        content_types = ('Content-Type','X-Amz-Date','Authorization',
+                         'X-Api-Key', 'X-Amz-Security-Token')
         self.create_integration_response(
             api_id, resource_id, 'OPTIONS', response_parameters={
-                RESPONSE_PARAM_ALLOW_HEADERS: content_types,
-                RESPONSE_PARAM_ALLOW_METHODS: "\'*\'",
-                RESPONSE_PARAM_ALLOW_ORIGIN: "\'*\'"
+                RESPONSE_PARAM_ALLOW_HEADERS:
+                    f"'{','.join([*content_types, *headers])}'",
+                RESPONSE_PARAM_ALLOW_METHODS:
+                    f"'{','.join(methods)}'" if methods else "'*'",
+                RESPONSE_PARAM_ALLOW_ORIGIN:
+                    f"'{','.join(origins)}'" if origins else "'*'"
             })
 
     def deploy_api(self, api_id, stage_name, stage_description='',
@@ -776,12 +829,16 @@ class ApiGatewayV2Connection:
 
     def create_web_socket_api(self, name: str,
                               route_selection_expression: Optional[
-                                  str] = 'request.body.action') -> str:
-        return self.client.create_api(
+                                  str] = 'request.body.action',
+                              tags=None) -> str:
+        params = dict(
             Name=name,
             ProtocolType='WEBSOCKET',
             RouteSelectionExpression=route_selection_expression
-        )['ApiId']
+        )
+        if tags:
+            params['Tags'] = tags
+        return self.client.create_api(**params)['ApiId']
 
     def create_stage(self, api_id: str, stage_name: str):
         return self.client.create_stage(

@@ -17,8 +17,9 @@
 import sys
 from pathlib import Path, PurePath
 
+from syndicate.exceptions import InvalidValueError
 from syndicate.commons.log_helper import get_logger, get_user_logger
-from syndicate.core import ProjectState
+from syndicate.core import ProjectState, CONF_PATH
 from syndicate.core.constants import SWAGGER_UI_SPEC_NAME_TEMPLATE, \
     SWAGGER_UI_CONFIG_FILE_NAME
 from syndicate.core.generators import _mkdir, _touch, _write_content_to_file
@@ -29,7 +30,7 @@ from syndicate.core.project_state.project_state import BUILD_MAPPINGS
 SWAGGER_UI_RUNTIME = 'swagger_ui'
 INDEX_FILE_NAME = 'index.html'
 
-_LOG = get_logger('syndicate.core.generators.swagger_ui')
+_LOG = get_logger(__name__)
 USER_LOG = get_user_logger()
 
 
@@ -40,18 +41,18 @@ def generate_swagger_ui(name, spec_path, target_bucket, project_path):
         USER_LOG.info(f'Project "{project_path}" you '
                       f'have provided does not exist')
         return
-    if not ProjectState.check_if_project_state_exists(
-            project_path=project_path):
-        USER_LOG.info(f'Seems that the path {project_path} is not a project')
+    if not ProjectState.check_if_project_state_exists(CONF_PATH):
+        USER_LOG.info(f'State file does not exist in {CONF_PATH}')
         return
     if not Path.is_absolute(abs_path_to_spec):
         abs_path_to_spec = Path.joinpath(path_to_project, path_to_spec)
-        USER_LOG.info(f'Path to specification file resolved as '
-                      f'\'{abs_path_to_spec}\'')
+        _LOG.info(f'Path to specification file resolved as '
+                  f'\'{abs_path_to_spec}\'')
     if not Path.is_file(abs_path_to_spec):
-        raise AssertionError(f'Provided specification file \'{spec_path}\' '
-                             f'can\'t be resolved! Please provide the correct '
-                             f'path.')
+        raise InvalidValueError(
+            f'Provided specification file \'{spec_path}\' can\'t be resolved! '
+            f'Please provide the correct path.'
+        )
 
     project_state = ProjectState(project_path=project_path)
     src_path = PurePath(project_path,

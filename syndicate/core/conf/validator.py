@@ -16,8 +16,13 @@
 import datetime
 import os
 import re
+from typing import Any
+
 from syndicate.core.conf.bucket_view import NAMED_S3_URI_PATTERN
 from syndicate.commons.log_helper import get_user_logger
+from syndicate.core.groups import (
+    RUNTIME_NODEJS, RUNTIME_PYTHON, RUNTIME_JAVA, RUNTIME_SWAGGER_UI
+)
 
 MIN_BUCKET_NAME_LEN = 3
 MAX_BUCKET_NAME_LEN = 63
@@ -61,15 +66,12 @@ LOCK_LIFETIME_MINUTES_CFG = 'lock_lifetime_minutes'
 
 TAGS_CFG = 'tags'
 
-PYTHON_LANGUAGE_NAME = 'python'
-NODEJS_LANGUAGE_NAME = 'nodejs'
-JAVA_LANGUAGE_NAME = 'java'
-SWAGGER_UI_NAME = 'swagger_ui'
-
-ALLOWED_RUNTIME_LANGUAGES = [PYTHON_LANGUAGE_NAME,
-                             JAVA_LANGUAGE_NAME,
-                             NODEJS_LANGUAGE_NAME,
-                             SWAGGER_UI_NAME]
+ALLOWED_RUNTIME_LANGUAGES = [
+    RUNTIME_PYTHON,
+    RUNTIME_JAVA,
+    RUNTIME_NODEJS,
+    RUNTIME_SWAGGER_UI
+]
 
 REQUIRED_PARAM_ERROR = 'The required key {} is missing'
 UNKNOWN_PARAM_MESSAGE = 'Unknown parameter(s) in the configuration file: {}'
@@ -219,20 +221,29 @@ class ConfigValidator:
                 f'{key} value must be one of {ALL_REGIONS}, but is {value}'
             ]
 
-    def _validate_bundle_bucket_name(self, key, value):
-        str_error = self._assert_value_is_str(key=key,
-                                              value=value)
+    def _validate_bundle_bucket_name(
+            self,
+            key: str,
+            value: str,
+    ) -> list:
+        str_error = self._assert_value_is_str(key=key, value=value)
         if str_error:
             return [str_error]
 
         errors = []
-        # check min length
-        name = re.compile(
-            NAMED_S3_URI_PATTERN).match(value).groupdict().get('name')
+        match = re.compile(NAMED_S3_URI_PATTERN).match(value)
+        if not match:
+            errors.append(
+                f"The value '{value}' does not match the expected S3 URI format"
+            )
+            return errors
+
+        name = match.groupdict().get('name')
         if len(name) < MIN_BUCKET_NAME_LEN or len(name) > MAX_BUCKET_NAME_LEN:
-            errors.append(f'The length of {key} must be between '
-                          f'{MIN_BUCKET_NAME_LEN} and {MAX_BUCKET_NAME_LEN} '
-                          f'characters long but not {len(name)}')
+            errors.append(
+                f'The length of {key} must be between {MIN_BUCKET_NAME_LEN} and'
+                f' {MAX_BUCKET_NAME_LEN} characters long but not {len(name)}'
+            )
         return errors
 
     def _validate_project_mapping(self, key, value):
@@ -314,15 +325,26 @@ class ConfigValidator:
             errors.append(f'Each resource can have up to 50 user created tags.'
                           f' You have specified: {len(value)}')
         for tag_name, tag_value in value.items():
-            if tag_name.startswith('aws:'):
-                errors.append(f'\'{tag_name}\': you can\'t create, edit or '
-                              f'delete a tag that begins with the \'aws:\' '
-                              f'prefix.')
+            if not isinstance(tag_name, str):
+                errors.append(
+                    f'The tag key \'{tag_name}\' has type '
+                    f'"{type(tag_name).__name__}". Supported type is "string".')
+            else:
+                if tag_name.startswith('aws:'):
+                    errors.append(f'\'{tag_name}\': you can\'t create, edit '
+                                  f'or delete a tag that begins with the '
+                                  f'\'aws:\' prefix.')
                 if not 1 <= len(tag_name) <= 128:
                     errors.append(f'\'{tag_name}\': the tag key must be a '
                                   f'minimum of 1 and a maximum of 128 Unicode '
                                   f'characters')
-                if not 0 <= len(tag_value) <= 256:
+
+            if not isinstance(tag_value, str):
+                errors.append(
+                    f'The tag key \'{tag_name}\' value \'{tag_value}\'has type '
+                    f'"{type(tag_value).__name__}". Supported type is "string".')
+            else:
+                if len(tag_value) > 256:
                     errors.append(f'\'{tag_value}\': the tag value must be a '
                                   f'minimum of 0 and a maximum of 256 Unicode '
                                   f'characters')
@@ -410,7 +432,10 @@ class ConfigValidator:
             return [f'\'{key}\' value must be between 0 and 300 minutes']
 
     @staticmethod
-    def _assert_value_is_str(key, value):
+    def _assert_value_is_str(
+            key: str,
+            value: Any,
+    ) -> str | None:
         if type(value) is not str:
             return f'{key} must be type of string'
 

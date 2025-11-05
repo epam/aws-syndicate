@@ -16,5 +16,6 @@ class BatchJobdefGenerator(BaseDeploymentResourceGenerator):
             'job_role_arn': None
         },
         'node_properties': dict,
-        'retry_strategy': dict
+        'retry_strategy': dict,
+        'tags': dict
     }

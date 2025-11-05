@@ -27,7 +27,7 @@ from .cf_resource_converter import CfResourceConverter
 from ..cf_transform_utils import (to_logic_name, iam_role_logic_name,
                                   dynamodb_table_logic_name)
 
-_LOG = get_logger('cf_dynamodb_table_converter')
+_LOG = get_logger(__name__)
 
 
 def _add_index_keys_to_definition(definition, indexes):

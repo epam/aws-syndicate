@@ -21,6 +21,8 @@ import com.syndicate.deployment.annotations.lambda.LambdaConcurrency;
 import com.syndicate.deployment.annotations.lambda.LambdaHandler;
 import com.syndicate.deployment.annotations.resources.DeadLetterConfiguration;
 import com.syndicate.deployment.annotations.resources.DependsOn;
+import com.syndicate.deployment.annotations.tag.Tag;
+import com.syndicate.deployment.annotations.tag.Tags;
 import com.syndicate.deployment.model.DeadLetterResourceType;
 import com.syndicate.deployment.model.RegionScope;
 import com.syndicate.deployment.model.ResourceType;
@@ -39,6 +41,7 @@ import com.syndicate.deployment.model.TracingMode;
 @SnsEventSource(targetTopic = "stackAuditTopic", regionScope = RegionScope.ALL)
 @DeadLetterConfiguration(resourceName = "lambda-dead-letter-queue-name",
         resourceType = DeadLetterResourceType.SQS)
+@Tags(value = {@Tag(key = "key", value = "value")})
 public class SnsLambdaProcessor {
     // test lambda class to be processed
     public void handle() {

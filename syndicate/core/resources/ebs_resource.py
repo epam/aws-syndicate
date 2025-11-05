@@ -18,13 +18,14 @@ from uuid import uuid1
 from pathlib import PurePath
 from botocore.exceptions import ClientError
 
+from syndicate.exceptions import ResourceNotFoundError, ArtifactError
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.build.meta_processor import S3_PATH_NAME
 from syndicate.core.helper import unpack_kwargs
 from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import build_description_obj
 
-_LOG = get_logger('syndicate.core.resources.ebs_resource')
+_LOG = get_logger(__name__)
 
 
 class EbsResource(BaseResource):
@@ -45,6 +46,8 @@ class EbsResource(BaseResource):
             f':application/{name}'
         if not response:
             response = self.ebs_conn.describe_applications([name])
+        if not response:
+            return {}
         return {
             arn: build_description_obj(response, name, meta)
         }
@@ -72,8 +75,9 @@ class EbsResource(BaseResource):
                     "Value": topic_arn
                 })
             else:
-                raise AssertionError('Cant find notification '
-                                     'topic {0} for EBS.'.format(topic_name))
+                raise ResourceNotFoundError(
+                    f"Cant find notification topic '{topic_name}' for EBS."
+                )
         # check key pair exists
         key_pair_name = meta['ec2_key_pair']
         if self.ec2_conn.if_key_pair_exists(key_pair_name):
@@ -84,8 +88,9 @@ class EbsResource(BaseResource):
                 "Value": key_pair_name
             })
         else:
-            raise AssertionError('Specified key pair '
-                                 'does not exist: {0}.'.format(key_pair_name))
+            raise ResourceNotFoundError(
+                f"Specified key pair does not exist: '{key_pair_name}'."
+            )
         # check ec2 role exists
         iam_role = meta['ec2_role']
         if self.iam_conn.check_if_role_exists(iam_role):
@@ -96,8 +101,9 @@ class EbsResource(BaseResource):
                 "Value": iam_role
             })
         else:
-            raise AssertionError(
-                'Specified iam role does not exist: {0}.'.format(iam_role))
+            raise ResourceNotFoundError(
+                f"Specified iam role does not exist: '{iam_role}'."
+            )
         # check service role exists
         iam_role = meta['ebs_service_role']
         if self.iam_conn.check_if_role_exists(iam_role):
@@ -107,8 +113,9 @@ class EbsResource(BaseResource):
                 "Value": iam_role
             })
         else:
-            raise AssertionError(f'Specified iam role '
-                                 f'does not exist: {iam_role}.')
+            raise ResourceNotFoundError(
+                f"Specified iam role does not exist: '{iam_role}'."
+            )
         image_id = meta.get('image_id')
         if image_id:
             env_settings.append({
@@ -124,8 +131,10 @@ class EbsResource(BaseResource):
         available_stacks = self.ebs_conn. \
             describe_available_solutions_stack_names()
         if stack not in available_stacks:
-            raise AssertionError(f'No solution stack named {stack} found.'
-                                 f' Available:\n{available_stacks}')
+            raise ResourceNotFoundError(
+                f'No solution stack named {stack} found.'
+                f' Available:\n{available_stacks}'
+            )
         vpc_id = next(
             (option for option in env_settings if
              option['OptionName'] == 'VPCId'),
@@ -163,28 +172,33 @@ class EbsResource(BaseResource):
                 break
 
         # create APP
-        response = self.ebs_conn.create_application(name)
+        response = self.ebs_conn.create_application(name,
+                                                    tags=meta.get('tags'))
         _LOG.info(f'Created EBS app {name}.')
         # create ENV
         self.ebs_conn.create_environment(app_name=name,
                                          env_name=env_name,
                                          option_settings=env_settings,
                                          tier=meta['tier'],
-                                         solution_stack_name=stack)
+                                         solution_stack_name=stack,
+                                         tags=meta.get('tags'))
         key = meta[S3_PATH_NAME]
         key_compound = PurePath(CONFIG.deploy_target_bucket_key_compound,
                                 key).as_posix()
         if not self.s3_conn.is_file_exists(self.deploy_target_bucket,
                                            key_compound):
-            raise AssertionError(f'Deployment package does not exist in '
-                                 f'{self.deploy_target_bucket} bucket')
+            raise ArtifactError(
+                f'Deployment package does not exist in '
+                f'{self.deploy_target_bucket} bucket'
+            )
 
         # create VERSION
         version_label = env_name + str(uuid1())
         self.ebs_conn.create_app_version(app_name=name,
                                          version_label=version_label,
                                          s3_bucket=self.deploy_target_bucket,
-                                         s3_key=key_compound)
+                                         s3_key=key_compound,
+                                         tags=meta.get('tags'))
         _LOG.debug(f'Waiting for beanstalk env {env_name}')
         # wait for env creation
         start = time()
@@ -220,16 +234,18 @@ class EbsResource(BaseResource):
         })
 
     def remove_ebs_apps(self, args):
-        self.create_pool(self._remove_ebs_app, args)
+        return self.create_pool(self._remove_ebs_app, args)
 
     @unpack_kwargs
     def _remove_ebs_app(self, arn, config):
         app_name = config['resource_name']
         try:
-            self.ebs_conn.remove_app(app_name)
+            self.ebs_conn.remove_app(app_name, log_not_found_error=False)
             _LOG.info(f'EBS app {app_name} was removed.')
+            return {arn: config}
         except ClientError as e:
             if e.response['Error']['Code'] == 'ResourceNotFoundException':
                 _LOG.warn(f'EBS app {app_name} is not found')
+                return {arn: config}
             else:
                 raise e

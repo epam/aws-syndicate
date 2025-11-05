@@ -4,12 +4,269 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [1.12.0] - 2024-05-30
-- Raised version of libraries `boto3` and `botocore`
-- Added support of new features to the `step_functions` resource:
-  * update
-  * publish version
-  * state machine aliases
+# [1.19.0] - 2025-11-04
+- Fixed an issue when failed 'update' overrides latest_deploy in state file.
+- Fixed an issue when `syndicate build` reset indent to 0 in `appsync_config.json` file.
+- Added new resource name placeholder `$rn{}` to explicitly indicate the resource name part 
+(e.g., SQS queue URL: https://sqs.region.amazonaws.com/account_id/$rn{test_queue})
+- Fixed dynamic resource aliases resolving when extended prefix mode is enabled
+- Fix `syndicate test` command for python runtime in case the project path contains spaces
+- Replaced deprecated usage of `datetime.utctnow()` with `datetime.now(timezone.utc)`
+- Root directory for Java runtime changed from `jsrc` to `japp`
+- Encapsulated Java in a dedicated `japp` runtime root directory (`pom.xml` and related files)
+- Added support for multi modular Java projects
+- Added example of Java multi module project (`examples/java/demo-multi-module`)
+- Unified JSON formatting by extracting indent into a global constant `DEFAULT_JSON_INDENT`
+- Renamed `project_path` to clearly distinguish runtime-specific paths from the global `CONFIG.project_path`, preventing confusion and improving code readability.
+- Encapsulated Python in a dedicated `pyapp` runtime root directory (`tests` and `src` folders)
+- Added example of Python application project structure `pyapp` (`examples/python/demo-pyapp-structure`)
+- Added support of custom headers/methods/origins in CORS
+- Changed format of CORS configuration in API Gateway resource meta from bool to map
+- Fixed an issue related to build project mapping resolving for `appsync` and `swagger_ui` resources
+
+# [1.18.3] - 2025-09-11
+- Fixed issue in the lambda function with the runtime Python template
+- Fixed issue with the command `syndicate --version`
+- Fixed issue with traceback displaying in case of running the `syndicate update` command in non-interactive mode without the '--force' flag
+
+# [1.18.2] - 2025-09-05
+- Added SQS queue to supported resource types for updating
+- Fixed an issue related to updating DynamoDB tables
+- Fixed an issue related to removing lambda layers from the output file after cleaning them
+- Fixed an issue that leads to the permanent warning in case of filtering resources by name during the `deploy`, `update`, and `clean` commands
+- Added information message with resource names to be processed to the user console log in case of filtering resources during the `deploy`, `update`, and `clean` commands
+- Added abortion of the `deploy`, `update`, and `clean` commands in case no resources to process after filtering
+- The Syndicate Java root pom template changed to use the Syndicate Java plugin version 1.17.1
+- The Java plugin version updated to 1.17.1 with changes:
+  - Added embedded documentation for annotations: @LambdaLayer`, `@LambdaUrlConfig`
+- Fixed displaying warning message about supported resource types to update only when non-supported types are specified
+
+# [1.18.1] - 2025-08-20
+- Added warning message in case the resource that was specified using parameter `-resources` is not found in the build meta during the `syndicate deploy/update/clean` command execution
+- Add `tracing_mode` parameter to the list of supported parameters to update
+- Added support of `snapstart` parameter in lambda resource for python 3.12+ and .NET 8+ runtimes
+- Added validation of incoming resource type for `deploy`, `update`, and `clean` commands
+- Moved `.syndicate` file location from project path to config path to avoid merging project states for different configurations within a single project
+- Java plugin version updated to 1.17.0 with changes:
+  - Changed `snapstart` parameter in Java plugin to produce the same meta as for Python and .NET runtimes
+  - Implemented thread-safe processing of the lambda function meta generation
+- Syndicate `generate lambda` template for Java runtime updated to use the Syndicate Java plugin version 1.17.0
+- Fixed an issue in the case of an attempt to create an IAM role that already exists
+
+# [1.18.0] - 2025-08-01
+- Added support for DynamoDB `OnDemandThroughput` limitation
+- Added support for `rds_db_cluster` resource
+- Added support for `rds_db_instance` resource
+- Added support for Lambda proxy integrations in API Gateway
+- Added caching for third-party libraries of lambdas (Python runtime) used in the project
+- Updated `boto3` and `botocore` to version 1.38.12
+- Updated `tqdm` to version 4.67.1
+- Updated `requests` to version 2.32.3
+- Removed the limitation on setuptools version
+- Changed the installation configuration from setup.py to pyproject.toml
+- Fixed prefix and suffix resolving in the list of ARNs
+- Fixed issue when the `commons` folder was overwritten after creating a new lambda
+- Added warning message if there are unresolved alias placeholders in resource metadata
+- Removed requirements.txt in favor of pyproject.toml
+- Fixed issue related to the API Gateway configuration merge conflicts
+- Fixed issue related to getting the list of available instance types
+- Changed CLI command and option naming convention from underscores to dashes for consistency. Underscore variants remain supported but are hidden from help output
+- Renamed `bundle-bucket-name` option to `deploy-target-bucket` in the command `syndicate generate project`. Deprecated parameter is still supported but hidden from help output
+- Added `-path` alias to all `--project-path` options in CLI commands
+- Enhanced the error message when the deploy target bucket is missing
+- Improved the error message in case of temporary credentials expiration
+- Removed unnecessary file sync with files in S3 bucket when invoking help message for nested CLI commands
+- Added support of `python 3.13`, `nodejs 22.x` lambda runtimes
+- Removed support of `python 3.8`, `nodejs 16.x` lambda runtimes
+- Changed the resolution flow of the deployment output file, so the latest deploy output file is used for update, continue deploy, and clean operations.
+
+# [1.17.1] - 2025-03-25
+- Changed `--force_upload` parameter type for assemble commands from `string` to `flag`
+- Fixed logic of `--force_upload` flag in assemble commands
+- Added `--force_upload` flag to `assemble_appsync` and `assemble_swagger_ui` commands
+- Fixed issue if the last deploy output file was deleted from the s3 bucket, and it would result that lambda triggers not being able to update
+- Fixed subnet group deletion during a DAX cluster cleaning
+- Fixed records duplication in the deployment output in case of deployment after changing `lambda` `alias` name and existence of the lambda
+- Fixed dynamic setting of active API link in Swagger UI json file
+- Adjusted the logic of `--clean_externals` parameter in `syndicate clean` command to clean not only external resources 
+but all filtered resources plus external resources which fit the filters
+
+# [1.17.0] - 2025-03-03
+- Added the possibility to generate meta for the resources `firehose` and `eventbridge_schedule`
+- The operation `partial_clean` added to the modification operations list
+- Fix typos in commands help messages
+- Sort available commands in help output alphabetically
+- Adjust EventBridge Scheduler target meta to snake_case
+- Fix an issue where a lambda would not bind to a CloudWatch alarm if the lambda had not been created previously
+- Improved errors logging
+- Added the verification of MVN installation before assembling Java artifacts
+- Added highlighting messages with colors in the user console log according to the level
+- Fixed log message duplication during retries
+- Fixed issue related to deployment API Gateway defined with OpenAPI spec and documented path `Path Item Object` 
+- Added syndicate custom exceptions
+- Clarified warning message about the absence of the syndicate project state file.
+- Added lambda function `event_sources` validation on the build stage.
+- Added verification whether the resource was cleaned in case of errors during clean operation.
+- Fixed `lambda_layer` duplication during deployment.
+- Fixed an issue related to deploy target bucket creation
+- Fixed an issue related to the resource absence in deployment output in case of exception
+
+# [1.16.2] - 2025-01-24
+- Fixed an issue related to modification operations event synchronization
+
+# [1.16.1] - 2025-01-21
+- Added sync project state to the project state initialization
+- Fixed an issue related to `build_project_mapping` resolving for `appsync`, `swagger_ui`, and `lambda` functions with runtime .NET  resources
+- Fixed issue with building java artifacts for Unix OS
+
+# [1.16.0] - 2025-01-14
+- Added support for the AppSync resource
+- Added the possibility to generate `s3_bucket` meta for static website hosting without public access
+- Added the possibility to manage CloudWatch logging for API Gateway resources
+- Added an example of lambda function URL configuration to the Python example 'lambda-basic'
+- Improve the assembling of the Java lambda artifacts by removing the redundant original-<lambda_name>.jar file from the bundle
+- Improved `modification_lock` resolving to avoid conflicts in case of work a few users with the same project
+- Improved logging during generation lambda functions and lambda layers
+- Improved user message in case the bundle name was not resolved
+- Improved output of the command `status`
+- Improved logging during building .NET artifacts
+- Standardized console user messages
+- Added error summary to console log in case of unexpected error occurrence
+- Added parameter `--errors_allowed` to the command `assemble_java_mvn`
+- Update `zip_dir` to handle cases where the full path length exceeds 260 characters with a more informative error message
+- Ensure `zip_dir` validates the existence of the base directory before proceeding with the zipping process
+- Unify manage resources via create_pool (+ DynamoDB tables and CloudWatch alarms)
+- Fixed events registering to the state file(.syndicate) in case of internal errors
+- Fixed an issue related to generating the lambda function with runtime Java when the project root file deployment_resources.json is absent
+- Fixed issue related to building a project that contains no lambda functions
+- Fixed duplication lambda function and lambda layer records in the output file after updating the resources
+- Fixed issue related to lambda function updating in case of changing lambda's alias name
+- Fixed issue related to tests generation for lambda function with runtime Python
+- Fixed duplication of the API Gateway of type `web_socket_api_gateway` during deployment
+- Fix `tag_resources` and `untag_resources` to handle exceptions properly
+- Update `apply_tags`, `remove_tags`, and `update_tags` to return success status
+- Fix `clean` command for `output` folder to correctly resolve ARN for Lambda and properly process and remove the `outputs` folder if Lambda is part of the deployment
+- Fix bucket name resolver to raise a user-friendly message if the bucket name does not match the specified regex
+- Fix `deploy` for `ec2 launch template` with tags
+- Add resource tags for `ec2 launch-template` and  for versions in update and deploy operations
+- Add support tags for `OAS V3` as part of the `oas_v3.json` file, using the `x-syndicate-openapi-tags` key
+- Remove the directory 'target' that contains temporary files after assembling lambda artifacts
+- Unused library `colorama` removed from the requirements
+- Correct the return code of all the commands if they failed or were aborted
+- Java plugin version updated to 1.15.0 with changes:
+  - Added the verification of Lambda resources existence to prevent deploy without Lambda resources
+  - Added support of the syndicate `--errors_allowed` flag to skip build process interruption in case of errors
+- Java template updated to use the Syndicate Java plugin version 1.15.0 for the new lambda generation
+- Java examples updated to use the Syndicate Java plugin version 1.15.0
+- Fix bug when assembling multiple lambdas with different runtimes with `--force_bundle` flag
+
+# [1.15.0] - 2024-10-28
+- Added `--skip_tests` option to `build`, `test` and `assemble_java_mvn` commands to not run tests during or after 
+building the bundle
+- Added `--errors_allowed` option to `assemble_python` and `assemble` commands
+- Improved logic of option `--errors_allowed` to allow dependency installing if it is not possible to find a 
+requirement that fits a specific platform. In this case, the dependencies will be installed independently 
+of each other or without specifying a specific platform (using default platform `any`). Python-specific feature
+- Fixed updating lambda layers when the lambda no longer has layers
+- Fixed logging not found exceptions during the clean operation
+- Fixed handling of deployment output in case of failures on the stage describe resources in case of deploy/update fail
+- Implemented handling of failures during the clean action
+- Improved error message if errors occur during Python requirements installation
+- Changed log level from info to warn if updating of the resource skipped because of absence in the deployment output
+- Fixed deploying a new bundle if latest deploy output is missing
+- Fixed a bug when the latest deployment section was updated when the `deploy` command ended with the ABORTED status
+- Fixed an issue related to locking the state
+- Added empty deployment package handling for lambda layer
+- Fixed bug when meta output processor process the resource name incorrectly
+- Fix `clean` command for `output` folder to correctly resolve ARN for Lambda and properly process and remove the `outputs` folder if Lambda is part of the deployment
+
+# [1.14.1] - 2024-10-08
+- Added support lambda layers with runtime DotNet
+- Tagging added to `oas_v3 openapi` API Gateway.
+- SNS topic deletion fixed.
+- Added an example of a lambda function with runtime `dotnet`
+- Fixed silent overwriting existing lambda with runtime Java during the command `syndicate generate lambda`
+
+# [1.14.0] - 2024-08-28
+- Changed deployment flow to work despite the latest deployment failed
+- Changed deployment flow with the flag `--continue_deploy` to work despite the latest deployment being absent or succeeded
+- Implemented rolling back on error mechanism(flag `--rollback_on_error`) for deployment flow with the flag `--continue_deploy`
+- Added support of lambda functions with runtime DotNet
+- Added possibility to deploy/update resource-specific tags
+- Added confirmation request mechanism for the `update` command in case the latest deployment failed
+- Added the flag `--force` for the `update` command to run an update without confirmation request in case the latest deployment failed
+- Added proper messages for commands `update` and `clean` if deployed resources are absent(output file not found)
+- Added logging of resource names that cause errors to improve error diagnostics
+- Added enhanced logging of the `build` command execution
+- Added validation for existence of bundle and deploy names
+- Added validation for incompatible parameters(`--events`, `--resources`) of the command `syndicate status`
+- Added the possibility to add resource-specific tags via the resource meta generation(flag `--tags`)
+- Added tags support to the Syndicate Java plugin. The `@Tags` and the `@Tag` annotations added to the plugin. The Java plugin version updated to 1.14.0
+- Changed the Java lambda template to use the Syndicate Java plugin version 1.14.0 for the new lambda generation.
+- Event status added to the command `syndicate status` output
+- Reworked lambda triggers update to compare local event sources meta with the previous remote one
+- Reworked lambda triggers deletion to not list every resource of the trigger type to remove it from lambda (**EPMCEOOS-6112**)
+- The key `operation_status` in `latest_deploy` section of the syndicate state file(.syndicate) renamed to `is_succeeded`
+- Fixed lock resolving issue
+- Fixed an issue related to bucket name resolving in the s3_bucket policy
+- Added logging of resource names that cause errors to improve error diagnostics
+- Fix the resource update issue that occurs when a deploy_name is specified by user (not default one) but deployment 
+output for the latest deployment is empty
+- Fixed an issue where updating only certain resources caused the deployment output to be overwritten with only these 
+resources, instead of updating the existing meta
+- Fixed deployment failure if resource name is the same as resource type
+- Fixed an issue related to resource name resolving if ARN is a list item
+- Fixed an issue related to name resolving if one resource name contains another resource name
+- Fixed an issue when a lambda deployment fails when a trigger defined in meta does not exist
+- Fixed an issue related to updating lambda triggers
+- Fixed lambda event source mapping inactivity after deployment
+- Improved logging for the deletion of a resource that does not exist in the account
+- Improved logging in case of the absence of resources to clean
+- Fixed Lambda Layer packaging for the NodeJS runtime
+- Fixed an issue where newly added resources (after deploy) were causing the update operation to fail
+- Fixed a synchronization issue that prevented the batch job queue from being deleted before its state was fully updated
+- Fixed an issue related to removing CloudWatch alarms that were used for Dynamodb autoscaling
+- Fixed an issue with the absence of lambda's information in the output file in case deployment failed on the trigger configuration step
+- Fixed an issue related to losing state after partial clean
+- Fixed an issue related to the latest output resolving
+- Fixed an issue related to the API Gateway throttling and cache configuration for ANY method
+- Fixed an issue with `--force_upload` being required while syndicate assemble
+
+# [1.13.1] - 2024-08-05
+- Speed up deletion of s3 bucket with lots of objects
+
+# [1.13.0] - 2024-07-10
+- Added possibility to configure `FunctionResponseTypes` for lambda functions
+- Updated maven plugin version to 1.12.0 with support of `FunctionResponseTypes`
+- Added possibility to set up Cognito user pool ID in lambda function environment variable
+- Added possibility to set up Cognito user pool client ID in lambda function environment variable
+- Fix lambda triggers deletion when removed from meta
+- Fix resources dependencies resolving
+- Fix losing successfully deployed resources from the output file during deployment with the option `--continue_deploy`
+- Fix API Gateway duplication in case of existing API Gateway with the same name
+- Fix detection of usage `--rollback_on_error` option with an incompatible option `--continue_deploy`
+- Changed datetime format for lock attributes in the `.syndicate` file to UTC format
+- The Syndicate Java plugin version updated to 1.13.0 with changes:
+  - The ResourceType enum for the @DependsOn annotation extended with new type ResourceType.COGNITO_USER_POOL
+  - The @EnvironmentVariable annotation for the Syndicate Java plugin improved to support the value transformer
+  - A new value transformer type created ValueTransformer.USER_POOL_NAME_TO_USER_POOL_ID
+  - A new value transformer type created ValueTransformer.USER_POOL_NAME_TO_CLIENT_ID
+- The generate Java lambda template changed to use the Syndicate Java plugin version 1.13.0
+
+# [1.12.0] - 2024-06-20
+- Added ability for `clean` command to automatically resolve if `--rollback` is needed.
+- Fixed an issue related to `log group already exists` error while deploying or updating `lambda`.
+- Updated `syndicate deploy --continue_deploy` command, now it can save output and actually continue deployment resources.
+- Implemented `rollback_on_error` flag for `syndicate deploy` command. Is flag is `True`, all resources that have been deployed during deployment process, would be cleaned.
+- Fixed an issue related to deploying multiple resources with same type, now it catches an `Exception` in case of a deployment error of one of the resources and returns it along with the outputs.
+- Fixed `deploy` command responses.
+- Added support of Python 3.12
+- Fixed an issue related to ARNs resolving in case of empty resource name
+- Fixed an issue related to improper filtering of resources in case of different types of filter usage
+- Fixed an error related to SQS FIFO Queue availability regions
+- Fixed an issue related to deploying SQS Queue with configured redrive_policy
+- Fixed an issue when only the last s3 trigger was configured for the lambda
+- Added `force_upload` action to all assemble commands
 
 # [1.11.6] - 2024-05-24
 - Added support of custom authorizer names in Open API specification security schemes

@@ -19,7 +19,8 @@ class BatchCompenvGenerator(BaseDeploymentResourceGenerator):
             "security_group_ids": list,
             "subnets": list,
             "instance_role": None,
-        }
+        },
+        "tags": dict
     }
 
     def __init__(self, **kwargs):

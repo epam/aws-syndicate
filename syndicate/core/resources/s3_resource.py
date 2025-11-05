@@ -18,14 +18,15 @@ import re
 import string
 from typing import Optional
 
+from syndicate.exceptions import InvalidValueError, InvalidTypeError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core import ClientError
 from syndicate.core.constants import S3_BUCKET_ACL_LIST
 from syndicate.core.helper import unpack_kwargs
 from syndicate.core.resources.base_resource import BaseResource
-from syndicate.core.resources.helper import build_description_obj, chunks
+from syndicate.core.resources.helper import build_description_obj
 
-_LOG = get_logger('syndicate.core.resources.s3_resource')
+_LOG = get_logger(__name__)
 USER_LOG = get_user_logger()
 
 
@@ -69,7 +70,7 @@ def validate_bucket_name(bucket_name: str):
                 pass
     if error:
         _LOG.warning(error)
-        raise ValueError(error)
+        raise InvalidValueError(error)
     _LOG.info(f"Finished validating bucket name '{bucket_name}'")
 
 
@@ -87,6 +88,8 @@ class S3Resource(BaseResource):
         acl_response = self.s3_conn.get_bucket_acl(name)
         location_response = self.s3_conn.get_bucket_location(name)
         bucket_policy = self.s3_conn.get_bucket_policy(name)
+        if not location_response:
+            return {}
         response = {
             'bucket_acl': acl_response,
             'location': location_response,
@@ -116,21 +119,21 @@ class S3Resource(BaseResource):
             message = f'Parameters inside public_access_block should have ' \
                       f'bool type'
             _LOG.error(message)
-            raise AssertionError(message)
+            raise InvalidTypeError(message)
         self.s3_conn.put_public_access_block(name,
                                              **public_access_block)
 
         acl = meta.get('acl')
         if acl:
             if acl not in S3_BUCKET_ACL_LIST:
-                raise AssertionError(
-                    f'Invalid value of S3 bucket ACL! Must be one of the '
-                    f'{S3_BUCKET_ACL_LIST}')
+                raise InvalidValueError(
+                    f"Invalid value of S3 bucket ACL! Must be one of the "
+                    f"'{S3_BUCKET_ACL_LIST}'"
+                )
             self.s3_conn.put_bucket_acl(name, acl)
 
         policy = meta.get('policy')
         if policy:
-            self._populate_bucket_name_in_policy(policy, name)
             self.s3_conn.add_bucket_policy(name, policy)
             _LOG.debug('Policy on {0} S3 bucket is set up.'.format(name))
 
@@ -141,8 +144,10 @@ class S3Resource(BaseResource):
             error_document = meta['website_hosting'].get('error_document')
             if not all([isinstance(param, str) for param in (index_document,
                                                              error_document)]):
-                raise AssertionError('Parameters \'index_document\' and '
-                                     '\'error_document\' must be \'str\' type')
+                raise InvalidTypeError(
+                    "Value of parameters 'index_document' and "
+                    "'error_document' must be of 'str' type"
+                )
             self.s3_conn.enable_website_hosting(name,
                                                 index_document,
                                                 error_document)
@@ -177,34 +182,20 @@ class S3Resource(BaseResource):
             return []
 
     def remove_buckets(self, args):
-        self.create_pool(self._remove_bucket, args)
+        return self.create_pool(self._remove_bucket, args)
 
     @unpack_kwargs
     def _remove_bucket(self, arn, config):
         bucket_name = config['resource_name']
         try:
-            errors = []
-            keys = self.s3_conn.list_object_versions(bucket_name)
-            if keys:
-                for s3_keys in chunks(keys, 1000):
-                    errors.extend(self._delete_objects(bucket_name, s3_keys))
-
-            markers = self.s3_conn.list_object_markers(bucket_name)
-            if markers:
-                for s3_markers in chunks(markers, 1000):
-                    errors.extend(
-                        self._delete_objects(bucket_name, s3_markers))
-
-            if errors:
-                raise AssertionError('Error occurred while deleting S3 objects'
-                                     ' from {0} bucket. Not deleted keys: '
-                                     '{1}'.format(bucket_name, str(errors)))
-            else:
-                self.s3_conn.delete_bucket(bucket_name)
-                _LOG.info('S3 bucket {0} was removed.'.format(bucket_name))
+            self.s3_conn.remove_bucket(bucket_name=bucket_name,
+                                       log_not_found_error=False)
+            _LOG.info('S3 bucket {0} was removed.'.format(bucket_name))
+            return {arn: config}
         except ClientError as e:
             if e.response['Error']['Code'] == 'NoSuchBucket':
                 _LOG.warn('S3 bucket {0} is not found'.format(bucket_name))
+                return {arn: config}
             else:
                 raise e
 
@@ -217,21 +208,5 @@ class S3Resource(BaseResource):
 
     @staticmethod
     def is_bucket_arn(maybe_arn: str) -> bool:
-        # TODO add files keys support to regex
-        return bool(re.match(r'^arn:aws:s3:::[a-z0-9.-]{3,63}/?$',
-                             maybe_arn))
-
-    @staticmethod
-    def _populate_bucket_name_in_policy(policy, bucket_name):
-        statements = policy['Statement'] if policy.get('Statement') else []
-        for statement in statements:
-            resources = statement['Resource'] if statement.get('Resource') \
-                else []
-            new_resources = []
-            for resource in resources:
-                if 'bucket_name' in resource:
-                    new_resources.append(resource.format(bucket_name=
-                                                         bucket_name))
-                else:
-                    new_resources.append(resource)
-            statement['Resource'] = new_resources
+        arn_regex = r'^arn:aws:s3:::[a-z0-9.-]{3,63}(?:/.*)?$'
+        return bool(re.match(arn_regex, maybe_arn))

@@ -18,6 +18,8 @@ from typing import Optional
 
 from botocore.exceptions import ClientError
 
+from syndicate.exceptions import ResourceNotFoundError, \
+    InvalidValueError
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import retry
 from syndicate.core.helper import prettify_json, unpack_kwargs
@@ -25,7 +27,7 @@ from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import (build_description_obj,
                                              resolve_dynamic_identifier)
 
-_LOG = get_logger('syndicate.core.resources.iam_resource')
+_LOG = get_logger(__name__)
 
 
 class IamResource(BaseResource):
@@ -36,26 +38,25 @@ class IamResource(BaseResource):
         self.region = region
 
     def remove_policies(self, args):
-        self.create_pool(self._remove_policy, args)
+        return self.create_pool(self._remove_policy, args)
 
     @unpack_kwargs
     def _remove_policy(self, arn, config):
         policy_name = config['resource_name']
         try:
-            self.iam_conn.remove_policy(arn)
-            _LOG.info('IAM policy %s was removed.', policy_name)
+            self.iam_conn.remove_policy(arn, log_not_found_error=False)
+            _LOG.info(f'IAM policy {policy_name} was removed.')
+            return {arn: config}
         except ClientError as e:
             error_code = e.response['Error']['Code']
             if error_code == 'NoSuchEntity':
-                _LOG.warn('IAM policy %s is not found', policy_name)
-            elif error_code == 'DeleteConflict':
-                _LOG.warn('Cannot remove %s policy, it is attached.',
-                          policy_name)
+                _LOG.warn(f'IAM policy {policy_name} is not found')
+                return {arn: config}
             else:
                 raise e
 
     def remove_roles(self, args):
-        self.create_pool(self._remove_role, args)
+        return self.create_pool(self._remove_role, args)
 
     @unpack_kwargs
     def _remove_role(self, arn, config):
@@ -78,11 +79,13 @@ class IamResource(BaseResource):
                 for each in instance_profiles:
                     self.iam_conn.remove_role_from_instance_profile(
                         role_name, each['InstanceProfileName'])
-            self.iam_conn.remove_role(role_name)
+            self.iam_conn.remove_role(role_name, log_not_found_error=False)
             _LOG.info('IAM role %s was removed.', role_name)
+            return {arn: config}
         except ClientError as e:
             if e.response['Error']['Code'] == 'NoSuchEntity':
                 _LOG.warn('IAM role %s is not found ', role_name)
+                return {arn: config}
             else:
                 raise e
 
@@ -114,7 +117,8 @@ class IamResource(BaseResource):
             _LOG.warn('IAM policy %s exists.', name)
             return self.describe_policy(name=name, meta=meta)
         policy_content = meta['policy_content']
-        self.iam_conn.create_custom_policy(name, policy_content)
+        self.iam_conn.create_custom_policy(name, policy_content,
+                                           meta.get('tags'))
         _LOG.info('Created IAM policy %s.', name)
         return self.describe_policy(name=name, meta=meta)
 
@@ -130,6 +134,7 @@ class IamResource(BaseResource):
             return {
                 arn: build_description_obj(response, name, meta)
             }
+        return {}
 
     @unpack_kwargs
     def _create_role_from_meta(self, name, meta):
@@ -146,6 +151,7 @@ class IamResource(BaseResource):
         external_id = meta.get('external_id')
         trust_rltn = meta.get('trusted_relationships')
         permissions_boundary = meta.get('permissions_boundary')
+        tags = meta.get('tags')
         if principal_service and '{region}' in principal_service:
             principal_service = principal_service.format(region=self.region)
         response = self.iam_conn.create_custom_role(
@@ -154,7 +160,8 @@ class IamResource(BaseResource):
             allowed_service=principal_service,
             external_id=external_id,
             trusted_relationships=trust_rltn,
-            permissions_boundary=permissions_boundary)
+            permissions_boundary=permissions_boundary,
+            tags=tags)
         waiter = self.iam_conn.get_waiter('role_exists')
         waiter.wait(RoleName=name)
         if instance_profile:
@@ -171,16 +178,22 @@ class IamResource(BaseResource):
             for policy in policies:
                 arn = self.iam_conn.get_policy_arn(policy)
                 if not arn:
-                    raise AssertionError(f'Can not get policy arn: {policy}')
+                    raise ResourceNotFoundError(
+                        f"Can not get policy arn: '{policy}'"
+                    )
                 self.iam_conn.attach_policy(name, arn)
         else:
-            raise AssertionError(f'There are no policies for role: {name}.')
+            raise InvalidValueError(
+                f"There are no policies for role: '{name}'."
+            )
         _LOG.info(f'Created IAM role {name}.')
         return self.describe_role(name=name, meta=meta, response=response)
 
     def describe_role(self, name, meta, response=None):
         if not response:
             response = self.iam_conn.get_role(role_name=name)
+        if not response:
+            return {}
         arn = response['Arn']
         del response['Arn']
         return {
@@ -209,17 +222,20 @@ class IamResource(BaseResource):
     def _attach_permissions_boundary_to_role(self, permissions_boundary,
                                              role_name):
         if not isinstance(permissions_boundary, str):
-            raise AssertionError(f'Permissions_boundary must have \'str\' type'
-                                 f'. The type of given param is: '
-                                 f'\'{type(permissions_boundary).__name__}\'')
+            raise InvalidValueError(
+                f'Permissions_boundary must have \'str\' type'
+                f'. The type of given param is: '
+                f'\'{type(permissions_boundary).__name__}\''
+            )
         if not permissions_boundary.startswith('arn:aws'):
             _LOG.warn(f'Resolving permissions boundary arn from policy '
                       f'name \'{permissions_boundary}\'')
             permissions_boundary = self.iam_conn.get_policy_arn(
                 permissions_boundary)
             if not permissions_boundary:
-                raise AssertionError(f'Can not get policy arn: '
-                                     f'{permissions_boundary}')
+                raise ResourceNotFoundError(
+                    f"Can not get policy arn: '{permissions_boundary}'"
+                )
         _LOG.info(f'Adding permissions boundary \'{permissions_boundary}\''
                   f' to role \'{role_name}\'')
         self.iam_conn.put_role_permissions_boundary(
@@ -239,7 +255,9 @@ class IamResource(BaseResource):
         existing_role = self.iam_conn.get_role(name)
         if not existing_role:
             _LOG.warn(f'IAM role {name} does not exist.')
-            raise AssertionError(f'{name} role does not exist.')
+            raise ResourceNotFoundError(
+                f"'{name}' role does not exist."
+            )
         custom_policies = meta.get('custom_policies', [])
         predefined_policies = meta.get('predefined_policies', [])
         policies = set(custom_policies + predefined_policies)
@@ -259,8 +277,9 @@ class IamResource(BaseResource):
             trusted_relationships=trust_rltn,
             role=existing_role)
         if not response:
-            raise AssertionError(f'Can not update role \'{name}\': '
-                                 f'role does not exist.')
+            raise ResourceNotFoundError(
+                f'Can not update role \'{name}\', role does not exist.'
+            )
         if instance_profile:
             profiles = self.iam_conn.get_instance_profiles_for_role(
                 role_name=name)
@@ -295,7 +314,9 @@ class IamResource(BaseResource):
             for policy in policies:
                 arn = self.iam_conn.get_policy_arn(policy)
                 if not arn:
-                    raise AssertionError(f'Can not get policy arn: {policy}')
+                    raise ResourceNotFoundError(
+                        f"Can not get policy arn: '{policy}'"
+                    )
                 self.iam_conn.attach_policy(name, arn)
         _LOG.info(f'Updated IAM role {name}.')
         if permissions_boundary:
@@ -313,7 +334,9 @@ class IamResource(BaseResource):
         response = self.iam_conn.get_policy(arn)
         if not response:
             _LOG.warn(f'{name} policy does not exist.')
-            raise AssertionError(f'{name} policy does not exist.')
+            raise ResourceNotFoundError(
+                f"'{name}' policy does not exist."
+            )
         policy_content = meta['policy_content']
         self.iam_conn.update_custom_policy_content(name=name,
                                                    arn=arn,

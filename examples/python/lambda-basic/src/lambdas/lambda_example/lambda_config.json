@@ -7,5 +7,9 @@
   "runtime": "python3.10",
   "memory": 128,
   "timeout": 300,
-  "lambda_path": ""
+  "lambda_path": "lambdas\\lambda_example",
+  "alias": "${lambdas_alias_name}",
+  "url_config": {
+    "auth_type": "NONE"
+  }
 }

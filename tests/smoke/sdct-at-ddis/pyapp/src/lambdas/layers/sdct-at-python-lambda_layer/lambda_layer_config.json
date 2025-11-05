@@ -1,0 +1,8 @@
+{
+  "name": "sdct-at-python-lambda_layer",
+  "resource_type": "lambda_layer",
+  "runtimes": [
+    "python3.10"
+  ],
+  "deployment_package": "sdct-at-python-lambda_layer_layer.zip"
+}

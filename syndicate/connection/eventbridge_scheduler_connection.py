@@ -4,7 +4,7 @@ from botocore.exceptions import ClientError
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import apply_methods_decorator, retry
 
-_LOG = get_logger('syndicate.connection.eventbridge_scheduler_connection')
+_LOG = get_logger(__name__)
 
 
 @apply_methods_decorator(retry())
@@ -41,7 +41,11 @@ class EventBridgeSchedulerConnection(object):
             else:
                 raise e
 
-    def delete_schedule(self, name, group_name=None):
+    def delete_schedule(self, name, group_name=None, log_not_found_error=True):
+        """
+        log_not_found_error parameter is needed for proper log handling in the
+        retry decorator
+        """
         params = {'Name': name}
         if group_name is not None:
             params['GroupName'] = group_name

@@ -15,6 +15,7 @@
 """
 import json
 
+from syndicate.exceptions import InvalidValueError
 from syndicate.core.transform.terraform.converter.tf_resource_converter import \
     TerraformResourceConverter
 from syndicate.core.transform.terraform.tf_helper import deploy_regions
@@ -23,7 +24,6 @@ from syndicate.core.transform.terraform.tf_resource_name_builder import \
 from syndicate.core.transform.terraform.tf_resource_reference_builder import \
     build_sqs_queue_id_ref
 
-FIFO_REGIONS = ['us-east-1', 'us-east-2', 'us-west-2', 'eu-west-1']
 FIFO_SUFFIX = '.fifo'
 
 
@@ -44,9 +44,6 @@ class SQSQueueConverter(TerraformResourceConverter):
             fifo_queue = resource.get('fifo_queue')
             queue_name = self.build_resource_name(is_fifo=fifo_queue,
                                                   name=name)
-            if fifo_queue and region not in FIFO_REGIONS:
-                raise AssertionError('FIFO queue is not available in {0}.'
-                                     .format(region))
 
             self.create_sqs_queue_in_region(name=queue_name,
                                             resource=resource,
@@ -61,37 +58,40 @@ class SQSQueueConverter(TerraformResourceConverter):
         vis_timeout = resource.get('visibility_timeout')
         if vis_timeout:
             if vis_timeout < 0 or vis_timeout > 43200:
-                raise AssertionError(
-                    'Visibility timeout must be '
-                    'between 0 and 43200 seconds')
+                raise InvalidValueError(
+                    'Visibility timeout must be between 0 and 43200 seconds'
+                )
         delay_seconds = resource.get('delay_seconds')
         if delay_seconds:
             if delay_seconds < 0 or delay_seconds > 900:
-                raise AssertionError(
-                    'Delay seconds for queue must be '
-                    'between 0 and 900 seconds')
+                raise InvalidValueError(
+                    'Delay seconds for queue must be between 0 and 900 seconds'
+                )
 
         maximum_message_size = resource.get('maximum_message_size')
         if maximum_message_size:
             if maximum_message_size < 1024 or maximum_message_size > 262144:
-                raise AssertionError(
-                    'Maximum message size must be '
-                    'between 1024 and 262144 bytes')
+                raise InvalidValueError(
+                    'Maximum message size must be between 1024 and 262144 '
+                    'bytes'
+                )
 
         message_retention_period = resource.get('message_retention_period')
         if message_retention_period:
             if message_retention_period < 60 or message_retention_period > 1209600:
-                raise AssertionError(
-                    'Message retention size must be '
-                    'between 60 and 1209600 seconds')
+                raise InvalidValueError(
+                    'Message retention size must be between 60 and 1209600 '
+                    'seconds'
+                )
 
         receive_mes_wait_sec = resource.get(
             'receive_message_wait_time_seconds')
         if receive_mes_wait_sec:
             if receive_mes_wait_sec < 0 or receive_mes_wait_sec > 20:
-                raise AssertionError(
-                    'Receive message wait time must be '
-                    'between 0 and 20 seconds')
+                raise InvalidValueError(
+                    'Receive message wait time must be between 0 and 20 '
+                    'seconds'
+                )
 
         content_based_deduplication = resource.get(
             'content_based_deduplication')
@@ -107,9 +107,9 @@ class SQSQueueConverter(TerraformResourceConverter):
             'kms_data_key_reuse_period_seconds')
         if kms_data_reuse_period:
             if kms_data_reuse_period < 60 or kms_data_reuse_period > 86400:
-                raise AssertionError(
-                    'KMS key reuse period must be '
-                    'between 60 and 86400 seconds')
+                raise InvalidValueError(
+                    'KMS key reuse period must be between 60 and 86400 seconds'
+                )
 
         queue = self._sqs_queue(tf_queue_name=tf_queue_name, queue_name=name,
                                 redrive_policy=redrive_policy,

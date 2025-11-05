@@ -18,7 +18,7 @@ from boto3 import client
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import apply_methods_decorator, retry
 
-_LOG = get_logger('syndicate.connection.dax_connection')
+_LOG = get_logger(__name__)
 
 
 @apply_methods_decorator(retry())
@@ -39,7 +39,8 @@ class DaxConnection:
                        cluster_endpoint_encryption_type: str = 'TLS',
                        security_group_ids: list = None,
                        parameter_group_name: str = None,
-                       availability_zones: list = None):
+                       availability_zones: list = None,
+                       tags: list[dict] = None):
         params = dict(
             ClusterName=cluster_name,
             NodeType=node_type,
@@ -49,7 +50,8 @@ class DaxConnection:
             SecurityGroupIds=security_group_ids,
             ParameterGroupName=parameter_group_name,
             AvailabilityZones=availability_zones,
-            ClusterEndpointEncryptionType=cluster_endpoint_encryption_type
+            ClusterEndpointEncryptionType=cluster_endpoint_encryption_type,
+            Tags=tags
         )
         params = {key: value for key, value in params.items() if value}
         try:
@@ -68,12 +70,12 @@ class DaxConnection:
             _LOG.warning(f'Cluster \'{cluster_name}\' not found')
             return
 
-    def delete_cluster(self, cluster_name):
-        try:
-            return self.client.delete_cluster(ClusterName=cluster_name)
-        except self.client.exceptions.ClusterNotFoundFault:
-            _LOG.warning(f'Dax cluster with name \'{cluster_name}\' not found')
-            return
+    def delete_cluster(self, cluster_name, log_not_found_error=True):
+        """
+        log_not_found_error parameter is needed for proper log handling in the
+        retry decorator
+        """
+        return self.client.delete_cluster(ClusterName=cluster_name)
 
     def create_subnet_group(self, subnet_group_name, subnet_ids):
         params = dict(

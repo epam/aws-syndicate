@@ -3,15 +3,15 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-
+    <name>deployment-configuration-maven-plugin</name>
     <parent>
         <groupId>net.sf.aws-syndicate</groupId>
         <artifactId>deployment-configuration-processor</artifactId>
-        <version>1.11.1</version>
+        <version>1.17.1</version>
     </parent>
 
     <artifactId>deployment-configuration-maven-plugin</artifactId>
-    <version>1.11.1</version>
+    <version>1.17.1</version>
     <packaging>maven-plugin</packaging>
 
     <properties>
@@ -28,7 +28,7 @@
         <dependency>
             <groupId>net.sf.aws-syndicate</groupId>
             <artifactId>deployment-configuration-annotations</artifactId>
-            <version>1.11.1</version>
+            <version>1.17.1</version>
         </dependency>
         <dependency>
             <groupId>org.reflections</groupId>

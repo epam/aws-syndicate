@@ -15,13 +15,14 @@
 """
 from botocore.exceptions import ClientError
 
+from syndicate.exceptions import InvalidValueError
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.helper import (
     unpack_kwargs)
 from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import build_description_obj
 
-_LOG = get_logger('syndicate.core.resources.documentdb_resource')
+_LOG = get_logger(__name__)
 
 
 class DocumentDBClusterResource(BaseResource):
@@ -42,10 +43,10 @@ class DocumentDBClusterResource(BaseResource):
 
     def describe_documentdb_cluster(self, identifier, meta):
         if not identifier:
-            return
+            return {}
         response = self.connection.describe_db_clusters(identifier)
         if not response:
-            return
+            return {}
         arn = f'arn:aws:rds:{self.region}:{self.account_id}:' \
               f'cluster:{identifier}'
         return {
@@ -76,32 +77,38 @@ class DocumentDBClusterResource(BaseResource):
         port = meta.get('port', None)
         master_username = meta.get('master_username', None)
         if master_username and master_username[0].isdigit():
-            raise AssertionError(f'The first character of master username '
-                                 f'must be a letter: {master_username}')
+            raise InvalidValueError(
+                f'The first character of master username must be a letter: '
+                f'{master_username}'
+            )
         master_password = meta.get('master_password', None)
         if master_password and any(
                 char in master_password for char in ('"', '@', '/')):
-            raise AssertionError(
+            raise InvalidValueError(
                 f'The password cannot contain forward slash (/), double quote '
                 f'(") or the "at" symbol (@): {master_password}')
         cluster = self.connection.create_db_cluster(
             identifier=name, availability_zones=availability_zones,
             vpc_security_group_ids=vpc_security_group_ids, port=port,
-            master_password=master_password, master_username=master_username)
+            master_password=master_password, master_username=master_username,
+            tags=meta.get('tags'))
         _LOG.info(f'Created documentDB cluster {cluster}')
         return self.describe_documentdb_cluster(identifier=name, meta=meta)
 
     def remove_db_cluster(self, args):
-        self.create_pool(self._remove_db_cluster, args)
+        return self.create_pool(self._remove_db_cluster, args)
 
     @unpack_kwargs
     def _remove_db_cluster(self, arn, config):
         cluster = config['description']
         try:
-            self.connection.delete_db_cluster(cluster)
+            self.connection.delete_db_cluster(cluster,
+                                              log_not_found_error=False)
             _LOG.info(f'DocumentDB cluster \'{cluster}\' was removed')
+            return {arn: config}
         except ClientError as e:
             if e.response['Error']['Code'] == 'ResourceNotFoundException':
                 _LOG.warn(f'DocumentDB cluster \'{cluster}\' is not found')
+                return {arn: config}
             else:
                 raise e

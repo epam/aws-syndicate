@@ -31,7 +31,7 @@ import java.util.Map;
 /**
  * Created by Oleksandr Onsha on 10/25/18
  */
-@Mojo(name = "gen-terraform-config", requiresDependencyResolution = ResolutionScope.RUNTIME)
+@Mojo(name = "gen-terraform-config", requiresDependencyResolution = ResolutionScope.RUNTIME, threadSafe = true)
 public class TerraformMetaGeneratorGoal extends SyndicateMetaGeneratorGoal {
 
 	private static final String ARN_SEPARATOR = ":";
@@ -124,6 +124,9 @@ public class TerraformMetaGeneratorGoal extends SyndicateMetaGeneratorGoal {
 			}
 			if (syndicate.getVariables() != null && !syndicate.getVariables().isEmpty()) {
 				configurationBuilder.withEnvironmentVariables(syndicate.getVariables());
+			}
+			if (syndicate.getTags() != null && !syndicate.getTags().isEmpty()) {
+				configurationBuilder.withTags(syndicate.getTags());
 			}
 			if (syndicate.getDlResourceName() != null && syndicate.getDlResourceType() != null) {
 				configurationBuilder.withDeadLetterConfig(buildDeadLetterSourceArn(syndicate.getDlResourceName(),

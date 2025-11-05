@@ -24,13 +24,14 @@ import sys
 from concurrent.futures import FIRST_EXCEPTION
 from concurrent.futures import FIRST_EXCEPTION
 from concurrent.futures.thread import ThreadPoolExecutor
-from distutils.dir_util import copy_tree
 from itertools import chain
 from pathlib import Path
 from typing import Union, Optional, List, Set
 
+from syndicate.exceptions import ArtifactAssemblingError, InvalidTypeError
 from syndicate.commons.log_helper import get_logger, get_user_logger
-from syndicate.core.build.helper import build_py_package_name, zip_dir
+from syndicate.core.build.helper import build_py_package_name, zip_dir, \
+    remove_dir, resolve_bundles_cache_directory, merge_zip_files
 from syndicate.core.conf.processor import path_resolver
 from syndicate.core.constants import (LAMBDA_CONFIG_FILE_NAME, DEFAULT_SEP,
                                       REQ_FILE_NAME, LOCAL_REQ_FILE_NAME,
@@ -38,45 +39,63 @@ from syndicate.core.constants import (LAMBDA_CONFIG_FILE_NAME, DEFAULT_SEP,
                                       PYTHON_LAMBDA_LAYER_PATH,
                                       MANY_LINUX_2014_PLATFORM)
 from syndicate.core.helper import (build_path, unpack_kwargs, zip_ext,
-                                   without_zip_ext)
+                                   without_zip_ext, compute_file_hash)
 from syndicate.core.resources.helper import validate_params
+from syndicate.core.groups import PYTHON_ROOT_DIR_SRC
+
 
 _LOG = get_logger(__name__)
 USER_LOG = get_user_logger()
 
 _PY_EXT = "*.py"
-EMPTY_LINE_CHARS = ('\n', '\r\n')
+EMPTY_LINE_CHARS = ('\n', '\r\n', '\t')
+
+REQ_HASH_SUFFIX = 'r_hash'
+EMPTY_FILE_HASH = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'
+TMP_DIR = 'tmp'
 
 
-def assemble_python_lambdas(project_path, bundles_dir):
+def assemble_python_lambdas(
+    runtime_root_dir: str, 
+    bundles_dir: str, 
+    errors_allowed: bool,
+    **kwargs
+) -> None:
     from syndicate.core import CONFIG
-    project_base_folder = os.path.basename(os.path.normpath(project_path))
-    if project_path != '.':
-        project_abs_path = build_path(CONFIG.project_path, project_base_folder)
+
+    runtime_base_dir = os.path.basename(os.path.normpath(runtime_root_dir))
+    if runtime_root_dir != '.':
+        runtime_abs_path = build_path(CONFIG.project_path, runtime_base_dir)
     else:
-        project_abs_path = CONFIG.project_path
-    _LOG.info('Going to process python project by path: {0}'.format(
-        project_abs_path))
+        runtime_abs_path = CONFIG.project_path
+
+    if runtime_root_dir != PYTHON_ROOT_DIR_SRC:
+        runtime_abs_path = os.path.join(runtime_abs_path, PYTHON_ROOT_DIR_SRC)
+
+    _LOG.info(f'Going to process python project by path: {runtime_abs_path}')
+
     with ThreadPoolExecutor(max_workers=5) as executor:
         futures = []
-        for root, sub_dirs, files in os.walk(project_abs_path):
+        for root, _, files in os.walk(runtime_abs_path):
             for item in files:
                 if item.endswith(LAMBDA_CONFIG_FILE_NAME):
-                    _LOG.info('Going to build artifact in: {0}'.format(root))
+                    _LOG.info(f'Going to build artifact in: {root!r}')
                     arg = {
                         'root': str(Path(root)),
                         'config_file': str(Path(root, item)),
                         'target_folder': bundles_dir,
-                        'project_path': project_path,
+                        'runtime_root_dir': runtime_root_dir,
+                        'errors_allowed': errors_allowed
                     }
                     futures.append(
                         executor.submit(_build_python_artifact, arg))
                 elif item.endswith(LAMBDA_LAYER_CONFIG_FILE_NAME):
-                    _LOG.info(f'Going to build lambda layer in `{root}`')
+                    _LOG.info(f'Going to build lambda layer in {root!r}')
                     arg = {
                         'layer_root': root,
                         'bundle_dir': bundles_dir,
-                        'project_path': project_path
+                        'runtime_root_dir': runtime_root_dir,
+                        'errors_allowed': errors_allowed
                     }
                     futures.append(
                         executor.submit(build_python_lambda_layer, arg))
@@ -84,112 +103,214 @@ def assemble_python_lambdas(project_path, bundles_dir):
     for future in result.done:
         exception = future.exception()
         if exception:
-            print(f'\033[91m' + str(exception), file=sys.stderr)
-            sys.exit(1)
+            raise ArtifactAssemblingError(exception)
     _LOG.info('Python project was processed successfully')
 
 
-def remove_dir(path: Union[str, Path]):
-    removed = False
-    while not removed:
-        _LOG.info(f'Trying to remove "{path}"')
-        try:
-            shutil.rmtree(path)
-            removed = True
-        except Exception as e:
-            _LOG.warn(f'An error "{e}" occurred while '
-                      f'removing artifacts "{path}"')
-
-
 @unpack_kwargs
-def build_python_lambda_layer(layer_root: str, bundle_dir: str,
-                              project_path: str):
+def build_python_lambda_layer(
+    layer_root: str, 
+    bundle_dir: str,
+    runtime_root_dir: str,
+    errors_allowed: bool
+) -> None:
     """
     Layer root is a dir where these files exist:
     - lambda_layer_config.json
     - local_requirements.txt
     - requirements.txt
     """
+    cache_dir_path = resolve_bundles_cache_directory()
+    os.makedirs(cache_dir_path, exist_ok=True)
+
     with open(Path(layer_root, LAMBDA_LAYER_CONFIG_FILE_NAME), 'r') as file:
         layer_config = json.load(file)
     validate_params(layer_root, layer_config, ['name', 'deployment_package'])
     artifact_name = without_zip_ext(layer_config['deployment_package'])
     artifact_path = Path(bundle_dir, artifact_name)
-    path_for_requirements = artifact_path / PYTHON_LAMBDA_LAYER_PATH
-    _LOG.info(f'Artifacts path: {artifact_path}')
-    os.makedirs(artifact_path, exist_ok=True)
+
+    _LOG.info(f"Going to assemble lambda layer '{layer_config['name']}'")
+    package_name = zip_ext(layer_config['deployment_package'])
+
+    r_hash_name = f'.{artifact_name}_{REQ_HASH_SUFFIX}'
+    artifact_cache_path = Path(cache_dir_path, artifact_name)
+
+    prev_req_hash = None
+    req_hash_path = Path(cache_dir_path, r_hash_name)
+    if os.path.exists(req_hash_path):
+        with open(req_hash_path, 'r') as f:
+            prev_req_hash = f.read().strip()
 
     # install requirements.txt content
     requirements_path = Path(layer_root, REQ_FILE_NAME)
     if os.path.exists(requirements_path):
-        install_requirements_to(requirements_path, to=path_for_requirements,
-                                config=layer_config)
+        current_req_hash = compute_file_hash(requirements_path)
+        if (current_req_hash != EMPTY_FILE_HASH and
+                prev_req_hash != current_req_hash):
+            _LOG.debug(f'Artifacts cache path: {artifact_cache_path}')
+            os.makedirs(artifact_cache_path, exist_ok=True)
+
+            install_requirements_to(requirements_path, to=artifact_cache_path,
+                                    config=layer_config,
+                                    errors_allowed=errors_allowed)
+
+            _LOG.debug('Zipping 3-rd party dependencies')
+            zip_dir(str(artifact_cache_path),
+                    str(Path(cache_dir_path, package_name)))
+
+            remove_dir(artifact_cache_path)
+            _LOG.debug(f'"{artifact_cache_path}" was removed successfully')
+
+            with open(req_hash_path, 'w') as f:
+                f.write(current_req_hash)
+                _LOG.debug(f'Updated requirements hash to {current_req_hash}')
+        else:
+            _LOG.info(
+                f"Skipping installation from the '{requirements_path}' "
+                f"because no changes detected from the previous run")
 
     # install local requirements
     local_requirements_path = Path(layer_root, LOCAL_REQ_FILE_NAME)
     if os.path.exists(local_requirements_path):
+        tmp_artifact_path = Path(bundle_dir, artifact_name, TMP_DIR)
+
+        _LOG.info(f'Artifacts path: {tmp_artifact_path}')
+        os.makedirs(tmp_artifact_path, exist_ok=True)
+
         _LOG.info('Going to install local dependencies')
-        _install_local_req(path_for_requirements, local_requirements_path,
-                           project_path)
+        _install_local_req(tmp_artifact_path, local_requirements_path,
+                           runtime_root_dir)
         _LOG.info('Local dependencies were installed successfully')
 
-    # making zip archive
-    package_name = zip_ext(layer_config['deployment_package'])
-    _LOG.info(f'Packaging artifacts by {artifact_path} to {package_name}')
-    zip_dir(str(artifact_path), str(Path(bundle_dir, package_name)))
+        # making zip archive
+        _LOG.info(
+            f'Packaging artifacts by {tmp_artifact_path} to {package_name}')
+        zip_dir(str(tmp_artifact_path),
+                str(Path(artifact_path, package_name)))
+
+    if (Path(cache_dir_path, package_name).exists() or
+            Path(artifact_path, package_name).exists()):
+        _LOG.info(f"Merging lambda layer code with 3-rd party dependencies")
+        merge_zip_files(str(Path(artifact_path, package_name)),
+                        str(Path(cache_dir_path, package_name)),
+                        str(Path(bundle_dir, package_name)),
+                        output_subfolder=PYTHON_LAMBDA_LAYER_PATH)
+    else:
+        raise ArtifactAssemblingError(
+            f"Layer package cannot be empty. "
+            f"Please check the layer '{layer_config['name']}' configuration.")
+
     _LOG.info(f'Package \'{package_name}\' was successfully created')
+
     # remove unused folder
     remove_dir(artifact_path)
     _LOG.info(f'"{artifact_path}" was removed successfully')
 
 
 @unpack_kwargs
-def _build_python_artifact(root, config_file, target_folder, project_path):
+def _build_python_artifact(
+    runtime_root_dir: str,
+    errors_allowed: bool,
+    target_folder: str,
+    config_file: str,
+    root: str,
+) -> None:
     _LOG.info(f'Building artifact in {target_folder}')
+
+    cache_dir_path = resolve_bundles_cache_directory()
+    os.makedirs(cache_dir_path, exist_ok=True)
 
     # create folder to store artifacts
     with open(config_file, 'r') as file:
         lambda_config = json.load(file)
     validate_params(root, lambda_config, ['lambda_path', 'name', 'version'])
-    artifact_name = f'{lambda_config["name"]}-{lambda_config["version"]}'
+
+    lambda_name = lambda_config['name']
+    artifact_name = f'{lambda_name}-{lambda_config["version"]}'
     artifact_path = Path(target_folder, artifact_name)
+    tmp_artifact_path = Path(target_folder, artifact_name, TMP_DIR)
+
+    _LOG.info(f"Going to assemble lambda '{lambda_name}'")
+    package_name = build_py_package_name(lambda_name, lambda_config["version"])
+
+    r_hash_name = f'.{artifact_name}_{REQ_HASH_SUFFIX}'
+    artifact_cache_path = Path(cache_dir_path, artifact_name)
+
     _LOG.info(f'Artifacts path: {artifact_path}')
-    os.makedirs(artifact_path, exist_ok=True)
+    os.makedirs(tmp_artifact_path, exist_ok=True)
+
+    prev_req_hash = None
+    req_hash_path = Path(cache_dir_path, r_hash_name)
+    if os.path.exists(req_hash_path):
+        with open(req_hash_path, 'r') as f:
+            prev_req_hash = f.read().strip()
 
     # install requirements.txt content
     requirements_path = Path(root, REQ_FILE_NAME)
     if os.path.exists(requirements_path):
-        install_requirements_to(requirements_path, to=artifact_path,
-                                config=lambda_config)
+        current_req_hash = compute_file_hash(requirements_path)
+        if (current_req_hash != EMPTY_FILE_HASH and
+                prev_req_hash != current_req_hash):
+            _LOG.debug(f'Artifacts cache path: {artifact_cache_path}')
+            os.makedirs(artifact_cache_path, exist_ok=True)
+            
+            install_requirements_to(requirements_path, to=artifact_cache_path,
+                                    config=lambda_config,
+                                    errors_allowed=errors_allowed)
+            _LOG.debug(
+                f'Zipping 3-rd party dependencies in {artifact_cache_path}')
+            zip_dir(str(artifact_cache_path), 
+                    str(Path(cache_dir_path, package_name)))
+
+            remove_dir(artifact_cache_path)
+            _LOG.debug(f'"{artifact_cache_path}" was removed successfully')
+            
+            with open(req_hash_path, 'w') as f:
+                f.write(current_req_hash)
+                _LOG.debug(f'Updated requirements hash to {current_req_hash}')
+        else:
+            _LOG.info(
+                f"Skipping installation from the '{requirements_path}' "
+                f"because no changes detected from the previous run")
 
     # install local requirements
     local_requirements_path = Path(root, LOCAL_REQ_FILE_NAME)
     if os.path.exists(local_requirements_path):
         _LOG.info('Going to install local dependencies')
-        _install_local_req(artifact_path, local_requirements_path,
-                           project_path)
+        _install_local_req(tmp_artifact_path, local_requirements_path,
+                           runtime_root_dir)
         _LOG.info('Local dependencies were installed successfully')
 
     # copy lambda's specific packages
-    packages_dir = artifact_path / 'lambdas' / Path(root).name
+    packages_dir = tmp_artifact_path / 'lambdas' / Path(root).name
     os.makedirs(packages_dir, exist_ok=True)
     for package in filter(
             is_python_package,
             [Path(root, item) for item in os.listdir(root)]):
         _LOG.info(f'Copying package {package} to lambda\'s artifacts packages '
                   f'dir: {packages_dir}')
-        copy_tree(str(package), str(packages_dir / package.name))
+        shutil.copytree(str(package), str(packages_dir / package.name))
         _LOG.info('Copied successfully')
 
     # copy lambda's handler to artifacts folder
-    _LOG.info(f'Copying lambda\'s handler from {root} to {artifact_path}')
-    _copy_py_files(root, artifact_path)
+    _LOG.info(f'Copying lambda\'s handler from {root} to {tmp_artifact_path}')
+    _copy_py_files(root, tmp_artifact_path)
 
     # making zip archive
-    package_name = build_py_package_name(lambda_config["name"],
-                                         lambda_config["version"])
-    _LOG.info(f'Packaging artifacts by {artifact_path} to {package_name}')
-    zip_dir(str(artifact_path), str(Path(target_folder, package_name)))
+    _LOG.info(f'Packaging artifacts by {tmp_artifact_path} to {package_name}')
+    zip_dir(str(tmp_artifact_path), str(Path(artifact_path, package_name)))
+
+    if Path(cache_dir_path, package_name).exists():
+        _LOG.info(f"Merging lambda's '{lambda_name}' code with 3-rd party "
+                  f"dependencies")
+        merge_zip_files(str(Path(artifact_path, package_name)),
+                        str(Path(cache_dir_path, package_name)),
+                        str(Path(target_folder, package_name)))
+    else:
+        _LOG.info('Copying lambda\'s code to target folder')
+        shutil.copy2(str(Path(artifact_path, package_name)),
+                     str(Path(target_folder, package_name)))
+
     _LOG.info(f'Package \'{package_name}\' was successfully created')
 
     # remove unused folder
@@ -199,41 +320,126 @@ def _build_python_artifact(root, config_file, target_folder, project_path):
 
 def install_requirements_to(requirements_txt: Union[str, Path],
                             to: Union[str, Path],
-                            config: Optional[dict] = None):
+                            config: Optional[dict] = None,
+                            errors_allowed: bool = False):
+    """
+    1. If there is NO "platform" parameter in lambda_config.json, then the
+    dependency installation will be executed by the default command:
+    "pip install -r requirements.txt".
+
+    2. If there is NO "platform" parameter in lambda_config.json and flag
+    --errors_allowed is True, dependency installation will be tried by
+    executing the default command: "pip install -r requirements.txt" in case
+    of failures, installation of dependencies will be performed separately
+    for each dependency using the default command:
+    "pip install <package1>
+    pip install <packageN>".
+
+    3. If there is "platform" parameter in lambda_config.json and flag
+    --errors_allowed is False, then the dependency installation will be
+    executed by the default command using additional parameters:
+    "pip install -r requirements.txt --platform manylinux2014_x86_64
+    --only-binary=:all: --implementation=cp --python-version 3.8".
+
+    4. If there is "platform" parameter in lambda_config.json and flag
+    --errors_allowed is True, dependency installation will be tried by the
+    default command using additional parameters:
+    "pip install -r requirements.txt --platform manylinux2014_x86_64
+    --only-binary=:all: --implementation=cp --python-version 3.8",
+    in case of failures, installation of dependencies will be performed
+    separately for each dependency using the default command using additional
+    parameters. Dependencies that do not have a specified platform will be
+    installed with the --platform=any:
+    "pip install <package1> --platform manylinux2014_x86_64
+    --only-binary=:all: --implementation=cp --python-version 3.8
+    pip install <packageN> --platform manylinux2014_x86_64
+    --only-binary=:all: --implementation=cp --python-version 3.8
+    pip install <packageN+1>".
+    """
+
+    exit_code = None
     config = config or {}
     _LOG.info('Going to install 3-rd party dependencies')
-    supported_platforms = update_platforms(set(config.get('platforms') or []))
+    if platforms := config.get('platforms', []):
+        if isinstance(platforms, str):
+            platforms = [platforms]
+        if not isinstance(platforms, list):
+            raise InvalidTypeError(
+                'Lambda function parameter \'platforms\' must be type of list')
+    supported_platforms = update_platforms(set(platforms))
     python_version = _get_python_version(lambda_config=config)
-    try:
-        if supported_platforms:
+    if supported_platforms:
+        command = build_pip_install_command(  # default installation
+            requirement=requirements_txt,
+            to=to,
+            platforms=supported_platforms,
+            python=python_version,
+            only_binary=':all:',
+            implementation='cp'
+        )
+        result = subprocess.run(command, capture_output=True, text=True)
+        _LOG.info(f'\n{result.stdout}\n{result.stderr}')
+        if result.returncode != 0 and errors_allowed:
             # tries to install packages compatible with specific platforms
-            # returns the list of requirement that failed the installation
-            failed_requirements = install_requirements_for_platform(
-                requirements_txt=requirements_txt,
+            # independently
+            _LOG.info(
+                f'Going to install 3-rd party dependencies for platforms: '
+                f'{",".join(supported_platforms)}')
+            failed_requirements = install_requirements_independently(
+                requirements=requirements_txt,
                 to=to,
                 supported_platforms=supported_platforms,
                 python_version=python_version
             )
-            for failed in failed_requirements:
-                command = build_pip_install_command(  # default installation
-                    requirement=failed,
-                    to=to,
-                )
-                subprocess.run(command, stderr=subprocess.PIPE, check=True)
-        else:
-            _LOG.info('Installing all the requirements with defaults')
-            command = build_pip_install_command(
-                requirement=requirements_txt,
+            failed_requirements = install_requirements_independently(
+                requirements=failed_requirements,
                 to=to
             )
-            subprocess.run(command, stderr=subprocess.PIPE, check=True)
 
-    except subprocess.CalledProcessError as e:
-        message = f'An error: \n"{e.stderr.decode()}"\noccured while ' \
-                  f'installing requirements: "{str(requirements_txt)}" ' \
-                  f'for package "{to}"'
+            _LOG.info(f'\n{result.stdout}\n{result.stderr}')
+            if failed_requirements:
+                message = (f'An error occurred while installing '
+                           f'requirements: "{failed_requirements}" for '
+                           f'package "{to}"')
+                _LOG.error(message)
+                raise ArtifactAssemblingError(message)
+        elif result.returncode != 0:
+            exit_code = result.returncode
+    else:
+        _LOG.info('Installing all the requirements with defaults')
+        command = build_pip_install_command(
+            requirement=requirements_txt,
+            to=to
+        )
+        result = subprocess.run(command, capture_output=True, text=True)
+        exit_code = result.returncode
+
+        if result.returncode != 0 and errors_allowed:
+            # tries to install packages independently
+            _LOG.info(
+                'Installing the requirements with defaults independently')
+            failed_requirements = install_requirements_independently(
+                requirements=requirements_txt,
+                to=to
+            )
+
+            _LOG.info(f'\n{result.stdout}\n{result.stderr}')
+            if failed_requirements:
+                message = (f'An error occurred while installing '
+                           f'requirements: "{failed_requirements}" for '
+                           f'package "{to}"')
+                _LOG.error(message)
+                raise ArtifactAssemblingError(message)
+
+    if exit_code:
+        message = (f'An error: \n"{result.stdout}\n{result.stderr}"\noccurred '
+                   f'while installing requirements: "{str(requirements_txt)}" '
+                   f'for package "{to}"\nUse --errors-allowed flag to ignore '
+                   f'failures in dependencies installation.')
         _LOG.error(message)
-        raise RuntimeError(message)
+        raise ArtifactAssemblingError(message)
+    if exit_code == 0:
+        _LOG.info(f'\n{result.stdout}\n{result.stderr}')
     _LOG.info('3-rd party dependencies were installed successfully')
 
 
@@ -300,53 +506,75 @@ def update_platforms(platforms: Set[str]) -> Set[str]:
     return platforms
 
 
-def install_requirements_for_platform(requirements_txt: Union[str, Path],
-                                      to: Union[str, Path],
-                                      python_version: str,
-                                      supported_platforms: Set[str]
-                                      ) -> List[str]:
-    _LOG.info(f'Going to install 3-rd party dependencies for platforms: '
-              f'{",".join(supported_platforms)}')
-    fp = open(requirements_txt, 'r')
-    it = (
-        line.split(' #')[0].strip() for line in
-        filter(lambda line: not line.strip().startswith('#')
-                            and line not in EMPTY_LINE_CHARS, fp)
-    )
+def install_requirements_independently(requirements: Union[str, Path, List[str]],
+                                       to: Union[str, Path],
+                                       python_version: str = None,
+                                       supported_platforms: Set[str] = None) \
+        -> List[str]:
+    if type(requirements) != list:
+        fp = open(requirements, 'r')
+        it = (
+            line.split(' #')[0].strip() for line in
+            filter(lambda line: not line.strip().startswith('#')
+                                and line not in EMPTY_LINE_CHARS, fp)
+        )
+    else:
+        it = requirements
     failed_requirements = []
+    implementation = 'cp' if python_version or supported_platforms else None
+    only_binary = ':all:' if python_version or supported_platforms else None
+
     for requirement in it:
-        try:
-            command = build_pip_install_command(
-                requirement=requirement,
-                to=to,
-                implementation='cp',
-                python=python_version,
-                only_binary=':all:',
-                platforms=supported_platforms
-            )
-            subprocess.run(command, stderr=subprocess.PIPE, check=True)
-        except subprocess.CalledProcessError as e:
-            message = f'An error: \n"{e.stderr.decode()}"\noccured while ' \
-                      f'installing requirements for platforms:' \
-                      f'{",".join(supported_platforms)}: ' \
-                      f'"{str(requirements_txt)}" for package "{requirement}"'
-            USER_LOG.warning(f"\033[93m{message}\033[0m")
+        command = build_pip_install_command(
+            requirement=requirement,
+            to=to,
+            implementation=implementation,
+            python=python_version,
+            only_binary=only_binary,
+            platforms=supported_platforms
+        )
+        result = subprocess.run(command, capture_output=True, text=True)
+        if result.returncode != 0:
+            message = (f'An error occurred while installing requirements from '
+                       f'"{str(requirements)}" for platforms: '
+                       f'{",".join(supported_platforms) if supported_platforms else "any"}: '
+                       f'for package "{requirement}"'
+                       f'\nDetails: \n"{result.stdout}\n{result.stderr}"\n')
+            USER_LOG.error(f"\033[93m{message}\033[0m")
             failed_requirements.append(requirement)
-    fp.close()
+        else:
+            _LOG.info(f'\n{result.stdout}\n{result.stderr}')
+    if type(requirements) != list:
+        fp.close()
     return failed_requirements
 
 
-def _install_local_req(artifact_path, local_req_path, project_path):
+def _install_local_req(
+    artifact_path: str,
+    local_req_path: str,
+    runtime_root_dir: str
+) -> None:
     from syndicate.core import CONFIG
+
     with open(local_req_path) as f:
         local_req_list = f.readlines()
     local_req_list = [path_resolver(r.strip()) for r in local_req_list]
     _LOG.info(f'Installing local dependencies: {local_req_list}')
+
+    if runtime_root_dir != PYTHON_ROOT_DIR_SRC:
+        runtime_abs_path = build_path(
+            CONFIG.project_path, runtime_root_dir, PYTHON_ROOT_DIR_SRC
+        )
+    else:
+        runtime_abs_path = build_path(CONFIG.project_path, runtime_root_dir)
+
     # copy folders
     for lrp in local_req_list:
         _LOG.info(f'Processing local dependency: {lrp}')
-        copy_tree(str(Path(CONFIG.project_path, project_path, lrp)),
-                  str(Path(artifact_path, lrp)))
+        shutil.copytree(
+            Path(runtime_abs_path, lrp),
+            Path(artifact_path, lrp),
+        )
         _LOG.debug('Dependency was copied successfully')
 
         folders = [r for r in lrp.split(DEFAULT_SEP) if r]
@@ -356,7 +584,7 @@ def _install_local_req(artifact_path, local_req_path, project_path):
         temp_path = ''
         while i < len(folders):
             temp_path += DEFAULT_SEP + folders[i]
-            src_path = Path(CONFIG.project_path, project_path, temp_path)
+            src_path = Path(CONFIG.project_path, runtime_root_dir, temp_path)
             dst_path = Path(artifact_path, temp_path)
             _copy_py_files(str(src_path), str(dst_path))
             i += 1

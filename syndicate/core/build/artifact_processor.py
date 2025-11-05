@@ -15,49 +15,68 @@
 """
 import os
 
+from syndicate.exceptions import InvalidValueError
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.build.helper import resolve_bundle_directory
+from syndicate.core.build.runtime.dotnet import assemble_dotnet_lambdas
 from syndicate.core.build.runtime.java import assemble_java_mvn_lambdas
 from syndicate.core.build.runtime.nodejs import assemble_node_lambdas
 from syndicate.core.build.runtime.python import assemble_python_lambdas
 from syndicate.core.build.runtime.swagger_ui import assemble_swagger_ui
+from syndicate.core.build.runtime.appsync import assemble_appsync
+from syndicate.core.groups import RUNTIME_SWAGGER_UI, RUNTIME_APPSYNC, \
+    RUNTIME_JAVA, RUNTIME_NODEJS, RUNTIME_PYTHON, RUNTIME_DOTNET
 
-RUNTIME_JAVA = 'javaX'
-RUNTIME_NODEJS = 'nodejs20.x'
-RUNTIME_PYTHON = 'pythonX'
-RUNTIME_SWAGGER_UI = 'swagger_ui'
 
 SUPPORTED_RUNTIMES = [
     RUNTIME_JAVA,
     RUNTIME_NODEJS,
     RUNTIME_PYTHON,
-    RUNTIME_SWAGGER_UI
+    RUNTIME_DOTNET,
+    RUNTIME_SWAGGER_UI,
+    RUNTIME_APPSYNC
 ]
 
 RUNTIME_TO_BUILDER_MAPPING = {
     RUNTIME_JAVA: assemble_java_mvn_lambdas,
     RUNTIME_NODEJS: assemble_node_lambdas,
     RUNTIME_PYTHON: assemble_python_lambdas,
-    RUNTIME_SWAGGER_UI: assemble_swagger_ui
+    RUNTIME_DOTNET: assemble_dotnet_lambdas,
+    RUNTIME_SWAGGER_UI: assemble_swagger_ui,
+    RUNTIME_APPSYNC: assemble_appsync
 }
 
-_LOG = get_logger('syndicate.core.build.artifact_processor')
+_LOG = get_logger(__name__)
 
 
-def assemble_artifacts(bundle_name, project_path, runtime):
+def assemble_artifacts(
+    bundle_name: str, 
+    runtime_root_dir: str,
+    runtime: str,
+    errors_allowed: bool = False,
+    skip_tests: bool = False,
+    **kwargs
+) -> None:
     if runtime not in SUPPORTED_RUNTIMES:
-        raise AssertionError(
-            'Runtime {} is not supported. '
-            'Currently available runtimes:{}'.format(runtime,
-                                                     SUPPORTED_RUNTIMES))
+        raise InvalidValueError(
+            f"Runtime '{runtime}' is not supported. "
+            f"Currently available runtimes:'{SUPPORTED_RUNTIMES}'")
 
     bundle_dir = resolve_bundle_directory(bundle_name=bundle_name)
+
     os.makedirs(bundle_dir, exist_ok=True)
-    _LOG.debug('Target directory: {0}'.format(bundle_dir))
+
+    _LOG.debug(f'Target directory: {bundle_dir}')
 
     assemble_func = RUNTIME_TO_BUILDER_MAPPING.get(runtime)
     if not assemble_func:
-        raise AssertionError(
-            'There is no assembler for the runtime {}'.format(runtime))
-    assemble_func(project_path=project_path,
-                  bundles_dir=bundle_dir)
+        raise InvalidValueError(
+            f"Runtime '{runtime}' is not supported. "
+            f"Currently available runtimes:'{SUPPORTED_RUNTIMES}'")
+
+    assemble_func(
+        runtime_root_dir=runtime_root_dir,
+        bundles_dir=bundle_dir,
+        errors_allowed=errors_allowed,
+        skip_tests=skip_tests
+    )

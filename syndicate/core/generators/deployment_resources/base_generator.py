@@ -4,8 +4,11 @@ import re
 from pathlib import Path
 
 import click
+
+from syndicate.exceptions import ResourceNotFoundError, \
+    NotImplementedError, ParameterError, AbortedError
 from syndicate.commons.log_helper import get_logger, get_user_logger
-from syndicate.core.constants import RESOURCES_FILE_NAME
+from syndicate.core.constants import RESOURCES_FILE_NAME, DEFAULT_JSON_INDENT
 from syndicate.core.generators import (_read_content_from_file,
                                        _write_content_to_file)
 
@@ -71,6 +74,14 @@ class BaseConfigurationGenerator:
                                   recursive=True)
         return dep_res_files
 
+    @staticmethod
+    def _get_deployment_resources_file_content(path: str) -> dict:
+        """Returns deployment resources file content"""
+        deployment_resources = json.loads(_read_content_from_file(
+            path))
+
+        return deployment_resources
+
     def _find_resources_by_type(self, resources_type) -> dict:
         """Returns the dict, where key is a path to deployment_resources file
         and value is a set of entities' names with given resource_type"""
@@ -107,13 +118,21 @@ class BaseConfigurationGenerator:
         _LOG.info(f"Validating existence of lambda: {lambda_name}")
 
         if lambda_name not in PROJECT_STATE.lambdas:
-            message = f"Lambda '{lambda_name}' wasn't found"
-            _LOG.error(f"Validation error: {message}")
-            raise ValueError(message)
+            raise ResourceNotFoundError(
+                f"Lambda '{lambda_name}' wasn't found"
+            )
         _LOG.info(f"Validation successfully finished, lambda exists")
 
+    def _validate_resource_existence(self, resource_name, resource_type):
+        _LOG.info(f"Validating existence of {resource_type}: {resource_name}")
+        if not self._get_resource_meta_paths(resource_name, resource_type):
+            raise ResourceNotFoundError(
+                f"'{resource_type}' '{resource_name}' wasn't found"
+            )
+        _LOG.info(f"Validation successfully finished")
+
     def write(self):
-        """The main method to write resouces"""
+        """The main method to write resources"""
         raise NotImplementedError()
 
 
@@ -126,10 +145,10 @@ class BaseDeploymentResourceGenerator(BaseConfigurationGenerator):
         self._validate_resource_name()
 
         if not self.RESOURCE_TYPE:
-            message = f"RESOURCE_TYPE variable inside class " \
-                      f"'{type(self).__name__}' must be specified"
-            _LOG.error(message)
-            raise AssertionError(message)
+            raise ParameterError(
+                f"RESOURCE_TYPE variable inside class '{type(self).__name__}' "
+                f"must be specified"
+            )
 
     def generate_deployment_resource(self) -> dict:
         """Generates resource meta for current object and returns it"""
@@ -177,7 +196,7 @@ class BaseDeploymentResourceGenerator(BaseConfigurationGenerator):
                 resources_file = duplicated_file
             else:
                 USER_LOG.warning(f"Skipping resource '{self.resource_name}'")
-                raise RuntimeError
+                raise AbortedError
 
         deployment_resources = json.loads(_read_content_from_file(
             resources_file
@@ -186,8 +205,10 @@ class BaseDeploymentResourceGenerator(BaseConfigurationGenerator):
         USER_LOG.info(f"Writing deployment resources for "
                       f"{self.RESOURCE_TYPE} '{self.resource_name}' "
                       f"to the file '{resources_file}'")
-        _write_content_to_file(resources_file,
-                               json.dumps(deployment_resources, indent=2))
+        _write_content_to_file(
+            resources_file,
+            json.dumps(deployment_resources, indent=DEFAULT_JSON_INDENT),
+        )
 
     def _find_file_with_duplicate(self):
         """Looks for self.resouce_name inside each deployment_resource.json.

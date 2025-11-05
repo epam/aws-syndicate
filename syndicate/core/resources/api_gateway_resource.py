@@ -20,7 +20,10 @@ from hashlib import md5
 from botocore.exceptions import ClientError
 
 from syndicate.commons import deep_get
+from syndicate.exceptions import ResourceNotFoundError, \
+    InvalidValueError
 from syndicate.commons.log_helper import get_logger, get_user_logger
+from syndicate.connection import LogsConnection
 from syndicate.core.constants import (
     SOURCE_ARN_DEEP_KEY, SECURITY_SCHEMAS_DEEP_KEY,
     API_GW_DEFAULT_THROTTLING_RATE_LIMIT,
@@ -36,11 +39,13 @@ from syndicate.core.resources.lambda_resource import LambdaResource
 
 API_REQUIRED_PARAMS = ['resources', 'deploy_stage']
 
-_LOG = get_logger('syndicate.core.resources.api_gateway_resource')
+_LOG = get_logger(__name__)
 USER_LOG = get_user_logger()
 
 SUPPORTED_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS',
                      'HEAD', 'ANY']
+SUPPORTED_STAGE_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS',
+                           'HEAD']
 _CORS_HEADER_NAME = 'Access-Control-Allow-Origin'
 _CORS_HEADER_VALUE = "'*'"
 _COGNITO_AUTHORIZER_TYPE = 'COGNITO_USER_POOLS'
@@ -75,12 +80,14 @@ _REQUEST_VALIDATORS = {
 }
 
 _DISABLE_THROTTLING_VALUE = -1
+OPERATION_REPLACE = 'replace'
 
 
 class ApiGatewayResource(BaseResource):
 
     def __init__(self, apigw_conn: ApiGatewayConnection,
                  apigw_v2_conn: ApiGatewayV2Connection,
+                 cw_logs_conn: LogsConnection,
                  lambda_res: LambdaResource,
                  cognito_res, account_id, region) -> None:
         self.connection = apigw_conn
@@ -89,6 +96,7 @@ class ApiGatewayResource(BaseResource):
         self.account_id = account_id
         self.region = region
         self.apigw_v2 = apigw_v2_conn
+        self.cw_logs_conn = cw_logs_conn
 
     def _create_default_validators(self, api_id):
         for name, options in _REQUEST_VALIDATORS.items():
@@ -246,68 +254,106 @@ class ApiGatewayResource(BaseResource):
                         API_GW_DEFAULT_THROTTLING_BURST_LIMIT) if (
                         throttling_configuration and throttling_enabled) else \
                         _DISABLE_THROTTLING_VALUE
+
                     patch_operations = []
                     escaped_resource = self._escape_path(resource_path)
-                    if cache_ttl_setting is not None:
-                        _LOG.info(
-                            'Configuring cache for {0}; TTL: {1}'.format(
-                                resource_path, cache_ttl_setting))
-                        patch_operations = [
-                            {
-                                'op': 'replace',
-                                'path': '/{0}/{1}/caching/ttlInSeconds'.format(
-                                    escaped_resource,
-                                    method_name),
+                    methods_to_configure = SUPPORTED_STAGE_METHODS \
+                        if method_name == 'ANY' else [method_name]
+                    for method in methods_to_configure:
+                        if cache_ttl_setting is not None:
+                            _LOG.info(f'Configuring cache for {resource_path};'
+                                      f' TTL: {cache_ttl_setting}')
+                            patch_operations.append({
+                                'op': OPERATION_REPLACE,
+                                'path': f'/{escaped_resource}/{method}'
+                                        f'/caching/ttlInSeconds',
                                 'value': str(cache_ttl_setting),
-                            },
-                            {
-                                'op': 'replace',
-                                'path': '/{0}/{1}/caching/enabled'.format(
-                                    escaped_resource,
-                                    method_name),
+                            })
+                            patch_operations.append({
+                                'op': OPERATION_REPLACE,
+                                'path': f'/{escaped_resource}/{method}'
+                                        f'/caching/enabled',
                                 'value': 'True',
-                            }
-                        ]
+                            })
                         if encrypt_cache_data is not None:
                             patch_operations.append({
-                                'op': 'replace',
-                                'path': '/{0}/{1}/caching/dataEncrypted'.format(
-                                    escaped_resource,
-                                    method_name),
+                                'op': OPERATION_REPLACE,
+                                'path': f'/{escaped_resource}/{method}'
+                                        f'/caching/enabled',
+                                'value': 'True',
+                            })
+                            patch_operations.append({
+                                'op': OPERATION_REPLACE,
+                                'path': f'/{escaped_resource}/{method}'
+                                        f'/caching/dataEncrypted',
                                 'value': 'true' if bool(
                                     encrypt_cache_data) else 'false'
                             })
-                    if throttling_enabled:
-                        _LOG.info(
-                            'Configuring throttling for {0}; rateLimit: {1}; '
-                            'burstLimit: {2}'.format(
-                                resource_path, throttling_rate_limit,
-                                throttling_burst_limit))
-                    else:
-                        _LOG.info('Throttling for {0} disabled.'.format(
-                            resource_path))
-                    patch_operations.append({
-                            'op': 'replace',
-                            'path': '/{0}/{1}/throttling/rateLimit'
-                                    ''.format(escaped_resource,
-                                              method_name),
+
+                        if throttling_enabled:
+                            _LOG.info(
+                                f'Configuring throttling for {resource_path}; '
+                                f'rateLimit: {throttling_rate_limit}; '
+                                f'burstLimit: {throttling_burst_limit}')
+                        else:
+                            _LOG.info(
+                                f'Throttling for {resource_path} disabled.')
+                        patch_operations.append({
+                            'op': OPERATION_REPLACE,
+                            'path': f'/{escaped_resource}/{method}'
+                                    f'/throttling/rateLimit',
                             'value': str(throttling_rate_limit),
-                    })
-                    patch_operations.append({
-                            'op': 'replace',
-                            'path': '/{0}/{1}/throttling/burstLimit'
-                                    ''.format(escaped_resource,
-                                              method_name),
+                        })
+                        patch_operations.append({
+                            'op': OPERATION_REPLACE,
+                            'path': f'/{escaped_resource}/{method}/'
+                                    f'throttling/burstLimit',
                             'value': str(throttling_burst_limit),
-                    })
-                    self.connection.update_configuration(
-                        rest_api_id=api_id,
-                        stage_name=stage_name,
-                        patch_operations=patch_operations
-                    )
-                    _LOG.info(
-                        'Resource {0} was configured'.format(
-                            resource_path))
+                        })
+
+                        log_config = method_meta.get('logging_configuration')
+                        if isinstance(log_config, dict):
+                            logging_enabled = log_config.get('logging_enabled')
+                        else:
+                            logging_enabled = False
+                        if logging_enabled:
+                            _LOG.info(
+                                f'Configuring logging for {resource_path};'
+                                f'log_level: '
+                                f"{log_config.get('log_level', 'ERROR')};"
+                                f'data_tracing: '
+                                f"{log_config.get('data_tracing', False)};"
+                                f'detailed_metrics: '
+                                f"{log_config.get('detailed_metrics', False)}"
+                            )
+                            patch_operations.append({
+                                'op': OPERATION_REPLACE,
+                                'path': f'/{escaped_resource}/{method}/'
+                                        f'logging/loglevel',
+                                'value': log_config.get('log_level', 'ERROR'),
+                            })
+                            if log_config.get('data_tracing'):
+                                patch_operations.append({
+                                    'op': OPERATION_REPLACE,
+                                    'path': f'/{escaped_resource}/{method}/'
+                                            f'logging/dataTrace',
+                                    'value': 'true',
+                                })
+                            if log_config.get('detailed_metrics'):
+                                patch_operations.append({
+                                    'op': OPERATION_REPLACE,
+                                    'path': f'/{escaped_resource}/{method}/'
+                                            f'metrics/enabled',
+                                    'value': 'true',
+                                })
+
+                    if patch_operations:
+                        self.connection.update_configuration(
+                            rest_api_id=api_id,
+                            stage_name=stage_name,
+                            patch_operations=patch_operations
+                        )
+                    _LOG.info(f'Resource {resource_path} was configured')
 
     @unpack_kwargs
     def _create_api_gateway_from_meta(self, name, meta):
@@ -321,14 +367,15 @@ class ApiGatewayResource(BaseResource):
         api_resources = meta['resources']
         # whether to put a wildcard in lambda resource-based policy permissions
         resources_permission_singleton = meta.get(POLICY_STATEMENT_SINGLETON)
-        # api_gw_describe = self.describe_api_resources(name, meta)
-        # if api_gw_describe:
-        #     _LOG.info(f'Api gateway with name \'{name}\' exists. Returning')
-        #     return api_gw_describe
-        # _LOG.info(f'Api gateway with name \'{name}\' does not exist. Creating')
+        api_gw_describe = self.describe_api_resources(name, meta)
+        if api_gw_describe:
+            _LOG.info(f'Api gateway with name \'{name}\' exists. Returning')
+            return api_gw_describe
+        _LOG.info(f'Api gateway with name \'{name}\' does not exist. Creating')
         api_item = self.connection.create_rest_api(
             api_name=name,
-            binary_media_types=meta.get('binary_media_types'))
+            binary_media_types=meta.get('binary_media_types'),
+            tags=meta.get('tags'))
         api_id = api_item['id']
 
         # create default request validators
@@ -413,7 +460,15 @@ class ApiGatewayResource(BaseResource):
 
         self._resolve_cup_ids(openapi_context)
 
+        api_gw_describe = self.describe_api_resources(name, meta)
+        if api_gw_describe:
+            _LOG.info(f'Api gateway with name \'{name}\' exists. Returning')
+            return api_gw_describe
+
+        _LOG.info(f'Api gateway with name \'{name}\' does not exist. Creating')
         api_id = self.connection.create_openapi(openapi_context)
+        _LOG.debug('Applying tags')
+        self.connection.tag_openapi(openapi_id=api_id, tags=meta.get('tags'))
         self.connection.deploy_api(api_id, deploy_stage)
 
         api_lambdas_arns = self.extract_api_gateway_lambdas_arns(
@@ -495,7 +550,7 @@ class ApiGatewayResource(BaseResource):
                            f'{deep_get(openapi_context, ["info", "title"])}')
                 authorizer[PROVIDER_ARNS_KEY] = new_provider_arns
             else:
-                raise AssertionError(
+                raise ResourceNotFoundError(
                     f'Cognito User Pools can\'t be resolved by ' + 'names: '
                     f'{pools_names}' if pools_names else
                     f'ARNs: {provider_arns}')
@@ -560,26 +615,30 @@ class ApiGatewayResource(BaseResource):
                                    cache_cluster_enabled=root_cache_enabled,
                                    cache_cluster_size=str(
                                        cache_size) if cache_size else None)
+
+        patch_operations = []
         throttling_cluster_configuration = meta.get(
             'cluster_throttling_configuration')
         throttling_enabled = throttling_cluster_configuration.get(
             'throttling_enabled') if throttling_cluster_configuration else None
-        patch_operations = []
         if not throttling_enabled:
             patch_operations.append({
-                'op': 'replace',
+                'op': OPERATION_REPLACE,
                 'path': '/*/*/throttling/rateLimit',
                 'value': str(_DISABLE_THROTTLING_VALUE),
             })
             patch_operations.append({
-                'op': 'replace',
+                'op': OPERATION_REPLACE,
                 'path': '/*/*/throttling/burstLimit',
                 'value': str(_DISABLE_THROTTLING_VALUE),
             })
+
         # configure caching
         if root_cache_enabled:
-            _LOG.debug('Cluster cache configuration found:{0}'.format(
-                cache_cluster_configuration))
+            _LOG.debug(
+                f'Cluster cache configuration found: '
+                f'{cache_cluster_configuration}'
+            )
             # set default ttl for root endpoint
             cluster_cache_ttl_sec = cache_cluster_configuration.get(
                 'cache_ttl_sec')
@@ -587,16 +646,17 @@ class ApiGatewayResource(BaseResource):
                 'encrypt_cache_data')
             if cluster_cache_ttl_sec is not None:
                 patch_operations.append({
-                    'op': 'replace',
+                    'op': OPERATION_REPLACE,
                     'path': '/*/*/caching/ttlInSeconds',
                     'value': str(cluster_cache_ttl_sec),
                 })
             if encrypt_cache_data is not None:
                 patch_operations.append({
-                    'op': 'replace',
+                    'op': OPERATION_REPLACE,
                     'path': '/*/*/caching/dataEncrypted',
                     'value': 'true' if bool(encrypt_cache_data) else 'false'
                 })
+
         # configure throttling
         if throttling_enabled:
             throttling_rate_limit = throttling_cluster_configuration.get(
@@ -604,21 +664,45 @@ class ApiGatewayResource(BaseResource):
             throttling_burst_limit = throttling_cluster_configuration.get(
                 'throttling_burst_limit', API_GW_DEFAULT_THROTTLING_BURST_LIMIT)
             patch_operations.append({
-                'op': 'replace',
+                'op': OPERATION_REPLACE,
                 'path': '/*/*/throttling/rateLimit',
                 'value': str(throttling_rate_limit),
             })
             patch_operations.append({
-                'op': 'replace',
+                'op': OPERATION_REPLACE,
                 'path': '/*/*/throttling/burstLimit',
                 'value': str(throttling_burst_limit),
             })
-        if any([root_cache_enabled, throttling_enabled]):
+
+        # configure logging
+        log_config = meta.get('logging_configuration')
+        logging_enabled = log_config.get('logging_enabled') if (
+            isinstance(log_config, dict)) else False
+        if logging_enabled:
+            patch_operations.append({
+                'op': OPERATION_REPLACE,
+                'path': '/*/*/logging/loglevel',
+                'value': log_config.get('log_level', 'ERROR'),
+            })
+            if log_config.get('data_tracing'):
+                patch_operations.append({
+                    'op': OPERATION_REPLACE,
+                    'path': '/*/*/logging/dataTrace',
+                    'value': 'true',
+                })
+            if log_config.get('detailed_metrics'):
+                patch_operations.append({
+                    'op': OPERATION_REPLACE,
+                    'path': '/*/*/metrics/enabled',
+                    'value': 'true',
+                })
+
+        if any([root_cache_enabled, throttling_enabled, logging_enabled]):
             self.connection.update_configuration(
-                    rest_api_id=api_id,
-                    stage_name=deploy_stage,
-                    patch_operations=patch_operations
-                )
+                rest_api_id=api_id,
+                stage_name=deploy_stage,
+                patch_operations=patch_operations
+            )
         # customize settings for endpoints
         self.configure_resources(api_id, deploy_stage, api_resources)
 
@@ -638,6 +722,19 @@ class ApiGatewayResource(BaseResource):
                 if resource_id:
                     _LOG.info('Resource %s exists.', each)
                     enable_cors = resource_meta.get('enable_cors')
+                    if isinstance(enable_cors, bool):
+                        USER_LOG.warning(
+                            'Deprecated parameter "enable_cors" format. '
+                            'Please check the documentation for more details.')
+                        if enable_cors:
+                            enable_cors = {
+                                'state': True
+                            }
+                        else:
+                            enable_cors = {
+                                'state': False
+                            }
+
                     self._check_existing_methods(
                         api_id=api_id, resource_id=resource_id,
                         resource_path=each,
@@ -656,7 +753,7 @@ class ApiGatewayResource(BaseResource):
                         'resources_statement_singleton': resources_statement_singleton
                     })
             else:
-                raise AssertionError(
+                raise InvalidValueError(
                     "API resource must starts with '/', but found %s", each)
         return args
 
@@ -669,7 +766,7 @@ class ApiGatewayResource(BaseResource):
 
         response = self.connection.get_api(api_id)
         if not response:
-            return
+            return {}
         response['resources'] = self.connection.get_resources(api_id)
         _LOG.info('Described %s API Gateway.', name)
         arn = 'arn:aws:apigateway:{0}::/restapis/{1}'.format(self.region,
@@ -683,6 +780,11 @@ class ApiGatewayResource(BaseResource):
         return json.loads(response['body'].read().decode("utf-8")) \
             if isinstance(response, dict) else None
 
+    def describe_tags(self, api_arn: str) -> dict | None:
+        tag_response = self.connection.describe_tags(api_arn=api_arn)
+        tags = tag_response.get('tags', {})
+        return tags
+
     def _check_existing_methods(self, api_id, resource_id, resource_path,
                                 resource_meta,
                                 enable_cors, authorizers_mapping,
@@ -695,7 +797,7 @@ class ApiGatewayResource(BaseResource):
         :type api_id: str
         :type resource_id: str
         :type resource_meta: dict
-        :type enable_cors: bool or None
+        :type enable_cors: dict
         :type:
         """
         methods_statement_singleton = resource_meta.get(
@@ -722,11 +824,11 @@ class ApiGatewayResource(BaseResource):
                     resources_statement_singleton=resources_statement_singleton,
                     methods_statement_singleton=methods_statement_singleton
                 )
-            if enable_cors and not self.connection.get_method(api_id,
-                                                              resource_id,
-                                                              'OPTIONS'):
-                _LOG.info('Enabling CORS for resource %s...', resource_id)
-                self.connection.enable_cors_for_resource(api_id, resource_id)
+            if enable_cors.get('state') and not self.connection.get_method(
+                    api_id, resource_id, 'OPTIONS'):
+                _LOG.info(f'Enabling CORS for resource {resource_id}...')
+                self.connection.enable_cors_for_resource(
+                    api_id, resource_id, enable_cors)
 
     @unpack_kwargs
     def _create_resource_from_metadata(self, api_id, resource_path,
@@ -734,19 +836,32 @@ class ApiGatewayResource(BaseResource):
                                        authorizers_mapping,
                                        resources_statement_singleton: bool = False):
         self.connection.create_resource(api_id, resource_path)
-        _LOG.info('Resource %s created.', resource_path)
+        _LOG.info(f'Resource {resource_path} created.')
         resource_id = self.connection.get_resource_id(api_id, resource_path)
-        enable_cors = resource_meta.get('enable_cors')
         methods_statement_singleton = resource_meta.get(
             POLICY_STATEMENT_SINGLETON)
+        enable_cors = resource_meta.get('enable_cors')
+        if isinstance(enable_cors, bool):
+            USER_LOG.warning(
+                'Deprecated parameter "enable_cors" format. '
+                'Please check the documentation for more details.')
+            if enable_cors:
+                enable_cors = {
+                    'state': True
+                }
+            else:
+                enable_cors = {
+                    'state': False
+                }
+
         for method in resource_meta:
             try:
                 if method == 'enable_cors' or method not in SUPPORTED_METHODS:
                     continue
 
                 method_meta = resource_meta[method]
-                _LOG.info('Creating method %s for resource %s...',
-                          method, resource_path)
+                _LOG.info(f'Creating method {method} for resource '
+                          f'{resource_path}...',)
                 self._create_method_from_metadata(
                     api_id=api_id,
                     resource_id=resource_id,
@@ -759,19 +874,19 @@ class ApiGatewayResource(BaseResource):
                     methods_statement_singleton=methods_statement_singleton
                 )
             except Exception as e:
-                _LOG.error('Resource: {0}, method {1}.'
-                           .format(resource_path, method), exc_info=True)
+                _LOG.error(f'Resource: {resource_path}, method {method}.',
+                           exc_info=True)
                 raise e
-            _LOG.info('Method %s for resource %s created.', method,
-                      resource_path)
+            _LOG.info(f'Method {method} for resource {resource_path} created.')
         # create enable cors only after all methods in resource created
-        if enable_cors:
-            self.connection.enable_cors_for_resource(api_id, resource_id)
-            _LOG.info('CORS enabled for resource %s', resource_path)
+        if enable_cors.get('state'):
+            self.connection.enable_cors_for_resource(
+                api_id, resource_id, enable_cors)
+            _LOG.info(f'CORS enabled for resource {resource_path}')
 
     def _create_method_from_metadata(
             self, api_id, resource_id, resource_path, method, method_meta,
-            authorizers_mapping, enable_cors=False, api_resp=None,
+            authorizers_mapping, enable_cors: dict = None, api_resp=None,
             api_integration_resp=None,
             resources_statement_singleton: bool = False,
             methods_statement_singleton: bool = False):
@@ -790,7 +905,7 @@ class ApiGatewayResource(BaseResource):
             # type is authorizer, so add id to meta
             authorizer_id = authorizers_mapping.get(authorization_type)
             if not authorizer_id:
-                raise AssertionError(
+                raise ResourceNotFoundError(
                     'Authorizer {0} does not exist'.format(authorization_type))
             method_meta['authorizer_id'] = authorizer_id
             authorizer = self.connection.get_authorizer(
@@ -909,8 +1024,9 @@ class ApiGatewayResource(BaseResource):
                                                         passthrough_behavior,
                                                         enable_proxy)
             else:
-                raise AssertionError('%s integration type does not exist.',
-                                     integration_type)
+                raise InvalidValueError(
+                    f"Integration type '{integration_type}' is not supported."
+                    )
         # third step: setup method responses
         if resp:
             for response in resp:
@@ -981,10 +1097,7 @@ class ApiGatewayResource(BaseResource):
         return list(lambdas)
 
     def remove_api_gateways(self, args):
-        for arg in args:
-            self._remove_api_gateway(**arg)
-            # wait for success deletion
-            time.sleep(60)
+        return self.create_pool(self._remove_api_gateway, args)
 
     def _remove_invocation_permissions_from_lambdas(self, config):
         api_id = config['description']['id']
@@ -1007,6 +1120,7 @@ class ApiGatewayResource(BaseResource):
                 ids_to_remove=ids_to_remove
             )
 
+    @unpack_kwargs
     def _remove_api_gateway(self, arn, config):
         api_id = config['description']['id']
         stage_name = config["resource_meta"]["deploy_stage"]
@@ -1021,13 +1135,19 @@ class ApiGatewayResource(BaseResource):
                 {*api_lambdas_arns, *api_lambda_auth_arns}
             )
         try:
-            self.connection.remove_api(api_id)
+            self.connection.remove_api(api_id, log_not_found_error=False)
+            group_names = self.cw_logs_conn.get_log_group_names()
+            for each in group_names:
+                if each.split('/')[0].endswith(api_id):
+                    self.cw_logs_conn.delete_log_group_name(each)
             _LOG.info(f'API Gateway {api_id} was removed.')
+            return {arn: config}
         except ClientError as e:
             if e.response['Error']['Code'] == 'NotFoundException':
-                _LOG.warning('API Gateway %s is not found', api_id)
+                _LOG.warning(f'API Gateway {api_id} is not found')
+                return {arn: config}
             else:
-                raise
+                raise e
 
     @unpack_kwargs
     def _create_model_from_metadata(self, api_id, models):
@@ -1053,8 +1173,13 @@ class ApiGatewayResource(BaseResource):
         stage_name = meta.get('deploy_stage')
         resources = meta.get('resources') or {}
         route_selection_expression = meta.get('route_selection_expression')
+        api_gw_describe = self.describe_v2_api_gateway(name, meta)
+        if api_gw_describe:
+            _LOG.info(f'Api gateway with name \'{name}\' exists. Returning')
+            return api_gw_describe
         api_id = self.apigw_v2.create_web_socket_api(
-            name=name, route_selection_expression=route_selection_expression)
+            name=name, route_selection_expression=route_selection_expression,
+            tags=meta.get('tags'))
         for route_name, route_meta in resources.items():
             int_type = route_meta.get('integration_type') or 'lambda'
             if int_type != 'lambda':
@@ -1096,7 +1221,7 @@ class ApiGatewayResource(BaseResource):
         if not api_id:
             api = self.apigw_v2.get_api_by_name(name)
             if not api:
-                return
+                return {}
             api_id = api['ApiId']
 
         # response = self.connection.get_api(api_id)
@@ -1110,16 +1235,14 @@ class ApiGatewayResource(BaseResource):
         }
 
     def remove_v2_api_gateway(self, args):
-        for arg in args:
-            self._remove_v2_api_gateway(**arg)
-            # wait for success deletion
-            # time.sleep(60)
+        return self.create_pool(self._remove_v2_api_gateway, args)
 
+    @unpack_kwargs
     def _remove_v2_api_gateway(self, arn, config):
         api_id = config.get('description', {}).get('ApiId')
         if not api_id:
             _LOG.warning('V2 api id not found in output. Skipping')
-            return
+            return {arn: config}
 
         lambda_arns = []
         routes = self.apigw_v2.get_routes(api_id)
@@ -1130,7 +1253,7 @@ class ApiGatewayResource(BaseResource):
         self.remove_lambdas_permissions(
             api_id, {*[arn for arn in lambda_arns if arn is not None]})
         self.apigw_v2.delete_api(api_id)
-        return
+        return {arn: config}
 
     @staticmethod
     def extract_api_gateway_lambdas_arns(openapi_spec):
@@ -1138,6 +1261,9 @@ class ApiGatewayResource(BaseResource):
 
         for path, path_item in openapi_spec.get('paths', {}).items():
             for method, method_data in path_item.items():
+                if not isinstance(method_data, dict):
+                    continue
+
                 integration = method_data.get('x-amazon-apigateway-integration')
                 if not integration or not integration.get('uri'):
                     continue

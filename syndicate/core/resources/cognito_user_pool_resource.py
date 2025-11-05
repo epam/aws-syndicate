@@ -22,7 +22,7 @@ from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import build_description_obj, \
     assert_required_params, assert_possible_values
 
-_LOG = get_logger('syndicate.core.resources.cognito_user_pool_resource')
+_LOG = get_logger(__name__)
 
 
 class CognitoUserPoolResource(BaseResource):
@@ -45,7 +45,7 @@ class CognitoUserPoolResource(BaseResource):
         if not pool_id:
             pool_id = self.connection.if_pool_exists_by_name(name)
         if not pool_id:
-            return
+            return {}
         response = self.connection.describe_user_pool(pool_id)
         arn = f'arn:aws:cognito-idp:{self.region}:{self.account_id}:' \
               f'userpool/{pool_id}'
@@ -114,7 +114,8 @@ class CognitoUserPoolResource(BaseResource):
         pool_id = self.connection.create_user_pool(
             pool_name=name, auto_verified_attributes=auto_verified_attributes,
             sms_configuration=sms_configuration,
-            username_attributes=username_attributes, policies=policies)
+            username_attributes=username_attributes, policies=policies,
+            tags=meta.get('tags'))
 
         custom_attributes = meta.get('custom_attributes')
         if custom_attributes:
@@ -127,17 +128,20 @@ class CognitoUserPoolResource(BaseResource):
         return self.describe_user_pool(name=name, meta=meta, pool_id=pool_id)
 
     def remove_cognito_user_pools(self, args):
-        self.create_pool(self._remove_cognito_user_pools, args)
+        return self.create_pool(self._remove_cognito_user_pools, args)
 
     @unpack_kwargs
     def _remove_cognito_user_pools(self, arn, config):
         pool_id = config['description']['UserPool']['Id']
         try:
-            self.connection.remove_user_pool(pool_id)
+            self.connection.remove_user_pool(pool_id,
+                                             log_not_found_error=False)
             _LOG.info('Cognito user pool %s was removed', pool_id)
+            return {arn: config}
         except ClientError as e:
             if e.response['Error']['Code'] == 'ResourceNotFoundException':
-                _LOG.warn('Cognito user pool %s is not found', id)
+                _LOG.warn('Cognito user pool %s is not found', pool_id)
+                return {arn: config}
             else:
                 raise e
 

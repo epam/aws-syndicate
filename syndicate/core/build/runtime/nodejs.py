@@ -20,10 +20,10 @@ import os
 import shutil
 import threading
 from concurrent.futures.thread import ThreadPoolExecutor
-from distutils.dir_util import copy_tree
-from distutils.errors import DistutilsFileError
+
 from pathlib import Path
 
+from syndicate.exceptions import EnvironmentError
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.build.helper import build_py_package_name, zip_dir
 from syndicate.core.conf.processor import path_resolver
@@ -39,7 +39,7 @@ from syndicate.core.helper import (build_path, unpack_kwargs,
 from syndicate.core.project_state.project_state import BUILD_MAPPINGS
 from syndicate.core.resources.helper import validate_params
 
-_LOG = get_logger('nodejs_runtime_assembler')
+_LOG = get_logger(__name__)
 
 
 _JS_EXT = "*.js"
@@ -53,13 +53,18 @@ def _copy_js_files(search_path, destination_path):
             shutil.copy2(js_file, destination_path)
 
 
-def assemble_node_lambdas(project_path, bundles_dir):
+def assemble_node_lambdas(
+    runtime_root_dir: str, 
+    bundles_dir: str, 
+    **kwargs
+) -> None:
     from syndicate.core import CONFIG
-    project_abs_path = Path(CONFIG.project_path, project_path)
-    _LOG.info(f'Going to package lambdas starting by path {project_abs_path}')
+    runtime_abs_path = Path(CONFIG.project_path, runtime_root_dir)
+    _LOG.info(f'Going to package lambdas starting by path {runtime_abs_path}')
+    _check_npm_is_installed()
     executor = ThreadPoolExecutor(max_workers=5)
     futures = []
-    for root, sub_dirs, files in os.walk(project_abs_path):
+    for root, _, files in os.walk(runtime_abs_path):
         for item in files:
             if item.endswith(LAMBDA_CONFIG_FILE_NAME):
                 _LOG.info(f'Going to build artifact in: {root}')
@@ -77,12 +82,12 @@ def assemble_node_lambdas(project_path, bundles_dir):
                 }
                 futures.append(executor.submit(build_node_lambda_layer, arg))
     for future in concurrent.futures.as_completed(futures):
-        _LOG.info(future.result())
+        if future.result():
+            _LOG.info(future.result())
 
 
 @unpack_kwargs
 def _build_node_artifact(item, root, target_folder):
-    _check_npm_is_installed()
     _LOG.debug(f'Building artifact in {target_folder}')
     lambda_config_dict = json.load(open(build_path(root, item)))
     _LOG.debug(f'Root path: {root}')
@@ -94,7 +99,7 @@ def _build_node_artifact(item, root, target_folder):
     package_name = build_py_package_name(lambda_name, lambda_version)
     artifact_path = str(Path(target_folder, artifact_name))
 
-    copy_tree(root, str(Path(artifact_path, 'lambdas', lambda_name)))
+    shutil.copytree(root, str(Path(artifact_path, 'lambdas', lambda_name)))
     install_requirements(root, target_folder, artifact_path, package_name)
 
 
@@ -107,8 +112,9 @@ def build_node_lambda_layer(layer_root: str, target_folder: str):
     artifact_name = without_zip_ext(layer_config['deployment_package'])
     package_name = zip_ext(layer_config['deployment_package'])
     artifact_path = str(Path(target_folder, artifact_name))
+    modules_path = str(Path(artifact_path, DEPENDENCIES_FOLDER))
 
-    copy_tree(layer_root, artifact_path)
+    shutil.copytree(layer_root, modules_path)
     install_requirements(layer_root, target_folder, artifact_path,
                          package_name, is_layer=True)
 
@@ -134,9 +140,10 @@ def install_requirements(root: str, target_folder: str, artifact_path: str,
             execute_command_by_path(command=command, path=root)
             _LOG.debug('3-rd party dependencies were installed successfully')
             try:
-                copy_tree(str(Path(root, DEPENDENCIES_FOLDER)),
-                          str(Path(artifact_path, DEPENDENCIES_FOLDER)))
-            except DistutilsFileError:
+                shutil.copytree(Path(root, DEPENDENCIES_FOLDER),
+                                Path(artifact_path, DEPENDENCIES_FOLDER),
+                                dirs_exist_ok=True)
+            except FileNotFoundError:
                 _LOG.info('No dependencies folder - nothing to copy.')
             except Exception as e:
                 _LOG.exception(f'Error occurred while lambda files coping: {e}')
@@ -182,7 +189,7 @@ def _check_npm_is_installed():
     import subprocess
     result = subprocess.call('npm -v', shell=True)
     if result:
-        raise AssertionError(
+        raise EnvironmentError(
             'NPM is not installed. There is no ability to build '
             'NodeJS bundle. Please, install npm and retry to build bundle.')
 
@@ -196,10 +203,9 @@ def _copy_local_req(artifact_path, local_req_path):
     # copy folders
     for lrp in local_req_list:
         _LOG.info(f'Processing local dependency: {lrp}')
-        copy_tree(str(Path(CONFIG.project_path,
-                           BUILD_MAPPINGS[RUNTIME_NODEJS],
-                           lrp)),
-                  str(Path(artifact_path, lrp)))
+        shutil.copytree(str(Path(CONFIG.project_path,
+                                 BUILD_MAPPINGS[RUNTIME_NODEJS], lrp)),
+                        str(Path(artifact_path, lrp)))
         _LOG.debug('Dependency was copied successfully')
 
         folders = [r for r in lrp.split(DEFAULT_SEP) if r]

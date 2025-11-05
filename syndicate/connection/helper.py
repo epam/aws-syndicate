@@ -19,10 +19,12 @@ from time import sleep
 
 from botocore.exceptions import ClientError
 
+from syndicate.exceptions import ResourceProcessingError
 from syndicate.commons.log_helper import get_logger
 
-_LOG = get_logger('syndicate.connection.helper')
+_LOG = get_logger(__name__)
 
+LOG_NOT_FOUND_ERROR = 'log_not_found_error'
 
 DEFAULT_RETRY_TIMEOUT_SEC = 35
 DEFAULT_RETRY_TIMEOUT_STEP = 3
@@ -65,8 +67,12 @@ def retry(retry_timeout=DEFAULT_RETRY_TIMEOUT_SEC,
                 'calling the CreateEventSourceMapping operation',
                 'An error occurred (InvalidParameterValueException) when '
                 'calling the UpdateEventSourceMapping operation',
+                'An error occurred (ResourceInUseException) when '
+                'calling the UpdateEventSourceMapping operation'
                 'An error occurred (InvalidParameterValueException) when '
                 'calling the CreateCluster operation',
+                'An error occurred (InvalidParameterValue) when '
+                'calling the CreateQueue operation',
                 'An error occurred (SubnetGroupInUseFault) when calling '
                 'the DeleteSubnetGroup operation',
                 'The role defined for the function cannot be assumed by Lambda',
@@ -84,6 +90,28 @@ def retry(retry_timeout=DEFAULT_RETRY_TIMEOUT_SEC,
                 'UpdateGatewayResponse',
                 'Cannot delete, found existing JobQueue relationship',
                 'Cannot delete, resource is being modified',
+                'Please try again',
+                'An error occurred (ConcurrentModificationException) when '
+                'calling the CreateDataSource operation: Schema is currently '
+                'being altered',
+                'An error occurred (ConcurrentModificationException) when '
+                'calling the CreateResolver operation: Schema is currently '
+                'being altered',
+                'An error occurred (ConcurrentModificationException) when '
+                'calling the UpdateResolver operation: Schema is currently '
+                'being altered',
+                'An error occurred (InvalidArgument) when calling the '
+                'PutBucketNotificationConfiguration operation',
+                'Too Many Requests'
+            ]
+            resource_not_found_error_codes = [
+                'NoSuchEntity',
+                'ResourceNotFoundException',
+                'StateMachineDoesNotExist',
+                'ClusterNotFoundFault',
+                'InvalidInstanceID.NotFound',
+                'IncorrectInstanceState'
+
             ]
             last_ex = None
             for each in range(1, retry_timeout, retry_timeout_step):
@@ -101,17 +129,27 @@ def retry(retry_timeout=DEFAULT_RETRY_TIMEOUT_SEC,
                             _LOG.debug(
                                 f'Traceback:\n {traceback.format_exc()}')
                             retry_flag = True
+                            break
                     if not retry_flag:
-                        _LOG.error(f'Error occurred: {e}')
-                        _LOG.error(f'Traceback:\n {traceback.format_exc()}')
+                        error_code = e.response['Error']['Code']
+                        if (kwargs.get(LOG_NOT_FOUND_ERROR) and error_code in
+                           resource_not_found_error_codes):
+                            _LOG.error(f'Error occurred: {e}')
+                            _LOG.error(
+                                f'Traceback:\n {traceback.format_exc()}')
+                        else:
+                            _LOG.debug(f'Error occurred: {e}')
+                            _LOG.debug(
+                                f'Traceback:\n {traceback.format_exc()}')
                         raise e
                     last_ex = e
                     sleep(each)
 
             if last_ex:
-                raise Exception(
+                raise ResourceProcessingError(
                     f"Maximum retries reached for function "
-                    f"{handler_func.__name__} due to {type(last_ex).__name__}: "
-                    f"{str(last_ex)}") from last_ex
+                    f"'{handler_func.__name__}' due to "
+                    f"'{type(last_ex).__name__}': "
+                    f"'{str(last_ex)}'") from last_ex
         return wrapper
     return decorator

@@ -15,6 +15,7 @@
 """
 import os
 
+from syndicate.exceptions import ResourceMetadataError
 from syndicate.core.constants import \
     EC2_LAUNCH_TEMPLATE_SUPPORTED_IMDS_VERSIONS
 
@@ -35,7 +36,7 @@ class LaunchTemplateValidator:
         self._validate_lt_data(self._meta.get('launch_template_data'))
 
     def _error(self, message):
-        raise AssertionError(message)
+        raise ResourceMetadataError(message)
 
     def _validate_lt_data(self, lt_data):
         from syndicate.core import CONFIG

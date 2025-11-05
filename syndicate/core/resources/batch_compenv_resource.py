@@ -15,12 +15,14 @@
 """
 from botocore.waiter import WaiterError
 
+from syndicate.exceptions import ResourceNotFoundError, \
+    InvalidValueError
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.helper import unpack_kwargs
 from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import build_description_obj
 
-_LOG = get_logger('syndicate.core.resources.batch_compenv')
+_LOG = get_logger(__name__)
 
 DEFAULT_STATE = 'ENABLED'
 DEFAULT_SERVICE_ROLE = 'AWSBatchServiceRole'
@@ -45,11 +47,11 @@ class BatchComputeEnvironmentResource(BaseResource):
             arn = response['computeEnvironments'][0]['computeEnvironmentArn']
             return {arn: build_description_obj(response, name, meta)}
         except (KeyError, IndexError):
-            _LOG.warn("Batch Compute Environment %s not found", name)
+            _LOG.warning(f"Batch Compute Environment {name} not found")
             return {}
 
     def remove_compute_environment(self, args):
-        self.create_pool(self._remove_compute_environment, args)
+        return self.create_pool(self._remove_compute_environment, args)
 
     @unpack_kwargs
     def _remove_compute_environment(self, arn, config):
@@ -60,7 +62,7 @@ class BatchComputeEnvironmentResource(BaseResource):
         except (KeyError, IndexError):
             _LOG.warn("Batch Compute Environment %s not found", config[
                 'resource_name'])
-            return
+            return {arn: config}
         if compute_environment_data['state'] == 'ENABLED':
             # need to disable compute env first
             self.batch_conn.update_compute_environment(arn, state='DISABLED')
@@ -69,8 +71,10 @@ class BatchComputeEnvironmentResource(BaseResource):
 
         compute_environment_name = compute_environment_data[
             'computeEnvironmentName']
-        _LOG.info('Batch Compute Environment %s was removed.',
-                  compute_environment_name)
+        _LOG.info(
+            f'Batch Compute Environment {compute_environment_name} was removed.'
+        )
+        return {arn: config}
 
     @unpack_kwargs
     def _create_compute_environment_from_meta(self, name, meta):
@@ -81,8 +85,10 @@ class BatchComputeEnvironmentResource(BaseResource):
         if 'resource_type' in params:
             del params['resource_type']
         if self._is_compute_env_exist(name):
-            _LOG.warn(f'AWS Batch Compute Environment with the name {name} '
-                      f'already exists')
+            _LOG.warning(
+                f'AWS Batch Compute Environment with the name {name} already '
+                f'exists'
+            )
             return self.describe_compute_environment(name, meta)
 
         state = params.get('state')
@@ -93,8 +99,10 @@ class BatchComputeEnvironmentResource(BaseResource):
         if not service_role:
             role = self.iam_conn.get_role(role_name=DEFAULT_SERVICE_ROLE)
             if not role:
-                _LOG.warn("Default Service Role '%s' not found and will be "
-                          "created", DEFAULT_SERVICE_ROLE)
+                _LOG.warning(
+                    "Default Service Role {DEFAULT_SERVICE_ROLE} not found and "
+                    "will be created"
+                )
                 allowed_account = self.account_id
                 self.iam_conn.create_custom_role(
                     role_name=DEFAULT_SERVICE_ROLE,
@@ -107,7 +115,7 @@ class BatchComputeEnvironmentResource(BaseResource):
                     role_name=DEFAULT_SERVICE_ROLE,
                     policy_arn=policy_arn
                 )
-                _LOG.info("Created default service role %s", DEFAULT_SERVICE_ROLE)
+                _LOG.info(f"Created default service role {DEFAULT_SERVICE_ROLE}")
             params['service_role'] = DEFAULT_SERVICE_ROLE
 
         # resolve IAM Role name with IAM Role ARN
@@ -121,7 +129,7 @@ class BatchComputeEnvironmentResource(BaseResource):
         except WaiterError as e:
             _LOG.error(e)
 
-        _LOG.info('Created Batch Compute Environment %s.', name)
+        _LOG.info(f'Created Batch Compute Environment {name}.')
         return self.describe_compute_environment(name, meta)
 
     def _is_compute_env_exist(self, compute_environment_name):
@@ -139,8 +147,9 @@ class BatchComputeEnvironmentResource(BaseResource):
         arn = f'arn:aws:batch:{self.region}:{self.account_id}:' \
               f'compute-environment/{name}'
         if not self._is_compute_env_exist(arn):
-            raise AssertionError(f'Compute environment \'{name}\' does not '
-                                 f'exist')
+            raise ResourceNotFoundError(
+                f"Compute environment '{name}' does not exist"
+            )
 
         params = meta['meta'].copy()
         if 'resource_type' in params:
@@ -152,12 +161,17 @@ class BatchComputeEnvironmentResource(BaseResource):
         if 'compute_resources' in params:
             del params['compute_resources']
 
+        # TODO implement tags updating
+        params.pop('tags', None)
+
         state = params.get('state')
         if state and state != 'ENABLED' and state != 'DISABLED':
-            _LOG.warn(f"Invalid state value for compute environment '{arn}': "
-                      f"{state}")
-            raise AssertionError(f'Invalid state value for compute '
-                                 f'environment \'{arn}\': {state}')
+            _LOG.warning(
+                f"Invalid state value for compute environment '{arn}': {state}"
+            )
+            raise InvalidValueError(
+                f"Invalid state value for compute environment '{arn}': {state}"
+            )
 
         params['compute_environment'] = arn
 
@@ -165,8 +179,10 @@ class BatchComputeEnvironmentResource(BaseResource):
         if not service_role:
             role = self.iam_conn.get_role(role_name=DEFAULT_SERVICE_ROLE)
             if not role:
-                _LOG.warn(f"Default Service Role '{DEFAULT_SERVICE_ROLE}' not "
-                          f"found and will be created")
+                _LOG.warning(
+                    f"Default Service Role '{DEFAULT_SERVICE_ROLE}' not found "
+                    f"and will be created"
+                )
                 allowed_account = self.account_id
                 self.iam_conn.create_custom_role(
                     role_name=DEFAULT_SERVICE_ROLE,
@@ -179,13 +195,12 @@ class BatchComputeEnvironmentResource(BaseResource):
                     role_name=DEFAULT_SERVICE_ROLE,
                     policy_arn=policy_arn
                 )
-                _LOG.info(f"Created default service role "
-                          f"{DEFAULT_SERVICE_ROLE}")
+                _LOG.info(f"Created default service role {DEFAULT_SERVICE_ROLE}")
             params['service_role'] = DEFAULT_SERVICE_ROLE
 
         # resolve IAM Role name with IAM Role ARN
-        params['service_role'] = self.iam_conn.check_if_role_exists(
-            role_name=params['service_role'])
+        params['service_role'] = self.iam_conn \
+            .check_if_role_exists(role_name=params['service_role'])
 
         # response: TypedDict[computeEnvironmentName|Arn, ResponseMetadata]
         _response: dict = self.batch_conn.update_compute_environment(**params)

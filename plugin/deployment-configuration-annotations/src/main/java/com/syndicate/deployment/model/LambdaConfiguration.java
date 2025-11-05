@@ -89,7 +89,10 @@ public class LambdaConfiguration {
     private Set<EventSourceItem> eventSources;
 
     @JsonProperty("env_variables")
-    private Map<String, String> variables;
+    private Map<String, Object> variables;
+
+    @JsonProperty("tags")
+    private Map<String, String> tags;
 
     @JsonProperty("dl_resource_name")
     private String dlResourceName;
@@ -193,8 +196,12 @@ public class LambdaConfiguration {
         return eventSources;
     }
 
-    public Map<String, String> getVariables() {
+    public Map<String, Object> getVariables() {
         return variables;
+    }
+
+    public Map<String, String> getTags() {
+        return tags;
     }
 
     public String getDlResourceName() {
@@ -382,11 +389,18 @@ public class LambdaConfiguration {
             return this;
         }
 
-        public Builder withVariables(Map<String, String> variables) {
+        public Builder withVariables(Map<String, Object> variables) {
             Objects.requireNonNull(variables, "Variables cannot be null");
             configuration.variables = variables;
             return this;
         }
+
+        public Builder withTags(Map<String, String> tags) {
+            Objects.requireNonNull(tags, "Tags cannot be null");
+            configuration.tags = tags;
+            return this;
+        }
+
 
         public Builder withTracingMode(String tracingMode) {
             Objects.requireNonNull(tracingMode, "Tracing mode cannot be null");
@@ -473,6 +487,7 @@ public class LambdaConfiguration {
             Objects.requireNonNull(configuration.dependencies, "Dependencies cannot be null");
             Objects.requireNonNull(configuration.eventSources, "Events cannot be null");
             Objects.requireNonNull(configuration.variables, "Variables cannot be null");
+            Objects.requireNonNull(configuration.tags, "Tags cannot be null");
             Objects.requireNonNull(configuration.subnetIds, "Subnet ids cannot be null");
             Objects.requireNonNull(configuration.securityGroupIds, "Security group ids cannot be null");
             if (configuration.alias != null && configuration.alias.equals("")) {
@@ -504,6 +519,7 @@ public class LambdaConfiguration {
                 ", dependencies=" + dependencies +
                 ", eventSources=" + eventSources +
                 ", variables=" + variables +
+                ", tags=" + tags +
                 ", dlResourceName='" + dlResourceName + '\'' +
                 ", dlResourceType='" + dlResourceType + '\'' +
                 ", tracingMode='" + tracingMode + '\'' +

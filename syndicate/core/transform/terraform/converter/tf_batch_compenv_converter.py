@@ -15,6 +15,7 @@
 """
 import json
 
+from syndicate.exceptions import ResourceNotFoundError
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.resources.batch_compenv_resource import DEFAULT_STATE
 from syndicate.core.transform.terraform.converter.tf_resource_converter import \
@@ -24,8 +25,7 @@ from syndicate.core.transform.terraform.tf_resource_name_builder import \
 from syndicate.core.transform.terraform.tf_resource_reference_builder import \
     build_role_name_ref, build_instance_profile_arn_ref, build_role_arn_ref
 
-_LOG = get_logger('syndicate.core.transform.terraform'
-                  '.converter.tf_batch_compenv_converter')
+_LOG = get_logger(__name__)
 
 ECS_POLICY_ARN = 'arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role'
 BATCH_SERVICE_ROLE = 'arn:aws:iam::aws:policy/service-role/AWSBatchServiceRole'
@@ -92,8 +92,9 @@ class BatchComputeEnvConverter(TerraformResourceConverter):
                 return build_role_arn_ref(AWS_BATCH_SERVICE_ROLE)
         role = self.template.get_resource_by_name(service_role)
         if not role:
-            raise AssertionError("IAM role '{}' is not present "
-                                 "in build meta.".format(service_role))
+            raise ResourceNotFoundError(
+                f"IAM role '{service_role}' is not present in build meta."
+            )
         return build_role_arn_ref(role_name=role)
 
 

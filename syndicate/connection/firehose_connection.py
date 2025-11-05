@@ -4,7 +4,7 @@ from botocore.exceptions import ClientError
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import apply_methods_decorator, retry
 
-_LOG = get_logger('syndicate.connection.firehose_connection')
+_LOG = get_logger(__name__)
 
 
 @apply_methods_decorator(retry())
@@ -20,12 +20,15 @@ class FirehoseConnection(object):
         _LOG.debug('Opened new Firehose connection.')
 
     def create_delivery_stream(self, stream_name, stream_type,
-                               s3_configuration, kinesis_stream_source=None):
+                               s3_configuration, kinesis_stream_source=None,
+                               tags=None):
         params = {'DeliveryStreamName': stream_name,
                   'S3DestinationConfiguration': s3_configuration,
                   'DeliveryStreamType': stream_type}
         if kinesis_stream_source:
             params['KinesisStreamSourceConfiguration'] = kinesis_stream_source
+        if tags:
+            params['Tags'] = tags
         return self.client.create_delivery_stream(**params)['DeliveryStreamARN']
 
     def describe_delivery_stream(self, stream_name, limit=None,
@@ -47,14 +50,10 @@ class FirehoseConnection(object):
             else:
                 raise e
 
-    def delete_delivery_stream(self, stream_name):
-        try:
-            return self.client.delete_delivery_stream(
-                DeliveryStreamName=stream_name)
-        except ClientError as e:
-            if 'ResourceNotFoundException' in str(e):
-                _LOG.warning(
-                    f'Cannot find delivery stream with name {stream_name}')
-                pass
-            else:
-                raise e
+    def delete_delivery_stream(self, stream_name, log_not_found_error=True):
+        """
+        log_not_found_error parameter is needed for proper log handling in the
+        retry decorator
+        """
+        return self.client.delete_delivery_stream(
+            DeliveryStreamName=stream_name)

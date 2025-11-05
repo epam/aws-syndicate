@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from pprint import pformat
 
+from syndicate.core.constants import EMPTY_VALUES
 from syndicate.core.resources.helper import filter_dict_by_shape
 
 
@@ -44,6 +45,9 @@ class AbstractExternalResource(ABC):
 
                     syndicate_value.sort(key=lambda k: k[sort_key])
                     aws_value.sort(key=lambda k: k[sort_key])
+
+            if syndicate_value in EMPTY_VALUES and aws_value is None:
+                syndicate_meta[key] = None
 
         if syndicate_meta != aws_meta:
             return self.get_errors(

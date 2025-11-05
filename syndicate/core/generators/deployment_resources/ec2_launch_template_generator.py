@@ -6,15 +6,15 @@ from syndicate.core.generators.deployment_resources.base_generator import \
 from syndicate.core.constants import EC2_LAUNCH_TEMPLATE_TYPE
 
 
-_LOG = get_logger('syndicate.core.generators.deployment_resources.'
-                  'ec2_launch_template_generator')
+_LOG = get_logger(__name__)
 
 
 class EC2LaunchTemplateGenerator(BaseDeploymentResourceGenerator):
     RESOURCE_TYPE = EC2_LAUNCH_TEMPLATE_TYPE
     CONFIGURATION = {
         'version_description': None,
-        'launch_template_data': dict
+        'launch_template_data': dict,
+        'tags': dict
     }
 
     KEY_MAPPING = {
@@ -22,7 +22,7 @@ class EC2LaunchTemplateGenerator(BaseDeploymentResourceGenerator):
         'imds_version': 'imds_support'
     }
 
-    NON_LT_DATA_KEYS = ['version_description']
+    NON_LT_DATA_KEYS = ['version_description', 'tags']
 
     def write(self):
         lt_data = dict()

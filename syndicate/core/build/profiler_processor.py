@@ -1,12 +1,12 @@
 import os
-
+from datetime import datetime, timedelta, timezone
 from math import ceil
+
+from syndicate.exceptions import InvalidValueError
 from syndicate.commons.log_helper import get_logger
 from syndicate.core import ResourceProvider
 from syndicate.core.build.bundle_processor import load_deploy_output
-from syndicate.core.helper import exit_on_exception
 from syndicate.core.constants import DATE_FORMAT_ISO_8601
-from datetime import datetime, timedelta
 
 MIN_STATISTIC_VALUE = 'Minimum'
 MAX_STATISTIC_VALUE = 'Maximum'
@@ -24,14 +24,13 @@ METRIC_NAMES = ["Invocations", "Errors", "Throttles", "Duration",
                 "DestinationDeliveryFailures", "DeadLetterErrors",
                 "IteratorAge", "ConcurrentExecutions"]
 
-_LOG = get_logger('syndicate.core.build.profiler_processor')
+_LOG = get_logger(__name__)
 
 
 def _get_cw_client():
     return ResourceProvider.instance.cw_alarm().client.client
 
 
-@exit_on_exception
 def get_lambdas_name(bundle_name, deploy_name):
     output = load_deploy_output(bundle_name, deploy_name)
     lambda_output = {key: value for key, value in output.items() if
@@ -39,10 +38,10 @@ def get_lambdas_name(bundle_name, deploy_name):
 
     if not lambda_output:
         _LOG.warning('No Lambdas to describe metrics, exiting')
-        return
+        return []
 
     lambda_names = [definition['resource_name']
-                    for lambda_arn, definition in lambda_output.items()]
+                    for _, definition in lambda_output.items()]
 
     return lambda_names
 
@@ -132,17 +131,22 @@ def period_calculation(time_range):
 
 def validate_time_range(from_date, to_date):
     if not (from_date and to_date):
-        from_date = datetime.utcnow() - timedelta(hours=1)
-        to_date = datetime.utcnow()
+        from_date = (
+            datetime.now(timezone.utc).replace(tzinfo=None) 
+            - timedelta(hours=1)
+        )
+        to_date = datetime.now(timezone.utc).replace(tzinfo=None)
     else:
         from_date = datetime.strptime(from_date, DATE_FORMAT_ISO_8601)
-        from_date = datetime.utcfromtimestamp(datetime.timestamp(from_date))
+        from_date = datetime.fromtimestamp(datetime.timestamp(from_date))
         to_date = datetime.strptime(to_date, DATE_FORMAT_ISO_8601)
-        to_date = datetime.utcfromtimestamp(datetime.timestamp(to_date))
+        to_date = datetime.fromtimestamp(datetime.timestamp(to_date))
     time_range = to_date - from_date
     if time_range <= timedelta(seconds=0):
-        raise AssertionError(f'The parameter from_date must be more than the'
-                             f' parameter to_date.')
+        raise InvalidValueError(
+            f"The parameter 'from_date' must be greater than the parameter "
+            f"'to_date'."
+        )
     return from_date, to_date, time_range
 
 

@@ -17,15 +17,15 @@ import time
 
 from botocore.exceptions import ClientError
 
+from syndicate.exceptions import ResourceNotFoundError
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.helper import unpack_kwargs
 from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import (build_description_obj,
                                              validate_params)
-
 DEFAULT_ROUTING_CONFIG_WEIGHT = 100
 
-_LOG = get_logger('core.resources.step_function_resource')
+_LOG = get_logger(__name__)
 
 
 class StepFunctionResource(BaseResource):
@@ -56,9 +56,11 @@ class StepFunctionResource(BaseResource):
         return self.create_pool(self._create_activity_from_meta, args)
 
     def remove_state_machines(self, args):
-        self.create_pool(self._remove_state_machine, args)
+        result = self.create_pool(self._remove_state_machine, args)
         if args:
             time.sleep(60)
+
+        return result
 
     @unpack_kwargs
     def _remove_state_machine(self, arn, config):
@@ -71,28 +73,32 @@ class StepFunctionResource(BaseResource):
                 for execution in executions:
                     self.sf_conn.stop_execution(execution['executionArn'])
                 _LOG.debug('Executions stop initiated')
-            self.sf_conn.delete_state_machine(arn)
+            self.sf_conn.delete_state_machine(arn, log_not_found_error=False)
             _LOG.info('State machine %s was removed', sm_name)
+            return {arn: config}
         except ClientError as e:
             exception_type = e.response['Error']['Code']
             if exception_type == 'StateMachineDoesNotExist':
                 _LOG.warn('State machine %s is not found', sm_name)
+                return {arn: config}
             else:
                 raise e
 
     def remove_activities(self, args):
-        self.create_pool(self._remove_activity, args)
+        return self.create_pool(self._remove_activity, args)
 
     @unpack_kwargs
     def _remove_activity(self, arn, config):
         activity_name = config['resource_name']
         try:
-            self.sf_conn.delete_activity(arn)
+            self.sf_conn.delete_activity(arn, log_not_found_error=False)
             _LOG.info('State activity %s was removed', activity_name)
+            return {arn: config}
         except ClientError as e:
             exception_type = e.response['Error']['Code']
             if exception_type == 'ResourceNotFoundException':
                 _LOG.warn('State activity %s is not found', activity_name)
+                return {arn: config}
             else:
                 raise e
 
@@ -120,15 +126,51 @@ class StepFunctionResource(BaseResource):
         iam_role = meta['iam_role']
         role_arn = self.iam_conn.check_if_role_exists(iam_role)
         if not role_arn:
-            raise AssertionError(
-                'IAM role {0} does not exist.'.format(iam_role))
+            raise ResourceNotFoundError(
+                f"IAM role '{iam_role}' does not exist."
+            )
 
+        # check resource exists and get arn
+        definition = meta['definition']
+        definition_copy = definition.copy()
+        for key in definition['States']:
+            definition_meta = definition['States'][key]
+            if definition_meta.get('Lambda'):
+                lambda_name = definition_meta['Lambda']
+                # alias has a higher priority than version in arn resolving
+                lambda_version = definition_meta.get('Lambda_version')
+                lambda_alias = definition_meta.get('Lambda_alias')
+                lambda_arn = self.resolve_lambda_arn_by_version_and_alias(
+                    lambda_name,
+                    lambda_version,
+                    lambda_alias)
+                self.__remove_key_from_dict(definition_copy['States'][key],
+                                            'Lambda')
+                self.__remove_key_from_dict(definition_copy['States'][key],
+                                            'Lambda_version')
+                self.__remove_key_from_dict(definition_copy['States'][key],
+                                            'Lambda_alias')
+
+                definition_copy['States'][key]['Resource'] = lambda_arn
+
+            if definition_meta.get('Activity'):
+                activity_name = definition_meta['Activity']
+                activity_arn = 'arn:aws:states:{0}:{1}:activity:{2}'.format(
+                    self.region, self.account_id, activity_name)
+                activity_info = self.sf_conn.describe_activity(
+                    arn=activity_arn)
+                if not activity_info:
+                    raise ResourceNotFoundError(
+                        f"Activity does not exists: '{activity_name}'"
+                        )
+                activity_arn = activity_info['activityArn']
+                del definition_copy['States'][key]['Activity']
+                definition_copy['States'][key]['Resource'] = activity_arn
         machine_info = self.sf_conn.create_state_machine(
             machine_name=name,
             role_arn=role_arn,
-            definition=self._resolve_sm_definition(definition),
-            publish_version=publish_version,
-            version_description=version_description)
+            definition=definition_copy,
+            tags=meta.get('tags'))
 
         alias_arn = None
         if alias_name is not None:
@@ -239,9 +281,11 @@ class StepFunctionResource(BaseResource):
         if not arn:
             arn = self._build_sm_arn(name, self.region)
         response = self.sf_conn.describe_state_machine(arn)
-        return {
-            arn: build_description_obj(response, name, meta)
-        }
+        if response:
+            return {
+                arn: build_description_obj(response, name, meta)
+            }
+        return {}
 
     def _build_sm_arn(self, name, region):
         return f'arn:aws:states:{region}:{self.account_id}:stateMachine:{name}'
@@ -283,7 +327,8 @@ class StepFunctionResource(BaseResource):
             return {
                 arn: build_description_obj(response, name, meta)
             }
-        response = self.sf_conn.create_activity(name=name)
+        response = self.sf_conn.create_activity(name=name,
+                                                tags=meta.get('tags'))
         _LOG.info('Activity %s is created.', name)
         return {
             arn: build_description_obj(response, name, meta)
@@ -292,9 +337,11 @@ class StepFunctionResource(BaseResource):
     def describe_activity(self, name, meta):
         arn = self.build_activity_arn(name=name)
         response = self.sf_conn.describe_activity(arn=arn)
-        return {
-            arn: build_description_obj(response, name, meta)
-        }
+        if response:
+            return {
+                arn: build_description_obj(response, name, meta)
+            }
+        return {}
 
     def build_activity_arn(self, name):
         arn = 'arn:aws:states:{0}:{1}:activity:{2}'.format(self.region,

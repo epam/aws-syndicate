@@ -21,7 +21,8 @@ class CognitoUserPoolGenerator(BaseDeploymentResourceGenerator):
         },
         "username_attributes": list,
         "custom_attributes": list,
-        "client": dict
+        "client": dict,
+        "tags": dict
     }
 
     def __init__(self, **kwargs):

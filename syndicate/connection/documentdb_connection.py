@@ -16,10 +16,11 @@
 from boto3 import client
 from botocore.exceptions import ClientError
 
+from syndicate.exceptions import InvalidValueError
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import apply_methods_decorator, retry
 
-_LOG = get_logger('syndicate.connection.documentdb_connection')
+_LOG = get_logger(__name__)
 
 
 @apply_methods_decorator(retry())
@@ -40,7 +41,8 @@ class DocumentDBConnection(object):
 
     def create_db_cluster(self, identifier, vpc_security_group_ids=None,
                           port=None, availability_zones=None,
-                          master_username=None, master_password=None):
+                          master_username=None, master_password=None,
+                          tags=None):
         """
         Creates a new Amazon DocumentDB cluster.
         """
@@ -58,12 +60,14 @@ class DocumentDBConnection(object):
             params['MasterUsername'] = master_username
         if master_password:
             params['MasterUserPassword'] = master_password
+        if tags:
+            params['Tags'] = tags
 
         response = self.client.create_db_cluster(**params)
         return response['DBCluster'].get('DBClusterIdentifier')
 
     def create_db_instance(self, instance_identifier, cluster_identifier,
-                           instance_class, availability_zone=None):
+                           instance_class, availability_zone=None, tags=None):
         """
         Creates a new instance.
         """
@@ -75,31 +79,39 @@ class DocumentDBConnection(object):
         }
         if availability_zone:
             params['AvailabilityZone'] = availability_zone
+        if tags:
+            params['Tags'] = tags
 
         response = self.client.create_db_instance(**params)
         return response['DBInstance'].get('DBInstanceIdentifier')
 
-    def delete_db_instance(self, instance_identifier):
+    def delete_db_instance(self, instance_identifier,
+                           log_not_found_error=True):
         """
         Deletes a previously provisioned instance.
+        log_not_found_error parameter is needed for proper log handling in the
+        retry decorator
         """
         response = self.client.delete_db_instance(
             DBInstanceIdentifier=instance_identifier)
         return response['DBInstance'].get('DBInstanceIdentifier')
 
     def delete_db_cluster(self, cluster_identifier, skip_final_snapshot=True,
-                          final_db_snapshot_identifier=None):
+                          final_db_snapshot_identifier=None,
+                          log_not_found_error=True):
         """
         Deletes a previously provisioned cluster (all automated backups for
         that cluster are deleted and can't be recovered).
+        log_not_found_error parameter is needed for proper log handling in the
+        retry decorator
         """
         if skip_final_snapshot and final_db_snapshot_identifier:
-            raise AssertionError(
+            raise InvalidValueError(
                 'Only one of this parameters must set to \'true\': '
                 'skip_final_snapshot, final_db_snapshot_identifier')
 
         if not skip_final_snapshot and not final_db_snapshot_identifier:
-            raise AssertionError(
+            raise InvalidValueError(
                 'One of this parameters must set to \'true\': '
                 'skip_final_snapshot, final_db_snapshot_identifier')
 

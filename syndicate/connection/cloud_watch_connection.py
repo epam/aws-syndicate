@@ -21,13 +21,14 @@ from typing import Optional
 from boto3 import client
 from botocore.exceptions import ClientError
 
+from syndicate.exceptions import ParameterError
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import apply_methods_decorator, retry
 from syndicate.core.constants import (
     POSSIBLE_RETENTION_DAYS, DEFAULT_LOGS_EXPIRATION
 )
 
-_LOG = get_logger('syndicate.connection.cloud_watch_connection')
+_LOG = get_logger(__name__)
 
 
 def get_lambda_log_group_name(lambda_name):
@@ -68,12 +69,14 @@ class LogsConnection(object):
                                             destinationArn=lambda_arn)
 
     def create_log_group_with_retention_days(self, group_name: str,
-                                             retention_in_days: int):
+                                             retention_in_days: int,
+                                             tags: dict = None):
         """ Creates a log group for provided lambda function and sets
         the retention .
 
         :type group_name: str
         :type retention_in_days: int
+        :type tags: dict
         """
 
         if retention_in_days == 0:
@@ -87,7 +90,12 @@ class LogsConnection(object):
             retention_in_days = DEFAULT_LOGS_EXPIRATION
 
         log_group_name = get_lambda_log_group_name(group_name)
-        self.client.create_log_group(logGroupName=log_group_name)
+        params = dict(
+            logGroupName=log_group_name
+        )
+        if tags:
+            params['tags'] = tags
+        self.client.create_log_group(**params)
         self.client.put_retention_policy(
             logGroupName=log_group_name,
             retentionInDays=retention_in_days
@@ -149,6 +157,18 @@ class LogsConnection(object):
             token = response.get('nextToken')
         return groups
 
+    def get_log_group_by_lambda_name(self, lambda_name: str):
+        group = None
+        response = self.client.describe_log_groups(
+            logGroupNamePattern=lambda_name
+        )
+        group_data = response.get("logGroups")
+
+        if group_data:
+            group = group_data[0]
+
+        return group
+
 
 @apply_methods_decorator(retry())
 class EventConnection(object):
@@ -162,7 +182,8 @@ class EventConnection(object):
                              aws_session_token=aws_session_token)
         _LOG.debug('Opened new Cloudwatch events connection.')
 
-    def create_schedule_rule(self, name, expression, state='ENABLED'):
+    def create_schedule_rule(self, name, expression, tags=None,
+                             state='ENABLED'):
         """ Create CloudWatch schedule rule for resource invocation.
 
         :type name: str
@@ -170,18 +191,28 @@ class EventConnection(object):
         :param expression: e.g. rate(1 hour)
         :type state: str
         :param state: 'ENABLED'/'DISABLED'
+        :param tags: List of resource tags key-value pairs
         """
-        self.client.put_rule(Name=name, ScheduleExpression=expression,
-                             State=state, Description=name)
+        params = dict(
+            Name=name,
+            ScheduleExpression=expression,
+            State=state,
+            Description=name,
+        )
+        if tags:
+            params['Tags'] = tags
+
+        self.client.put_rule(**params)
 
     def create_ec2_rule(self, name, instances=None, instance_states=None,
-                        state='ENABLED'):
+                        tags=None, state='ENABLED'):
         """ Create CloudWatch ec2 rule for resource invocation.
 
         :type name: str
         :type instances: list
         :type instance_states: list
         :type state: str
+        :type tags: list of dict
         """
         event_pattern = {
             "source": ["aws.ec2"],
@@ -195,11 +226,20 @@ class EventConnection(object):
             else:
                 event_pattern["detail"] = {"state": instance_states}
 
-        self.client.put_rule(Name=name, EventPattern=dumps(event_pattern),
-                             State=state, Description=name)
+        params = dict(
+            Name=name,
+            EventPattern=dumps(event_pattern),
+            State=state,
+            Description=name
+        )
+
+        if tags:
+            params['Tags'] = tags
+
+        self.client.put_rule(**params)
 
     def create_api_call_rule(self, name, aws_service=None, operations=None,
-                             custom_pattern=None, state='ENABLED'):
+                             custom_pattern=None, tags=None, state='ENABLED'):
         """ To select ANY operation do not set 'operations' param.
 
         :type aws_service:
@@ -209,6 +249,7 @@ class EventConnection(object):
         :type custom_pattern: dict
         :param operations:
         :type state: str
+        :type tags: list of dict
         """
         if custom_pattern:
             event_pattern = custom_pattern
@@ -229,12 +270,22 @@ class EventConnection(object):
             if operations:
                 event_pattern['detail']['eventName'] = operations
         else:
-            raise AssertionError(
-                f'aws_service or custom_pattern should be specified for rule '
-                f'with "api_call" type! Resource: {name}')
+            raise ParameterError(
+                f"aws_service or custom_pattern should be specified for rule "
+                f"with 'api_call' type! Resource: '{name}'"
+            )
 
-        self.client.put_rule(Name=name, EventPattern=dumps(event_pattern),
-                             State=state, Description=name)
+        params = dict(
+            Name=name,
+            EventPattern=dumps(event_pattern),
+            State=state,
+            Description=name
+        )
+
+        if tags:
+            params['Tags'] = tags
+
+        self.client.put_rule(**params)
 
     def get_rule(self, rule_name):
         try:
@@ -283,6 +334,11 @@ class EventConnection(object):
         """
         return self.client.list_targets_by_rule(Rule=rule_name)
 
+    def list_rules_by_target(self, target_arn):
+        response = self.client.list_rule_names_by_target(TargetArn=target_arn)
+        rule_names = response.get('RuleNames', [])
+        return rule_names
+
     def list_rules(self):
         """ Get list of rules for region."""
         rules = []
@@ -302,10 +358,12 @@ class EventConnection(object):
             for rule in rules:
                 self.remove_rule(rule['Name'])
 
-    def remove_rule(self, rule_name):
+    def remove_rule(self, rule_name, log_not_found_error=True):
         """ Remove single rule by name with targets.
 
         :type rule_name: str
+        :type log_not_found_error: boolean, parameter is needed for proper log
+        handling in the retry decorator
         """
         response = self.client.list_targets_by_rule(Rule=rule_name)
         if response['Targets']:
@@ -427,7 +485,7 @@ class MetricConnection(object):
                          alarm_actions=None, insufficient_data_actions=None,
                          extended_statistic=None, dimensions=None, unit=None,
                          description=None, datapoints=None,
-                         evaluate_low_sample_count_percentile=None):
+                         evaluate_low_sample_count_percentile=None, tags=None):
         """
         :type alarm_name: str
         :type metric_name: str
@@ -461,6 +519,7 @@ class MetricConnection(object):
         trigger the alarm
         :type evaluate_low_sample_count_percentile: str
         :param evaluate_low_sample_count_percentile: 'evaluate'|'ignore'
+        :type tags: list of dicts: List of resource tags key-value pairs
         """
         params = dict(AlarmName=alarm_name, MetricName=metric_name,
                       Namespace=namespace, Period=period, Threshold=threshold,
@@ -488,11 +547,15 @@ class MetricConnection(object):
                 evaluate_low_sample_count_percentile
         if datapoints:
             params['DatapointsToAlarm'] = datapoints
+        if tags:
+            params['Tags'] = tags
         self.client.put_metric_alarm(**params)
 
-    def remove_alarms(self, alarm_names):
+    def remove_alarms(self, alarm_names, log_not_found_error=True):
         """
         :type alarm_names: str or list
+        :type log_not_found_error: boolean, parameter is needed for proper
+        log handling in the retry decorator
         """
         if isinstance(alarm_names, str):
             alarm_names = [alarm_names]

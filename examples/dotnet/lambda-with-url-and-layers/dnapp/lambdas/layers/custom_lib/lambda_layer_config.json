@@ -1,0 +1,9 @@
+{
+  "name": "custom_lib",
+  "resource_type": "lambda_layer",
+  "runtimes": [
+    "dotnet8"
+  ],
+  "deployment_package": "custom_lib_layer.zip",
+  "custom_packages": ["HWP.1.0.2.nupkg"]
+}

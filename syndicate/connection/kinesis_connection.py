@@ -16,18 +16,20 @@
 from boto3 import client
 from botocore.exceptions import ClientError
 
+from syndicate.exceptions import InvalidValueError
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import apply_methods_decorator, retry
 
-_LOG = get_logger('syndicate.connection.kinesis_connection')
+_LOG = get_logger(__name__)
 
 
 def validate_shard_count(shard_count):
     if not isinstance(shard_count, int) or shard_count > 25:
-        raise TypeError(
-            'Shard count must be a valid integer '
-            'less than 25 (max value per region). Actual type: {0}'.format(
-                type(shard_count)))
+        raise InvalidValueError(
+            "Shard count must be a valid integer "
+            f"less than 25 (max value per region). "
+            f"Actual type: '{type(shard_count).__name__}'"
+        )
 
 
 @apply_methods_decorator(retry())
@@ -69,5 +71,9 @@ class KinesisConnection(object):
                 result.extend(response['StreamNames'])
         return result
 
-    def remove_stream(self, stream_name):
+    def remove_stream(self, stream_name, log_not_found_error=True):
+        """
+        log_not_found_error parameter is needed for proper log handling in the
+        retry decorator
+        """
         self.client.delete_stream(StreamName=stream_name)

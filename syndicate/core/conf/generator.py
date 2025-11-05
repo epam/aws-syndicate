@@ -21,6 +21,7 @@ import yaml
 from botocore.exceptions import ClientError
 from boto3.session import Session
 
+from syndicate.exceptions import ConfigurationError
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.connection.sts_connection import STSConnection
 from syndicate.core.conf.processor import (
@@ -40,13 +41,13 @@ from syndicate.core.conf.validator import (LAMBDAS_ALIASES_NAME_CFG,
 from syndicate.core.constants import DEFAULT_LOGS_EXPIRATION
 from syndicate.core.generators import _mkdir
 
-_LOG = get_logger('config_generator')
+_LOG = get_logger(__name__)
 _USER_LOG = get_user_logger()
 
 
 def generate_configuration_files(name, config_path, region,
                                  access_key, secret_key,
-                                 bundle_bucket_name, prefix, suffix,
+                                 deploy_target_bucket, prefix, suffix,
                                  extended_prefix, session_token=None,
                                  project_path=None, use_temp_creds=None,
                                  access_role=None, serial_number=None,
@@ -57,7 +58,7 @@ def generate_configuration_files(name, config_path, region,
                        "Attempting to load them")
         credentials = Session().get_credentials()
         if not credentials:
-            raise AssertionError("No credentials could be found")
+            raise ConfigurationError("No credentials could be found")
 
     try:
         sts = STSConnection(region=region,
@@ -97,18 +98,20 @@ def generate_configuration_files(name, config_path, region,
         project_path = os.getcwd()
     else:
         if not os.path.exists(project_path):
-            raise AssertionError(
+            raise ConfigurationError(
                 f'Provided project path {project_path} does not exists')
         project_path = os.path.abspath(project_path)
 
     if use_temp_creds and access_role:
-        raise AssertionError(f'Access role mustn\'t be specified if '
-                             f'\'use_temp_creds\' parameter is equal to True')
+        raise ConfigurationError(
+            f'Access role mustn\'t be specified if \'use_temp_creds\' '
+            f'parameter is equal to True'
+        )
 
     config_content = {
         ACCOUNT_ID_CFG: account_id,
         REGION_CFG: region,
-        DEPLOY_TARGET_BUCKET_CFG: bundle_bucket_name,
+        DEPLOY_TARGET_BUCKET_CFG: deploy_target_bucket,
         PROJECT_PATH_CFG: project_path,
         RESOURCES_PREFIX_CFG: prefix,
         RESOURCES_SUFFIX_CFG: suffix,

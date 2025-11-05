@@ -13,17 +13,18 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-import io
 from json import dumps
 
 from boto3 import resource
 from botocore.client import Config
 from botocore.exceptions import ClientError
 
+from syndicate.commons import deep_get
+from syndicate.exceptions import InvalidValueError
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import apply_methods_decorator, retry
 
-_LOG = get_logger('syndicate.connection.s3_connection')
+_LOG = get_logger(__name__)
 
 
 @apply_methods_decorator(retry())
@@ -164,55 +165,140 @@ class S3Connection(object):
                           'us-east-2', 'eu-central-1', 'us-east-1',
                           'eu-north-1']
         if location not in valid_location:
-            raise AssertionError('Param "location" has invalid value.'
-                                 'Valid locations: {0}'.format(valid_location))
+            raise InvalidValueError(
+                f"Param 'location' has invalid value. Valid locations: "
+                f"'{valid_location}'"
+            )
         if location != 'us-east-1':  # this is default location
             param['CreateBucketConfiguration'] = {
                 'LocationConstraint': location
             }
         self.client.create_bucket(**param)
 
-    def remove_bucket(self, bucket_name):
-        """ Remove bucket by name. To remove bucket it must be empty."""
+    def remove_bucket(self, bucket_name, log_not_found_error=True):
+        """ Remove bucket by name. To remove bucket it must be empty.
+        log_not_found_error parameter is needed for proper log handling in the
+        retry decorator
+        """
         bucket = self.resource.Bucket(bucket_name)
-        for each in bucket.objects.all():
-            each.delete()
+        bucket_versioning = self.resource.BucketVersioning(bucket_name)
+        if bucket_versioning.status == 'Enabled':
+            bucket.object_versions.delete()
+        else:
+            bucket.objects.all().delete()
         bucket.delete()
 
     def delete_bucket(self, bucket_name):
         self.client.delete_bucket(Bucket=bucket_name)
 
-    def configure_event_source_for_lambda(self, bucket, lambda_arn, events,
-                                          filter_rules=None):
+    def add_lambda_event_source(self, bucket: str, lambda_arn: str,
+                                event_source: dict):
+        """ Create event notification in the bucket that triggers the lambda
+        Note: two identical events can't be configured for two
+        separate lambdas in one bucket
+
+        :param bucket:
+        :param lambda_arn:
+        :param event_source:
+            - s3_events: list[str] - list of S3 event types:
+                's3:ReducedRedundancyLostObject'
+                's3:ObjectCreated:*'
+                's3:ObjectCreated:Put'
+                's3:ObjectCreated:Post'
+                's3:ObjectCreated:Copy'
+                's3:ObjectCreated:CompleteMultipartUpload'
+                's3:ObjectRemoved:*'
+                's3:ObjectRemoved:Delete'
+                's3:ObjectRemoved:DeleteMarkerCreated'
+            - filter_rules (optional): list[dict] - list of S3 event filters:
+                {'Name': 'prefix'|'suffix', 'Value': 'string'}
         """
-        :type bucket: str
-        :type lambda_arn: str
-        :type events: list
-        :type filter_rules: list
-        :param events: 's3:ReducedRedundancyLostObject'|'s3:ObjectCreated:*'|
-        's3:ObjectCreated:Put'|'s3:ObjectCreated:Post'|'s3:ObjectCreated:Copy'|
-        's3:ObjectCreated:CompleteMultipartUpload'|'s3:ObjectRemoved:*'|
-        's3:ObjectRemoved:Delete'|'s3:ObjectRemoved:DeleteMarkerCreated'
-        """
+        config = self.get_bucket_notification(bucket_name=bucket)
+        config.pop('ResponseMetadata')
+
+        if 'LambdaFunctionConfigurations' not in config:
+            config['LambdaFunctionConfigurations'] = []
+
+        # for some reason filter rule's name value is in uppercase when
+        # should be in lower according to the documentation
+        for lambda_config in config['LambdaFunctionConfigurations']:
+            filter_rules = deep_get(
+                lambda_config, ['Filter', 'Key', 'FilterRules'], [])
+            for filter_rule in filter_rules:
+                filter_rule['Name'] = filter_rule['Name'].lower()
+
         params = {
-            'LambdaFunctionConfigurations': [
-                {
-                    'LambdaFunctionArn': lambda_arn,
-                    'Events': events
-                }
-            ]
+            'LambdaFunctionArn': lambda_arn,
+            'Events': event_source['s3_events']
         }
-        if filter_rules:
-            params['LambdaFunctionConfigurations'][0].update({
-                "Filter": {
+        if event_source.get('filter_rules'):
+            params.update({
+                'Filter': {
                     'Key': {
-                        'FilterRules': filter_rules
+                        'FilterRules': event_source['filter_rules']
                     }
                 }
             })
-        self.client.put_bucket_notification_configuration(
-            Bucket=bucket,
-            NotificationConfiguration=params)
+        # add event notification to remote if it is not already present
+        for remote_event_source in config['LambdaFunctionConfigurations']:
+            remote_event_source_copy = remote_event_source.copy()
+            remote_event_source_copy.pop('Id')
+            if remote_event_source_copy == params:
+                break
+        else:
+            config['LambdaFunctionConfigurations'].append(params)
+
+        self.put_bucket_notification(
+            bucket_name=bucket, notification_configuration=config)
+
+    def remove_lambda_event_source(self, bucket: str, lambda_arn: str,
+                                   event_source: dict):
+        """ Remove event notification in the bucket that triggers the lambda
+        Note: two identical events can't be configured for two
+        separate lambdas in one bucket
+
+        :param bucket:
+        :param lambda_arn:
+        :param event_source:
+            - s3_events: list[str] - list of S3 event types:
+                's3:ReducedRedundancyLostObject'
+                's3:ObjectCreated:*'
+                's3:ObjectCreated:Put'
+                's3:ObjectCreated:Post'
+                's3:ObjectCreated:Copy'
+                's3:ObjectCreated:CompleteMultipartUpload'
+                's3:ObjectRemoved:*'
+                's3:ObjectRemoved:Delete'
+                's3:ObjectRemoved:DeleteMarkerCreated'
+            - filter_rules (optional): list[dict] - list of S3 event filters:
+                {'Name': 'prefix'|'suffix', 'Value': 'string'}
+        """
+        config = self.get_bucket_notification(bucket_name=bucket)
+        config.pop('ResponseMetadata')
+
+        if 'LambdaFunctionConfigurations' not in config:
+            _LOG.info('No lambda event source to remove')
+            return
+
+        saved_lambda_configs = []
+        for lambda_config in config['LambdaFunctionConfigurations']:
+            # for some reason filter rule's name value is in uppercase when
+            # should be in lower according to the documentation
+            filter_rules = deep_get(
+                lambda_config, ['Filter', 'Key', 'FilterRules'], [])
+            for filter_rule in filter_rules:
+                filter_rule['Name'] = filter_rule['Name'].lower()
+
+            current_lambda = (lambda_config['LambdaFunctionArn'] == lambda_arn)
+            same_filters = filter_rules == event_source.get('filter_rules', [])
+            same_events = lambda_config['Events'] == event_source['s3_events']
+            # save config if something is different from current meta
+            if not current_lambda or not same_filters or not same_events:
+                saved_lambda_configs.append(lambda_config)
+
+        config['LambdaFunctionConfigurations'] = saved_lambda_configs
+        self.put_bucket_notification(
+            bucket_name=bucket, notification_configuration=config)
 
     def get_list_buckets(self):
         response = self.client.list_buckets()
@@ -307,8 +393,20 @@ class S3Connection(object):
         return bucket_objects
 
     def get_bucket_notification(self, bucket_name):
-        return self.client.get_bucket_notification_configuration(
-            Bucket=bucket_name
+        try:
+            return self.client.get_bucket_notification_configuration(
+                Bucket=bucket_name
+            )
+        except ClientError as e:
+            if 'AccessDenied' in str(e):
+                _LOG.warning(f'{e}. Bucket name - \'{bucket_name}\'.')
+            else:
+                raise e
+
+    def put_bucket_notification(self, bucket_name, notification_configuration):
+        self.client.put_bucket_notification_configuration(
+            Bucket=bucket_name,
+            NotificationConfiguration=notification_configuration
         )
 
     def remove_bucket_notification(self, bucket_name):
@@ -433,11 +531,10 @@ class S3Connection(object):
                 elif isinstance(rule[key], str):
                     rule[key] = [rule[key]]
                 else:
-                    raise AssertionError(
-                        'Value of CORS rule attribute {0} has invalid '
-                        'value: {1}. Should be str, int or list'.format(key,
-                                                                        rule[
-                                                                            key]))
+                    raise InvalidValueError(
+                        f"Value of CORS rule attribute '{key}' has invalid "
+                        f"value: '{rule[key]}'. Should be str, int or list"
+                    )
             boto_rules.append(rule)
 
         # boto3 returns None here

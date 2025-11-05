@@ -20,7 +20,7 @@ from syndicate.core.helper import unpack_kwargs
 from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import build_description_obj
 
-_LOG = get_logger('syndicate.core.resources.documentdb_resource')
+_LOG = get_logger(__name__)
 
 
 class DocumentDBInstanceResource(BaseResource):
@@ -41,10 +41,10 @@ class DocumentDBInstanceResource(BaseResource):
 
     def describe_documentdb_instance(self, identifier, meta):
         if not identifier:
-            return
+            return {}
         response = self.connection.describe_db_instances(identifier)
         if not response:
-            return
+            return {}
         arn = f'arn:aws:rds:{self.region}:{self.account_id}:' \
               f'db:{identifier}'
         return {
@@ -66,22 +66,26 @@ class DocumentDBInstanceResource(BaseResource):
         instance = self.connection.create_db_instance(
             instance_identifier=name, availability_zone=availability_zone,
             instance_class=instance_class,
-            cluster_identifier=cluster_identifier)
+            cluster_identifier=cluster_identifier,
+            tags=meta.get('tags'))
 
         _LOG.info(f'Created documentDB instance {instance}')
         return self.describe_documentdb_instance(identifier=name, meta=meta)
 
     def remove_db_instance(self, args):
-        self.create_pool(self._remove_db_instance, args)
+        return self.create_pool(self._remove_db_instance, args)
 
     @unpack_kwargs
     def _remove_db_instance(self, arn, config):
         instance = config['description']
         try:
-            self.connection.delete_db_instance(instance)
+            self.connection.delete_db_instance(instance,
+                                               log_not_found_error=False)
             _LOG.info(f'DocumentDB instance \'{instance}\' was removed')
+            return {arn: config}
         except ClientError as e:
             if e.response['Error']['Code'] == 'ResourceNotFoundException':
                 _LOG.warn(f'DocumentDB instance \'{instance}\' is not found')
+                return {arn: config}
             else:
                 raise e

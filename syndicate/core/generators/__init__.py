@@ -15,9 +15,10 @@
 """
 import os
 
+from syndicate.exceptions import EnvironmentError
 from syndicate.commons.log_helper import get_logger
 
-_LOG = get_logger('syndicate.core.generators')
+_LOG = get_logger(__name__)
 
 FILE_LAMBDA_HANDLER_PYTHON = 'handler.py'
 FILE_LAMBDA_HANDLER_NODEJS = 'index.js'
@@ -28,8 +29,10 @@ def _touch(path):
         with open(path, 'a'):
             os.utime(path, None)
     except OSError:
-        raise RuntimeError('Can not create new file by path {}. Syndicate '
-                           'does not have enough permissions!'.format(path))
+        raise EnvironmentError(
+            f"Can not create new file by path '{path}'. Syndicate does not "
+            f"have enough permissions!"
+        )
 
 
 def _mkdir(path, exist_ok=False, fault_message=None):
@@ -43,8 +46,10 @@ def _mkdir(path, exist_ok=False, fault_message=None):
         else:
             _LOG.error(e)
     except OSError:
-        raise RuntimeError('Can not create new folder by path {}. Syndicate '
-                           'does not have enough permissions!'.format(path))
+        raise EnvironmentError(
+            f"Can not create new folder by path '{path}'. Syndicate does not "
+            f"have enough permissions!"
+        )
 
 
 def _re_survey(answer, project_path):

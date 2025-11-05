@@ -14,8 +14,16 @@
     limitations under the License.
 """
 import concurrent
+import traceback
 from concurrent.futures import ALL_COMPLETED
 from concurrent.futures.thread import ThreadPoolExecutor
+from botocore.exceptions import ClientError, BotoCoreError
+
+from syndicate.commons import deep_get
+from syndicate.exceptions import SyndicateBaseError
+from syndicate.commons.log_helper import get_logger
+
+_LOG = get_logger(__name__)
 
 
 class BaseResource:
@@ -27,20 +35,53 @@ class BaseResource:
         :type parameters: iterable
         :type job: func
         """
+        exceptions = []
         executor = ThreadPoolExecutor(
             workers) if workers else ThreadPoolExecutor()
+        futures_dict = {}
         try:
             # futures = [executor.submit(func, i, kwargs) for i in args]
             futures = []
             for param_chunk in parameters:
                 param_chunk['self'] = self
-                futures.append(executor.submit(job, param_chunk))
+                future = executor.submit(job, param_chunk)
+                futures.append(future)
+                futures_dict[future] = param_chunk
             concurrent.futures.wait(futures, return_when=ALL_COMPLETED)
             responses = {}
             for future in futures:
-                result = future.result()
-                if result:
-                    responses.update(result)
-            return responses
+                try:
+                    result = future.result()
+                    if result:
+                        responses.update(result)
+                except Exception as e:
+                    param_chunk = futures_dict[future]
+                    resource_name = (
+                            param_chunk.get('name') or
+                            deep_get(
+                                param_chunk,
+                                ['config', 'resource_name'],
+                                'Unknown'))
+                    if isinstance(e, (ClientError, BotoCoreError)):
+                        exceptions.append(
+                            f'When processing the resource {resource_name} {e}'
+                        )
+                    elif isinstance(e, SyndicateBaseError):
+                        exceptions.append(
+                            f'When processing the resource {resource_name} '
+                            f'occurred {e.__class__.__name__} {e}'
+                        )
+                    else:
+                        exceptions.append(
+                            f'When processing the resource {resource_name} '
+                            f'occurred an unexpected error '
+                            f'({e.__class__.__name__}) {e}'
+                        )
+                    _LOG.exception(
+                        f'An error occurred when processing the resource '
+                        f'\'{resource_name}\'. {traceback.format_exc()}'
+                    )
+
+            return (responses, exceptions) if exceptions else responses
         finally:
             executor.shutdown(wait=True)

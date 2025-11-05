@@ -18,7 +18,7 @@ import boto3
 from syndicate.commons.log_helper import get_logger
 from syndicate.connection.helper import apply_methods_decorator, retry
 
-_LOG = get_logger('syndicate.connection.application_autoscaling_connection')
+_LOG = get_logger(__name__)
 
 
 @apply_methods_decorator(retry())

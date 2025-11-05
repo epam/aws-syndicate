@@ -16,6 +16,8 @@
 
 package com.syndicate.deployment.annotations.environment;
 
+import com.syndicate.deployment.model.environment.ValueTransformer;
+
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Repeatable;
 import java.lang.annotation.Retention;
@@ -33,5 +35,7 @@ public @interface EnvironmentVariable {
     String key();
 
     String value();
+
+    ValueTransformer valueTransformer() default ValueTransformer.NONE;
 
 }

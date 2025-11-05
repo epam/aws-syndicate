@@ -54,7 +54,7 @@ from syndicate.core.transform.terraform.terraform_template import \
 READ_CAPACITY_UNITS = 'ReadCapacityUnits'
 WRITE_CAPACITY_UNITS = 'WriteCapacityUnits'
 
-_LOG = get_logger('syndicate.core.transform.terraform_transformer')
+_LOG = get_logger(__name__)
 
 
 class TerraformTransformer(BuildMetaTransformer):
