@@ -296,12 +296,14 @@ class ProcessorFacade:
             create_update_swagger_ui,
             EC2_LAUNCH_TEMPLATE_TYPE:
                 self.resources_provider.ec2().update_launch_template,
+            STEP_FUNCTION_TYPE:
+                self.resources_provider.step_functions().update_state_machine,
             APPSYNC_TYPE:
                 self.resources_provider.appsync().update_graphql_api,
             RDS_DB_CLUSTER_TYPE:
                 self.resources_provider.rds_db_cluster().update_db_cluster,
             RDS_DB_INSTANCE_TYPE:
-                self.resources_provider.rds_db_instance().update_db_instance
+                self.resources_provider.rds_db_instance().update_db_instance,
         }
 
     def resource_configuration_processor(self):

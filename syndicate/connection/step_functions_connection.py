@@ -36,7 +36,8 @@ class SFConnection(object):
                              aws_session_token=aws_session_token)
         _LOG.debug('Opened new Step Functions connection.')
 
-    def create_state_machine(self, machine_name, definition, role_arn, tags):
+    def create_state_machine(self, machine_name, definition, role_arn, tags,
+                             publish_version=False, version_description=None):
         if isinstance(definition, dict):
             definition = dumps(definition)
         params = dict(
@@ -44,15 +45,69 @@ class SFConnection(object):
             definition=definition,
             roleArn=role_arn
         )
+
+        if publish_version:
+            params['publish'] = True
+            if version_description:
+                params['versionDescription'] = str(version_description)
+
         if tags:
             params['tags'] = tags
+
         return self.client.create_state_machine(**params)
+
+    def update_state_machine(self, machine_arn, definition, role_arn,
+                             publish_version=False, version_description=None):
+        params = {
+            'stateMachineArn': machine_arn,
+            'roleArn': role_arn
+        }
+
+        if isinstance(definition, dict):
+            params['definition'] = dumps(definition)
+
+        if publish_version:
+            params['publish'] = True
+            if version_description:
+                params['versionDescription'] = str(version_description)
+        return self.client.update_state_machine(**params)
+
+    def create_state_machine_alias(self, name, routing_config,
+                                   description=None):
+        params = {
+            'name': name,
+            'routingConfiguration': routing_config
+        }
+        if description:
+            params['description'] = description
+        response = self.client.create_state_machine_alias(**params)
+        return response['stateMachineAliasArn']
+
+    def update_state_machine_alias(self, arn, routing_config,
+                                   description=None):
+        params = {
+            'stateMachineAliasArn': arn,
+            'routingConfiguration': routing_config
+        }
+        if description:
+            params['description'] = description
+        self.client.update_state_machine_alias(**params)
 
     def describe_state_machine(self, arn):
         try:
             return self.client.describe_state_machine(stateMachineArn=arn)
         except ClientError as e:
             if 'StateMachineDoesNotExist' in str(e):
+                pass  # valid exception
+            else:
+                raise e
+
+    def describe_state_machine_alias(self, arn):
+        try:
+            return self.client.describe_state_machine_alias(
+                stateMachineAliasArn=arn)
+        except ClientError as e:
+            if 'ResourceNotFound' in str(e):
                 pass  # valid exception
             else:
                 raise e
