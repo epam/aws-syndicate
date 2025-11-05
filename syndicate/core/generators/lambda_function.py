@@ -205,7 +205,12 @@ def generate_lambda_layer(
         )
         return
     
-    runtime_abs_path = os.path.join(project_path, BUILD_MAPPINGS[runtime])
+    runtime_abs_path = Path(project_path, BUILD_MAPPINGS[runtime])
+    # For Python, layers are located in src/lambdas/layers
+    # For other runtimes, layers are located in lambdas/layers
+    if runtime == RUNTIME_PYTHON:
+        runtime_abs_path /= PYTHON_ROOT_DIR_SRC
+
     common_module_generator = COMMON_MODULE_PROCESSORS.get(
         runtime + LAYER_SUFFIX
     )
