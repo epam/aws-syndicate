@@ -18,5 +18,7 @@ class StepFunctionGenerator(BaseDeploymentResourceGenerator):
         "event_sources": list,
         "dependencies": list,
         "iam_role": None,
+        "publish_version": bool,
+        "alias": None,
         "tags": dict
     }

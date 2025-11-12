@@ -4,9 +4,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [1.19.0] - 2025-11-05
+- Added support for multi modular Java projects
+- Added example of Java multi module project (`examples/java/demo-multi-module`)
+- Added example of Python application project structure `pyapp` (`examples/python/demo-pyapp-structure`)
+- Added support of custom headers/methods/origins in CORS
+- Added new resource name placeholder `$rn{}` to explicitly indicate the resource name part 
+(e.g., SQS queue URL: https://sqs.region.amazonaws.com/account_id/$rn{test_queue})
+- Added support for `update`, `publish version`, and  `state machine aliases` features to the `step_functions` resource
+- Fixed an issue when failed 'update' overrides latest_deploy in state file.
+- Fixed an issue when `syndicate build` reset indent to 0 in `appsync_config.json` file.
+- Fixed dynamic resource aliases resolving when extended prefix mode is enabled
+- Fixed an issue with `syndicate test` command for python runtime in case the project path contains spaces
+- Fixed an issue related to build project mapping resolving for `appsync` and `swagger_ui` resources
+- Unified JSON formatting by extracting indent into a global constant `DEFAULT_JSON_INDENT`
+- Replaced deprecated usage of `datetime.utctnow()` with `datetime.now(timezone.utc)`
+- Renamed `project_path` to clearly distinguish runtime-specific paths from the global `CONFIG.project_path`, preventing confusion and improving code readability.
+- Changed format of CORS configuration in API Gateway resource meta from bool to map
+- Changed root directory for Java runtime from `jsrc` to `japp`
+- Encapsulated Java in a dedicated `japp` runtime root directory (`pom.xml` and related files)
+- Encapsulated Python in a dedicated `pyapp` runtime root directory (`tests` and `src` folders)
+- Updated Java and Python examples to use the new runtime root directories `japp` and `pyapp`
+- Updated Java examples to use the Syndicate Java plugin version 1.17.1
+
 # [1.18.3] - 2025-09-11
 - Fixed issue in the lambda function with the runtime Python template
 - Fixed issue with the command `syndicate --version`
+- Fixed issue with traceback displaying in case of running the `syndicate update` command in non-interactive mode without the '--force' flag
 
 # [1.18.2] - 2025-09-05
 - Added SQS queue to supported resource types for updating

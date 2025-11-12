@@ -25,6 +25,7 @@ from syndicate.exceptions import ProjectStateError, \
 from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.build.helper import (build_py_package_name,
                                          resolve_bundle_directory)
+from syndicate.core.helper import execute_command_by_path
 from syndicate.core.build.validator.mapping import (VALIDATOR_BY_TYPE_MAPPING,
                                                     ALL_TYPES)
 from syndicate.core.conf.processor import GLOBAL_AWS_SERVICES, \
@@ -40,8 +41,9 @@ from syndicate.core.constants import (API_GATEWAY_TYPE, ARTIFACTS_FOLDER,
                                       OAS_V3_FILE_NAME,
                                       API_GATEWAY_OAS_V3_TYPE, SWAGGER_UI_TYPE,
                                       SWAGGER_UI_CONFIG_FILE_NAME,
-                                      TAGS_RESOURCE_TYPE_CONFIG,
-                                      MVN_TARGET_DIR_NAME)
+                                      TAGS_RESOURCE_TYPE_CONFIG)
+from syndicate.core.generators.contents import FILE_POM
+from syndicate.core.groups import JAVA_ROOT_DIR_JAPP, RUNTIME_JAVA
 from syndicate.core.helper import (build_path, prettify_json,
                                    resolve_aliases_for_string,
                                    write_content_to_file, validate_tags)
@@ -473,6 +475,7 @@ def create_resource_json(project_path: str, bundle_name: str) -> dict[
 
 
 def _resolve_names_in_meta(resources_dict, old_value, new_value):
+    resource_name_placeholder = '$rn{' + old_value + '}'
     if isinstance(resources_dict, dict):
         for k, v in resources_dict.items():
             if k in NAME_RESOLVING_BLACKLISTED_KEYS:
@@ -481,6 +484,8 @@ def _resolve_names_in_meta(resources_dict, old_value, new_value):
                 resources_dict[k] = v.replace(old_value, new_value)
             elif isinstance(v, str) and old_value in v and v.startswith('arn'):
                 resources_dict[k] = _resolve_name_in_arn(v, old_value, new_value)
+            elif isinstance(v, str) and resource_name_placeholder in v:
+                resources_dict[k] = v.replace(resource_name_placeholder, new_value)
             else:
                 _resolve_names_in_meta(v, old_value, new_value)
     elif isinstance(resources_dict, list):
@@ -491,6 +496,9 @@ def _resolve_names_in_meta(resources_dict, old_value, new_value):
                   item.startswith('arn')):
                 index = resources_dict.index(item)
                 resources_dict[index] = _resolve_name_in_arn(item, old_value, new_value)
+            elif isinstance(item, str) and resource_name_placeholder in item:
+                index = resources_dict.index(item)
+                resources_dict[index] = item.replace(resource_name_placeholder, new_value)
             elif isinstance(item, str):
                 if item == old_value:
                     index = resources_dict.index(old_value)
@@ -522,6 +530,9 @@ def _resolve_name_in_arn(arn, old_value, new_value):
 
 
 def create_meta(project_path: str, bundle_name: str) -> None:
+    from syndicate.core.build.runtime.java import safe_resolve_mvn_path
+    from syndicate.core import PROJECT_STATE
+
     # create overall meta.json with all resource meta info
     meta_path = build_path(project_path, ARTIFACTS_FOLDER,
                            bundle_name)
@@ -531,11 +542,38 @@ def create_meta(project_path: str, bundle_name: str) -> None:
     bundle_dir = resolve_bundle_directory(bundle_name=bundle_name)
     write_content_to_file(bundle_dir, BUILD_META_FILE_NAME, overall_meta)
 
-    # remove Java runtime temporary files
-    target_path = build_path(project_path, MVN_TARGET_DIR_NAME)
-    if os.path.exists(target_path):
-        _LOG.debug(f'Removing temporary directory \'{target_path}\'')
-        shutil.rmtree(target_path, ignore_errors=True)
+    PROJECT_STATE.refresh_state()
+    build_mapping_dict = PROJECT_STATE.load_project_build_mapping()
+    is_java_exists = RUNTIME_JAVA in (build_mapping_dict or {})
+
+    if is_java_exists:
+        mvn_path = safe_resolve_mvn_path()
+        mvn_clean_command = [mvn_path, 'clean']
+
+        java_root_path_japp = build_path(project_path, JAVA_ROOT_DIR_JAPP)
+        java_root_path_japp_pom = build_path(java_root_path_japp, FILE_POM)
+        project_path_pom = build_path(project_path, FILE_POM)
+
+        if os.path.exists(java_root_path_japp_pom):
+            execute_command_by_path(
+                command=mvn_clean_command,
+                path=java_root_path_japp,
+                shell=False
+            )
+            _LOG.info(
+                f"Cleaned up the Java project in {JAVA_ROOT_DIR_JAPP!r} "
+                f"after building"
+            )
+        elif os.path.exists(project_path_pom):
+            execute_command_by_path(
+                command=mvn_clean_command,
+                path=project_path,
+                shell=False
+            )
+            _LOG.info(
+                "Cleaned up the Java project in the base project directory "
+                "after building"
+            )
 
 
 def resolve_meta(overall_meta):

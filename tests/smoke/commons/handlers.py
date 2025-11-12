@@ -10,7 +10,7 @@ from commons.checkers import exit_code_checker, artifacts_existence_checker, \
     TYPE_MODIFICATION_FUNC_MAPPING, deployment_output_checker, \
     build_meta_checker, TYPE_EXISTENCE_FUNC_MAPPING, lambda_triggers_checker, \
     lambda_envs_checker, build_meta_content_checker, TYPE_TAGS_FUNC_MAPPING, \
-    appsync_modification_checker
+    appsync_modification_checker, role_trusted_relationships_checker
 from commons.utils import populate_resources_prefix_suffix, \
     read_syndicate_aliases, populate_prefix_suffix, split_deploy_bucket_path
 from commons import connections
@@ -251,6 +251,31 @@ def appsync_modification_handler(resources: dict,
     return invalid_conf if invalid_conf else True
 
 
+def trusted_relationships_content_handler(resources: dict,
+                                          **kwargs) -> bool | dict:
+    results = {}
+    missing_presence_items = {}
+    found_absence_items = {}
+    for role_name, config in resources.items():
+        role_name = populate_prefix_suffix(role_name,
+                                           CONFIG.resources_prefix,
+                                           CONFIG.resources_suffix)
+        if result := role_trusted_relationships_checker(
+                role_name, **config):
+            if result.get('missing_presence_items'):
+                missing_presence_items[role_name] = result.get(
+                    'missing_presence_items')
+            if result.get('found_absence_items'):
+                found_absence_items[role_name] = result.get(
+                    'found_absence_items')
+
+    if missing_presence_items:
+        results['missing_presence_items'] = missing_presence_items
+    if found_absence_items:
+        results['found_absence_items'] = found_absence_items
+    return results if any(results.values()) else True
+
+
 HANDLERS_MAPPING = {
     'exit_code': exit_code_handler,
     'artifacts_existence': artifacts_existence_handler,
@@ -262,5 +287,6 @@ HANDLERS_MAPPING = {
     'tag_existence': tag_existence_handler,
     'lambda_trigger_existence': lambda_trigger_handler,
     'lambda_env_existence': lambda_env_handler,
-    'appsync_modification': appsync_modification_handler
+    'appsync_modification': appsync_modification_handler,
+    'trusted_relationships_content': trusted_relationships_content_handler
 }

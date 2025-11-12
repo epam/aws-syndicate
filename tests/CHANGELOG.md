@@ -1,4 +1,31 @@
+## 2025-10-29
+### Added
+- Added new stage parameter `update_content` with optional parameters `lambda_paths` and `appsync_path`
+
+## 2025-10-21
+### Added
+- Added tests for the new `pyapp` Python structure, including backward compatibility validation
+
+## 2025-10-17
+### Added
+- Added tests for the new `japp` Java structure, including backward compatibility validation
+
+## 2025-10-15
+### Changed
+- Replaced deprecated usage of `datetime.utctnow()` with `datetime.now(timezone.utc)`.
+
+## 2025-10-13
+### Added
+- Added `trusted_relationships_content` checker for IAM Role trusted relationships content verification
+### Changed
+- Fixed `syndicate --version` with `--verbose` parameter
+
+## 2025-10-07
+### Added
+- Added tests for `syndicate --version` command
+
 ## 2025-08-29
+### Changed
 - Fixed an issue with building python lambda layer
 - Fixed `NoSuchBucket` error during checking the existence of a Swagger UI in case the bucket does not exist
 

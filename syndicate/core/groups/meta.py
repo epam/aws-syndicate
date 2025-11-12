@@ -593,6 +593,10 @@ def sns_topic(ctx, **kwargs):
 @click.option('--iam-role',
               cls=MultiWordOption, type=str, required=True,
               help="IAM role to use for this state machine")
+@click.option('--publish_version', type=bool, default=False,
+              help="Defines whether to publish the step function version")
+@click.option('--alias', type=str,
+              help="Step function alias name")
 @click.option('--tags', type=DictParamType(), callback=check_tags,
               help='The resource tags')
 @verbose_option

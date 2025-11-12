@@ -18,7 +18,7 @@ import os
 import re
 import sys
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path, PurePath
 from typing import Union
 
@@ -32,7 +32,10 @@ from syndicate.core.constants import BUILD_ACTION, \
     OK_RETURN_CODE, ABORTED_RETURN_CODE, MODIFICATION_OPS
 from syndicate.core.constants import DATE_FORMAT_ISO_8601
 from syndicate.core.groups import RUNTIME_JAVA, RUNTIME_NODEJS, RUNTIME_PYTHON, \
-    RUNTIME_SWAGGER_UI, RUNTIME_DOTNET, RUNTIME_APPSYNC
+    RUNTIME_SWAGGER_UI, RUNTIME_DOTNET, RUNTIME_APPSYNC, JAVA_ROOT_DIR_JAPP, \
+    NODEJS_ROOT_DIR, PYTHON_ROOT_DIR_PYAPP, DOTNET_ROOT_DIR, \
+    SWAGGER_UI_ROOT_DIR, APPSYNC_ROOT_DIR, JAVA_ROOT_DIR_JSRC, \
+    PYTHON_ROOT_DIR_SRC
 
 CAPITAL_LETTER_REGEX = '[A-Z][^A-Z]*'
 
@@ -53,12 +56,17 @@ PROJECT_STATE_FILE = '.syndicate'
 LAMBDA_CONFIG_FILE = 'lambda_config.json'
 
 BUILD_MAPPINGS = {
-    RUNTIME_JAVA: 'jsrc/main/java',
-    RUNTIME_PYTHON: 'src',
-    RUNTIME_NODEJS: 'app',
-    RUNTIME_DOTNET: 'dnapp',
-    RUNTIME_SWAGGER_UI: 'swagger_src',
-    RUNTIME_APPSYNC: 'appsync_src'
+    RUNTIME_JAVA: JAVA_ROOT_DIR_JAPP,
+    RUNTIME_PYTHON: PYTHON_ROOT_DIR_PYAPP,
+    RUNTIME_NODEJS: NODEJS_ROOT_DIR,
+    RUNTIME_DOTNET: DOTNET_ROOT_DIR,
+    RUNTIME_SWAGGER_UI: SWAGGER_UI_ROOT_DIR,
+    RUNTIME_APPSYNC: APPSYNC_ROOT_DIR
+}
+
+LEGACY_BUILD_MAPPINGS = {
+    RUNTIME_JAVA: JAVA_ROOT_DIR_JSRC,
+    RUNTIME_PYTHON: PYTHON_ROOT_DIR_SRC
 }
 
 OPERATION_LOCK_MAPPINGS = {
@@ -308,7 +316,8 @@ class ProjectState:
         elif locked_till := lock.get(LOCK_LOCKED_TILL):
             locked_till_datetime = datetime.strptime(
                 locked_till, DATE_FORMAT_ISO_8601)
-            if locked_till_datetime <= datetime.utcnow():
+            now = datetime.now(timezone.utc).replace(tzinfo=None)
+            if locked_till_datetime <= now:
                 lock[LOCK_LOCKED_TILL] = None
                 lock[LOCK_IS_LOCKED] = False
                 return True
@@ -385,11 +394,82 @@ class ProjectState:
         if _persistence_need:
             self.save()
 
+    def _check_legacy_path(
+        self, 
+        runtime: str, 
+        current_path: Path,
+    ) -> tuple[Path, list]:
+        """
+        Check legacy path structure for lambdas if none found in current path.
+        :param runtime: Runtime type
+        :param current_path: Current path being checked
+        :return: Tuple of (path, lambdas_list)
+        """
+        from syndicate.core.generators.lambda_function import resolve_lambda_path
+        
+        if runtime not in LEGACY_BUILD_MAPPINGS:
+            return current_path, []
+            
+        legacy_runtime_root_dir = LEGACY_BUILD_MAPPINGS[runtime]
+        legacy_path = resolve_lambda_path(
+            Path(self.project_path), runtime, legacy_runtime_root_dir
+        )
+        
+        if os.path.exists(legacy_path):
+            _LOG.info(
+                f'No {runtime} lambdas found in the {BUILD_MAPPINGS[runtime]!r} '
+                f'dir. Checking the {legacy_runtime_root_dir!r} dir for '
+                f'{runtime} lambdas.'
+            )
+            lambdas = self._resolve_lambdas_from_path(legacy_path, runtime)
+            _LOG.info(
+                f'Found the following {runtime} lambdas in the '
+                f'{legacy_runtime_root_dir!r} dir: {lambdas}.'
+            )
+            return legacy_path, lambdas
+            
+        return current_path, []
+
+    def _add_build_mapping_for_runtime(
+        self, 
+        runtime: str, 
+        path: Path, 
+        lambdas: list,
+    ) -> None:
+        """
+        Add build mapping based on runtime and path structure.
+        :param runtime: Runtime type
+        :param path: Current path
+        :param lambdas: List of found lambdas
+        """
+        if not lambdas:
+            return
+
+        if runtime in LEGACY_BUILD_MAPPINGS:
+            legacy_runtime_root_dir = LEGACY_BUILD_MAPPINGS[runtime]
+            actual_runtime_root_dir = BUILD_MAPPINGS[runtime]
+            path_as_posix = path.as_posix()
+
+            is_legacy_path = (
+                legacy_runtime_root_dir in path_as_posix and 
+                actual_runtime_root_dir not in path_as_posix
+            )
+            
+            if is_legacy_path:
+                self.add_project_build_mapping(
+                    runtime,
+                    build_mapping=legacy_runtime_root_dir,
+                )
+            else:
+                self.add_project_build_mapping(runtime)
+        else:
+            self.add_project_build_mapping(runtime)
+
     def _update_lambdas_from_path(self, path: Union[str, Path], runtime: str):
         """
         Non persistently updates ProjectState runtime and
         any found lambdas from a given path.
-        :parameter path:Path
+        :parameter path: Path
         :parameter runtime: str
         :return: List
         """
@@ -401,14 +481,20 @@ class ProjectState:
 
         _LOG.info(f'Going to resolve any lambda names from a given path: '
                   f'{path.absolute()}.')
-        _lambdas: list = self._resolve_lambdas_from_path(path, runtime)
-        for name in self._resolve_lambdas_from_path(path, runtime):
+        
+        lambdas = self._resolve_lambdas_from_path(path, runtime)
+        
+        if not lambdas:
+            path, lambdas = self._check_legacy_path(runtime, path)
+
+        for name in lambdas:
             _LOG.info(f'Going to add the following \'{runtime}\' lambda:'
                       f'\'{name}\' to the pending ProjectState.')
             self.add_lambda(lambda_name=name, runtime=runtime)
-        if _lambdas:
-            self.add_project_build_mapping(runtime)
-        return _lambdas
+        
+        self._add_build_mapping_for_runtime(runtime, path, lambdas)
+        
+        return lambdas
 
     def add_lambda(self, lambda_name, runtime):
         lambdas = self.dct.get(STATE_LAMBDAS)
@@ -437,11 +523,16 @@ class ProjectState:
             f'Going to resolve any build project mapping dependent resources '
             f'from a given path: {path.absolute()}.'
         )
-        build_project_mappings: dict = self.dct.get(
+        build_project_mappings: dict | None = self.dct.get(
             STATE_BUILD_PROJECT_MAPPING
         )
         _bpm_resources = self._resolve_bpm_resources_from_path(path, runtime)
-        if _bpm_resources and runtime not in build_project_mappings:
+
+        missing_build_project_mapping = (
+            not build_project_mappings or 
+            runtime not in build_project_mappings
+        )
+        if _bpm_resources and (missing_build_project_mapping):
             _LOG.info(
                 f'Going to add build project mapping for the following '
                 f'resource type\'{runtime}\' to the pending ProjectState.')
@@ -449,19 +540,22 @@ class ProjectState:
             return _bpm_resources
         return []
 
-    def add_project_build_mapping(self, runtime):
+    def add_project_build_mapping(self, runtime, build_mapping=None):
         build_project_mappings = self.dct.get(STATE_BUILD_PROJECT_MAPPING)
         if not build_project_mappings:
             build_project_mappings = dict()
             self.dct.update(
                 {STATE_BUILD_PROJECT_MAPPING: build_project_mappings})
-        build_mapping = BUILD_MAPPINGS.get(runtime)
+        build_mapping = build_mapping or BUILD_MAPPINGS.get(runtime)
         build_project_mappings.update({runtime: build_mapping})
 
     def load_project_build_mapping(self):
         return self.dct.get(STATE_BUILD_PROJECT_MAPPING)
 
     def log_execution_event(self, **kwargs):
+        from syndicate.core import CONFIG, CONN
+        from syndicate.core.build.bundle_processor import \
+            build_output_key
         operation = kwargs.get('operation')
         status = kwargs.get('status')
         rollback_on_error = kwargs.get('rollback_on_error')
@@ -486,10 +580,34 @@ class ProjectState:
             params['is_succeeded'] = status
 
             if params['is_succeeded'] != ABORTED_STATUS:
-                if not (status is False and rollback_on_error is True):
+                s3 = CONN.s3()
+                bundle_name = params.get('bundle_name')
+                deploy_name = params.get('deploy_name')
+
+                keys_to_check = [
+                    PurePath(
+                        CONFIG.deploy_target_bucket_key_compound,
+                        build_output_key(bundle_name, deploy_name, True)
+                    ).as_posix(),
+                    PurePath(
+                        CONFIG.deploy_target_bucket_key_compound,
+                        build_output_key(bundle_name, deploy_name, False)
+                    ).as_posix(),
+                ]
+
+                output_file_exist = any(
+                    s3.is_file_exists(CONFIG.deploy_target_bucket, key)
+                    for key in keys_to_check
+                )
+
+                skip_rollback = not (
+                        status is False and rollback_on_error is True
+                )
+
+                if skip_rollback and output_file_exist:
                     params.pop('rollback_on_error')
                     self._set_latest_deploy_info(**params)
-
+    
         if operation == CLEAN_ACTION and status is True:
             self._delete_latest_deploy_info()
 
@@ -532,7 +650,7 @@ class ProjectState:
 
         locks = self.locks
         lock = locks.get(lock_name)
-        modification_datetime = datetime.utcnow()
+        modification_datetime = datetime.now(timezone.utc).replace(tzinfo=None)
         timestamp = modification_datetime.strftime(DATE_FORMAT_ISO_8601)
         locked_till_timestamp = (modification_datetime +
                                  timedelta(minutes=locked_till)).strftime(
@@ -582,7 +700,7 @@ class ProjectState:
         self.save()
 
     @staticmethod
-    def build_from_structure(config):
+    def build_from_structure(config: "ProjectState"):
         """Builds project state file from existing project folder in case of
         moving from older versions
         :type config: syndicate.core.conf.processor.ConfigHolder
@@ -595,11 +713,11 @@ class ProjectState:
             project_path=absolute_path, project_name=project_path.name
         )
 
-        for runtime, source_path in BUILD_MAPPINGS.items():
-            lambdas_path = resolve_lambda_path(project_path, runtime,
-                                               source_path)
+        for runtime, runtime_root_dir in BUILD_MAPPINGS.items():
+            lambdas_path = resolve_lambda_path(
+                project_path, runtime, runtime_root_dir
+            )
             if os.path.exists(lambdas_path):
-                project_state.add_project_build_mapping(runtime)
                 project_state._update_lambdas_from_path(lambdas_path, runtime)
 
         project_state.save()
@@ -615,30 +733,29 @@ class ProjectState:
         :parameter runtime: str
         :return: List[str]
         """
-
-        lambda_list = []
-        _java_lambda_regex = 'lambdaName\s*=\s*"(.+)"'
+        lambda_names = []
+        java_lambda_regex = re.compile(r'lambdaName\s*=\s*"(.+?)"')
 
         if not path.exists():
-            return lambda_list
+            return []
 
-        for item in path.iterdir():
-            if runtime == RUNTIME_JAVA:
-                if not item.is_file():
+        if runtime == RUNTIME_JAVA:
+            for java_file in path.rglob("*.java"):
+                if not java_file.is_file():
                     continue
                 try:
-                    match = re.search(_java_lambda_regex, item.read_text())
+                    content = java_file.read_text(encoding='utf-8')
+                    match = java_lambda_regex.search(content)
                     if match:
-                        lambda_list.append(match.group(1))
-                except (OSError, Exception):
-                    print("Couldn't retrieve lambda name from the java "
-                          "lambda by path: {}".format(item.absolute()),
-                          file=sys.stderr)
-            else:
-                if (item/LAMBDA_CONFIG_FILE).exists():
-                    lambda_list.append(item.name)
+                        lambda_names.append(match.group(1))
+                except Exception:
+                    print(f"Couldn't read or parse Java file: {java_file.absolute()}", file=sys.stderr)
+        else:
+            for item in path.iterdir():
+                if (item / LAMBDA_CONFIG_FILE).exists():
+                    lambda_names.append(item.name)
 
-        return lambda_list
+        return lambda_names
 
     @staticmethod
     def _resolve_bpm_resources_from_path(path: Path, runtime: str) -> list:

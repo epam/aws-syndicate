@@ -2,7 +2,7 @@ import json
 
 from syndicate.exceptions import ResourceNotFoundError
 from syndicate.commons.log_helper import get_logger, get_user_logger
-from syndicate.core.constants import DYNAMO_TABLE_TYPE
+from syndicate.core.constants import DYNAMO_TABLE_TYPE, DEFAULT_JSON_INDENT
 from syndicate.core.generators.deployment_resources.base_generator import \
     BaseDeploymentResourceGenerator, BaseConfigurationGenerator
 from syndicate.core.generators import (_read_content_from_file,
@@ -58,8 +58,10 @@ class DynamoDBGlobalIndexGenerator(BaseConfigurationGenerator):
         deployment_resources[self.table_name]['global_indexes'].append(
             self._resolve_configuration()
         )
-        _write_content_to_file(path_with_table,
-                               json.dumps(deployment_resources, indent=2))
+        _write_content_to_file(
+            path_with_table,
+            json.dumps(deployment_resources, indent=DEFAULT_JSON_INDENT),
+        )
 
 
 class DynamoDBAutoscalingGenerator(BaseConfigurationGenerator):
@@ -98,5 +100,7 @@ class DynamoDBAutoscalingGenerator(BaseConfigurationGenerator):
         deployment_resources[self.table_name]['autoscaling'].append(
             self._resolve_configuration()
         )
-        _write_content_to_file(path_with_table,
-                               json.dumps(deployment_resources, indent=2))
+        _write_content_to_file(
+            path_with_table,
+            json.dumps(deployment_resources, indent=DEFAULT_JSON_INDENT),
+        )

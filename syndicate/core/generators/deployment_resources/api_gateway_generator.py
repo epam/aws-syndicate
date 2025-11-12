@@ -8,7 +8,7 @@ from syndicate.commons.log_helper import get_logger, get_user_logger
 from syndicate.core.constants import API_GATEWAY_TYPE, \
     COGNITO_USER_POOL_AUTHORIZER_TYPE, CUSTOM_AUTHORIZER_KEY, \
     COGNITO_USER_POOL_TYPE, TOKEN_LAMBDA_AUTHORIZER_TYPE, \
-    REQUEST_LAMBDA_AUTHORIZER_TYPE
+    REQUEST_LAMBDA_AUTHORIZER_TYPE, DEFAULT_JSON_INDENT
 from syndicate.core.generators import (_read_content_from_file,
                                        _write_content_to_file)
 from syndicate.core.generators.deployment_resources.base_generator import \
@@ -113,8 +113,10 @@ class ApiGatewayAuthorizerGenerator(ApiGatewayConfigurationGenerator):
             deployment_resources[self.api_gateway_name]['authorizers'] = {}
         deployment_resources[self.api_gateway_name]['authorizers'][
             self.name] = self._resolve_configuration()
-        _write_content_to_file(path_with_api,
-                               json.dumps(deployment_resources, indent=2))
+        _write_content_to_file(
+            path_with_api,
+            json.dumps(deployment_resources, indent=DEFAULT_JSON_INDENT),
+        )
 
     def get_meta_with_authorizer(self, paths_with_api: list,
                                  authorizer_name: str):
@@ -166,7 +168,12 @@ class ApiGatewayAuthorizerGenerator(ApiGatewayConfigurationGenerator):
 
 class ApiGatewayResourceGenerator(ApiGatewayConfigurationGenerator):
     CONFIGURATION = {
-        'enable_cors': bool
+        'enable_cors': {
+            'state': bool,
+            'custom_headers': list,
+            'custom_methods': list,
+            'custom_origins': list
+        }
     }
 
     def __init__(self, **kwargs):
@@ -205,8 +212,10 @@ class ApiGatewayResourceGenerator(ApiGatewayConfigurationGenerator):
 
         deployment_resources[self.api_gateway_name]['resources'][
             self.resource_path] = self._resolve_configuration()
-        _write_content_to_file(path_with_api,
-                               json.dumps(deployment_resources, indent=2))
+        _write_content_to_file(
+            path_with_api,
+            json.dumps(deployment_resources, indent=DEFAULT_JSON_INDENT),
+        )
 
 
 class ApiGatewayResourceMethodGenerator(ApiGatewayConfigurationGenerator):
@@ -267,8 +276,10 @@ class ApiGatewayResourceMethodGenerator(ApiGatewayConfigurationGenerator):
         deployment_resources[self.api_gateway_name]['resources'][
             self.resource_path][self.method] = \
             self._resolve_configuration()
-        _write_content_to_file(path_with_api,
-                               json.dumps(deployment_resources, indent=2))
+        _write_content_to_file(
+            path_with_api,
+            json.dumps(deployment_resources, indent=DEFAULT_JSON_INDENT),
+        )
 
     def _resolve_configuration(self, defaults_dict=None):
         if self._dict.get('integration_type') == 'lambda':

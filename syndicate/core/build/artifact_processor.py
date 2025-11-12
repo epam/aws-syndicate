@@ -24,13 +24,9 @@ from syndicate.core.build.runtime.nodejs import assemble_node_lambdas
 from syndicate.core.build.runtime.python import assemble_python_lambdas
 from syndicate.core.build.runtime.swagger_ui import assemble_swagger_ui
 from syndicate.core.build.runtime.appsync import assemble_appsync
+from syndicate.core.groups import RUNTIME_SWAGGER_UI, RUNTIME_APPSYNC, \
+    RUNTIME_JAVA, RUNTIME_NODEJS, RUNTIME_PYTHON, RUNTIME_DOTNET
 
-RUNTIME_JAVA = 'javaX'
-RUNTIME_NODEJS = 'nodejs20.x'
-RUNTIME_PYTHON = 'pythonX'
-RUNTIME_DOTNET = 'dotnet8'
-RUNTIME_SWAGGER_UI = 'swagger_ui'
-RUNTIME_APPSYNC = 'appsync'
 
 SUPPORTED_RUNTIMES = [
     RUNTIME_JAVA,
@@ -53,8 +49,14 @@ RUNTIME_TO_BUILDER_MAPPING = {
 _LOG = get_logger(__name__)
 
 
-def assemble_artifacts(bundle_name, project_path, runtime,
-                       errors_allowed=False, skip_tests=False, **kwargs):
+def assemble_artifacts(
+    bundle_name: str, 
+    runtime_root_dir: str,
+    runtime: str,
+    errors_allowed: bool = False,
+    skip_tests: bool = False,
+    **kwargs
+) -> None:
     if runtime not in SUPPORTED_RUNTIMES:
         raise InvalidValueError(
             f"Runtime '{runtime}' is not supported. "
@@ -71,7 +73,10 @@ def assemble_artifacts(bundle_name, project_path, runtime,
         raise InvalidValueError(
             f"Runtime '{runtime}' is not supported. "
             f"Currently available runtimes:'{SUPPORTED_RUNTIMES}'")
-    assemble_func(project_path=project_path,
-                  bundles_dir=bundle_dir,
-                  errors_allowed=errors_allowed,
-                  skip_tests=skip_tests)
+
+    assemble_func(
+        runtime_root_dir=runtime_root_dir,
+        bundles_dir=bundle_dir,
+        errors_allowed=errors_allowed,
+        skip_tests=skip_tests
+    )

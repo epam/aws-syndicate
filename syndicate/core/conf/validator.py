@@ -20,6 +20,9 @@ from typing import Any
 
 from syndicate.core.conf.bucket_view import NAMED_S3_URI_PATTERN
 from syndicate.commons.log_helper import get_user_logger
+from syndicate.core.groups import (
+    RUNTIME_NODEJS, RUNTIME_PYTHON, RUNTIME_JAVA, RUNTIME_SWAGGER_UI
+)
 
 MIN_BUCKET_NAME_LEN = 3
 MAX_BUCKET_NAME_LEN = 63
@@ -63,17 +66,12 @@ LOCK_LIFETIME_MINUTES_CFG = 'lock_lifetime_minutes'
 
 TAGS_CFG = 'tags'
 
-PYTHON_LANGUAGE_NAME = 'python'
-NODEJS_LANGUAGE_NAME = 'nodejs'
-JAVA_LANGUAGE_NAME = 'java'
-DOTNET_LANGUAGE_NAME = 'dotnet'
-SWAGGER_UI_NAME = 'swagger_ui'
-APPSYNC_NAME = 'appsync'
-
-ALLOWED_RUNTIME_LANGUAGES = [PYTHON_LANGUAGE_NAME,
-                             JAVA_LANGUAGE_NAME,
-                             NODEJS_LANGUAGE_NAME,
-                             SWAGGER_UI_NAME]
+ALLOWED_RUNTIME_LANGUAGES = [
+    RUNTIME_PYTHON,
+    RUNTIME_JAVA,
+    RUNTIME_NODEJS,
+    RUNTIME_SWAGGER_UI
+]
 
 REQUIRED_PARAM_ERROR = 'The required key {} is missing'
 UNKNOWN_PARAM_MESSAGE = 'Unknown parameter(s) in the configuration file: {}'
