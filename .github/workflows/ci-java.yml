@@ -8,6 +8,8 @@ on:
       - develop
     paths:
       - 'plugin/**'
+  pull_request_review:
+    types: [ submitted ]
   push:
     branches:
       - master
@@ -18,14 +20,23 @@ on:
       - published
     paths:
       - 'plugin/**'
-  workflow_dispatch:
 
 jobs:
   maven:
+    if: >
+      github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository ||
+      github.event_name == 'push' ||
+      github.event_name == 'release' ||
+      github.event_name == 'pull_request_review' && github.event.review.state == 'approved' && github.event.pull_request.head.repo.full_name != github.repository
     uses: ./.github/workflows/maven.yml
-    if: github.repository_owner == 'epam'
+
 
   check-modified-files:
+    if: >
+      github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository ||
+      github.event_name == 'push' ||
+      github.event_name == 'release' ||
+      github.event_name == 'pull_request_review' && github.event.review.state == 'approved' && github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
     outputs:
       files_modified: ${{ steps.check_files.outputs.run_publish_steps }}
@@ -55,7 +66,10 @@ jobs:
 
   check-modified-release-files:
     runs-on: ubuntu-latest
-    if: github.repository_owner == 'epam' && github.event.action == 'published'
+    if: >
+      github.repository == 'epam/aws-syndicate' &&
+      github.event_name == 'release' &&
+      github.event.action == 'published'
     outputs:
       files_modified: ${{ steps.check_files.outputs.run_publish_steps }}
     steps:
@@ -92,7 +106,11 @@ jobs:
     environment: release-snapshot
     needs: [maven, check-modified-files]
     runs-on: ubuntu-latest
-    if: github.repository_owner == 'epam' && github.event_name == 'push' && github.ref == 'refs/heads/master' && needs.check-modified-files.outputs.files_modified == 'true'
+    if: >
+      github.repository == 'epam/aws-syndicate' &&
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/master' &&
+      needs.check-modified-files.outputs.files_modified == 'true'
 
     steps:
       - uses: actions/checkout@v4
@@ -129,7 +147,11 @@ jobs:
     environment: release-maven-central
     needs: [maven, check-modified-release-files]
     runs-on: ubuntu-latest
-    if: github.repository_owner == 'epam' && github.event.action == 'published' && needs.check-modified-release-files.outputs.files_modified == 'true'
+    if: >
+      github.repository == 'epam/aws-syndicate' &&
+      github.event_name == 'release' &&
+      github.event.action == 'published' &&
+      needs.check-modified-release-files.outputs.files_modified == 'true'
 
     steps:
       - uses: actions/checkout@v4
