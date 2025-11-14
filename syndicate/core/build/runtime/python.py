@@ -38,8 +38,8 @@ from syndicate.core.constants import (LAMBDA_CONFIG_FILE_NAME, DEFAULT_SEP,
                                       LAMBDA_LAYER_CONFIG_FILE_NAME,
                                       PYTHON_LAMBDA_LAYER_PATH,
                                       MANY_LINUX_2014_PLATFORM)
-from syndicate.core.helper import (build_path, unpack_kwargs, zip_ext,
-                                   without_zip_ext, compute_file_hash)
+from syndicate.core.helper import build_path, unpack_kwargs, zip_ext, \
+    without_zip_ext, compute_file_hash, compute_string_hash
 from syndicate.core.resources.helper import validate_params
 from syndicate.core.groups import PYTHON_ROOT_DIR_SRC
 
@@ -131,6 +131,7 @@ def build_python_lambda_layer(
 
     _LOG.info(f"Going to assemble lambda layer '{layer_config['name']}'")
     package_name = zip_ext(layer_config['deployment_package'])
+    python_versions = ', '.join(layer_config.get('runtimes', [])) or None
 
     r_hash_name = f'.{artifact_name}_{REQ_HASH_SUFFIX}'
     artifact_cache_path = Path(cache_dir_path, artifact_name)
@@ -143,14 +144,21 @@ def build_python_lambda_layer(
 
     # install requirements.txt content
     requirements_path = Path(layer_root, REQ_FILE_NAME)
-    if os.path.exists(requirements_path):
+
+    if not os.path.exists(requirements_path):
+        current_req_hash = EMPTY_FILE_HASH
+    else:
         current_req_hash = compute_file_hash(requirements_path)
-        if (current_req_hash != EMPTY_FILE_HASH and
-                prev_req_hash != current_req_hash):
+
+    if current_req_hash != EMPTY_FILE_HASH:
+        if python_versions:
+            current_req_hash += compute_string_hash(python_versions)
+        if prev_req_hash != current_req_hash:
             _LOG.debug(f'Artifacts cache path: {artifact_cache_path}')
             os.makedirs(artifact_cache_path, exist_ok=True)
 
-            install_requirements_to(requirements_path, to=artifact_cache_path,
+            install_requirements_to(requirements_path,
+                                    to=artifact_cache_path,
                                     config=layer_config,
                                     errors_allowed=errors_allowed)
 
@@ -165,9 +173,11 @@ def build_python_lambda_layer(
                 f.write(current_req_hash)
                 _LOG.debug(f'Updated requirements hash to {current_req_hash}')
         else:
-            _LOG.info(
-                f"Skipping installation from the '{requirements_path}' "
-                f"because no changes detected from the previous run")
+            _LOG.info(f"Skipping installation from the '{requirements_path}' "
+                      f"because no changes detected from the previous run")
+    else:
+        _LOG.info(f"Skipping installation from the '{requirements_path}' "
+                  f"because file is empty")
 
     # install local requirements
     local_requirements_path = Path(layer_root, LOCAL_REQ_FILE_NAME)
@@ -188,8 +198,9 @@ def build_python_lambda_layer(
         zip_dir(str(tmp_artifact_path),
                 str(Path(artifact_path, package_name)))
 
-    if (Path(cache_dir_path, package_name).exists() or
-            Path(artifact_path, package_name).exists()):
+    if ((Path(cache_dir_path, package_name).exists() or
+        Path(artifact_path, package_name).exists()) and
+            current_req_hash != EMPTY_FILE_HASH):
         _LOG.info(f"Merging lambda layer code with 3-rd party dependencies")
         merge_zip_files(str(Path(artifact_path, package_name)),
                         str(Path(cache_dir_path, package_name)),
@@ -232,6 +243,7 @@ def _build_python_artifact(
 
     _LOG.info(f"Going to assemble lambda '{lambda_name}'")
     package_name = build_py_package_name(lambda_name, lambda_config["version"])
+    python_version = lambda_config['runtime']
 
     r_hash_name = f'.{artifact_name}_{REQ_HASH_SUFFIX}'
     artifact_cache_path = Path(cache_dir_path, artifact_name)
@@ -247,31 +259,37 @@ def _build_python_artifact(
 
     # install requirements.txt content
     requirements_path = Path(root, REQ_FILE_NAME)
-    if os.path.exists(requirements_path):
+    if not os.path.exists(requirements_path):
+        current_req_hash = EMPTY_FILE_HASH
+    else:
         current_req_hash = compute_file_hash(requirements_path)
-        if (current_req_hash != EMPTY_FILE_HASH and
-                prev_req_hash != current_req_hash):
+
+    if current_req_hash != EMPTY_FILE_HASH:
+        current_req_hash += compute_string_hash(python_version)
+        if prev_req_hash != current_req_hash:
             _LOG.debug(f'Artifacts cache path: {artifact_cache_path}')
             os.makedirs(artifact_cache_path, exist_ok=True)
-            
-            install_requirements_to(requirements_path, to=artifact_cache_path,
-                                    config=lambda_config,
-                                    errors_allowed=errors_allowed)
+            install_requirements_to(requirements_path,
+                                        to=artifact_cache_path,
+                                        config=lambda_config,
+                                        errors_allowed=errors_allowed)
             _LOG.debug(
                 f'Zipping 3-rd party dependencies in {artifact_cache_path}')
-            zip_dir(str(artifact_cache_path), 
+            zip_dir(str(artifact_cache_path),
                     str(Path(cache_dir_path, package_name)))
 
             remove_dir(artifact_cache_path)
             _LOG.debug(f'"{artifact_cache_path}" was removed successfully')
-            
+
             with open(req_hash_path, 'w') as f:
                 f.write(current_req_hash)
                 _LOG.debug(f'Updated requirements hash to {current_req_hash}')
         else:
-            _LOG.info(
-                f"Skipping installation from the '{requirements_path}' "
-                f"because no changes detected from the previous run")
+            _LOG.info(f"Skipping installation from the '{requirements_path}' "
+                      f"because no changes detected from the previous run")
+    else:
+        _LOG.info(f"Skipping installation from the '{requirements_path}' "
+                  f"because file is empty")
 
     # install local requirements
     local_requirements_path = Path(root, LOCAL_REQ_FILE_NAME)
@@ -300,7 +318,8 @@ def _build_python_artifact(
     _LOG.info(f'Packaging artifacts by {tmp_artifact_path} to {package_name}')
     zip_dir(str(tmp_artifact_path), str(Path(artifact_path, package_name)))
 
-    if Path(cache_dir_path, package_name).exists():
+    if (Path(cache_dir_path, package_name).exists() and
+            current_req_hash != EMPTY_FILE_HASH):
         _LOG.info(f"Merging lambda's '{lambda_name}' code with 3-rd party "
                   f"dependencies")
         merge_zip_files(str(Path(artifact_path, package_name)),
@@ -597,7 +616,8 @@ def _get_python_version(lambda_config: dict) -> Optional[str]:
      "runtime": "python3.7" => "3.7".
     If "runtime" contains a list with runtimes. The lowest version is returned
     """
-    runtimes: Union[None, List, str] = lambda_config.get('runtime')
+    runtimes: Union[None, List, str] = (lambda_config.get('runtime') or
+                                        lambda_config.get('runtimes'))
     if not runtimes:
         return
     if isinstance(runtimes, str):

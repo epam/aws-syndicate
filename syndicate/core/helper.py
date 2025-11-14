@@ -1047,6 +1047,13 @@ def compute_file_hash(file_path: Union[str, Path],
     return hash_obj.hexdigest()
 
 
+def compute_string_hash(input_string: str,
+                        algorithm: str = 'sha256') -> str:
+    hash_obj = hashlib.new(algorithm)
+    hash_obj.update(input_string.encode('utf-8'))
+    return hash_obj.hexdigest()
+
+
 def resolve_deploy_target_bucket_param(ctx, param, value):
     if bundle_bucket_name := ctx.params.get('bundle_bucket_name'):
         USER_LOG.warn(
