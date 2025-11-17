@@ -12,7 +12,6 @@ on:
       - published
     paths:
       - '**.py'
-  workflow_dispatch:
 
 permissions:
   id-token: write
