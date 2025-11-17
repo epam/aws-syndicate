@@ -6,8 +6,8 @@ on:
     branches:
       - master
       - develop
-    paths:
-      - 'plugin/**'
+#    paths:
+#      - 'plugin/**'
   pull_request_review:
     types: [ submitted ]
   push:
@@ -55,11 +55,14 @@ jobs:
             if [[ ${file} == ${checked_directory}* ]]
             then
               echo "Target directory was modified."
+              echo "DEBUG: run_publish_steps=true"
               echo "run_publish_steps=true" >>$GITHUB_OUTPUT
+              echo "GITHUB_OUTPUT path=$GITHUB_OUTPUT"
               exit 0
             fi
           done
           echo "Target directory was not modified."
+          echo "DEBUG: run_publish_steps=false"
           echo "run_publish_steps=false" >>$GITHUB_OUTPUT
           echo "dist=/tmp/bavp/dist" >>$GITHUB_OUTPUT
         shell: bash
@@ -67,7 +70,7 @@ jobs:
   check-modified-release-files:
     runs-on: ubuntu-latest
     if: >
-      github.repository == 'epam/aws-syndicate' &&
+      github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository ||
       github.event_name == 'release' &&
       github.event.action == 'published'
     outputs:
@@ -92,11 +95,14 @@ jobs:
             if [[ ${file} == ${checked_directory}* ]]
             then
               echo "Target directory was modified."
+              echo "DEBUG: run_publish_steps=true"
               echo "run_publish_steps=true" >>$GITHUB_OUTPUT
+              echo "GITHUB_OUTPUT path=$GITHUB_OUTPUT"
               exit 0
             fi
           done
           echo "Target directory was not modified."
+          echo "DEBUG: run_publish_steps=false"
           echo "run_publish_steps=false" >>$GITHUB_OUTPUT
           echo "dist=/tmp/bavp/dist" >>$GITHUB_OUTPUT
         shell: bash
@@ -107,11 +113,18 @@ jobs:
     needs: [maven, check-modified-files]
     runs-on: ubuntu-latest
     if: >
+      github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository ||
       github.event_name == 'push' &&
       github.ref == 'refs/heads/master' &&
       needs.check-modified-files.outputs.files_modified == 'true'
 
     steps:
+      - name: Debug job context
+        run: |
+          echo "github.event_name=${{ github.event_name }}"
+          echo "github.ref=${{ github.ref }}"
+          echo "needs.check-modified-files.files_modified=${{ needs.check-modified-files.outputs.files_modified || 'MISSING' }}"
+          echo "needs.maven.result=${{ needs.maven.result || 'MISSING' }}"
       - uses: actions/checkout@v4
       - name: Set up Maven Central Repository
         uses: actions/setup-java@v4
@@ -147,11 +160,18 @@ jobs:
     needs: [maven, check-modified-release-files]
     runs-on: ubuntu-latest
     if: >
+      github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository ||
       github.event_name == 'release' &&
       github.event.action == 'published' &&
       needs.check-modified-release-files.outputs.files_modified == 'true'
 
     steps:
+      - name: Debug job context
+        run: |
+          echo "github.event_name=${{ github.event_name }}"
+          echo "github.ref=${{ github.ref }}"
+          echo "needs.check-modified-release-files.files_modified=${{ needs.check-modified-release-files.outputs.files_modified || 'MISSING' }}"
+          echo "needs.maven.result=${{ needs.maven.result || 'MISSING' }}"
       - uses: actions/checkout@v4
       - name: Set up Maven Central Repository
         uses: actions/setup-java@v4
