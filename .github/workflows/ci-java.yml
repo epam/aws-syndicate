@@ -92,7 +92,6 @@ jobs:
             then
               echo "Target directory was modified."
               echo "run_publish_steps=true" >>$GITHUB_OUTPUT
-              echo "GITHUB_OUTPUT path=$GITHUB_OUTPUT"
               exit 0
             fi
           done
@@ -112,12 +111,6 @@ jobs:
       needs.check-modified-files.outputs.files_modified == 'true'
 
     steps:
-      - name: Debug job context
-        run: |
-          echo "github.event_name=${{ github.event_name }}"
-          echo "github.ref=${{ github.ref }}"
-          echo "needs.check-modified-files.files_modified=${{ needs.check-modified-files.outputs.files_modified || 'MISSING' }}"
-          echo "needs.maven.result=${{ needs.maven.result || 'MISSING' }}"
       - uses: actions/checkout@v4
       - name: Set up Maven Central Repository
         uses: actions/setup-java@v4
@@ -158,12 +151,6 @@ jobs:
       needs.check-modified-release-files.outputs.files_modified == 'true'
 
     steps:
-      - name: Debug job context
-        run: |
-          echo "github.event_name=${{ github.event_name }}"
-          echo "github.ref=${{ github.ref }}"
-          echo "needs.check-modified-release-files.files_modified=${{ needs.check-modified-release-files.outputs.files_modified || 'MISSING' }}"
-          echo "needs.maven.result=${{ needs.maven.result || 'MISSING' }}"
       - uses: actions/checkout@v4
       - name: Set up Maven Central Repository
         uses: actions/setup-java@v4
