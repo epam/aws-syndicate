@@ -18,8 +18,6 @@ on:
   release:
     types:
       - published
-    paths:
-      - 'plugin/**'
 
 jobs:
   maven:
@@ -43,11 +41,13 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Check modified files
         id: check_files
         run: |
           git fetch origin master
-          changed_files=$(git diff --name-only origin/master)
+          changed_files=$(git diff --name-only HEAD^)
           echo "Changed files: ${changed_files}"
           checked_directory="plugin/"
           for file in ${changed_files}
