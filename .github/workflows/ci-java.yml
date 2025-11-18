@@ -67,6 +67,7 @@ jobs:
   check-modified-release-files:
     runs-on: ubuntu-latest
     if: >
+      github.repository == 'epam/aws-syndicate' &&
       github.event_name == 'release' &&
       github.event.action == 'published'
     outputs:
@@ -106,6 +107,7 @@ jobs:
     needs: [maven, check-modified-files]
     runs-on: ubuntu-latest
     if: >
+      github.repository == 'epam/aws-syndicate' &&
       github.event_name == 'push' &&
       github.ref == 'refs/heads/master' &&
       needs.check-modified-files.outputs.files_modified == 'true'
@@ -146,6 +148,7 @@ jobs:
     needs: [maven, check-modified-release-files]
     runs-on: ubuntu-latest
     if: >
+      github.repository == 'epam/aws-syndicate' &&
       github.event_name == 'release' &&
       github.event.action == 'published' &&
       needs.check-modified-release-files.outputs.files_modified == 'true'
