@@ -64,7 +64,7 @@ jobs:
         working-directory: ${{ inputs.path }}
 
       - name: Upload built artifacts.
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: Packages
           path: /tmp/bavp/dist/*
@@ -107,7 +107,7 @@ jobs:
           echo ----- End of Metadata  -----
 
       - name: Upload metadata
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: Package Metadata
           path: /tmp/bavp/dist/out/sdist/*/PKG-INFO
@@ -130,7 +130,7 @@ jobs:
           '
 
       - name: Upload PyPI README
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: PyPI README
           path: /tmp/bavp/dist/out/sdist/PyPI-README.*
