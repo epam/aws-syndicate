@@ -499,7 +499,7 @@ class OptionRequiredIf(click.Option):
                 f"must be specified together, and '{self.required_if}' must "
                 f"have one of the next values {self.required_if_values}")
         else:
-            is_required_ok: bool = self.required_if in opts
+            is_required_ok: bool = self.required_if.replace('-','_') in opts
             message = (f"options: '{self.human_readable_name}' and "
                        f"'{self.required_if}' must be specified together")
         if is_current_present ^ is_required_ok:

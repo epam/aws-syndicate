@@ -4,10 +4,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [1.19.1] - 2025-11-14
+# [1.19.1] - 2025-12-09
 - Fixed an issue related to incorrect library version compilation in lambda layer for python runtime
 - Fixed an issue where cached dependencies were not updated when changing the lambda/lambda layer version (for python runtime)
 - Fixed packaging of python lambda requirements from cache in case requirements.txt file is absent
+- Fixed logic in `required_if` condition for CLI options
 
 # [1.19.0] - 2025-11-05
 - Added support for multi modular Java projects
