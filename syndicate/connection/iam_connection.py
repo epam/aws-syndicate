@@ -13,7 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-from json import dumps
+from json import dumps, loads
 from functools import lru_cache
 
 from boto3 import client, resource
@@ -162,6 +162,8 @@ class IAMConnection(object):
         :type allowed_service: str
         :type trusted_relationships: dict
         :param trusted_relationships: if not specified will use default
+        :param external_id: str
+        :param permissions_boundary: dict
         :param tags: list of dict: List of resource tags key-value pairs
         """
         if not trusted_relationships:
@@ -490,14 +492,12 @@ class IAMConnection(object):
     def update_custom_role(self, role, role_name, allowed_account=None,
                            allowed_service=None, trusted_relationships=None,
                            external_id=None):
-        updated_role = role['AssumeRolePolicyDocument']
         if trusted_relationships:
-            trusted_relationships = {
-                "Version": "2012-10-17",
-                "Statement": updated_role.get('Statement', [])
-            }
+            if isinstance(trusted_relationships, str):
+                trusted_relationships = loads(trusted_relationships)
         else:
             trusted_relationships = IAMConnection.empty_trusted_relationships()
+
         statement = trusted_relationships['Statement']
         if allowed_account:
             trusted_accounts = IAMConnection.set_allowed_account(
@@ -507,14 +507,20 @@ class IAMConnection(object):
             trusted_services = IAMConnection.set_allowed_service(
                 allowed_service, 'update')
             statement.append(trusted_services)
+
+        # Remove duplicates while preserving order
+        seen = []
+        unique_statements = []
+        for s in statement:
+            s_str = dumps(s, sort_keys=True)
+            if s_str not in seen:
+                seen.append(s_str)
+                unique_statements.append(s)
+
+        trusted_relationships['Statement'] = unique_statements
+
         if isinstance(trusted_relationships, dict):
             trusted_relationships = dumps(trusted_relationships)
-            statement = updated_role.get('Statement', [])
-            statement.append(trusted_relationships)
-            unique = []
-            for s in statement:
-                if s not in unique:
-                    unique.append(s)
         try:
             role = self.client.update_assume_role_policy(
                 RoleName=role_name,
@@ -531,9 +537,12 @@ class IAMConnection(object):
         if isinstance(allowed_account, str):
             principal = get_account_role_arn(allowed_account)
         elif isinstance(allowed_account, list):
-            principal = []
-            for each in allowed_account:
-                principal.append(get_account_role_arn(each))
+            if len(allowed_account) == 1:
+                principal = get_account_role_arn(allowed_account[0])
+            else:
+                principal = []
+                for each in allowed_account:
+                    principal.append(get_account_role_arn(each))
         else:
             raise InvalidValueError(
                 f"Can not '{action}' role. 'allowed_account' must be list "
@@ -560,9 +569,12 @@ class IAMConnection(object):
         if isinstance(allowed_service, str):
             principal = "{0}.amazonaws.com".format(allowed_service)
         elif isinstance(allowed_service, list):
-            principal = []
-            for each in allowed_service:
-                principal.append("{0}.amazonaws.com".format(each))
+            if len(allowed_service) == 1:
+                principal = "{0}.amazonaws.com".format(allowed_service)
+            else:
+                principal = []
+                for each in allowed_service:
+                    principal.append("{0}.amazonaws.com".format(each))
         else:
             raise InvalidValueError(
                 f"Can not '{action}' role. 'allowed_service' must be list "

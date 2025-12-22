@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed an issue where cached dependencies were not updated when changing the lambda/lambda layer version (for python runtime)
 - Fixed packaging of python lambda requirements from cache in case requirements.txt file is absent
 - Fixed logic in `required_if` condition for CLI options
+- Fixed an issue related to adding a new trusted account to the IAM Role trusted relationship within each update iteration
 
 # [1.19.0] - 2025-11-05
 - Added support for multi modular Java projects
