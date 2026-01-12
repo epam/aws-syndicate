@@ -179,9 +179,16 @@ class LambdaConnection(object):
                              'principal or source arn. '
                              'Removing old permission')
                 self.remove_one_permission(
-                    function_name=function_name, qualifier=qualifier,
-                    statement_id=AUTH_TYPE_TO_STATEMENT_ID[existing_type]
+                    function_name=function_name,
+                    qualifier=qualifier,
+                    statement_id=AUTH_TYPE_TO_STATEMENT_ID[existing_type],
                 )
+                self.remove_one_permission(
+                    function_name=function_name,
+                    qualifier=qualifier,
+                    statement_id=INVOKE_FUNCTION_STATEMENT_ID,
+                )
+
             function_url = self.create_url_config(
                 function_name=function_name, qualifier=qualifier,
                 auth_type=auth_type, cors=cors, update=True)['FunctionUrl']
