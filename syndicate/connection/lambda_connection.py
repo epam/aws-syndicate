@@ -15,7 +15,7 @@
 """
 import json
 import uuid
-from typing import Optional, List, Tuple, Iterable
+from typing import Optional, List, Tuple, Iterable, Literal
 
 from boto3 import client
 from botocore.exceptions import ClientError
@@ -32,6 +32,11 @@ AUTH_TYPE_TO_STATEMENT_ID = {
     NONE_AUTH_TYPE: 'FunctionURLAllowPublicAccess-Syndicate',
     IAM_AUTH_TYPE: 'FunctionURLAllowIAMAccess-Syndicate'
 }
+
+INVOKE_FUNCTION_STATEMENT_ID = 'InvokeFunction-Syndicate'
+
+INVOKE_FUNCTION_ACTION = 'lambda:InvokeFunction'
+INVOKE_FUNCTION_URL_ACTION = 'lambda:InvokeFunctionUrl'
 
 
 def _str_list_to_list(param, param_name):
@@ -181,22 +186,38 @@ class LambdaConnection(object):
                 function_name=function_name, qualifier=qualifier,
                 auth_type=auth_type, cors=cors, update=True)['FunctionUrl']
 
+        self.add_invocation_permission(
+            name=function_name,
+            principal=principal if auth_type == IAM_AUTH_TYPE else '*',
+            action=INVOKE_FUNCTION_ACTION,
+            qualifier=qualifier,
+            exists_ok=True,
+            statement_id=INVOKE_FUNCTION_STATEMENT_ID,
+        )
+
         if auth_type == NONE_AUTH_TYPE:
             _LOG.warning(f'Auth type is {NONE_AUTH_TYPE}. Setting '
                          f'the necessary resource-based policy')
             self.add_invocation_permission(
-                name=function_name, principal='*', auth_type=auth_type,
-                qualifier=qualifier, exists_ok=True,
-                statement_id=AUTH_TYPE_TO_STATEMENT_ID[auth_type]
+                name=function_name,
+                principal='*',
+                action=INVOKE_FUNCTION_URL_ACTION,
+                auth_type=auth_type,
+                qualifier=qualifier,
+                exists_ok=True,
+                statement_id=AUTH_TYPE_TO_STATEMENT_ID[auth_type],
             )
         elif auth_type == IAM_AUTH_TYPE and principal:
             _LOG.warning(f'Auth type is {IAM_AUTH_TYPE}. Setting '
                          f'the necessary resource-based policy')
             self.add_invocation_permission(
-                name=function_name, principal=principal,
-                auth_type=auth_type, qualifier=qualifier,
+                name=function_name,
+                principal=principal,
+                action=INVOKE_FUNCTION_URL_ACTION,
+                auth_type=auth_type,
+                qualifier=qualifier,
                 source_arn=source_arn,
-                statement_id=AUTH_TYPE_TO_STATEMENT_ID[auth_type]
+                statement_id=AUTH_TYPE_TO_STATEMENT_ID[auth_type],
             )
         return function_url
 
@@ -471,23 +492,35 @@ class LambdaConnection(object):
                 return None
             raise e
 
-    def add_invocation_permission(self, name, principal, source_arn=None,
-                                  statement_id=None, auth_type=None,
-                                  qualifier=None, exists_ok=False):
+    def add_invocation_permission(
+            self,
+            name: str,
+            principal: str,
+            action: str = INVOKE_FUNCTION_ACTION,
+            source_arn: str = None,
+            statement_id: str = None,
+            auth_type: str = None,
+            qualifier: str = None,
+            exists_ok: bool = False,
+    ):
         """ Add permission for something to be able to invoke lambda
         :type name: str
         :type source_arn: str
         :type principal: str
+        :type action: str
         :type statement_id: str
         :type auth_type: str, NONE|AWS_IAM
-        :type qualifier: str
+        :type qualifier: str,
+        :type exists_ok: bool
         """
-        action = 'lambda:InvokeFunctionUrl' if auth_type \
-            else 'lambda:InvokeFunction'
         if not statement_id:
             statement_id = str(uuid.uuid1())
-        params = dict(FunctionName=name, StatementId=statement_id,
-                      Action=action, Principal=principal)
+        params = dict(
+            FunctionName=name,
+            StatementId=statement_id,
+            Action=action,
+            Principal=principal,
+        )
         if auth_type:
             params['FunctionUrlAuthType'] = auth_type
         if source_arn:
