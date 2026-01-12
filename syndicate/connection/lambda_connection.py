@@ -15,7 +15,7 @@
 """
 import json
 import uuid
-from typing import Optional, List, Tuple, Iterable, Literal
+from typing import Optional, List, Tuple, Iterable
 
 from boto3 import client
 from botocore.exceptions import ClientError
