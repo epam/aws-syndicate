@@ -163,9 +163,10 @@ class SnsResource(BaseResource):
                                                                    'lambda')
         try:
             self.connection_provider.lambda_conn().add_invocation_permission(
-                lambda_arn,
-                'sns.amazonaws.com',
-                source_arn=topic_arn)
+                name=lambda_arn,
+                principal='sns.amazonaws.com',
+                source_arn=topic_arn,
+            )
         except ClientError:
             _LOG.warn('The final access policy size for lambda {} is reached. '
                       'The limit is 20480 bytes. '

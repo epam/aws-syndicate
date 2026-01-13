@@ -926,9 +926,11 @@ class LambdaResource(BaseResource):
         if lambda_arn not in map(lambda each: each.get('Arn'), targets):
             self.cw_events_conn.add_rule_target(rule_name, lambda_arn,
                                                 input_dict)
-            self.lambda_conn.add_invocation_permission(lambda_arn,
-                                                       'events.amazonaws.com',
-                                                       rule_arn)
+            self.lambda_conn.add_invocation_permission(
+                name=lambda_arn,
+                principal='events.amazonaws.com',
+                source_arn=rule_arn,
+            )
             _LOG.info(f'Lambda {lambda_name} subscribed to cloudwatch rule '
                       f'{rule_name}')
         else:
@@ -952,7 +954,10 @@ class LambdaResource(BaseResource):
 
         bucket_arn = f'arn:aws:s3:::{target_bucket}'
         self.lambda_conn.add_invocation_permission(
-            lambda_arn, 's3.amazonaws.com', bucket_arn)
+            name=lambda_arn,
+            principal='s3.amazonaws.com',
+            source_arn=bucket_arn,
+        )
         _LOG.debug(f'Waiting for activation of invoke-permission '
                    f'of {bucket_arn}')
         time.sleep(5)

@@ -1,3 +1,7 @@
+## 2025-11-18
+## Changed
+- Downgraded the Java JDK version from 17 to 11 in the `sdct-at-ddis` smoke-test project to match the CI environment.
+
 ## 2025-10-29
 ### Added
 - Added new stage parameter `update_content` with optional parameters `lambda_paths` and `appsync_path`

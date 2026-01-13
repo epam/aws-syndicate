@@ -499,7 +499,7 @@ class OptionRequiredIf(click.Option):
                 f"must be specified together, and '{self.required_if}' must "
                 f"have one of the next values {self.required_if_values}")
         else:
-            is_required_ok: bool = self.required_if in opts
+            is_required_ok: bool = self.required_if.replace('-','_') in opts
             message = (f"options: '{self.human_readable_name}' and "
                        f"'{self.required_if}' must be specified together")
         if is_current_present ^ is_required_ok:
@@ -1044,6 +1044,13 @@ def compute_file_hash(file_path: Union[str, Path],
             if not chunk:
                 break
             hash_obj.update(chunk)
+    return hash_obj.hexdigest()
+
+
+def compute_string_hash(input_string: str,
+                        algorithm: str = 'sha256') -> str:
+    hash_obj = hashlib.new(algorithm)
+    hash_obj.update(input_string.encode('utf-8'))
     return hash_obj.hexdigest()
 
 
