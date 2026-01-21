@@ -15,13 +15,8 @@
  */
 package com.demojava;
 
-import com.amazonaws.services.dynamodbv2.document.ItemUtils;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
-import com.amazonaws.services.lambda.runtime.events.DynamodbEvent;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3Client;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.syndicate.deployment.annotations.environment.EnvironmentVariable;
 import com.syndicate.deployment.annotations.environment.EnvironmentVariables;
@@ -32,8 +27,13 @@ import com.syndicate.deployment.model.DeploymentRuntime;
 import com.syndicate.deployment.model.LambdaSnapStart;
 import com.syndicate.deployment.model.ResourceType;
 import com.syndicate.deployment.model.RetentionSetting;
-
+import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.core.sync.RequestBody;
 
 /**
  * Created by Vladyslav Tereshchenko on 9/12/2018.
@@ -51,27 +51,50 @@ import java.util.Map;
         @EnvironmentVariable(key = "region", value = "${region}"),
         @EnvironmentVariable(key = "notification_bucket", value = "${notification_bucket}")
 })
-public class PutFileToS3BucketHandler implements RequestHandler<DynamodbEvent, Void> {
+public class PutFileToS3BucketHandler implements RequestHandler<Map<String, Object>, Void> {
 
-    private static final String INSERT = "INSERT";
-
-    private final AmazonS3 s3Client;
+    private final S3Client s3Client;
     private final ObjectMapper objectMapper;
 
     public PutFileToS3BucketHandler() {
-        this.s3Client = AmazonS3Client.builder().withRegion(System.getenv("region")).build();
+        this.s3Client = S3Client.builder()
+                .region(Region.of(System.getenv("region")))
+                .build();
         this.objectMapper = new ObjectMapper();
     }
 
-    public Void handleRequest(DynamodbEvent dynamodbEvent, Context context) {
+    @Override
+    public Void handleRequest(Map<String, Object> event, Context context) {
         String bucketName = System.getenv("notification_bucket");
-        for (DynamodbEvent.DynamodbStreamRecord record : dynamodbEvent.getRecords()) {
-            if (INSERT.equals(record.getEventName())) {
-                Map<String, Object> stringObjectMap = ItemUtils.toSimpleMapValue(record.getDynamodb()
-                        .getNewImage());
-                s3Client.putObject(bucketName, (String) stringObjectMap.get("id"),
-                        convertObjectToJson(stringObjectMap));
-            }
+
+        // Parse the event manually (structure depends on DynamoDB Streams event JSON)
+        List<Map<String, Object>> records = (List<Map<String, Object>>) event.get("Records");
+        if (records == null) return null;
+
+        for (Map<String, Object> record : records) {
+            String eventName = (String) record.get("eventName");
+            if (!"INSERT".equals(eventName)) continue;
+
+            Map<String, Object> dynamodb = (Map<String, Object>) record.get("dynamodb");
+            Map<String, Object> newImage = (Map<String, Object>) dynamodb.get("NewImage");
+
+            // You need to parse DynamoDB AttributeValue JSON structure here!
+            // For example, if your id is a string:
+            Map<String, Object> idMap = (Map<String, Object>) newImage.get("id");
+            String id = (String) idMap.get("S");
+
+            // Convert the whole newImage to JSON string
+            String json = convertObjectToJson(newImage);
+
+            PutObjectRequest putObjectRequest = PutObjectRequest.builder()
+                    .bucket(bucketName)
+                    .key(id)
+                    .build();
+
+            s3Client.putObject(
+                    putObjectRequest,
+                    RequestBody.fromBytes(json.getBytes(StandardCharsets.UTF_8))
+            );
         }
         return null;
     }
@@ -79,7 +102,7 @@ public class PutFileToS3BucketHandler implements RequestHandler<DynamodbEvent, V
     private String convertObjectToJson(Object object) {
         try {
             return objectMapper.writeValueAsString(object);
-        } catch (JsonProcessingException e) {
+        } catch (Exception e) {
             throw new IllegalArgumentException("Object cannot be converted to JSON: " + object);
         }
     }
