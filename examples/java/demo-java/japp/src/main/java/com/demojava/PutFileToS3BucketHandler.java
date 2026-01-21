@@ -75,28 +75,28 @@ public class PutFileToS3BucketHandler implements RequestHandler<Map<String, Obje
 
         for (Map<String, Object> record : records) {
             String eventName = (String) record.get("eventName");
-            if (!"INSERT".equals(eventName)) continue;
+            if ("INSERT".equals(eventName)) {
+                Map<String, Object> dynamodb = (Map<String, Object>) record.get("dynamodb");
+                Map<String, Object> newImage = (Map<String, Object>) dynamodb.get("NewImage");
 
-            Map<String, Object> dynamodb = (Map<String, Object>) record.get("dynamodb");
-            Map<String, Object> newImage = (Map<String, Object>) dynamodb.get("NewImage");
+                // You need to parse DynamoDB AttributeValue JSON structure here!
+                // For example, if your id is a string:
+                Map<String, Object> idMap = (Map<String, Object>) newImage.get("id");
+                String id = (String) idMap.get("S");
 
-            // You need to parse DynamoDB AttributeValue JSON structure here!
-            // For example, if your id is a string:
-            Map<String, Object> idMap = (Map<String, Object>) newImage.get("id");
-            String id = (String) idMap.get("S");
+                // Convert the whole newImage to JSON string
+                String json = convertObjectToJson(newImage);
 
-            // Convert the whole newImage to JSON string
-            String json = convertObjectToJson(newImage);
+                PutObjectRequest putObjectRequest = PutObjectRequest.builder()
+                        .bucket(bucketName)
+                        .key(id)
+                        .build();
 
-            PutObjectRequest putObjectRequest = PutObjectRequest.builder()
-                    .bucket(bucketName)
-                    .key(id)
-                    .build();
-
-            s3Client.putObject(
-                    putObjectRequest,
-                    RequestBody.fromBytes(json.getBytes(StandardCharsets.UTF_8))
-            );
+                s3Client.putObject(
+                        putObjectRequest,
+                        RequestBody.fromBytes(json.getBytes(StandardCharsets.UTF_8))
+                );
+            }
         }
         return null;
     }
