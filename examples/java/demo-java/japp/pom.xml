@@ -30,7 +30,6 @@
             <artifactId>aws-lambda-java-events</artifactId>
             <version>2.2.2</version>
         </dependency>
-        <!-- AWS SDK v2 S3 dependency (if needed for future) -->
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>s3</artifactId>

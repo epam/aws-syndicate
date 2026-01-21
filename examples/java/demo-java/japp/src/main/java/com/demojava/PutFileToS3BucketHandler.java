@@ -69,7 +69,9 @@ public class PutFileToS3BucketHandler implements RequestHandler<Map<String, Obje
 
         // Parse the event manually (structure depends on DynamoDB Streams event JSON)
         List<Map<String, Object>> records = (List<Map<String, Object>>) event.get("Records");
-        if (records == null) return null;
+        if (records == null) {
+            return null;
+        }
 
         for (Map<String, Object> record : records) {
             String eventName = (String) record.get("eventName");
