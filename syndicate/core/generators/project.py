@@ -19,7 +19,6 @@ from pathlib import Path
 
 from syndicate.exceptions import InvalidValueError
 from syndicate.commons.log_helper import get_logger
-from syndicate.core import ProjectState
 from syndicate.core.generators import (_touch, _mkdir,
                                        _write_content_to_file)
 from syndicate.core.generators.contents import (_get_lambda_default_policy,
