@@ -499,33 +499,40 @@ def _resolve_names_in_meta(resources_dict, old_value, new_value):
             elif isinstance(item, str) and resource_name_placeholder in item:
                 index = resources_dict.index(item)
                 resources_dict[index] = item.replace(resource_name_placeholder, new_value)
-            elif isinstance(item, str):
-                if item == old_value:
-                    index = resources_dict.index(old_value)
-                    del resources_dict[index]
-                    resources_dict.append(new_value)
+            elif isinstance(item, str) and item == old_value:
+                index = resources_dict.index(old_value)
+                del resources_dict[index]
+                resources_dict.append(new_value)
 
 
 def _resolve_name_in_arn(arn, old_value, new_value):
+    """
+    Resolves and replaces a resource name within an ARN string based on AWS structure.
+    """
     from syndicate.core import CONFIG
 
     extended_prefix_mode = CONFIG.extended_prefix_mode
+    # ARNs are colon-delimited: arn:partition:service:region:account-id:resource-id
     arn_parts = arn.split(':')
-    for part in arn_parts:
+    for i, part in enumerate(arn_parts):
         new_part = None
         if part == old_value:
             new_part = new_value
+        # Scenario 2: Resource starts with the name followed by a slash (e.g., 'my-table/*')
+        # We check the character at len(old_value) to ensure it's a boundary, not a partial match
         elif part.startswith(old_value) and part[len(old_value)] == '/':
             new_part = part.replace(old_value, new_value)
-        elif part.endswith(old_value) and part[:-len(old_value)].endswith('/'):
+        # Scenario 3: Resource is prefixed by a service type (e.g., 'role/my-role')
+        # We look for '/old_value' at the end or '/old_value/' in the middle
+        elif (part.endswith(old_value) and part[:-len(old_value)].endswith('/')) or "/" + old_value + "/" in part:
             # to resolve resources with prefixes like ":role/", ":topic/", etc.
-            resource_prefix = part[:-len(old_value)]
+            resource_prefix = part[:part.find(old_value)]
+            # check: Only replace if the prefix is a known AWS service or forced by config
             if resource_prefix in GLOBAL_AWS_SERVICE_PREFIXES \
                     or extended_prefix_mode:
                 new_part = part.replace(old_value, new_value)
         if new_part:
-            index = arn_parts.index(part)
-            arn_parts[index] = new_part
+            arn_parts[i] = new_part
     return ':'.join(arn_parts)
 
 
