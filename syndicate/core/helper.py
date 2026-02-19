@@ -23,6 +23,7 @@ import subprocess
 import sys
 import logging
 import traceback
+import uuid
 import zipfile
 from datetime import datetime, timedelta
 from functools import wraps
@@ -30,7 +31,7 @@ from pathlib import Path
 from signal import SIGINT
 from threading import Thread
 from time import time
-from typing import Union
+from typing import Union, Iterable
 
 import click
 from click import BadParameter, MissingParameter
@@ -1099,3 +1100,16 @@ def strip_prefix_suffix(res_name: str) -> str:
     if CONFIG.resources_suffix and res_name.endswith(CONFIG.resources_suffix):
         res_name = res_name[:-len(CONFIG.resources_suffix)]
     return res_name
+
+
+def deterministic_uuid(strings: str | Iterable[str]) -> str:
+    """
+    Generate a deterministic UUID based on the strings.
+    This ensures that the same strings will always produce the same UUID.
+    """
+    if isinstance(strings, str):
+        strings = [strings]
+
+    namespace = uuid.NAMESPACE_DNS  # Using a fixed namespace for consistency
+    name = '-'.join(strings)
+    return str(uuid.uuid5(namespace, name))
