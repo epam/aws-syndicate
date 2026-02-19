@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed an issue with `syndicate generate project` command, when the `SDCT_CONF` is missing.
 - Fixed an issue related to deploying Lambda configured with a specific subnet and role containing multiple IAM policies.
 - Fixed an issue with resolving prefixes and suffixes of resource names within ARN.
-- Fixed an issue related to the resource-based policy duplication during updating lamda function.
+- Fixed an issue related to the resource-based policy duplication during updating lamda function. 
 
 # [1.19.1] - 2026-01-12
 - Updated lambda function permissions deployment to comply with AWS requirements for `function URL`
