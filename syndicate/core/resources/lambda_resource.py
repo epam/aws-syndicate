@@ -34,7 +34,8 @@ from syndicate.core.constants import DEFAULT_LOGS_EXPIRATION, \
     CLOUD_WATCH_TRIGGER_REQUIRED_PARAMS, S3_TRIGGER_REQUIRED_PARAMS, \
     SNS_TRIGGER_REQUIRED_PARAMS, KINESIS_TRIGGER_REQUIRED_PARAMS
 from syndicate.core.decorators import threading_lock
-from syndicate.core.helper import unpack_kwargs, is_zip_empty
+from syndicate.core.helper import unpack_kwargs, is_zip_empty, \
+    deterministic_uuid
 from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import (
     build_description_obj, validate_params, assert_required_params, if_updated)
@@ -930,6 +931,8 @@ class LambdaResource(BaseResource):
                 name=lambda_arn,
                 principal='events.amazonaws.com',
                 source_arn=rule_arn,
+                statement_id=deterministic_uuid(rule_arn),
+                exists_ok=True
             )
             _LOG.info(f'Lambda {lambda_name} subscribed to cloudwatch rule '
                       f'{rule_name}')
@@ -957,6 +960,8 @@ class LambdaResource(BaseResource):
             name=lambda_arn,
             principal='s3.amazonaws.com',
             source_arn=bucket_arn,
+            statement_id=deterministic_uuid(bucket_arn),
+            exists_ok=True
         )
         _LOG.debug(f'Waiting for activation of invoke-permission '
                    f'of {bucket_arn}')

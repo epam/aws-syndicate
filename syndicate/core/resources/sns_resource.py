@@ -18,7 +18,7 @@ from botocore.exceptions import ClientError
 from syndicate.exceptions import InvalidValueError
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.conf.validator import ALL_REGIONS
-from syndicate.core.helper import unpack_kwargs
+from syndicate.core.helper import unpack_kwargs, deterministic_uuid
 from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import (build_description_obj,
                                              check_region_available,
@@ -166,6 +166,8 @@ class SnsResource(BaseResource):
                 name=lambda_arn,
                 principal='sns.amazonaws.com',
                 source_arn=topic_arn,
+                statement_id=deterministic_uuid(topic_arn),
+                exists_ok=True
             )
         except ClientError:
             _LOG.warn('The final access policy size for lambda {} is reached. '
