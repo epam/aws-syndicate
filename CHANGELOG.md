@@ -4,11 +4,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [1.19.2] - 2026-02-19
+# [1.19.2] - 2026-03-13
 - Fixed an issue with `syndicate generate project` command, when the `SDCT_CONF` is missing.
 - Fixed an issue related to deploying Lambda configured with a specific subnet and role containing multiple IAM policies.
 - Fixed an issue with resolving prefixes and suffixes of resource names within ARN.
 - Fixed an issue related to the resource-based policy duplication during updating lamda function.
+- Improved the error message when the user does not assume the role and tries to access the AWS resources
 
 # [1.19.1] - 2026-01-12
 - Updated lambda function permissions deployment to comply with AWS requirements for `function URL`
