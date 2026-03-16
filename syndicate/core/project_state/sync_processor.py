@@ -23,7 +23,7 @@ USER_LOG = get_user_logger()
 
 def sync_project_state():
     from syndicate.core import CONFIG, CONN, PROJECT_STATE
-    from syndicate.exceptions import EnvironmentError
+    from syndicate.exceptions import EnvironmentError, ConfigurationError
     from pathlib import PurePath
     from botocore.exceptions import ClientError
     bucket_name = CONFIG.deploy_target_bucket
@@ -43,6 +43,13 @@ def sync_project_state():
                     f"Please run the command "
                     f"'syndicate create-deploy-target-bucket' or create it "
                     f"manually.")
+            elif e.response['Error']['Code'] == 'InvalidAccessKeyId' \
+                    and not CONFIG.access_role:
+                raise ConfigurationError(
+                    "The AWS Access Key Id you provided does not exist in "
+                    "our records OR you have not specified an access_role "
+                    "in syndicate.yml."
+                )
             else:
                 raise
 
