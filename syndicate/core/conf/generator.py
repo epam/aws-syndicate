@@ -159,7 +159,7 @@ def generate_configuration_files(name, config_path, region,
         'Syndicate initialization has been completed. \n'
         f'Set SDCT_CONF:{os.linesep}'
         f'Unix: export SDCT_CONF="{config_folder_path}"{os.linesep}'
-        f'Windows: setx SDCT_CONF {config_folder_path}')
+        f'Windows: setx SDCT_CONF "{config_folder_path}"')
 
 
 def generate_build_project_mapping(mapping_item, build_type):

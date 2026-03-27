@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed an issue related to the resource-based policy duplication during updating lamda function.
 - Improved the error message when the user does not assume the role and tries to access the AWS resources
 - Allow creating folders in the target deploy bucket with capital letters
+- Added quotes around the configuration path in the `Set SDCT_CONF` hint for Windows 
 
 # [1.19.1] - 2026-01-12
 - Updated lambda function permissions deployment to comply with AWS requirements for `function URL`
