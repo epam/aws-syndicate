@@ -316,6 +316,33 @@ not matter and only the presence of a particular key will be checked.
               }
           }
         ```
+- `api_gw_resources_existence` - Checks paths and methods in API Gateway.
+  - parameters:
+    - `resources` (dict) [REQUIRED] - API Gateway configuration to check. Should include `paths` with methods for 
+each API stage. If `methods` should be in API GW than its value should be set to true, if not - to false.
+        structure:
+        ```json5
+          {
+              "resources": {
+                "api_gw_name": {
+                  "stages": {
+                    "stage_name": {
+                      "paths": [
+                        {
+                          "path": "/path",
+                          "methods": {
+                            "PATCH": true,
+                            "GET": true,
+                            "POST": false
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+          }
+        ```
 
 ### Temporary checks conditions
 - Use tags from `tests/smoke/sdct-at-ddis/.syndicate-config/syndicate.yml` unless change them in happy_path_config.json:

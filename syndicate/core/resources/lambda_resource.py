@@ -237,8 +237,8 @@ class LambdaResource(BaseResource):
             lambda_response = self.lambda_conn.get_function(name, version)
             return self.build_lambda_arn_with_alias(lambda_response, alias)
         else:
-            return self.lambda_conn.get_function(name)['Configuration'][
-                'FunctionArn']
+            return self.lambda_conn.get_function(name).get(
+                'Configuration', {}).get('FunctionArn')
 
     def add_invocation_permission(self, name, principal, source_arn=None,
                                   statement_id=None, exists_ok=False):

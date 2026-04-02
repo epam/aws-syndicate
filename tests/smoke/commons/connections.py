@@ -930,3 +930,29 @@ def list_rds_db_instance_tags(instance_name: str, cluster_name: str,
             if tag in response_tags:
                 result[tag] = response_tags[tag]
         return result
+
+
+def list_api_gateway_resources(api_id: str) -> list:
+    """
+    Returns like
+    [{'path': '/items', 'methods': ['GET', 'POST']}]
+    """
+    result = []
+    try:
+        paginator = api_gw_client.get_paginator('get_resources')
+        for page in paginator.paginate(restApiId=api_id):
+            for item in page.get('items', []):
+                resource_methods = item.get('resourceMethods') or {}
+                if not resource_methods:
+                    continue
+                path = item.get('path') or ''
+                methods = sorted(resource_methods.keys())
+                result.append({'path': path, 'methods': methods})
+    except ClientError as e:
+        code = e.response.get('Error', {}).get('Code', '')
+        if code == 'NotFoundException':
+            print(f'API Gateway \'{api_id}\' not found')
+            return []
+        raise
+
+    return sorted(result, key=lambda x: x['path'])

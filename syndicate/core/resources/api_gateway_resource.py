@@ -152,75 +152,11 @@ class ApiGatewayResource(BaseResource):
         return self.create_pool(self._create_api_gateway_openapi_from_meta,
                                 args, 1)
 
-    def api_gateway_update_processor(self, args):
-        return self.create_pool(self._create_or_update_api_gateway, args, 1)
+    def update_api_gateway(self, args):
+        return self.create_pool(self._update_api_gateway_from_meta, args, 1)
 
     def update_api_gateway_openapi(self, args):
         return self.create_pool(self._update_api_gateway_openapi_from_meta, args, 1)
-
-    @unpack_kwargs
-    def _create_or_update_api_gateway(self, name, meta,
-                                      current_configurations):
-        if current_configurations:
-            # api currently is not located in different regions
-            # process only first object
-            api_output = list(current_configurations.items())[0][1]
-            # find id from the output
-            api_id = api_output['description']['id']
-            # check that api does not exist
-            api_response = self.connection.get_api(api_id)
-            if api_response:
-                # find all existing resources
-                existing_resources = api_output['description']['resources']
-                existing_paths = [i['path'] for i in existing_resources]
-                meta_api_resources = meta['resources']
-                resources_statement_singleton = meta.get(
-                    POLICY_STATEMENT_SINGLETON)
-                api_resp = meta.get('api_method_responses')
-                api_integration_resp = meta.get(
-                    'api_method_integration_responses')
-                api_resources = {}
-                for resource_path, resource_meta in meta_api_resources.items():
-                    if resource_path not in existing_paths:
-                        api_resources[resource_path] = resource_meta
-                if api_resources:
-                    _LOG.debug(
-                        'Going to continue deploy API Gateway {0} ...'.format(
-                            api_id))
-                    args = self.__prepare_api_resources_args(
-                        api_id=api_id,
-                        api_resources=api_resources,
-                        api_resp=api_resp,
-                        api_integration_resp=api_integration_resp,
-                        resources_statement_singleton=resources_statement_singleton)
-                    self.create_pool(self._create_resource_from_metadata,
-                                     args, 1)
-                    # add headers
-                    # waiter b4 customization
-                    time.sleep(10)
-                    _LOG.debug(
-                        'Customizing API Gateway {0} responses...'.format(
-                            api_id))
-                else:
-                    # all resources created, but need to override
-                    api_resources = meta_api_resources
-                # _customize_gateway_responses call is commented due to
-                # botocore InternalFailure while performing the call.
-                # will be fixed later
-                # _customize_gateway_responses(api_id)
-                # deploy api
-                _LOG.debug('Deploying API Gateway {0} ...'.format(api_id))
-                self.__deploy_api_gateway(api_id, meta, api_resources)
-                return self.describe_api_resources(api_id=api_id, meta=meta,
-                                                   name=name)
-            else:
-                # api does not exist, so create a new
-                return self._create_api_gateway_from_meta(
-                    {'name': name, 'meta': meta})
-        else:
-            # object is not present, so just create a new api
-            return self._create_api_gateway_from_meta(
-                {'name': name, 'meta': meta})
 
     def _escape_path(self, parameter):
         index = parameter.find('/', 0)
@@ -228,6 +164,91 @@ class ApiGatewayResource(BaseResource):
             return parameter
         parameter = parameter[:index] + '~1' + parameter[index + 1:]
         return self._escape_path(parameter)
+
+    @staticmethod
+    def _api_path_segment_count(path: str) -> int:
+        return len([p for p in path.split('/') if p])
+
+    @staticmethod
+    def _enable_cors_active(resource_meta: dict) -> bool:
+        enable_cors = resource_meta.get('enable_cors')
+        if isinstance(enable_cors, bool):
+            return enable_cors
+        if isinstance(enable_cors, dict):
+            return bool(enable_cors.get('state'))
+        return False
+
+    def _desired_http_methods_from_resource_meta(
+            self,
+            resource_meta: dict
+    ) -> set:
+        methods = {k for k in resource_meta if k in SUPPORTED_METHODS}
+        if self._enable_cors_active(resource_meta):
+            methods.add('OPTIONS')
+        return methods
+
+    @staticmethod
+    def _path_required_as_meta_ancestor(path: str, meta_paths: set) -> bool:
+        if path == '/':
+            return True
+        prefix = path.rstrip('/') + '/' if path != '/' else '/'
+        for mp in meta_paths:
+            if mp != path and mp.startswith(prefix):
+                return True
+        return False
+
+    def _should_prune_whole_resource(self, path: str, meta_paths: set) -> bool:
+        if path == '/':
+            return False
+        if path in meta_paths:
+            return False
+        if self._path_required_as_meta_ancestor(path, meta_paths):
+            return False
+        return True
+
+    def _prune_absent_api_gateway_resources(
+            self, api_id: str, meta_api_resources: dict) -> None:
+        """Drop REST paths and HTTP methods in AWS that are not in meta.
+
+        Called on every REST API update and continue-deploy so the API matches
+        ``resources`` declaratively. Parent path segments without their own
+        meta entry are kept when a descendant path is still in meta.
+        Removals run deepest-first. Existing methods listed in meta are not
+        modified here (only extras are deleted).
+        """
+        meta_paths = set(meta_api_resources.keys())
+        aws_resources = self.connection.get_resources(api_id)
+        id_by_path = {r['path']: r['id'] for r in aws_resources}
+        paths_to_remove = [
+            r['path'] for r in aws_resources
+            if self._should_prune_whole_resource(r['path'], meta_paths)
+        ]
+        paths_to_remove.sort(
+            key=self._api_path_segment_count, reverse=True)
+        for path in paths_to_remove:
+            rid = id_by_path.get(path)
+            if not rid:
+                continue
+            _LOG.info(f'Pruning API Gateway resource absent from meta: {path}')
+            self.connection.delete_resource(api_id, rid)
+
+        for path, resource_meta in meta_api_resources.items():
+            resource_id = self.connection.get_resource_id(api_id, path)
+            if not resource_id:
+                continue
+            detail = self.connection.get_resource(api_id, resource_id)
+            existing_methods = detail.get('resourceMethods') or {}
+            desired = self._desired_http_methods_from_resource_meta(
+                resource_meta)
+            for http_method in list(existing_methods.keys()):
+                if http_method not in desired:
+                    _LOG.info(
+                        f'Pruning API Gateway method absent from meta: '
+                        f'{http_method} {path}'
+                    )
+                    self.connection.delete_method(
+                        api_id, resource_id, http_method
+                    )
 
     def configure_resources(self, api_id, stage_name, api_resources):
         for resource_path, resource_meta in api_resources.items():
@@ -356,12 +377,7 @@ class ApiGatewayResource(BaseResource):
                     _LOG.info(f'Resource {resource_path} was configured')
 
     @unpack_kwargs
-    def _create_api_gateway_from_meta(self, name, meta):
-        """ Create API Gateway with all specified meta.
-    
-        :type name: str
-        :type meta: dict
-        """
+    def _create_api_gateway_from_meta(self, name: str, meta: dict):
         validate_params(name, meta, API_REQUIRED_PARAMS)
 
         api_resources = meta['resources']
@@ -454,7 +470,56 @@ class ApiGatewayResource(BaseResource):
         return self.describe_api_resources(api_id=api_id, meta=meta, name=name)
 
     @unpack_kwargs
-    def _create_api_gateway_openapi_from_meta(self, name, meta):
+    def _update_api_gateway_from_meta(
+            self,
+            name: str,
+            meta: dict,
+            context=None
+    ):
+        validate_params(name, meta, API_REQUIRED_PARAMS)
+        _LOG.info(f'Updating API Gateway \'{name}\'')
+
+        api_id = self.connection.get_api_id(name)
+        if not api_id:
+            raise ResourceNotFoundError(
+                f'API Gateway \'{name}\' not found. Cannot update.'
+            )
+
+        meta_api_resources = meta['resources']
+        resources_statement_singleton = meta.get(POLICY_STATEMENT_SINGLETON)
+        api_resp = meta.get('api_method_responses')
+        api_integration_resp = meta.get('api_method_integration_responses')
+
+        # Declarative sync: remove paths/methods missing from meta first.
+        self._prune_absent_api_gateway_resources(api_id, meta_api_resources)
+
+        args = self.__prepare_api_resources_args(
+            api_id=api_id,
+            api_resources=meta_api_resources,
+            api_resp=api_resp,
+            api_integration_resp=api_integration_resp,
+            resources_statement_singleton=resources_statement_singleton
+        )
+        if args:
+            _LOG.debug(f'Creating new API Gateway paths on {api_id}')
+            self.create_pool(self._create_resource_from_metadata, args, 1)
+            time.sleep(10)
+
+        minimum_compression_size = meta.get('minimum_compression_size', None)
+        if not minimum_compression_size:
+            _LOG.debug("No minimal_compression_size param - "
+                       "compression isn't enabled")
+        self.connection.update_compression_size(
+            rest_api_id=api_id,
+            compression_size=minimum_compression_size)
+
+        _LOG.debug(f'Deploying API Gateway {api_id}')
+        self.__deploy_api_gateway(api_id, meta, meta_api_resources)
+        return self.describe_api_resources(api_id=api_id, meta=meta,
+                                           name=name)
+
+    @unpack_kwargs
+    def _create_api_gateway_openapi_from_meta(self, name: str, meta: dict):
         openapi_context = meta.get('definition')
         deploy_stage = meta.get('deploy_stage')
 
@@ -481,7 +546,12 @@ class ApiGatewayResource(BaseResource):
         return self.describe_api_resources(api_id=api_id, meta=meta, name=name)
 
     @unpack_kwargs
-    def _update_api_gateway_openapi_from_meta(self, name, meta, context):
+    def _update_api_gateway_openapi_from_meta(
+            self,
+            name: str,
+            meta: dict,
+            context
+    ):
         api_id = self.connection.get_api_id(name)
         openapi_context = meta.get('definition')
         deploy_stage = meta.get('deploy_stage')
@@ -803,7 +873,7 @@ class ApiGatewayResource(BaseResource):
         methods_statement_singleton = resource_meta.get(
             POLICY_STATEMENT_SINGLETON)
         for method in resource_meta:
-            if method == 'enable_cors':
+            if method == 'enable_cors' or method not in SUPPORTED_METHODS:
                 continue
             if self.connection.get_method(api_id, resource_id, method):
                 _LOG.info('Method %s exists.', method)
@@ -933,7 +1003,7 @@ class ApiGatewayResource(BaseResource):
             request_models=method_request_models,
             request_validator=request_validator_id)
         # second step: create integration
-        integration_type = method_meta.get('integration_type')
+        integration_type = method_meta.get('integration_type').lower()
         # set up integration - lambda or aws service
         body_template = method_meta.get('integration_request_body_template')
         passthrough_behavior = method_meta.get(
@@ -950,6 +1020,13 @@ class ApiGatewayResource(BaseResource):
                     resolve_lambda_arn_by_version_and_alias(lambda_name,
                                                             lambda_version,
                                                             lambda_alias)
+                if not lambda_arn:
+                    raise ResourceNotFoundError(
+                        f'Lambda function with name {lambda_name} and version '
+                        f'{lambda_version} and alias {lambda_alias} not found.'
+                        f'Cannot integrate with resource '
+                        f'{method} {resource_path}'
+                    )
                 enable_proxy = method_meta.get('enable_proxy')
                 cache_configuration = method_meta.get('cache_configuration')
                 cache_key_parameters = cache_configuration.get(
@@ -1026,7 +1103,7 @@ class ApiGatewayResource(BaseResource):
             else:
                 raise InvalidValueError(
                     f"Integration type '{integration_type}' is not supported."
-                    )
+                )
         # third step: setup method responses
         if resp:
             for response in resp:
