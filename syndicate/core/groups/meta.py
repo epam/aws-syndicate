@@ -448,10 +448,12 @@ def api_gateway_resource(ctx, **kwargs):
               cls=MultiWordOption, type=bool,
               help="Specifies whether the method requires a valid API key. "
                    "If not specified, the default value is set to False")
-@click.option('--access-key-scope',
-              cls=MultiWordOption, type=str,
-              help="Specifies to use the access token for method authorization"
-                   'For example: ["https://my-petstore-api.example.com/cats.read", "http://my.resource.com/file.read"]')
+@click.option('--authorization-scopes',
+              cls=MultiWordOption, type=str, multiple=True,
+              help="OAuth scopes for access_token validation with "
+                   "Cognito authorizer. Example: "
+                   "--authorization-scopes petstore/read "
+                   "--authorization-scopes petstore/write")
 @verbose_option
 @click.pass_context
 @timeit()

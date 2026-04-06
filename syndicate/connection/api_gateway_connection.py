@@ -310,6 +310,10 @@ class ApiGatewayConnection(object):
         if request_validator:
             params['requestValidatorId'] = request_validator
         if authorization_scopes:
+            if not isinstance(authorization_scopes, list):
+                raise ValueError(
+                    f'authorization_scopes must be a list, '
+                    f'got {type(authorization_scopes).__name__}')
             params['authorizationScopes'] = authorization_scopes
         self.client.put_method(**params)
 
