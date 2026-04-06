@@ -230,6 +230,7 @@ class ApiGatewayResourceMethodGenerator(ApiGatewayConfigurationGenerator):
         'responses': list,
         'integration_responses': list,
         'default_error_pattern': True,
+        'access-key-scope': dict
     }
 
     def __init__(self, **kwargs):
