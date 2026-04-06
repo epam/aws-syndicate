@@ -27,7 +27,8 @@ from syndicate.connection import LogsConnection
 from syndicate.core.constants import (
     SOURCE_ARN_DEEP_KEY, SECURITY_SCHEMAS_DEEP_KEY,
     API_GW_DEFAULT_THROTTLING_RATE_LIMIT,
-    API_GW_DEFAULT_THROTTLING_BURST_LIMIT
+    API_GW_DEFAULT_THROTTLING_BURST_LIMIT,
+    AUTHORIZATION_SCOPES_KEY
 )
 from syndicate.core.helper import unpack_kwargs
 from syndicate.core.resources.base_resource import BaseResource
@@ -886,7 +887,9 @@ class ApiGatewayResource(BaseResource):
 
     def _create_method_from_metadata(
             self, api_id, resource_id, resource_path, method, method_meta,
-            authorizers_mapping, enable_cors: dict = None, api_resp=None,
+            authorizers_mapping,
+            enable_cors: dict = None,
+            api_resp=None,
             api_integration_resp=None,
             resources_statement_singleton: bool = False,
             methods_statement_singleton: bool = False):
@@ -931,7 +934,8 @@ class ApiGatewayResource(BaseResource):
             api_key_required=method_meta.get('api_key_required'),
             request_parameters=method_meta.get('method_request_parameters'),
             request_models=method_request_models,
-            request_validator=request_validator_id)
+            request_validator=request_validator_id,
+            authorization_scopes=method_meta.get(AUTHORIZATION_SCOPES_KEY))
         # second step: create integration
         integration_type = method_meta.get('integration_type')
         # set up integration - lambda or aws service
