@@ -223,7 +223,7 @@ class ApiGatewayResourceMethodGenerator(ApiGatewayConfigurationGenerator):
         'authorization_type': "NONE",
         'integration_type': 'mock',
         'lambda_name': None,
-        'lamdba_region': None,
+        'lambda_region': None,
         'api_key_required': bool,
         'method_request_parameters': dict,
         'integration_request_body_template': dict,
@@ -287,7 +287,7 @@ class ApiGatewayResourceMethodGenerator(ApiGatewayConfigurationGenerator):
             lambda_name = self._dict.get('lambda_name')
             self._validate_lambda_existence(lambda_name)
         else:
-            if 'lamdba_name' in self._dict:
+            if 'lambda_name' in self._dict:
                 self._dict.pop('lambda_name')
         return super()._resolve_configuration()
 

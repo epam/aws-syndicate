@@ -218,7 +218,6 @@ UNDERSCORE_CREATE_DEPLOY_TARGET_BUCKET_ACTION = 'create_deploy_target_bucket'
 UPLOAD_ACTION = 'upload'
 COPY_BUNDLE_ACTION = 'copy-bundle'
 EXPORT_ACTION = 'export'
-AUTHORIZATION_SCOPES_KEY = 'authorization_scopes'
 
 MODIFICATION_OPS = [
     DEPLOY_ACTION, UPDATE_ACTION, CLEAN_ACTION, PARTIAL_CLEAN_ACTION
@@ -302,3 +301,5 @@ PARAMETER_TYPE_PARAM = 'parameter_type'
 PARAMETER_NAME_PARAM = 'parameter_name'
 
 EMPTY_VALUES = [[], set(), (), {}, '']
+
+AUTHORIZATION_SCOPES_KEY = 'authorization_scopes'

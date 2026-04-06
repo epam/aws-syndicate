@@ -466,6 +466,10 @@ def api_gateway_resource_method(ctx, **kwargs):
             "Lambda name is required if the integration type is 'lambda'",
             param_type='option', param_hint='lambda_name')
 
+    # Clean up empty scopes
+    if not kwargs.get('authorization_scopes'):
+        kwargs.pop('authorization_scopes', None)
+
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = ApiGatewayResourceMethodGenerator(**kwargs)
     _generate(generator)

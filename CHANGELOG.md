@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Allow creating folders in the target deploy bucket with capital letters
 - Added quotes around the configuration path in the `Set SDCT_CONF` hint for Windows
 - Added the 'OAuth Scopes' support for Api Gateway with Cognito auth
+- Added `--authorization-scopes` parameter to `syndicate generate meta api-gateway-resource-method` command, the 'OAuth Scopes' for access_token validation with Cognito authorizer
 
 # [1.19.1] - 2026-01-12
 - Updated lambda function permissions deployment to comply with AWS requirements for `function URL`
