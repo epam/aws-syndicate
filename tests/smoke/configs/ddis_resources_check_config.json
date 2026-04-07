@@ -1310,6 +1310,35 @@
                 1,
                 2
               ]
+            },
+            {
+              "index": 9,
+              "name": "api_gw_resources_existence",
+              "description": "Check if API Gateway resources were updated",
+              "resources": {
+                "sdct-at-api-gw": {
+                  "resources": [
+                    {
+                      "path": "/test",
+                      "methods": {
+                        "PATCH": true,
+                        "GET": true,
+                        "POST": false
+                      }
+                    },
+                    {
+                      "path": "/new_endpoint",
+                      "methods": {
+                        "GET": true
+                      }
+                    }
+                  ]
+                }
+              },
+              "depends_on": [
+                1,
+                2
+              ]
             }
           ]
         }

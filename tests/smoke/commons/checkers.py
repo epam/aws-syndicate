@@ -242,11 +242,12 @@ def lambda_envs_checker(lambda_name: str, envs: dict,
     return result
 
 
-def appsync_modification_checker(appsync_name: str,
-                                 data_sources: list[dict],
-                                 resolvers: list[dict],
-                                 functions: Optional[list[dict]] = []) \
-        -> dict | None:
+def appsync_modification_checker(
+        appsync_name: str,
+        data_sources: list[dict],
+        resolvers: list[dict],
+        functions: Optional[list[dict]] = []
+) -> dict | None:
     missing_sources = []
     missing_resolvers = []
     missing_functions = []
@@ -319,8 +320,10 @@ def appsync_modification_checker(appsync_name: str,
 
 
 def role_trusted_relationships_checker(
-        role_name: str, resources_presence: list = None,
-        resources_absence: list = None) -> dict | None:
+        role_name: str,
+        resources_presence: list = None,
+        resources_absence: list = None
+) -> dict | None:
 
     def _check_value_recursively(value, target_items):
         """Recursively check if any target items are present in a value
@@ -371,6 +374,63 @@ def role_trusted_relationships_checker(
         'missing_presence_items': list(missing_presence_items),
         'found_absence_items': list(found_absence_items)
     }
+
+
+def api_gw_resources_existence_checker(
+        api_gw_name: str,
+        resources: list[dict]
+) -> dict:
+    if not (api_id := connections.get_api_gw_id(api_gw_name)):
+        return {'missing_api': True}
+
+    actual_resources = [
+        dict(r) for r in connections.list_api_gateway_resources(api_id)
+    ]
+    missing_paths = []
+    missing_methods = []
+    forbidden_methods_present = []
+    redundant_paths = []
+
+    for resource in resources:
+        path = resource.get('path')
+        methods = resource.get('methods') or {}
+        actual = None
+        for item in actual_resources:
+            if item.get('path') == path:
+                actual = item
+                break
+        if actual is None:
+            missing_paths.append(resource)
+            continue
+
+        actual_resources.remove(actual)
+        actual_methods = set(actual.get('methods') or [])
+
+        for method, should_exist in methods.items():
+            m = str(method).upper()
+            if should_exist:
+                if m not in actual_methods:
+                    missing_methods.append({'path': path, 'method': m})
+            else:
+                if m in actual_methods:
+                    forbidden_methods_present.append(
+                        {'path': path, 'method': m})
+
+    if actual_resources:
+        redundant_paths = [{'path': a['path'], 'methods': a['methods']}
+                           for a in actual_resources]
+
+    result = {}
+    if missing_paths:
+        result['missing_paths'] = missing_paths
+    if missing_methods:
+        result['missing_methods'] = missing_methods
+    if forbidden_methods_present:
+        result['forbidden_methods_present'] = forbidden_methods_present
+    if redundant_paths:
+        result['redundant_paths'] = redundant_paths
+
+    return result
 
 
 # ------------ Resource existence checkers -------------

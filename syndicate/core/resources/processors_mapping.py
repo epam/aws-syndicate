@@ -304,12 +304,8 @@ class ProcessorFacade:
                 self.resources_provider.rds_db_cluster().update_db_cluster,
             RDS_DB_INSTANCE_TYPE:
                 self.resources_provider.rds_db_instance().update_db_instance,
-        }
-
-    def resource_configuration_processor(self):
-        return {
             API_GATEWAY_TYPE:
-                self.resources_provider.api_gw().api_gateway_update_processor
+                self.resources_provider.api_gw().update_api_gateway,
         }
 
     def resource_identifier(self):

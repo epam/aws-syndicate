@@ -213,6 +213,35 @@ class ApiGatewayConnection(object):
             token = response.get('position')
         return resources
 
+    def get_resource(self, api_id, resource_id):
+        return self.client.get_resource(
+            restApiId=api_id, resourceId=resource_id)
+
+    def delete_method(self, api_id, resource_id, http_method):
+        try:
+            self.client.delete_method(
+                restApiId=api_id,
+                resourceId=resource_id,
+                httpMethod=http_method,
+            )
+        except ClientError as e:
+            if e.response.get('Error', {}).get('Code') == 'NotFoundException':
+                _LOG.debug(
+                    'Method %s on resource %s already absent',
+                    http_method, resource_id)
+            else:
+                raise
+
+    def delete_resource(self, api_id, resource_id):
+        try:
+            self.client.delete_resource(
+                restApiId=api_id, resourceId=resource_id)
+        except ClientError as e:
+            if e.response.get('Error', {}).get('Code') == 'NotFoundException':
+                _LOG.debug('Resource %s already absent', resource_id)
+            else:
+                raise
+
     def get_method(self, api_id, resource_id, method):
         """
         :type api_id: str
