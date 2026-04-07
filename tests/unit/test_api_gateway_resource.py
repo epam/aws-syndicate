@@ -1,169 +1,183 @@
 import unittest
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import MagicMock
 
 from syndicate.core.constants import AUTHORIZATION_SCOPES_KEY
+from syndicate.exceptions import InvalidValueError
 
 
-class TestCreateMethodFromMetadataScopes(unittest.TestCase):
-    """Tests for authorization_scopes in _create_method_from_metadata"""
+class TestAuthorizationScopesValidation(unittest.TestCase):
+    """Scopes MUST only work with COGNITO_USER_POOLS"""
 
     def setUp(self):
-        # We need to import here or mock the dependencies
-        # Adjust import path based on actual module structure
         from syndicate.core.resources.api_gateway_resource import \
             ApiGatewayResource
 
         self.mock_connection = MagicMock()
         self.mock_lambda_res = MagicMock()
 
-        # Create instance with mocked dependencies
-        # Adjust constructor based on actual implementation
         self.resource = ApiGatewayResource.__new__(ApiGatewayResource)
         self.resource.connection = self.mock_connection
         self.resource.lambda_res = self.mock_lambda_res
         self.resource.region = 'us-east-1'
         self.resource.account_id = '123456789012'
 
-    def _make_cognito_authorizer_mapping(self, authorizer_name,
-                                          authorizer_id):
-        """Helper to set up Cognito authorizer mocks"""
-        mapping = {authorizer_name: authorizer_id}
+        self.mock_connection.get_model.return_value = None
+
+    # ── POSITIVE: Cognito + scopes works ─────────────────
+
+    def test_cognito_authorizer_with_scopes_succeeds(self):
+        """COGNITO_USER_POOLS + scopes → allowed"""
+        scopes = ['petstore-api/read']
         self.mock_connection.get_authorizer.return_value = {
             'type': 'COGNITO_USER_POOLS'
         }
-        return mapping
-
-    def _make_custom_authorizer_mapping(self, authorizer_name,
-                                         authorizer_id):
-        """Helper to set up Custom authorizer mocks"""
-        mapping = {authorizer_name: authorizer_id}
-        self.mock_connection.get_authorizer.return_value = {
-            'type': 'TOKEN'
-        }
-        return mapping
-
-    def test_cognito_authorizer_with_scopes(self):
-        """Scopes ARE passed when authorizer is COGNITO_USER_POOLS"""
-        scopes = ['petstore/read', 'petstore/write']
-        authorizer_name = 'my_cognito_auth'
-        authorizer_id = 'auth-abc123'
-
-        mapping = self._make_cognito_authorizer_mapping(
-            authorizer_name, authorizer_id)
 
         method_meta = {
-            'authorization_type': authorizer_name,
+            'authorization_type': 'my_cognito_auth',
             AUTHORIZATION_SCOPES_KEY: scopes,
             'integration_type': 'mock',
         }
 
-        self.mock_connection.get_model.return_value = None
-
+        # Should NOT raise
         self.resource._create_method_from_metadata(
             api_id='api-123',
             resource_id='res-456',
             resource_path='/pets',
             method='GET',
             method_meta=method_meta,
-            authorizers_mapping=mapping
+            authorizers_mapping={'my_cognito_auth': 'auth-id-1'}
         )
 
-        # Verify create_method was called with scopes
-        self.mock_connection.create_method.assert_called_once()
         call_kwargs = self.mock_connection.create_method.call_args
-        kwargs = call_kwargs.kwargs if call_kwargs.kwargs else call_kwargs[1]
-        self.assertEqual(kwargs.get('authorization_scopes'), scopes)
+        params = call_kwargs.kwargs or call_kwargs[1]
+        self.assertEqual(params.get('authorization_scopes'), scopes)
 
-    def test_cognito_authorizer_without_scopes(self):
-        """No scopes passed when not configured (even with Cognito)"""
-        authorizer_name = 'my_cognito_auth'
-        authorizer_id = 'auth-abc123'
-
-        mapping = self._make_cognito_authorizer_mapping(
-            authorizer_name, authorizer_id)
+    def test_cognito_authorizer_without_scopes_succeeds(self):
+        """COGNITO_USER_POOLS without scopes → allowed (uses id_token)"""
+        self.mock_connection.get_authorizer.return_value = {
+            'type': 'COGNITO_USER_POOLS'
+        }
 
         method_meta = {
-            'authorization_type': authorizer_name,
-            # No authorization_scopes key
+            'authorization_type': 'my_cognito_auth',
             'integration_type': 'mock',
         }
 
-        self.mock_connection.get_model.return_value = None
-
+        # Should NOT raise
         self.resource._create_method_from_metadata(
             api_id='api-123',
             resource_id='res-456',
             resource_path='/pets',
             method='GET',
             method_meta=method_meta,
-            authorizers_mapping=mapping
+            authorizers_mapping={'my_cognito_auth': 'auth-id-1'}
         )
 
         call_kwargs = self.mock_connection.create_method.call_args
-        kwargs = call_kwargs.kwargs if call_kwargs.kwargs else call_kwargs[1]
-        self.assertIsNone(kwargs.get('authorization_scopes'))
+        params = call_kwargs.kwargs or call_kwargs[1]
+        self.assertIsNone(params.get('authorization_scopes'))
 
-    def test_custom_authorizer_scopes_ignored(self):
-        """Scopes are NOT passed for CUSTOM authorizer type"""
-        authorizer_name = 'my_custom_auth'
-        authorizer_id = 'auth-xyz789'
+    # ── NEGATIVE: Non-Cognito + scopes raises error ──────
 
-        mapping = self._make_custom_authorizer_mapping(
-            authorizer_name, authorizer_id)
-
-        method_meta = {
-            'authorization_type': authorizer_name,
-            AUTHORIZATION_SCOPES_KEY: ['some/scope'],  # should be ignored
-            'integration_type': 'mock',
-        }
-
-        self.mock_connection.get_model.return_value = None
-
-        self.resource._create_method_from_metadata(
-            api_id='api-123',
-            resource_id='res-456',
-            resource_path='/pets',
-            method='GET',
-            method_meta=method_meta,
-            authorizers_mapping=mapping
-        )
-
-        call_kwargs = self.mock_connection.create_method.call_args
-        kwargs = call_kwargs.kwargs if call_kwargs.kwargs else call_kwargs[1]
-        self.assertIsNone(kwargs.get('authorization_scopes'))
-
-    def test_none_auth_scopes_ignored(self):
-        """Scopes are NOT passed for NONE authorization type"""
+    def test_none_auth_with_scopes_raises_error(self):
+        """NONE + scopes → InvalidValueError"""
         method_meta = {
             'authorization_type': 'NONE',
             AUTHORIZATION_SCOPES_KEY: ['some/scope'],
             'integration_type': 'mock',
         }
 
-        self.mock_connection.get_model.return_value = None
+        with self.assertRaises(InvalidValueError) as ctx:
+            self.resource._create_method_from_metadata(
+                api_id='api-123',
+                resource_id='res-456',
+                resource_path='/pets',
+                method='GET',
+                method_meta=method_meta,
+                authorizers_mapping={}
+            )
 
-        self.resource._create_method_from_metadata(
-            api_id='api-123',
-            resource_id='res-456',
-            resource_path='/pets',
-            method='GET',
-            method_meta=method_meta,
-            authorizers_mapping={}
-        )
+        self.assertIn('COGNITO_USER_POOLS', str(ctx.exception))
+        self.mock_connection.create_method.assert_not_called()
 
-        call_kwargs = self.mock_connection.create_method.call_args
-        kwargs = call_kwargs.kwargs if call_kwargs.kwargs else call_kwargs[1]
-        self.assertIsNone(kwargs.get('authorization_scopes'))
-
-    def test_aws_iam_auth_scopes_ignored(self):
-        """Scopes are NOT passed for AWS_IAM authorization type"""
+    def test_aws_iam_with_scopes_raises_error(self):
+        """AWS_IAM + scopes → InvalidValueError"""
         method_meta = {
             'authorization_type': 'AWS_IAM',
             AUTHORIZATION_SCOPES_KEY: ['some/scope'],
             'integration_type': 'mock',
         }
 
-        self.mock_connection.get_model.return_value = None
+        with self.assertRaises(InvalidValueError) as ctx:
+            self.resource._create_method_from_metadata(
+                api_id='api-123',
+                resource_id='res-456',
+                resource_path='/pets',
+                method='GET',
+                method_meta=method_meta,
+                authorizers_mapping={}
+            )
+
+        self.assertIn('COGNITO_USER_POOLS', str(ctx.exception))
+        self.mock_connection.create_method.assert_not_called()
+
+    def test_custom_authorizer_with_scopes_raises_error(self):
+        """CUSTOM (TOKEN) authorizer + scopes → InvalidValueError"""
+        self.mock_connection.get_authorizer.return_value = {
+            'type': 'TOKEN'
+        }
+
+        method_meta = {
+            'authorization_type': 'my_custom_auth',
+            AUTHORIZATION_SCOPES_KEY: ['some/scope'],
+            'integration_type': 'mock',
+        }
+
+        with self.assertRaises(InvalidValueError) as ctx:
+            self.resource._create_method_from_metadata(
+                api_id='api-123',
+                resource_id='res-456',
+                resource_path='/pets',
+                method='GET',
+                method_meta=method_meta,
+                authorizers_mapping={'my_custom_auth': 'auth-id-2'}
+            )
+
+        self.assertIn('COGNITO_USER_POOLS', str(ctx.exception))
+        self.mock_connection.create_method.assert_not_called()
+
+    def test_request_authorizer_with_scopes_raises_error(self):
+        """CUSTOM (REQUEST) authorizer + scopes → InvalidValueError"""
+        self.mock_connection.get_authorizer.return_value = {
+            'type': 'REQUEST'
+        }
+
+        method_meta = {
+            'authorization_type': 'my_request_auth',
+            AUTHORIZATION_SCOPES_KEY: ['some/scope'],
+            'integration_type': 'mock',
+        }
+
+        with self.assertRaises(InvalidValueError) as ctx:
+            self.resource._create_method_from_metadata(
+                api_id='api-123',
+                resource_id='res-456',
+                resource_path='/pets',
+                method='GET',
+                method_meta=method_meta,
+                authorizers_mapping={'my_request_auth': 'auth-id-3'}
+            )
+
+        self.assertIn('COGNITO_USER_POOLS', str(ctx.exception))
+
+    # ── NEGATIVE: Non-Cognito WITHOUT scopes still works ─
+
+    def test_none_auth_without_scopes_succeeds(self):
+        """NONE without scopes → works normally"""
+        method_meta = {
+            'authorization_type': 'NONE',
+            'integration_type': 'mock',
+        }
 
         self.resource._create_method_from_metadata(
             api_id='api-123',
@@ -174,9 +188,29 @@ class TestCreateMethodFromMetadataScopes(unittest.TestCase):
             authorizers_mapping={}
         )
 
-        call_kwargs = self.mock_connection.create_method.call_args
-        kwargs = call_kwargs.kwargs if call_kwargs.kwargs else call_kwargs[1]
-        self.assertIsNone(kwargs.get('authorization_scopes'))
+        self.mock_connection.create_method.assert_called_once()
+
+    def test_custom_authorizer_without_scopes_succeeds(self):
+        """CUSTOM authorizer without scopes → works normally"""
+        self.mock_connection.get_authorizer.return_value = {
+            'type': 'TOKEN'
+        }
+
+        method_meta = {
+            'authorization_type': 'my_custom_auth',
+            'integration_type': 'mock',
+        }
+
+        self.resource._create_method_from_metadata(
+            api_id='api-123',
+            resource_id='res-456',
+            resource_path='/pets',
+            method='GET',
+            method_meta=method_meta,
+            authorizers_mapping={'my_custom_auth': 'auth-id-2'}
+        )
+
+        self.mock_connection.create_method.assert_called_once()
 
 
 if __name__ == '__main__':
