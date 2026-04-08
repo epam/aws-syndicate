@@ -18,8 +18,10 @@ import os
 
 import boto3
 
-cognito_client = boto3.client('cognito-idp',
-                              os.environ.get('region', 'eu-central-1'))
+cognito_client = boto3.client(
+    service_name='cognito-idp',
+    region_name=os.environ.get('region', 'eu-central-1')
+)
 CUP_ID = os.environ.get('cup_id')
 CLIENT_ID = os.environ.get('cup_client_id')
 
@@ -28,6 +30,7 @@ PETS = [
     {"id": "2", "name": "Whiskers", "species": "cat"},
     {"id": "3", "name": "Goldie", "species": "fish"},
 ]
+
 
 def lambda_handler(event, context):
     """
@@ -38,6 +41,9 @@ def lambda_handler(event, context):
     http_method = event.get('httpMethod', '')
     path = event.get('resource', '')
     path_params = event.get('pathParameters') or {}
+    body = json.loads(event.get('body') or '{}')
+    email = body.get('email')
+    password = body.get('password')
 
     # Log token claims for debugging
     claims = (event.get('requestContext', {})
@@ -47,7 +53,11 @@ def lambda_handler(event, context):
     print(f"Scopes in token: {claims.get('scope', 'N/A')}")
 
     try:
-        if path == '/pets' and http_method == 'GET':
+        if path == '/login' and http_method == 'POST':
+            return login(email, password)
+        elif path == '/signup' and http_method == 'POST':
+            return signup(email, password)
+        elif path == '/pets' and http_method == 'GET':
             return _response(200, PETS)
 
         elif path == '/pets' and http_method == 'POST':
@@ -68,42 +78,12 @@ def lambda_handler(event, context):
             return _response(404, {"message": f"Pet {pet_id} not found"})
 
         else:
-            return _response(404, {"message": "Not found"})
+            return _response(404, {"message": 'Unknown request path'})
 
     except Exception as e:
         print(f"Error: {str(e)}")
         return _response(500, {"message": "Internal server error"})
 
-
-
-    print(event)
-    body = json.loads(event['body'])
-    request_path = event['resource']
-    email = body.get('email')
-    password = body.get('password')
-
-    if request_path == '/login':
-        return login(email, password)
-    elif request_path == '/signup':
-        return signup(email, password)
-    else:
-        return {
-            "statusCode": 400,
-            "headers": {
-                "Content-Type": "application/json"
-            },
-            "body": json.dumps({'message': 'Unknown request path'})
-        }
-
-def _response(status_code, body):
-    return {
-        "statusCode": status_code,
-        "headers": {
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
-        },
-        "body": json.dumps(body),
-    }
 
 def signup(email, password):
     custom_attr = [{
@@ -120,42 +100,33 @@ def signup(email, password):
             UserPoolId=CUP_ID, Username=email)
     except Exception as e:
         print(str(e))
-        return {
-            "statusCode": 400,
-            "headers": {
-                "Content-Type": "application/json"
-            },
-            "body": json.dumps({'message': f'Cannot create user {email}.'})
-        }
+        return _response(400, {'message': f'Cannot create user {email}.'})
 
-    return {
-        "statusCode": 200,
-        "headers": {
-            "Content-Type": "application/json"
-        },
-        "body": json.dumps({'message': f'User {email} was created.'})
-    }
+    return _response(200, {'message': f'User {email} was created.'})
 
 
 def login(email, password):
-    auth_params = {
-        'USERNAME': email,
-        'PASSWORD': password
-    }
     auth_result = cognito_client.admin_initiate_auth(
         UserPoolId=CUP_ID,
         ClientId=CLIENT_ID,
-        AuthFlow='ADMIN_USER_PASSWORD_AUTH', AuthParameters=auth_params)
+        AuthFlow='ADMIN_USER_PASSWORD_AUTH',
+        AuthParameters={
+            'USERNAME': email,
+            'PASSWORD': password
+        })
 
-    if auth_result:
-        id_token = auth_result['AuthenticationResult']['IdToken']
-    else:
-        id_token = None
+    return _response(200, {
+        'id_token': auth_result['AuthenticationResult']['IdToken'],
+        'access_token': auth_result['AuthenticationResult']['AccessToken']
+    })
 
+
+def _response(status_code, body):
     return {
-        "statusCode": 200,
+        "statusCode": status_code,
         "headers": {
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
         },
-        "body": json.dumps(id_token)
+        "body": json.dumps(body),
     }

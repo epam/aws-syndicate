@@ -2,6 +2,6 @@ account_id: ACCOUNT_ID
 lambdas_alias_name: dev
 logs_expiration: 30
 region: REGION
-userpool_name: USERPOOL_NAME
 cognito_domain_prefix: petstore-example-dev
 deploy_stage: api
+userpool_name: USERPOOL_NAME
