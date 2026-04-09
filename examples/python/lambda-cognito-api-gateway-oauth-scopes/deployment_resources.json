@@ -51,7 +51,6 @@
         "ALLOW_ADMIN_USER_PASSWORD_AUTH",
         "ALLOW_REFRESH_TOKEN_AUTH"
       ],
-      "allowed_o_auth_flows_user_pool_client": true,
       "allowed_o_auth_flows": [
         "client_credentials"
       ],
@@ -105,7 +104,9 @@
     },
     "resources": {
       "/login": {
-        "enable_cors": true,
+        "enable_cors": {
+          "state": true
+        },
         "POST": {
           "enable_proxy": true,
           "integration_request_body_template": {},
@@ -118,7 +119,9 @@
         }
       },
       "/signup": {
-        "enable_cors": true,
+        "enable_cors": {
+          "state": true
+        },
         "POST": {
           "enable_proxy": true,
           "integration_request_body_template": {},
@@ -131,7 +134,9 @@
         }
       },
       "/pets": {
-        "enable_cors": true,
+        "enable_cors": {
+          "state": true
+        },
         "GET": {
           "authorization_type": "cognito_authorizer",
           "authorization_scopes": [
@@ -152,7 +157,9 @@
         }
       },
       "/pets/{pet_id}": {
-        "enable_cors": true,
+        "enable_cors": {
+          "state": true
+        },
         "GET": {
           "authorization_type": "cognito_authorizer",
           "authorization_scopes": [
