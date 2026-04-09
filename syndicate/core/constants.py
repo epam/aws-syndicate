@@ -302,3 +302,5 @@ PARAMETER_TYPE_PARAM = 'parameter_type'
 PARAMETER_NAME_PARAM = 'parameter_name'
 
 EMPTY_VALUES = [[], set(), (), {}, '']
+
+AUTHORIZATION_SCOPES_KEY = 'authorization_scopes'

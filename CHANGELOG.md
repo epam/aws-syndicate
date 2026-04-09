@@ -12,7 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed an issue related to the resource-based policy duplication during updating lamda function.
 - Improved the error message when the user does not assume the role and tries to access the AWS resources
 - Allow creating folders in the target deploy bucket with capital letters
-- Added quotes around the configuration path in the `Set SDCT_CONF` hint for Windows 
+- Added quotes around the configuration path in the `Set SDCT_CONF` hint for Windows
+- Added the 'OAuth Scopes' support for Api Gateway with Cognito auth
+- Added `--authorization-scopes` parameter to `syndicate generate meta api-gateway-resource-method` command, the 'OAuth Scopes' for access_token validation with Cognito authorizer
 - Fixed an issue when `integration_type` in API Gateway resource meta has lambda function as a target, but the lambda function doesn't exist in account
 
 # [1.19.1] - 2026-01-12

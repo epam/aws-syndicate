@@ -27,7 +27,8 @@ from syndicate.connection import LogsConnection
 from syndicate.core.constants import (
     SOURCE_ARN_DEEP_KEY, SECURITY_SCHEMAS_DEEP_KEY,
     API_GW_DEFAULT_THROTTLING_RATE_LIMIT,
-    API_GW_DEFAULT_THROTTLING_BURST_LIMIT
+    API_GW_DEFAULT_THROTTLING_BURST_LIMIT,
+    AUTHORIZATION_SCOPES_KEY
 )
 from syndicate.core.helper import unpack_kwargs
 from syndicate.core.resources.base_resource import BaseResource
@@ -956,7 +957,9 @@ class ApiGatewayResource(BaseResource):
 
     def _create_method_from_metadata(
             self, api_id, resource_id, resource_path, method, method_meta,
-            authorizers_mapping, enable_cors: dict = None, api_resp=None,
+            authorizers_mapping,
+            enable_cors: dict = None,
+            api_resp=None,
             api_integration_resp=None,
             resources_statement_singleton: bool = False,
             methods_statement_singleton: bool = False):
@@ -971,8 +974,8 @@ class ApiGatewayResource(BaseResource):
 
         # resolve authorizer if needed
         authorization_type = method_meta.get('authorization_type')
+        authorization_scopes = None
         if authorization_type not in ['NONE', 'AWS_IAM']:
-            # type is authorizer, so add id to meta
             authorizer_id = authorizers_mapping.get(authorization_type)
             if not authorizer_id:
                 raise ResourceNotFoundError(
@@ -982,8 +985,23 @@ class ApiGatewayResource(BaseResource):
                 api_id, authorizer_id).get('type')
             if authorizer == _COGNITO_AUTHORIZER_TYPE:
                 authorization_type = _COGNITO_AUTHORIZER_TYPE
+                authorization_scopes = method_meta.get(AUTHORIZATION_SCOPES_KEY)
             else:
                 authorization_type = _CUSTOM_AUTHORIZER_TYPE
+                if method_meta.get(AUTHORIZATION_SCOPES_KEY):
+                    raise InvalidValueError(
+                        f"'authorization_scopes' can only be used with "
+                        f"COGNITO_USER_POOLS authorizer type, but "
+                        f"authorizer '{method_meta.get('authorization_type')}' "
+                        f"is of type '{authorizer}'."
+                    )
+        else:
+             if method_meta.get(AUTHORIZATION_SCOPES_KEY):
+                raise InvalidValueError(
+                    f"'authorization_scopes' can only be used with "
+                    f"COGNITO_USER_POOLS authorizer type, but "
+                    f"authorization_type is '{authorization_type}'."
+                )
 
         method_request_models = method_meta.get('method_request_models')
         if method_request_models:
@@ -1001,7 +1019,8 @@ class ApiGatewayResource(BaseResource):
             api_key_required=method_meta.get('api_key_required'),
             request_parameters=method_meta.get('method_request_parameters'),
             request_models=method_request_models,
-            request_validator=request_validator_id)
+            request_validator=request_validator_id,
+            authorization_scopes=authorization_scopes)
         # second step: create integration
         integration_type = method_meta.get('integration_type').lower()
         # set up integration - lambda or aws service

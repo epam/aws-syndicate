@@ -293,7 +293,8 @@ class ApiGatewayConnection(object):
                       authorization_type=None, authorizer_id=None,
                       api_key_required=None, request_parameters=None,
                       request_models=None,
-                      request_validator=None):
+                      request_validator=None,
+                      authorization_scopes=None):
         """
         :type api_id: str
         :type resource_id: str
@@ -337,6 +338,12 @@ class ApiGatewayConnection(object):
             params['requestModels'] = request_models
         if request_validator:
             params['requestValidatorId'] = request_validator
+        if authorization_scopes:
+            if not isinstance(authorization_scopes, list):
+                raise ValueError(
+                    f'authorization_scopes must be a list, '
+                    f'got {type(authorization_scopes).__name__}')
+            params['authorizationScopes'] = authorization_scopes
         self.client.put_method(**params)
 
     def create_request_validator(self, api_id, name: str = None,
