@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added the 'OAuth Scopes' support for Api Gateway with Cognito auth
 - Added `--authorization-scopes` parameter to `syndicate generate meta api-gateway-resource-method` command, the 'OAuth Scopes' for access_token validation with Cognito authorizer
 - Fixed an issue when `integration_type` in API Gateway resource meta has lambda function as a target, but the lambda function doesn't exist in account
+- Improved `syndicate status --resources` with deployment tracking
+- Added `--deployed` flag filters the view to show only deployed resources for command `syndicate status`
 
 # [1.19.1] - 2026-01-12
 - Updated lambda function permissions deployment to comply with AWS requirements for `function URL`

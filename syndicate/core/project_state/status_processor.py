@@ -13,16 +13,27 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+import json
 import os
 from datetime import datetime
 
 from tabulate import tabulate
 
+from syndicate.core.build.bundle_processor import (
+    load_meta_resources, load_latest_deploy_output)
 from syndicate.core.project_state.project_state import (
     OPERATION_LOCK_MAPPINGS, MODIFICATION_LOCK, WARMUP_LOCK,
     LOCK_LAST_MODIFICATION_DATE, LOCK_LOCKED_TILL)
 from syndicate.core.project_state.sync_processor import sync_project_state
-from syndicate.core.constants import DATE_FORMAT_ISO_8601, MODIFICATION_OPS
+from syndicate.core.constants import (
+    DATE_FORMAT_ISO_8601, MODIFICATION_OPS, DEPLOYED_MARKER, LOCAL_MARKER,
+    RESOURCES_FILE_NAME
+)
+
+from syndicate.commons.log_helper import get_logger
+
+_LOG = get_logger(
+    'syndicate.core.project_state.status_processor')
 
 LOCKS = {
     MODIFICATION_LOCK: 'modification',
@@ -31,13 +42,15 @@ LOCKS = {
 
 LINE_SEP = os.linesep
 
+# deployment_resources.json is the standard name
 
-def project_state_status(category=None):
+
+def project_state_status(category=None, deployed_only=False):
     sync_project_state()
     if category == 'events':
         return process_events_view()
     elif category == 'resources':
-        return process_resources_view()
+        return process_resources_view(deployed_only=deployed_only)
     else:
         return process_default_view()
 
@@ -97,16 +110,38 @@ def process_default_view():
             data.insert(1,
                         ['', 'Deploy name: ', last_event.get('deploy_name')])
         result.append(tabulate_data(data))
-    lambdas = PROJECT_STATE.lambdas
+
     result.append(LINE_SEP + 'Project resources:')
-    if lambdas:
-        headers = ['Type', 'Quantity']
-        resources = [['Lambda', len(lambdas)]]
-        result.append(
-            tabulate_data(data=resources, headers=headers, tablefmt='simple')
-        )
+    all_resources = _collect_project_resources()
+    deployed_resources = _collect_deployed_resource_names()
+
+    if not all_resources:
+        result.append(indent('No resources found in this project.'))
     else:
-        result.append(indent('There are no lambdas in this project.'))
+        grouped = _group_by_type(all_resources)
+        headers = ['Type', 'Total', 'Deployed']
+        summary_rows = []
+        for resource_type in sorted(grouped.keys()):
+            resources = grouped[resource_type]
+            total = len(resources)
+            deployed_count = sum(
+                1 for name in resources
+                if name in deployed_resources
+            )
+            summary_rows.append([resource_type, total, deployed_count])
+        result.append(
+            tabulate_data(data=summary_rows, headers=headers,
+                          tablefmt='simple'))
+
+        total_all = len(all_resources)
+        deployed_all = sum(
+            1 for name in all_resources
+            if name in deployed_resources
+        )
+        result.append(
+            f'{LINE_SEP}  Summary: {deployed_all}/{total_all} '
+            f'resources deployed')
+
     return LINE_SEP + LINE_SEP.join(result)
 
 
@@ -137,22 +172,200 @@ def process_events_view():
     return LINE_SEP + LINE_SEP.join(result)
 
 
-def process_resources_view():
+def process_resources_view(deployed_only=False):
     from syndicate.core import PROJECT_STATE
     project_name = PROJECT_STATE.name
-    result = ['Project: {}'.format(project_name),
-              'Lambda resources:']
-    lambdas = PROJECT_STATE.lambdas
-    if lambdas:
-        headers = ['Name', 'Runtime']
-        lambdas_data = []
-        for lambda_name, lambda_info in lambdas.items():
-            lambdas_data.append([lambda_name, lambda_info.get('runtime')])
-        result.append(tabulate_data(data=lambdas_data, headers=headers,
-                                    tablefmt='simple'))
+
+    result = [f'Project: {project_name}']
+
+    all_resources = _collect_project_resources()
+    deployed_resources = _collect_deployed_resource_names()
+
+    if not all_resources:
+        result.append('No resources found in this project.')
+        return LINE_SEP + LINE_SEP.join(result)
+
+    if deployed_only:
+        result.append('Deployed resources:')
     else:
-        result.append(indent('There are no lambdas in this project.'))
+        result.append('Resources:')
+
+    grouped = _group_by_type(all_resources)
+    total_count = 0
+    deployed_count = 0
+
+    for resource_type in sorted(grouped.keys()):
+        resources = grouped[resource_type]
+
+        # Build rows for this type
+        rows = []
+        type_deployed = 0
+        for name in sorted(resources.keys()):
+            meta = resources[name]
+            is_deployed = name in deployed_resources
+            if is_deployed:
+                type_deployed += 1
+
+            if deployed_only and not is_deployed:
+                continue
+
+            status = DEPLOYED_MARKER if is_deployed else LOCAL_MARKER
+
+            # Build row based on resource type
+            if resource_type == 'lambda':
+                runtime = meta.get('runtime', '-')
+                rows.append([name, runtime, status])
+            else:
+                rows.append([name, status])
+
+        if not rows:
+            continue
+
+        total_count += len(resources)
+        deployed_count += type_deployed
+
+        # Type header with count
+        type_header = (
+            f'  Type: {resource_type}'
+            f'  ({type_deployed}/{len(resources)} deployed)'
+        )
+        result.append(LINE_SEP + type_header)
+
+        # Table
+        if resource_type == 'lambda':
+            headers = ['Name', 'Runtime', 'Status']
+        else:
+            headers = ['Name', 'Status']
+
+        result.append(
+            indent(tabulate_data(
+                data=rows, headers=headers, tablefmt='simple')))
+
+    # Summary
+    if deployed_only:
+        result.append(
+            LINE_SEP + f'Total deployed: {deployed_count} resources')
+    else:
+        result.append(
+            LINE_SEP + f'Summary: {deployed_count}/{total_count} '
+                       f'resources deployed')
+
     return LINE_SEP + LINE_SEP.join(result)
+
+
+def _collect_project_resources():
+    """
+    Collects all project resources.
+    Strategy:
+      1. Try build meta from latest bundle (resolved names)
+      2. Fall back to scanning deployment_resources.json files
+      3. Merge with lambdas from PROJECT_STATE
+    """
+    resources = _try_load_from_bundle()
+    if not resources:
+        resources = _scan_deployment_resources_files()
+
+    # Merge lambdas from PROJECT_STATE (lambda_config.json)
+    resources = _merge_lambda_resources(resources)
+
+    return resources
+
+
+def _try_load_from_bundle():
+    """Try loading resolved resources from the latest built bundle"""
+    from syndicate.core import PROJECT_STATE
+    try:
+        bundle_name = PROJECT_STATE.latest_bundle_name
+        if not bundle_name:
+            _LOG.debug('No bundle found in project state')
+            return {}
+
+        resources = load_meta_resources(bundle_name)
+        _LOG.debug(
+            f'Loaded {len(resources)} resources from bundle '
+            f'{bundle_name}')
+        return resources or {}
+    except Exception as e:
+        _LOG.debug(f'Failed to load bundle meta: {e}')
+        return {}
+
+
+def _scan_deployment_resources_files():
+    """Scan project directory for deployment_resources.json files"""
+    from syndicate.core import CONFIG
+    resources = {}
+
+    project_path = CONFIG.project_path
+
+    for root, dirs, files in os.walk(project_path):
+        if RESOURCES_FILE_NAME in files:
+            filepath = os.path.join(root, RESOURCES_FILE_NAME)
+            try:
+                with open(filepath, 'r') as fh:
+                    file_resources = json.load(fh)
+                for name, meta in file_resources.items():
+                    if isinstance(meta, dict) and meta.get(
+                            'resource_type'):
+                        resources[name] = meta
+            except (json.JSONDecodeError, IOError) as e:
+                _LOG.warning(f'Failed to read {filepath}: {e}')
+
+    _LOG.debug(
+        f'Scanned {len(resources)} resources from local files')
+    return resources
+
+
+def _merge_lambda_resources(resources):
+    """Merge lambda definitions from PROJECT_STATE"""
+    from syndicate.core import PROJECT_STATE
+    lambdas = PROJECT_STATE.lambdas or {}
+    for name, info in lambdas.items():
+        if name not in resources:
+            resources[name] = {
+                'resource_type': 'lambda',
+                **info
+            }
+        elif 'runtime' not in resources.get(name, {}):
+            # Enrich existing lambda entry with runtime info
+            resources[name]['runtime'] = info.get('runtime')
+    return resources
+
+
+def _collect_deployed_resource_names():
+    """
+    Returns a set of deployed resource names from the
+    latest deploy output.
+    """
+    try:
+        is_regular, output = load_latest_deploy_output(failsafe=True)
+
+        if output is False or output is None:
+            _LOG.debug('No deploy output found')
+            return set()
+
+        deployed_names = set()
+        for arn, config in output.items():
+            resource_name = config.get('resource_name')
+            if resource_name:
+                deployed_names.add(resource_name)
+
+        _LOG.debug(f'Found {len(deployed_names)} deployed resources')
+        return deployed_names
+
+    except Exception as e:
+        _LOG.debug(f'Failed to load deploy output: {e}')
+        return set()
+
+
+def _group_by_type(resources):
+    """Groups {name: meta} dict by resource_type"""
+    grouped = {}
+    for name, meta in resources.items():
+        rtype = meta.get('resource_type', 'unknown')
+        if rtype not in grouped:
+            grouped[rtype] = {}
+        grouped[rtype][name] = meta
+    return grouped
 
 
 def locks_summary(project_state):
