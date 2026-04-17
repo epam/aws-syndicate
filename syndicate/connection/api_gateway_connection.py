@@ -232,6 +232,42 @@ class ApiGatewayConnection(object):
             else:
                 raise
 
+    def delete_method_response(self, api_id, resource_id, http_method,
+                               status_code):
+        try:
+            self.client.delete_method_response(
+                restApiId=api_id,
+                resourceId=resource_id,
+                httpMethod=http_method,
+                statusCode=str(status_code),
+            )
+        except ClientError as e:
+            if e.response.get('Error', {}).get('Code') == 'NotFoundException':
+                _LOG.debug(
+                    f'Method response {http_method} '
+                    f'{status_code} already absent'
+                )
+            else:
+                raise
+
+    def delete_integration_response(self, api_id, resource_id, http_method,
+                                    status_code):
+        try:
+            self.client.delete_integration_response(
+                restApiId=api_id,
+                resourceId=resource_id,
+                httpMethod=http_method,
+                statusCode=str(status_code),
+            )
+        except ClientError as e:
+            if e.response.get('Error', {}).get('Code') == 'NotFoundException':
+                _LOG.debug(
+                    f'Integration response {http_method} '
+                    f'{status_code} already absent'
+                )
+            else:
+                raise
+
     def delete_resource(self, api_id, resource_id):
         try:
             self.client.delete_resource(
@@ -346,6 +382,204 @@ class ApiGatewayConnection(object):
             params['authorizationScopes'] = authorization_scopes
         self.client.put_method(**params)
 
+    @staticmethod
+    def escape_json_pointer_token(segment: str) -> str:
+        """
+        Escape a single path segment for API Gateway patch paths
+        """
+        return segment.replace('~', '~0').replace('/', '~1')
+
+    @staticmethod
+    def _bool_param(value):
+        """
+        Parse API Gateway boolean-ish values
+        """
+        if isinstance(value, bool):
+            return value
+        if value is None:
+            return False
+        return str(value).lower() == 'true'
+
+    def update_method_configuration(
+            self,
+            api_id: str,
+            resource_id: str,
+            http_method: str,
+            authorization_type: Optional[str],
+            authorizer_id: Optional[str] = None,
+            api_key_required=None,
+            request_parameters=None,
+            request_models=None,
+            request_validator_id: Optional[str] = None,
+            authorization_scopes: list = None
+    ):
+        """
+        Update an existing method
+        """
+        current = self.client.get_method(
+            restApiId=api_id,
+            resourceId=resource_id,
+            httpMethod=http_method,
+        )
+        patches = []
+
+        # update authorizer (only NONE or IAM)
+        expect_auth = authorization_type or 'NONE'
+        cur_auth = current.get('authorizationType') or 'NONE'
+        if expect_auth != cur_auth:
+            patches.append({
+                'op': 'replace',
+                'path': '/authorizationType',
+                'value': expect_auth,
+            })
+
+        cur_aid = current.get('authorizerId')
+        want_aid = authorizer_id if expect_auth not in (
+            'NONE', 'AWS_IAM'
+        ) else None
+        if want_aid != cur_aid:
+            if want_aid:
+                patches.append({
+                    'op': 'replace',
+                    'path': '/authorizerId',
+                    'value': want_aid,
+                })
+            elif cur_aid:
+                patches.append({
+                    'op': 'replace',
+                    'path': '/authorizerId',
+                    'value': '',
+                })
+
+        # update api key
+        cur_key = self._bool_param(current.get('apiKeyRequired'))
+        expect_key = self._bool_param(api_key_required)
+        if cur_key != expect_key:
+            patches.append({
+                'op': 'replace',
+                'path': '/apiKeyRequired',
+                'value': 'true' if expect_key else 'false'
+            })
+
+        # update request validator
+        cur_rv = current.get('requestValidatorId') or ''
+        expect_rv = request_validator_id or ''
+        if cur_rv != expect_rv:
+            patches.append({
+                'op': 'replace',
+                'path': '/requestValidatorId',
+                'value': expect_rv,
+            })
+
+        # update request params
+        cur_rp = dict(current.get('requestParameters') or {})
+        expect_rp = dict(request_parameters or {})
+        for key in list(cur_rp.keys()):
+            if key not in expect_rp:
+                patches.append({
+                    'op': 'remove',
+                    'path': '/requestParameters/'
+                            f'{self.escape_json_pointer_token(key)}',
+                })
+        for key, val in expect_rp.items():
+            val_bool = 'true' if (self._bool_param(val)) else 'false'
+            if key not in cur_rp:
+                patches.append({
+                    'op': 'add',
+                    'path': '/requestParameters/'
+                            f'{self.escape_json_pointer_token(key)}',
+                    'value': val_bool,
+                })
+            else:
+                val_cur_bool = 'true' if (self._bool_param(cur_rp[key])) else 'false'
+                if val_cur_bool != val_bool:
+                    patches.append({
+                        'op': 'replace',
+                        'path': '/requestParameters/'
+                                f'{self.escape_json_pointer_token(key)}',
+                        'value': val_bool,
+                    })
+
+        # update request models
+        cur_rm = dict(current.get('requestModels') or {})
+        expect_rm = dict(request_models or {})
+        for ct in list(cur_rm.keys()):
+            if ct not in expect_rm:
+                patches.append({
+                    'op': 'remove',
+                    'path': '/requestModels/'
+                            f'{self.escape_json_pointer_token(ct)}',
+                })
+        for ct, model in expect_rm.items():
+            if cur_rm.get(ct) != model:
+                op = 'replace' if ct in cur_rm else 'add'
+                patches.append({
+                    'op': op,
+                    'path': '/requestModels/'
+                            f'{self.escape_json_pointer_token(ct)}',
+                    'value': model,
+                })
+
+        # update authorization scopes
+        if authorization_scopes is not None:
+            if not isinstance(authorization_scopes, list):
+                raise ValueError(
+                    f'authorization_scopes must be a list, '
+                    f'got {type(authorization_scopes).__name__}')
+            cur_scopes = list(current.get('authorizationScopes') or [])
+            expect_scopes = list(dict.fromkeys(authorization_scopes))
+            cur_set = set(cur_scopes)
+            expect_set = set(expect_scopes)
+            for scope in expect_scopes:
+                if scope not in cur_set:
+                    patches.append({
+                        'op': 'add',
+                        'path': '/authorizationScopes',
+                        'value': scope,
+                    })
+            for scope in cur_scopes:
+                if scope not in expect_set:
+                    patches.append({
+                        'op': 'remove',
+                        'path': '/authorizationScopes',
+                        'value': scope,
+                    })
+
+        if patches:
+            self.client.update_method(
+                restApiId=api_id,
+                resourceId=resource_id,
+                httpMethod=http_method,
+                patchOperations=patches,
+            )
+
+    def clear_method_and_integration_responses(
+            self, api_id: str, resource_id: str, http_method: str
+    ) -> None:
+        try:
+            integ = self.client.get_integration(
+                restApiId=api_id,
+                resourceId=resource_id,
+                httpMethod=http_method,
+            )
+        except ClientError as e:
+            if e.response.get('Error', {}).get('Code') == 'NotFoundException':
+                integ = None
+            else:
+                raise
+        if integ:
+            for sc in list((integ.get('integrationResponses') or {}).keys()):
+                self.delete_integration_response(
+                    api_id, resource_id, http_method, sc)
+        refreshed = self.client.get_method(
+            restApiId=api_id,
+            resourceId=resource_id,
+            httpMethod=http_method,
+        )
+        for sc in list((refreshed.get('methodResponses') or {}).keys()):
+            self.delete_method_response(
+                api_id, resource_id, http_method, sc)
+
     def create_request_validator(self, api_id, name: str = None,
                                  validate_request_body: bool = False,
                                  validate_request_parameters: bool = False):
@@ -443,7 +677,6 @@ class ApiGatewayConnection(object):
         :type request_templates: dict
         :type passthrough_behavior: str
         :param passthrough_behavior: WHEN_NO_MATCH , WHEN_NO_TEMPLATES , NEVER
-        :type lambda_region: str
         :type credentials: str
         :param credentials: role arn
         :type request_parameters: dict
@@ -515,9 +748,9 @@ class ApiGatewayConnection(object):
 
         if passthrough_behavior:
             params['passthrough_behavior'] = passthrough_behavior
-        if request_templates:
+        if request_templates is not None:
             params['request_templates'] = request_templates
-        if request_parameters:
+        if request_parameters is not None:
             params['request_parameters'] = request_parameters
         self.create_integration(**params)
 
@@ -533,7 +766,7 @@ class ApiGatewayConnection(object):
                       resource_id=resource_id)
         if passthrough_behavior:
             params['passthrough_behavior'] = passthrough_behavior
-        if request_templates:
+        if request_templates is not None:
             params['request_templates'] = request_templates
         self.create_integration(**params)
 
@@ -550,7 +783,7 @@ class ApiGatewayConnection(object):
 
         if passthrough_behavior:
             params['passthrough_behavior'] = passthrough_behavior
-        if request_templates:
+        if request_templates is not None:
             params['request_templates'] = request_templates
         self.create_integration(**params)
 
@@ -631,16 +864,19 @@ class ApiGatewayConnection(object):
             params['responseModels'] = response_models
         self.client.put_method_response(**params)
 
-    def enable_cors_for_resource(self, api_id, resource_id, enable_cors):
-        """ When your API's resources receive requests from a domain other than
+    def enable_cors_for_resource(
+            self,
+            api_id: str,
+            resource_id: str,
+            enable_cors: dict
+    ):
+        """
+        When your API's resources receive requests from a domain other than
         the API's own domain, you must enable cross-origin resource sharing
         (CORS) for selected methods on the resource.
-
-        :type api_id: str
-        :type resource_id: str
-        :type enable_cors: dict
         """
-        self.create_method(api_id, resource_id, 'OPTIONS')
+        if not self.get_method(api_id, resource_id, 'OPTIONS'):
+            self.create_method(api_id, resource_id, 'OPTIONS')
         self.create_integration(api_id=api_id, resource_id=resource_id,
                                 method='OPTIONS', int_type='MOCK',
                                 request_templates={
@@ -649,6 +885,14 @@ class ApiGatewayConnection(object):
         origins = enable_cors.get('custom_origins', [])
         headers = enable_cors.get('custom_headers', [])
         methods = enable_cors.get('custom_methods', [])
+
+        # Remove existing OPTIONS 200 responses before put_* so repeat CORS
+        # sync does not hit ConflictException (retry would loop forever).
+        _cors_options_status = '200'
+        self.delete_integration_response(
+            api_id, resource_id, 'OPTIONS', _cors_options_status)
+        self.delete_method_response(
+            api_id, resource_id, 'OPTIONS', _cors_options_status)
 
         self.create_method_response(
             api_id, resource_id, 'OPTIONS', response_parameters={
@@ -777,6 +1021,96 @@ class ApiGatewayConnection(object):
 
         return self.client.create_authorizer(**params)
 
+    def update_authorizer(
+            self,
+            api_id: str,
+            authorizer_id: str,
+            authorizer_uri=None,
+            identity_source=None,
+            ttl=None
+    ) -> dict | None:
+        """
+        Apply REST API authorizer updates via patch operations.
+
+        Cognito `providerARNs` cannot use `replace`; use
+        :meth:`update_cognito_authorizer_user_pools` for pool list changes.
+        """
+        patch_operations = []
+        if authorizer_uri is not None:
+            patch_operations.append({
+                'op': 'replace',
+                'path': '/authorizerUri',
+                'value': authorizer_uri,
+            })
+        if identity_source is not None:
+            patch_operations.append({
+                'op': 'replace',
+                'path': '/identitySource',
+                'value': identity_source,
+            })
+        if ttl is not None:
+            patch_operations.append({
+                'op': 'replace',
+                'path': '/authorizerResultTtlInSeconds',
+                'value': str(ttl),
+            })
+        if not patch_operations:
+            return
+        return self.client.update_authorizer(
+            restApiId=api_id,
+            authorizerId=authorizer_id,
+            patchOperations=patch_operations,
+        )
+
+    def update_cognito_authorizer_user_pools(
+            self,
+            api_id: str,
+            authorizer_id: str,
+            provider_arns: list,
+            identity_source=None,
+            ttl=None):
+        """
+        Sync COGNITO_USER_POOLS authorizer ARNs (add/remove per AWS rules).
+
+        If ``provider_arns`` is empty, pool ARNs are left unchanged (AWS rejects
+        removing all ``providerARNs`` without replacing them). Only ``identity_source``
+        and ``ttl`` patches are applied in that case.
+        """
+        patch_operations = []
+        if provider_arns:
+            current = self.get_authorizer(api_id, authorizer_id)
+            for arn in current.get('providerARNs') or []:
+                patch_operations.append({
+                    'op': 'remove',
+                    'path': '/providerARNs',
+                    'value': arn,
+                })
+            for arn in provider_arns:
+                patch_operations.append({
+                    'op': 'add',
+                    'path': '/providerARNs',
+                    'value': arn,
+                })
+        if identity_source is not None:
+            patch_operations.append({
+                'op': 'replace',
+                'path': '/identitySource',
+                'value': identity_source,
+            })
+        if ttl is not None:
+            patch_operations.append({
+                'op': 'replace',
+                'path': '/authorizerResultTtlInSeconds',
+                'value': str(ttl),
+            })
+        if not patch_operations:
+            return
+        return self.client.update_authorizer(
+            restApiId=api_id,
+            authorizerId=authorizer_id,
+            patchOperations=patch_operations,
+        )
+
     def get_authorizers(self, api_id):
         items = []
         params = dict(restApiId=api_id)
@@ -825,6 +1159,39 @@ class ApiGatewayConnection(object):
         if schema:
             params['schema'] = schema
         return self.client.create_model(**params)
+
+    def update_model(
+            self,
+            rest_api_id: str,
+            model_name: str,
+            description: str = None,
+            schema: dict | str = None
+    ):
+        """
+        Update an existing model; ``schema`` may be a dict or JSON string.
+        """
+        patch_operations = []
+        if description is not None:
+            patch_operations.append({
+                'op': 'replace',
+                'path': '/description',
+                'value': description,
+            })
+        if schema is not None:
+            if isinstance(schema, dict):
+                schema = json.dumps(schema)
+            patch_operations.append({
+                'op': 'replace',
+                'path': '/schema',
+                'value': schema,
+            })
+        if not patch_operations:
+            return
+        return self.client.update_model(
+            restApiId=rest_api_id,
+            modelName=model_name,
+            patchOperations=patch_operations,
+        )
 
     def delete_model(self, rest_api_id, name):
         _LOG.debug(f'Deleting model "{name}"')
