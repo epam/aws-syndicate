@@ -937,8 +937,8 @@ class ApiGatewayResource(BaseResource):
         Create missing HTTP methods or re-apply meta for existing ones.
 
         New methods use ``put_method``; existing methods are updated with
-        ``update_method`` patches and ``put_integration`` so auth, integration
-        (e.g. MOCK placeholder to Lambda), and responses match meta.
+        ``update_method`` patches, ``update_integration`` (patch or
+        ``put_integration`` when required), and responses match meta.
         """
         methods_statement_singleton = resource_meta.get(
             POLICY_STATEMENT_SINGLETON)
@@ -1127,8 +1127,16 @@ class ApiGatewayResource(BaseResource):
         # set up integration - lambda or aws service
         body_template = method_meta.get('integration_request_body_template')
         passthrough_behavior = method_meta.get(
-            'integration_passthrough_behavior')
+            'integration_passthrough_behavior'
+        )
+        credentials = method_meta.get('credentials')
         request_parameters = method_meta.get('integration_request_parameters')
+        existing_integration = (
+            method_already_exists
+            and integration_type
+            and self.connection.get_rest_integration(
+                api_id, resource_id, method)
+        )
         # TODO split to map - func implementation
         if integration_type:
             if integration_type == 'lambda':
@@ -1142,41 +1150,71 @@ class ApiGatewayResource(BaseResource):
                                                             lambda_alias)
                 if not lambda_arn:
                     USER_LOG.warning(
-                        'Lambda %r was not found in the account/region; '
-                        'lambda_version=%r, lambda_alias=%r.\n'
+                        'Lambda %r was not found; lambda_version=%r, '
+                        'lambda_alias=%r.\n'
                         'A temporary MOCK integration (HTTP 200, empty body) '
-                        'was attached for %s %s so CreateDeployment can '
-                        'succeed. Fix \'lambda_name\' in deployment resources '
+                        'was attached for %s %s. '
+                        'Fix \'lambda_name\' in deployment resources '
                         'and re-deploy to connect the real Lambda',
                         lambda_name, lambda_version, lambda_alias,
-                        method, resource_path)
-                    self.connection.create_mock_integration(
-                        api_id, resource_id, method,
-                        request_templates={
-                            'application/json': '{"statusCode": 200}',
-                        },
-                        passthrough_behavior=(
-                            passthrough_behavior or 'WHEN_NO_MATCH'),
+                        method, resource_path
                     )
+                    mock_templates = {
+                        'application/json': '{"statusCode": 200}',
+                    }
+                    mock_pb = passthrough_behavior or 'WHEN_NO_MATCH'
+                    if existing_integration:
+                        self.connection.update_integration_configuration(
+                            api_id, resource_id, method,
+                            int_type='MOCK',
+                            request_templates=mock_templates,
+                            passthrough_behavior=mock_pb,
+                        )
+                    else:
+                        self.connection.create_mock_integration(
+                            api_id, resource_id, method,
+                            request_templates=mock_templates,
+                            passthrough_behavior=mock_pb,
+                        )
                     integration_configured = True
                 else:
                     enable_proxy = method_meta.get('enable_proxy')
                     if enable_proxy and body_template:
                         USER_LOG.warning(
-                            'API Gateway: integration_request_body_template is '
-                            'not applied for %s %s when enable_proxy is true '
-                            '(AWS_PROXY passes the request to Lambda as-is). '
-                            'Set enable_proxy to false to use mapping templates.',
-                            method, resource_path)
+                            'integration_request_body_template is not applied '
+                            'for %s %s when enable_proxy is true. Set '
+                            'enable_proxy to false to use mapping templates.',
+                            method, resource_path
+                        )
                     cache_configuration = method_meta.get('cache_configuration')
                     cache_key_parameters = cache_configuration.get(
                         'cache_key_parameters') if cache_configuration else None
-                    self.connection.create_lambda_integration(
-                        lambda_arn, api_id, resource_id, method, body_template,
-                        passthrough_behavior, method_meta.get('lambda_region'),
-                        enable_proxy=enable_proxy,
-                        cache_key_parameters=cache_key_parameters,
-                        request_parameters=request_parameters)
+                    _lambda_uri = (
+                        'arn:aws:apigateway:{0}:lambda:path/'
+                        '2015-03-31/functions/{1}/invocations'
+                    ).format(self.connection.region, lambda_arn)
+                    if existing_integration:
+                        self.connection.update_integration_configuration(
+                            api_id, resource_id, method,
+                            int_type='AWS_PROXY' if enable_proxy else 'AWS',
+                            integration_method='POST',
+                            uri=_lambda_uri,
+                            credentials=credentials,
+                            request_templates=body_template,
+                            passthrough_behavior=passthrough_behavior,
+                            cache_key_parameters=cache_key_parameters,
+                            request_parameters=request_parameters,
+                        )
+                    else:
+                        self.connection.create_lambda_integration(
+                            lambda_arn, api_id, resource_id, method,
+                            body_template,
+                            credentials=credentials,
+                            passthrough_behavior=passthrough_behavior,
+                            enable_proxy=enable_proxy,
+                            cache_key_parameters=cache_key_parameters,
+                            request_parameters=request_parameters
+                        )
                     # add permissions to invoke
                     # Allows to apply method or resource singleton of a policy
                     # statement, setting wildcard on the respective scope.
@@ -1216,33 +1254,71 @@ class ApiGatewayResource(BaseResource):
                 uri = method_meta.get('uri')
                 role = method_meta.get('role')
                 integration_method = method_meta.get('integration_method')
-                self.connection.create_service_integration(self.account_id,
-                                                           api_id,
-                                                           resource_id,
-                                                           method,
-                                                           integration_method,
-                                                           role, uri,
-                                                           body_template,
-                                                           passthrough_behavior,
-                                                           request_parameters)
+                _service_uri = 'arn:aws:apigateway:{0}'.format(uri)
+                _service_creds = (
+                    self.connection.get_service_integration_credentials(
+                        self.account_id, role))
+                if existing_integration:
+                    self.connection.update_integration_configuration(
+                        api_id, resource_id, method,
+                        int_type='AWS',
+                        integration_method=integration_method,
+                        uri=_service_uri,
+                        credentials=_service_creds,
+                        request_templates=body_template,
+                        passthrough_behavior=passthrough_behavior,
+                        request_parameters=request_parameters,
+                    )
+                else:
+                    self.connection.create_service_integration(
+                        self.account_id,
+                        api_id,
+                        resource_id,
+                        method,
+                        integration_method,
+                        role, uri,
+                        body_template,
+                        passthrough_behavior,
+                        request_parameters)
                 integration_configured = True
             elif integration_type == 'mock':
-                self.connection.create_mock_integration(api_id, resource_id,
-                                                        method,
-                                                        body_template,
-                                                        passthrough_behavior)
+                if existing_integration:
+                    self.connection.update_integration_configuration(
+                        api_id, resource_id, method,
+                        int_type='MOCK',
+                        request_templates=body_template,
+                        passthrough_behavior=passthrough_behavior,
+                    )
+                else:
+                    self.connection.create_mock_integration(
+                        api_id, resource_id,
+                        method,
+                        body_template,
+                        passthrough_behavior)
                 integration_configured = True
             elif integration_type == 'http':
                 integration_method = method_meta.get('integration_method')
                 uri = method_meta.get('uri')
                 enable_proxy = method_meta.get('enable_proxy')
-                self.connection.create_http_integration(api_id, resource_id,
-                                                        method,
-                                                        integration_method,
-                                                        uri,
-                                                        body_template,
-                                                        passthrough_behavior,
-                                                        enable_proxy)
+                _http_int_type = 'HTTP_PROXY' if enable_proxy else 'HTTP'
+                if existing_integration:
+                    self.connection.update_integration_configuration(
+                        api_id, resource_id, method,
+                        int_type=_http_int_type,
+                        integration_method=integration_method,
+                        uri=uri,
+                        request_templates=body_template,
+                        passthrough_behavior=passthrough_behavior,
+                    )
+                else:
+                    self.connection.create_http_integration(
+                        api_id, resource_id,
+                        method,
+                        integration_method,
+                        uri,
+                        body_template,
+                        passthrough_behavior,
+                        enable_proxy)
                 integration_configured = True
             else:
                 raise InvalidValueError(

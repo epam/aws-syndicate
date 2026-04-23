@@ -80,7 +80,9 @@
     },
     "resources": {
       "/": {
-        "enable_cors": false,
+        "enable_cors": {
+          "state": false
+        },
         "GET": {
           "enable_proxy": true,
           "authorization_type": "NONE",
@@ -95,7 +97,9 @@
         }
       },
       "/secured": {
-        "enable_cors": false,
+        "enable_cors": {
+          "state": false
+        },
         "GET": {
           "enable_proxy": true,
           "authorization_type": "authorizer",
@@ -110,7 +114,9 @@
         }
       },
       "/signin": {
-        "enable_cors": false,
+        "enable_cors": {
+          "state": false
+        },
         "POST": {
           "enable_proxy": true,
           "authorization_type": "NONE",
@@ -125,7 +131,9 @@
         }
       },
       "/signup": {
-        "enable_cors": false,
+        "enable_cors": {
+          "state": false
+        },
         "POST": {
           "enable_proxy": true,
           "authorization_type": "NONE",

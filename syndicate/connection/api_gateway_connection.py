@@ -14,6 +14,7 @@
     limitations under the License.
 """
 import json
+import time
 from secrets import token_hex
 from typing import Optional
 
@@ -382,15 +383,13 @@ class ApiGatewayConnection(object):
             params['authorizationScopes'] = authorization_scopes
         self.client.put_method(**params)
 
-    @staticmethod
-    def escape_json_pointer_token(segment: str) -> str:
+    def escape_json_pointer_token(self, segment: str) -> str:
         """
         Escape a single path segment for API Gateway patch paths
         """
         return segment.replace('~', '~0').replace('/', '~1')
 
-    @staticmethod
-    def _bool_param(value):
+    def _bool_param(self, value):
         """
         Parse API Gateway boolean-ish values
         """
@@ -636,11 +635,27 @@ class ApiGatewayConnection(object):
                 {REQ_VALIDATOR_PARAM_NAME: validator_name})
         return request_validator_params
 
-    def create_integration(self, api_id, resource_id, method, int_type,
-                           integration_method=None, uri=None, credentials=None,
-                           request_parameters=None, request_templates=None,
-                           passthrough_behavior=None, cache_namespace=None,
-                           cache_key_parameters=None):
+    def create_integration(
+            self, api_id: str,
+            resource_id: str,
+            method: str,
+            int_type: str,
+            integration_method: Optional[str] = None,
+            uri: Optional[str] = None,
+            credentials: Optional[str] = None,
+            request_parameters: Optional[dict[str, str]] = None,
+            request_templates: Optional[dict[str, str]] = None,
+            passthrough_behavior: Optional[str] = None,
+            cache_namespace: Optional[str] = None,
+            cache_key_parameters: Optional[list[str]] = None,
+            connection_type: Optional[str] = None,
+            connection_id: Optional[str] = None,
+            content_handling: Optional[str] = None,
+            integration_target: Optional[str] = None,
+            response_transfer_mode: Optional[str] = None,
+            timeout_in_millis: Optional[int] = None,
+            tls_config: Optional[dict[str, bool]] = None
+    ):
         params = dict(restApiId=api_id, resourceId=resource_id, type=int_type,
                       httpMethod=method)
         if integration_method:
@@ -659,7 +674,368 @@ class ApiGatewayConnection(object):
             params['cacheNamespace'] = cache_namespace
         if cache_key_parameters:
             params['cacheKeyParameters'] = cache_key_parameters
+        if connection_type:
+            params['connectionType'] = connection_type
+        if connection_id:
+            params['connectionId'] = connection_id
+        if content_handling:
+            params['contentHandling'] = content_handling
+        if integration_target:
+            params['integrationTarget'] = integration_target
+        if response_transfer_mode:
+            params['responseTransferMode'] = response_transfer_mode
+        if timeout_in_millis is not None:
+            params['timeoutInMillis'] = timeout_in_millis
+        if tls_config is not None:
+            params['tlsConfig'] = tls_config
         self.client.put_integration(**params)
+
+    def get_rest_integration(
+            self, api_id: str,
+            resource_id: str,
+            http_method: str
+    ) -> Optional[dict]:
+        """
+        Return integration dict or None if the method has no integration
+        """
+        try:
+            return self.client.get_integration(
+                restApiId=api_id,
+                resourceId=resource_id,
+                httpMethod=http_method,
+            )
+        except ClientError as e:
+            if e.response.get('Error', {}).get('Code') == 'NotFoundException':
+                return None
+            raise
+
+    def _integration_map_patch_path(self, prefix: str, key: str) -> str:
+        return f'/{prefix}/{self.escape_json_pointer_token(key)}'
+
+    def _integration_requires_put(
+            self,
+            current: dict,
+            int_type: Optional[str],
+            integration_method: Optional[str],
+            uri: Optional[str],
+            credentials: Optional[str],
+    ) -> bool:
+        """
+        Changes AWS does not support via UpdateIntegration patches
+        """
+        ctype = (current.get('type') or '')
+        if int_type is not None and int_type != ctype:
+            return True
+        if credentials is not None:
+            cur_cred = current.get('credentials') or ''
+            if (credentials or '') != cur_cred:
+                return True
+        if ctype == 'MOCK':
+            if uri is not None and uri != (current.get('uri') or ''):
+                return True
+            if integration_method is not None:
+                cur_h = current.get('httpMethod') or ''
+                if integration_method != cur_h:
+                    return True
+        return False
+
+    def update_integration_configuration(
+            self,
+            api_id: str,
+            resource_id: str,
+            http_method: str,
+            int_type: Optional[str] = None,
+            integration_method: Optional[str] = None,
+            uri: Optional[str] = None,
+            credentials: Optional[str] = None,
+            request_parameters: Optional[dict] = None,
+            request_templates: Optional[dict] = None,
+            passthrough_behavior: Optional[str] = 'WHEN_NO_MATCH',
+            cache_namespace: Optional[str] = None,
+            cache_key_parameters: Optional[list] = None,
+            connection_type: Optional[str] = None,
+            connection_id: Optional[str] = None,
+            content_handling: Optional[str] = None,
+            integration_target: Optional[str] = None,
+            response_transfer_mode: Optional[str] = None,
+            timeout_in_millis: Optional[int] = None,
+            tls_insecure_skip_verification: Optional[bool] = None,
+    ) -> None:
+        """
+        Update an existing integration via patch, or PutIntegration when AWS
+        does not allow the change through UpdateIntegration (integration type,
+        credentials, or uri/httpMethod on MOCK).
+
+        `http_method` is the API route verb (GET, POST, ANY, etc.) and must
+        match the method resource being updated;
+        `integration_method` is `integrationHttpMethod` (the verb used to
+        invoke the backend, e.g. `POST` for Lambda);
+        it is not the same as `http_method` unless the integration is
+        configured that way on purpose.
+        """
+        current = self.get_rest_integration(api_id, resource_id, http_method)
+        if not current:
+            raise ValueError(
+                f'No integration for {http_method} on resource {resource_id}; '
+                f'use create_integration first.')
+
+        if self._integration_requires_put(
+                current, int_type, integration_method, uri, credentials):
+            merged_tls = (
+                {'insecureSkipVerification': tls_insecure_skip_verification}
+                if tls_insecure_skip_verification is not None
+                else current.get('tlsConfig'))
+            self.create_integration(
+                api_id, resource_id, http_method,
+                int_type if int_type is not None else current['type'],
+                integration_method=(
+                    integration_method if integration_method is not None
+                    else current.get('httpMethod')),
+                uri=uri if uri is not None else current.get('uri'),
+                credentials=(
+                    credentials if credentials is not None
+                    else current.get('credentials')),
+                request_parameters=(
+                    request_parameters if request_parameters is not None
+                    else dict(current.get('requestParameters') or {})) or None,
+                request_templates=(
+                    request_templates if request_templates is not None
+                    else dict(current.get('requestTemplates') or {})) or None,
+                passthrough_behavior=(
+                    passthrough_behavior if passthrough_behavior is not None
+                    else current.get('passthroughBehavior')),
+                cache_namespace=(
+                    cache_namespace if cache_namespace is not None
+                    else current.get('cacheNamespace')),
+                cache_key_parameters=(
+                    cache_key_parameters if cache_key_parameters is not None
+                    else list(current.get('cacheKeyParameters') or [])) or None,
+                connection_type=(
+                    connection_type if connection_type is not None
+                    else current.get('connectionType')),
+                connection_id=(
+                    connection_id if connection_id is not None
+                    else current.get('connectionId')),
+                content_handling=(
+                    content_handling if content_handling is not None
+                    else current.get('contentHandling')),
+                integration_target=(
+                    integration_target if integration_target is not None
+                    else current.get('integrationTarget')),
+                response_transfer_mode=(
+                    response_transfer_mode if response_transfer_mode is not None
+                    else current.get('responseTransferMode')),
+                timeout_in_millis=(
+                    timeout_in_millis if timeout_in_millis is not None
+                    else current.get('timeoutInMillis')),
+                tls_config=merged_tls
+            )
+            return
+
+        patches = []
+        cur_type = current.get('type') or ''
+
+        def _str_map(d):
+            out = {}
+            for k, v in (d or {}).items():
+                out[k] = v if isinstance(v, str) else str(v)
+            return out
+
+        if request_parameters is not None:
+            cur_rp = _str_map(current.get('requestParameters'))
+            expect_rp = _str_map(request_parameters)
+            for key in list(cur_rp.keys()):
+                if key not in expect_rp:
+                    patches.append({
+                        'op': 'remove',
+                        'path': self._integration_map_patch_path(
+                            'requestParameters', key),
+                        'value': cur_rp[key],
+                    })
+            for key, val in expect_rp.items():
+                if key not in cur_rp:
+                    patches.append({
+                        'op': 'add',
+                        'path': self._integration_map_patch_path(
+                            'requestParameters', key),
+                        'value': val,
+                    })
+                elif cur_rp[key] != val:
+                    patches.append({
+                        'op': 'replace',
+                        'path': self._integration_map_patch_path(
+                            'requestParameters', key),
+                        'value': val,
+                    })
+
+        if request_templates is not None:
+            cur_rt = dict(current.get('requestTemplates') or {})
+            expect_rt = dict(request_templates)
+            for key in list(cur_rt.keys()):
+                if key not in expect_rt:
+                    patches.append({
+                        'op': 'remove',
+                        'path': self._integration_map_patch_path(
+                            'requestTemplates', key),
+                    })
+            for key, val in expect_rt.items():
+                if key not in cur_rt:
+                    patches.append({
+                        'op': 'add',
+                        'path': self._integration_map_patch_path(
+                            'requestTemplates', key),
+                        'value': val,
+                    })
+                elif cur_rt.get(key) != val:
+                    patches.append({
+                        'op': 'replace',
+                        'path': self._integration_map_patch_path(
+                            'requestTemplates', key),
+                        'value': val,
+                    })
+
+        if passthrough_behavior is not None:
+            cur_pb = current.get('passthroughBehavior') or ''
+            if passthrough_behavior != cur_pb:
+                patches.append({
+                    'op': 'replace',
+                    'path': '/passthroughBehavior',
+                    'value': passthrough_behavior,
+                })
+
+        if cache_namespace is not None:
+            cur_cns = current.get('cacheNamespace') or ''
+            if cache_namespace != cur_cns:
+                patches.append({
+                    'op': 'replace',
+                    'path': '/cacheNamespace',
+                    'value': cache_namespace,
+                })
+
+        if connection_type is not None:
+            cur_ct = current.get('connectionType') or ''
+            if connection_type != cur_ct:
+                patches.append({
+                    'op': 'replace',
+                    'path': '/connectionType',
+                    'value': connection_type,
+                })
+
+        if connection_id is not None:
+            cur_cid = current.get('connectionId') or ''
+            if connection_id != cur_cid:
+                patches.append({
+                    'op': 'replace',
+                    'path': '/connectionId',
+                    'value': connection_id,
+                })
+
+        if content_handling is not None:
+            cur_ch = current.get('contentHandling') or ''
+            if content_handling != cur_ch:
+                patches.append({
+                    'op': 'replace',
+                    'path': '/contentHandling',
+                    'value': content_handling,
+                })
+
+        if integration_target is not None:
+            cur_it = current.get('integrationTarget') or ''
+            if integration_target != cur_it:
+                patches.append({
+                    'op': 'replace',
+                    'path': '/integrationTarget',
+                    'value': integration_target,
+                })
+
+        if response_transfer_mode is not None:
+            cur_rtm = current.get('responseTransferMode') or ''
+            if response_transfer_mode != cur_rtm:
+                patches.append({
+                    'op': 'replace',
+                    'path': '/responseTransferMode',
+                    'value': response_transfer_mode,
+                })
+
+        if timeout_in_millis is not None:
+            cur_to = current.get('timeoutInMillis')
+            if cur_to != timeout_in_millis:
+                patches.append({
+                    'op': 'replace',
+                    'path': '/timeoutInMillis',
+                    'value': str(timeout_in_millis),
+                })
+
+        if tls_insecure_skip_verification is not None:
+            cur_tls = (current.get('tlsConfig') or {}).get(
+                'insecureSkipVerification')
+            if bool(cur_tls) != bool(tls_insecure_skip_verification):
+                patches.append({
+                    'op': 'replace',
+                    'path': '/tlsConfig/insecureSkipVerification',
+                    'value': (
+                        'true' if tls_insecure_skip_verification else 'false'),
+                })
+
+        if integration_method is not None and cur_type != 'MOCK':
+            cur_h = current.get('httpMethod') or ''
+            if integration_method != cur_h:
+                patches.append({
+                    'op': 'replace',
+                    'path': '/httpMethod',
+                    'value': integration_method,
+                })
+
+        if uri is not None and cur_type != 'MOCK':
+            cur_uri = current.get('uri') or ''
+            if uri != cur_uri:
+                patches.append({
+                    'op': 'replace',
+                    'path': '/uri',
+                    'value': uri,
+                })
+
+        ckp_patches = []
+        if cache_key_parameters is not None:
+            cur_ckp = list(current.get('cacheKeyParameters') or [])
+            expect_ckp = list(cache_key_parameters)
+            cur_set = set(cur_ckp)
+            expect_set = set(expect_ckp)
+            for p in cur_ckp:
+                if p not in expect_set:
+                    ckp_patches.append({
+                        'op': 'remove',
+                        'path': self._integration_map_patch_path(
+                            'cacheKeyParameters', p),
+                        'value': '',
+                    })
+            for p in expect_ckp:
+                if p not in cur_set:
+                    ckp_patches.append({
+                        'op': 'add',
+                        'path': self._integration_map_patch_path(
+                            'cacheKeyParameters', p),
+                        'value': '',
+                    })
+
+        if patches:
+            self.client.update_integration(
+                restApiId=api_id,
+                resourceId=resource_id,
+                httpMethod=http_method,
+                patchOperations=patches,
+            )
+
+        if ckp_patches:
+            # Second stage: cache key parameter patches can race with
+            # request parameter updates; apply after the first batch settles.
+            time.sleep(1.0)
+            self.client.update_integration(
+                restApiId=api_id,
+                resourceId=resource_id,
+                httpMethod=http_method,
+                patchOperations=ckp_patches,
+            )
 
     def create_lambda_integration(self, lambda_arn, api_id, resource_id,
                                   method, request_templates=None,
@@ -678,7 +1054,7 @@ class ApiGatewayConnection(object):
         :type passthrough_behavior: str
         :param passthrough_behavior: WHEN_NO_MATCH , WHEN_NO_TEMPLATES , NEVER
         :type credentials: str
-        :param credentials: role arn
+        :param credentials: whether credentials are required for a integration
         :type request_parameters: dict
         :param request_parameters: A key-value map specifying request parameters
          (path, query string, header)
@@ -1075,19 +1451,31 @@ class ApiGatewayConnection(object):
         If ``provider_arns`` is empty, pool ARNs are left unchanged (AWS rejects
         removing all ``providerARNs`` without replacing them). Only ``identity_source``
         and ``ttl`` patches are applied in that case.
+
+        When pools change, ARNs to add are patched **before** ARNs to remove so
+        the authorizer never briefly has zero ``providerARNs`` (AWS rejects that).
+        Unchanged ARNs produce no add/remove patches.
         """
         patch_operations = []
         if provider_arns:
             current = self.get_authorizer(api_id, authorizer_id)
-            for arn in current.get('providerARNs') or []:
+            current_list = list(current.get('providerARNs') or [])
+            current_set = set(current_list)
+            desired_ordered = list(dict.fromkeys(provider_arns))
+            desired_set = set(desired_ordered)
+
+            to_add = [a for a in desired_ordered if a not in current_set]
+            to_remove = [a for a in current_list if a not in desired_set]
+
+            for arn in to_add:
                 patch_operations.append({
-                    'op': 'remove',
+                    'op': 'add',
                     'path': '/providerARNs',
                     'value': arn,
                 })
-            for arn in provider_arns:
+            for arn in to_remove:
                 patch_operations.append({
-                    'op': 'add',
+                    'op': 'remove',
                     'path': '/providerARNs',
                     'value': arn,
                 })

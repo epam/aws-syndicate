@@ -81,7 +81,9 @@
     },
     "resources": {
       "/signup": {
-        "enable_cors": false,
+        "enable_cors": {
+          "state": false
+        },
         "POST": {
           "enable_proxy": true,
           "authorization_type": "NONE",
@@ -96,7 +98,9 @@
         }
       },
       "/signin": {
-        "enable_cors": true,
+        "enable_cors": {
+          "state": true
+        },
         "POST": {
           "enable_proxy": true,
           "authorization_type": "NONE",

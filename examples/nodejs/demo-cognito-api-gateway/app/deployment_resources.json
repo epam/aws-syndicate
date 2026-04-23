@@ -70,7 +70,9 @@
     ],
     "resources": {
       "/login": {
-        "enable_cors": true,
+        "enable_cors": {
+          "state": true
+        },
         "POST": {
           "enable_proxy": true,
           "integration_request_body_template": {},
@@ -83,7 +85,9 @@
         }
       },
       "/signup": {
-        "enable_cors": true,
+        "enable_cors": {
+          "state": true
+        },
         "POST": {
           "enable_proxy": true,
           "integration_request_body_template": {},

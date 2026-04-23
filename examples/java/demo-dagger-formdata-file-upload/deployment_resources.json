@@ -38,7 +38,9 @@
     "dependencies": [],
     "resources": {
       "/files": {
-        "enable_cors": true,
+        "enable_cors": {
+          "state": true
+        },
         "GET": {
           "enable_proxy": true,
           "authorization_type": "NONE",

@@ -43,7 +43,9 @@
         ],
         "resources": {
             "/notifications": {
-                "enable_cors": true,
+                "enable_cors": {
+                  "state": true
+                },
                 "POST": {
                     "integration_request_body_template": {},
                     "authorization_type": "NONE",

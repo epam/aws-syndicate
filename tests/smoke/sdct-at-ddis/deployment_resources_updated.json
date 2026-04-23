@@ -77,7 +77,9 @@
     },
     "resources": {
       "/test": {
-        "enable_cors": true,
+        "enable_cors": {
+          "state": true
+        },
         "PATCH": {
           "enable_proxy": true,
           "authorization_type": "authorizer",
