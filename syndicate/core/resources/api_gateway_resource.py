@@ -1045,7 +1045,8 @@ class ApiGatewayResource(BaseResource):
             api_integration_resp=None,
             resources_statement_singleton: bool = False,
             methods_statement_singleton: bool = False,
-            method_already_exists: bool = False):
+            method_already_exists: bool = False
+    ):
         resources_statement_singleton = resources_statement_singleton or False
         methods_statement_singleton = methods_statement_singleton or False
         # init responses for method

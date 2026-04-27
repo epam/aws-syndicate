@@ -189,8 +189,6 @@ class CfApiGatewayConverter(CfResourceConverter):
         lambda_uri = self.get_lambda_function_uri(lambda_name=lambda_name)
         if cache_key_parameters:
             integration.CacheKeyParameters = cache_key_parameters
-        if method_meta.get('lambda_region'):
-            integration.Credentials = method_meta.get('lambda_region')
         integration.IntegrationHttpMethod = 'POST'
         integration.PassthroughBehavior = passthrough_behavior if passthrough_behavior else 'WHEN_NO_MATCH'
         if body_template:
