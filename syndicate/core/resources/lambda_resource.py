@@ -235,10 +235,13 @@ class LambdaResource(BaseResource):
     def resolve_lambda_arn_by_version_and_alias(self, name, version, alias):
         if version or alias:
             lambda_response = self.lambda_conn.get_function(name, version)
+            if not lambda_response:
+                return None
             return self.build_lambda_arn_with_alias(lambda_response, alias)
-        else:
-            return self.lambda_conn.get_function(name).get(
-                'Configuration', {}).get('FunctionArn')
+        fn = self.lambda_conn.get_function(name)
+        if not fn:
+            return None
+        return fn.get('Configuration', {}).get('FunctionArn')
 
     def add_invocation_permission(self, name, principal, source_arn=None,
                                   statement_id=None, exists_ok=False):

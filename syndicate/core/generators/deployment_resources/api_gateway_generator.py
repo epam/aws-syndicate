@@ -223,7 +223,6 @@ class ApiGatewayResourceMethodGenerator(ApiGatewayConfigurationGenerator):
         'authorization_type': "NONE",
         'integration_type': 'mock',
         'lambda_name': None,
-        'lambda_region': None,
         'api_key_required': bool,
         'method_request_parameters': dict,
         'integration_request_body_template': dict,

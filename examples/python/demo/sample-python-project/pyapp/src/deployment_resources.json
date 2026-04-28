@@ -47,7 +47,9 @@
         "deploy_stage": "example",
         "resources": {
             "/handle": {
-                "enable_cors": true,
+                "enable_cors": {
+                  "state": true
+                },
                 "GET": {
                     "integration_type": "lambda",
                     "lambda_alias": "${lambdas_alias_name}",
