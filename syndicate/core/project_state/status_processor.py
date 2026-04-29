@@ -59,7 +59,7 @@ def process_default_view():
     from syndicate.core import PROJECT_STATE
     project_name = PROJECT_STATE.name
     events = PROJECT_STATE.events
-    last_event = None
+    last_event = {}
     latest_operation = None
     is_locked = False
     if events:
@@ -292,14 +292,13 @@ def _try_load_from_bundle():
 
 def _scan_deployment_resources_files():
     """Scan project directory for deployment_resources.json files"""
-    from syndicate.core import CONFIG
     resources = {}
-
+    from syndicate.core import CONFIG
     project_path = CONFIG.project_path
 
     for root, dirs, files in os.walk(project_path):
         if RESOURCES_FILE_NAME in files:
-            filepath = os.path.join(root, RESOURCES_FILE_NAME)
+            filepath = os.path.join(str(root), RESOURCES_FILE_NAME)
             try:
                 with open(filepath, 'r') as fh:
                     file_resources = json.load(fh)
@@ -333,28 +332,53 @@ def _merge_lambda_resources(resources):
 
 def _collect_deployed_resource_names():
     """
-    Returns a set of deployed resource names from the
-    latest deploy output.
+    Returns a set containing BOTH resolved and stripped resource names
+    from the latest deploy output, so comparison works regardless
+    of whether project resources have prefix/suffix applied.
     """
+    from syndicate.core import CONFIG
+
     try:
         is_regular, output = load_latest_deploy_output(failsafe=True)
 
-        if output is False or output is None:
-            _LOG.debug('No deploy output found')
+        if is_regular is None:
+            _LOG.debug('No deployment found in project state')
             return set()
+
+        if not output:
+            _LOG.debug('Deploy output is empty')
+            return set()
+
+        prefix = getattr(CONFIG, 'resources_prefix', '') or ''
+        suffix = getattr(CONFIG, 'resources_suffix', '') or ''
 
         deployed_names = set()
         for arn, config in output.items():
             resource_name = config.get('resource_name')
             if resource_name:
+                # Add resolved name (with prefix/suffix)
                 deployed_names.add(resource_name)
+                # Also add stripped name (without prefix/suffix)
+                stripped = _strip_prefix_suffix(
+                    resource_name, prefix, suffix)
+                deployed_names.add(stripped)
 
-        _LOG.debug(f'Found {len(deployed_names)} deployed resources')
+        _LOG.debug(f'Found {len(deployed_names)} deployed resource '
+                   f'name entries')
         return deployed_names
 
     except Exception as e:
-        _LOG.debug(f'Failed to load deploy output: {e}')
+        _LOG.warning(f'Failed to load deploy output: {e}')
         return set()
+
+
+def _strip_prefix_suffix(name, prefix, suffix):
+    """Remove resource prefix and suffix from a resolved name"""
+    if prefix and name.startswith(prefix):
+        name = name[len(prefix):]
+    if suffix and name.endswith(suffix):
+        name = name[:-len(suffix)]
+    return name
 
 
 def _group_by_type(resources):
