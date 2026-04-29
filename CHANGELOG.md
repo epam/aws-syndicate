@@ -18,6 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed an issue when `integration_type` in API Gateway resource meta has lambda function as a target, but the lambda function doesn't exist in account
 - Improved `syndicate status --resources` with deployment tracking
 - Added `--deployed` flag filters the view to show only deployed resources for command `syndicate status`
+- Improved `syndicate status` default view to display resource deployment summary table with `Total` and `Deployed` counts per resource type, including overall `X/Y resources deployed` summary line
+- Improved `syndicate status --resources` to display resources grouped by  type with individual `✓ Deployed` / `✗ Local` status markers per resource; 
+  - lambda resources additionally show `Runtime` column; 
+  - each group header displays deployed/total counter
+- Added `--deployed` flag to `syndicate status --resources` command to filter the output and display only deployed resources
 
 # [1.19.1] - 2026-01-12
 - Updated lambda function permissions deployment to comply with AWS requirements for `function URL`
