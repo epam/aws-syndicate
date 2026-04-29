@@ -32,8 +32,7 @@ from syndicate.core.constants import (
 
 from syndicate.commons.log_helper import get_logger
 
-_LOG = get_logger(
-    'syndicate.core.project_state.status_processor')
+_LOG = get_logger(__name__)
 
 LOCKS = {
     MODIFICATION_LOCK: 'modification',
@@ -41,6 +40,13 @@ LOCKS = {
 }
 
 LINE_SEP = os.linesep
+
+SKIP_DIRS = {
+    'venv', '.venv', '.git', 'node_modules', '.idea',
+    '__pycache__', '.tox', '.eggs', 'dist', 'build', '.mypy_cache',
+    '.pytest_cache', '.serverless', '.terraform'
+}
+
 
 # deployment_resources.json is the standard name
 
@@ -88,7 +94,8 @@ def process_default_view():
             ['', 'Initiated by: ', last_modification.get('initiator')],
             ['', 'Started at: ', format_time(modification_start_time)],
             ['', 'Ended at: ', format_time(modification_end_time)],
-            ['', 'Duration (sec): ', f"{last_modification.get('duration_sec')}"],
+            ['', 'Duration (sec): ',
+             f"{last_modification.get('duration_sec')}"],
             ['', 'Status: ', f"{last_modification.get('status')}"],
         ]
         result.append(tabulate_data(data))
@@ -291,12 +298,15 @@ def _try_load_from_bundle():
 
 
 def _scan_deployment_resources_files():
-    """Scan project directory for deployment_resources.json files"""
+    """Scan project directory for deployment_resources.json files,
+    skipping large/irrelevant directories to improve performance."""
     resources = {}
     from syndicate.core import CONFIG
     project_path = CONFIG.project_path
 
     for root, dirs, files in os.walk(project_path):
+        dirs[:] = [d for d in dirs if d not in SKIP_DIRS]
+
         if RESOURCES_FILE_NAME in files:
             filepath = os.path.join(str(root), RESOURCES_FILE_NAME)
             try:
@@ -404,7 +414,8 @@ def locks_summary(project_state):
     for lock_name, lock_info in all_locks.items():
         display_name = LOCKS.get(lock_name)
         if lock_info:
-            state = 'Acquired' if lock_info.get(LOCK_LOCKED_TILL) else 'Released'
+            state = 'Acquired' if lock_info.get(
+                LOCK_LOCKED_TILL) else 'Released'
             last_mod_date = lock_info.get(LOCK_LAST_MODIFICATION_DATE)
             last_mod_date = format_time(last_mod_date)
             locked_till_date = lock_info.get(LOCK_LOCKED_TILL)
