@@ -14,6 +14,7 @@
     limitations under the License.
 """
 import json
+import time
 from secrets import token_hex
 from typing import Optional
 
@@ -232,6 +233,42 @@ class ApiGatewayConnection(object):
             else:
                 raise
 
+    def delete_method_response(self, api_id, resource_id, http_method,
+                               status_code):
+        try:
+            self.client.delete_method_response(
+                restApiId=api_id,
+                resourceId=resource_id,
+                httpMethod=http_method,
+                statusCode=str(status_code),
+            )
+        except ClientError as e:
+            if e.response.get('Error', {}).get('Code') == 'NotFoundException':
+                _LOG.debug(
+                    f'Method response {http_method} '
+                    f'{status_code} already absent'
+                )
+            else:
+                raise
+
+    def delete_integration_response(self, api_id, resource_id, http_method,
+                                    status_code):
+        try:
+            self.client.delete_integration_response(
+                restApiId=api_id,
+                resourceId=resource_id,
+                httpMethod=http_method,
+                statusCode=str(status_code),
+            )
+        except ClientError as e:
+            if e.response.get('Error', {}).get('Code') == 'NotFoundException':
+                _LOG.debug(
+                    f'Integration response {http_method} '
+                    f'{status_code} already absent'
+                )
+            else:
+                raise
+
     def delete_resource(self, api_id, resource_id):
         try:
             self.client.delete_resource(
@@ -346,6 +383,202 @@ class ApiGatewayConnection(object):
             params['authorizationScopes'] = authorization_scopes
         self.client.put_method(**params)
 
+    def escape_json_pointer_token(self, segment: str) -> str:
+        """
+        Escape a single path segment for API Gateway patch paths
+        """
+        return segment.replace('~', '~0').replace('/', '~1')
+
+    def _bool_param(self, value):
+        """
+        Parse API Gateway boolean-ish values
+        """
+        if isinstance(value, bool):
+            return value
+        if value is None:
+            return False
+        return str(value).lower() == 'true'
+
+    def update_method_configuration(
+            self,
+            api_id: str,
+            resource_id: str,
+            http_method: str,
+            authorization_type: Optional[str],
+            authorizer_id: Optional[str] = None,
+            api_key_required=None,
+            request_parameters=None,
+            request_models=None,
+            request_validator_id: Optional[str] = None,
+            authorization_scopes: list = None
+    ):
+        """
+        Update an existing method
+        """
+        current = self.client.get_method(
+            restApiId=api_id,
+            resourceId=resource_id,
+            httpMethod=http_method,
+        )
+        patches = []
+
+        # update authorizer (only NONE or IAM)
+        expect_auth = authorization_type or 'NONE'
+        cur_auth = current.get('authorizationType') or 'NONE'
+        if expect_auth != cur_auth:
+            patches.append({
+                'op': 'replace',
+                'path': '/authorizationType',
+                'value': expect_auth,
+            })
+
+        cur_aid = current.get('authorizerId')
+        want_aid = authorizer_id if expect_auth not in (
+            'NONE', 'AWS_IAM'
+        ) else None
+        if want_aid != cur_aid:
+            if want_aid:
+                patches.append({
+                    'op': 'replace',
+                    'path': '/authorizerId',
+                    'value': want_aid,
+                })
+            elif cur_aid:
+                patches.append({
+                    'op': 'replace',
+                    'path': '/authorizerId',
+                    'value': '',
+                })
+
+        # update api key
+        cur_key = self._bool_param(current.get('apiKeyRequired'))
+        expect_key = self._bool_param(api_key_required)
+        if cur_key != expect_key:
+            patches.append({
+                'op': 'replace',
+                'path': '/apiKeyRequired',
+                'value': 'true' if expect_key else 'false'
+            })
+
+        # update request validator
+        cur_rv = current.get('requestValidatorId') or ''
+        expect_rv = request_validator_id or ''
+        if cur_rv != expect_rv:
+            patches.append({
+                'op': 'replace',
+                'path': '/requestValidatorId',
+                'value': expect_rv,
+            })
+
+        # update request params
+        cur_rp = dict(current.get('requestParameters') or {})
+        expect_rp = dict(request_parameters or {})
+        for key in list(cur_rp.keys()):
+            if key not in expect_rp:
+                patches.append({
+                    'op': 'remove',
+                    'path': '/requestParameters/'
+                            f'{self.escape_json_pointer_token(key)}',
+                })
+        for key, val in expect_rp.items():
+            val_bool = 'true' if (self._bool_param(val)) else 'false'
+            if key not in cur_rp:
+                patches.append({
+                    'op': 'add',
+                    'path': '/requestParameters/'
+                            f'{self.escape_json_pointer_token(key)}',
+                    'value': val_bool,
+                })
+            else:
+                val_cur_bool = 'true' if (self._bool_param(cur_rp[key])) else 'false'
+                if val_cur_bool != val_bool:
+                    patches.append({
+                        'op': 'replace',
+                        'path': '/requestParameters/'
+                                f'{self.escape_json_pointer_token(key)}',
+                        'value': val_bool,
+                    })
+
+        # update request models
+        cur_rm = dict(current.get('requestModels') or {})
+        expect_rm = dict(request_models or {})
+        for ct in list(cur_rm.keys()):
+            if ct not in expect_rm:
+                patches.append({
+                    'op': 'remove',
+                    'path': '/requestModels/'
+                            f'{self.escape_json_pointer_token(ct)}',
+                })
+        for ct, model in expect_rm.items():
+            if cur_rm.get(ct) != model:
+                op = 'replace' if ct in cur_rm else 'add'
+                patches.append({
+                    'op': op,
+                    'path': '/requestModels/'
+                            f'{self.escape_json_pointer_token(ct)}',
+                    'value': model,
+                })
+
+        # update authorization scopes
+        if authorization_scopes is not None:
+            if not isinstance(authorization_scopes, list):
+                raise ValueError(
+                    f'authorization_scopes must be a list, '
+                    f'got {type(authorization_scopes).__name__}')
+            cur_scopes = list(current.get('authorizationScopes') or [])
+            expect_scopes = list(dict.fromkeys(authorization_scopes))
+            cur_set = set(cur_scopes)
+            expect_set = set(expect_scopes)
+            for scope in expect_scopes:
+                if scope not in cur_set:
+                    patches.append({
+                        'op': 'add',
+                        'path': '/authorizationScopes',
+                        'value': scope,
+                    })
+            for scope in cur_scopes:
+                if scope not in expect_set:
+                    patches.append({
+                        'op': 'remove',
+                        'path': '/authorizationScopes',
+                        'value': scope,
+                    })
+
+        if patches:
+            self.client.update_method(
+                restApiId=api_id,
+                resourceId=resource_id,
+                httpMethod=http_method,
+                patchOperations=patches,
+            )
+
+    def clear_method_and_integration_responses(
+            self, api_id: str, resource_id: str, http_method: str
+    ) -> None:
+        try:
+            integ = self.client.get_integration(
+                restApiId=api_id,
+                resourceId=resource_id,
+                httpMethod=http_method,
+            )
+        except ClientError as e:
+            if e.response.get('Error', {}).get('Code') == 'NotFoundException':
+                integ = None
+            else:
+                raise
+        if integ:
+            for sc in list((integ.get('integrationResponses') or {}).keys()):
+                self.delete_integration_response(
+                    api_id, resource_id, http_method, sc)
+        refreshed = self.client.get_method(
+            restApiId=api_id,
+            resourceId=resource_id,
+            httpMethod=http_method,
+        )
+        for sc in list((refreshed.get('methodResponses') or {}).keys()):
+            self.delete_method_response(
+                api_id, resource_id, http_method, sc)
+
     def create_request_validator(self, api_id, name: str = None,
                                  validate_request_body: bool = False,
                                  validate_request_parameters: bool = False):
@@ -402,11 +635,27 @@ class ApiGatewayConnection(object):
                 {REQ_VALIDATOR_PARAM_NAME: validator_name})
         return request_validator_params
 
-    def create_integration(self, api_id, resource_id, method, int_type,
-                           integration_method=None, uri=None, credentials=None,
-                           request_parameters=None, request_templates=None,
-                           passthrough_behavior=None, cache_namespace=None,
-                           cache_key_parameters=None):
+    def create_integration(
+            self, api_id: str,
+            resource_id: str,
+            method: str,
+            int_type: str,
+            integration_method: Optional[str] = None,
+            uri: Optional[str] = None,
+            credentials: Optional[str] = None,
+            request_parameters: Optional[dict[str, str]] = None,
+            request_templates: Optional[dict[str, str]] = None,
+            passthrough_behavior: Optional[str] = None,
+            cache_namespace: Optional[str] = None,
+            cache_key_parameters: Optional[list[str]] = None,
+            connection_type: Optional[str] = None,
+            connection_id: Optional[str] = None,
+            content_handling: Optional[str] = None,
+            integration_target: Optional[str] = None,
+            response_transfer_mode: Optional[str] = None,
+            timeout_in_millis: Optional[int] = None,
+            tls_config: Optional[dict[str, bool]] = None
+    ):
         params = dict(restApiId=api_id, resourceId=resource_id, type=int_type,
                       httpMethod=method)
         if integration_method:
@@ -425,7 +674,368 @@ class ApiGatewayConnection(object):
             params['cacheNamespace'] = cache_namespace
         if cache_key_parameters:
             params['cacheKeyParameters'] = cache_key_parameters
+        if connection_type:
+            params['connectionType'] = connection_type
+        if connection_id:
+            params['connectionId'] = connection_id
+        if content_handling:
+            params['contentHandling'] = content_handling
+        if integration_target:
+            params['integrationTarget'] = integration_target
+        if response_transfer_mode:
+            params['responseTransferMode'] = response_transfer_mode
+        if timeout_in_millis is not None:
+            params['timeoutInMillis'] = timeout_in_millis
+        if tls_config is not None:
+            params['tlsConfig'] = tls_config
         self.client.put_integration(**params)
+
+    def get_rest_integration(
+            self, api_id: str,
+            resource_id: str,
+            http_method: str
+    ) -> Optional[dict]:
+        """
+        Return integration dict or None if the method has no integration
+        """
+        try:
+            return self.client.get_integration(
+                restApiId=api_id,
+                resourceId=resource_id,
+                httpMethod=http_method,
+            )
+        except ClientError as e:
+            if e.response.get('Error', {}).get('Code') == 'NotFoundException':
+                return None
+            raise
+
+    def _integration_map_patch_path(self, prefix: str, key: str) -> str:
+        return f'/{prefix}/{self.escape_json_pointer_token(key)}'
+
+    def _integration_requires_put(
+            self,
+            current: dict,
+            int_type: Optional[str],
+            integration_method: Optional[str],
+            uri: Optional[str],
+            credentials: Optional[str],
+    ) -> bool:
+        """
+        Changes AWS does not support via UpdateIntegration patches
+        """
+        ctype = (current.get('type') or '')
+        if int_type is not None and int_type != ctype:
+            return True
+        if credentials is not None:
+            cur_cred = current.get('credentials') or ''
+            if (credentials or '') != cur_cred:
+                return True
+        if ctype == 'MOCK':
+            if uri is not None and uri != (current.get('uri') or ''):
+                return True
+            if integration_method is not None:
+                cur_h = current.get('httpMethod') or ''
+                if integration_method != cur_h:
+                    return True
+        return False
+
+    def update_integration_configuration(
+            self,
+            api_id: str,
+            resource_id: str,
+            http_method: str,
+            int_type: Optional[str] = None,
+            integration_method: Optional[str] = None,
+            uri: Optional[str] = None,
+            credentials: Optional[str] = None,
+            request_parameters: Optional[dict] = None,
+            request_templates: Optional[dict] = None,
+            passthrough_behavior: Optional[str] = 'WHEN_NO_MATCH',
+            cache_namespace: Optional[str] = None,
+            cache_key_parameters: Optional[list] = None,
+            connection_type: Optional[str] = None,
+            connection_id: Optional[str] = None,
+            content_handling: Optional[str] = None,
+            integration_target: Optional[str] = None,
+            response_transfer_mode: Optional[str] = None,
+            timeout_in_millis: Optional[int] = None,
+            tls_insecure_skip_verification: Optional[bool] = None,
+    ) -> None:
+        """
+        Update an existing integration via patch, or PutIntegration when AWS
+        does not allow the change through UpdateIntegration (integration type,
+        credentials, or uri/httpMethod on MOCK).
+
+        `http_method` is the API route verb (GET, POST, ANY, etc.) and must
+        match the method resource being updated;
+        `integration_method` is `integrationHttpMethod` (the verb used to
+        invoke the backend, e.g. `POST` for Lambda);
+        it is not the same as `http_method` unless the integration is
+        configured that way on purpose.
+        """
+        current = self.get_rest_integration(api_id, resource_id, http_method)
+        if not current:
+            raise ValueError(
+                f'No integration for {http_method} on resource {resource_id}; '
+                f'use create_integration first.')
+
+        if self._integration_requires_put(
+                current, int_type, integration_method, uri, credentials):
+            merged_tls = (
+                {'insecureSkipVerification': tls_insecure_skip_verification}
+                if tls_insecure_skip_verification is not None
+                else current.get('tlsConfig'))
+            self.create_integration(
+                api_id, resource_id, http_method,
+                int_type if int_type is not None else current['type'],
+                integration_method=(
+                    integration_method if integration_method is not None
+                    else current.get('httpMethod')),
+                uri=uri if uri is not None else current.get('uri'),
+                credentials=(
+                    credentials if credentials is not None
+                    else current.get('credentials')),
+                request_parameters=(
+                    request_parameters if request_parameters is not None
+                    else dict(current.get('requestParameters') or {})) or None,
+                request_templates=(
+                    request_templates if request_templates is not None
+                    else dict(current.get('requestTemplates') or {})) or None,
+                passthrough_behavior=(
+                    passthrough_behavior if passthrough_behavior is not None
+                    else current.get('passthroughBehavior')),
+                cache_namespace=(
+                    cache_namespace if cache_namespace is not None
+                    else current.get('cacheNamespace')),
+                cache_key_parameters=(
+                    cache_key_parameters if cache_key_parameters is not None
+                    else list(current.get('cacheKeyParameters') or [])) or None,
+                connection_type=(
+                    connection_type if connection_type is not None
+                    else current.get('connectionType')),
+                connection_id=(
+                    connection_id if connection_id is not None
+                    else current.get('connectionId')),
+                content_handling=(
+                    content_handling if content_handling is not None
+                    else current.get('contentHandling')),
+                integration_target=(
+                    integration_target if integration_target is not None
+                    else current.get('integrationTarget')),
+                response_transfer_mode=(
+                    response_transfer_mode if response_transfer_mode is not None
+                    else current.get('responseTransferMode')),
+                timeout_in_millis=(
+                    timeout_in_millis if timeout_in_millis is not None
+                    else current.get('timeoutInMillis')),
+                tls_config=merged_tls
+            )
+            return
+
+        patches = []
+        cur_type = current.get('type') or ''
+
+        def _str_map(d):
+            out = {}
+            for k, v in (d or {}).items():
+                out[k] = v if isinstance(v, str) else str(v)
+            return out
+
+        if request_parameters is not None:
+            cur_rp = _str_map(current.get('requestParameters'))
+            expect_rp = _str_map(request_parameters)
+            for key in list(cur_rp.keys()):
+                if key not in expect_rp:
+                    patches.append({
+                        'op': 'remove',
+                        'path': self._integration_map_patch_path(
+                            'requestParameters', key),
+                        'value': cur_rp[key],
+                    })
+            for key, val in expect_rp.items():
+                if key not in cur_rp:
+                    patches.append({
+                        'op': 'add',
+                        'path': self._integration_map_patch_path(
+                            'requestParameters', key),
+                        'value': val,
+                    })
+                elif cur_rp[key] != val:
+                    patches.append({
+                        'op': 'replace',
+                        'path': self._integration_map_patch_path(
+                            'requestParameters', key),
+                        'value': val,
+                    })
+
+        if request_templates is not None:
+            cur_rt = dict(current.get('requestTemplates') or {})
+            expect_rt = dict(request_templates)
+            for key in list(cur_rt.keys()):
+                if key not in expect_rt:
+                    patches.append({
+                        'op': 'remove',
+                        'path': self._integration_map_patch_path(
+                            'requestTemplates', key),
+                    })
+            for key, val in expect_rt.items():
+                if key not in cur_rt:
+                    patches.append({
+                        'op': 'add',
+                        'path': self._integration_map_patch_path(
+                            'requestTemplates', key),
+                        'value': val,
+                    })
+                elif cur_rt.get(key) != val:
+                    patches.append({
+                        'op': 'replace',
+                        'path': self._integration_map_patch_path(
+                            'requestTemplates', key),
+                        'value': val,
+                    })
+
+        if passthrough_behavior is not None:
+            cur_pb = current.get('passthroughBehavior') or ''
+            if passthrough_behavior != cur_pb:
+                patches.append({
+                    'op': 'replace',
+                    'path': '/passthroughBehavior',
+                    'value': passthrough_behavior,
+                })
+
+        if cache_namespace is not None:
+            cur_cns = current.get('cacheNamespace') or ''
+            if cache_namespace != cur_cns:
+                patches.append({
+                    'op': 'replace',
+                    'path': '/cacheNamespace',
+                    'value': cache_namespace,
+                })
+
+        if connection_type is not None:
+            cur_ct = current.get('connectionType') or ''
+            if connection_type != cur_ct:
+                patches.append({
+                    'op': 'replace',
+                    'path': '/connectionType',
+                    'value': connection_type,
+                })
+
+        if connection_id is not None:
+            cur_cid = current.get('connectionId') or ''
+            if connection_id != cur_cid:
+                patches.append({
+                    'op': 'replace',
+                    'path': '/connectionId',
+                    'value': connection_id,
+                })
+
+        if content_handling is not None:
+            cur_ch = current.get('contentHandling') or ''
+            if content_handling != cur_ch:
+                patches.append({
+                    'op': 'replace',
+                    'path': '/contentHandling',
+                    'value': content_handling,
+                })
+
+        if integration_target is not None:
+            cur_it = current.get('integrationTarget') or ''
+            if integration_target != cur_it:
+                patches.append({
+                    'op': 'replace',
+                    'path': '/integrationTarget',
+                    'value': integration_target,
+                })
+
+        if response_transfer_mode is not None:
+            cur_rtm = current.get('responseTransferMode') or ''
+            if response_transfer_mode != cur_rtm:
+                patches.append({
+                    'op': 'replace',
+                    'path': '/responseTransferMode',
+                    'value': response_transfer_mode,
+                })
+
+        if timeout_in_millis is not None:
+            cur_to = current.get('timeoutInMillis')
+            if cur_to != timeout_in_millis:
+                patches.append({
+                    'op': 'replace',
+                    'path': '/timeoutInMillis',
+                    'value': str(timeout_in_millis),
+                })
+
+        if tls_insecure_skip_verification is not None:
+            cur_tls = (current.get('tlsConfig') or {}).get(
+                'insecureSkipVerification')
+            if bool(cur_tls) != bool(tls_insecure_skip_verification):
+                patches.append({
+                    'op': 'replace',
+                    'path': '/tlsConfig/insecureSkipVerification',
+                    'value': (
+                        'true' if tls_insecure_skip_verification else 'false'),
+                })
+
+        if integration_method is not None and cur_type != 'MOCK':
+            cur_h = current.get('httpMethod') or ''
+            if integration_method != cur_h:
+                patches.append({
+                    'op': 'replace',
+                    'path': '/httpMethod',
+                    'value': integration_method,
+                })
+
+        if uri is not None and cur_type != 'MOCK':
+            cur_uri = current.get('uri') or ''
+            if uri != cur_uri:
+                patches.append({
+                    'op': 'replace',
+                    'path': '/uri',
+                    'value': uri,
+                })
+
+        ckp_patches = []
+        if cache_key_parameters is not None:
+            cur_ckp = list(current.get('cacheKeyParameters') or [])
+            expect_ckp = list(cache_key_parameters)
+            cur_set = set(cur_ckp)
+            expect_set = set(expect_ckp)
+            for p in cur_ckp:
+                if p not in expect_set:
+                    ckp_patches.append({
+                        'op': 'remove',
+                        'path': self._integration_map_patch_path(
+                            'cacheKeyParameters', p),
+                        'value': '',
+                    })
+            for p in expect_ckp:
+                if p not in cur_set:
+                    ckp_patches.append({
+                        'op': 'add',
+                        'path': self._integration_map_patch_path(
+                            'cacheKeyParameters', p),
+                        'value': '',
+                    })
+
+        if patches:
+            self.client.update_integration(
+                restApiId=api_id,
+                resourceId=resource_id,
+                httpMethod=http_method,
+                patchOperations=patches,
+            )
+
+        if ckp_patches:
+            # Second stage: cache key parameter patches can race with
+            # request parameter updates; apply after the first batch settles.
+            time.sleep(1.0)
+            self.client.update_integration(
+                restApiId=api_id,
+                resourceId=resource_id,
+                httpMethod=http_method,
+                patchOperations=ckp_patches,
+            )
 
     def create_lambda_integration(self, lambda_arn, api_id, resource_id,
                                   method, request_templates=None,
@@ -443,9 +1053,8 @@ class ApiGatewayConnection(object):
         :type request_templates: dict
         :type passthrough_behavior: str
         :param passthrough_behavior: WHEN_NO_MATCH , WHEN_NO_TEMPLATES , NEVER
-        :type lambda_region: str
         :type credentials: str
-        :param credentials: role arn
+        :param credentials: whether credentials are required for a integration
         :type request_parameters: dict
         :param request_parameters: A key-value map specifying request parameters
          (path, query string, header)
@@ -515,9 +1124,9 @@ class ApiGatewayConnection(object):
 
         if passthrough_behavior:
             params['passthrough_behavior'] = passthrough_behavior
-        if request_templates:
+        if request_templates is not None:
             params['request_templates'] = request_templates
-        if request_parameters:
+        if request_parameters is not None:
             params['request_parameters'] = request_parameters
         self.create_integration(**params)
 
@@ -533,7 +1142,7 @@ class ApiGatewayConnection(object):
                       resource_id=resource_id)
         if passthrough_behavior:
             params['passthrough_behavior'] = passthrough_behavior
-        if request_templates:
+        if request_templates is not None:
             params['request_templates'] = request_templates
         self.create_integration(**params)
 
@@ -550,7 +1159,7 @@ class ApiGatewayConnection(object):
 
         if passthrough_behavior:
             params['passthrough_behavior'] = passthrough_behavior
-        if request_templates:
+        if request_templates is not None:
             params['request_templates'] = request_templates
         self.create_integration(**params)
 
@@ -631,16 +1240,19 @@ class ApiGatewayConnection(object):
             params['responseModels'] = response_models
         self.client.put_method_response(**params)
 
-    def enable_cors_for_resource(self, api_id, resource_id, enable_cors):
-        """ When your API's resources receive requests from a domain other than
+    def enable_cors_for_resource(
+            self,
+            api_id: str,
+            resource_id: str,
+            enable_cors: dict
+    ):
+        """
+        When your API's resources receive requests from a domain other than
         the API's own domain, you must enable cross-origin resource sharing
         (CORS) for selected methods on the resource.
-
-        :type api_id: str
-        :type resource_id: str
-        :type enable_cors: dict
         """
-        self.create_method(api_id, resource_id, 'OPTIONS')
+        if not self.get_method(api_id, resource_id, 'OPTIONS'):
+            self.create_method(api_id, resource_id, 'OPTIONS')
         self.create_integration(api_id=api_id, resource_id=resource_id,
                                 method='OPTIONS', int_type='MOCK',
                                 request_templates={
@@ -649,6 +1261,14 @@ class ApiGatewayConnection(object):
         origins = enable_cors.get('custom_origins', [])
         headers = enable_cors.get('custom_headers', [])
         methods = enable_cors.get('custom_methods', [])
+
+        # Remove existing OPTIONS 200 responses before put_* so repeat CORS
+        # sync does not hit ConflictException (retry would loop forever).
+        _cors_options_status = '200'
+        self.delete_integration_response(
+            api_id, resource_id, 'OPTIONS', _cors_options_status)
+        self.delete_method_response(
+            api_id, resource_id, 'OPTIONS', _cors_options_status)
 
         self.create_method_response(
             api_id, resource_id, 'OPTIONS', response_parameters={
@@ -777,6 +1397,108 @@ class ApiGatewayConnection(object):
 
         return self.client.create_authorizer(**params)
 
+    def update_authorizer(
+            self,
+            api_id: str,
+            authorizer_id: str,
+            authorizer_uri=None,
+            identity_source=None,
+            ttl=None
+    ) -> dict | None:
+        """
+        Apply REST API authorizer updates via patch operations.
+
+        Cognito `providerARNs` cannot use `replace`; use
+        :meth:`update_cognito_authorizer_user_pools` for pool list changes.
+        """
+        patch_operations = []
+        if authorizer_uri is not None:
+            patch_operations.append({
+                'op': 'replace',
+                'path': '/authorizerUri',
+                'value': authorizer_uri,
+            })
+        if identity_source is not None:
+            patch_operations.append({
+                'op': 'replace',
+                'path': '/identitySource',
+                'value': identity_source,
+            })
+        if ttl is not None:
+            patch_operations.append({
+                'op': 'replace',
+                'path': '/authorizerResultTtlInSeconds',
+                'value': str(ttl),
+            })
+        if not patch_operations:
+            return
+        return self.client.update_authorizer(
+            restApiId=api_id,
+            authorizerId=authorizer_id,
+            patchOperations=patch_operations,
+        )
+
+    def update_cognito_authorizer_user_pools(
+            self,
+            api_id: str,
+            authorizer_id: str,
+            provider_arns: list,
+            identity_source=None,
+            ttl=None):
+        """
+        Sync COGNITO_USER_POOLS authorizer ARNs (add/remove per AWS rules).
+
+        If ``provider_arns`` is empty, pool ARNs are left unchanged (AWS rejects
+        removing all ``providerARNs`` without replacing them). Only ``identity_source``
+        and ``ttl`` patches are applied in that case.
+
+        When pools change, ARNs to add are patched **before** ARNs to remove so
+        the authorizer never briefly has zero ``providerARNs`` (AWS rejects that).
+        Unchanged ARNs produce no add/remove patches.
+        """
+        patch_operations = []
+        if provider_arns:
+            current = self.get_authorizer(api_id, authorizer_id)
+            current_list = list(current.get('providerARNs') or [])
+            current_set = set(current_list)
+            desired_ordered = list(dict.fromkeys(provider_arns))
+            desired_set = set(desired_ordered)
+
+            to_add = [a for a in desired_ordered if a not in current_set]
+            to_remove = [a for a in current_list if a not in desired_set]
+
+            for arn in to_add:
+                patch_operations.append({
+                    'op': 'add',
+                    'path': '/providerARNs',
+                    'value': arn,
+                })
+            for arn in to_remove:
+                patch_operations.append({
+                    'op': 'remove',
+                    'path': '/providerARNs',
+                    'value': arn,
+                })
+        if identity_source is not None:
+            patch_operations.append({
+                'op': 'replace',
+                'path': '/identitySource',
+                'value': identity_source,
+            })
+        if ttl is not None:
+            patch_operations.append({
+                'op': 'replace',
+                'path': '/authorizerResultTtlInSeconds',
+                'value': str(ttl),
+            })
+        if not patch_operations:
+            return
+        return self.client.update_authorizer(
+            restApiId=api_id,
+            authorizerId=authorizer_id,
+            patchOperations=patch_operations,
+        )
+
     def get_authorizers(self, api_id):
         items = []
         params = dict(restApiId=api_id)
@@ -825,6 +1547,39 @@ class ApiGatewayConnection(object):
         if schema:
             params['schema'] = schema
         return self.client.create_model(**params)
+
+    def update_model(
+            self,
+            rest_api_id: str,
+            model_name: str,
+            description: str = None,
+            schema: dict | str = None
+    ):
+        """
+        Update an existing model; ``schema`` may be a dict or JSON string.
+        """
+        patch_operations = []
+        if description is not None:
+            patch_operations.append({
+                'op': 'replace',
+                'path': '/description',
+                'value': description,
+            })
+        if schema is not None:
+            if isinstance(schema, dict):
+                schema = json.dumps(schema)
+            patch_operations.append({
+                'op': 'replace',
+                'path': '/schema',
+                'value': schema,
+            })
+        if not patch_operations:
+            return
+        return self.client.update_model(
+            restApiId=rest_api_id,
+            modelName=model_name,
+            patchOperations=patch_operations,
+        )
 
     def delete_model(self, rest_api_id, name):
         _LOG.debug(f'Deleting model "{name}"')

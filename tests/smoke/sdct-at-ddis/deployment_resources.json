@@ -101,7 +101,9 @@
     },
     "resources": {
       "/test": {
-        "enable_cors": true,
+        "enable_cors": {
+          "state": true
+        },
         "POST": {
           "enable_proxy": true,
           "authorization_type": "authorizer",
