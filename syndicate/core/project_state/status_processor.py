@@ -26,7 +26,7 @@ from syndicate.core.project_state.project_state import (
     LOCK_LAST_MODIFICATION_DATE, LOCK_LOCKED_TILL)
 from syndicate.core.project_state.sync_processor import sync_project_state
 from syndicate.core.constants import (
-    DATE_FORMAT_ISO_8601, MODIFICATION_OPS, DEPLOYED_MARKER, LOCAL_MARKER,
+    DATE_FORMAT_ISO_8601, MODIFICATION_OPS, DEPLOYED_MARKER, UNDEPLOYED_MARKER,
     RESOURCES_FILE_NAME
 )
 
@@ -217,7 +217,7 @@ def process_resources_view(deployed_only=False):
         if deployed_only and not is_deployed:
             continue
 
-        status = DEPLOYED_MARKER if is_deployed else LOCAL_MARKER
+        status = DEPLOYED_MARKER if is_deployed else UNDEPLOYED_MARKER
         rows.append([resource_type, name, status])
 
     if rows:
