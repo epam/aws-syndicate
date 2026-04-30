@@ -75,6 +75,8 @@ def retry(retry_timeout=DEFAULT_RETRY_TIMEOUT_SEC,
                 "calling the CreateFunction operation",
                 'An error occurred (InvalidParameterValue) when '
                 'calling the CreateQueue operation',
+                'An error occurred (InvalidAttributeValue) when '
+                'calling the CreateQueue operation',
                 'An error occurred (SubnetGroupInUseFault) when calling '
                 'the DeleteSubnetGroup operation',
                 'The role defined for the function cannot be assumed by Lambda',
@@ -104,7 +106,7 @@ def retry(retry_timeout=DEFAULT_RETRY_TIMEOUT_SEC,
                 'being altered',
                 'An error occurred (InvalidArgument) when calling the '
                 'PutBucketNotificationConfiguration operation',
-                'Too Many Requests'
+                'Too Many Requests',
             ]
             resource_not_found_error_codes = [
                 'NoSuchEntity',
