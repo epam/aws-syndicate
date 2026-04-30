@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - lambda resources additionally show `Runtime` column; 
   - each group header displays deployed/total counter
 - Added `--deployed` flag to `syndicate status --resources` command to filter the output and display only deployed resources
+- Fixed queue deployment with new roles in resource policy.
 
 # [1.19.1] - 2026-01-12
 - Updated lambda function permissions deployment to comply with AWS requirements for `function URL`
