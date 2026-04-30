@@ -26,7 +26,7 @@ from syndicate.core.project_state.project_state import (
     LOCK_LAST_MODIFICATION_DATE, LOCK_LOCKED_TILL)
 from syndicate.core.project_state.sync_processor import sync_project_state
 from syndicate.core.constants import (
-    DATE_FORMAT_ISO_8601, MODIFICATION_OPS, DEPLOYED_MARKER, LOCAL_MARKER,
+    DATE_FORMAT_ISO_8601, MODIFICATION_OPS, DEPLOYED_MARKER, UNDEPLOYED_MARKER,
     RESOURCES_FILE_NAME
 )
 
@@ -197,56 +197,34 @@ def process_resources_view(deployed_only=False):
     else:
         result.append('Resources:')
 
-    grouped = _group_by_type(all_resources)
+    # Build flat table sorted by type, then by name
+    headers = ['Type', 'Name', 'Status']
+    rows = []
     total_count = 0
     deployed_count = 0
 
-    for resource_type in sorted(grouped.keys()):
-        resources = grouped[resource_type]
+    for name, meta in sorted(all_resources.items(),
+                              key=lambda x: (
+                                  x[1].get('resource_type', 'unknown'),
+                                  x[0])):
+        resource_type = meta.get('resource_type', 'unknown')
+        is_deployed = name in deployed_resources
 
-        # Build rows for this type
-        rows = []
-        type_deployed = 0
-        for name in sorted(resources.keys()):
-            meta = resources[name]
-            is_deployed = name in deployed_resources
-            if is_deployed:
-                type_deployed += 1
+        total_count += 1
+        if is_deployed:
+            deployed_count += 1
 
-            if deployed_only and not is_deployed:
-                continue
-
-            status = DEPLOYED_MARKER if is_deployed else LOCAL_MARKER
-
-            # Build row based on resource type
-            if resource_type == 'lambda':
-                runtime = meta.get('runtime', '-')
-                rows.append([name, runtime, status])
-            else:
-                rows.append([name, status])
-
-        if not rows:
+        if deployed_only and not is_deployed:
             continue
 
-        total_count += len(resources)
-        deployed_count += type_deployed
+        status = DEPLOYED_MARKER if is_deployed else UNDEPLOYED_MARKER
+        rows.append([resource_type, name, status])
 
-        # Type header with count
-        type_header = (
-            f'  Type: {resource_type}'
-            f'  ({type_deployed}/{len(resources)} deployed)'
-        )
-        result.append(LINE_SEP + type_header)
-
-        # Table
-        if resource_type == 'lambda':
-            headers = ['Name', 'Runtime', 'Status']
-        else:
-            headers = ['Name', 'Status']
-
+    if rows:
         result.append(
-            indent(tabulate_data(
-                data=rows, headers=headers, tablefmt='simple')))
+            tabulate_data(data=rows, headers=headers, tablefmt='simple'))
+    else:
+        result.append(indent('No matching resources found.'))
 
     # Summary
     if deployed_only:
@@ -258,7 +236,6 @@ def process_resources_view(deployed_only=False):
                        f'resources deployed')
 
     return LINE_SEP + LINE_SEP.join(result)
-
 
 def _collect_project_resources():
     """

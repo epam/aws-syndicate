@@ -6,7 +6,7 @@ from syndicate.core.project_state.status_processor import (
     _collect_deployed_resource_names,
     process_resources_view,
     DEPLOYED_MARKER,
-    LOCAL_MARKER,
+    UNDEPLOYED_MARKER,
 )
 
 
@@ -79,7 +79,7 @@ class TestProcessResourcesView(unittest.TestCase):
         self.assertIn('func1', result)
         self.assertIn(DEPLOYED_MARKER, result)
         self.assertIn('func2', result)
-        self.assertIn(LOCAL_MARKER, result)
+        self.assertIn(UNDEPLOYED_MARKER, result)
         self.assertIn('1/2', result)
 
     @patch('syndicate.core.project_state.status_processor'

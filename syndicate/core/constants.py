@@ -306,5 +306,5 @@ EMPTY_VALUES = [[], set(), (), {}, '']
 AUTHORIZATION_SCOPES_KEY = 'authorization_scopes'
 
 
-DEPLOYED_MARKER = '\u2713 Deployed'   # ✓ Deployed
-LOCAL_MARKER = '\u2717 Local'         # ✗ Local
+DEPLOYED_MARKER = '\u2713 Deployed'        # ✓ Deployed
+UNDEPLOYED_MARKER = '\u2717 Undeployed'    # ✗ Undeployed
