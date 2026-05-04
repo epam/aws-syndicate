@@ -730,6 +730,13 @@ class ApiGatewayResource(BaseResource):
         api_source_arn = (f'arn:aws:execute-api:{self.region}:'
                           f'{self.account_id}:{api_gateway_id}{route}')
         for lambda_arn in api_lambdas_arns:
+            if self._is_cross_account_lambda(lambda_arn):
+                _LOG.warning(
+                    f"Lambda '{lambda_arn}' belongs to a different "
+                    f"AWS account. Skipping permission removal "
+                    f"(cross-account access not allowed).")
+                continue
+
             _id = f'{lambda_arn}-{api_source_arn}'
             statement_id = md5(_id.encode('utf-8')).hexdigest()
             self.lambda_res.add_invocation_permission(
@@ -742,15 +749,34 @@ class ApiGatewayResource(BaseResource):
 
     def remove_lambdas_permissions(self, api_gateway_id, api_lambdas_arns):
         for lambda_arn in api_lambdas_arns:
-            existing_permissions = self.get_lambda_permissions_for_api(
-                lambda_arn, api_gateway_id)
+            # Skip cross-account Lambdas — we can't manage their policies
+            if self._is_cross_account_lambda(lambda_arn):
+                _LOG.warning(
+                    f"Lambda '{lambda_arn}' belongs to a different "
+                    f"AWS account. Skipping permission removal "
+                    f"(cross-account access not allowed).")
+                continue
 
-            existing_permissions = {
-                deep_get(perm, SOURCE_ARN_DEEP_KEY): perm.get('Sid')
-                for perm in existing_permissions
-            }
-            self.lambda_res.remove_permissions(lambda_arn,
-                                               existing_permissions.values())
+            try:
+                existing_permissions = self.get_lambda_permissions_for_api(
+                    lambda_arn, api_gateway_id)
+
+                existing_permissions = {
+                    deep_get(perm, SOURCE_ARN_DEEP_KEY): perm.get('Sid')
+                    for perm in existing_permissions
+                }
+                self.lambda_res.remove_permissions(lambda_arn,
+                                                   existing_permissions.values())
+            except ClientError as e:
+                error_code = e.response['Error']['Code']
+                if error_code == 'AccessDeniedException':
+                    _LOG.warning(
+                        f"Cannot remove permissions from Lambda "
+                        f"'{lambda_arn}': access denied "
+                        f"(cross-account). Skipping.")
+                    continue
+                raise
+
 
     @staticmethod
     def get_deploy_stage_name(stage_name=None):
@@ -1589,3 +1615,15 @@ class ApiGatewayResource(BaseResource):
 
             api_gateway_lambdas_arns.add(lambda_arn)
         return api_gateway_lambdas_arns
+
+    def _is_cross_account_lambda(self, lambda_arn):
+        """Check if a Lambda ARN belongs to a different AWS account"""
+        try:
+            # ARN format: arn:aws:lambda:region:ACCOUNT_ID:function:name
+            arn_parts = lambda_arn.split(':')
+            if len(arn_parts) >= 5:
+                lambda_account = arn_parts[4]
+                return lambda_account != self.account_id
+        except (IndexError, AttributeError):
+            pass
+        return False
