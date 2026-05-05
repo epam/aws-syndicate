@@ -756,10 +756,10 @@ class ApiGatewayResource(BaseResource):
             except ClientError as e:
                 error_code = e.response['Error']['Code']
                 if error_code == 'AccessDeniedException':
-                    _LOG.warning(
+                    USER_LOG.warning(
                         f"Cannot remove permissions from Lambda "
                         f"'{lambda_arn}': access denied "
-                        f"(cross-account). Skipping.")
+                        f"(cross-account).")
                     continue
                 raise
 
