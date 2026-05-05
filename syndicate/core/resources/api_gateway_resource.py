@@ -730,13 +730,6 @@ class ApiGatewayResource(BaseResource):
         api_source_arn = (f'arn:aws:execute-api:{self.region}:'
                           f'{self.account_id}:{api_gateway_id}{route}')
         for lambda_arn in api_lambdas_arns:
-            if self._is_cross_account_lambda(lambda_arn):
-                _LOG.warning(
-                    f"Lambda '{lambda_arn}' belongs to a different "
-                    f"AWS account. Skipping permission removal "
-                    f"(cross-account access not allowed).")
-                continue
-
             _id = f'{lambda_arn}-{api_source_arn}'
             statement_id = md5(_id.encode('utf-8')).hexdigest()
             self.lambda_res.add_invocation_permission(
@@ -749,13 +742,6 @@ class ApiGatewayResource(BaseResource):
 
     def remove_lambdas_permissions(self, api_gateway_id, api_lambdas_arns):
         for lambda_arn in api_lambdas_arns:
-            # Skip cross-account Lambdas — we can't manage their policies
-            if self._is_cross_account_lambda(lambda_arn):
-                _LOG.warning(
-                    f"Lambda '{lambda_arn}' belongs to a different "
-                    f"AWS account. Skipping permission removal "
-                    f"(cross-account access not allowed).")
-                continue
 
             try:
                 existing_permissions = self.get_lambda_permissions_for_api(
