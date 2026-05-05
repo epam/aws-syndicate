@@ -1601,15 +1601,3 @@ class ApiGatewayResource(BaseResource):
 
             api_gateway_lambdas_arns.add(lambda_arn)
         return api_gateway_lambdas_arns
-
-    def _is_cross_account_lambda(self, lambda_arn):
-        """Check if a Lambda ARN belongs to a different AWS account"""
-        try:
-            # ARN format: arn:aws:lambda:region:ACCOUNT_ID:function:name
-            arn_parts = lambda_arn.split(':')
-            if len(arn_parts) >= 5:
-                lambda_account = arn_parts[4]
-                return lambda_account != self.account_id
-        except (IndexError, AttributeError):
-            pass
-        return False
