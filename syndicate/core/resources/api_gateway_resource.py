@@ -742,15 +742,27 @@ class ApiGatewayResource(BaseResource):
 
     def remove_lambdas_permissions(self, api_gateway_id, api_lambdas_arns):
         for lambda_arn in api_lambdas_arns:
-            existing_permissions = self.get_lambda_permissions_for_api(
-                lambda_arn, api_gateway_id)
 
-            existing_permissions = {
-                deep_get(perm, SOURCE_ARN_DEEP_KEY): perm.get('Sid')
-                for perm in existing_permissions
-            }
-            self.lambda_res.remove_permissions(lambda_arn,
-                                               existing_permissions.values())
+            try:
+                existing_permissions = self.get_lambda_permissions_for_api(
+                    lambda_arn, api_gateway_id)
+
+                existing_permissions = {
+                    deep_get(perm, SOURCE_ARN_DEEP_KEY): perm.get('Sid')
+                    for perm in existing_permissions
+                }
+                self.lambda_res.remove_permissions(lambda_arn,
+                                                   existing_permissions.values())
+            except ClientError as e:
+                error_code = e.response['Error']['Code']
+                if error_code == 'AccessDeniedException':
+                    USER_LOG.warning(
+                        f"Cannot remove permissions from Lambda "
+                        f"'{lambda_arn}': access denied "
+                        f"(cross-account).")
+                    continue
+                raise
+
 
     @staticmethod
     def get_deploy_stage_name(stage_name=None):
