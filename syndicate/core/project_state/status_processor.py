@@ -21,7 +21,7 @@ from tabulate import tabulate
 
 from syndicate.core.build.bundle_processor import load_latest_deploy_output
 from syndicate.core.constants import OAS_V3_FILE_NAME, API_GATEWAY_OAS_V3_TYPE
-from syndicate.core.helper import strip_prefix_suffix
+from syndicate.core.helper import strip_prefix_suffix, resolve_aliases_for_string
 from syndicate.core.project_state.project_state import (
     OPERATION_LOCK_MAPPINGS, MODIFICATION_LOCK, WARMUP_LOCK,
     LOCK_LAST_MODIFICATION_DATE, LOCK_LOCKED_TILL)
@@ -282,20 +282,18 @@ def _merge_openapi_resources(resources):
 
                 api_name = openapi_spec.get('info', {}).get('title')
                 if not api_name:
-                    _LOG.debug(
-                        f'OpenAPI spec {filepath} has no info.title, '
-                        f'skipping')
                     continue
 
-                if api_name not in resources:
-                    resources[api_name] = {
+                resolved_name = resolve_aliases_for_string(api_name)
+
+                if resolved_name not in resources:
+                    resources[resolved_name] = {
                         'resource_type': API_GATEWAY_OAS_V3_TYPE
                     }
-                    _LOG.debug(f'Found OpenAPI spec resource: {api_name}')
+                    _LOG.debug(f'Found OpenAPI spec resource: {resolved_name}')
 
             except Exception as e:
-                _LOG.debug(
-                    f'Failed to load OpenAPI spec {filepath}: {e}')
+                _LOG.debug(f'Failed to load OpenAPI spec {filepath}: {e}')
                 continue
 
     return resources
@@ -304,43 +302,44 @@ def _merge_openapi_resources(resources):
 def _scan_deployment_resources_files():
     """Scan project directory for deployment_resources.json files,
     skipping large/irrelevant directories to improve performance."""
-    resources = {}
     from syndicate.core import CONFIG
-    project_path = CONFIG.project_path
 
+    project_path = CONFIG.project_path
+    if not project_path:
+        return {}
+
+    resources = {}
     for root, dirs, files in os.walk(project_path):
         dirs[:] = [d for d in dirs if d not in SKIP_DIRS]
-
-        if RESOURCES_FILE_NAME in files:
-            filepath = os.path.join(str(root), RESOURCES_FILE_NAME)
+        for filename in files:
+            if filename != RESOURCES_FILE_NAME:
+                continue
+            filepath = os.path.join(root, filename)
             try:
-                with open(filepath, 'r') as fh:
-                    file_resources = json.load(fh)
-                for name, meta in file_resources.items():
-                    if isinstance(meta, dict) and meta.get(
-                            'resource_type'):
-                        resources[name] = meta
-            except (json.JSONDecodeError, IOError) as e:
-                _LOG.warning(f'Failed to read {filepath}: {e}')
+                with open(filepath, 'r', encoding='utf-8') as f:
+                    content = json.load(f)
+                if isinstance(content, dict):
+                    for name, meta in content.items():
+                        # Resolve aliases in resource names
+                        resolved_name = resolve_aliases_for_string(name)
+                        resources[resolved_name] = meta
+            except (json.JSONDecodeError, OSError):
+                continue
 
-    _LOG.debug(
-        f'Scanned {len(resources)} resources from local files')
     return resources
 
 
 def _merge_lambda_resources(resources):
-    """Merge lambda definitions from PROJECT_STATE"""
+    """Merge lambda resources from PROJECT_STATE"""
     from syndicate.core import PROJECT_STATE
     lambdas = PROJECT_STATE.lambdas or {}
     for name, info in lambdas.items():
-        if name not in resources:
-            resources[name] = {
+        resolved_name = resolve_aliases_for_string(name)
+        if resolved_name not in resources:
+            resources[resolved_name] = {
                 'resource_type': 'lambda',
                 **info
             }
-        elif 'runtime' not in resources.get(name, {}):
-            # Enrich existing lambda entry with runtime info
-            resources[name]['runtime'] = info.get('runtime')
     return resources
 
 
