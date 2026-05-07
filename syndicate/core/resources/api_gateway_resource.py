@@ -27,7 +27,8 @@ from syndicate.connection import LogsConnection
 from syndicate.core.constants import (
     SOURCE_ARN_DEEP_KEY, SECURITY_SCHEMAS_DEEP_KEY,
     API_GW_DEFAULT_THROTTLING_RATE_LIMIT,
-    API_GW_DEFAULT_THROTTLING_BURST_LIMIT
+    API_GW_DEFAULT_THROTTLING_BURST_LIMIT,
+    AUTHORIZATION_SCOPES_KEY
 )
 from syndicate.core.helper import unpack_kwargs
 from syndicate.core.resources.base_resource import BaseResource
@@ -106,6 +107,124 @@ class ApiGatewayResource(BaseResource):
             )
             options['id'] = _id
 
+    def _sync_authorizers_from_meta(self, api_id: str, meta: dict) -> None:
+        """
+        Create or update REST API authorizers from meta.
+        """
+        authorizers = meta.get('authorizers') or {}
+        if not authorizers:
+            return
+        by_name = {
+            a['name']: a for a in self.connection.get_authorizers(api_id)
+        }
+        for key, val in authorizers.items():
+            uri = None
+            provider_arns = []
+            if val.get('type') == _COGNITO_AUTHORIZER_TYPE:
+                for pool in val.get('user_pools') or []:
+                    user_pool_id = self.cognito_res.get_user_pool_id(pool)
+                    if not user_pool_id and self.cognito_res.is_user_pool_exists(
+                            pool):
+                        user_pool_id = pool
+                    if user_pool_id:
+                        provider_arns.append(
+                            f'arn:aws:cognito-idp:{self.region}:'
+                            f'{self.account_id}:userpool/{user_pool_id}')
+                    else:
+                        USER_LOG.warn(
+                            f'Authorizer \'{key}\': Cognito user pool '
+                            f'{pool!r} was not found by name or as a pool id '
+                            f'in {self.region}.')
+            else:
+                lambda_version = val.get('lambda_version')
+                lambda_name = val.get('lambda_name')
+                lambda_alias = val.get('lambda_alias')
+                lambda_arn = self.lambda_res. \
+                    resolve_lambda_arn_by_version_and_alias(lambda_name,
+                                                            lambda_version,
+                                                            lambda_alias)
+                if not lambda_arn:
+                    raise ResourceNotFoundError(
+                        f'Authorizer \'{key}\': Lambda \'{lambda_name}\' not '
+                        f'found (version={lambda_version!r}, '
+                        f'alias={lambda_alias!r})'
+                    )
+                uri = (
+                    f'arn:aws:apigateway:{self.region}:lambda:path/'
+                    f'2015-03-31/functions/{lambda_arn}/invocations'
+                )
+                api_source_arn = (
+                    f'arn:aws:execute-api:{self.region}:'
+                    f'{self.account_id}:{api_id}/*/*'
+                )
+                self.lambda_res.add_invocation_permission(
+                    statement_id=api_id,
+                    name=lambda_arn,
+                    source_arn=api_source_arn,
+                    principal='apigateway.amazonaws.com'
+                )
+
+            # not found cognito user pool in region
+            if val.get('type') == _COGNITO_AUTHORIZER_TYPE and not provider_arns:
+                raise ResourceNotFoundError(
+                    f'Authorizer \'{key}\': COGNITO_USER_POOLS requires at '
+                    f'least one resolved user pool that exist in {self.region}'
+                )
+
+            existing = by_name.get(key)
+            if existing:
+                if val.get('type') == _COGNITO_AUTHORIZER_TYPE:
+                    self.connection.update_cognito_authorizer_user_pools(
+                        api_id=api_id,
+                        authorizer_id=existing['id'],
+                        provider_arns=provider_arns,
+                        identity_source=val.get('identity_source'),
+                        ttl=val.get('ttl'),
+                    )
+                else:
+                    self.connection.update_authorizer(
+                        api_id=api_id,
+                        authorizer_id=existing['id'],
+                        authorizer_uri=uri,
+                        identity_source=val.get('identity_source'),
+                        ttl=val.get('ttl'),
+                    )
+            else:
+                self.connection.create_authorizer(
+                    api_id=api_id, name=key,
+                    type=val['type'],
+                    authorizer_uri=uri,
+                    identity_source=val.get('identity_source'),
+                    ttl=val.get('ttl'),
+                    provider_arns=provider_arns)
+
+    def _sync_models_from_meta(self, api_id: str, meta: dict) -> None:
+        """
+        Create or update API Gateway models from meta
+        """
+        models = meta.get('models') or {}
+        if not models:
+            return
+
+        _LOG.info('Syncing API Gateway models')
+        for name, model_data in models.items():
+            description = model_data.get('description')
+            schema = model_data.get('schema')
+            schema_arg = schema
+            if isinstance(schema, dict):
+                schema_arg = json.dumps(schema)
+            content_type = model_data.get('content_type')
+            existing = self.connection.get_model(api_id, name)
+            if existing is None:
+                self.connection.create_model(
+                    api_id, name, content_type, description, schema_arg)
+            else:
+                self.connection.update_model(
+                    api_id, name,
+                    description=description,
+                    schema=schema_arg,
+                )
+
     def _retrieve_request_validator_id(self, api_id, request_validator=None):
         request_validator = request_validator or {}
         if not request_validator:
@@ -152,75 +271,11 @@ class ApiGatewayResource(BaseResource):
         return self.create_pool(self._create_api_gateway_openapi_from_meta,
                                 args, 1)
 
-    def api_gateway_update_processor(self, args):
-        return self.create_pool(self._create_or_update_api_gateway, args, 1)
+    def update_api_gateway(self, args):
+        return self.create_pool(self._update_api_gateway_from_meta, args, 1)
 
     def update_api_gateway_openapi(self, args):
         return self.create_pool(self._update_api_gateway_openapi_from_meta, args, 1)
-
-    @unpack_kwargs
-    def _create_or_update_api_gateway(self, name, meta,
-                                      current_configurations):
-        if current_configurations:
-            # api currently is not located in different regions
-            # process only first object
-            api_output = list(current_configurations.items())[0][1]
-            # find id from the output
-            api_id = api_output['description']['id']
-            # check that api does not exist
-            api_response = self.connection.get_api(api_id)
-            if api_response:
-                # find all existing resources
-                existing_resources = api_output['description']['resources']
-                existing_paths = [i['path'] for i in existing_resources]
-                meta_api_resources = meta['resources']
-                resources_statement_singleton = meta.get(
-                    POLICY_STATEMENT_SINGLETON)
-                api_resp = meta.get('api_method_responses')
-                api_integration_resp = meta.get(
-                    'api_method_integration_responses')
-                api_resources = {}
-                for resource_path, resource_meta in meta_api_resources.items():
-                    if resource_path not in existing_paths:
-                        api_resources[resource_path] = resource_meta
-                if api_resources:
-                    _LOG.debug(
-                        'Going to continue deploy API Gateway {0} ...'.format(
-                            api_id))
-                    args = self.__prepare_api_resources_args(
-                        api_id=api_id,
-                        api_resources=api_resources,
-                        api_resp=api_resp,
-                        api_integration_resp=api_integration_resp,
-                        resources_statement_singleton=resources_statement_singleton)
-                    self.create_pool(self._create_resource_from_metadata,
-                                     args, 1)
-                    # add headers
-                    # waiter b4 customization
-                    time.sleep(10)
-                    _LOG.debug(
-                        'Customizing API Gateway {0} responses...'.format(
-                            api_id))
-                else:
-                    # all resources created, but need to override
-                    api_resources = meta_api_resources
-                # _customize_gateway_responses call is commented due to
-                # botocore InternalFailure while performing the call.
-                # will be fixed later
-                # _customize_gateway_responses(api_id)
-                # deploy api
-                _LOG.debug('Deploying API Gateway {0} ...'.format(api_id))
-                self.__deploy_api_gateway(api_id, meta, api_resources)
-                return self.describe_api_resources(api_id=api_id, meta=meta,
-                                                   name=name)
-            else:
-                # api does not exist, so create a new
-                return self._create_api_gateway_from_meta(
-                    {'name': name, 'meta': meta})
-        else:
-            # object is not present, so just create a new api
-            return self._create_api_gateway_from_meta(
-                {'name': name, 'meta': meta})
 
     def _escape_path(self, parameter):
         index = parameter.find('/', 0)
@@ -228,6 +283,91 @@ class ApiGatewayResource(BaseResource):
             return parameter
         parameter = parameter[:index] + '~1' + parameter[index + 1:]
         return self._escape_path(parameter)
+
+    @staticmethod
+    def _api_path_segment_count(path: str) -> int:
+        return len([p for p in path.split('/') if p])
+
+    @staticmethod
+    def _enable_cors_active(resource_meta: dict) -> bool:
+        enable_cors = resource_meta.get('enable_cors')
+        if isinstance(enable_cors, bool):
+            return enable_cors
+        if isinstance(enable_cors, dict):
+            return bool(enable_cors.get('state'))
+        return False
+
+    def _desired_http_methods_from_resource_meta(
+            self,
+            resource_meta: dict
+    ) -> set:
+        methods = {k for k in resource_meta if k in SUPPORTED_METHODS}
+        if self._enable_cors_active(resource_meta):
+            methods.add('OPTIONS')
+        return methods
+
+    @staticmethod
+    def _path_required_as_meta_ancestor(path: str, meta_paths: set) -> bool:
+        if path == '/':
+            return True
+        prefix = path.rstrip('/') + '/' if path != '/' else '/'
+        for mp in meta_paths:
+            if mp != path and mp.startswith(prefix):
+                return True
+        return False
+
+    def _should_prune_whole_resource(self, path: str, meta_paths: set) -> bool:
+        if path == '/':
+            return False
+        if path in meta_paths:
+            return False
+        if self._path_required_as_meta_ancestor(path, meta_paths):
+            return False
+        return True
+
+    def _prune_absent_api_gateway_resources(
+            self, api_id: str, meta_api_resources: dict) -> None:
+        """Drop REST paths and HTTP methods in AWS that are not in meta.
+
+        Called on every REST API update and continue-deploy so the API matches
+        ``resources`` declaratively. Parent path segments without their own
+        meta entry are kept when a descendant path is still in meta.
+        Removals run deepest-first. Existing methods listed in meta are not
+        modified here (only extras are deleted).
+        """
+        meta_paths = set(meta_api_resources.keys())
+        aws_resources = self.connection.get_resources(api_id)
+        id_by_path = {r['path']: r['id'] for r in aws_resources}
+        paths_to_remove = [
+            r['path'] for r in aws_resources
+            if self._should_prune_whole_resource(r['path'], meta_paths)
+        ]
+        paths_to_remove.sort(
+            key=self._api_path_segment_count, reverse=True)
+        for path in paths_to_remove:
+            rid = id_by_path.get(path)
+            if not rid:
+                continue
+            _LOG.info(f'Pruning API Gateway resource absent from meta: {path}')
+            self.connection.delete_resource(api_id, rid)
+
+        for path, resource_meta in meta_api_resources.items():
+            resource_id = self.connection.get_resource_id(api_id, path)
+            if not resource_id:
+                continue
+            detail = self.connection.get_resource(api_id, resource_id)
+            existing_methods = detail.get('resourceMethods') or {}
+            desired = self._desired_http_methods_from_resource_meta(
+                resource_meta)
+            for http_method in list(existing_methods.keys()):
+                if http_method not in desired:
+                    _LOG.info(
+                        f'Pruning API Gateway method absent from meta: '
+                        f'{http_method} {path}'
+                    )
+                    self.connection.delete_method(
+                        api_id, resource_id, http_method
+                    )
 
     def configure_resources(self, api_id, stage_name, api_resources):
         for resource_path, resource_meta in api_resources.items():
@@ -356,12 +496,7 @@ class ApiGatewayResource(BaseResource):
                     _LOG.info(f'Resource {resource_path} was configured')
 
     @unpack_kwargs
-    def _create_api_gateway_from_meta(self, name, meta):
-        """ Create API Gateway with all specified meta.
-    
-        :type name: str
-        :type meta: dict
-        """
+    def _create_api_gateway_from_meta(self, name: str, meta: dict):
         validate_params(name, meta, API_REQUIRED_PARAMS)
 
         api_resources = meta['resources']
@@ -390,48 +525,8 @@ class ApiGatewayResource(BaseResource):
             rest_api_id=api_id,
             compression_size=minimum_compression_size)
 
-        # deploy authorizers
-        authorizers = meta.get('authorizers', {})
-        for key, val in authorizers.items():
-            uri = None
-            provider_arns = []
-            if val.get('type') == _COGNITO_AUTHORIZER_TYPE:
-                for pool in val.get('user_pools'):
-                    user_pool_id = self.cognito_res.get_user_pool_id(pool)
-                    provider_arns.append(
-                        f'arn:aws:cognito-idp:{self.region}:{self.account_id}:'
-                        f'userpool/{user_pool_id}')
-            else:
-                lambda_version = val.get('lambda_version')
-                lambda_name = val.get('lambda_name')
-                lambda_alias = val.get('lambda_alias')
-                lambda_arn = self.lambda_res. \
-                    resolve_lambda_arn_by_version_and_alias(lambda_name,
-                                                            lambda_version,
-                                                            lambda_alias)
-                uri = f'arn:aws:apigateway:{self.region}:lambda:path/' \
-                      f'2015-03-31/functions/{lambda_arn}/invocations'
-                api_source_arn = (f'arn:aws:execute-api:{self.region}:'
-                                  f'{self.account_id}:{api_id}/*/*')
-                self.lambda_res.add_invocation_permission(
-                    statement_id=api_id,
-                    name=lambda_arn,
-                    source_arn=api_source_arn,
-                    principal='apigateway.amazonaws.com')
-
-            self.connection.create_authorizer(api_id=api_id, name=key,
-                                              type=val['type'],
-                                              authorizer_uri=uri,
-                                              identity_source=val.get(
-                                                  'identity_source'),
-                                              ttl=val.get('ttl'),
-                                              provider_arns=provider_arns)
-
-        models = meta.get('models')
-        if models:
-            args = [{'api_id': api_id, 'models': {k: v}} for k, v in
-                    models.items()]
-            self.create_pool(self._create_model_from_metadata, args, 1)
+        self._sync_authorizers_from_meta(api_id, meta)
+        self._sync_models_from_meta(api_id, meta)
         if api_resources:
             api_resp = meta.get('api_method_responses')
             api_integration_resp = meta.get('api_method_integration_responses')
@@ -454,7 +549,59 @@ class ApiGatewayResource(BaseResource):
         return self.describe_api_resources(api_id=api_id, meta=meta, name=name)
 
     @unpack_kwargs
-    def _create_api_gateway_openapi_from_meta(self, name, meta):
+    def _update_api_gateway_from_meta(
+            self,
+            name: str,
+            meta: dict,
+            context=None
+    ):
+        validate_params(name, meta, API_REQUIRED_PARAMS)
+        _LOG.info(f'Updating API Gateway \'{name}\'')
+
+        api_id = self.connection.get_api_id(name)
+        if not api_id:
+            raise ResourceNotFoundError(
+                f'API Gateway \'{name}\' not found. Cannot update.'
+            )
+
+        self._sync_authorizers_from_meta(api_id, meta)
+        self._sync_models_from_meta(api_id, meta)
+
+        meta_api_resources = meta['resources']
+        resources_statement_singleton = meta.get(POLICY_STATEMENT_SINGLETON)
+        api_resp = meta.get('api_method_responses')
+        api_integration_resp = meta.get('api_method_integration_responses')
+
+        # Declarative sync: remove paths/methods missing from meta first.
+        self._prune_absent_api_gateway_resources(api_id, meta_api_resources)
+
+        args = self.__prepare_api_resources_args(
+            api_id=api_id,
+            api_resources=meta_api_resources,
+            api_resp=api_resp,
+            api_integration_resp=api_integration_resp,
+            resources_statement_singleton=resources_statement_singleton
+        )
+        if args:
+            _LOG.debug(f'Creating new API Gateway paths on {api_id}')
+            self.create_pool(self._create_resource_from_metadata, args, 1)
+            time.sleep(10)
+
+        minimum_compression_size = meta.get('minimum_compression_size', None)
+        if not minimum_compression_size:
+            _LOG.debug("No minimal_compression_size param - "
+                       "compression isn't enabled")
+        self.connection.update_compression_size(
+            rest_api_id=api_id,
+            compression_size=minimum_compression_size)
+
+        _LOG.debug(f'Deploying API Gateway {api_id}')
+        self.__deploy_api_gateway(api_id, meta, meta_api_resources)
+        return self.describe_api_resources(api_id=api_id, meta=meta,
+                                           name=name)
+
+    @unpack_kwargs
+    def _create_api_gateway_openapi_from_meta(self, name: str, meta: dict):
         openapi_context = meta.get('definition')
         deploy_stage = meta.get('deploy_stage')
 
@@ -481,7 +628,12 @@ class ApiGatewayResource(BaseResource):
         return self.describe_api_resources(api_id=api_id, meta=meta, name=name)
 
     @unpack_kwargs
-    def _update_api_gateway_openapi_from_meta(self, name, meta, context):
+    def _update_api_gateway_openapi_from_meta(
+            self,
+            name: str,
+            meta: dict,
+            context
+    ):
         api_id = self.connection.get_api_id(name)
         openapi_context = meta.get('definition')
         deploy_stage = meta.get('deploy_stage')
@@ -590,15 +742,27 @@ class ApiGatewayResource(BaseResource):
 
     def remove_lambdas_permissions(self, api_gateway_id, api_lambdas_arns):
         for lambda_arn in api_lambdas_arns:
-            existing_permissions = self.get_lambda_permissions_for_api(
-                lambda_arn, api_gateway_id)
 
-            existing_permissions = {
-                deep_get(perm, SOURCE_ARN_DEEP_KEY): perm.get('Sid')
-                for perm in existing_permissions
-            }
-            self.lambda_res.remove_permissions(lambda_arn,
-                                               existing_permissions.values())
+            try:
+                existing_permissions = self.get_lambda_permissions_for_api(
+                    lambda_arn, api_gateway_id)
+
+                existing_permissions = {
+                    deep_get(perm, SOURCE_ARN_DEEP_KEY): perm.get('Sid')
+                    for perm in existing_permissions
+                }
+                self.lambda_res.remove_permissions(lambda_arn,
+                                                   existing_permissions.values())
+            except ClientError as e:
+                error_code = e.response['Error']['Code']
+                if error_code == 'AccessDeniedException':
+                    USER_LOG.warning(
+                        f"Cannot remove permissions from Lambda "
+                        f"'{lambda_arn}': access denied "
+                        f"(cross-account).")
+                    continue
+                raise
+
 
     @staticmethod
     def get_deploy_stage_name(stage_name=None):
@@ -721,25 +885,10 @@ class ApiGatewayResource(BaseResource):
                 resource_id = self.connection.get_resource_id(api_id, each)
                 if resource_id:
                     _LOG.info('Resource %s exists.', each)
-                    enable_cors = resource_meta.get('enable_cors')
-                    if isinstance(enable_cors, bool):
-                        USER_LOG.warning(
-                            'Deprecated parameter "enable_cors" format. '
-                            'Please check the documentation for more details.')
-                        if enable_cors:
-                            enable_cors = {
-                                'state': True
-                            }
-                        else:
-                            enable_cors = {
-                                'state': False
-                            }
-
                     self._check_existing_methods(
                         api_id=api_id, resource_id=resource_id,
                         resource_path=each,
                         resource_meta=resource_meta,
-                        enable_cors=enable_cors,
                         authorizers_mapping=authorizers_mapping,
                         api_resp=api_resp,
                         api_integration_resp=api_integration_resp,
@@ -785,50 +934,66 @@ class ApiGatewayResource(BaseResource):
         tags = tag_response.get('tags', {})
         return tags
 
-    def _check_existing_methods(self, api_id, resource_id, resource_path,
-                                resource_meta,
-                                enable_cors, authorizers_mapping,
-                                api_resp=None,
-                                api_integration_resp=None,
-                                resources_statement_singleton: bool = False
-                                ):
-        """ Check if all specified methods exist and create some if not.
-    
-        :type api_id: str
-        :type resource_id: str
-        :type resource_meta: dict
-        :type enable_cors: dict
-        :type:
+    def _check_existing_methods(
+            self,
+            api_id: str,
+            resource_id: str,
+            resource_path: str,
+            resource_meta: dict,
+            authorizers_mapping: dict,
+            api_resp: list = None,
+            api_integration_resp: list =None,
+            resources_statement_singleton: bool = False
+    ):
+        """
+        Create missing HTTP methods or re-apply meta for existing ones.
+
+        New methods use ``put_method``; existing methods are updated with
+        ``update_method`` patches, ``update_integration`` (patch or
+        ``put_integration`` when required), and responses match meta.
         """
         methods_statement_singleton = resource_meta.get(
             POLICY_STATEMENT_SINGLETON)
+        enable_cors = resource_meta.get('enable_cors')
+        if isinstance(enable_cors, bool):
+            USER_LOG.warning(
+                'Deprecated parameter "enable_cors" format. '
+                'Please check the documentation for more details.')
+            enable_cors = {'state': True} if enable_cors else {'state': False}
+        if not enable_cors:
+            enable_cors = {'state': False}
+
         for method in resource_meta:
-            if method == 'enable_cors':
+            if method == 'enable_cors' or method not in SUPPORTED_METHODS:
                 continue
-            if self.connection.get_method(api_id, resource_id, method):
-                _LOG.info('Method %s exists.', method)
-                continue
+            method_exists = bool(self.connection.get_method(
+                api_id, resource_id, method))
+            if method_exists:
+                _LOG.info(
+                    'Method %s exists on %s — syncing configuration from meta.',
+                    method, resource_path)
             else:
                 _LOG.info('Creating method %s for resource %s...',
                           method, resource_id)
-                self._create_method_from_metadata(
-                    api_id=api_id,
-                    resource_id=resource_id,
-                    resource_path=resource_path,
-                    method=method,
-                    method_meta=resource_meta[method],
-                    authorizers_mapping=authorizers_mapping,
-                    api_resp=api_resp,
-                    api_integration_resp=api_integration_resp,
-                    enable_cors=enable_cors,
-                    resources_statement_singleton=resources_statement_singleton,
-                    methods_statement_singleton=methods_statement_singleton
-                )
-            if enable_cors.get('state') and not self.connection.get_method(
-                    api_id, resource_id, 'OPTIONS'):
-                _LOG.info(f'Enabling CORS for resource {resource_id}...')
-                self.connection.enable_cors_for_resource(
-                    api_id, resource_id, enable_cors)
+            self._create_method_from_metadata(
+                api_id=api_id,
+                resource_id=resource_id,
+                resource_path=resource_path,
+                method=method,
+                method_meta=resource_meta[method],
+                authorizers_mapping=authorizers_mapping,
+                api_resp=api_resp,
+                api_integration_resp=api_integration_resp,
+                enable_cors=enable_cors,
+                resources_statement_singleton=resources_statement_singleton,
+                methods_statement_singleton=methods_statement_singleton,
+                method_already_exists=method_exists,
+            )
+        if enable_cors.get('state'):
+            _LOG.info(f'Syncing CORS for resource {resource_path}...')
+            self.connection.enable_cors_for_resource(
+                api_id, resource_id, enable_cors
+            )
 
     @unpack_kwargs
     def _create_resource_from_metadata(self, api_id, resource_path,
@@ -886,10 +1051,14 @@ class ApiGatewayResource(BaseResource):
 
     def _create_method_from_metadata(
             self, api_id, resource_id, resource_path, method, method_meta,
-            authorizers_mapping, enable_cors: dict = None, api_resp=None,
+            authorizers_mapping,
+            enable_cors: dict = None,
+            api_resp=None,
             api_integration_resp=None,
             resources_statement_singleton: bool = False,
-            methods_statement_singleton: bool = False):
+            methods_statement_singleton: bool = False,
+            method_already_exists: bool = False
+    ):
         resources_statement_singleton = resources_statement_singleton or False
         methods_statement_singleton = methods_statement_singleton or False
         # init responses for method
@@ -901,8 +1070,8 @@ class ApiGatewayResource(BaseResource):
 
         # resolve authorizer if needed
         authorization_type = method_meta.get('authorization_type')
+        authorization_scopes = None
         if authorization_type not in ['NONE', 'AWS_IAM']:
-            # type is authorizer, so add id to meta
             authorizer_id = authorizers_mapping.get(authorization_type)
             if not authorizer_id:
                 raise ResourceNotFoundError(
@@ -912,8 +1081,23 @@ class ApiGatewayResource(BaseResource):
                 api_id, authorizer_id).get('type')
             if authorizer == _COGNITO_AUTHORIZER_TYPE:
                 authorization_type = _COGNITO_AUTHORIZER_TYPE
+                authorization_scopes = method_meta.get(AUTHORIZATION_SCOPES_KEY)
             else:
                 authorization_type = _CUSTOM_AUTHORIZER_TYPE
+                if method_meta.get(AUTHORIZATION_SCOPES_KEY):
+                    raise InvalidValueError(
+                        f"'authorization_scopes' can only be used with "
+                        f"COGNITO_USER_POOLS authorizer type, but "
+                        f"authorizer '{method_meta.get('authorization_type')}' "
+                        f"is of type '{authorizer}'."
+                    )
+        else:
+             if method_meta.get(AUTHORIZATION_SCOPES_KEY):
+                raise InvalidValueError(
+                    f"'authorization_scopes' can only be used with "
+                    f"COGNITO_USER_POOLS authorizer type, but "
+                    f"authorization_type is '{authorization_type}'."
+                )
 
         method_request_models = method_meta.get('method_request_models')
         if method_request_models:
@@ -924,21 +1108,48 @@ class ApiGatewayResource(BaseResource):
         request_validator_id = self._retrieve_request_validator_id(
             api_id, method_meta.get('request_validator'))
 
-        self.connection.create_method(
-            api_id, resource_id, method,
-            authorization_type=authorization_type,
-            authorizer_id=method_meta.get('authorizer_id'),
-            api_key_required=method_meta.get('api_key_required'),
-            request_parameters=method_meta.get('method_request_parameters'),
-            request_models=method_request_models,
-            request_validator=request_validator_id)
+        if method_already_exists:
+            self.connection.update_method_configuration(
+                api_id=api_id,
+                resource_id=resource_id,
+                http_method=method,
+                authorization_type=authorization_type,
+                authorizer_id=method_meta.get('authorizer_id'),
+                api_key_required=method_meta.get('api_key_required'),
+                request_parameters=method_meta.get('method_request_parameters'),
+                request_models=method_request_models,
+                request_validator_id=request_validator_id,
+                authorization_scopes=authorization_scopes
+            )
+        else:
+            self.connection.create_method(
+                api_id, resource_id, method,
+                authorization_type=authorization_type,
+                authorizer_id=method_meta.get('authorizer_id'),
+                api_key_required=method_meta.get('api_key_required'),
+                request_parameters=method_meta.get('method_request_parameters'),
+                request_models=method_request_models,
+                request_validator=request_validator_id,
+                authorization_scopes=authorization_scopes
+            )
+        integration_configured = False
         # second step: create integration
         integration_type = method_meta.get('integration_type')
+        if integration_type:
+            integration_type = integration_type.lower()
         # set up integration - lambda or aws service
         body_template = method_meta.get('integration_request_body_template')
         passthrough_behavior = method_meta.get(
-            'integration_passthrough_behavior')
+            'integration_passthrough_behavior'
+        )
+        credentials = method_meta.get('credentials')
         request_parameters = method_meta.get('integration_request_parameters')
+        existing_integration = (
+            method_already_exists
+            and integration_type
+            and self.connection.get_rest_integration(
+                api_id, resource_id, method)
+        )
         # TODO split to map - func implementation
         if integration_type:
             if integration_type == 'lambda':
@@ -950,83 +1161,185 @@ class ApiGatewayResource(BaseResource):
                     resolve_lambda_arn_by_version_and_alias(lambda_name,
                                                             lambda_version,
                                                             lambda_alias)
-                enable_proxy = method_meta.get('enable_proxy')
-                cache_configuration = method_meta.get('cache_configuration')
-                cache_key_parameters = cache_configuration.get(
-                    'cache_key_parameters') if cache_configuration else None
-                self.connection.create_lambda_integration(
-                    lambda_arn, api_id, resource_id, method, body_template,
-                    passthrough_behavior, method_meta.get('lambda_region'),
-                    enable_proxy=enable_proxy,
-                    cache_key_parameters=cache_key_parameters,
-                    request_parameters=request_parameters)
-                # add permissions to invoke
-                # Allows to apply method or resource singleton of a policy
-                # statement, setting wildcard on the respective scope.
+                if not lambda_arn:
+                    USER_LOG.warning(
+                        'Lambda %r was not found; lambda_version=%r, '
+                        'lambda_alias=%r.\n'
+                        'A temporary MOCK integration (HTTP 200, empty body) '
+                        'was attached for %s %s. '
+                        'Fix \'lambda_name\' in deployment resources '
+                        'and re-deploy to connect the real Lambda',
+                        lambda_name, lambda_version, lambda_alias,
+                        method, resource_path
+                    )
+                    mock_templates = {
+                        'application/json': '{"statusCode": 200}',
+                    }
+                    mock_pb = passthrough_behavior or 'WHEN_NO_MATCH'
+                    if existing_integration:
+                        self.connection.update_integration_configuration(
+                            api_id, resource_id, method,
+                            int_type='MOCK',
+                            request_templates=mock_templates,
+                            passthrough_behavior=mock_pb,
+                        )
+                    else:
+                        self.connection.create_mock_integration(
+                            api_id, resource_id, method,
+                            request_templates=mock_templates,
+                            passthrough_behavior=mock_pb,
+                        )
+                    integration_configured = True
+                else:
+                    enable_proxy = method_meta.get('enable_proxy')
+                    if enable_proxy and body_template:
+                        USER_LOG.warning(
+                            'integration_request_body_template is not applied '
+                            'for %s %s when enable_proxy is true. Set '
+                            'enable_proxy to false to use mapping templates.',
+                            method, resource_path
+                        )
+                    cache_configuration = method_meta.get('cache_configuration')
+                    cache_key_parameters = cache_configuration.get(
+                        'cache_key_parameters') if cache_configuration else None
+                    _lambda_uri = (
+                        'arn:aws:apigateway:{0}:lambda:path/'
+                        '2015-03-31/functions/{1}/invocations'
+                    ).format(self.connection.region, lambda_arn)
+                    if existing_integration:
+                        self.connection.update_integration_configuration(
+                            api_id, resource_id, method,
+                            int_type='AWS_PROXY' if enable_proxy else 'AWS',
+                            integration_method='POST',
+                            uri=_lambda_uri,
+                            credentials=credentials,
+                            request_templates=body_template,
+                            passthrough_behavior=passthrough_behavior,
+                            cache_key_parameters=cache_key_parameters,
+                            request_parameters=request_parameters,
+                        )
+                    else:
+                        self.connection.create_lambda_integration(
+                            lambda_arn, api_id, resource_id, method,
+                            body_template,
+                            credentials=credentials,
+                            passthrough_behavior=passthrough_behavior,
+                            enable_proxy=enable_proxy,
+                            cache_key_parameters=cache_key_parameters,
+                            request_parameters=request_parameters
+                        )
+                    # add permissions to invoke
+                    # Allows to apply method or resource singleton of a policy
+                    # statement, setting wildcard on the respective scope.
 
-                api_source_arn = f"arn:aws:execute-api:{self.region}:" \
-                                 f"{self.account_id}:{api_id}/*" \
-                                 "/{method}/{path}"
+                    api_source_arn = f"arn:aws:execute-api:{self.region}:" \
+                                     f"{self.account_id}:{api_id}/*" \
+                                     "/{method}/{path}"
 
-                _method, _path = method, resource_path.lstrip('/')
-                if resources_statement_singleton:
-                    _path = '*'
-                if methods_statement_singleton:
-                    _method = '*'
+                    _method, _path = method, resource_path.lstrip('/')
+                    if resources_statement_singleton:
+                        _path = '*'
+                    if methods_statement_singleton:
+                        _method = '*'
 
-                api_source_arn = api_source_arn.format(
-                    method=_method, path=_path
-                )
-                _id = f'{lambda_arn}-{api_source_arn}'
-                statement_id = md5(_id.encode('utf-8')).hexdigest()
-                response: dict = self.lambda_res.add_invocation_permission(
-                    name=lambda_arn,
-                    principal='apigateway.amazonaws.com',
-                    source_arn=api_source_arn,
-                    statement_id=statement_id,
-                    exists_ok=True
-                )
-                if response is None:
-                    message = f'Permission: \'{statement_id}\' attached to ' \
-                              f'\'{lambda_arn}\' lambda to allow ' \
-                              f'lambda:InvokeFunction for ' \
-                              f'apigateway.amazonaws.com principal from ' \
-                              f'\'{api_source_arn}\' SourceArn already exists.'
-                    _LOG.warning(message + ' Skipping.')
+                    api_source_arn = api_source_arn.format(
+                        method=_method, path=_path
+                    )
+                    _id = f'{lambda_arn}-{api_source_arn}'
+                    statement_id = md5(_id.encode('utf-8')).hexdigest()
+                    response: dict = self.lambda_res.add_invocation_permission(
+                        name=lambda_arn,
+                        principal='apigateway.amazonaws.com',
+                        source_arn=api_source_arn,
+                        statement_id=statement_id,
+                        exists_ok=True
+                    )
+                    if response is None:
+                        message = f'Permission: \'{statement_id}\' attached to ' \
+                                  f'\'{lambda_arn}\' lambda to allow ' \
+                                  f'lambda:InvokeFunction for ' \
+                                  f'apigateway.amazonaws.com principal from ' \
+                                  f'\'{api_source_arn}\' SourceArn already exists.'
+                        _LOG.warning(message + ' Skipping.')
+                    integration_configured = True
 
             elif integration_type == 'service':
                 uri = method_meta.get('uri')
                 role = method_meta.get('role')
                 integration_method = method_meta.get('integration_method')
-                self.connection.create_service_integration(self.account_id,
-                                                           api_id,
-                                                           resource_id,
-                                                           method,
-                                                           integration_method,
-                                                           role, uri,
-                                                           body_template,
-                                                           passthrough_behavior,
-                                                           request_parameters)
+                _service_uri = 'arn:aws:apigateway:{0}'.format(uri)
+                _service_creds = (
+                    self.connection.get_service_integration_credentials(
+                        self.account_id, role))
+                if existing_integration:
+                    self.connection.update_integration_configuration(
+                        api_id, resource_id, method,
+                        int_type='AWS',
+                        integration_method=integration_method,
+                        uri=_service_uri,
+                        credentials=_service_creds,
+                        request_templates=body_template,
+                        passthrough_behavior=passthrough_behavior,
+                        request_parameters=request_parameters,
+                    )
+                else:
+                    self.connection.create_service_integration(
+                        self.account_id,
+                        api_id,
+                        resource_id,
+                        method,
+                        integration_method,
+                        role, uri,
+                        body_template,
+                        passthrough_behavior,
+                        request_parameters)
+                integration_configured = True
             elif integration_type == 'mock':
-                self.connection.create_mock_integration(api_id, resource_id,
-                                                        method,
-                                                        body_template,
-                                                        passthrough_behavior)
+                if existing_integration:
+                    self.connection.update_integration_configuration(
+                        api_id, resource_id, method,
+                        int_type='MOCK',
+                        request_templates=body_template,
+                        passthrough_behavior=passthrough_behavior,
+                    )
+                else:
+                    self.connection.create_mock_integration(
+                        api_id, resource_id,
+                        method,
+                        body_template,
+                        passthrough_behavior)
+                integration_configured = True
             elif integration_type == 'http':
                 integration_method = method_meta.get('integration_method')
                 uri = method_meta.get('uri')
                 enable_proxy = method_meta.get('enable_proxy')
-                self.connection.create_http_integration(api_id, resource_id,
-                                                        method,
-                                                        integration_method,
-                                                        uri,
-                                                        body_template,
-                                                        passthrough_behavior,
-                                                        enable_proxy)
+                _http_int_type = 'HTTP_PROXY' if enable_proxy else 'HTTP'
+                if existing_integration:
+                    self.connection.update_integration_configuration(
+                        api_id, resource_id, method,
+                        int_type=_http_int_type,
+                        integration_method=integration_method,
+                        uri=uri,
+                        request_templates=body_template,
+                        passthrough_behavior=passthrough_behavior,
+                    )
+                else:
+                    self.connection.create_http_integration(
+                        api_id, resource_id,
+                        method,
+                        integration_method,
+                        uri,
+                        body_template,
+                        passthrough_behavior,
+                        enable_proxy)
+                integration_configured = True
             else:
                 raise InvalidValueError(
                     f"Integration type '{integration_type}' is not supported."
-                    )
+                )
+        if method_already_exists and integration_configured:
+            self.connection.clear_method_and_integration_responses(
+                api_id, resource_id, method)
         # third step: setup method responses
         if resp:
             for response in resp:
@@ -1037,17 +1350,18 @@ class ApiGatewayResource(BaseResource):
         else:
             self.connection.create_method_response(
                 api_id, resource_id, method, enable_cors=enable_cors)
-        # fourth step: setup integration responses
-        if integr_resp:
-            for each in integr_resp:
+        # fourth step: integration responses (require an integration in API GW)
+        if integration_configured:
+            if integr_resp:
+                for each in integr_resp:
+                    self.connection.create_integration_response(
+                        api_id, resource_id, method, each.get('status_code'),
+                        each.get('error_regex'),
+                        each.get('response_parameters'),
+                        each.get('response_templates'), enable_cors)
+            else:
                 self.connection.create_integration_response(
-                    api_id, resource_id, method, each.get('status_code'),
-                    each.get('error_regex'),
-                    each.get('response_parameters'),
-                    each.get('response_templates'), enable_cors)
-        else:
-            self.connection.create_integration_response(
-                api_id, resource_id, method, enable_cors=enable_cors)
+                    api_id, resource_id, method, enable_cors=enable_cors)
 
     @staticmethod
     def init_method_responses(api_resp, method_meta):
@@ -1151,15 +1465,7 @@ class ApiGatewayResource(BaseResource):
 
     @unpack_kwargs
     def _create_model_from_metadata(self, api_id, models):
-        _LOG.info('Going to process API Gateway models')
-        for name, model_data in models.items():
-            description = model_data.get('description')
-            schema = model_data.get('schema')
-            if isinstance(schema, dict):
-                schema = json.dumps(schema)
-            content_type = model_data.get('content_type')
-            self.connection.create_model(
-                api_id, name, content_type, description, schema)
+        self._sync_models_from_meta(api_id, {'models': models})
 
     def build_web_socket_api_gateway_arn(self, api_id: str) -> str:
         return f'arn:aws:execute-api:{self.apigw_v2.client.meta.region_name}' \

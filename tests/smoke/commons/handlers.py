@@ -10,7 +10,8 @@ from commons.checkers import exit_code_checker, artifacts_existence_checker, \
     TYPE_MODIFICATION_FUNC_MAPPING, deployment_output_checker, \
     build_meta_checker, TYPE_EXISTENCE_FUNC_MAPPING, lambda_triggers_checker, \
     lambda_envs_checker, build_meta_content_checker, TYPE_TAGS_FUNC_MAPPING, \
-    appsync_modification_checker, role_trusted_relationships_checker
+    appsync_modification_checker, role_trusted_relationships_checker, \
+    api_gw_resources_existence_checker
 from commons.utils import populate_resources_prefix_suffix, \
     read_syndicate_aliases, populate_prefix_suffix, split_deploy_bucket_path
 from commons import connections
@@ -251,6 +252,20 @@ def appsync_modification_handler(resources: dict,
     return invalid_conf if invalid_conf else True
 
 
+def api_gw_resources_existence_handler(resources: dict, **kwargs) \
+        -> bool | dict:
+    invalid_conf = {}
+    for api_gw_name, config in resources.items():
+        api_gw_name = populate_prefix_suffix(api_gw_name,
+                                             CONFIG.resources_prefix,
+                                             CONFIG.resources_suffix)
+        inner = config.get('resources', [])
+        if result := api_gw_resources_existence_checker(api_gw_name, inner):
+            invalid_conf[api_gw_name] = result
+
+    return invalid_conf if invalid_conf else True
+
+
 def trusted_relationships_content_handler(resources: dict,
                                           **kwargs) -> bool | dict:
     results = {}
@@ -288,5 +303,6 @@ HANDLERS_MAPPING = {
     'lambda_trigger_existence': lambda_trigger_handler,
     'lambda_env_existence': lambda_env_handler,
     'appsync_modification': appsync_modification_handler,
+    'api_gw_resources_existence': api_gw_resources_existence_handler,
     'trusted_relationships_content': trusted_relationships_content_handler
 }

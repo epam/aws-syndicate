@@ -448,6 +448,12 @@ def api_gateway_resource(ctx, **kwargs):
               cls=MultiWordOption, type=bool,
               help="Specifies whether the method requires a valid API key. "
                    "If not specified, the default value is set to False")
+@click.option('--authorization-scopes',
+              cls=MultiWordOption, type=str, multiple=True,
+              help="OAuth scopes for access_token validation with "
+                   "Cognito authorizer. Example: "
+                   "--authorization-scopes petstore/read "
+                   "--authorization-scopes petstore/write")
 @verbose_option
 @click.pass_context
 @timeit()
@@ -459,6 +465,10 @@ def api_gateway_resource_method(ctx, **kwargs):
         raise click.MissingParameter(
             "Lambda name is required if the integration type is 'lambda'",
             param_type='option', param_hint='lambda_name')
+
+    # Clean up empty scopes
+    if not kwargs.get('authorization_scopes'):
+        kwargs.pop('authorization_scopes', None)
 
     kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
     generator = ApiGatewayResourceMethodGenerator(**kwargs)

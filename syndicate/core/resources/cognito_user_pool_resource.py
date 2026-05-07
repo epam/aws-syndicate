@@ -60,6 +60,7 @@ class CognitoUserPoolResource(BaseResource):
         except ClientError as e:
             if e.response['Error']['Code'] == 'ResourceNotFoundException':
                 _LOG.warn(f'Cognito user pool {pool_id} is not found!')
+                return False
             else:
                 raise e
 

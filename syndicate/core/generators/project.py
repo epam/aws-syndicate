@@ -19,7 +19,6 @@ from pathlib import Path
 
 from syndicate.exceptions import InvalidValueError
 from syndicate.commons.log_helper import get_logger
-from syndicate.core import ProjectState
 from syndicate.core.generators import (_touch, _mkdir,
                                        _write_content_to_file)
 from syndicate.core.generators.contents import (_get_lambda_default_policy,
@@ -67,8 +66,6 @@ def generate_project_structure(project_name, project_path):
         _write_content_to_file(file=os.path.join(full_project_path,
                                                  FILE_DEPLOYMENT_RESOURCES),
                                content=default_lambda_policy)
-        ProjectState.generate(project_name=project_name,
-                              project_path=full_project_path)
 
         _write_content_to_file(os.path.join(full_project_path, FILE_CHANGELOG),
                                CHANGELOG_TEMPLATE)

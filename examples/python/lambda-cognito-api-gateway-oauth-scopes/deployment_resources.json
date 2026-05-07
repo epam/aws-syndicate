@@ -35,7 +35,10 @@
   "${userpool_name}": {
     "resource_type": "cognito_idp",
     "password_policy": {
+      "minimum_length": 8,
       "require_uppercase": true,
+      "require_symbols": true,
+      "require_lowercase": true,
       "require_numbers": true
     },
     "auto_verified_attributes": [],
@@ -43,16 +46,54 @@
     "username_attributes": [],
     "client": {
       "client_name": "client-app",
-      "generate_secret": false,
+      "generate_secret": true,
       "explicit_auth_flows": [
         "ALLOW_ADMIN_USER_PASSWORD_AUTH",
         "ALLOW_REFRESH_TOKEN_AUTH"
+      ],
+      "allowed_o_auth_flows": [
+        "client_credentials"
+      ],
+      "allowed_o_auth_scopes": [
+        "petstore-api/read",
+        "petstore-api/write"
+      ],
+      "supported_identity_providers": [
+        "COGNITO"
       ]
-    }
+    },
+    "resource_servers": [
+      {
+        "identifier": "petstore-api",
+        "name": "Petstore API",
+        "scopes": [
+          {
+            "scope_name": "read",
+            "scope_description": "Read access to pets"
+          },
+          {
+            "scope_name": "write",
+            "scope_description": "Write access to pets"
+          }
+        ]
+      }
+    ]
   },
-  "syndicate-demo-api": {
+  "petstore-api": {
+    "resource_type": "api_gateway",
+    "deploy_stage": "api",
+    "dependencies": [
+      {
+        "resource_name": "lambda_example",
+        "resource_type": "lambda"
+      },
+      {
+        "resource_name": "${userpool_name}",
+        "resource_type": "cognito_idp"
+      }
+    ],
     "authorizers": {
-      "authorizer": {
+      "cognito_authorizer": {
         "type": "COGNITO_USER_POOLS",
         "identity_source": "method.request.header.Authorization",
         "user_pools": [
@@ -61,13 +102,6 @@
         "ttl": 300
       }
     },
-    "deploy_stage": "dev",
-    "dependencies": [
-      {
-        "resource_name": "demo-cognito-project",
-        "resource_type": "lambda"
-      }
-    ],
     "resources": {
       "/login": {
         "enable_cors": {
@@ -81,7 +115,7 @@
           "method_request_parameters": {},
           "default_error_pattern": true,
           "integration_passthrough_behavior": "WHEN_NO_TEMPLATES",
-          "lambda_name": "demo-cognito-project"
+          "lambda_name": "lambda_example"
         }
       },
       "/signup": {
@@ -96,10 +130,46 @@
           "method_request_parameters": {},
           "default_error_pattern": true,
           "integration_passthrough_behavior": "WHEN_NO_TEMPLATES",
-          "lambda_name": "demo-cognito-project"
+          "lambda_name": "lambda_example"
+        }
+      },
+      "/pets": {
+        "enable_cors": {
+          "state": true
+        },
+        "GET": {
+          "authorization_type": "cognito_authorizer",
+          "authorization_scopes": [
+            "petstore-api/read"
+          ],
+          "integration_type": "lambda",
+          "lambda_name": "lambda_example",
+          "enable_proxy": true
+        },
+        "POST": {
+          "authorization_type": "cognito_authorizer",
+          "authorization_scopes": [
+            "petstore-api/write"
+          ],
+          "integration_type": "lambda",
+          "lambda_name": "lambda_example",
+          "enable_proxy": true
+        }
+      },
+      "/pets/{pet_id}": {
+        "enable_cors": {
+          "state": true
+        },
+        "GET": {
+          "authorization_type": "cognito_authorizer",
+          "authorization_scopes": [
+            "petstore-api/read"
+          ],
+          "integration_type": "lambda",
+          "lambda_name": "lambda_example",
+          "enable_proxy": true
         }
       }
-    },
-    "resource_type": "api_gateway"
+    }
   }
 }

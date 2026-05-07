@@ -648,8 +648,9 @@ def sync():
     return OK_RETURN_CODE
 
 
-@syndicate.command(name=STATUS_ACTION, short_help='Shows the state of a local '
-                                                  'project state file')
+@syndicate.command(name=STATUS_ACTION,
+                   short_help='Shows the state of a local '
+                              'project state file')
 @return_code_manager
 @click.option('--events', flag_value='events',
               callback=partial(validate_incompatible_options,
@@ -659,16 +660,21 @@ def sync():
               callback=partial(validate_incompatible_options,
                                incompatible_options=['events']),
               help='Show a summary of the project resources')
+@click.option('--deployed', is_flag=True, default=False,
+              help='When used with --resources, show only '
+                   'deployed resources')
 @verbose_option
 @timeit()
 @check_deploy_bucket_exists
-def status(events, resources):
+def status(events, resources, deployed):
     """
     Shows the state of a local project state file (.syndicate).
     Command displays the following content: project name, state, latest
     modification, locks summary, latest event, project resources.
     """
-    click.echo(project_state_status(category=events or resources))
+    click.echo(project_state_status(
+        category=events or resources,
+        deployed_only=deployed))
     return OK_RETURN_CODE
 
 

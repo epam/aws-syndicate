@@ -34,7 +34,8 @@ from syndicate.core.constants import DEFAULT_LOGS_EXPIRATION, \
     CLOUD_WATCH_TRIGGER_REQUIRED_PARAMS, S3_TRIGGER_REQUIRED_PARAMS, \
     SNS_TRIGGER_REQUIRED_PARAMS, KINESIS_TRIGGER_REQUIRED_PARAMS
 from syndicate.core.decorators import threading_lock
-from syndicate.core.helper import unpack_kwargs, is_zip_empty
+from syndicate.core.helper import unpack_kwargs, is_zip_empty, \
+    deterministic_uuid
 from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import (
     build_description_obj, validate_params, assert_required_params, if_updated)
@@ -234,10 +235,13 @@ class LambdaResource(BaseResource):
     def resolve_lambda_arn_by_version_and_alias(self, name, version, alias):
         if version or alias:
             lambda_response = self.lambda_conn.get_function(name, version)
+            if not lambda_response:
+                return None
             return self.build_lambda_arn_with_alias(lambda_response, alias)
-        else:
-            return self.lambda_conn.get_function(name)['Configuration'][
-                'FunctionArn']
+        fn = self.lambda_conn.get_function(name)
+        if not fn:
+            return None
+        return fn.get('Configuration', {}).get('FunctionArn')
 
     def add_invocation_permission(self, name, principal, source_arn=None,
                                   statement_id=None, exists_ok=False):
@@ -930,6 +934,8 @@ class LambdaResource(BaseResource):
                 name=lambda_arn,
                 principal='events.amazonaws.com',
                 source_arn=rule_arn,
+                statement_id=deterministic_uuid(rule_arn),
+                exists_ok=True
             )
             _LOG.info(f'Lambda {lambda_name} subscribed to cloudwatch rule '
                       f'{rule_name}')
@@ -957,6 +963,8 @@ class LambdaResource(BaseResource):
             name=lambda_arn,
             principal='s3.amazonaws.com',
             source_arn=bucket_arn,
+            statement_id=deterministic_uuid(bucket_arn),
+            exists_ok=True
         )
         _LOG.debug(f'Waiting for activation of invoke-permission '
                    f'of {bucket_arn}')

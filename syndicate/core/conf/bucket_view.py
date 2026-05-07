@@ -7,7 +7,7 @@ from syndicate.exceptions import InvalidTypeError, InternalError, \
     NotImplementedError
 
 NAMED_S3_URI_PATTERN = r'^(?P<proto>s3:\/\/)?(?:(?P<name>[0-9a-z\-]+)' \
-                       r'(?:\/)?)(?P<key>(?<=\/)(?:[0-9a-z\-_]+(?:\/)?)+)?$'
+                       r'(?:\/)?)(?P<key>(?<=\/)(?:[0-9a-zA-Z\-_]+(?:\/)?)+)?$'
 S3_PATTERN_GROUP_NAMES = ('proto', 'name', 'key')
 
 

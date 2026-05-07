@@ -13,16 +13,27 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+import json
 import os
 from datetime import datetime
 
 from tabulate import tabulate
 
+from syndicate.core.build.bundle_processor import load_latest_deploy_output
+from syndicate.core.constants import OAS_V3_FILE_NAME, API_GATEWAY_OAS_V3_TYPE
+from syndicate.core.helper import strip_prefix_suffix, resolve_aliases_for_string
 from syndicate.core.project_state.project_state import (
     OPERATION_LOCK_MAPPINGS, MODIFICATION_LOCK, WARMUP_LOCK,
     LOCK_LAST_MODIFICATION_DATE, LOCK_LOCKED_TILL)
 from syndicate.core.project_state.sync_processor import sync_project_state
-from syndicate.core.constants import DATE_FORMAT_ISO_8601, MODIFICATION_OPS
+from syndicate.core.constants import (
+    DATE_FORMAT_ISO_8601, MODIFICATION_OPS, DEPLOYED_MARKER, UNDEPLOYED_MARKER,
+    RESOURCES_FILE_NAME
+)
+
+from syndicate.commons.log_helper import get_logger
+
+_LOG = get_logger(__name__)
 
 LOCKS = {
     MODIFICATION_LOCK: 'modification',
@@ -31,13 +42,22 @@ LOCKS = {
 
 LINE_SEP = os.linesep
 
+SKIP_DIRS = {
+    'venv', '.venv', '.git', 'node_modules', '.idea',
+    '__pycache__', '.tox', '.eggs', 'dist', 'build', '.mypy_cache',
+    '.pytest_cache', '.serverless', '.terraform'
+}
 
-def project_state_status(category=None):
+
+# deployment_resources.json is the standard name
+
+
+def project_state_status(category=None, deployed_only=False):
     sync_project_state()
     if category == 'events':
         return process_events_view()
     elif category == 'resources':
-        return process_resources_view()
+        return process_resources_view(deployed_only=deployed_only)
     else:
         return process_default_view()
 
@@ -46,7 +66,7 @@ def process_default_view():
     from syndicate.core import PROJECT_STATE
     project_name = PROJECT_STATE.name
     events = PROJECT_STATE.events
-    last_event = None
+    last_event = {}
     latest_operation = None
     is_locked = False
     if events:
@@ -75,7 +95,8 @@ def process_default_view():
             ['', 'Initiated by: ', last_modification.get('initiator')],
             ['', 'Started at: ', format_time(modification_start_time)],
             ['', 'Ended at: ', format_time(modification_end_time)],
-            ['', 'Duration (sec): ', f"{last_modification.get('duration_sec')}"],
+            ['', 'Duration (sec): ',
+             f"{last_modification.get('duration_sec')}"],
             ['', 'Status: ', f"{last_modification.get('status')}"],
         ]
         result.append(tabulate_data(data))
@@ -97,16 +118,38 @@ def process_default_view():
             data.insert(1,
                         ['', 'Deploy name: ', last_event.get('deploy_name')])
         result.append(tabulate_data(data))
-    lambdas = PROJECT_STATE.lambdas
+
     result.append(LINE_SEP + 'Project resources:')
-    if lambdas:
-        headers = ['Type', 'Quantity']
-        resources = [['Lambda', len(lambdas)]]
-        result.append(
-            tabulate_data(data=resources, headers=headers, tablefmt='simple')
-        )
+    all_resources = _collect_project_resources()
+    deployed_resources = _collect_deployed_resource_names()
+
+    if not all_resources:
+        result.append(indent('No resources found in this project.'))
     else:
-        result.append(indent('There are no lambdas in this project.'))
+        grouped = _group_by_type(all_resources)
+        headers = ['Type', 'Total', 'Deployed']
+        summary_rows = []
+        for resource_type in sorted(grouped.keys()):
+            resources = grouped[resource_type]
+            total = len(resources)
+            deployed_count = sum(
+                1 for name in resources
+                if name in deployed_resources
+            )
+            summary_rows.append([resource_type, total, deployed_count])
+        result.append(
+            tabulate_data(data=summary_rows, headers=headers,
+                          tablefmt='simple'))
+
+        total_all = len(all_resources)
+        deployed_all = sum(
+            1 for name in all_resources
+            if name in deployed_resources
+        )
+        result.append(
+            f'{LINE_SEP}  Summary: {deployed_all}/{total_all} '
+            f'resources deployed')
+
     return LINE_SEP + LINE_SEP.join(result)
 
 
@@ -137,22 +180,216 @@ def process_events_view():
     return LINE_SEP + LINE_SEP.join(result)
 
 
-def process_resources_view():
+def process_resources_view(deployed_only=False):
     from syndicate.core import PROJECT_STATE
     project_name = PROJECT_STATE.name
-    result = ['Project: {}'.format(project_name),
-              'Lambda resources:']
-    lambdas = PROJECT_STATE.lambdas
-    if lambdas:
-        headers = ['Name', 'Runtime']
-        lambdas_data = []
-        for lambda_name, lambda_info in lambdas.items():
-            lambdas_data.append([lambda_name, lambda_info.get('runtime')])
-        result.append(tabulate_data(data=lambdas_data, headers=headers,
-                                    tablefmt='simple'))
+
+    result = [f'Project: {project_name}']
+
+    all_resources = _collect_project_resources()
+    deployed_resources = _collect_deployed_resource_names()
+
+    if not all_resources:
+        result.append('No resources found in this project.')
+        return LINE_SEP + LINE_SEP.join(result)
+
+    if deployed_only:
+        result.append('Deployed resources:')
     else:
-        result.append(indent('There are no lambdas in this project.'))
+        result.append('Resources:')
+
+    # Build flat table sorted by type, then by name
+    headers = ['Type', 'Name', 'Status']
+    rows = []
+    total_count = 0
+    deployed_count = 0
+
+    for name, meta in sorted(all_resources.items(),
+                              key=lambda x: (
+                                  x[1].get('resource_type', 'unknown'),
+                                  x[0])):
+        resource_type = meta.get('resource_type', 'unknown')
+        is_deployed = name in deployed_resources
+
+        total_count += 1
+        if is_deployed:
+            deployed_count += 1
+
+        if deployed_only and not is_deployed:
+            continue
+
+        status = DEPLOYED_MARKER if is_deployed else UNDEPLOYED_MARKER
+        rows.append([resource_type, name, status])
+
+    if rows:
+        result.append(
+            tabulate_data(data=rows, headers=headers, tablefmt='simple'))
+    else:
+        result.append(indent('No matching resources found.'))
+
+    # Summary
+    if deployed_only:
+        result.append(
+            LINE_SEP + f'Total deployed: {deployed_count} resources')
+    else:
+        result.append(
+            LINE_SEP + f'Summary: {deployed_count}/{total_count} '
+                       f'resources deployed')
+
     return LINE_SEP + LINE_SEP.join(result)
+
+def _collect_project_resources():
+    """
+    Collects all project resources.
+    Strategy:
+      1. Scanning deployment_resources.json files
+      2. Merge with lambdas from PROJECT_STATE
+      3. Merge with OpenAPI spec resources
+    """
+    resources = _scan_deployment_resources_files()
+    resources = _merge_lambda_resources(resources)
+    resources = _merge_openapi_resources(resources)
+
+    return resources
+
+
+def _merge_openapi_resources(resources):
+    """
+    Scan for OpenAPI v3 spec:
+      - Find files ending with OAS_V3_FILE_NAME
+      - Load spec and extract API name from info.title
+      - Add as api_gateway_oas_v3 resource
+    """
+    from syndicate.core import CONFIG
+
+    project_path = CONFIG.project_path
+    if not project_path:
+        return resources
+
+    for root, dirs, files in os.walk(project_path):
+        dirs[:] = [d for d in dirs if d not in SKIP_DIRS]
+        for filename in files:
+            if not filename.endswith(OAS_V3_FILE_NAME):
+                continue
+
+            filepath = os.path.join(root, filename)
+            try:
+                with open(filepath, 'r', encoding='utf-8') as f:
+                    openapi_spec = json.load(f)
+
+                if not isinstance(openapi_spec, dict):
+                    continue
+
+                api_name = openapi_spec.get('info', {}).get('title')
+                if not api_name:
+                    continue
+
+                resolved_name = resolve_aliases_for_string(api_name)
+
+                if resolved_name not in resources:
+                    resources[resolved_name] = {
+                        'resource_type': API_GATEWAY_OAS_V3_TYPE
+                    }
+                    _LOG.debug(f'Found OpenAPI spec resource: {resolved_name}')
+
+            except Exception as e:
+                _LOG.debug(f'Failed to load OpenAPI spec {filepath}: {e}')
+                continue
+
+    return resources
+
+
+def _scan_deployment_resources_files():
+    """Scan project directory for deployment_resources.json files,
+    skipping large/irrelevant directories to improve performance."""
+    from syndicate.core import CONFIG
+
+    project_path = CONFIG.project_path
+    if not project_path:
+        return {}
+
+    resources = {}
+    for root, dirs, files in os.walk(project_path):
+        dirs[:] = [d for d in dirs if d not in SKIP_DIRS]
+        for filename in files:
+            if filename != RESOURCES_FILE_NAME:
+                continue
+            filepath = os.path.join(root, filename)
+            try:
+                with open(filepath, 'r', encoding='utf-8') as f:
+                    content = json.load(f)
+                if isinstance(content, dict):
+                    for name, meta in content.items():
+                        # Resolve aliases in resource names
+                        resolved_name = resolve_aliases_for_string(name)
+                        resources[resolved_name] = meta
+            except (json.JSONDecodeError, OSError):
+                continue
+
+    return resources
+
+
+def _merge_lambda_resources(resources):
+    """Merge lambda resources from PROJECT_STATE"""
+    from syndicate.core import PROJECT_STATE
+    lambdas = PROJECT_STATE.lambdas or {}
+    for name, info in lambdas.items():
+        resolved_name = resolve_aliases_for_string(name)
+        if resolved_name not in resources:
+            resources[resolved_name] = {
+                'resource_type': 'lambda',
+                **info
+            }
+    return resources
+
+
+def _collect_deployed_resource_names():
+    """
+    Returns a set containing BOTH resolved and stripped resource names
+    from the latest deploy output, so comparison works regardless
+    of whether project resources have prefix/suffix applied.
+    """
+    from syndicate.core import CONFIG
+
+    try:
+        is_regular, output = load_latest_deploy_output(failsafe=True)
+
+        if is_regular is None:
+            _LOG.debug('No deployment found in project state')
+            return set()
+
+        if not output:
+            _LOG.debug('Deploy output is empty')
+            return set()
+
+        deployed_names = set()
+        for arn, config in output.items():
+            resource_name = config.get('resource_name')
+            if resource_name:
+                # Add resolved name (with prefix/suffix)
+                deployed_names.add(resource_name)
+                # Also add stripped name (without prefix/suffix)
+                stripped = strip_prefix_suffix(resource_name)
+                deployed_names.add(stripped)
+
+        _LOG.debug(f'Found {len(deployed_names)} deployed resource '
+                   f'name entries')
+        return deployed_names
+
+    except Exception as e:
+        _LOG.warning(f'Failed to load deploy output: {e}')
+        return set()
+
+
+def _group_by_type(resources):
+    """Groups {name: meta} dict by resource_type"""
+    grouped = {}
+    for name, meta in resources.items():
+        rtype = meta.get('resource_type', 'unknown')
+        if rtype not in grouped:
+            grouped[rtype] = {}
+        grouped[rtype][name] = meta
+    return grouped
 
 
 def locks_summary(project_state):
@@ -167,7 +404,8 @@ def locks_summary(project_state):
     for lock_name, lock_info in all_locks.items():
         display_name = LOCKS.get(lock_name)
         if lock_info:
-            state = 'Acquired' if lock_info.get(LOCK_LOCKED_TILL) else 'Released'
+            state = 'Acquired' if lock_info.get(
+                LOCK_LOCKED_TILL) else 'Released'
             last_mod_date = lock_info.get(LOCK_LAST_MODIFICATION_DATE)
             last_mod_date = format_time(last_mod_date)
             locked_till_date = lock_info.get(LOCK_LOCKED_TILL)
