@@ -19,8 +19,9 @@ from datetime import datetime
 
 from tabulate import tabulate
 
-from syndicate.core.build.bundle_processor import (
-    load_meta_resources, load_latest_deploy_output)
+from syndicate.core.build.bundle_processor import load_latest_deploy_output
+from syndicate.core.constants import OAS_V3_FILE_NAME, API_GATEWAY_OAS_V3_TYPE
+from syndicate.core.helper import strip_prefix_suffix, resolve_aliases_for_string
 from syndicate.core.project_state.project_state import (
     OPERATION_LOCK_MAPPINGS, MODIFICATION_LOCK, WARMUP_LOCK,
     LOCK_LAST_MODIFICATION_DATE, LOCK_LOCKED_TILL)
@@ -241,79 +242,104 @@ def _collect_project_resources():
     """
     Collects all project resources.
     Strategy:
-      1. Try build meta from latest bundle (resolved names)
-      2. Fall back to scanning deployment_resources.json files
-      3. Merge with lambdas from PROJECT_STATE
+      1. Scanning deployment_resources.json files
+      2. Merge with lambdas from PROJECT_STATE
+      3. Merge with OpenAPI spec resources
     """
-    resources = _try_load_from_bundle()
-    if not resources:
-        resources = _scan_deployment_resources_files()
-
-    # Merge lambdas from PROJECT_STATE (lambda_config.json)
+    resources = _scan_deployment_resources_files()
     resources = _merge_lambda_resources(resources)
+    resources = _merge_openapi_resources(resources)
 
     return resources
 
 
-def _try_load_from_bundle():
-    """Try loading resolved resources from the latest built bundle"""
-    from syndicate.core import PROJECT_STATE
-    try:
-        bundle_name = PROJECT_STATE.latest_bundle_name
-        if not bundle_name:
-            _LOG.debug('No bundle found in project state')
-            return {}
+def _merge_openapi_resources(resources):
+    """
+    Scan for OpenAPI v3 spec:
+      - Find files ending with OAS_V3_FILE_NAME
+      - Load spec and extract API name from info.title
+      - Add as api_gateway_oas_v3 resource
+    """
+    from syndicate.core import CONFIG
 
-        resources = load_meta_resources(bundle_name)
-        _LOG.debug(
-            f'Loaded {len(resources)} resources from bundle '
-            f'{bundle_name}')
-        return resources or {}
-    except Exception as e:
-        _LOG.debug(f'Failed to load bundle meta: {e}')
-        return {}
+    project_path = CONFIG.project_path
+    if not project_path:
+        return resources
+
+    for root, dirs, files in os.walk(project_path):
+        dirs[:] = [d for d in dirs if d not in SKIP_DIRS]
+        for filename in files:
+            if not filename.endswith(OAS_V3_FILE_NAME):
+                continue
+
+            filepath = os.path.join(root, filename)
+            try:
+                with open(filepath, 'r', encoding='utf-8') as f:
+                    openapi_spec = json.load(f)
+
+                if not isinstance(openapi_spec, dict):
+                    continue
+
+                api_name = openapi_spec.get('info', {}).get('title')
+                if not api_name:
+                    continue
+
+                resolved_name = resolve_aliases_for_string(api_name)
+
+                if resolved_name not in resources:
+                    resources[resolved_name] = {
+                        'resource_type': API_GATEWAY_OAS_V3_TYPE
+                    }
+                    _LOG.debug(f'Found OpenAPI spec resource: {resolved_name}')
+
+            except Exception as e:
+                _LOG.debug(f'Failed to load OpenAPI spec {filepath}: {e}')
+                continue
+
+    return resources
 
 
 def _scan_deployment_resources_files():
     """Scan project directory for deployment_resources.json files,
     skipping large/irrelevant directories to improve performance."""
-    resources = {}
     from syndicate.core import CONFIG
-    project_path = CONFIG.project_path
 
+    project_path = CONFIG.project_path
+    if not project_path:
+        return {}
+
+    resources = {}
     for root, dirs, files in os.walk(project_path):
         dirs[:] = [d for d in dirs if d not in SKIP_DIRS]
-
-        if RESOURCES_FILE_NAME in files:
-            filepath = os.path.join(str(root), RESOURCES_FILE_NAME)
+        for filename in files:
+            if filename != RESOURCES_FILE_NAME:
+                continue
+            filepath = os.path.join(root, filename)
             try:
-                with open(filepath, 'r') as fh:
-                    file_resources = json.load(fh)
-                for name, meta in file_resources.items():
-                    if isinstance(meta, dict) and meta.get(
-                            'resource_type'):
-                        resources[name] = meta
-            except (json.JSONDecodeError, IOError) as e:
-                _LOG.warning(f'Failed to read {filepath}: {e}')
+                with open(filepath, 'r', encoding='utf-8') as f:
+                    content = json.load(f)
+                if isinstance(content, dict):
+                    for name, meta in content.items():
+                        # Resolve aliases in resource names
+                        resolved_name = resolve_aliases_for_string(name)
+                        resources[resolved_name] = meta
+            except (json.JSONDecodeError, OSError):
+                continue
 
-    _LOG.debug(
-        f'Scanned {len(resources)} resources from local files')
     return resources
 
 
 def _merge_lambda_resources(resources):
-    """Merge lambda definitions from PROJECT_STATE"""
+    """Merge lambda resources from PROJECT_STATE"""
     from syndicate.core import PROJECT_STATE
     lambdas = PROJECT_STATE.lambdas or {}
     for name, info in lambdas.items():
-        if name not in resources:
-            resources[name] = {
+        resolved_name = resolve_aliases_for_string(name)
+        if resolved_name not in resources:
+            resources[resolved_name] = {
                 'resource_type': 'lambda',
                 **info
             }
-        elif 'runtime' not in resources.get(name, {}):
-            # Enrich existing lambda entry with runtime info
-            resources[name]['runtime'] = info.get('runtime')
     return resources
 
 
@@ -336,9 +362,6 @@ def _collect_deployed_resource_names():
             _LOG.debug('Deploy output is empty')
             return set()
 
-        prefix = getattr(CONFIG, 'resources_prefix', '') or ''
-        suffix = getattr(CONFIG, 'resources_suffix', '') or ''
-
         deployed_names = set()
         for arn, config in output.items():
             resource_name = config.get('resource_name')
@@ -346,8 +369,7 @@ def _collect_deployed_resource_names():
                 # Add resolved name (with prefix/suffix)
                 deployed_names.add(resource_name)
                 # Also add stripped name (without prefix/suffix)
-                stripped = _strip_prefix_suffix(
-                    resource_name, prefix, suffix)
+                stripped = strip_prefix_suffix(resource_name)
                 deployed_names.add(stripped)
 
         _LOG.debug(f'Found {len(deployed_names)} deployed resource '
@@ -357,15 +379,6 @@ def _collect_deployed_resource_names():
     except Exception as e:
         _LOG.warning(f'Failed to load deploy output: {e}')
         return set()
-
-
-def _strip_prefix_suffix(name, prefix, suffix):
-    """Remove resource prefix and suffix from a resolved name"""
-    if prefix and name.startswith(prefix):
-        name = name[len(prefix):]
-    if suffix and name.endswith(suffix):
-        name = name[:-len(suffix)]
-    return name
 
 
 def _group_by_type(resources):
