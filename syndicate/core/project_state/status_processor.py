@@ -242,7 +242,7 @@ def _collect_project_resources():
     """
     Collects all project resources.
     Strategy:
-      1. Fall back to scanning deployment_resources.json files
+      1. Scanning deployment_resources.json files
       2. Merge with lambdas from PROJECT_STATE
       3. Merge with OpenAPI spec resources
     """
