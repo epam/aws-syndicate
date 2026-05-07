@@ -6,6 +6,7 @@ import com.demodaggerformdatafileupload.dto.formdata.FormDataV2;
 import com.demodaggerformdatafileupload.dto.formdata.input.FileInput;
 import com.demodaggerformdatafileupload.dto.formdata.input.Input;
 import com.demodaggerformdatafileupload.dto.formdata.input.TextInput;
+import com.demodaggerformdatafileupload.dto.formdata.FrontendDemoExampleFormData;
 import org.apache.commons.fileupload.FileItem;
 
 import java.util.ArrayList;
@@ -134,4 +135,6 @@ public class DataMapper {
                 }
             }
         }
+        return new FrontendDemoExampleFormData(userName, description, files);
+    }
 }
