@@ -20,6 +20,7 @@ from datetime import datetime
 from tabulate import tabulate
 
 from syndicate.core.build.bundle_processor import load_latest_deploy_output
+from syndicate.core.constants import OAS_V3_FILE_NAME, API_GATEWAY_OAS_V3_TYPE
 from syndicate.core.helper import strip_prefix_suffix
 from syndicate.core.project_state.project_state import (
     OPERATION_LOCK_MAPPINGS, MODIFICATION_LOCK, WARMUP_LOCK,
@@ -243,10 +244,59 @@ def _collect_project_resources():
     Strategy:
       1. Fall back to scanning deployment_resources.json files
       2. Merge with lambdas from PROJECT_STATE
-      3
+      3. Merge with OpenAPI spec resources
     """
     resources = _scan_deployment_resources_files()
     resources = _merge_lambda_resources(resources)
+    resources = _merge_openapi_resources(resources)
+
+    return resources
+
+
+def _merge_openapi_resources(resources):
+    """
+    Scan for OpenAPI v3 spec:
+      - Find files ending with OAS_V3_FILE_NAME
+      - Load spec and extract API name from info.title
+      - Add as api_gateway_oas_v3 resource
+    """
+    from syndicate.core import CONFIG
+
+    project_path = CONFIG.project_path
+    if not project_path:
+        return resources
+
+    for root, dirs, files in os.walk(project_path):
+        dirs[:] = [d for d in dirs if d not in SKIP_DIRS]
+        for filename in files:
+            if not filename.endswith(OAS_V3_FILE_NAME):
+                continue
+
+            filepath = os.path.join(root, filename)
+            try:
+                with open(filepath, 'r', encoding='utf-8') as f:
+                    openapi_spec = json.load(f)
+
+                if not isinstance(openapi_spec, dict):
+                    continue
+
+                api_name = openapi_spec.get('info', {}).get('title')
+                if not api_name:
+                    _LOG.debug(
+                        f'OpenAPI spec {filepath} has no info.title, '
+                        f'skipping')
+                    continue
+
+                if api_name not in resources:
+                    resources[api_name] = {
+                        'resource_type': API_GATEWAY_OAS_V3_TYPE
+                    }
+                    _LOG.debug(f'Found OpenAPI spec resource: {api_name}')
+
+            except Exception as e:
+                _LOG.debug(
+                    f'Failed to load OpenAPI spec {filepath}: {e}')
+                continue
 
     return resources
 
