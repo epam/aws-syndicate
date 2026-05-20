@@ -1,3 +1,7 @@
+## 2026-05-20
+### Added
+- Added `cloudwatch_dashboard` resource to the least used resources
+
 ## 2025-11-18
 ## Changed
 - Downgraded the Java JDK version from 17 to 11 in the `sdct-at-ddis` smoke-test project to match the CI environment.

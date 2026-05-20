@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [1.21.0] - 2026-05-20
+- Added support for `cloudwatch_dashboard` resource
+- Updated `boto3` and `botocore` to version 1.43.11
+
 # [1.20.0] - 2026-04-01
 - Added `api_gateway` to supported resource types for updating (only paths and methods)
 - Fixed an issue with `syndicate generate project` command, when the `SDCT_CONF` is missing.

@@ -23,9 +23,12 @@ from syndicate.connection.application_autoscaling_connection import (
     ApplicationAutoscaling)
 from syndicate.connection.appsync_connection import AppSyncConnection
 from syndicate.connection.batch_connection import BatchConnection
-from syndicate.connection.cloud_watch_connection import (EventConnection,
-                                                         LogsConnection,
-                                                         MetricConnection)
+from syndicate.connection.cloud_watch_connection import (
+    EventConnection,
+    LogsConnection,
+     MetricConnection,
+     CloudWatchDashboardConnection,
+)
 from syndicate.connection.cloudfront_connection import CloudFrontConnection
 from syndicate.connection.cognito_identity_connection import (
     CognitoIdentityConnection)
@@ -149,6 +152,13 @@ class ConnectionProvider(object):
         if region:
             credentials['region'] = region
         return MetricConnection(**credentials)
+
+    @lru_cache(maxsize=None)
+    def cw_dashboard(self, region=None):
+        credentials = self.credentials.copy()
+        if region:
+            credentials['region'] = region
+        return CloudWatchDashboardConnection(**credentials)
 
     @lru_cache(maxsize=None)
     def ec2(self, region=None):
