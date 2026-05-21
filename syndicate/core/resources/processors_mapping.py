@@ -25,7 +25,7 @@ from syndicate.core.constants import \
     DOCUMENTDB_CLUSTER_TYPE, DOCUMENTDB_INSTANCE_TYPE, DAX_CLUSTER_TYPE, \
     FIREHOSE_TYPE, EVENT_BRIDGE_SCHEDULE_TYPE, API_GATEWAY_OAS_V3_TYPE, \
     SWAGGER_UI_TYPE, EC2_LAUNCH_TEMPLATE_TYPE, APPSYNC_TYPE, \
-    RDS_DB_CLUSTER_TYPE, RDS_DB_INSTANCE_TYPE
+    RDS_DB_CLUSTER_TYPE, RDS_DB_INSTANCE_TYPE, CLOUD_WATCH_DASHBOARD_TYPE
 
 
 class ProcessorFacade:
@@ -71,6 +71,8 @@ class ProcessorFacade:
                 self.resources_provider.sqs().create_sqs_queue,
             CLOUD_WATCH_ALARM_TYPE:
                 self.resources_provider.cw_alarm().create_alarm,
+            CLOUD_WATCH_DASHBOARD_TYPE:
+                self.resources_provider.cw_dashboard().create_dashboard,
             EBS_TYPE:
                 self.resources_provider.ebs().create_ebs,
             STEP_FUNCTION_TYPE:
@@ -147,6 +149,8 @@ class ProcessorFacade:
                 self.resources_provider.sqs().describe_queue_from_meta,
             CLOUD_WATCH_ALARM_TYPE:
                 self.resources_provider.cw_alarm().describe_alarm,
+            CLOUD_WATCH_DASHBOARD_TYPE:
+                self.resources_provider.cw_dashboard().describe_dashboard,
             EBS_TYPE:
                 self.resources_provider.ebs().describe_ebs,
             STEP_FUNCTION_TYPE:
@@ -193,6 +197,8 @@ class ProcessorFacade:
         return {
             CLOUD_WATCH_ALARM_TYPE:
                 self.resources_provider.cw_alarm().remove_alarms,
+            CLOUD_WATCH_DASHBOARD_TYPE:
+                self.resources_provider.cw_dashboard().remove_dashboard,
             API_GATEWAY_TYPE:
                 self.resources_provider.api_gw().remove_api_gateways,
             API_GATEWAY_OAS_V3_TYPE:
@@ -306,6 +312,8 @@ class ProcessorFacade:
                 self.resources_provider.rds_db_instance().update_db_instance,
             API_GATEWAY_TYPE:
                 self.resources_provider.api_gw().update_api_gateway,
+            CLOUD_WATCH_DASHBOARD_TYPE:
+                self.resources_provider.cw_dashboard().update_dashboard,
         }
 
     def resource_identifier(self):

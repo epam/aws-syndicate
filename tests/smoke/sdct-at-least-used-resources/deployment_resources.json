@@ -58,7 +58,6 @@
       "project": "sdct-auto-test"
     }
   },
-
   "sdct-at-compenv": {
     "resource_type": "batch_compenv",
     "compute_environment_type": "MANAGED",
@@ -182,6 +181,27 @@
     "resource_type": "cloudwatch_rule",
     "rule_type": "schedule",
     "expression": "rate(1 minute)",
+    "tags": {
+      "tests": "smoke",
+      "project": "sdct-auto-test"
+    }
+  },
+  "sdct-at-cw-dashboard": {
+    "resource_type": "cloudwatch_dashboard",
+    "dashboard_body": {
+      "widgets": [
+        {
+          "type": "text",
+          "x": 0,
+          "y": 0,
+          "width": 24,
+          "height": 2,
+          "properties": {
+            "markdown": "# Dashboard\nWelcome to the example dashboard deployed using aws-syndicate."
+          }
+        }
+      ]
+    },
     "tags": {
       "tests": "smoke",
       "project": "sdct-auto-test"

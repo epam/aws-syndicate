@@ -524,6 +524,10 @@ def cloudwatch_alarm_existence_checker(name: str) -> bool:
     return True if connections.get_cw_alarm(name) else False
 
 
+def cloudwatch_dashboard_existence_checker(name: str) -> bool:
+    return True if connections.get_cw_dashboard(name) else False
+
+
 def web_socket_api_gateway_existence_checker(name: str) -> bool:
     return True if connections.get_web_socket_api_gateway(name) else False
 
@@ -689,11 +693,21 @@ def step_function_tags_checker(name: str, tags: list) -> dict | bool:
     return True
 
 
-def cloudwatch_alarm_tags_checker(name: str, tags: list) -> dict | bool:
+def cloudwatch_alarm_tags_checker(name: str, tags: dict) -> dict | bool:
     arn = connections.get_cw_alarm(name)
     if not arn:
         return False
-    received_tags = connections.list_cw_alarm_tags(arn, tags)
+    received_tags = connections.list_cw_resource_tags(arn, tags)
+    if missing_tags := compare_dicts(received_tags, tags):
+        return dict(missing_tags)
+    return True
+
+
+def cloudwatch_dashboard_tags_checker(name: str, tags: dict) -> dict | bool:
+    arn = connections.get_cw_dashboard(name)
+    if not arn:
+        return False
+    received_tags = connections.list_cw_resource_tags(arn, tags)
     if missing_tags := compare_dicts(received_tags, tags):
         return dict(missing_tags)
     return True
@@ -746,6 +760,7 @@ TYPE_EXISTENCE_FUNC_MAPPING = {
     'web_socket_api_gateway': web_socket_api_gateway_existence_checker,
     'step_functions': step_function_existence_checker,
     'cloudwatch_alarm': cloudwatch_alarm_existence_checker,
+    'cloudwatch_dashboard': cloudwatch_dashboard_existence_checker,
     'rds_db_cluster': rds_db_cluster_existence_checker,
     'rds_db_instance': rds_db_instance_existence_checker
 }
@@ -776,6 +791,7 @@ TYPE_TAGS_FUNC_MAPPING = {
     'web_socket_api_gateway': web_socket_api_gateway_tags_checker,
     'step_functions': step_function_tags_checker,
     'cloudwatch_alarm': cloudwatch_alarm_tags_checker,
+    'cloudwatch_dashboard': cloudwatch_dashboard_tags_checker,
     'rds_db_cluster': rds_db_cluster_tags_checker,
     'rds_db_instance': rds_db_instance_tags_checker
 }

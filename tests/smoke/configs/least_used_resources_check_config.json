@@ -80,6 +80,9 @@
                 },
                 "sdct-at-cw-alarm": {
                   "resource_type": "cloudwatch_alarm"
+                },
+                "sdct-at-cw-dashboard": {
+                  "resource_type": "cloudwatch_dashboard"
                 }
               },
               "depends_on": [1]
@@ -185,6 +188,13 @@
                 },
                 "sdct-at-cw-alarm": {
                   "resource_type": "cloudwatch_alarm",
+                  "tags": {
+                    "tests": "smoke",
+                    "project": "sdct-auto-test"
+                  }
+                },
+                "sdct-at-cw-dashboard": {
+                  "resource_type": "cloudwatch_dashboard",
                   "tags": {
                     "tests": "smoke",
                     "project": "sdct-auto-test"
@@ -352,6 +362,9 @@
                 },
                 "sdct-at-cw-alarm": {
                   "resource_type": "cloudwatch_alarm"
+                },
+                "sdct-at-cw-dashboard": {
+                  "resource_type": "cloudwatch_dashboard"
                 }
               },
               "depends_on": [1, 2]
@@ -405,6 +418,9 @@
                 },
                 "sdct-at-cw-alarm": {
                   "resource_type": "cloudwatch_alarm"
+                },
+                "sdct-at-cw-dashboard": {
+                  "resource_type": "cloudwatch_dashboard"
                 }
               },
               "depends_on": [1, 2, 3]
@@ -488,6 +504,9 @@
                 },
                 "sdct-at-cw-alarm": {
                   "resource_type": "cloudwatch_alarm"
+                },
+                "sdct-at-cw-dashboard": {
+                  "resource_type": "cloudwatch_dashboard"
                 }
               },
               "depends_on": [1, 2]
@@ -554,6 +573,9 @@
                 },
                 "sdct-at-cw-alarm": {
                   "resource_type": "cloudwatch_alarm"
+                },
+                "sdct-at-cw-dashboard": {
+                  "resource_type": "cloudwatch_dashboard"
                 }
               },
               "depends_on": [1, 2, 3]
@@ -643,6 +665,9 @@
                 },
                 "sdct-at-cw-alarm": {
                   "resource_type": "cloudwatch_alarm"
+                },
+                "sdct-at-cw-dashboard": {
+                  "resource_type": "cloudwatch_dashboard"
                 }
               },
               "depends_on": [1]

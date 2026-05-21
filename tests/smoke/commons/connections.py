@@ -791,7 +791,7 @@ def list_step_function_tags(resource_arn: str, tag_keys: list = None) \
         return result
 
 
-def get_cw_alarm(name: str) -> Union[dict | None]:
+def get_cw_alarm(name: str) -> Union[str | None]:
     arns = []
     paginator = cloudwatch_client.get_paginator('describe_alarms')
     for response in paginator.paginate(AlarmNames=[name]):
@@ -810,7 +810,7 @@ def get_cw_alarm(name: str) -> Union[dict | None]:
     return
 
 
-def list_cw_alarm_tags(resource_arn: str, tag_keys: list = None) \
+def list_cw_resource_tags(resource_arn: str, tag_keys: dict = None) \
         -> Union[dict | None]:
     try:
         response = cloudwatch_client.list_tags_for_resource(
@@ -828,6 +828,16 @@ def list_cw_alarm_tags(resource_arn: str, tag_keys: list = None) \
             if tag in response_tags:
                 result[tag] = response_tags[tag]
         return result
+
+
+def get_cw_dashboard(name: str) -> Union[str | None]:
+    try:
+        return cloudwatch_client.get_dashboard(DashboardName=name)['DashboardArn']
+    except ClientError as e:
+        if e.response['Error']['Code'] == 'ResourceNotFound':
+            print(f"Dashboard {name} not found.")
+            return None
+        raise
 
 
 def get_web_socket_api_gateway(name: str) -> Union[dict | None]:

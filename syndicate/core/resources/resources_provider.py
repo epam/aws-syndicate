@@ -18,6 +18,8 @@ from syndicate.core.resources.api_gateway_resource import ApiGatewayResource
 from syndicate.core.resources.appsync_resource import AppSyncResource
 from syndicate.core.resources.cloud_watch_alarm_resource import (
     CloudWatchAlarmResource)
+from syndicate.core.resources.cloud_watch_dashboard_resource import \
+    CloudWatchDashboardResource
 from syndicate.core.resources.cloud_watch_resource import CloudWatchResource
 from syndicate.core.resources.cognito_identity_resource import (
     CognitoIdentityResource)
@@ -75,6 +77,7 @@ class ResourceProvider:
         _conn_provider = None
 
         _cw_alarm_resource = None
+        _cw_dashboard_resource = None
         _cw_resource = None
         _sns_resource = None
         _api_gateway_resource = None
@@ -120,6 +123,17 @@ class ResourceProvider:
                     account_id=self.config.account_id
                 )
             return self._cw_alarm_resource
+
+        def cw_dashboard(self, region=None):
+            if not region:
+                region = self.credentials.get('region')
+            if not self._cw_dashboard_resource:
+                self._cw_dashboard_resource = CloudWatchDashboardResource(
+                    cw_dashboard_conn=self._conn_provider.cw_dashboard(
+                        region=region
+                    ),
+                )
+            return self._cw_dashboard_resource
 
         def cw(self):
             if not self._cw_resource:
