@@ -26,8 +26,8 @@ from syndicate.connection.batch_connection import BatchConnection
 from syndicate.connection.cloud_watch_connection import (
     EventConnection,
     LogsConnection,
-     MetricConnection,
-     CloudWatchDashboardConnection,
+    MetricConnection,
+    CloudWatchDashboardConnection,
 )
 from syndicate.connection.cloudfront_connection import CloudFrontConnection
 from syndicate.connection.cognito_identity_connection import (
