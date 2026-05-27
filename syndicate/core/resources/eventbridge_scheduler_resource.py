@@ -18,7 +18,8 @@ from time import sleep
 
 from syndicate.exceptions import InvalidValueError, ResourceNotFoundError
 from syndicate.commons.log_helper import get_logger
-from syndicate.core.helper import unpack_kwargs
+from syndicate.core.helper import unpack_kwargs, convert_to_datetime, \
+    as_utc_aware
 from syndicate.core.helper import dict_keys_to_capitalized_camel_case
 from syndicate.core.resources.base_resource import BaseResource
 from syndicate.core.resources.helper import build_description_obj, \
@@ -30,68 +31,48 @@ REQUIRED_PARAMS = {'name', 'schedule_expression', 'state', 'description',
                    'flexible_time_window'}
 
 
-def convert_to_datetime(name, date_str):
-    try:
-        if len(date_str) > 10:
-            return datetime.fromisoformat(date_str)
-        else:
-            return datetime.utcfromtimestamp(int(date_str))
-    except (ValueError, OSError):
-        raise InvalidValueError(
-            f"Invalid date format: '{date_str}'. "
-            f"Resource: '{name}'. Should be ISO8601 or timestamp"
-            )
-
-
-def _as_utc_aware(dt):
-    """Normalize datetimes for comparison with datetime.now(timezone.utc)."""
-    if dt.tzinfo is None:
-        return dt.replace(tzinfo=timezone.utc)
-    return dt.astimezone(timezone.utc)
-
-
-def prepare_schedule_parameters(meta: dict):
-    name = meta.get('name')
-    validate_params(name, meta, REQUIRED_PARAMS)
-    params = meta.copy()
-
-    params = dict_keys_to_capitalized_camel_case(params)
-
-    assert_possible_values([params.get('State')],
-                           ['ENABLED', 'DISABLED']) \
-        if 'State' in params else None
-    flexible = params.get('FlexibleTimeWindow')
-    if isinstance(flexible, dict) and 'Mode' in flexible:
-        assert_possible_values([flexible.get('Mode')],
-                               ['OFF', 'FLEXIBLE'])
-
-    now_utc = datetime.now(timezone.utc)
-    start_date = None
-    end_date = None
-    if 'StartDate' in params:
-        start_date = _as_utc_aware(
-            convert_to_datetime(name, params.get('StartDate')))
-        if start_date <= now_utc:
-            raise InvalidValueError('Start date must be in the future.')
-    if 'EndDate' in params:
-        end_date = _as_utc_aware(
-            convert_to_datetime(name, params.get('EndDate')))
-        if end_date <= now_utc:
-            raise InvalidValueError('End date must be in the future.')
-
-    if start_date is not None and end_date is not None:
-        if start_date >= end_date:
-            raise InvalidValueError(
-                'Start date must be earlier than end date.'
-            )
-
-    return params
-
-
 class EventBridgeSchedulerResource(BaseResource):
 
     def __init__(self, eventbridge_conn):
         self.connection = eventbridge_conn
+
+    @staticmethod
+    def prepare_schedule_parameters(meta: dict):
+        name = meta.get('name')
+        validate_params(name, meta, REQUIRED_PARAMS)
+        params = meta.copy()
+
+        params = dict_keys_to_capitalized_camel_case(params)
+
+        assert_possible_values([params.get('State')],
+                               ['ENABLED', 'DISABLED']) \
+            if 'State' in params else None
+        flexible = params.get('FlexibleTimeWindow')
+        if isinstance(flexible, dict) and 'Mode' in flexible:
+            assert_possible_values([flexible.get('Mode')],
+                                   ['OFF', 'FLEXIBLE'])
+
+        now_utc = datetime.now(timezone.utc)
+        start_date = None
+        end_date = None
+        if 'StartDate' in params:
+            start_date = as_utc_aware(
+                convert_to_datetime(name, params.get('StartDate')))
+            if start_date <= now_utc:
+                raise InvalidValueError('Start date must be in the future.')
+        if 'EndDate' in params:
+            end_date = as_utc_aware(
+                convert_to_datetime(name, params.get('EndDate')))
+            if end_date <= now_utc:
+                raise InvalidValueError('End date must be in the future.')
+
+        if start_date is not None and end_date is not None:
+            if start_date >= end_date:
+                raise InvalidValueError(
+                    'Start date must be earlier than end date.'
+                )
+
+        return params
 
     def create_schedule(self, args):
         sleep(4)  # sometimes role does not have time to be created
@@ -102,7 +83,7 @@ class EventBridgeSchedulerResource(BaseResource):
     def _create_schedule_from_meta(self, name, meta):
         _LOG.debug(f'Creating schedule {name}')
         check_params = {**meta['schedule_content'], 'name': name}
-        params = prepare_schedule_parameters(check_params)
+        params = self.prepare_schedule_parameters(check_params)
         response = self.describe_schedule(name, meta)
         if response:
             return response
@@ -129,7 +110,7 @@ class EventBridgeSchedulerResource(BaseResource):
         if not response:
             raise ResourceNotFoundError(f"'{name}' schedule does not exist.")
 
-        params = prepare_schedule_parameters(check_params)
+        params = self.prepare_schedule_parameters(check_params)
 
         arn = self.connection.update_schedule(**params)
         _LOG.info(f'Updated EventBridge schedule {arn}')
