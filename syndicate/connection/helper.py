@@ -107,6 +107,7 @@ def retry(retry_timeout=DEFAULT_RETRY_TIMEOUT_SEC,
                 'An error occurred (InvalidArgument) when calling the '
                 'PutBucketNotificationConfiguration operation',
                 'Too Many Requests',
+                'The execution role you provide must allow AWS EventBridge Scheduler to assume the role'
             ]
             resource_not_found_error_codes = [
                 'NoSuchEntity',
