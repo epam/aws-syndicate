@@ -16,6 +16,7 @@
 from datetime import datetime, timezone
 from time import sleep
 
+from syndicate.connection.helper import retry
 from syndicate.exceptions import InvalidValueError, ResourceNotFoundError
 from syndicate.commons.log_helper import get_logger
 from syndicate.core.helper import unpack_kwargs, convert_to_datetime, \
@@ -74,9 +75,8 @@ class EventBridgeSchedulerResource(BaseResource):
 
         return params
 
+    @retry(retry_timeout=10)
     def create_schedule(self, args):
-        sleep(4)  # sometimes role does not have time to be created
-        # and this leads to an error
         return self.create_pool(self._create_schedule_from_meta, args)
 
     @unpack_kwargs
