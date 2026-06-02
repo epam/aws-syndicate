@@ -4,6 +4,8 @@ from functools import partial
 
 import click
 
+from syndicate.core.generators.deployment_resources.cloudwatch_dashboard_generator import \
+    CloudWatchDashboardGenerator
 from syndicate.core.generators.deployment_resources.rds_generator import \
     RDSDBClusterGenerator, RDSDBInstanceGenerator
 from syndicate.exceptions import AbortedError,  SyndicateBaseError
@@ -1153,6 +1155,38 @@ def cloudwatch_alarm(ctx, **kwargs):
     generator = CloudWatchAlarmGenerator(**kwargs)
     _generate(generator)
     USER_LOG.info(f"Cloudwatch alarm '{kwargs['resource_name']}' was "
+                  f"added successfully")
+    return OK_RETURN_CODE
+
+
+@meta.command(name="cloudwatch-dashboard")
+@return_code_manager
+@click.option('--resource-name',
+              cls=MultiWordOption, type=str, required=True,
+              help="Cloudwatch dashboard name")
+@click.option('--dashboard-body',
+              cls=MultiWordOption,
+              help='The path to the JSON file with the dashboard definition. '
+                   'If not specified, template value will be set',
+              type=click.File(mode='r'))
+@click.option('--tags', type=DictParamType(), callback=check_tags,
+              help='The resource tags')
+@verbose_option
+@click.pass_context
+@timeit()
+def cloudwatch_dashboard(ctx, **kwargs):
+    """Generates Cloudwatch dashboard deployment resources template"""
+    kwargs[PROJECT_PATH_PARAM] = ctx.obj[PROJECT_PATH_PARAM]
+
+    if kwargs['dashboard_body']:
+        try:
+            kwargs['dashboard_body'] = json.load(kwargs['dashboard_body'])
+        except json.decoder.JSONDecodeError as e:
+            raise click.BadParameter(str(e), param_hint='dashboard-body')
+
+    generator = CloudWatchDashboardGenerator(**kwargs)
+    _generate(generator)
+    USER_LOG.info(f"Cloudwatch dashboard '{kwargs['resource_name']}' was "
                   f"added successfully")
     return OK_RETURN_CODE
 

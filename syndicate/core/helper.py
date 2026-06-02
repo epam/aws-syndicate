@@ -25,7 +25,7 @@ import logging
 import traceback
 import uuid
 import zipfile
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from functools import wraps
 from pathlib import Path
 from signal import SIGINT
@@ -1113,3 +1113,25 @@ def deterministic_uuid(strings: str | Iterable[str]) -> str:
     namespace = uuid.NAMESPACE_DNS  # Using a fixed namespace for consistency
     name = '-'.join(strings)
     return str(uuid.uuid5(namespace, name))
+
+
+def convert_to_datetime(name, date_str):
+    try:
+        if len(date_str) > 10:
+            return datetime.fromisoformat(date_str)
+        else:
+            return datetime.fromtimestamp(int(date_str), tz=timezone.utc)
+    except (ValueError, OSError):
+        raise InvalidValueError(
+            f"Invalid date format: '{date_str}'. "
+            f"Resource: '{name}'. Should be ISO8601 or timestamp"
+        )
+
+
+def as_utc_aware(dt):
+    """
+    Normalize datetimes for comparison with datetime.now(timezone.utc)
+    """
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)

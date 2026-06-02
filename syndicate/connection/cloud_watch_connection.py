@@ -643,3 +643,60 @@ class MetricConnection(object):
             alarms.extend(response.get('MetricAlarms', []))
             token = response.get('NextToken')
         return alarms
+
+
+@apply_methods_decorator(retry())
+class CloudWatchDashboardConnection(object):
+    """ CloudWatch Dashboard connection class."""
+
+    def __init__(
+            self,
+            region: str | None = None,
+            aws_access_key_id: str | None = None,
+            aws_secret_access_key: str | None = None,
+            aws_session_token: str | None = None,
+    ):
+        self.client = client('cloudwatch', region,
+                             aws_access_key_id=aws_access_key_id,
+                             aws_secret_access_key=aws_secret_access_key,
+                             aws_session_token=aws_session_token
+                             )
+        _LOG.debug('Opened new Cloudwatch metric connection.')
+
+
+    def get_dashboard(
+            self,
+            dashboard_name: str,
+    ) -> dict | None:
+        try:
+            return self.client.get_dashboard(DashboardName=dashboard_name)
+        except ClientError as e:
+            if 'ResourceNotFound' in str(e):
+                _LOG.debug(f"Dashboard {dashboard_name} not found.")
+                return
+            else:
+                raise e
+
+
+    def put_dashboard(
+            self,
+            dashboard_name: str,
+            dashboard_body: dict,
+            tags: list[dict] | None = None,
+    ) -> list:
+        params = dict(
+            DashboardName=dashboard_name,
+            DashboardBody=json.dumps(dashboard_body)
+        )
+        if tags:
+            params['Tags'] = tags
+        return self.client.put_dashboard(**params)['DashboardValidationMessages']
+
+
+    def delete_dashboards(
+            self,
+            names: str,
+    ) -> dict:
+        if isinstance(names, str):
+            names = [names]
+        return self.client.delete_dashboards(DashboardNames=names)
