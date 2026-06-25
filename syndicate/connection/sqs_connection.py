@@ -202,7 +202,7 @@ class SqsConnection(object):
             attributes['Policy'] = policy
 
         if redrive_policy:
-            if isinstance(policy, dict):
+            if isinstance(redrive_policy, dict):
                 redrive_policy = json.dumps(redrive_policy)
             attributes['RedrivePolicy'] = redrive_policy
 
