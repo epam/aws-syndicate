@@ -4,7 +4,7 @@
   "func_name": "lambdas/sdct-at-nodejs-lambda/index.handler",
   "resource_type": "lambda",
   "iam_role_name": "sdct-at-nodejs-lambda-role",
-  "runtime": "nodejs20.x",
+  "runtime": "nodejs24.x",
   "memory": 128,
   "timeout": 100,
   "lambda_path": "lambdas\\sdct-at-nodejs-lambda",
