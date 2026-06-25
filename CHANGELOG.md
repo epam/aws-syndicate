@@ -6,7 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 # [1.21.1] - 2026-06-25
 - Added support for `python3.14` and `nodejs24.x` lambda function runtimes
-- Fixed and issue related to updating SQS queue with redrive policy specified
+- Fixed an issue related to updating SQS queue with redrive policy specified
 
 # [1.21.0] - 2026-06-02
 - Added support for `cloudwatch_dashboard` resource
