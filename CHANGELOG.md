@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [1.21.1] - 2026-06-25
+- Added support for `python3.14` and `nodejs24.x` lambda function runtimes
+- Fixed an issue related to updating the SQS queue with a redrive policy specified
+
 # [1.21.0] - 2026-06-02
 - Added support for `cloudwatch_dashboard` resource
 - Updated `boto3` and `botocore` to version 1.43.11

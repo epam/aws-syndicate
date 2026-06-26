@@ -1,3 +1,7 @@
+## 2026-06-25
+### Added
+- Changed lambdas and lambda layers runtimes to `python3.14` and `nodejs24.x` in the `sdct-at-ddis` smoke-test project.
+
 ## 2026-05-20
 ### Added
 - Added `cloudwatch_dashboard` resource to the least used resources

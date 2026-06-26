@@ -338,12 +338,14 @@ RUNTIME_PATH_RESOLVER = {
     'python3.11': _populate_s3_path_python_node_dotnet,
     'python3.12': _populate_s3_path_python_node_dotnet,
     'python3.13': _populate_s3_path_python_node_dotnet,
+    'python3.14': _populate_s3_path_python_node_dotnet,
     'java11': _populate_s3_path_java,
     'java17': _populate_s3_path_java,
     'java21': _populate_s3_path_java,
     'nodejs18.x': _populate_s3_path_python_node_dotnet,
     'nodejs20.x': _populate_s3_path_python_node_dotnet,
     'nodejs22.x': _populate_s3_path_python_node_dotnet,
+    'nodejs24.x': _populate_s3_path_python_node_dotnet,
     'dotnet8': _populate_s3_path_python_node_dotnet
 }
 
