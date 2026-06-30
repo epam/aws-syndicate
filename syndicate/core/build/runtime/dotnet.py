@@ -35,7 +35,6 @@ from syndicate.core.resources.helper import validate_params
 BIN_DIR = 'bin'
 OBJ_DIR = 'obj'
 X64_DIR = 'x64'
-NET_8_0_DIR = 'net8.0'
 DOTNET_CORE_DIR = 'dotnetcore'
 STORE_DIR = 'store'
 
