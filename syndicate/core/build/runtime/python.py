@@ -21,6 +21,7 @@ import platform
 import shutil
 import subprocess
 import sys
+import venv
 from concurrent.futures import FIRST_EXCEPTION
 from concurrent.futures import FIRST_EXCEPTION
 from concurrent.futures.thread import ThreadPoolExecutor
@@ -53,6 +54,38 @@ EMPTY_LINE_CHARS = ('\n', '\r\n', '\t')
 REQ_HASH_SUFFIX = 'r_hash'
 EMPTY_FILE_HASH = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'
 TMP_DIR = 'tmp'
+
+
+def resolve_python_path(venv_path: Union[str, Path]) -> str:
+    """
+    Create a Python virtual environment and return the path to its executable if it does not exist.
+    In case of fail to resolve Python from venv the system Python executable will be returned.
+
+    :param venv_path: directory path where venv should be created.
+    :return: absolute path to python executable in created venv.
+    """
+    venv_dir = Path(venv_path).resolve() / 'venv'
+    if not venv_dir.exists():
+        _LOG.debug(f'Creating a virtual environment at {venv_dir}')
+        venv.EnvBuilder(with_pip=True).create(str(venv_dir))
+
+    win_python = venv_dir / 'Scripts' / 'python.exe'
+    if win_python.exists():
+        _LOG.debug(f'Python executable found in virtual environment at {win_python}')
+        return str(win_python)
+
+    unix_python = venv_dir / 'bin' / 'python'
+    if unix_python.exists():
+        _LOG.debug(f'Python executable found in virtual environment at {unix_python}')
+        return str(unix_python)
+
+    _LOG.warning(
+        f'Python executable not found in virtual environment at {venv_dir}; '
+        f'system executable will be used'
+    )
+
+    _LOG.debug(f'System Python executable: {sys.executable}')
+    return sys.executable
 
 
 def assemble_python_lambdas(
@@ -156,11 +189,14 @@ def build_python_lambda_layer(
         if prev_req_hash != current_req_hash:
             _LOG.debug(f'Artifacts cache path: {artifact_cache_path}')
             os.makedirs(artifact_cache_path, exist_ok=True)
-
-            install_requirements_to(requirements_path,
-                                    to=artifact_cache_path,
-                                    config=layer_config,
-                                    errors_allowed=errors_allowed)
+            pyton_path = resolve_python_path(venv_path=cache_dir_path)
+            install_requirements_to(
+                python_path=pyton_path,
+                requirements_txt=requirements_path,
+                to=artifact_cache_path,
+                config=layer_config,
+                errors_allowed=errors_allowed,
+            )
 
             _LOG.debug('Zipping 3-rd party dependencies')
             zip_dir(str(artifact_cache_path),
@@ -269,10 +305,14 @@ def _build_python_artifact(
         if prev_req_hash != current_req_hash:
             _LOG.debug(f'Artifacts cache path: {artifact_cache_path}')
             os.makedirs(artifact_cache_path, exist_ok=True)
-            install_requirements_to(requirements_path,
-                                        to=artifact_cache_path,
-                                        config=lambda_config,
-                                        errors_allowed=errors_allowed)
+            pyton_path = resolve_python_path(venv_path=cache_dir_path)
+            install_requirements_to(
+                python_path=pyton_path,
+                requirements_txt=requirements_path,
+                to=artifact_cache_path,
+                config=lambda_config,
+                errors_allowed=errors_allowed,
+            )
             _LOG.debug(
                 f'Zipping 3-rd party dependencies in {artifact_cache_path}')
             zip_dir(str(artifact_cache_path),
@@ -337,10 +377,13 @@ def _build_python_artifact(
     _LOG.info(f'"{artifact_path}" was removed successfully')
 
 
-def install_requirements_to(requirements_txt: Union[str, Path],
-                            to: Union[str, Path],
-                            config: Optional[dict] = None,
-                            errors_allowed: bool = False):
+def install_requirements_to(
+        python_path: Union[str, Path],
+        requirements_txt: Union[str, Path],
+        to: Union[str, Path],
+        config: Optional[dict] = None,
+        errors_allowed: bool = False,
+):
     """
     1. If there is NO "platform" parameter in lambda_config.json, then the
     dependency installation will be executed by the default command:
@@ -389,12 +432,13 @@ def install_requirements_to(requirements_txt: Union[str, Path],
     python_version = _get_python_version(lambda_config=config)
     if supported_platforms:
         command = build_pip_install_command(  # default installation
+            python_path=python_path,
             requirement=requirements_txt,
             to=to,
             platforms=supported_platforms,
             python=python_version,
             only_binary=':all:',
-            implementation='cp'
+            implementation='cp',
         )
         result = subprocess.run(command, capture_output=True, text=True)
         _LOG.info(f'\n{result.stdout}\n{result.stderr}')
@@ -405,14 +449,16 @@ def install_requirements_to(requirements_txt: Union[str, Path],
                 f'Going to install 3-rd party dependencies for platforms: '
                 f'{",".join(supported_platforms)}')
             failed_requirements = install_requirements_independently(
+                python_path=python_path,
                 requirements=requirements_txt,
                 to=to,
                 supported_platforms=supported_platforms,
                 python_version=python_version
             )
             failed_requirements = install_requirements_independently(
+                python_path=python_path,
                 requirements=failed_requirements,
-                to=to
+                to=to,
             )
 
             _LOG.info(f'\n{result.stdout}\n{result.stderr}')
@@ -427,8 +473,9 @@ def install_requirements_to(requirements_txt: Union[str, Path],
     else:
         _LOG.info('Installing all the requirements with defaults')
         command = build_pip_install_command(
+            python_path=python_path,
             requirement=requirements_txt,
-            to=to
+            to=to,
         )
         result = subprocess.run(command, capture_output=True, text=True)
         exit_code = result.returncode
@@ -438,8 +485,9 @@ def install_requirements_to(requirements_txt: Union[str, Path],
             _LOG.info(
                 'Installing the requirements with defaults independently')
             failed_requirements = install_requirements_independently(
+                python_path=python_path,
                 requirements=requirements_txt,
-                to=to
+                to=to,
             )
 
             _LOG.info(f'\n{result.stdout}\n{result.stderr}')
@@ -463,6 +511,7 @@ def install_requirements_to(requirements_txt: Union[str, Path],
 
 
 def build_pip_install_command(
+        python_path: Union[str, Path],
         requirement: Optional[Union[str, Path]],
         to: Optional[Union[str, Path]] = None,
         implementation: Optional[str] = None,
@@ -471,6 +520,7 @@ def build_pip_install_command(
         platforms: Optional[Set[str]] = None,
         additional_args: Optional[List[str]] = None) -> List[str]:
     """
+    :param python_path: path to python
     :param requirement: path to requirements.txt or just one requirement.
     If the path is not file or does not exist it will be treated as one
     requirement.
@@ -483,7 +533,7 @@ def build_pip_install_command(
     :return: List[str]
     """
     command = [
-        sys.executable, '-m', 'pip', 'install'
+        python_path, '-m', 'pip', 'install'
     ]
     r_path = Path(requirement)
     if r_path.exists() and r_path.is_file():
@@ -493,11 +543,12 @@ def build_pip_install_command(
 
     if to:
         command.extend(['-t', str(to)])
-        command.extend([
-            '--ignore-installed',
-            '--isolated',
-            '--no-user',
-        ])
+        if python_path == sys.executable:
+            command.extend([
+                '--ignore-installed',
+                '--isolated',
+                '--no-user',
+            ])
     if implementation:
         command.extend(['--implementation', 'cp'])
     if python:
@@ -530,11 +581,13 @@ def update_platforms(platforms: Set[str]) -> Set[str]:
     return platforms
 
 
-def install_requirements_independently(requirements: Union[str, Path, List[str]],
-                                       to: Union[str, Path],
-                                       python_version: str = None,
-                                       supported_platforms: Set[str] = None) \
-        -> List[str]:
+def install_requirements_independently(
+        python_path: Union[str, Path],
+        requirements: Union[str, Path, List[str]],
+        to: Union[str, Path],
+        python_version: str = None,
+        supported_platforms: Set[str] = None,
+) -> List[str]:
     if type(requirements) != list:
         fp = open(requirements, 'r')
         it = (
@@ -550,6 +603,7 @@ def install_requirements_independently(requirements: Union[str, Path, List[str]]
 
     for requirement in it:
         command = build_pip_install_command(
+            python_path=python_path,
             requirement=requirement,
             to=to,
             implementation=implementation,
