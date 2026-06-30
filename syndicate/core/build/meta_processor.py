@@ -346,7 +346,8 @@ RUNTIME_PATH_RESOLVER = {
     'nodejs20.x': _populate_s3_path_python_node_dotnet,
     'nodejs22.x': _populate_s3_path_python_node_dotnet,
     'nodejs24.x': _populate_s3_path_python_node_dotnet,
-    'dotnet8': _populate_s3_path_python_node_dotnet
+    'dotnet8': _populate_s3_path_python_node_dotnet,
+    'dotnet10': _populate_s3_path_python_node_dotnet,
 }
 
 S3_PATH_MAPPING = {
