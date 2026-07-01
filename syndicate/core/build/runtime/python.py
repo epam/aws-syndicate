@@ -105,6 +105,10 @@ def assemble_python_lambdas(
     if runtime_root_dir != PYTHON_ROOT_DIR_SRC:
         runtime_abs_path = os.path.join(runtime_abs_path, PYTHON_ROOT_DIR_SRC)
 
+    python_path = resolve_python_path(
+        venv_path=resolve_bundles_cache_directory()
+    )
+
     _LOG.info(f'Going to process python project by path: {runtime_abs_path}')
 
     with ThreadPoolExecutor(max_workers=5) as executor:
@@ -114,21 +118,23 @@ def assemble_python_lambdas(
                 if item.endswith(LAMBDA_CONFIG_FILE_NAME):
                     _LOG.info(f'Going to build artifact in: {root!r}')
                     arg = {
+                        'python_path': python_path,
                         'root': str(Path(root)),
                         'config_file': str(Path(root, item)),
                         'target_folder': bundles_dir,
                         'runtime_root_dir': runtime_root_dir,
-                        'errors_allowed': errors_allowed
+                        'errors_allowed': errors_allowed,
                     }
                     futures.append(
                         executor.submit(_build_python_artifact, arg))
                 elif item.endswith(LAMBDA_LAYER_CONFIG_FILE_NAME):
                     _LOG.info(f'Going to build lambda layer in {root!r}')
                     arg = {
+                        'python_path': python_path,
                         'layer_root': root,
                         'bundle_dir': bundles_dir,
                         'runtime_root_dir': runtime_root_dir,
-                        'errors_allowed': errors_allowed
+                        'errors_allowed': errors_allowed,
                     }
                     futures.append(
                         executor.submit(build_python_lambda_layer, arg))
@@ -142,10 +148,11 @@ def assemble_python_lambdas(
 
 @unpack_kwargs
 def build_python_lambda_layer(
-    layer_root: str, 
-    bundle_dir: str,
-    runtime_root_dir: str,
-    errors_allowed: bool
+        python_path: Union[str, Path],
+        layer_root: str,
+        bundle_dir: str,
+        runtime_root_dir: str,
+        errors_allowed: bool,
 ) -> None:
     """
     Layer root is a dir where these files exist:
@@ -189,9 +196,8 @@ def build_python_lambda_layer(
         if prev_req_hash != current_req_hash:
             _LOG.debug(f'Artifacts cache path: {artifact_cache_path}')
             os.makedirs(artifact_cache_path, exist_ok=True)
-            pyton_path = resolve_python_path(venv_path=cache_dir_path)
             install_requirements_to(
-                python_path=pyton_path,
+                python_path=python_path,
                 requirements_txt=requirements_path,
                 to=artifact_cache_path,
                 config=layer_config,
@@ -256,11 +262,12 @@ def build_python_lambda_layer(
 
 @unpack_kwargs
 def _build_python_artifact(
-    runtime_root_dir: str,
-    errors_allowed: bool,
-    target_folder: str,
-    config_file: str,
-    root: str,
+        python_path: Union[str, Path],
+        runtime_root_dir: str,
+        errors_allowed: bool,
+        target_folder: str,
+        config_file: str,
+        root: str,
 ) -> None:
     _LOG.info(f'Building artifact in {target_folder}')
 
@@ -305,9 +312,8 @@ def _build_python_artifact(
         if prev_req_hash != current_req_hash:
             _LOG.debug(f'Artifacts cache path: {artifact_cache_path}')
             os.makedirs(artifact_cache_path, exist_ok=True)
-            pyton_path = resolve_python_path(venv_path=cache_dir_path)
             install_requirements_to(
-                python_path=pyton_path,
+                python_path=python_path,
                 requirements_txt=requirements_path,
                 to=artifact_cache_path,
                 config=lambda_config,
