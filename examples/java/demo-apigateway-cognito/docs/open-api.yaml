@@ -1,0 +1,426 @@
+openapi: 3.0.3
+info:
+  title: Objects API — Cognito Token Validation Demo
+  version: 1.0.0
+  description: |
+    ## Purpose
+    This API demonstrates a well-known but frequently misunderstood behavior of the
+    **Amazon API Gateway Cognito User Pool Authorizer** when used with REST APIs
+    (Lambda proxy integration).
+
+    ## The Problem
+
+    API Gateway's built-in `COGNITO_USER_POOLS` authorizer **changes its validation
+    strategy** depending on whether `authorizationScopes` (OAuth scopes) are configured
+    on the method:
+
+    | Method config                     | Token type expected | Validation performed                                              |
+    |------------------------------------|----------------------|---------------------------------------------------------------------|
+    | `authorizationScopes` **absent**   | **ID Token**         | Verifies `aud` claim == App Client ID                              |
+    | `authorizationScopes` **present**  | **Access Token**     | Skips `aud` check; verifies `scope` claim contains required scope  |
+
+    This is **not a bug** — it's documented, intentional behavior — but it surprises
+    almost every developer at least once, because:
+    - An **Access Token** has no `aud` claim (it has `client_id` instead), so sending
+      it to a scope-less endpoint results in `401 Unauthorized`.
+    - An **ID Token** has no `scope` claim, so sending it to a scope-protected endpoint
+      also results in `401 Unauthorized` / `403 Forbidden`.
+    - There is no way to make a single method accept **both** token types via the
+      native authorizer — you must pick one strategy per method.
+
+    This demo exposes three parallel read endpoints over the same `Object` resource to
+    make the contrast explicit:
+
+    - `GET /objects/public` — **no authorizer** (baseline, unsecured).
+    - `GET /objects/secured-by-id-token` — Cognito authorizer **without** scopes → expects an
+      **ID Token**. Included *only* to demonstrate the antipattern of using ID Tokens
+      for API authorization (an ID Token represents *who the user is*, not *what the
+      caller is allowed to do*; using it as an API bearer credential is discouraged
+      in production).
+    - `GET /objects/secured-by-access-token` — Cognito authorizer **with** scopes → expects an
+      **Access Token**. This is the recommended pattern for securing APIs.
+
+    All endpoints use the standard `Authorization: Bearer <token>` header.
+
+    Authentication flows (`sign-up`, `sign-in`, `refresh-token`, `sign-out`) are
+    implemented in an `auth-handler` Lambda that calls Cognito **Admin APIs** directly
+    via the AWS SDK, so the raw ID/Access/Refresh tokens can be inspected and swapped
+    between endpoints to observe the 401 behavior firsthand.
+
+servers:
+  - url: https://{apiId}.execute-api.{region}.amazonaws.com/{stage}
+    variables:
+      apiId:
+        default: abc123xyz
+      region:
+        default: eu-west-1
+      stage:
+        default: dev
+
+tags:
+  - name: Auth
+    description: Sign-up / sign-in / token refresh / sign-out (backed by Cognito Admin APIs)
+  - name: Objects
+    description: Business resource used to demonstrate the three authorizer configurations
+
+security:
+  - {}
+
+paths:
+
+  # ---------------------------------------------------------------------
+  # AUTH — handled by auth-handler Lambda via Cognito Admin* APIs
+  # ---------------------------------------------------------------------
+
+  /auth/sign-up:
+    post:
+      tags: [Auth]
+      summary: Register a new user
+      description: |
+        Calls `AdminCreateUser` + `AdminSetUserPassword` (`Permanent=true`) via the
+        AWS SDK, bypassing email confirmation for demo purposes.
+      operationId: signUp
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignUpRequest'
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SignUpResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: User already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/sign-in:
+    post:
+      tags: [Auth]
+      summary: Authenticate and obtain tokens
+      description: |
+        Calls `AdminInitiateAuth` with `ADMIN_USER_PASSWORD_AUTH`. Returns the full
+        Cognito token triad — **IdToken**, **AccessToken**, **RefreshToken** — so
+        each can be tried against `/objects/secured-by-id-token` and `/objects/secured-by-access-token`
+        to observe the behavior described in the API description.
+      operationId: signIn
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignInRequest'
+      responses:
+        '200':
+          description: Authentication successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/refresh-token:
+    post:
+      tags: [Auth]
+      summary: Exchange a refresh token for new ID/Access tokens
+      description: |
+        Calls `AdminInitiateAuth` with `REFRESH_TOKEN_AUTH`. Cognito does not return
+        a new RefreshToken on this flow unless refresh token rotation is enabled on
+        the app client.
+      operationId: refreshToken
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+      responses:
+        '200':
+          description: New tokens issued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefreshTokenResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          description: Refresh token expired or invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/sign-out:
+    post:
+      tags: [Auth]
+      summary: Sign the user out (global sign-out)
+      description: |
+        Calls `AdminUserGlobalSignOut`, invalidating all previously issued refresh
+        tokens for the user. Already-issued ID/Access tokens remain valid until
+        their natural expiry, since Cognito does not support true JWT revocation.
+      operationId: signOut
+      security:
+        - BearerAuth: []
+      responses:
+        '204':
+          description: Signed out successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ---------------------------------------------------------------------
+  # OBJECTS — business resource, three parallel security configurations
+  # ---------------------------------------------------------------------
+
+  /objects/public:
+    get:
+      tags: [Objects]
+      summary: List objects (unsecured)
+      description: No API Gateway authorizer attached — open to anyone.
+      operationId: listPublicObjects
+      security: []
+      responses:
+        '200':
+          description: A list of objects
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ObjectList'
+
+  /objects/secured-by-id-token:
+    get:
+      tags: [Objects]
+      summary: List objects (secured — expects ID Token)
+      description: |
+        **Antipattern — for demo purposes only.**
+
+        This method's Cognito authorizer has **no `authorizationScopes`
+        configured**, so API Gateway validates the bearer token as an **ID
+        Token**: it checks that the `aud` claim equals the App Client ID.
+
+        Sending an **Access Token** here returns `401 Unauthorized`, because
+        Access Tokens carry `client_id` instead of `aud`.
+
+        Using ID Tokens to authorize API calls is discouraged in production.
+        Prefer `/objects/secured-by-access-token`.
+      operationId: listObjectsWithIdToken
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: A list of objects
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ObjectList'
+        '401':
+          description: |
+            Missing/invalid ID Token, OR a valid Access Token was supplied
+            instead (rejected — no `aud` claim matching the App Client ID).
+          $ref: '#/components/responses/Unauthorized'
+
+  /objects/secured-by-access-token:
+    get:
+      tags: [Objects]
+      summary: List objects (secured — expects Access Token + scope)
+      description: |
+        This method's Cognito authorizer **has `authorizationScopes`
+        configured** (e.g. `demo-resource-server/objects.read`), so API
+        Gateway validates the bearer token as an **Access Token**: it skips
+        the `aud` check entirely and instead verifies the token's `scope`
+        claim contains the required scope.
+
+        Sending an **ID Token** here returns `401 Unauthorized`, because ID
+        Tokens carry no `scope` claim.
+      operationId: listObjectsWithAccessToken
+      security:
+        - BearerAuth: [demo-resource-server/objects.read]
+      responses:
+        '200':
+          description: A list of objects
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ObjectList'
+        '401':
+          description: |
+            Missing/invalid Access Token, OR a valid ID Token was supplied
+            instead (rejected — no `scope` claim present).
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Access Token valid but missing the required scope.
+          $ref: '#/components/responses/Forbidden'
+
+components:
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        `Authorization: Bearer <token>` header, validated by the API Gateway
+        Cognito User Pool Authorizer.
+
+        The **type of JWT expected** (ID Token vs Access Token) depends entirely
+        on whether `authorizationScopes` is configured on the target method —
+        see each operation's description for the specific requirement.
+
+  schemas:
+
+    SignUpRequest:
+      type: object
+      required: [username, password, email]
+      properties:
+        username:
+          type: string
+          example: jdoe
+        password:
+          type: string
+          format: password
+          example: SuperSecret123!
+        email:
+          type: string
+          format: email
+          example: jdoe@example.com
+
+    SignUpResponse:
+      type: object
+      properties:
+        userSub:
+          type: string
+          example: 3f8b6c2a-1234-5678-90ab-cdef01234567
+        username:
+          type: string
+          example: jdoe
+        userConfirmed:
+          type: boolean
+          example: true
+
+    SignInRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          example: jdoe
+        password:
+          type: string
+          format: password
+          example: SuperSecret123!
+
+    TokenResponse:
+      type: object
+      description: Raw Cognito tokens — inspect their claims to see the aud vs scope difference.
+      properties:
+        idToken:
+          type: string
+          description: JWT with `aud` = App Client ID and user claims (email, sub, etc). No `scope` claim.
+        accessToken:
+          type: string
+          description: JWT with `client_id` and `scope` claims. No `aud` claim.
+        refreshToken:
+          type: string
+        expiresIn:
+          type: integer
+          example: 3600
+        tokenType:
+          type: string
+          example: Bearer
+
+    RefreshTokenRequest:
+      type: object
+      required: [refreshToken, username]
+      properties:
+        refreshToken:
+          type: string
+        username:
+          type: string
+          description: Required because AdminInitiateAuth REFRESH_TOKEN_AUTH needs the associated username.
+
+    RefreshTokenResponse:
+      type: object
+      properties:
+        idToken:
+          type: string
+        accessToken:
+          type: string
+        expiresIn:
+          type: integer
+        tokenType:
+          type: string
+          example: Bearer
+
+    Object:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: sample-object-1
+        attributes:
+          type: object
+          additionalProperties: true
+          example:
+            category: demo
+            weight: 10
+        createdAt:
+          type: string
+          format: date-time
+
+    ObjectList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Object'
+        count:
+          type: integer
+
+    ErrorResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        code:
+          type: string
+
+  responses:
+    BadRequest:
+      description: Invalid input
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: Missing, invalid, or wrong-type token for this method's authorizer configuration.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: Token valid but insufficient scope.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'

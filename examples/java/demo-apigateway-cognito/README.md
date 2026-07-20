@@ -115,10 +115,11 @@ validation behavior demonstrated by this example — is documented in
 > the full explanation, including which token type causes `401 Unauthorized`
 > on which endpoint and why.
 
-You can preview/explore the spec using any OpenAPI-compatible tool, e.g.:
+You can preview/explore the spec using any OpenAPI-compatible tool, e.g. build a local HTML preview with Redoc and open it in your browser:
 
 ```bash
-npx @redocly/cli preview-docs docs/open-api.yaml
+npx @redocly/cli build-docs docs/open-api.yaml -o docs/preview.html
+start docs/preview.html
 ```
 
 ## Postman Collection
