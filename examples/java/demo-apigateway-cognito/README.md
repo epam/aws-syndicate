@@ -98,6 +98,54 @@ syndicate clean
 - Replace placeholders carefully—ACCOUNT_ID and BUCKET_NAME are critical for successful deployment.
 - The PROJECT_FOLDER should point to the example project root so Syndicate can find sources and artifacts.
 
+## API Documentation
+
+### OpenAPI Specification
+
+The full API contract — including the intentional Cognito authorizer token
+validation behavior demonstrated by this example — is documented in
+[`docs/open-api.yaml`](./docs/open-api.yaml).
+
+> **Why this matters:** this API intentionally exposes endpoints secured with
+> both an **ID Token** and an **Access Token** to demonstrate a well-known but
+> often misunderstood Cognito + API Gateway behavior: whether the built-in
+> Cognito authorizer validates the incoming bearer token as an ID Token or an
+> Access Token depends entirely on whether `authorizationScopes` is configured
+> on the method. See the `info.description` section of the OpenAPI spec for
+> the full explanation, including which token type causes `401 Unauthorized`
+> on which endpoint and why.
+
+You can preview/explore the spec using any OpenAPI-compatible tool, e.g.:
+
+```bash
+npx @redocly/cli preview-docs docs/open-api.yaml
+```
+
+## Postman Collection
+
+A ready-to-use Postman collection is provided at
+[`docs/postman/demo-apigateway-cognito.postman_collection.json`](./docs/postman/demo-apigateway-cognito.postman_collection.json),
+covering:
+
+- `sign-up`, `sign-in`, `refresh-token`, `sign-out`
+- The unsecured endpoint
+- The ID-Token-secured endpoint (antipattern demo)
+- The Access-Token-secured endpoint (recommended pattern)
+
+**Usage:**
+
+1. Import the collection into Postman.
+2. Set the collection variable `baseUrl` to your deployed API Gateway invoke URL
+   (available after `syndicate deploy`, or in the AWS Console under API Gateway
+   → Stages).
+3. Run **Auth → sign-up**, then **Auth → sign-in** to populate `idToken`,
+   `accessToken`, and `refreshToken` collection variables automatically (via
+   the request's post-response script).
+4. Try the three object-listing requests as-is, and then experiment by
+   manually swapping the `Authorization` header value between `{{idToken}}`
+   and `{{accessToken}}` on each request to reproduce the `401` responses
+   described in the OpenAPI spec.
+
 ## Contributing
 
 Contributions, fixes and improvements are welcome. Please open issues or pull requests against the main repository: https://github.com/epam/aws-syndicate
