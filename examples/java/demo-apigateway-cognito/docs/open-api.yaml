@@ -176,6 +176,7 @@ paths:
         Calls `AdminUserGlobalSignOut`, invalidating all previously issued refresh
         tokens for the user. Already-issued ID/Access tokens remain valid until
         their natural expiry, since Cognito does not support true JWT revocation.
+        Uses the `Authorization: Bearer <AccessToken>` header to identify the user to sign out by the `username` claim.
       operationId: signOut
       security:
         - BearerAuth: []
@@ -242,7 +243,7 @@ paths:
       summary: List objects (secured — expects Access Token + scope)
       description: |
         This method's Cognito authorizer **has `authorizationScopes`
-        configured** (e.g. `demo-resource-server/objects.read`), so API
+        configured** (e.g. `aws.cognito.signin.user.admin`), so API
         Gateway validates the bearer token as an **Access Token**: it skips
         the `aud` check entirely and instead verifies the token's `scope`
         claim contains the required scope.
@@ -251,7 +252,7 @@ paths:
         Tokens carry no `scope` claim.
       operationId: listObjectsWithAccessToken
       security:
-        - BearerAuth: [demo-resource-server/objects.read]
+        - BearerAuth: [aws.cognito.signin.user.admin]
       responses:
         '200':
           description: A list of objects

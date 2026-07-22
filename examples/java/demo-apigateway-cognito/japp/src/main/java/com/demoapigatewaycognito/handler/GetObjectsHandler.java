@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 EPAM Systems, Inc.
+ * Copyright 2026 EPAM Systems, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,19 +19,31 @@ import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent;
+import org.json.JSONArray;
 import org.json.JSONObject;
 
-/**
- * Created by Roman Ivanov on 7/20/2024.
- */
-public class GetRootHandler implements RequestHandler<APIGatewayProxyRequestEvent, APIGatewayProxyResponseEvent> {
+public class GetObjectsHandler implements RequestHandler<APIGatewayProxyRequestEvent, APIGatewayProxyResponseEvent> {
+
+    private final JSONArray items = new JSONArray()
+            .put(new JSONObject()
+                    .put("id", "00000000-0000-0000-0000-000000000001")
+                    .put("name", "sample-object-1")
+                    .put("attributes", new JSONObject().put("category", "demo").put("weight", 10))
+                    .put("createdAt", "2024-01-01T00:00:00Z"))
+            .put(new JSONObject()
+                    .put("id", "00000000-0000-0000-0000-000000000002")
+                    .put("name", "sample-object-2")
+                    .put("attributes", new JSONObject().put("category", "demo").put("weight", 20))
+                    .put("createdAt", "2024-01-02T00:00:00Z"));
 
     @Override
     public APIGatewayProxyResponseEvent handleRequest(APIGatewayProxyRequestEvent requestEvent, Context context) {
 
         return new APIGatewayProxyResponseEvent()
                 .withStatusCode(200)
-                .withBody(new JSONObject().put("message", "Hello from api.").toString());
+                .withBody(new JSONObject()
+                        .put("items", items)
+                        .put("count", items.length())
+                        .toString());
     }
-
 }

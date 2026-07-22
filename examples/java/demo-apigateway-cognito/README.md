@@ -6,6 +6,8 @@ A small Syndicate example that deploys:
 - An API Gateway fronting the Lambda
 - A Cognito User Pool
 
+Authentication overview: This example demonstrates three API security approaches (public, ID token, access token) using Amazon Cognito. No custom Resource Server is configured — the built-in `aws.cognito.signin.user.admin` scope is used to illustrate token and scope behavior. See the 'API Documentation' section for full details.
+
 ---
 
 ## Table of contents
@@ -15,9 +17,7 @@ A small Syndicate example that deploys:
 - [Build & Deploy](#build--deploy)
 - [Cleanup](#cleanup)
 - [Notes](#notes)
-- [Contributing](#contributing)
-- [License](#license)
-``
+
 ---
 
 ## Prerequisites
@@ -47,13 +47,6 @@ A small Syndicate example that deploys:
 ```bash
 export SDCT_CONF=$CONFIG_FOLDER
 # where CONFIG_FOLDER is PROJECT_FOLDER/.syndicate-config-demo-apigateway-cognito
-```
-
-- Windows (cmd):
-
-```cmd
-set SDCT_CONF=%CONFIG_FOLDER%
-REM where CONFIG_FOLDER is PROJECT_FOLDER/.syndicate-config-demo-apigateway-cognito
 ```
 
 - Windows (PowerShell):
@@ -95,7 +88,7 @@ syndicate clean
 
 ## Notes
 
-- Replace placeholders carefully—ACCOUNT_ID and BUCKET_NAME are critical for successful deployment.
+- Replace placeholders carefully ACCOUNT_ID and BUCKET_NAME are critical for successful deployment.
 - The PROJECT_FOLDER should point to the example project root so Syndicate can find sources and artifacts.
 
 ## API Documentation
@@ -106,21 +99,128 @@ The full API contract — including the intentional Cognito authorizer token
 validation behavior demonstrated by this example — is documented in
 [`docs/open-api.yaml`](./docs/open-api.yaml).
 
-> **Why this matters:** this API intentionally exposes endpoints secured with
-> both an **ID Token** and an **Access Token** to demonstrate a well-known but
-> often misunderstood Cognito + API Gateway behavior: whether the built-in
-> Cognito authorizer validates the incoming bearer token as an ID Token or an
-> Access Token depends entirely on whether `authorizationScopes` is configured
-> on the method. See the `info.description` section of the OpenAPI spec for
-> the full explanation, including which token type causes `401 Unauthorized`
-> on which endpoint and why.
+Deployment note: the API Gateway authorizer and per-method security are
+defined in `deployment_resources.json`. That file configures three approaches
+illustrated by the example endpoints:
 
-You can preview/explore the spec using any OpenAPI-compatible tool, e.g. build a local HTML preview with Redoc and open it in your browser:
+- Public: the `/objects/public` method is left unsecured (no authorizer) and
+  allows anonymous access.
+- ID Token (antipattern): `/objects/secured-by-id-token` attaches the Cognito
+  authorizer but does not set `authorizationScopes` on the method. In this
+  case API Gateway treats the bearer token as an **ID Token** and validates the
+  `aud` claim against the App Client ID.
+- Access Token (recommended): `/objects/secured-by-access-token` attaches the
+  Cognito authorizer and configures `authorizationScopes` on the method. When
+  `authorizationScopes` are present API Gateway validates the bearer token as
+  an **Access Token** and checks the `scope` claim for the required scopes.
+
+Configuration examples from `deployment_resources.json` (trimmed):
+
+```json
+{
+  "api-gateway": {
+    "authorizers": {
+      "authorizer": {
+        "type": "COGNITO_USER_POOLS",
+        "identity_source": "method.request.header.Authorization",
+        "user_pools": ["${pool_name}"],
+        "ttl": 300
+      }
+    }
+  }
+}
+```
+
+Public method (no authorizer):
+
+```json
+{
+  "/objects/public": {
+    "GET": {
+      "authorization_type": "NONE",
+      "integration_type": "lambda",
+      "lambda_name": "api-handler"
+    }
+  }
+}
+```
+
+ID-Token (authorizer attached, no scopes — treated as ID Token):
+
+```json
+{
+  "/objects/secured-by-id-token": {
+    "GET": {
+      "authorization_type": "authorizer",
+      "integration_type": "lambda",
+      "lambda_name": "api-handler"
+    }
+  }
+}
+```
+
+Access-Token (authorizer + authorization_scopes — treated as Access Token):
+
+```json
+{
+  "/objects/secured-by-access-token": {
+    "GET": {
+      "authorization_type": "authorizer",
+      "authorization_scopes": [
+        "aws.cognito.signin.user.admin"
+      ],
+      "integration_type": "lambda",
+      "lambda_name": "api-handler"
+    }
+  }
+}
+```
+
+See `deployment_resources.json` and `docs/open-api.yaml` for the full
+configuration and additional context.
+
+You can preview/explore the spec using any OpenAPI-compatible tool. For a lightweight local viewer install and run swagger-ui-watcher:
 
 ```bash
-npx @redocly/cli build-docs docs/open-api.yaml -o docs/preview.html
-start docs/preview.html
+npm install -g swagger-ui-watcher
+swagger-ui-watcher docs/open-api.yaml
 ```
+
+CORS and browser preflight (why this matters):
+
+Browsers block cross-origin requests by default. When a POST is sent with
+Content-Type: application/json (or uses Authorization/custom headers), the
+browser sends an automatic OPTIONS preflight to check allowed origins,
+methods, and headers. If API Gateway isn't configured to respond to OPTIONS
+with Access-Control-Allow-* headers, the preflight fails and the browser
+blocks the real request — even though curl would still succeed.
+
+Example CORS enablement (trimmed) from `deployment_resources.json`:
+
+```json
+{
+  "/auth/sign-in": {
+    "POST": {
+      "enable_cors": {
+        "state": true
+      }
+    }
+  }
+}
+```
+
+In short: enable CORS on methods that will be called from browser-based UIs
+(or the Swagger UI) so API Gateway correctly handles preflight OPTIONS requests
+and allows requests with JSON bodies and auth headers to reach your backend.
+
+### Authentication & Resource Server
+
+This sample does not set up a custom Resource Server. Instead, the example uses
+the built-in `aws.cognito.signin.user.admin` scope to demonstrate ID, Access, and
+Refresh token behavior. This scope is provided by Amazon Cognito by default and
+enables client applications to make administrative and self-service requests
+(for example, updating a user profile) directly to Cognito without additional
+backend resource-server infrastructure.
 
 ## Postman Collection
 
@@ -139,18 +239,9 @@ covering:
 2. Set the collection variable `baseUrl` to your deployed API Gateway invoke URL
    (available after `syndicate deploy`, or in the AWS Console under API Gateway
    → Stages).
-3. Run **Auth → sign-up**, then **Auth → sign-in** to populate `idToken`,
-   `accessToken`, and `refreshToken` collection variables automatically (via
-   the request's post-response script).
+3. Run **Auth → sign-up**, then **Auth → sign-in** to get `idToken`,
+   `accessToken`, and `refreshToken`.
 4. Try the three object-listing requests as-is, and then experiment by
-   manually swapping the `Authorization` header value between `{{idToken}}`
-   and `{{accessToken}}` on each request to reproduce the `401` responses
-   described in the OpenAPI spec.
-
-## Contributing
-
-Contributions, fixes and improvements are welcome. Please open issues or pull requests against the main repository: https://github.com/epam/aws-syndicate
-
-## License
-
-See the repository LICENSE file for licensing information.
+   manually swapping the `Authorization` header value between `idToken`
+   and `accessToken` on each request to reproduce the `401` responses
+   described in the OpenAPI spec. (set the {{bearerToken}} variable in Postman to either `idToken` or `accessToken`).
