@@ -15,24 +15,20 @@
  */
 package com.demoapigatewaycognito.handler;
 
-import com.demoapigatewaycognito.dto.SignUp;
+import com.demoapigatewaycognito.dto.SignUpRequest;
 import software.amazon.awssdk.services.cognitoidentityprovider.CognitoIdentityProviderClient;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminCreateUserRequest;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminCreateUserResponse;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminInitiateAuthRequest;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminInitiateAuthResponse;
-import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminRespondToAuthChallengeRequest;
-import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminRespondToAuthChallengeResponse;
+import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminSetUserPasswordRequest;
+import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminUserGlobalSignOutRequest;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.AttributeType;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.AuthFlowType;
-import software.amazon.awssdk.services.cognitoidentityprovider.model.ChallengeNameType;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.DeliveryMediumType;
 
 import java.util.Map;
 
-/**
- * Created by Roman Ivanov on 7/20/2024.
- */
 public abstract class CognitoSupport {
 
     private final String userPoolId = System.getenv("COGNITO_ID");
@@ -43,70 +39,52 @@ public abstract class CognitoSupport {
         this.cognitoClient = cognitoClient;
     }
 
-    protected AdminInitiateAuthResponse cognitoSignIn(String nickName, String password) {
-        Map<String, String> authParams = Map.of(
-                "USERNAME", nickName,
-                "PASSWORD", password
-        );
-
-        return cognitoClient.adminInitiateAuth(AdminInitiateAuthRequest.builder()
-                .authFlow(AuthFlowType.ADMIN_NO_SRP_AUTH)
-                .authParameters(authParams)
-                .userPoolId(userPoolId)
-                .clientId(clientId)
-                .build());
-    }
-
-    protected AdminCreateUserResponse cognitoSignUp(SignUp signUp) {
-
+    protected AdminCreateUserResponse cognitoSignUp(SignUpRequest request) {
         return cognitoClient.adminCreateUser(AdminCreateUserRequest.builder()
-                        .userPoolId(userPoolId)
-                        .username(signUp.nickName())
-                        .temporaryPassword(signUp.password())
-                        .userAttributes(
-                                AttributeType.builder()
-                                        .name("given_name")
-                                        .value(signUp.firstName())
-                                        .build(),
-                                AttributeType.builder()
-                                        .name("family_name")
-                                        .value(signUp.lastName())
-                                        .build(),
-                                AttributeType.builder()
-                                        .name("email")
-                                        .value(signUp.email())
-                                        .build(),
-                                AttributeType.builder()
-                                        .name("email_verified")
-                                        .value("true")
-                                        .build())
-                        .desiredDeliveryMediums(DeliveryMediumType.EMAIL)
-                        .messageAction("SUPPRESS")
-                        .forceAliasCreation(Boolean.FALSE)
-                        .build()
-                );
-    }
-
-    protected AdminRespondToAuthChallengeResponse confirmSignUp(SignUp signUp) {
-        AdminInitiateAuthResponse adminInitiateAuthResponse = cognitoSignIn(signUp.nickName(), signUp.password());
-
-        if (!ChallengeNameType.NEW_PASSWORD_REQUIRED.name().equals(adminInitiateAuthResponse.challengeNameAsString())) {
-            throw new RuntimeException("unexpected challenge: " + adminInitiateAuthResponse.challengeNameAsString());
-        }
-
-        Map<String, String> challengeResponses = Map.of(
-                "USERNAME", signUp.nickName(),
-                "PASSWORD", signUp.password(),
-                "NEW_PASSWORD", signUp.password()
-        );
-
-        return cognitoClient.adminRespondToAuthChallenge(AdminRespondToAuthChallengeRequest.builder()
-                .challengeName(ChallengeNameType.NEW_PASSWORD_REQUIRED)
-                .challengeResponses(challengeResponses)
                 .userPoolId(userPoolId)
-                .clientId(clientId)
-                .session(adminInitiateAuthResponse.session())
+                .username(request.username())
+                .temporaryPassword(request.password())
+                .userAttributes(
+                        AttributeType.builder().name("email").value(request.email()).build(),
+                        AttributeType.builder().name("email_verified").value("true").build())
+                .desiredDeliveryMediums(DeliveryMediumType.EMAIL)
+                .messageAction("SUPPRESS")
+                .forceAliasCreation(Boolean.FALSE)
                 .build());
     }
 
+    // Sets a permanent password, bypassing the NEW_PASSWORD_REQUIRED challenge.
+    protected void cognitoSetPermanentPassword(String username, String password) {
+        cognitoClient.adminSetUserPassword(AdminSetUserPasswordRequest.builder()
+                .userPoolId(userPoolId)
+                .username(username)
+                .password(password)
+                .permanent(true)
+                .build());
+    }
+
+    protected AdminInitiateAuthResponse cognitoSignIn(String username, String password) {
+        return cognitoClient.adminInitiateAuth(AdminInitiateAuthRequest.builder()
+                .authFlow(AuthFlowType.ADMIN_USER_PASSWORD_AUTH)
+                .authParameters(Map.of("USERNAME", username, "PASSWORD", password))
+                .userPoolId(userPoolId)
+                .clientId(clientId)
+                .build());
+    }
+
+    protected AdminInitiateAuthResponse cognitoRefreshToken(String username, String refreshToken) {
+        return cognitoClient.adminInitiateAuth(AdminInitiateAuthRequest.builder()
+                .authFlow(AuthFlowType.REFRESH_TOKEN_AUTH)
+                .authParameters(Map.of("USERNAME", username, "REFRESH_TOKEN", refreshToken))
+                .userPoolId(userPoolId)
+                .clientId(clientId)
+                .build());
+    }
+
+    protected void cognitoSignOut(String username) {
+        cognitoClient.adminUserGlobalSignOut(AdminUserGlobalSignOutRequest.builder()
+                .userPoolId(userPoolId)
+                .username(username)
+                .build());
+    }
 }

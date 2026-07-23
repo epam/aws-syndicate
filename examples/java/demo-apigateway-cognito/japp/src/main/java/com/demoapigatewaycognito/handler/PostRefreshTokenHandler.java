@@ -19,38 +19,32 @@ import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent;
-import com.demoapigatewaycognito.dto.SignUpRequest;
+import com.demoapigatewaycognito.dto.RefreshTokenRequest;
 import org.json.JSONObject;
 import software.amazon.awssdk.services.cognitoidentityprovider.CognitoIdentityProviderClient;
-import software.amazon.awssdk.services.cognitoidentityprovider.model.AttributeType;
-import software.amazon.awssdk.services.cognitoidentityprovider.model.UserType;
+import software.amazon.awssdk.services.cognitoidentityprovider.model.AuthenticationResultType;
 
-public class PostSignUpHandler extends CognitoSupport implements RequestHandler<APIGatewayProxyRequestEvent, APIGatewayProxyResponseEvent> {
+public class PostRefreshTokenHandler extends CognitoSupport implements RequestHandler<APIGatewayProxyRequestEvent, APIGatewayProxyResponseEvent> {
 
-    public PostSignUpHandler(CognitoIdentityProviderClient cognitoClient) {
+    public PostRefreshTokenHandler(CognitoIdentityProviderClient cognitoClient) {
         super(cognitoClient);
     }
 
     @Override
     public APIGatewayProxyResponseEvent handleRequest(APIGatewayProxyRequestEvent requestEvent, Context context) {
         try {
-            SignUpRequest request = SignUpRequest.fromJson(requestEvent.getBody());
+            RefreshTokenRequest request = RefreshTokenRequest.fromJson(requestEvent.getBody());
 
-            UserType user = cognitoSignUp(request).user();
-            cognitoSetPermanentPassword(request.username(), request.password());
-
-            String userSub = user.attributes().stream()
-                    .filter(attr -> attr.name().equals("sub"))
-                    .map(AttributeType::value)
-                    .findAny()
-                    .orElseThrow(() -> new RuntimeException("Sub not found."));
+            AuthenticationResultType result = cognitoRefreshToken(request.username(), request.refreshToken())
+                    .authenticationResult();
 
             return new APIGatewayProxyResponseEvent()
-                    .withStatusCode(201)
+                    .withStatusCode(200)
                     .withBody(new JSONObject()
-                            .put("userSub", userSub)
-                            .put("username", user.username())
-                            .put("userConfirmed", user.userStatus() != null && user.userStatus().name().equals("CONFIRMED"))
+                            .put("idToken", result.idToken())
+                            .put("accessToken", result.accessToken())
+                            .put("expiresIn", result.expiresIn())
+                            .put("tokenType", result.tokenType())
                             .toString());
         } catch (IllegalArgumentException e) {
             return new APIGatewayProxyResponseEvent()
@@ -58,7 +52,7 @@ public class PostSignUpHandler extends CognitoSupport implements RequestHandler<
                     .withBody(new JSONObject().put("message", e.getMessage()).toString());
         } catch (Exception e) {
             return new APIGatewayProxyResponseEvent()
-                    .withStatusCode(409)
+                    .withStatusCode(401)
                     .withBody(new JSONObject().put("message", e.getMessage()).toString());
         }
     }

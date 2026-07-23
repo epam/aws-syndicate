@@ -7,7 +7,6 @@
             "logs:CreateLogGroup",
             "logs:CreateLogStream",
             "logs:PutLogEvents",
-
             "cognito-idp:DescribeUserPool",
             "cognito-idp:GetUser",
             "cognito-idp:ListUsers",
@@ -16,8 +15,9 @@
             "cognito-idp:GetIdentityProviderByIdentifier",
             "cognito-idp:ListUserPools",
             "cognito-idp:ListUserPoolClients",
+            "cognito-idp:AdminSetUserPassword",
             "cognito-idp:AdminRespondToAuthChallenge",
-
+            "cognito-idp:AdminUserGlobalSignOut",
             "ssm:PutParameter",
             "ssm:GetParameter",
             "kms:Decrypt"
@@ -30,7 +30,6 @@
     },
     "resource_type": "iam_policy"
   },
-
   "api-handler-role": {
     "predefined_policies": [],
     "principal_service": "lambda",
@@ -39,7 +38,6 @@
     ],
     "resource_type": "iam_role"
   },
-
   "${pool_name}": {
     "resource_type": "cognito_idp",
     "password_policy": {
@@ -64,8 +62,7 @@
       ]
     }
   },
-
-  "demo-api-gateway": {
+  "api-gateway": {
     "resource_type": "api_gateway",
     "deploy_stage": "api",
     "authorizers": {
@@ -79,7 +76,7 @@
       }
     },
     "resources": {
-      "/": {
+      "/objects/public": {
         "enable_cors": {
           "state": false
         },
@@ -96,7 +93,7 @@
           "default_error_pattern": true
         }
       },
-      "/secured": {
+      "/objects/secured-by-id-token": {
         "enable_cors": {
           "state": false
         },
@@ -113,9 +110,29 @@
           "default_error_pattern": true
         }
       },
-      "/signin": {
+      "/objects/secured-by-access-token": {
         "enable_cors": {
           "state": false
+        },
+        "GET": {
+          "enable_proxy": true,
+          "authorization_type": "authorizer",
+          "authorization_scopes": [
+            "aws.cognito.signin.user.admin"
+          ],
+          "integration_type": "lambda",
+          "lambda_name": "api-handler",
+          "api_key_required": false,
+          "method_request_parameters": {},
+          "integration_request_body_template": {},
+          "responses": [],
+          "integration_responses": [],
+          "default_error_pattern": true
+        }
+      },
+      "/auth/sign-up": {
+        "enable_cors": {
+          "state": true
         },
         "POST": {
           "enable_proxy": true,
@@ -130,13 +147,50 @@
           "default_error_pattern": true
         }
       },
-      "/signup": {
+      "/auth/sign-in": {
         "enable_cors": {
-          "state": false
+          "state": true
         },
         "POST": {
           "enable_proxy": true,
           "authorization_type": "NONE",
+          "integration_type": "lambda",
+          "lambda_name": "api-handler",
+          "api_key_required": false,
+          "method_request_parameters": {},
+          "integration_request_body_template": {},
+          "responses": [],
+          "integration_responses": [],
+          "default_error_pattern": true
+        }
+      },
+      "/auth/refresh-token": {
+        "enable_cors": {
+          "state": true
+        },
+        "POST": {
+          "enable_proxy": true,
+          "authorization_type": "NONE",
+          "integration_type": "lambda",
+          "lambda_name": "api-handler",
+          "api_key_required": false,
+          "method_request_parameters": {},
+          "integration_request_body_template": {},
+          "responses": [],
+          "integration_responses": [],
+          "default_error_pattern": true
+        }
+      },
+      "/auth/sign-out": {
+        "enable_cors": {
+          "state": true
+        },
+        "POST": {
+          "enable_proxy": true,
+          "authorization_type": "authorizer",
+          "authorization_scopes": [
+            "aws.cognito.signin.user.admin"
+          ],
           "integration_type": "lambda",
           "lambda_name": "api-handler",
           "api_key_required": false,

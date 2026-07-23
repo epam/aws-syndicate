@@ -1,0 +1,207 @@
+{
+  "info": {
+    "_postman_id": "b29b3537-33c7-4312-90dd-d2f092f35c16",
+    "name": "demo-apigateway-cognito",
+    "description": "Postman collection for demo-apigateway-cognito API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "12192403"
+  },
+  "item": [
+    {
+      "name": "GET /objects/public",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/objects/public",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "objects",
+            "public"
+          ]
+        },
+        "description": "## GET /objects/public\n\nRetrieves a list of publicly accessible objects. This endpoint does **not** require any authentication — it is open to all callers without a token or session.\n\n## Request\n\n- **Method:** GET\n    \n- **URL:** `{{baseUrl}}/objects/public`\n    \n- **Auth:** None required\n    \n\n## Response\n\nReturns a collection of public objects available to unauthenticated users.\n\n## Notes\n\nThis endpoint is part of the `demo-apigateway-cognito` collection, which demonstrates different levels of access control. Compare this endpoint with `GET /objects/secured-by-id-token` and `GET /objects/secured-by-access-token` to understand how authentication scopes restrict access to protected resources."
+      },
+      "response": []
+    },
+    {
+      "name": "GET /objects/secured-by-id-token",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{bearerToken}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/objects/secured-by-id-token",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "objects",
+            "secured-by-id-token"
+          ]
+        },
+        "description": "## GET /objects/secured-by-id-token\n\nRetrieves a list of objects that are protected by an **ID token**. This endpoint requires a valid ID token to be passed in the `Authorization` header as a Bearer token.\n\n## Request\n\n- **Method:** GET\n    \n- **URL:** `{{baseUrl}}/objects/secured-by-id-token`\n    \n- **Auth:** Bearer token (ID token) required\n    \n\n### Headers\n\n| Key | Value | Description |\n| --- | --- | --- |\n| Authorization | `Bearer {{bearerToken}}` | A valid ID token obtained after signing in |\n\n## Response\n\nReturns a collection of objects accessible only to authenticated users whose ID token has been verified.\n\nReturns `401 Unauthorized` if the token is missing, expired, or invalid.\n\n## Notes\n\nThis endpoint is part of the `demo-apigateway-cognito` collection, which demonstrates different levels of access control. Use `POST /auth/sign-in` to obtain an ID token, then supply it via the `{{bearerToken}}` variable. Compare this endpoint with `GET /objects/public` (no auth) and `GET /objects/secured-by-access-token` (access token required) to understand how different authentication scopes restrict access."
+      },
+      "response": []
+    },
+    {
+      "name": "GET /objects/secured-by-access-token",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{bearerToken}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/objects/secured-by-access-token",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "objects",
+            "secured-by-access-token"
+          ]
+        },
+        "description": "## GET /objects/secured-by-access-token\n\nRetrieves a list of objects that are protected by an **access token**. This endpoint requires a valid access token to be passed in the `Authorization` header as a Bearer token. Access tokens are typically obtained by exchanging a refresh token or as part of the sign-in flow, and carry a different scope than ID tokens.\n\n## Request\n\n- **Method:** GET\n    \n- **URL:** `{{baseUrl}}/objects/secured-by-access-token`\n    \n- **Auth:** Bearer token (access token) required\n    \n\n### Headers\n\n| Key | Value | Description |\n| --- | --- | --- |\n| Authorization | `Bearer {{bearerToken}}` | A valid access token obtained after signing in or refreshing the session |\n\n## Response\n\nReturns a collection of objects accessible only to authenticated users whose access token has been verified.\n\nReturns `401 Unauthorized` if the token is missing, expired, or invalid.\n\n## Notes\n\nThis endpoint is part of the `demo-apigateway-cognito` collection, which demonstrates different levels of access control. Use `POST /auth/sign-in` or `POST /auth/refresh-token` to obtain an access token, then supply it via the `{{bearerToken}}` variable. Compare this endpoint with `GET /objects/public` (no auth required) and `GET /objects/secured-by-id-token` (ID token required) to understand how authentication scopes restrict access to protected resources."
+      },
+      "response": []
+    },
+    {
+      "name": "POST /auth/sign-up",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"newuser\",\n  \"password\": \"P@ssw0rd\",\n  \"email\": \"newuser@example.com\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/auth/sign-up",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "auth",
+            "sign-up"
+          ]
+        },
+        "description": "## POST /auth/sign-up\n\nRegisters a new user account in the system.\n\n### Request Body\n\nSend a JSON object with the following fields:\n\n| Field | Type | Required | Description |\n|-------|------|----------|-------------|\n| `username` | string | Yes | The desired username for the new account |\n| `password` | string | Yes | The account password. Should meet complexity requirements (e.g. uppercase, lowercase, digit, special character) |\n| `email` | string | Yes | The user's email address |\n\n**Example:**\n```json\n{\n  \"username\": \"newuser\",\n  \"password\": \"P@ssw0rd\",\n  \"email\": \"newuser@example.com\"\n}\n```\n\n### Response\n\n**201 Created** — User was successfully registered.\n\n```json\n{\n  \"userConfirmed\": false,\n  \"userSub\": \"8324d802-5061-702e-e465-1b969e8b5c52\",\n  \"username\": \"newuser\"\n}\n```\n\n| Field | Type | Description |\n|-------|------|-------------|\n| `userConfirmed` | boolean | Indicates whether the user's account has been confirmed (e.g. via email verification). `false` means confirmation is still pending |\n| `userSub` | string | The unique identifier (UUID) assigned to the newly created user |\n| `username` | string | The username of the newly registered user |\n\n### Notes\n\n- The `{{baseUrl}}` variable must be set in the active environment to point to the base API URL.\n- A `Content-Type: application/json` header is required.\n- After sign-up, the user may need to confirm their account before they can sign in."
+      },
+      "response": []
+    },
+    {
+      "name": "POST /auth/sign-in",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"newuser\",\n  \"password\": \"P@ssw0rd\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/auth/sign-in",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "auth",
+            "sign-in"
+          ]
+        },
+        "description": "## POST /auth/sign-in\n\nAuthenticates a user and returns a set of tokens for use in subsequent authorized requests.\n\n## Request\n\n**Method:** POST  \n**URL:** `{{baseUrl}}/auth/sign-in`\n\n### Headers\n\n| Key | Value |\n| --- | --- |\n| Content-Type | application/json |\n\n### Body (raw JSON)\n\n``` json\n{\n  \"username\": \"newuser\",\n  \"password\": \"P@ssw0rd\"\n}\n\n ```\n\n| Field | Type | Required | Description |\n| --- | --- | --- | --- |\n| username | string | Yes | The account username |\n| password | string | Yes | The account password |\n\n## Response\n\n**Status:** `200 OK`\n\nReturns a JSON object containing authentication tokens and expiry information.\n\n| Field | Type | Description |\n| --- | --- | --- |\n| idToken | string | JWT ID token used to identify the authenticated user |\n| expiresIn | number | Token validity duration in seconds (e.g. 3600 = 1 hour) |\n\n### Example Response\n\n``` json\n{\n  \"expiresIn\": 3600,\n  \"idToken\": \"<JWT token>\"\n}\n\n ```\n\n## Notes\n\n- Use the returned `idToken` in the `Authorization` header for requests secured by ID token.\n    \n- Tokens expire after `expiresIn` seconds; use the refresh token endpoint to obtain new tokens without re-authenticating."
+      },
+      "response": []
+    },
+    {
+      "name": "POST /auth/refresh-token",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"newuser\",\n  \"refreshToken\": \"eyJjdHkiOiJ...\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/auth/refresh-token",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "auth",
+            "refresh-token"
+          ]
+        },
+        "description": "## POST /auth/refresh-token\n\nExchanges a valid refresh token for a new set of authentication tokens (access token and ID token). Use this endpoint to silently re-authenticate a user without requiring them to log in again.\n\n### Request Body\n\n| Field | Type | Required | Description |\n| --- | --- | --- | --- |\n| `username` | string | Yes | The username of the authenticated user. |\n| `refreshToken` | string | Yes | A valid refresh token previously issued during sign-in. |\n\n### Headers\n\n| Header | Value |\n| --- | --- |\n| `Content-Type` | `application/json` |\n\n### Responses\n\n| Status | Description |\n| --- | --- |\n| `200 OK` | Token refresh successful. Returns new access and ID tokens. |\n| `400 Bad Request` | Missing or malformed request body. |\n| `401 Unauthorized` | The refresh token is invalid, expired, or has been revoked. |\n\n### Notes\n\n- The refresh token is single-use in some configurations — after a successful refresh, the old token may be invalidated.\n    \n- Store the new tokens securely and update any stored credentials accordingly.\n    \n- If this endpoint returns `401`, redirect the user to the sign-in flow."
+      },
+      "response": []
+    },
+    {
+      "name": "POST /auth/sign-out",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{bearerToken}}",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": ""
+        },
+        "url": {
+          "raw": "{{baseUrl}}/auth/sign-out",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "auth",
+            "sign-out"
+          ]
+        },
+        "description": "## POST /auth/sign-out\n\nSigns out the currently authenticated user by revoking their refresh token.\n\n## Authorization\n\nRequires a valid Bearer token in the `Authorization` header (access token):\n\n```\nAuthorization: Bearer {{bearerToken}}\n\n ```\n\n## Response\n\n- **204 No Content** — The user was successfully signed out. No response body is returned."
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://your-api-gateway-url.amazonaws.com/stage"
+    },
+    {
+      "key": "bearerToken",
+      "value": "jwt-token-placeholder"
+    }
+  ]
+}
