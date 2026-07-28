@@ -35,7 +35,6 @@ from syndicate.core.resources.helper import validate_params
 BIN_DIR = 'bin'
 OBJ_DIR = 'obj'
 X64_DIR = 'x64'
-NET_8_0_DIR = 'net8.0'
 DOTNET_CORE_DIR = 'dotnetcore'
 STORE_DIR = 'store'
 
@@ -52,6 +51,11 @@ CHECK_DOTNET_INSTALLED_COMMAND = ['dotnet', '--info']
 
 SYNDICATE_DIR = '.syndicate'
 LOCAL_NUGET_SOURCE_NAME = 'syndicate_local_nuget_source'
+
+DOTNET_VERSION_MAPPING = {
+    'dotnet8': 'net8.0',
+    'dotnet10': 'net10.0',
+}
 
 
 _LOG = get_logger(__name__)
@@ -109,20 +113,30 @@ def _build_dotnet_lambda_artifact(item, root, target_folder):
     _LOG.debug(f'Building artifact in {target_folder}')
     lambda_config_dict = json.load(open(build_path(root, item)))
     _LOG.debug(f'Root path: {root}')
-    req_params = ['lambda_path', 'name', 'version']
+    req_params = ['lambda_path', 'name', 'version', 'runtime']
     validate_params(root, lambda_config_dict, req_params)
     lambda_name = lambda_config_dict['name']
     lambda_version = lambda_config_dict['version']
+    dotnet_version = lambda_config_dict['runtime']
     package_name = build_py_package_name(lambda_name, lambda_version)
     layers = lambda_config_dict.get('layers', [])
     output_path = build_path(target_folder, BUILD_DIR_TMP, LAMBDA_DIR,
                              lambda_name)
 
+    if not dotnet_version in DOTNET_VERSION_MAPPING:
+        raise ArtifactAssemblingError(
+            f'.NET version {dotnet_version} specified in lambda {lambda_name} '
+            f'is not supported. '
+            f'Supported versions: {list(DOTNET_VERSION_MAPPING.keys())}'
+        )
+
+    native_dotnet_version = DOTNET_VERSION_MAPPING[dotnet_version]
+
     command = [
         'dotnet', 'publish', root,
         '-p:GenerateRuntimeConfigurationFiles=true',
         '--configuration', 'Release',
-        '--framework', 'net8.0',
+        '--framework', native_dotnet_version,
         '--runtime', 'linux-x64',
         '--self-contained', 'False',
         '--output', output_path
@@ -132,7 +146,7 @@ def _build_dotnet_lambda_artifact(item, root, target_folder):
         layer_artifact_path = build_path(target_folder, BUILD_DIR_TMP,
                                          LAYER_DIR, layer_name,
                                          DOTNET_CORE_DIR, STORE_DIR, X64_DIR,
-                                         NET_8_0_DIR, ARTIFACT_FILE)
+                                         native_dotnet_version, ARTIFACT_FILE)
         command.extend(['--manifest', layer_artifact_path])
         if not Path(layer_artifact_path).is_file():
             USER_LOG.warn(f'The \'{ARTIFACT_FILE}\' file for the layer '
@@ -163,7 +177,9 @@ def _build_dotnet_lambda_layer_artifact(item, root, target_folder):
     layer_name = layer_config['name']
     package_name = layer_config['deployment_package']
     custom_packages = layer_config.get('custom_packages', [])
-    validate_params(root, layer_config, ['name', 'deployment_package'])
+    validate_params(root, layer_config,
+                    ['name', 'deployment_package', 'runtimes'])
+
 
     output_path = build_path(target_folder, BUILD_DIR_TMP, LAYER_DIR,
                              layer_name, DOTNET_CORE_DIR, STORE_DIR)
@@ -174,22 +190,41 @@ def _build_dotnet_lambda_layer_artifact(item, root, target_folder):
         _process_custom_packages(root, custom_packages)
 
     _LOG.info(f'Packaging artifacts {package_name}')
-    command = [
-        'dotnet', 'store', '--skip-optimization',
-        '--manifest', root,
-        '--framework', 'net8.0',
-        '--runtime', 'linux-x64',
-        '--output', output_path
-    ]
 
-    exit_code, stdout, stderr = run_external_command(command)
-    if exit_code != 0:
+    runtimes = layer_config['runtimes']
+    if not isinstance(runtimes, list) or not runtimes:
         raise ArtifactAssemblingError(
-            f"An error occurred during lambda layer '{layer_name}' "
-            f"packaging. Details:\n{stdout or ''}\n{stderr or ''}"
+            f'Invalid runtimes specified. '
+            f'Expected list of supported '
+            f'runtimes {list(DOTNET_VERSION_MAPPING.keys())}. Got {runtimes}'
         )
-    _LOG.info(f'Running the command "{command}"\n{stdout or ""}'
-              f'\n{stderr or ""}')
+
+    for runtime in runtimes:
+        if not runtime in DOTNET_VERSION_MAPPING:
+            raise ArtifactAssemblingError(
+                f'.NET version {runtime} specified in lambda layer {layer_name} '
+                f'is not supported. '
+                f'Supported versions: {list(DOTNET_VERSION_MAPPING.keys())}'
+            )
+
+        native_dotnet_version = DOTNET_VERSION_MAPPING[runtime]
+
+        command = [
+            'dotnet', 'store', '--skip-optimization',
+            '--manifest', root,
+            '--framework', native_dotnet_version,
+            '--runtime', 'linux-x64',
+            '--output', output_path
+        ]
+
+        exit_code, stdout, stderr = run_external_command(command)
+        if exit_code != 0:
+            raise ArtifactAssemblingError(
+                f"An error occurred during lambda layer '{layer_name}' "
+                f"packaging. Details:\n{stdout or ''}\n{stderr or ''}"
+            )
+        _LOG.info(f'Running the command "{command}"\n{stdout or ""}'
+                  f'\n{stderr or ""}')
 
     zip_dir(
         build_path(target_folder, BUILD_DIR_TMP, LAYER_DIR, layer_name),

@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 EPAM Systems, Inc.
+ * Copyright 2026 EPAM Systems, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,11 +15,22 @@
  */
 package com.demoapigatewaycognito.dto;
 
-public record RouteKey(String method, String path) {
+import org.json.JSONObject;
 
-    public RouteKey{
-        if (method == null || path == null) {
+public record SignUpRequest(String username, String password, String email) {
+
+    public SignUpRequest {
+        if (username == null || password == null || email == null) {
             throw new IllegalArgumentException("Missing or incomplete data.");
         }
+    }
+
+    public static SignUpRequest fromJson(String jsonString) {
+        JSONObject json = new JSONObject(jsonString);
+        return new SignUpRequest(
+                json.optString("username", null),
+                json.optString("password", null),
+                json.optString("email", null)
+        );
     }
 }

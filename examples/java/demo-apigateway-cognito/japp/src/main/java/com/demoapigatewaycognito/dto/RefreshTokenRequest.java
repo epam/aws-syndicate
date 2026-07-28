@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 EPAM Systems, Inc.
+ * Copyright 2026 EPAM Systems, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,23 +17,19 @@ package com.demoapigatewaycognito.dto;
 
 import org.json.JSONObject;
 
-/**
- * Created by Roman Ivanov on 7/20/2024.
- */
-public record SignIn(String nickName, String password) {
+public record RefreshTokenRequest(String refreshToken, String username) {
 
-    public SignIn {
-        if (nickName == null || password == null) {
+    public RefreshTokenRequest {
+        if (refreshToken == null || username == null) {
             throw new IllegalArgumentException("Missing or incomplete data.");
         }
     }
 
-    public static SignIn fromJson(String jsonString) {
+    public static RefreshTokenRequest fromJson(String jsonString) {
         JSONObject json = new JSONObject(jsonString);
-        String nickName = json.optString("nickName", null);
-        String password = json.optString("password", null);
-
-        return new SignIn(nickName, password);
+        return new RefreshTokenRequest(
+                json.optString("refreshToken", null),
+                json.optString("username", null)
+        );
     }
-
 }
