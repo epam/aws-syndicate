@@ -17,7 +17,7 @@ from commons.handlers import HANDLERS_MAPPING
 from commons.utils import UpdateContent
 
 
-def process_steps(stage_info: dict[str: List[dict]],
+def process_steps(stage_info: dict[str, List[dict]],
                   verbose: Optional[bool] = False, skip_stage: bool = False,
                   **kwargs):
     result = []

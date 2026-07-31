@@ -1533,6 +1533,43 @@ class ApiGatewayConnection(object):
         _LOG.debug(f'Updating rest api with params: "{params}"')
         return self.client.update_rest_api(**params)
 
+    def update_binary_media_types(
+            self, rest_api_id, binary_media_types=None):
+        """
+        Sync REST API binary media types via patch operations.
+        """
+        if binary_media_types is None:
+            return
+        current_api = self.client.get_rest_api(restApiId=rest_api_id)
+        current_types = list(current_api.get('binaryMediaTypes') or [])
+        desired_types = list(dict.fromkeys(binary_media_types))
+        current_set = set(current_types)
+        desired_set = set(desired_types)
+        patch_operations = []
+        for media_type in desired_types:
+            if media_type not in current_set:
+                patch_operations.append({
+                    'op': 'add',
+                    'path': '/binaryMediaTypes',
+                    'value': media_type,
+                })
+        for media_type in current_types:
+            if media_type not in desired_set:
+                patch_operations.append({
+                    'op': 'remove',
+                    'path': '/binaryMediaTypes',
+                    'value': media_type,
+                })
+        if not patch_operations:
+            return
+        _LOG.debug(
+            f'Updating binary media types for rest api {rest_api_id}: '
+            f'{patch_operations}')
+        return self.client.update_rest_api(
+            restApiId=rest_api_id,
+            patchOperations=patch_operations
+        )
+
     def create_model(self, rest_api_id, name, content_type, description=None,
                      schema=None):
         """Adds a new Model resource to an existing RestApi resource."""
