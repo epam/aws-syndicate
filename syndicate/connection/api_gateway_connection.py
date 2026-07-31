@@ -1550,15 +1550,15 @@ class ApiGatewayConnection(object):
             if media_type not in current_set:
                 patch_operations.append({
                     'op': 'add',
-                    'path': '/binaryMediaTypes',
-                    'value': media_type,
+                    'path': '/binaryMediaTypes/'
+                            f'{self.escape_json_pointer_token(media_type)}',
                 })
         for media_type in current_types:
             if media_type not in desired_set:
                 patch_operations.append({
                     'op': 'remove',
-                    'path': '/binaryMediaTypes',
-                    'value': media_type,
+                    'path': '/binaryMediaTypes/'
+                            f'{self.escape_json_pointer_token(media_type)}',
                 })
         if not patch_operations:
             return
