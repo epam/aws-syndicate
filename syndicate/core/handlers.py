@@ -132,10 +132,11 @@ def syndicate():
 @syndicate.command(name=TEST_ACTION)
 @return_code_manager
 @click.option('--suite', default='unittest',
-              type=click.Choice(['unittest', 'pytest', 'nose'],
+              type=click.Choice(['unittest', 'pytest', 'nose2', 'nose'],
                                 case_sensitive=False),
-              help='Supported testing frameworks. Possible options: unittest, '
-                   'pytest, nose. Default value: unittest')
+              help='Supported testing frameworks: unittest, pytest, nose2. '
+                   'Default value: unittest. "nose" is a deprecated alias '
+                   'for nose2')
 @click.option('--test-folder-name',
               cls=MultiWordOption, nargs=1,
               default="tests",
@@ -188,8 +189,9 @@ def test(suite, test_folder_name, errors_allowed, skip_tests):
 
     test_lib_command_mapping = {
         'unittest': f'"{sys.executable}" -m unittest discover "{test_folder_path}" -v',
-        'pytest': 'pytest --no-header -v',
-        'nose': 'nosetests --verbose'
+        'pytest': f'"{sys.executable}" -m pytest "{test_folder_path}" --no-header -v',
+        'nose2': f'"{sys.executable}" -m nose2 -s "{test_folder_path}" --verbose',
+        'nose': f'"{sys.executable}" -m nose2 -s "{test_folder_path}" --verbose',
     }
 
     command = test_lib_command_mapping.get(suite)
@@ -230,6 +232,17 @@ def test(suite, test_folder_name, errors_allowed, skip_tests):
 @click.option('--skip-tests',
               cls=MultiWordOption, is_flag=True, default=False,
               help='Flag to skip lambda tests')
+@click.option('--suite', default='unittest',
+              type=click.Choice(['unittest', 'pytest', 'nose2', 'nose'],
+                                case_sensitive=False),
+              help='Supported testing frameworks: unittest, pytest, nose2. '
+                   'Default value: unittest. "nose" is a deprecated alias '
+                   'for nose2')
+@click.option('--test-folder-name',
+              cls=MultiWordOption, nargs=1,
+              default='tests',
+              help='Directory in the project that contains tests to run. '
+                   'Default folder: tests')
 @click.option('--refresh-cache',
               cls=MultiWordOption, is_flag=True, default=False,
               help='Flag to refresh the cache of dependencies. Currently, it '
@@ -239,8 +252,8 @@ def test(suite, test_folder_name, errors_allowed, skip_tests):
 @timeit(action_name=BUILD_ACTION)
 @failed_status_code_on_exception
 @check_deploy_bucket_exists
-def build(ctx, bundle_name, force_upload, errors_allowed, skip_tests,
-          refresh_cache):
+def build(ctx, bundle_name, force_upload, errors_allowed, skip_tests, suite,
+          test_folder_name, refresh_cache):
     """
     Builds bundle of an application
     """
@@ -254,7 +267,9 @@ def build(ctx, bundle_name, force_upload, errors_allowed, skip_tests,
 
     test_code = ctx.invoke(test,
                            errors_allowed=errors_allowed,
-                           skip_tests=skip_tests)
+                           skip_tests=skip_tests,
+                           suite=suite,
+                           test_folder_name=test_folder_name)
     if test_code != OK_RETURN_CODE:
         return test_code
 
