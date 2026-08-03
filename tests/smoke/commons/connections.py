@@ -146,6 +146,18 @@ def get_api_gw_id(api_gw_name: str) -> Union[str | None]:
     return
 
 
+def get_api_gw_binary_media_types(api_gw_name: str) -> Union[list | None]:
+    api_id = get_api_gw_id(api_gw_name)
+    if not api_id:
+        return None
+    try:
+        response = api_gw_client.get_rest_api(restApiId=api_id)
+        return list(response.get('binaryMediaTypes') or [])
+    except api_gw_client.exceptions.NotFoundException:
+        print(f'API Gateway \'{api_gw_name}\' not found')
+        return None
+
+
 def get_sqs_queue_url(sqs_queue_name: str) -> Union[str | None]:
     try:
         response = sqs_client.get_queue_url(QueueName=sqs_queue_name)

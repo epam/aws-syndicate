@@ -433,6 +433,25 @@ def api_gw_resources_existence_checker(
     return result
 
 
+def api_gw_binary_media_types_checker(
+        api_gw_name: str,
+        binary_media_types: list
+) -> dict:
+    actual = connections.get_api_gw_binary_media_types(api_gw_name)
+    if actual is None:
+        return {'missing_api': True}
+
+    expected = list(dict.fromkeys(binary_media_types or []))
+    actual_sorted = sorted(actual)
+    expected_sorted = sorted(expected)
+    if actual_sorted != expected_sorted:
+        return {
+            'expected': expected_sorted,
+            'actual': actual_sorted,
+        }
+    return {}
+
+
 # ------------ Resource existence checkers -------------
 
 

@@ -1,3 +1,10 @@
+## 2026-07-31
+### Added
+- Added `api_gw_binary_media_types` smoke check to verify API Gateway `binary_media_types` on deploy and update
+
+### Changed
+- Extended `sdct-at-ddis` `deployment_resources.json` and `deployment_resources_updated.json` with `binary_media_types` for the `sdct-at-api-gw` resource
+
 ## 2026-06-25
 ### Added
 - Changed lambdas and lambda layers runtimes to `python3.14` and `nodejs24.x` in the `sdct-at-ddis` smoke-test project.
