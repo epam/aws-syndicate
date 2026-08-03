@@ -4,13 +4,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [1.21.4] - 2026-07-31
-- Fixed an issue where `binary_media_types` were not applied when updating an `api_gateway` resource
-
-# [1.21.3] - 2026-07-30
+# [1.21.3] - 2026-08-03
 - Improved pytest/nose2 integration in syndicate test and build commands
 - Deprecated test framework `nose` and replaced it with `nose2` for Python runtime
 - Added `--suite` and `--test-folder-name` options to `syndicate build` command to specify the test suite and test folder name for the build process
+- Fixed an issue where `binary_media_types` were not applied when updating an `api_gateway` resource
 
 # [1.21.2] - 2026-07-01
 - Fixed Python lambda function dependencies resolving issue when it conflicted with aws-syndicate dependencies
