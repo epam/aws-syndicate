@@ -137,7 +137,7 @@ Configuration examples from `deployment_resources.json` (trimmed):
 {
   "syndicate-demo-api": {
     "authorizers": {
-      "cognito_authorizer": {
+      "authorizer": {
         "type": "COGNITO_USER_POOLS",
         "identity_source": "method.request.header.Authorization",
         "user_pools": ["${userpool_name}"],

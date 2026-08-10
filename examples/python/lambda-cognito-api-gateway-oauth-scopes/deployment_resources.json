@@ -53,6 +53,7 @@
     "custom_attributes": [],
     "client": {
       "client_name": "client-app",
+      "generate_secret": false,
       "explicit_auth_flows": [
         "ALLOW_ADMIN_USER_PASSWORD_AUTH",
         "ALLOW_CUSTOM_AUTH",
@@ -75,7 +76,7 @@
       }
     ],
     "authorizers": {
-      "cognito_authorizer": {
+      "authorizer": {
         "type": "COGNITO_USER_POOLS",
         "identity_source": "method.request.header.Authorization",
         "user_pools": [
