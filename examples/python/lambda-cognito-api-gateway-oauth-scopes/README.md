@@ -25,7 +25,7 @@ Authentication overview: This example demonstrates three API security approaches
 
 ## Prerequisites
 
-- Syndicate CLI installed and available on PATH
+- AWS Syndicate installed and available on $PATH
 - AWS credentials configured (via environment or AWS CLI)
 - A unique S3 bucket for storing deployment artifacts
 
