@@ -65,7 +65,7 @@ class LambdaConnection(object):
         _LOG.debug('Opened new Lambda connection.')
 
     def create_lambda(self, lambda_name, func_name,
-                      role, s3_bucket, s3_key, runtime='python3.10',
+                      role, s3_bucket, s3_key, runtime='python3.14',
                       memory=128, timeout=300, architectures=None,
                       vpc_sub_nets=None, vpc_security_group=None,
                       env_vars=None, dl_target_arn=None, tracing_mode=None,

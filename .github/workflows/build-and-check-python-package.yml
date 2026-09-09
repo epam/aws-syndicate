@@ -32,7 +32,7 @@ jobs:
         uses: actions/setup-python@v5
         id: python-bavp
         with:
-          python-version: '3.10'
+          python-version: '3.14'
 
       - name: Create venv for tools
         run: ${{ steps.python-bavp.outputs.python-path }} -Im venv /tmp/bavp
@@ -46,6 +46,13 @@ jobs:
           --no-python-version-warning
           install build check-wheel-contents==0.6.0 twine==6.1.0 wheel==0.42.0 wheel-filename==1.4.1
         shell: bash
+
+      - name: Run unit tests
+        run: |
+          /tmp/bavp/bin/python -Im pip install ".[test]"
+          /tmp/bavp/bin/python -m pytest tests/unit -q
+        shell: bash
+        working-directory: ${{ inputs.path }}
 
       - name: Build package
         run: |

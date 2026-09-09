@@ -14,8 +14,8 @@ class TestGroupByType(unittest.TestCase):
 
     def test_groups_correctly(self):
         resources = {
-            'func1': {'resource_type': 'lambda', 'runtime': 'python3.10'},
-            'func2': {'resource_type': 'lambda', 'runtime': 'python3.10'},
+            'func1': {'resource_type': 'lambda', 'runtime': 'python3.14'},
+            'func2': {'resource_type': 'lambda', 'runtime': 'python3.14'},
             'my-api': {'resource_type': 'api_gateway'},
             'my-table': {'resource_type': 'dynamodb_table'},
         }
@@ -33,7 +33,10 @@ class TestCollectDeployedResources(unittest.TestCase):
 
     @patch('syndicate.core.project_state.status_processor'
            '.load_latest_deploy_output')
-    def test_extracts_names_from_output(self, mock_load):
+    @patch('syndicate.core.CONFIG')
+    def test_extracts_names_from_output(self, mock_config, mock_load):
+        mock_config.resources_prefix = ''
+        mock_config.resources_suffix = ''
         mock_load.return_value = (True, {
             'arn:aws:lambda:us-east-1:123:function:func1': {
                 'resource_name': 'func1',
@@ -67,10 +70,8 @@ class TestProcessResourcesView(unittest.TestCase):
                                       mock_collect, mock_deployed):
         mock_state.name = 'test-project'
         mock_collect.return_value = {
-            'func1': {'resource_type': 'lambda',
-                      'runtime': 'python3.10'},
-            'func2': {'resource_type': 'lambda',
-                      'runtime': 'python3.10'},
+            'func1': {'resource_type': 'lambda', 'runtime': 'python3.14'},
+            'func2': {'resource_type': 'lambda', 'runtime': 'python3.14'},
         }
         mock_deployed.return_value = {'func1'}
 
@@ -91,10 +92,8 @@ class TestProcessResourcesView(unittest.TestCase):
                                   mock_collect, mock_deployed):
         mock_state.name = 'test-project'
         mock_collect.return_value = {
-            'func1': {'resource_type': 'lambda',
-                      'runtime': 'python3.10'},
-            'func2': {'resource_type': 'lambda',
-                      'runtime': 'python3.10'},
+            'func1': {'resource_type': 'lambda', 'runtime': 'python3.14'},
+            'func2': {'resource_type': 'lambda', 'runtime': 'python3.14'},
         }
         mock_deployed.return_value = {'func1'}
 

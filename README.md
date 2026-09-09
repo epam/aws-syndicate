@@ -25,7 +25,7 @@ descriptions.
 
 #### 1.2.1 Prerequisites
 
-1) [Python 3.10](https://www.python.org/downloads/ "Python 3.10") version;
+1) [Python 3.14](https://www.python.org/downloads/ "Python 3.14") version;
 2) Package manager [PIP 22.0](https://pypi.org/project/pip/ "PIP 22.0")
    or higher version;
 3) [Apache Maven 3.3.9](https://maven.apache.org/download.cgi "Apache Maven 3.3.9")

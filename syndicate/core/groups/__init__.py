@@ -35,7 +35,7 @@ SWAGGER_UI_ROOT_DIR = 'swagger_src'
 APPSYNC_ROOT_DIR = 'appsync_src'
 
 DEFAULT_RUNTIME_VERSION = {
-    RUNTIME_PYTHON: 'python3.10',
+    RUNTIME_PYTHON: 'python3.14',
     RUNTIME_NODEJS: 'nodejs20.x',
     RUNTIME_DOTNET: 'dotnet8'
 }

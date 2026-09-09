@@ -4,7 +4,7 @@
   "func_name": "handler.lambda_handler",
   "resource_type": "lambda",
   "iam_role_name": "sdct-at-python-lambda-role",
-  "runtime": "python3.10",
+  "runtime": "python3.14",
   "memory": 128,
   "timeout": 100,
   "lambda_path": "lambdas\\sdct-at-python-lambda",

@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [2.0.0] - 2026-09-09
+- Raised the minimum supported Python version to 3.14.
+- Updated the default Python Lambda runtime to `python3.14`.
+- Added optional test dependencies and automated unit-test execution to the package workflow.
+- Added repository guidance for AI coding agents and safe AWS operations.
+
 # [1.21.3] - 2026-08-03
 - Improved pytest/nose2 integration in syndicate test and build commands
 - Deprecated test framework `nose` and replaced it with `nose2` for Python runtime

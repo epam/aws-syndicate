@@ -390,7 +390,7 @@ each API stage. If `methods` should be in API GW than its value should be set to
 
 ### Prerequisites
 1. Specify valid credentials in the `.aws/credentials` file or set credentials in the `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN` env variables.
-2. Install python 3.10+.
+2. Install python 3.14+.
 3. Install maven.
 4. Install .NET SDK.
 5. Install aws-syndicate from pypi: `pip install aws-syndicate`; or from local folder: `pip install -e PATH_TO_REPO/aws-syndicate`.
