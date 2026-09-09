@@ -140,6 +140,20 @@ syndicate generate project
     --config_path $path_to_project
 ```
 
+Use the optional `python-standard` template for a Python 3.14 project scaffold
+with `uv` metadata, `AGENTS.md`, documentation, test layers, and a portable
+verification skill:
+
+```shell
+syndicate generate project \
+    --name $project_name \
+    --path $path_to_project \
+    --template python-standard
+```
+
+The default `legacy` template preserves the existing project layout. The
+standard template does not deploy or access AWS resources.
+
 All the provided information is validated. After the project folder will be
 generated the command will return the following message:
 ```shell
@@ -405,6 +419,7 @@ with a `$` sign.
 Documentation
 ------------
 Documentation you can find [here](https://github.com/epam/aws-syndicate/wiki)
+Project structure standard: [docs/python-project-structure-golden-standard.md](docs/python-project-structure-golden-standard.md)
 
 Getting Help
 ------------

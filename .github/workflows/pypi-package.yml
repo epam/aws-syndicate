@@ -7,11 +7,20 @@ on:
     tags: ["*"]
     paths:
       - '**.py'
+      - 'pyproject.toml'
+      - 'uv.lock'
+      - 'tests/**'
+      - '.github/workflows/**'
+  pull_request:
+    paths:
+      - '**.py'
+      - 'pyproject.toml'
+      - 'uv.lock'
+      - 'tests/**'
+      - '.github/workflows/**'
   release:
     types:
       - published
-    paths:
-      - '**.py'
 
 permissions:
   id-token: write

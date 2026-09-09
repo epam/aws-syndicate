@@ -5,7 +5,8 @@
 `aws-syndicate` is a Python 3.14 command-line tool for building and deploying
 serverless resources to AWS. The main package is under `syndicate/`; unit tests
 are under `tests/unit/`, smoke tests are under `tests/smoke/`, and runnable
-examples are under `examples/`.
+examples are under `examples/`. Detailed generated-project guidance is in
+`docs/python-project-structure-golden-standard.md`.
 
 ## Development commands
 

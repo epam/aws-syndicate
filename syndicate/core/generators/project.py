@@ -27,10 +27,21 @@ from syndicate.core.generators.contents import (_get_lambda_default_policy,
                                                 CHANGELOG_TEMPLATE,
                                                 GITIGNORE_CONTENT,
                                                 README_TEMPLATE)
+from syndicate.core.generators.python_standard import (
+    PYTHON_STANDARD_TEMPLATE,
+    generate_python_standard_project,
+)
 from syndicate.core.groups import (RUNTIME_JAVA, RUNTIME_NODEJS,
                                    RUNTIME_PYTHON, RUNTIME_DOTNET)
+from syndicate.core.constants import ABORTED_RETURN_CODE, OK_RETURN_CODE
 
 _LOG = get_logger(__name__)
+
+LEGACY_PROJECT_TEMPLATE = 'legacy'
+PROJECT_TEMPLATES = (
+    LEGACY_PROJECT_TEMPLATE,
+    PYTHON_STANDARD_TEMPLATE,
+)
 
 SLASH_SYMBOL = '/'
 FOLDER_LAMBDAS = 'lambdas'
@@ -41,40 +52,60 @@ FILE_CHANGELOG = 'CHANGELOG.md'
 FILE_GITIGNORE = '.gitignore'
 
 
-def generate_project_structure(project_name, project_path):
-    try:
-        if not os.path.exists(project_path):
-            raise InvalidValueError(
-                f"Path '{project_path}' you have provided does not exist"
-            )
+def generate_project_structure(
+    project_name,
+    project_path,
+    template=LEGACY_PROJECT_TEMPLATE,
+):
+    if not os.path.exists(project_path):
+        raise InvalidValueError(
+            f"Path '{project_path}' you have provided does not exist"
+        )
+    if template not in PROJECT_TEMPLATES:
+        raise InvalidValueError(
+            f"Project template '{template}' is not supported. "
+            f"Choose one of: {', '.join(PROJECT_TEMPLATES)}"
+        )
 
-        full_project_path = os.path.join(project_path, project_name) \
-            if (project_path[-1] != SLASH_SYMBOL) \
-            else project_path + project_name
+    full_project_path = os.path.join(project_path, project_name) \
+        if (project_path[-1] != SLASH_SYMBOL) \
+        else project_path + project_name
 
-        _mkdir(path=full_project_path,
-               fault_message='Folder {} already exists. \nOverride the '
-                             'project? [y/n]: '.format(full_project_path))
+    created = _mkdir(
+        path=full_project_path,
+        fault_message='Folder {} already exists. \nOverride the '
+                      'project? [y/n]: '.format(full_project_path),
+    )
+    if not created:
+        return ABORTED_RETURN_CODE
 
-        path_to_readme = os.path.join(full_project_path, FILE_README)
-        _touch(path_to_readme)
-        readme_template = README_TEMPLATE.replace('project_name', project_name)
-        _write_content_to_file(file=path_to_readme,
-                               content=readme_template)
+    path_to_readme = os.path.join(full_project_path, FILE_README)
+    _touch(path_to_readme)
+    readme_template = README_TEMPLATE.replace('project_name', project_name)
+    _write_content_to_file(file=path_to_readme, content=readme_template)
 
-        default_lambda_policy = _get_lambda_default_policy()
-        _write_content_to_file(file=os.path.join(full_project_path,
-                                                 FILE_DEPLOYMENT_RESOURCES),
-                               content=default_lambda_policy)
+    default_lambda_policy = _get_lambda_default_policy()
+    _write_content_to_file(
+        file=os.path.join(full_project_path, FILE_DEPLOYMENT_RESOURCES),
+        content=default_lambda_policy,
+    )
 
-        _write_content_to_file(os.path.join(full_project_path, FILE_CHANGELOG),
-                               CHANGELOG_TEMPLATE)
-        _write_content_to_file(os.path.join(full_project_path, FILE_GITIGNORE),
-                               GITIGNORE_CONTENT)
-        _LOG.info('Project {} folder has been successfully created.'.format(
-            project_name))
-    except Exception as e:
-        _LOG.exception(str(e))
+    _write_content_to_file(
+        os.path.join(full_project_path, FILE_CHANGELOG),
+        CHANGELOG_TEMPLATE,
+    )
+    _write_content_to_file(
+        os.path.join(full_project_path, FILE_GITIGNORE),
+        GITIGNORE_CONTENT,
+    )
+    if template == PYTHON_STANDARD_TEMPLATE:
+        generate_python_standard_project(
+            full_project_path=full_project_path,
+            project_name=project_name,
+        )
+    _LOG.info('Project {} folder has been successfully created.'.format(
+        project_name))
+    return OK_RETURN_CODE
 
 
 def _generate_python_project_hierarchy(full_project_path, project_name=None):

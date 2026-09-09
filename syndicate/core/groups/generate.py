@@ -26,8 +26,11 @@ from syndicate.core.constants import SYNDICATE_WIKI_PAGE, FAILED_RETURN_CODE, \
 from syndicate.core.decorators import return_code_manager
 from syndicate.core.generators.lambda_function import (
     generate_lambda_function, generate_lambda_layer)
-from syndicate.core.generators.project import (generate_project_structure,
-                                               PROJECT_PROCESSORS)
+from syndicate.core.generators.project import (
+    PROJECT_PROCESSORS,
+    PROJECT_TEMPLATES,
+    generate_project_structure,
+)
 from syndicate.core.generators.swagger_ui import generate_swagger_ui
 from syndicate.core.groups import RUNTIME_JAVA
 from syndicate.core.groups.appsync import appsync
@@ -57,9 +60,12 @@ def generate():
 @click.option('--path', nargs=1,
               help='Path to folder where the project will be created. '
                    'Default value: current working directory')
+@click.option('--template', type=click.Choice(PROJECT_TEMPLATES),
+              default='legacy', show_default=True,
+              help='Project scaffold template')
 @verbose_option
 @timeit()
-def project(name, path):
+def project(name, path, template):
     """
     Generates project with all the necessary components and in a right
     folders/files hierarchy to start developing in a min.
@@ -72,9 +78,11 @@ def project(name, path):
             f"Incorrect permissions for the provided path '{proj_path}'")
         return FAILED_RETURN_CODE
     USER_LOG.info(f'Project path: {proj_path}')
-    generate_project_structure(project_name=name,
-                               project_path=proj_path)
-    return OK_RETURN_CODE
+    return generate_project_structure(
+        project_name=name,
+        project_path=proj_path,
+        template=template,
+    )
 
 
 @generate.command(name='lambda')
