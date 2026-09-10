@@ -9,8 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated the default Python Lambda runtime to `python3.14`.
 - Added optional test dependencies and automated unit-test execution to the package workflow.
 - Added repository guidance for AI coding agents and safe AWS operations.
-- Added the opt-in `python-standard` project template for agent-ready Python
-  AWS Syndicate projects.
+- Added the opt-in `python-standard` project template for agent-ready Python AWS Syndicate projects.
 - Added the detailed Python project structure standard under `docs/`.
 
 # [1.21.3] - 2026-08-03

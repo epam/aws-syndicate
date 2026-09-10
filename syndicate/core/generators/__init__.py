@@ -63,7 +63,7 @@ def _re_survey(answer, project_path):
 
 
 def _write_content_to_file(file, content):
-    with open(file, 'w') as f:
+    with open(file, 'w', encoding='utf-8') as f:
         f.write(content)
 
 

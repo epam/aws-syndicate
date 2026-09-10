@@ -32,6 +32,14 @@ the required environment.
   to the repository.
 - Keep unit tests offline and mock AWS clients at their boundary.
 
+## Agent behavior
+
+- State assumptions and surface ambiguity before editing.
+- Prefer the smallest change that satisfies the request.
+- Match existing structure and avoid speculative abstractions.
+- Change only code and documentation related to the request.
+- Define verifiable success criteria and check them before completion.
+
 ## Change conventions
 
 - Keep active Python runtime references on `python3.14`; historical changelog

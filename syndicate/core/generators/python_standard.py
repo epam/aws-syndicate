@@ -19,6 +19,7 @@ on this AWS Syndicate project.
 - `tests/integration/`: package and CLI boundary tests.
 - `tests/e2e/`: entry-point tests that may require an environment.
 - `docs/`: durable project documentation.
+- `skills/karpathy-guidelines/SKILL.md`: focused coding-change discipline.
 - `skills/verify-project/SKILL.md`: portable project verification procedure.
 
 ## Development commands
@@ -42,6 +43,14 @@ Run `uv lock` after changing `pyproject.toml`. Do not edit `uv.lock` by hand.
 - Confirm the target AWS account, region, and resource scope before an approved
   deployment operation.
 - Never commit credentials, tokens, private keys, or real `.env` files.
+
+## Agent behavior
+
+- State assumptions and surface ambiguity before editing.
+- Prefer the smallest change that satisfies the request.
+- Match existing structure and avoid speculative abstractions.
+- Change only code and documentation related to the request.
+- Define verifiable success criteria and check them before completion.
 
 ## Change workflow
 
@@ -203,6 +212,80 @@ This skill is read-only. It must not edit source files, update `uv.lock`, or
 perform AWS deployments, updates, or cleanup.
 """
 
+PYTHON_STANDARD_KARPATHY_SKILL = """---
+name: karpathy-guidelines
+description: Behavioral guidelines to reduce common LLM coding mistakes. Use when writing, reviewing, or refactoring code to avoid overcomplication, make surgical changes, surface assumptions, and define verifiable success criteria.
+license: MIT
+---
+
+# Karpathy Guidelines
+
+Behavioral guidelines to reduce common LLM coding mistakes, derived from
+[Andrej Karpathy's observations](https://x.com/karpathy/status/2015883857489522876)
+on LLM coding pitfalls.
+
+**Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks,
+use judgment.
+
+## 1. Think Before Coding
+
+**Don't assume. Don't hide confusion. Surface tradeoffs.**
+
+Before implementing:
+- State your assumptions explicitly. If uncertain, ask.
+- If multiple interpretations exist, present them - don't pick silently.
+- If a simpler approach exists, say so. Push back when warranted.
+- If something is unclear, stop. Name what's confusing. Ask.
+
+## 2. Simplicity First
+
+**Minimum code that solves the problem. Nothing speculative.**
+
+- No features beyond what was asked.
+- No abstractions for single-use code.
+- No "flexibility" or "configurability" that wasn't requested.
+- No error handling for impossible scenarios.
+- If you write 200 lines and it could be 50, rewrite it.
+
+Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes,
+simplify.
+
+## 3. Surgical Changes
+
+**Touch only what you must. Clean up only your own mess.**
+
+When editing existing code:
+- Don't "improve" adjacent code, comments, or formatting.
+- Don't refactor things that aren't broken.
+- Match existing style, even if you'd do it differently.
+- If you notice unrelated dead code, mention it - don't delete it.
+
+When your changes create orphans:
+- Remove imports/variables/functions that YOUR changes made unused.
+- Don't remove pre-existing dead code unless asked.
+
+The test: Every changed line should trace directly to the user's request.
+
+## 4. Goal-Driven Execution
+
+**Define success criteria. Loop until verified.**
+
+Transform tasks into verifiable goals:
+- "Add validation" → "Write tests for invalid inputs, then make them pass"
+- "Fix the bug" → "Write a test that reproduces it, then make it pass"
+- "Refactor X" → "Ensure tests pass before and after"
+
+For multi-step tasks, state a brief plan:
+```
+1. [Step] → verify: [check]
+2. [Step] → verify: [check]
+3. [Step] → verify: [check]
+```
+
+Strong success criteria let you loop independently. Weak criteria ("make it
+work") require constant clarification.
+"""
+
 PYTHON_STANDARD_FILES = {
     'AGENTS.md': PYTHON_STANDARD_AGENTS,
     'README.md': PYTHON_STANDARD_README,
@@ -212,6 +295,7 @@ PYTHON_STANDARD_FILES = {
     '.gitignore': PYTHON_STANDARD_GITIGNORE,
     'venv.md': PYTHON_STANDARD_VENV,
     'docs/architecture.md': PYTHON_STANDARD_ARCHITECTURE,
+    'skills/karpathy-guidelines/SKILL.md': PYTHON_STANDARD_KARPATHY_SKILL,
     'skills/verify-project/SKILL.md': PYTHON_STANDARD_SKILL,
     '.env.example': '# Add safe environment-variable names here. Never add secrets.\n',
     'tests/unit/test_scaffold.py': (

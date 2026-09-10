@@ -24,6 +24,7 @@ class TestProjectGenerator(unittest.TestCase):
                 'pyproject.toml',
                 '.python-version',
                 'docs/architecture.md',
+                'skills/karpathy-guidelines/SKILL.md',
                 'skills/verify-project/SKILL.md',
                 'tests/unit/test_scaffold.py',
             )
@@ -39,6 +40,12 @@ class TestProjectGenerator(unittest.TestCase):
             self.assertIn(
                 'name = "orders-api"',
                 (project / 'pyproject.toml').read_text(encoding='utf-8'),
+            )
+            self.assertIn(
+                'Minimum code that solves the problem.',
+                (
+                    project / 'skills/karpathy-guidelines/SKILL.md'
+                ).read_text(encoding='utf-8'),
             )
             self.assertTrue((project / 'lambdas').is_dir())
             self.assertTrue((project / 'commons').is_dir())
