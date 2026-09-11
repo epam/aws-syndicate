@@ -240,14 +240,22 @@ def build_python_lambda_layer(
         zip_dir(str(tmp_artifact_path),
                 str(Path(artifact_path, package_name)))
 
-    if ((Path(cache_dir_path, package_name).exists() or
-        Path(artifact_path, package_name).exists()) and
-            current_req_hash != EMPTY_FILE_HASH):
+    layer_package_path = Path(artifact_path, package_name)
+    dependency_package_path = Path(cache_dir_path, package_name)
+    has_layer_code = layer_package_path.exists()
+    has_dependencies = (
+        current_req_hash != EMPTY_FILE_HASH and
+        dependency_package_path.exists()
+    )
+
+    if has_layer_code or has_dependencies:
         _LOG.info(f"Merging lambda layer code with 3-rd party dependencies")
-        merge_zip_files(str(Path(artifact_path, package_name)),
-                        str(Path(cache_dir_path, package_name)),
-                        str(Path(bundle_dir, package_name)),
-                        output_subfolder=PYTHON_LAMBDA_LAYER_PATH)
+        merge_zip_files(
+            str(layer_package_path),
+            str(dependency_package_path) if has_dependencies else '',
+            str(Path(bundle_dir, package_name)),
+            output_subfolder=PYTHON_LAMBDA_LAYER_PATH,
+        )
     else:
         raise ArtifactAssemblingError(
             f"Layer package cannot be empty. "
