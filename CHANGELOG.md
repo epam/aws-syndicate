@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Deprecated test framework `nose` and replaced it with `nose2` for Python runtime
 - Added `--suite` and `--test-folder-name` options to `syndicate build` command to specify the test suite and test folder name for the build process
 - Fixed an issue where `binary_media_types` were not applied when updating an `api_gateway` resource
+- Fixed Python Lambda layer packaging when `requirements.txt` is empty or absent
 
 # [1.21.2] - 2026-07-01
 - Fixed Python lambda function dependencies resolving issue when it conflicted with aws-syndicate dependencies
