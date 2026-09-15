@@ -1048,6 +1048,22 @@
                 1,
                 4
               ]
+            },
+            {
+              "index": 10,
+              "name": "api_gw_binary_media_types",
+              "description": "Check if API Gateway binary media types were applied on create",
+              "resources": {
+                "sdct-at-api-gw": {
+                  "binary_media_types": [
+                    "application/octet-stream"
+                  ]
+                }
+              },
+              "depends_on": [
+                1,
+                4
+              ]
             }
           ]
         }
@@ -1332,6 +1348,23 @@
                         "GET": true
                       }
                     }
+                  ]
+                }
+              },
+              "depends_on": [
+                1,
+                2
+              ]
+            },
+            {
+              "index": 10,
+              "name": "api_gw_binary_media_types",
+              "description": "Check if API Gateway binary media types were updated",
+              "resources": {
+                "sdct-at-api-gw": {
+                  "binary_media_types": [
+                    "multipart/form-data",
+                    "image/png"
                   ]
                 }
               },

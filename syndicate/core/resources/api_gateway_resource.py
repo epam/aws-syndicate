@@ -594,6 +594,9 @@ class ApiGatewayResource(BaseResource):
         self.connection.update_compression_size(
             rest_api_id=api_id,
             compression_size=minimum_compression_size)
+        self.connection.update_binary_media_types(
+            rest_api_id=api_id,
+            binary_media_types=meta.get('binary_media_types'))
 
         _LOG.debug(f'Deploying API Gateway {api_id}')
         self.__deploy_api_gateway(api_id, meta, meta_api_resources)

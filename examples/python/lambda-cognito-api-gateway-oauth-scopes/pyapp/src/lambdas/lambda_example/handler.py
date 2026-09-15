@@ -15,118 +15,183 @@
 """
 import json
 import os
+from http import HTTPStatus, HTTPMethod
 
 import boto3
+
+from commons.constants import SAMPLE_OBJECTS
+from commons.http_utils import build_response, get_authorizer_claims, parse_body
+
 
 cognito_client = boto3.client(
     service_name='cognito-idp',
     region_name=os.environ.get('region', 'eu-central-1')
 )
-CUP_ID = os.environ.get('cup_id')
+USER_POOL_ID = os.environ.get('cup_id')
 CLIENT_ID = os.environ.get('cup_client_id')
 
-PETS = [
-    {"id": "1", "name": "Buddy", "species": "dog"},
-    {"id": "2", "name": "Whiskers", "species": "cat"},
-    {"id": "3", "name": "Goldie", "species": "fish"},
-]
 
-
-def lambda_handler(event, context):
-    """
-    Handles API Gateway proxy requests.
-    By the time this is invoked, Cognito has already validated
-    the access_token AND verified the required OAuth scopes.
-    """
-    http_method = event.get('httpMethod', '')
-    path = event.get('resource', '')
-    path_params = event.get('pathParameters') or {}
-    body = json.loads(event.get('body') or '{}')
-    email = body.get('email')
+def _sign_up(event):
+    body = parse_body(event)
+    username = body.get('username')
     password = body.get('password')
-
-    # Log token claims for debugging
-    claims = (event.get('requestContext', {})
-              .get('authorizer', {})
-              .get('claims', {}))
-    print(f"Token claims: {json.dumps(claims, default=str)}")
-    print(f"Scopes in token: {claims.get('scope', 'N/A')}")
+    email = body.get('email')
+    if not all([username, password, email]):
+        raise ValueError('username, password, and email are required')
 
     try:
-        if path == '/login' and http_method == 'POST':
-            return login(email, password)
-        elif path == '/signup' and http_method == 'POST':
-            return signup(email, password)
-        elif path == '/pets' and http_method == 'GET':
-            return _response(200, PETS)
-
-        elif path == '/pets' and http_method == 'POST':
-            body = json.loads(event.get('body', '{}'))
-            new_pet = {
-                "id": str(len(PETS) + 1),
-                "name": body.get("name", "Unknown"),
-                "species": body.get("species", "unknown"),
-            }
-            PETS.append(new_pet)
-            return _response(201, new_pet)
-
-        elif path == '/pets/{pet_id}' and http_method == 'GET':
-            pet_id = path_params.get('pet_id')
-            pet = next((p for p in PETS if p['id'] == pet_id), None)
-            if pet:
-                return _response(200, pet)
-            return _response(404, {"message": f"Pet {pet_id} not found"})
-
-        else:
-            return _response(404, {"message": 'Unknown request path'})
-
-    except Exception as e:
-        print(f"Error: {str(e)}")
-        return _response(500, {"message": "Internal server error"})
-
-
-def signup(email, password):
-    custom_attr = [{
-        'Name': 'email',
-        'Value': email
-    }]
-    try:
-        cognito_client.sign_up(
-            ClientId=CLIENT_ID,
-            Username=email,
+        response = cognito_client.admin_create_user(
+            UserPoolId=USER_POOL_ID,
+            Username=username,
+            TemporaryPassword=password,
+            UserAttributes=[
+                {'Name': 'email', 'Value': email},
+                {'Name': 'email_verified', 'Value': 'true'},
+            ],
+            MessageAction='SUPPRESS',
+            DesiredDeliveryMediums=['EMAIL']
+        )
+        cognito_client.admin_set_user_password(
+            UserPoolId=USER_POOL_ID,
+            Username=username,
             Password=password,
-            UserAttributes=custom_attr)
-        cognito_client.admin_confirm_sign_up(
-            UserPoolId=CUP_ID, Username=email)
-    except Exception as e:
-        print(str(e))
-        return _response(400, {'message': f'Cannot create user {email}.'})
+            Permanent=True
+        )
+    except Exception as exc:
+        return build_response(HTTPStatus.CONFLICT, {'message': str(exc)})
 
-    return _response(200, {'message': f'User {email} was created.'})
+    user = response['User']
+    user_sub = next(
+        (attr['Value'] for attr in user.get('Attributes', [])
+         if attr['Name'] == 'sub'),
+        None
+    )
+    if not user_sub:
+        raise RuntimeError('Sub not found.')
 
-
-def login(email, password):
-    auth_result = cognito_client.admin_initiate_auth(
-        UserPoolId=CUP_ID,
-        ClientId=CLIENT_ID,
-        AuthFlow='ADMIN_USER_PASSWORD_AUTH',
-        AuthParameters={
-            'USERNAME': email,
-            'PASSWORD': password
-        })
-
-    return _response(200, {
-        'id_token': auth_result['AuthenticationResult']['IdToken'],
-        'access_token': auth_result['AuthenticationResult']['AccessToken']
+    return build_response(HTTPStatus.CREATED, {
+        'userSub': user_sub,
+        'username': user['Username'],
+        'userConfirmed': user.get('UserStatus') == 'CONFIRMED'
     })
 
 
-def _response(status_code, body):
-    return {
-        "statusCode": status_code,
-        "headers": {
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
-        },
-        "body": json.dumps(body),
+def _sign_in(event):
+    body = parse_body(event)
+    username = body.get('username')
+    password = body.get('password')
+    if not all([username, password]):
+        raise ValueError('username and password are required')
+
+    try:
+        auth_result = cognito_client.admin_initiate_auth(
+            UserPoolId=USER_POOL_ID,
+            ClientId=CLIENT_ID,
+            AuthFlow='ADMIN_USER_PASSWORD_AUTH',
+            AuthParameters={
+                'USERNAME': username,
+                'PASSWORD': password
+            },
+        )
+    except Exception as exc:
+        return build_response(HTTPStatus.UNAUTHORIZED, {'message': str(exc)})
+
+    tokens = auth_result['AuthenticationResult']
+    return build_response(HTTPStatus.OK, {
+        'idToken': tokens['IdToken'],
+        'accessToken': tokens['AccessToken'],
+        'refreshToken': tokens['RefreshToken'],
+        'expiresIn': tokens['ExpiresIn'],
+        'tokenType': tokens.get('TokenType', 'Bearer')
+    })
+
+
+def _refresh_token(event):
+    body = parse_body(event)
+    username = body.get('username')
+    refresh_token = body.get('refreshToken')
+    if not all([username, refresh_token]):
+        raise ValueError('username and refreshToken are required')
+
+    try:
+        auth_result = cognito_client.admin_initiate_auth(
+            UserPoolId=USER_POOL_ID,
+            ClientId=CLIENT_ID,
+            AuthFlow='REFRESH_TOKEN_AUTH',
+            AuthParameters={
+                'USERNAME': username,
+                'REFRESH_TOKEN': refresh_token,
+            },
+        )
+    except Exception as exc:
+        return build_response(HTTPStatus.UNAUTHORIZED, {'message': str(exc)})
+
+    tokens = auth_result['AuthenticationResult']
+    return build_response(HTTPStatus.OK, {
+        'idToken': tokens['IdToken'],
+        'accessToken': tokens['AccessToken'],
+        'expiresIn': tokens['ExpiresIn'],
+        'tokenType': tokens.get('TokenType', 'Bearer'),
+    })
+
+
+def _sign_out(event):
+    claims = get_authorizer_claims(event)
+    username = claims.get('username')
+    if not username:
+        return build_response(
+            HTTPStatus.UNAUTHORIZED, {'message': 'Unauthorized'}
+        )
+
+    try:
+        cognito_client.admin_user_global_sign_out(
+            UserPoolId=USER_POOL_ID,
+            Username=username,
+        )
+    except Exception as exc:
+        return build_response(HTTPStatus.UNAUTHORIZED, {'message': str(exc)})
+
+    return build_response(HTTPStatus.NO_CONTENT)
+
+
+def _list_objects(event):
+    return build_response(HTTPStatus.OK, SAMPLE_OBJECTS)
+
+
+def lambda_handler(event, context):
+    http_method = event.get('httpMethod', '')
+    path = event.get('path', '')
+    route = (http_method, path)
+
+    claims = get_authorizer_claims(event)
+    if claims:
+        print(f'Token claims: {json.dumps(claims, default=str)}')
+        print(f"Scopes in token: {claims.get('scope', 'N/A')}")
+
+    handlers = {
+        (HTTPMethod.POST, '/auth/sign-up'): _sign_up,
+        (HTTPMethod.POST, '/auth/sign-in'): _sign_in,
+        (HTTPMethod.POST, '/auth/refresh-token'): _refresh_token,
+        (HTTPMethod.POST, '/auth/sign-out'): _sign_out,
+        (HTTPMethod.GET, '/objects/public'): _list_objects,
+        (HTTPMethod.GET, '/objects/secured-by-id-token'): _list_objects,
+        (HTTPMethod.GET, '/objects/secured-by-access-token'): _list_objects
     }
+
+    handler = handlers.get(route)
+    if handler is None:
+        return build_response(
+            HTTPStatus.NOT_FOUND,
+            {'message': f'Route not implemented: {http_method} {path}'}
+        )
+
+    try:
+        return handler(event)
+    except ValueError as exc:
+        return build_response(HTTPStatus.BAD_REQUEST, {'message': str(exc)})
+    except Exception as exc:
+        print(f'Error handling {http_method} {path}: {exc}')
+        return build_response(
+            HTTPStatus.INTERNAL_SERVER_ERROR,
+            {'message': 'Internal server error'}
+        )

@@ -88,6 +88,9 @@
   "sdct-at-api-gw": {
     "resource_type": "api_gateway",
     "deploy_stage": "api",
+    "binary_media_types": [
+      "application/octet-stream"
+    ],
     "dependencies": [],
     "authorizers": {
       "authorizer": {

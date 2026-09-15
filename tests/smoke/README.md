@@ -343,6 +343,22 @@ each API stage. If `methods` should be in API GW than its value should be set to
               }
           }
         ```
+- `api_gw_binary_media_types` - Checks `binaryMediaTypes` on a REST API Gateway.
+  - parameters:
+    - `resources` (dict) [REQUIRED] - API Gateway name to expected binary media types list.
+        structure:
+        ```json5
+          {
+              "resources": {
+                "api_gw_name": {
+                  "binary_media_types": [
+                    "multipart/form-data",
+                    "image/png"
+                  ]
+                }
+              }
+          }
+        ```
 
 ### Temporary checks conditions
 - Use tags from `tests/smoke/sdct-at-ddis/.syndicate-config/syndicate.yml` unless change them in happy_path_config.json:

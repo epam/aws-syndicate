@@ -2,7 +2,7 @@
 * 1 Lambda function;
 * 1 IAM role attached to lambda;
 * 1 Custom IAM policy attached to role;
-* 1 DynamoDB Table
+* 1 DynamoDB Table;
 * 1 API Gateway
 
 #### To deploy this example:
