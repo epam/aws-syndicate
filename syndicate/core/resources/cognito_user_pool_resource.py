@@ -114,12 +114,8 @@ class CognitoUserPoolResource(BaseResource):
         if policies:
             policies = self.__validate_policies(policies)
 
-        user_attribute_update_settings = meta.get(
-            'user_attribute_update_settings')
-        if user_attribute_update_settings:
-            user_attribute_update_settings = \
-                dict_keys_to_capitalized_camel_case(
-                    user_attribute_update_settings)
+        attributes_require_verification_before_update = meta.get(
+            'attributes_require_verification_before_update')
         lambda_config = meta.get('lambda_config')
         if lambda_config:
             lambda_config = dict_keys_to_capitalized_camel_case(lambda_config)
@@ -139,7 +135,8 @@ class CognitoUserPoolResource(BaseResource):
             sms_configuration=sms_configuration,
             username_attributes=username_attributes, policies=policies,
             tags=meta.get('tags'),
-            user_attribute_update_settings=user_attribute_update_settings,
+            attributes_require_verification_before_update=(
+                attributes_require_verification_before_update),
             deletion_protection=meta.get('deletion_protection'),
             lambda_config=lambda_config,
             account_recovery_setting=account_recovery_setting,

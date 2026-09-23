@@ -5,7 +5,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 # [1.22.0] - Unreleased
-- Added `deletion_protection`, `lambda_config`, `user_attribute_update_settings`,
+- Added `deletion_protection`, `lambda_config`, `attributes_require_verification_before_update`,
   `account_recovery_setting`, and `verification_message_template` parameters for Cognito User Pools
 - Added `mutable` parameter for Cognito custom attributes
 - Added `access_token_validity`, `id_token_validity`, `token_validity_units`, `enable_propagate_additional_user_context_data`, `auth_session_validity`,

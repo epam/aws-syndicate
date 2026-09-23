@@ -41,7 +41,7 @@ class CognitoIdentityProviderConnection(object):
     def create_user_pool(self, pool_name, auto_verified_attributes=None,
                          sms_configuration=None, username_attributes=None,
                          policies=None, tags=None,
-                         user_attribute_update_settings=None,
+                         attributes_require_verification_before_update=None,
                          deletion_protection=None, lambda_config=None,
                          account_recovery_setting=None,
                          verification_message_template=None):
@@ -59,9 +59,11 @@ class CognitoIdentityProviderConnection(object):
             params['Policies'] = policies
         if tags:
             params['UserPoolTags'] = tags
-        if user_attribute_update_settings:
-            params['UserAttributeUpdateSettings'] = \
-                user_attribute_update_settings
+        if attributes_require_verification_before_update is not None:
+            params['UserAttributeUpdateSettings'] = {
+                'AttributesRequireVerificationBeforeUpdate':
+                    attributes_require_verification_before_update
+            }
         if deletion_protection:
             params['DeletionProtection'] = deletion_protection
         if lambda_config:
