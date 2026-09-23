@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [1.22.0] - Unreleased
+- Added `deletion_protection`, `lambda_config`, `attributes_require_verification_before_update`,
+  `account_recovery_setting`, and `verification_message_template` parameters for Cognito User Pools
+- Added `mutable` parameter for Cognito custom attributes
+- Added `access_token_validity`, `id_token_validity`, `token_validity_units`, `enable_propagate_additional_user_context_data`, `auth_session_validity`,
+  and `refresh_token_rotation` parameters for Cognito User Pool clients
+
 # [1.21.3] - 2026-08-03
 - Improved pytest/nose2 integration in syndicate test and build commands
 - Deprecated test framework `nose` and replaced it with `nose2` for Python runtime

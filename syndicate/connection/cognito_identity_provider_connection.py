@@ -40,7 +40,11 @@ class CognitoIdentityProviderConnection(object):
 
     def create_user_pool(self, pool_name, auto_verified_attributes=None,
                          sms_configuration=None, username_attributes=None,
-                         policies=None, tags=None):
+                         policies=None, tags=None,
+                         attributes_require_verification_before_update=None,
+                         deletion_protection=None, lambda_config=None,
+                         account_recovery_setting=None,
+                         verification_message_template=None):
         """
         Crete Cognito user pool and get user pool id.
         """
@@ -55,6 +59,20 @@ class CognitoIdentityProviderConnection(object):
             params['Policies'] = policies
         if tags:
             params['UserPoolTags'] = tags
+        if attributes_require_verification_before_update is not None:
+            params['UserAttributeUpdateSettings'] = {
+                'AttributesRequireVerificationBeforeUpdate':
+                    attributes_require_verification_before_update
+            }
+        if deletion_protection:
+            params['DeletionProtection'] = deletion_protection
+        if lambda_config:
+            params['LambdaConfig'] = lambda_config
+        if account_recovery_setting:
+            params['AccountRecoverySetting'] = account_recovery_setting
+        if verification_message_template:
+            params['VerificationMessageTemplate'] = \
+                verification_message_template
 
         response = self.client.create_user_pool(**params)
         return response['UserPool'].get('Id')
@@ -62,6 +80,8 @@ class CognitoIdentityProviderConnection(object):
     def create_user_pool_client(
             self, user_pool_id, client_name, generate_secret=True,
             refresh_token_validity=None,
+            access_token_validity=None, id_token_validity=None,
+            token_validity_units=None,
             read_attributes=None,
             write_attributes=None, explicit_auth_flows=None,
             supported_identity_providers=None,
@@ -69,11 +89,19 @@ class CognitoIdentityProviderConnection(object):
             allowed_oauth_flows=None, allowed_oauth_scopes=None,
             allowed_oauth_flows_user_pool_client=None,
             analytics_configuration=None, prevent_user_existence_errors=None,
-            enable_token_revocation=None):
+            enable_token_revocation=None,
+            enable_propagate_additional_user_context_data=None,
+            auth_session_validity=None, refresh_token_rotation=None):
         params = dict(UserPoolId=user_pool_id, ClientName=client_name,
                       GenerateSecret=generate_secret)
         if refresh_token_validity:
             params.update(RefreshTokenValidity=refresh_token_validity)
+        if access_token_validity:
+            params.update(AccessTokenValidity=access_token_validity)
+        if id_token_validity:
+            params.update(IdTokenValidity=id_token_validity)
+        if token_validity_units:
+            params.update(TokenValidityUnits=token_validity_units)
         if read_attributes:
             params.update(ReadAttributes=read_attributes)
         if write_attributes:
@@ -103,6 +131,13 @@ class CognitoIdentityProviderConnection(object):
                 PreventUserExistenceErrors=prevent_user_existence_errors)
         if enable_token_revocation:
             params.update(EnableTokenRevocation=enable_token_revocation)
+        if enable_propagate_additional_user_context_data is not None:
+            params.update(EnablePropagateAdditionalUserContextData=
+                          enable_propagate_additional_user_context_data)
+        if auth_session_validity:
+            params.update(AuthSessionValidity=auth_session_validity)
+        if refresh_token_rotation:
+            params.update(RefreshTokenRotation=refresh_token_rotation)
 
         response = self.client.create_user_pool_client(**params)
         return response['UserPoolClient'].get('ClientId')
