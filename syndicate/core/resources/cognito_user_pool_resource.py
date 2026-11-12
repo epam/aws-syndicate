@@ -13,6 +13,8 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+from typing import Any
+
 from botocore.exceptions import ClientError
 
 from syndicate.commons.log_helper import get_logger
@@ -65,7 +67,7 @@ class CognitoUserPoolResource(BaseResource):
                 raise e
 
     @unpack_kwargs
-    def _create_cognito_user_pool_from_meta(self, name, meta):
+    def _create_cognito_user_pool_from_meta(self, name: str, meta: dict[str, Any]):
         """ Create Cognito user pool for authentication.
 
         :type name: str
@@ -112,20 +114,54 @@ class CognitoUserPoolResource(BaseResource):
         if policies:
             policies = self.__validate_policies(policies)
 
+        attributes_require_verification_before_update = meta.get(
+            'attributes_require_verification_before_update')
+        lambda_config = meta.get('lambda_config')
+        if lambda_config:
+            lambda_config = dict_keys_to_capitalized_camel_case(lambda_config)
+        account_recovery_setting = meta.get('account_recovery_setting')
+        if account_recovery_setting:
+            account_recovery_setting = dict_keys_to_capitalized_camel_case(
+                account_recovery_setting)
+        verification_message_template = meta.get(
+            'verification_message_template')
+        if verification_message_template:
+            verification_message_template = \
+                dict_keys_to_capitalized_camel_case(
+                    verification_message_template)
+
         pool_id = self.connection.create_user_pool(
             pool_name=name, auto_verified_attributes=auto_verified_attributes,
             sms_configuration=sms_configuration,
             username_attributes=username_attributes, policies=policies,
-            tags=meta.get('tags'))
+            tags=meta.get('tags'),
+            attributes_require_verification_before_update=(
+                attributes_require_verification_before_update),
+            deletion_protection=meta.get('deletion_protection'),
+            lambda_config=lambda_config,
+            account_recovery_setting=account_recovery_setting,
+            verification_message_template=verification_message_template)
 
         custom_attributes = meta.get('custom_attributes')
         if custom_attributes:
             self.add_custom_attributes(pool_id, custom_attributes)
         client = meta.get('client')
         if client:
+            client = client.copy()
+
+            token_validity_units = client.get('token_validity_units')
+            if token_validity_units:
+                client['token_validity_units'] = \
+                    dict_keys_to_capitalized_camel_case(token_validity_units)
+
+            refresh_token_rotation = client.get('refresh_token_rotation')
+            if refresh_token_rotation:
+                client['refresh_token_rotation'] = \
+                    dict_keys_to_capitalized_camel_case(
+                        refresh_token_rotation)
             self.connection.create_user_pool_client(
                 user_pool_id=pool_id, **client)
-        _LOG.info('Created cognito user pool %s', pool_id)
+        _LOG.info(f'Created cognito user pool {pool_id}')
         return self.describe_user_pool(name=name, meta=meta, pool_id=pool_id)
 
     def remove_cognito_user_pools(self, args):
@@ -167,6 +203,7 @@ class CognitoUserPoolResource(BaseResource):
     def add_custom_attributes(self, user_pool_id, attributes):
         custom_attributes = []
         for attr in attributes:
+            attr = attr.copy()
             attr['attribute_data_type'] = attr.pop('type')
             custom_attributes.append(dict_keys_to_capitalized_camel_case(attr))
         self.connection.add_custom_attributes(user_pool_id, custom_attributes)
